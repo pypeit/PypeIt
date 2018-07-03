@@ -16,10 +16,7 @@ import signal
 import warnings
 
 # Set version
-__version__ = '0.8.0.dev0'
-# TODO: Do we need this?  A release should be tied to a date, and the
-# date information could be put in the CHANGES.rst
-__last_updated__ = '23Mar2018'
+__version__ = '0.8.0dev'
 
 # Import and instantiate the logger
 from pypit import armsgs

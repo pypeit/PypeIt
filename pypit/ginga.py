@@ -124,7 +124,7 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pste
         lordloc = lord_in.reshape(lord_in.size,1)
         rordloc = rord_in.reshape(rord_in.size,1)
 
-    if slit_ids == None:
+    if slit_ids is None:
         slit_ids = [str(slit) for slit in np.arange(nslit)]
 
     # Canvas

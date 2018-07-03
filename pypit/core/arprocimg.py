@@ -303,50 +303,7 @@ def lacosmic(det, sciframe, settings_det, maxiter=1, grow=1.5,
     filty = ndimage.sobel(filt/np.sqrt(np.abs(sciframe)), axis=0, mode='constant')
     filty[np.where(np.isnan(filty))]=0.0
 
-    # Old cr_screen can yield nan pixels, new one does not, meaning that
-    # there are differences between the returned arrays.  For all
-    # non-nan pixels, the two algorithms are identical.
-#    print('calling cr_screen')
-#    t = time.clock()
-#    _sigimg  = arcyproc.cr_screen(filty,0.0)
-#    print('Old cr_screen: {0} seconds'.format(time.clock() - t))
-#    print(np.sum(np.invert(np.isfinite(_sigimg))))
-#    t = time.clock()
-    sigimg  = new_cr_screen(filty)
-#    print('New cr_screen: {0} seconds'.format(time.clock() - t))
-#    print(np.sum(np.invert(np.isfinite(sigimg))))
-#    if np.sum(_sigimg != sigimg) != 0:
-#        plt.imshow(_sigimg, origin='lower', interpolation='nearest', aspect='auto')
-#        plt.show()
-#        plt.imshow(sigimg, origin='lower', interpolation='nearest', aspect='auto')
-#        plt.show()
-#        plt.imshow(_sigimg-sigimg, origin='lower', interpolation='nearest', aspect='auto')
-#        plt.colorbar()
-#        plt.show()
-#        r = np.ma.divide(_sigimg,sigimg)-1
-#        print(np.ma.sum(r))
-#        plt.imshow(np.ma.divide(_sigimg,sigimg)-1, origin='lower', interpolation='nearest', aspect='auto')
-#        plt.colorbar()
-#        plt.show()
-#    assert np.sum(_sigimg != sigimg) == 0, 'Difference between old and new cr_screen'
-
-#    print(sigimg.shape)
-#    print(new_sigimg.shape)
-#    print(np.ma.mean(np.ma.log10(sigimg)))
-#    print(np.ma.mean(np.ma.log10(new_sigimg)))
-#    print(np.ma.mean(np.ma.log10(sigimg)-np.ma.log10(new_sigimg)))
-#
-#    plt.imshow(np.ma.log10(sigimg), origin='lower', interpolation='nearest', aspect='auto')
-#    plt.colorbar()
-#    plt.show()
-#
-#    plt.imshow(np.ma.log10(new_sigimg), origin='lower', interpolation='nearest', aspect='auto')
-#    plt.colorbar()
-#    plt.show()
-#
-#    plt.imshow(np.ma.log10(new_sigimg)-np.ma.log10(sigimg), origin='lower', interpolation='nearest', aspect='auto')
-#    plt.colorbar()
-#    plt.show()
+    sigimg = cr_screen(filty)
 
     sigsmth = ndimage.filters.gaussian_filter(sigimg,1.5)
     sigsmth[np.where(np.isnan(sigsmth))]=0.0
@@ -354,19 +311,12 @@ def lacosmic(det, sciframe, settings_det, maxiter=1, grow=1.5,
     sigmask[np.where(sigsmth>sigclip)] = True
     crmask = np.logical_and(crmask, sigmask)
     msgs.info("Growing cosmic ray mask by 1 pixel")
-#    print('calling grow_masked')
-#    t = time.clock()
-#    _crmask = arcyutils.grow_masked(crmask.astype(np.float), grow, 1.0)
-#    print('Old grow_masked: {0} seconds'.format(time.clock() - t))
-#    t = time.clock()
-    crmask = new_grow_masked(crmask.astype(np.float), grow, 1.0)
-#    print('New grow_masked: {0} seconds'.format(time.clock() - t))
-#    assert np.sum(_crmask != crmask) == 0, 'Difference between old and new grow_masked'
+    crmask = grow_masked(crmask.astype(np.float), grow, 1.0)
 
     return crmask
 
 
-def new_cr_screen(a, mask_value=0.0, spatial_axis=1):
+def cr_screen(a, mask_value=0.0, spatial_axis=1):
     r"""
     Calculate the significance of pixel deviations from the median along
     the spatial direction.
@@ -406,7 +356,7 @@ def new_cr_screen(a, mask_value=0.0, spatial_axis=1):
     return np.ma.divide(d, mada[:,None]).filled(mask_value)
 
 
-def new_grow_masked(img, grow, growval):
+def grow_masked(img, grow, growval):
 
     if not np.any(img == growval):
         return img
@@ -442,6 +392,7 @@ def gain_frame(datasec_img, namp, gain_list):
     datasec_img : ndarray
     namp : int
     gain_list : list
+    # TODO need to beef up the docs here
 
     Returns
     -------
@@ -720,8 +671,8 @@ def variance_frame(datasec_img, det, sciframe, settings_det=None,
         if dnoise is None:
             dnoise = (settings_det['darkcurr'] * float(fitsdict["exptime"][idx])/3600.0)
         # Return
-        #varframe = np.abs(sciframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise + dnoise
-        #return varframe
-        return np.abs(sciframe.copy()) + rnoise + dnoise
+        varframe = np.abs(sciframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise + dnoise
+        return varframe
+#        return np.abs(sciframe.copy()) + rnoise + dnoise
 
 

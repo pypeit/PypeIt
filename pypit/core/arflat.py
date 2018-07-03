@@ -812,15 +812,7 @@ def flatnorm(slf, det, msflat, bpix, maskval=-999999.9, overpix=6, plotdesc=""):
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
 
-#    print('calling order_pixels')
-#    t = time.clock()
-#    _ordpix = arcyutils.order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
-#    print('Old order_pixels: {0} seconds'.format(time.clock() - t))
-#    t = time.clock()
-    ordpix = new_order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
-#    print('New order_pixels: {0} seconds'.format(time.clock() - t))
-#    assert np.sum(_ordpix != ordpix) == 0, \
-#                    'Difference between old and new order_pixels'
+    ordpix = order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
 
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-bpix.astype(np.int))

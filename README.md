@@ -13,16 +13,17 @@ http://pypit.readthedocs.io
 * Lick/APF (planned)
 
 # Requirements
+
+(see `./pypit/requirements.txt`)
+
 * python
 * numpy
 * scipy
+* matplotlib
+* astropy
 * ginga
 * h5py
-* cython
-* astropy
 * future
-* matplotlib
-* GNU Scientific Library
 * PyYAML
 * linetools
 

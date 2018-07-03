@@ -194,6 +194,9 @@
 - Other odds and ends including code flow doc
 - Introduce pypit/par and pypit/config directories
 - Introduce PypitPar as an initial step toward refactoring the front end
+- Final nail in the coffin for cython
+- Add API docs
+- Add bumpversion
 
 - Adds a demo Notebook for LRISr redux
 - Other odds and ends including code flow doc

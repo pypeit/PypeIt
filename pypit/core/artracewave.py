@@ -110,7 +110,7 @@ def analyze_lines(msarc, trcdict, slit, pixcen, tilt_settings, maskval=-999999.9
     return badlines, all_tilts
 
 
-def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
+def tilts_image(tilts, lordloc, rordloc, pad, sz_y):
     """
     Using the tilt (assumed to be fit with a first order polynomial)
     generate an image of the tilts for each slit.
@@ -171,6 +171,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
                tracethresh=1000.0, nsmth=0):
 
+    # TODO Please expand these docs! This is no simple code.
     Parameters
     ----------
     slf
@@ -199,11 +200,11 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
         indict["wmask"].append(None)
         return indict
 
-    # from pypit import arcyutils
     dnum = arparse.get_dnum(det)
 
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
     tampl, tcent, twid, w, _ = ararc.detect_lines(censpec)
+
     satval = settings_det['saturation']*settings_det['nonlinear']
     # Order of the polynomials to be used when fitting the tilts.
     arcdet = (tcent[w]+0.5).astype(np.int)
@@ -371,11 +372,14 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
             # yfit = msarc[pcen-nspecfit:pcen+nspecfit+1,ordcen[arcdet[j],0]-k]
             yfit = msarc[pcen - nspecfit:pcen + nspecfit + 1,
                    ordcen[arcdet[j], slitnum] - k - nsmth:ordcen[arcdet[j], slitnum] - k + nsmth + 1]
-            if len(yfit.shape) == 2:
-                yfit = np.median(yfit, axis=1)
+            # check whether the yfit is offchip FW
             if np.size(yfit) == 0:
                 offchip = True
                 break
+            elif len(yfit.shape) == 2:
+                yfit = np.median(yfit, axis=1)
+            else:
+                pass
             wgd = np.where(yfit == maskval)
             if wgd[0].size != 0:
                 continue
@@ -387,6 +391,9 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
                 sumxw = yfit * (pcen+xfit) * wfit
                 sumw = yfit * wfit
                 centv = np.sum(sumxw)/np.sum(sumw)
+                #if np.isfinite(centv) == False: # debugging
+                #    from IPython import embed
+                #    embed()
                 fail = False
             elif method == "cc":
                 # Get a copy of the array that will be used to cross-correlate
@@ -412,7 +419,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
                 mtfit[sz-k] = 1
             else:
                 #from IPython import embed
-                if np.isfinite(centv) is False: debugger.set_trace() #embed()
+                if np.isfinite(centv) == False: debugger.set_trace() #embed()
                 pcen = int(0.5 + centv)
                 mtfit[sz-k] = 0
 
@@ -652,16 +659,8 @@ def echelle_tilt(slf, msarc, det, settings_argflag, settings_spect, pcadesc="PCA
             tilts = np.zeros_like(slf._lordloc)
 
     # Generate tilts image
-#    print('calling tilts_image')
-#    t = time.clock()
-#    _tiltsimg = arcytrace.tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
-#                                     settings.argflag['trace']['slits']['pad'], msarc.shape[1])
-#    print('Old tilts_image: {0} seconds'.format(time.clock() - t))
-#    t = time.clock()
-    tiltsimg = new_tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
-                                settings_argflag['trace']['slits']['pad'], msarc.shape[1])
-#    print('New tilts_image: {0} seconds'.format(time.clock() - t))
-#    assert np.sum(_tiltsimg != tiltsimg) == 0, 'Difference between old and new tilts_image'
+    tiltsimg = tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
+                           settings_argflag['trace']['slits']['pad'], msarc.shape[1])
 
     return tiltsimg, satmask, outpar
 
