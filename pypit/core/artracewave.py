@@ -373,11 +373,14 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
             # yfit = msarc[pcen-nspecfit:pcen+nspecfit+1,ordcen[arcdet[j],0]-k]
             yfit = msarc[pcen - nspecfit:pcen + nspecfit + 1,
                    ordcen[arcdet[j], slitnum] - k - nsmth:ordcen[arcdet[j], slitnum] - k + nsmth + 1]
-            if len(yfit.shape) == 2:
-                yfit = np.median(yfit, axis=1)
+            # check whether the yfit is offchip FW
             if np.size(yfit) == 0:
                 offchip = True
                 break
+            elif len(yfit.shape) == 2:
+                yfit = np.median(yfit, axis=1)
+            else:
+                pass
             wgd = np.where(yfit == maskval)
             if wgd[0].size != 0:
                 continue
@@ -389,6 +392,9 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
                 sumxw = yfit * (pcen+xfit) * wfit
                 sumw = yfit * wfit
                 centv = np.sum(sumxw)/np.sum(sumw)
+                #if np.isfinite(centv) == False: # debugging
+                #    from IPython import embed
+                #    embed()
                 fail = False
             elif method == "cc":
                 # Get a copy of the array that will be used to cross-correlate
@@ -414,7 +420,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
                 mtfit[sz-k] = 1
             else:
                 #from IPython import embed
-                if np.isfinite(centv) is False: debugger.set_trace() #embed()
+                if np.isfinite(centv) == False: debugger.set_trace() #embed()
                 pcen = int(0.5 + centv)
                 mtfit[sz-k] = 0
 
