@@ -1452,7 +1452,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
             specobjs.append(specobj)
 
     objmask = np.zeros_like(thismask, dtype=bool)
-    skymask = thismask
+    skymask = np.copy(thismask)
     nobj = len(specobjs)
     # If there are no regular aps and no hand aps, just return
     #if nobj == 0:
