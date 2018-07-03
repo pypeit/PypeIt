@@ -1121,6 +1121,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     from pypit.arpixels import core_slit_pixels, ximg_and_edgemask
     from pypit.arutils import find_nminima
     from pypit.core.artraceslits import trace_fweight, trace_gweight
+    import scipy
 
     # Check that PEAK_THRESH values make sense
     if ((PEAK_THRESH >=0.0) & (PEAK_THRESH <=1.0)) == False:
