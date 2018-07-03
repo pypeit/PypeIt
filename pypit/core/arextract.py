@@ -1216,7 +1216,6 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     npeak = len(xcen)
 
     specobjs =[]
-
     # Choose which ones to keep and discard based on threshold params. Create SpecObj objects
     if npeak > 0:
         # Possible thresholds    [significance,  fraction of brightest, absolute]
@@ -1240,6 +1239,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     else:
         nobj_reg = 0
 
+    #ToDo
     # Now loop over all the regular apertures and assign preliminary traces to them.
     for iobj in range(nobj_reg):
         # Was a standard trace provided? If so, use that as a crutch.
@@ -1526,7 +1526,6 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
                 color = 'green'
             else:
                 color = 'orange'
-            from IPython import embed
             ginga.show_trace(viewer, ch,specobjs[iobj].trace_spat, trc_name = specobjs[iobj].idx, color=color)
 
 
