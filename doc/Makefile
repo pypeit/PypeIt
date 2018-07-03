@@ -53,7 +53,7 @@ help:
 clean:
 	rm -rf $(BUILDDIR)/*
 	rm -rf api
-	rm -rf module.rst pypit.rst pypit.*.rst
+	rm -rf module.rst pypit.rst pypit.*.rst sphinx_warnings.out
 
 html:
 	export SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT)
