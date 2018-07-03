@@ -239,8 +239,45 @@ def extract_boxcar(image,trace_in, radius_in, ycen = None):
     return fextract
 
 
-def extract_optimal(waveimg, imgminsky, ivar, mask, oprof, skyimg, rn2_img, box_radius, specobj):
 
+
+def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radius, specobj):
+
+    """ Calculate the spatial FWHM from an object profile. Utitlit routine for fit_profile
+
+    Parameters
+    ----------
+    sciimg : float ndarray shape (nspec, nspat)
+       Science frame
+    ivar: float ndarray shape (nspec, nspat)
+       inverse variance of science frame. Can be a model or deduced from the image itself.
+    mask: boolean ndarray
+       mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
+    waveimg :  float ndarray
+        Wavelength image. float 2-d array with shape (nspec, nspat)
+    skyimg: float ndarray shape (nspec, nspat)
+        Image containing our model of the sky
+    rn2_img: float ndarray shape (nspec, nspat)
+        Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
+    oprof: float ndarray shape (nspec, nspat)
+        Image containing the profile of the object that we are extracting
+    box_radius: float
+        Size of boxcar window in floating point pixels in the spatial direction.
+    specobj: SpecObj object (from the SpecObj class in specobj.py). This is the container that holds object, trace,
+    and extraction information for the object in question. This routine operates one object at a time.
+
+    Returns
+    -------
+    Return value is None. The specobj object is changed in place with the boxcar and optimal dictionaries being filled
+    with the extraction parameters.
+
+    Revision History
+    ----------------
+    11-Mar-2005  Written by J. Hennawi and S. Burles.
+    28-May-2018  Ported to python by J. Hennawi
+    """
+
+    imgminsky = sciimg - skyimg
     nspat = imgminsky.shape[1]
     nspec = imgminsky.shape[0]
 
@@ -358,7 +395,7 @@ def extract_optimal(waveimg, imgminsky, ivar, mask, oprof, skyimg, rn2_img, box_
     specobj.boxcar['SKY_BOX'] = sky_box
     specobj.boxcar['RN_BOX'] = rn_box
 
-    return
+    return None
 
 
 
