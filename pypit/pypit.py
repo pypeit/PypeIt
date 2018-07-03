@@ -74,17 +74,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         debug = ardebug.init()
 
     # Reset the global logger
-#    msgs = armsgs.get_logger((logname, debug, verbosity))
     msgs.reset(log=logname, debug=debug, verbosity=verbosity)
     msgs.pypit_file = redname
-
-# MOVED to __init__.py
-#    # First send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
-#    signal.signal(signal.SIGINT, signal_handler)
-#
-#    # Ignore all warnings given by python
-#    warnings.resetwarnings()
-#    warnings.simplefilter('ignore')
 
     # Record the starting time
     tstart = time.time()
