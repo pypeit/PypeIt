@@ -171,7 +171,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
                tracethresh=1000.0, nsmth=0):
 
-    # TODO These docs are pathetic, please elaborate.
+    # TODO Please expand these docs! This is no simple code.
     Parameters
     ----------
     slf
