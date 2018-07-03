@@ -231,7 +231,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
 
     relative_factor = 1.0
     tempin = None
-    while (error != 0 or qdone == False) and iiter <= maxiter:
+    while (error != 0 or qdone is False) and iiter <= maxiter:
         goodbk = sset.mask.nonzero()[0]
         if ngood <= 1 or not sset.mask.any():
             sset.coeff = 0
