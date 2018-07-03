@@ -26,7 +26,6 @@ from pypit.core import pydl
 
 from pypit import msgs
 from pypit import ardebug as debugger
-#from pypit import arcyarc
 
 def quicksave(data,fname):
     """
@@ -731,27 +730,6 @@ def guess_gauss(x,y):
     mx = np.median(y[cen_pix])
     # Return
     return mx, cent, sigma
-
-
-# TODO: This function was never called as far as I (KBW) could tell
-#def gauss_fit(x, y, pcen):
-#    # dx = np.ones(x.size)*np.mean(x[1:]-x[:-1])
-#    # coeffs = polyfit_integral(x, y, dx, 2)
-#    # return poly_to_gauss(coeffs)
-#    try:
-#        if np.any(y<0.0):
-#            return [0.0, 0.0, 0.0], True
-#        if x.size <= 3:
-#            return [0.0, 0.0, 0.0], True
-#        ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
-#        if good == 0:
-#            return [0.0, 0.0, 0.0], True
-#        elif np.any(np.isnan([ampl, cent, sigm])):
-#            return [0.0, 0.0, 0.0], True
-#        else:
-#            return [ampl, cent, sigm], False
-#    except:
-#        return [0.0, 0.0, 0.0], True
 
 
 def poly_to_gauss(coeffs):
