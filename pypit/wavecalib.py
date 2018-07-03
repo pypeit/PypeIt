@@ -15,6 +15,7 @@ from pypit import masterframe
 from pypit.core import ararc
 from pypit.core import armasters
 from pypit.core import arsort
+from pypit.spectrographs import spectro_utils
 
 # For out of PYPIT running
 if msgs._debug is None:
@@ -76,7 +77,8 @@ class WaveCalib(masterframe.MasterFrame):
     arcparam : dict
       Arc parameter (instrument/disperser specific)
     """
-    def __init__(self, msarc, spectrograph=None, settings=None, det=None, setup=None, fitstbl=None, sci_ID=None):
+    def __init__(self, msarc, spectrograph=None, settings=None, det=None,
+                 setup=None, fitstbl=None, sci_ID=None, spectro_class=None):
 
         # Required parameters (but can be None)
         self.msarc = msarc
@@ -86,6 +88,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.fitstbl = fitstbl
         self.setup = setup
         self.sci_ID = sci_ID
+        self.spectro_class = spectro_class
         if settings is None:
             self.settings = default_settings.copy()
         else:
@@ -97,6 +100,10 @@ class WaveCalib(masterframe.MasterFrame):
         # Attributes
         self.frametype = frametype
         self.steps = []
+
+        # Spectrograph class
+        if self.spectro_class is None:
+            self.spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
 
         # Main outputs
         self.wv_calib = {}
@@ -253,7 +260,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         # Setup arc parameters (e.g. linelist)
         arc_idx = arsort.ftype_indices(self.fitstbl, 'arc', self.sci_ID)
-        self.arcparam = ararc.setup_param(self.spectrograph, self.msarc.shape,
+        self.arcparam = ararc.setup_param(self.spectro_class, self.msarc.shape,
                                           self.fitstbl, arc_idx[0],
                                           calibrate_lamps=calibrate_lamps)
         # Step

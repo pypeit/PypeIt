@@ -412,12 +412,13 @@ class WaveTilts(masterframe.MasterFrame):
           'fweight' -- Show the msarc image and the tilts traced by fweight
           'model' -- Show the msarc image and the tilts traced by fweight
           'tilts' -- Show the msarc image and the tilts traced by fweight
+          'final_tilts' -- Show the msarc image and the tilts traced by fweight
         slit : int, optional
         display : str (optional)
           'ginga' -- Display to an RC Ginga
         """
-        if (self.lordloc is not None) and (slit is not None):
-            sedges=(self.lordloc[:,slit], self.rordloc[:,slit])
+        if (self.tslits_dict['lcen'] is not None) and (slit is not None):
+            sedges=(self.tslits_dict['lcen'][:,slit], self.tslits_dict['rcen'][:,slit])
         else:
             sedges = None
         if attr == 'fweight':
@@ -446,6 +447,9 @@ class WaveTilts(masterframe.MasterFrame):
             tmp['xtfit'] = []
             tmp['ytfit'] = []
 
+            ynorm = np.outer(np.linspace(0., 1., self.msarc.shape[0]), np.ones(self.msarc.shape[1]))
+            polytilts = (ynorm-self.tilts)*(self.msarc.shape[0]-1)
+
             # arcdet is only the approximately nearest pixel (not even necessarily)
             for idx in np.where(self.all_trcdict[slit]['aduse'])[0]:
                 tmp['xtfit'].append(np.arange(self.msarc.shape[1]))
@@ -454,7 +458,7 @@ class WaveTilts(masterframe.MasterFrame):
                     ycen = self.all_ttilts[slit][1][int(xgd),idx]
                 else:
                     ycen = self.all_trcdict[slit]['ycen'][idx]
-                yval = ycen + self.tilts[int(ycen),:]
+                yval = ycen + polytilts[int(ycen),:]
                 tmp['ytfit'].append(yval)
             # Show
             msgs.warn("Display via tilts is not exact")  # Could make a correction.  Probably is close enough
@@ -471,7 +475,7 @@ class WaveTilts(masterframe.MasterFrame):
         txt += '>'
         return txt
 
-
+'''
 def get_wv_tilts(det, setup, tilt_settings, settings_det, tslits_dict,
                  pixlocn, msarc, wv_calib, maskslits):
     """
@@ -521,3 +525,4 @@ def get_wv_tilts(det, setup, tilt_settings, settings_det, tslits_dict,
         wt_maskslits = np.zeros_like(maskslits, dtype=bool)
     # Return
     return mstilts, wt_maskslits, waveTilts
+'''

@@ -15,7 +15,7 @@ except ImportError:
     pass
 
 
-def gen_pixloc(frame_shape, det, settings_argflag):
+def gen_pixloc(frame_shape, det, settings_argflag, settings_spect):
     """ Now a simple wrapper to core_gen_pixloc
 
     Parameters
@@ -35,9 +35,9 @@ def gen_pixloc(frame_shape, det, settings_argflag):
     else:
         msgs.error("NOT READY FOR THIS")
     dnum = settings.get_dnum(det)
-    xgap = settings.spect[dnum]['xgap']
-    ygap = settings.spect[dnum]['ygap']
-    ysize = settings.spect[dnum]['ysize']
+    xgap = settings_spect[dnum]['xgap']
+    ygap = settings_spect[dnum]['ygap']
+    ysize = settings_spect[dnum]['ysize']
     # Do it
     return core_gen_pixloc(frame_shape, xgap=xgap, ygap=ygap, ysize=ysize, gen=gen)
 
@@ -253,7 +253,8 @@ def new_locate_order(lordloc, rordloc, sz_x, sz_y, pad):
 def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
     """ Generate a frame that identifies each pixel to an amplifier,
     and then trim it to the data sections.
-    This frame can be used to later identify which trimmed pixels correspond to which amplifier
+    This frame can be used to later identify which trimmed pixels
+    correspond to which amplifier
 
     Parameters
     ----------

@@ -112,8 +112,8 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         #
         return self.stack
 
-
-def get_msarc(det, setup, sci_ID, spectrograph, fitstbl, tsettings, msbias):
+'''
+def get_msarc(det, setup, sci_ID, fitstbl, tsettings, msbias):
     """
     Grab/generate an Arc image
 
@@ -125,8 +125,6 @@ def get_msarc(det, setup, sci_ID, spectrograph, fitstbl, tsettings, msbias):
       Required for MasterFrame loading
     sci_ID : int
       Required to choose the right arc
-    spectrograph : str
-      Required if processing
     fitstbl : Table
       Required to choose the right arc
     tsettings : dict
@@ -141,7 +139,7 @@ def get_msarc(det, setup, sci_ID, spectrograph, fitstbl, tsettings, msbias):
 
     """
     # Instantiate with everything needed to generate the image (in case we do)
-    arcImage = ArcImage([], spectrograph=spectrograph,
+    arcImage = ArcImage([], spectrograph=fitstbl['instrume'][0],
                                  settings=tsettings, det=det, setup=setup,
                                  sci_ID=sci_ID, msbias=msbias, fitstbl=fitstbl)
     # Load the MasterFrame (if it exists and is desired)?
@@ -153,3 +151,4 @@ def get_msarc(det, setup, sci_ID, spectrograph, fitstbl, tsettings, msbias):
         arcImage.save_master(msarc, raw_files=arcImage.file_list, steps=arcImage.steps)
     # Return
     return msarc, arcImage
+'''

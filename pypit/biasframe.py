@@ -97,6 +97,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # Child-specific Internals
         #    See ProcessImages for the rest
 
+    '''
     def process_bias(self, overwrite=False):
         """
         Process the input bias frames with ProcessImages.process()
@@ -115,10 +116,18 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # Wrapper
         self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
         return self.stack.copy()
+    '''
 
-    def build_image(self):
+    def build_image(self, overwrite=False):
         """
-        Generate the image
+        Grab the bias files (as needed) and then
+         process the input bias frames with ProcessImages.process()
+          Avoid bias subtraction
+          Avoid trim
+
+        Parameters
+        ----------
+        overwrite : bool, optional
 
         Returns
         -------
@@ -129,7 +138,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         if self.nfiles == 0:
             self.file_list = arsort.list_of_files(self.fitstbl, 'bias', self.sci_ID)
         # Combine
-        self.stack = self.process_bias()
+        self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
         #
         return self.stack
 
@@ -169,6 +178,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         return msframe.copy()
 
 
+'''
 def get_msbias(det, setup, sci_ID, fitstbl, tsettings):
     """
     Grab/generate an Bias image or the command for bias subtraction (e.g. 'overscan')
@@ -202,3 +212,4 @@ def get_msbias(det, setup, sci_ID, fitstbl, tsettings):
         biasFrame.save_master(msbias, raw_files=biasFrame.file_list, steps=biasFrame.steps)
     # Return
     return msbias, biasFrame
+'''

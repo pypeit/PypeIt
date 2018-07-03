@@ -187,9 +187,25 @@
 - Adds several methods from the PYDL repository into a pydl.py module including bspline Class
 - Adds method to generate ximg and edgemask frames
 - Adds new trace_slits_trim settings
-
 - Small install edits
 - Fixes Travis failure that crept into the previous PR
+- Fix bug in bspline
+- Adds a demo Notebook for LRISr redux
+- Other odds and ends including code flow doc
+- Introduce pypit/par and pypit/config directories
+- Introduce PypitPar as an initial step toward refactoring the front end
+
+- Adds a demo Notebook for LRISr redux
+- Other odds and ends including code flow doc
+
+- Introduce pypit/par and pypit/config directories
+- Introduce PypitPar as an initial step toward refactoring the front end
+- Move spectrograph specific code into spectographs/ folder
+- Introduces the Spectrographs class
+
+- Introduces the Calibrations class
+- with Notebook
+
 
 0.7 (2017-02-07)
 ----------------

@@ -1,3 +1,4 @@
+# encoding: utf-8
 """
 Defines parameter sets used to set the behavior for core pypit
 functionality.
@@ -25,14 +26,14 @@ data:
     - WavelengthSolutionPar: Parameters used for constructing the wavelength
       solution
 
-    - TraceSlitPar: Parameters for tracing slits
+    - TraceSlitsPar: Parameters for tracing slits
         - PCAPar: PCA parameters
 
     - TraceTiltsPar: Parameters for tracing tilts of arc lines
 
-    - TraceObjectsPar: Parameter for tracing objects
+    - TraceObjectsPar: Parameters for tracing objects
 
-    - ExtractObjectPar: Parameters for extracting 1D object spectra
+    - ExtractObjectsPar: Parameters for extracting 1D object spectra
         - ManualExtractionPar: Parameters needed for manual extraction
           of 1D spectra
 
@@ -53,9 +54,43 @@ the data:
 These are collected into the main, high-level paramter set, called
 PypitPar.
 
-.. todo::
-    - Warn the user if a default value is being used?
 
+**New Parameters**:
+
+To add a new parameter, let's call it `foo`, to any of the provided
+parameter sets:
+    - Add `foo=None` to the __init__ method of the relevant parameter
+      set.
+
+    - Add any default value (the default value is None unless you set
+      it), options list, data type, and description to the body of the
+      __init__ method.  Like so::
+
+        defaults['foo'] = 'bar'
+        options['foo'] = [ 'bar', 'boo' ]
+        dtypes['foo'] = str
+        descr['foo'] = 'foo? who you callin a foo!  ' \
+                       'Options are: {0}'.format(', '.join(options['foo']))
+
+    - Add the parameter to the `from_dict` method:
+    
+        - If the parameter is something that does not require
+          instantiation, add the keyword to the `parkeys` list in the
+          `from_dict` method
+
+        - If the parameter is another ParSet or requires instantiation,
+          provide the instantiation.  For example, see how the
+          `CombineFramesPar` parameter set is defined in the
+          `FrameGroupPar` class.  E.g.::
+
+            pk = 'foo'
+            kwargs[pk] = FooPar.from_dict(cfg[pk]) if pk in k else None
+
+**New Parameter Sets:**
+
+To add an entirely new parameter set, use one of the existing parameter
+sets as a template, then add the parameter set to `PypitPar` (assuming
+you want it to be accessed throughout the code.
 """
 
 from __future__ import division
@@ -63,12 +98,20 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-import sys
+try:
+    basestring
+except NameError:
+    basestring = str
+
 import os
 import glob
 import warnings
-import numpy
+from pkg_resources import resource_filename
 import inspect
+
+from collections import OrderedDict
+
+import numpy
 
 from configobj import ConfigObj
 from astropy.time import Time
@@ -80,16 +123,31 @@ from .parset import ParSet
 
 def _pypit_root_directory():
     """
-    Determine the root directory for the PYPIT source code.
+    Get the root directory for the PYPIT source distribution.
 
     .. todo::
         - Set this in __init__.py
+
+    Returns:
+        str: Root directory to PYPIT
+
+    Raises:
+        OSError: Raised if `pkg_resources.resource_filename` fails.
     """
-    for p in sys.path:
-        if 'PYPIT'.lower() in p.lower() \
-                and len(glob.glob(os.path.join(p, 'pypit', 'pypit.py'))) == 1:
-            return p
-    raise OSError('Could not find PYPIT in system path.')
+    try:
+        # Get the directory with the pypit source code
+        code_dir = resource_filename('pypit', '')
+    except:
+        # TODO: pypit should always be installed as a package, so is
+        # this try/except block necessary?
+        raise OSError('Could not find PYPIT package!')
+    # Root directory is one level up from source code
+    return os.path.split(code_dir)[0]
+#    for p in sys.path:
+#        if 'PYPIT'.lower() in p.lower() \
+#                and len(glob.glob(os.path.join(p, 'pypit', 'pypit.py'))) == 1:
+#            return p
+#    raise OSError('Could not find PYPIT in system path.')
 
 
 def _eval_ignore():
@@ -99,7 +157,36 @@ def _eval_ignore():
 
 def _recursive_dict_evaluate(d):
     """
-    will not work for lists of dicts...
+    Recursively run :func:`eval` on each element of the provided
+    dictionary.
+
+    A raw read of a configuration file with `ConfigObj` results in a
+    dictionary that contains strings or lists of strings.  However, when
+    assigning the values for the various ParSets, the `from_dict`
+    methods expect the dictionary values to have the appropriate type.
+    E.g., the ConfigObj will have something like d['foo'] = '1', when
+    the `from_dict` method expects the value to be an integer (d['foo']
+    = 1).
+
+    This function tries to evaluate *all* dictionary values, except for
+    those listed above in the :func:`_eval_ignore` function.  Any value
+    in this list or where::
+
+        eval(d[k]) for k in d.keys()
+
+    raises an exception is returned as the original string.
+
+    This is currently only used in :func:`PypitPar.from_cfg_file`; see
+    further comments there.
+
+    Args:
+        d (dict):
+            Dictionary of values to evaluate
+
+    Returns:
+        dict: Identical to input dictionary, but with all string values
+        replaced with the result of `eval(d[k])` for all `k` in
+        `d.keys()`.
     """
     ignore = _eval_ignore()
     for k in d.keys():
@@ -107,14 +194,14 @@ def _recursive_dict_evaluate(d):
            d[k] = _recursive_dict_evaluate(d[k])
         elif isinstance(d[k], list):
             replacement = []
-            for e in d[k]:
-                if e in ignore:
-                    replacement += [ e ]
+            for v in d[k]:
+                if v in ignore:
+                    replacement += [ v ]
                 else:
                     try:
-                        replacement += [ eval(e) ]
+                        replacement += [ eval(v) ]
                     except:
-                        replacement += [ e ]
+                        replacement += [ v ]
             d[k] = replacement
         else:
             try:
@@ -125,25 +212,98 @@ def _recursive_dict_evaluate(d):
     return d
 
 
+#def _recursive_dict_unicode2str(d):
+#    """
+#    Recursively convert any unicode to a string.
+#    """
+#    for k in d.keys():
+#        if isinstance(d[k], dict):
+#           d[k] = _recursive_dict_unicode2str(d[k])
+#        elif isinstance(d[k], list):
+#            replacement = []
+#            for v in d[k]:
+#                if isinstance(v, unicode):
+#                    replacement += [ str(v) ]
+#                    continue
+#                replacement += [ v ]
+#            d[k] = replacement
+#        else:
+#            if isinstance(d[k], unicode):
+#                d[k] = str(d[k])
+#    return d
+
+
 def _get_parset_list(cfg, pk, parsetclass):
-        k = cfg.keys()
-        par = []
-        order = []
-        for _k in k:
-            if _k == pk and cfg[_k] is None:
+    """
+    Create a list of ParSets based on a root keyword for a set of
+    defined groups in the configuration file.
+    
+    For example, the :class:`InstrumentPar` group allows for a list of
+    detectors (:class:`DetectorPar`) with keywords like `detector1`,
+    `detector2`, etc.  This function parses the provided configuration
+    object (`cfg`) to find any sections with `detector` (`pk`) as its
+    root.  The remainder of the section name must be able to be
+    converted to an integer and the section itself must be able to setup
+    an instance of `parsetclass`.  The sections must be number
+    sequentially from 1..N.  E.g., the :class:`InstrumentPar`
+    configuration file cannot have `dectector1` and `detector3`, but no
+    `detector2`.  The call to setup the detectors in the
+    :class:`InstrumentPar` is::
+
+        kwargs['detector'] = _get_parset_list(cfg, 'detector', DetectorPar)
+
+    Args:
+        cfg (:class:`ConfigObj`, :obj:`dict`):
+            The top-level configuration that defines a list of
+            sub-ParSets.
+        pk (str):
+            The root of the keywords used to set a list of sub-ParSets.
+        parsetclass (:class:`pypit.par.parset.ParSet`):
+            The class used to construct each element in the list of
+            parameter subsets.  The class **must** have a `from_dict`
+            method that instantiates the
+            :class:`pypit.par.parset.ParSet` based on the provide
+            subsection/subdict from cfg.
+
+    Returns:
+        list: A list of instances of `parsetclass` parsed from the
+        provided configuration data.
+
+    Raises:
+        ValueError:
+            Raised if the indices of the subsections are not sequential
+            and 1-indexed.
+    """
+    # Get the full list of keys
+    k = cfg.keys()
+
+    # Iterate through the list of keys to find the appropriate sub
+    # parameter sets and their order.
+    par = []
+    order = []
+    for _k in k:
+        if _k == pk and cfg[_k] is None:
+            continue
+        if pk in _k:
+            try:
+                # Get the order for this subgroup (e.g., 2 for
+                # 'detector2'
+                order += [ int(_k.replace(pk,'')) ]
+                # And instantiate the parameter set
+                par += [ parsetclass.from_dict(cfg[_k]) ]
+            except:
                 continue
-            if pk in _k:
-                try:
-                    order += [ int(_k.replace(pk,'')) ]
-                    par += [ parsetclass.from_dict(cfg[_k]) ]
-                except:
-                    continue
-        if len(par) > 0:
-            srt = numpy.argsort(order)
-            if numpy.any(numpy.array(order)[srt]-1 != numpy.arange(order[srt[-1]])):
-                raise ValueError('Parameter set series must be sequential and 1-indexed.')
-            return [par[i] for i in srt]
-        return None
+
+    if len(par) > 0:
+        # Make sure the instances are correctly sorted and sequential
+        srt = numpy.argsort(order)
+        if numpy.any(numpy.array(order)[srt]-1 != numpy.arange(order[srt[-1]])):
+            raise ValueError('Parameter set series must be sequential and 1-indexed.')
+        # Return the sorted instances
+        return [par[i] for i in srt]
+
+    # No such subsets were defined, so return a null result
+    return None
 
 #-----------------------------------------------------------------------------
 # Reduction ParSets
@@ -153,24 +313,24 @@ class FrameGroupPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['frametype'] = 'bias'
         options['frametype'] = FrameGroupPar.valid_frame_types()
-        dtypes['frametype'] = str
+        dtypes['frametype'] = basestring
         descr['frametype'] = 'Frame type.  ' \
                              'Options are: {0}'.format(', '.join(options['frametype']))
 
-        dtypes['useframe'] = str
+        dtypes['useframe'] = basestring
         descr['useframe'] = 'A master calibrations file to use if it exists'
 
         defaults['number'] = 0
@@ -220,14 +380,14 @@ class CombineFramesPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
@@ -238,13 +398,13 @@ class CombineFramesPar(ParSet):
 
         defaults['method'] = 'mean'
         options['method'] = CombineFramesPar.valid_methods()
-        dtypes['method'] = str
+        dtypes['method'] = basestring
         descr['method'] = 'Method used to combine frames.  Options are: {0}'.format(
                                        ', '.join(options['method']))
 
         defaults['satpix'] = 'reject'
         options['satpix'] = CombineFramesPar.valid_saturation_handling()
-        dtypes['satpix'] = str
+        dtypes['satpix'] = basestring
         descr['satpix'] = 'Handling of saturated pixels.  Options are: {0}'.format(
                                        ', '.join(options['satpix']))
 
@@ -265,7 +425,7 @@ class CombineFramesPar(ParSet):
 
         defaults['replace'] = 'maxnonsat'
         options['replace'] = CombineFramesPar.valid_rejection_replacements()
-        dtypes['replace'] = str
+        dtypes['replace'] = basestring
         descr['replace'] = 'If all pixels are rejected, replace them using this method.  ' \
                            'Options are: {0}'.format(', '.join(options['replace']))
 
@@ -319,20 +479,20 @@ class OverscanPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['method'] = 'savgol'
         options['method'] = OverscanPar.valid_methods()
-        dtypes['method'] = str
+        dtypes['method'] = basestring
         descr['method'] = 'Method used to fit the overscan.  ' \
                           'Options are: {0}'.format(', '.join(options['method']))
         
@@ -397,27 +557,27 @@ class FlatFieldPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
         # TODO: Provide a list of valid masters to use as options?
         defaults['frame'] = 'pixelflat'
-        dtypes['frame'] = str
+        dtypes['frame'] = basestring
         descr['frame'] = 'Frame to use for field flattening.  Options are: pixelflat, pinhole, ' \
                          'or a specified master calibration file.'
 
         defaults['method'] = 'bspline'
         options['method'] = FlatFieldPar.valid_methods()
-        dtypes['method'] = str
+        dtypes['method'] = basestring
         descr['method'] = 'Method used to flat field the data; use None to skip flat-fielding.  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
@@ -495,21 +655,21 @@ class FlexurePar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
         defaults['method'] = 'boxcar'
         options['method'] = FlexurePar.valid_methods()
-        dtypes['method'] = str
+        dtypes['method'] = basestring
         descr['method'] = 'Method used to correct for flexure. Use None for no correction.  If ' \
                           'slitcen is used, the flexure correction is performed before the ' \
                           'extraction of objects.  ' \
@@ -519,7 +679,7 @@ class FlexurePar(ParSet):
         dtypes['maxshift'] = [int, float]
         descr['maxshift'] = 'Maximum allowed flexure shift in pixels.'
 
-        dtypes['spectrum'] = str
+        dtypes['spectrum'] = basestring
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
         # Instantiate the parameter set
@@ -569,27 +729,27 @@ class WavelengthCalibrationPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
         defaults['medium'] = 'vacuum'
         options['medium'] = WavelengthCalibrationPar.valid_media()
-        dtypes['medium'] = str
+        dtypes['medium'] = basestring
         descr['medium'] = 'Medium used when wavelength calibrating the data.  ' \
                           'Options are: {0}'.format(', '.join(options['medium']))
 
-        defaults['refframe'] = 'heliocentric'
+#        defaults['refframe'] = 'heliocentric'
         options['refframe'] = WavelengthCalibrationPar.valid_reference_frames()
-        dtypes['refframe'] = str
+        dtypes['refframe'] = basestring
         descr['refframe'] = 'Frame of reference for the wavelength calibration.  ' \
                             'Options are: {0}'.format(', '.join(options['refframe']))
 
@@ -635,13 +795,13 @@ class FluxCalibrationPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
@@ -656,7 +816,7 @@ class FluxCalibrationPar(ParSet):
                              'pixelflats of the same lamp and setup and with a variety of ' \
                              'exposure times and count rates in every pixel.'
 
-        dtypes['sensfunc'] = str
+        dtypes['sensfunc'] = basestring
         descr['sensfunc'] = 'YAML file with an existing calibration function'
 
         # Instantiate the parameter set
@@ -691,20 +851,20 @@ class SkySubtractionPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['method'] = 'bspline'
         options['method'] = SkySubtractionPar.valid_methods()
-        dtypes['method'] = str
+        dtypes['method'] = basestring
         descr['method'] = 'Method used to for sky subtraction.  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
@@ -751,14 +911,14 @@ class PCAPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
@@ -767,7 +927,7 @@ class PCAPar(ParSet):
         # spacing='smooth'?
         defaults['pcatype'] = 'pixel'
         options['pcatype'] = PCAPar.valid_types()
-        dtypes['pcatype'] = str
+        dtypes['pcatype'] = basestring
         descr['pcatype'] = 'Select to perform the PCA using the pixel position (pcatype=pixel) ' \
                            'or by spectral order (pcatype=order).  Pixel positions can be used ' \
                            'for multi-object spectroscopy where the gap between slits is ' \
@@ -827,16 +987,16 @@ class ManualExtractionPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        dtypes['frame'] = str
+        dtypes['frame'] = basestring
         descr['frame'] = 'The name of the fits file for a manual extraction'
 
         dtypes['params'] = list
@@ -885,14 +1045,14 @@ class RunPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
@@ -943,19 +1103,19 @@ class RunPar(ParSet):
                                 'high-level output; 2 provides all output'
 
         defaults['caldir'] = 'MF'
-        dtypes['caldir'] = str
+        dtypes['caldir'] = basestring
         descr['caldir'] = 'Directory relative to calling directory to write master files.'
         
         defaults['scidir'] = 'Science'
-        dtypes['scidir'] = str
+        dtypes['scidir'] = basestring
         descr['scidir'] = 'Directory relative to calling directory to write science files.'
         
         defaults['qadir'] = 'QA'
-        dtypes['qadir'] = str
+        dtypes['qadir'] = basestring
         descr['qadir'] = 'Directory relative to calling directory to write qa files.'
 
         defaults['sortdir'] = None
-        dtypes['sortdir'] = str
+        dtypes['sortdir'] = basestring
         descr['sortdir'] = 'File for the details of the sorted files.  If None, no output is ' \
                            'created'
 
@@ -999,25 +1159,25 @@ class ReducePar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['spectrograph'] = 'KECK_LRISb'
         options['spectrograph'] = ReducePar.valid_spectrographs()
-        dtypes['spectrograph'] = str
+        dtypes['spectrograph'] = basestring
         descr['spectrograph'] = 'Spectrograph that provided the data to be reduced.  ' \
                                 'Options are: {0}'.format(', '.join(options['spectrograph']))
 
         options['pipeline'] = ReducePar.valid_pipelines()
-        dtypes['pipeline'] = str
+        dtypes['pipeline'] = basestring
         descr['pipeline'] = 'Pipeline options that pypit can use for reductions.  ' \
                             'Options are: {0}'.format(', '.join(options['pipeline']))
 
@@ -1025,13 +1185,13 @@ class ReducePar(ParSet):
         descr['detnum'] = 'Restrict reduction to a single detector with this index'
 
         options['masters'] = ReducePar.allowed_master_options()
-        dtypes['masters'] = str
+        dtypes['masters'] = basestring
         descr['masters'] = 'Treatment of master frames.  Use None to select the default ' \
                            'behavior (which is?), \'reuse\' to use any existing masters, and ' \
                            '\'force\' to __only__ use master frames.  ' \
                            'Options are: None, {0}'.format(', '.join(options['masters']))
 
-        dtypes['setup'] = str
+        dtypes['setup'] = basestring
         descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
                          'C_02_aa .  The detector number is ignored but the other information ' \
                          'must match the Master Frames in the master frame folder.'
@@ -1046,13 +1206,13 @@ class ReducePar(ParSet):
 
         # TODO: What are the allowed center and edge trace frames?
         defaults['slit_center_frame'] = 'trace'
-        dtypes['slit_center_frame'] = str
+        dtypes['slit_center_frame'] = basestring
         descr['slit_center_frame'] = 'The frame that should be used to trace the slit ' \
                                      'centroid.  A master calibrations file can also be ' \
                                      'specified.'
 
         defaults['slit_edge_frame'] = 'trace'
-        dtypes['slit_edge_frame'] = str
+        dtypes['slit_edge_frame'] = basestring
         descr['slit_edge_frame'] = 'The frame that should be used to trace the slit edges.  ' \
                                    'A master calibrations file can also be specified.'
 
@@ -1198,28 +1358,31 @@ class WavelengthSolutionPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['method'] = 'arclines'
         options['method'] = WavelengthSolutionPar.valid_methods()
-        dtypes['method'] = str
+        dtypes['method'] = basestring
         descr['method'] = 'Method to use to fit the individual arc lines.  ' \
                           '\'fit\' is likely more accurate, but \'simple\' uses a polynomial ' \
                           'fit (to the log of a gaussian) and is fast and reliable.  ' \
                           '\'arclines\' uses the arclines python package.' \
                           'Options are: {0}'.format(', '.join(options['method']))
 
+        # Force lamps to be a list
+        if pars['lamps'] is not None and not isinstance(pars['lamps'], list):
+            pars['lamps'] = [pars['lamps']]
         options['lamps'] = WavelengthSolutionPar.valid_lamps()
-        dtypes['lamps'] = [str, list]
+        dtypes['lamps'] = list
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
                          'None for no calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['lamps']))
@@ -1291,21 +1454,21 @@ class TraceSlitsPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
         defaults['function'] = 'legendre'
         options['function'] = TraceSlitsPar.valid_functions()
-        dtypes['function'] = str
+        dtypes['function'] = basestring
         descr['function'] = 'Function use to trace the slit center.  ' \
                             'Options are: {0}'.format(', '.join(options['function']))
 
@@ -1376,7 +1539,7 @@ class TraceSlitsPar(ParSet):
 
         defaults['sobel_mode'] = 'nearest'
         options['sobel_mode'] = TraceSlitsPar.valid_sobel_modes()
-        dtypes['sobel_mode'] = str
+        dtypes['sobel_mode'] = basestring
         descr['sobel_mode'] = 'Mode for Sobel filtering.  Default is \'nearest\' but the ' \
                               'developers find \'constant\' works best for DEIMOS.'
 
@@ -1427,20 +1590,26 @@ class TraceSlitsPar(ParSet):
 class TraceTiltsPar(ParSet):
     """
     Parameters specific to PypIts slit tracing algorithm
+
+    TODO: Changed to reflect wavetilts.py settings.  Was `yorder`
+    previously `disporder`?  If so, I think I prefer the generality of
+    `disporder`...
     """
-    def __init__(self, idsonly=None, method=None, params=None, order=None, disporder=None):
+    def __init__(self, idsonly=None, tracethresh=None, order=None, function=None, yorder=None,
+                 func2D=None, method=None, params=None):
+
 
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
@@ -1450,9 +1619,33 @@ class TraceTiltsPar(ParSet):
         descr['idsonly'] = 'Only use the arc lines that have an identified wavelength to trace ' \
                            'tilts'
 
+        defaults['tracethresh'] = 1000.
+        dtypes['tracethresh'] = [int, float]
+        descr['tracethresh'] = 'TODO: X fill in the doc for this'
+
+        defaults['order'] = 1
+        dtypes['order'] = int
+        descr['order'] = 'Order of the polynomial function to be used for the tilt of an ' \
+                         'individual arc line.  Must be 1 for eschelle data (ARMED pipeline).'
+
+        defaults['function'] = 'legendre'
+        # TODO: Allowed values?
+        dtypes['function'] = basestring
+        descr['function'] = 'Type of function for arc line fits'
+
+        defaults['yorder'] = 1
+        dtypes['yorder'] = int
+        descr['yorder'] = 'Order of the polynomial function to be used to fit the tilts ' \
+                          'along the y direction.  TODO: Only used by ARMED pipeline?'
+
+        defaults['func2D'] = 'legendre'
+        # TODO: Allowed values?
+        dtypes['func2D'] = basestring
+        descr['func2D'] = 'Type of function for 2D fit'
+
         defaults['method'] = 'spline'
         options['method'] = TraceTiltsPar.valid_methods()
-        dtypes['method'] = str
+        dtypes['method'] = basestring
         descr['method'] = 'Method used to trace the tilt of the slit along an order.  ' \
                           'Options are: {0}'.format(', '.join(options['method']))
 
@@ -1460,16 +1653,6 @@ class TraceTiltsPar(ParSet):
         defaults['params'] = [ 1, 1, 0 ]
         dtypes['params'] = [ int, list ]
         descr['params'] = 'Parameters to use for the provided method.  TODO: Need more explanation'
-
-        defaults['order'] = 1
-        dtypes['order'] = int
-        descr['order'] = 'Order of the polynomial function to be used for the tilt of an ' \
-                         'individual arc line.  Must be 1 for eschelle data (ARMED pipeline).'
-
-        defaults['disporder'] = 1
-        dtypes['disporder'] = int
-        descr['disporder'] = 'Order of the polynomial function to be used to fit the tilts ' \
-                             'along the dispersion direction.  Only used by ARMED pipeline.'
 
         # Instantiate the parameter set
         super(TraceTiltsPar, self).__init__(list(pars.keys()),
@@ -1483,7 +1666,9 @@ class TraceTiltsPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'idsonly', 'method', 'params', 'order', 'disporder' ]
+#        parkeys = [ 'idsonly', 'method', 'params', 'order', 'disporder' ]
+        parkeys = [ 'idsonly', 'tracethresh', 'order', 'function', 'yorder', 'func2D',
+                    'method', 'params' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1510,20 +1695,20 @@ class TraceObjectsPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['function'] = 'legendre'
         options['function'] = TraceObjectsPar.valid_functions()
-        dtypes['function'] = str
+        dtypes['function'] = basestring
         descr['function'] = 'Function to use to trace the object in each slit.  ' \
                             'Options are: {0}'.format(options['function'])
 
@@ -1533,7 +1718,7 @@ class TraceObjectsPar(ParSet):
 
         defaults['find'] = 'standard'
         options['find'] = TraceObjectsPar.valid_detection_algorithms()
-        dtypes['find'] = str
+        dtypes['find'] = basestring
         descr['find'] = 'Algorithm to use for finding objects.' \
                         'Options are: {0}'.format(', '.join(options['find']))
 
@@ -1547,7 +1732,7 @@ class TraceObjectsPar(ParSet):
 
         defaults['method'] = 'pca'
         options['method'] = TraceObjectsPar.valid_methods()
-        dtypes['method'] = str
+        dtypes['method'] = basestring
         descr['method'] = 'Method to use for tracing each object; only used with ARMED pipeline.' \
                           '  Options are: {0}'.format(', '.join(options['method']))
 
@@ -1613,7 +1798,7 @@ class ExtractObjectsPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Check the manual input
         if manual is not None:
@@ -1624,14 +1809,14 @@ class ExtractObjectsPar(ParSet):
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        dtypes['pixelmap'] = str
+        dtypes['pixelmap'] = basestring
         descr['pixelmap'] = 'If desired, a fits file can be specified (of the appropriate form)' \
                             'to specify the locations of the pixels on the detector (in ' \
                             'physical space).  TODO: Where is "appropriate form" specified?'
@@ -1648,7 +1833,7 @@ class ExtractObjectsPar(ParSet):
 
         defaults['profile'] = 'gaussian'
         options['profile'] = ExtractObjectsPar.valid_profiles()
-        dtypes['profile'] = str
+        dtypes['profile'] = basestring
         descr['profile'] = 'Fitting function used to extract science data, only if the ' \
                            'extraction is 2D.  NOTE: options with suffix \'func\' fits a ' \
                            'function to the pixels whereas those without this suffix take into ' \
@@ -1703,14 +1888,14 @@ class DetectorPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
@@ -1721,14 +1906,14 @@ class DetectorPar(ParSet):
         # TODO: Allow for None, such that the entire image is the data
         # section
         defaults['datasec'] = 'DATASEC'
-        dtypes['datasec'] = str
+        dtypes['datasec'] = basestring
         descr['datasec'] = 'Either the data sections or the header keyword where the valid ' \
                            'data sections can be obtained. If defined explicitly should have ' \
                            'the format of a numpy array slice'
 
         # TODO: Allow for None, such that there is no overscan region
         defaults['oscansec'] = 'BIASSEC'
-        dtypes['oscansec'] = str
+        dtypes['oscansec'] = basestring
         descr['oscansec'] = 'Either the overscan section or the header keyword where the valid ' \
                             'data sections can be obtained. If defined explicitly should have ' \
                             'the format of a numpy array slice'
@@ -1785,8 +1970,9 @@ class DetectorPar(ParSet):
         descr['ronoise'] = 'Read-out noise (e-). A list should be provided if a detector ' \
                            'contains more than one amplifier.'
 
-        # TODO: What happens if this is None
-        dtypes['suffix'] = str
+        # TODO: Allow this to be None?
+        defaults['suffix'] = ''
+        dtypes['suffix'] = basestring
         descr['suffix'] = 'Suffix to be appended to all saved calibration and extraction frames.'
 
         # Instantiate the parameter set
@@ -1835,7 +2021,7 @@ class InstrumentPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Check the detector input
         if detector is not None:
@@ -1846,16 +2032,16 @@ class InstrumentPar(ParSet):
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['telescope'] = 'KECK'
         options['telescope'] = InstrumentPar.valid_telescopes()
-        dtypes['telescope'] = str
+        dtypes['telescope'] = basestring
         descr['telescope'] = 'Name of the telescope used to obtain the observations.  ' \
                         'Options are: {0}'.format(', '.join(options['telescope']))
         
@@ -1873,7 +2059,7 @@ class InstrumentPar(ParSet):
 
         defaults['camera'] = 'LRISb'
         options['camera'] = InstrumentPar.valid_cameras()
-        dtypes['camera'] = str
+        dtypes['camera'] = basestring
         descr['camera'] = 'Name of the camera.  ' \
                         'Options are: {0}'.format(', '.join(options['camera']))
         
@@ -1910,7 +2096,7 @@ class InstrumentPar(ParSet):
     @staticmethod
     def valid_telescopes():
         """
-        Return the valid overscane methods.
+        Return the valid telescopes.
         """
         return [ 'KECK', 'SHANE', 'WHT', 'APF', 'TNG' ]
 
@@ -1935,20 +2121,20 @@ class FrameFitsPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['timeunit'] = 'mjd'
         options['timeunit'] = FrameFitsPar.valid_time_units()
-        dtypes['timeunit'] = str
+        dtypes['timeunit'] = basestring
         descr['timeunit'] = 'The unit of time keyword.  ' \
                             'Options are: {0}'.format(', '.join(options['timeunit']))
 
@@ -1956,7 +2142,7 @@ class FrameFitsPar(ParSet):
         dtypes['headext'] = [int, list]
         descr['headext'] = '(List of) Extension(s) with data to read (0-indexed)'
 
-        dtypes['lamps'] = [str, list]
+        dtypes['lamps'] = [basestring, list]
         descr['lamps'] = 'One or more lamp names'
 
         # Force all the keyword definitions to provide the associated
@@ -2018,7 +2204,7 @@ class FrameFitsPar(ParSet):
                     raise ValueError('The list definition of {0} is too long!'.format(k))
                 if not isinstance(self.data['keydef'][k][0], int):
                     raise TypeError('The extension for keyword {0} must be an int!'.format(k))
-                if not isinstance(self.data['keydef'][k][1], str):
+                if not isinstance(self.data['keydef'][k][1], basestring):
                     raise TypeError('The header keyword for {0} must be a string!'.format(k))
 
         # Only keyword definitions were provided
@@ -2046,24 +2232,24 @@ class FrameIDPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[2:]])
+        pars = OrderedDict([(k,values[k]) for k in args[2:]])
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        options = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['frametype'] = 'bias'
         options['frametype'] = FrameGroupPar.valid_frame_types()
-        dtypes['frametype'] = str
+        dtypes['frametype'] = basestring
         descr['frametype'] = 'Frame type.  ' \
                              'Options are: {0}'.format(', '.join(options['frametype']))
 
-        dtypes['canbe'] = str
+        dtypes['canbe'] = basestring
         descr['canbe'] = 'Frame types, **other than this type**, that can also be used as ' \
                          'this type.  E.g., this frametype is \'pixelflat\' but can also be '\
                          'used as a \'trace\' frame.'
@@ -2164,13 +2350,13 @@ class PypitPar(ParSet):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = dict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
         # set
-        defaults = dict.fromkeys(pars.keys())
-        dtypes = dict.fromkeys(pars.keys())
-        descr = dict.fromkeys(pars.keys())
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
@@ -2368,7 +2554,7 @@ class PypitPar(ParSet):
 
         # Get the list of other configuration parameters to merge it with
         _merge_with = [] if merge_with is None else \
-                        ([merge_with] if isinstance(merge_with, str) else merge_with)
+                        ([merge_with] if isinstance(merge_with, basestring) else merge_with)
         merge_cfg = ConfigObj()
         for f in _merge_with:
             merge_cfg.merge(ConfigObj(f))
@@ -2393,6 +2579,8 @@ class PypitPar(ParSet):
         # ConfigObj instances.
         cfg.merge(spec_cfg)
         cfg.merge(merge_cfg)
+
+#        cfg = _recursive_dict_unicode2str(cfg)
 
         # Evaluate the strings if requested
         if evaluate:
