@@ -256,9 +256,9 @@ class WaveTilts(masterframe.MasterFrame):
         """
         # Determine the tilts for this slit
         tracethresh_in = self.settings['tilts']['tracethresh']
-        if isinstance(tracethresh_in,float) | isinstance(tracethresh_in,int):
+        if isinstance(tracethresh_in,(float, int)):
             tracethresh = tracethresh_in
-        elif isinstance(tracethresh_in, list) | isinstance(tracethresh_in, np.ndarray):
+        elif isinstance(tracethresh_in, (list, np.ndarray)):
             tracethresh = tracethresh_in[slit]
         else:
             raise ValueError('Invalid input for parameter tracethresh')
