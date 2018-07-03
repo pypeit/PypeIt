@@ -13,8 +13,9 @@ from linetools.spectra import xspectrum1d
 import pypit
 from pypit.core import arsort
 from pypit.core import ararc
-from pypit.spectrographs import wavelengths
 from pypit import arparse as settings
+
+from pypit.spectrographs import spectro_utils
 
 
 def test_setup_param():
@@ -28,9 +29,11 @@ def test_setup_param():
     settings.dummy_settings()
     # Load Dummy self
     settings.argflag['run']['spectrograph'] = 'shane_kast_blue'
+    spectrograph = 'shane_kast_blue'
+    spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
     fitstbl = arsort.dummy_fitstbl()
     # Run
-    arcparm = wavelengths.setup_param('shane_kast_blue', (2048,2048),fitstbl,0)
+    arcparm = ararc.setup_param(spectro_class, (2048,2048),fitstbl,0)
     for key in ['llist','disp','wvmnx']:
         assert key in arcparm
 

@@ -21,7 +21,7 @@ def fitstbl():
 
 @pytest.fixture
 def spec_class():
-    return spectro_utils.load_spec_class(spectrograph='generic')
+    return spectro_utils.load_spec_class(spectrograph='shane_kast_blue')
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
