@@ -1,5 +1,6 @@
 """ Module to define the Spectrograph class
 """
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
@@ -62,6 +63,7 @@ class Spectrograph(object):
 
         Returns:
             raw_img: ndarray
+              Raw image;  likely unsigned int
             head0: Header
 
         """
