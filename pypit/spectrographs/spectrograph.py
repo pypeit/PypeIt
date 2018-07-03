@@ -8,7 +8,7 @@ from astropy.io import fits
 
 from abc import ABCMeta
 
-from pypit.par.pypitpar import DetectorPar
+from ..par.pypitpar import DetectorPar
 
 class Spectrograph(object):
     """
@@ -20,7 +20,15 @@ class Spectrograph(object):
         self.spectrograph = 'generic'
         self.detector = None
 
-    def load_raw_frame(self, raw_file, disp_dir, dataext=None, det=None):
+    def _check_detector(self):
+        # Check the detector
+        if self.detector is None:
+            raise ValueError('Must first define spectrograph detector parameters!')
+        for d in self.detector:
+            if not isinstance(d, DetectorPar):
+                raise TypeError('Detector parameters must be specified using DetectorPar.')
+
+    def load_raw_frame(self, raw_file, det=None):
         """
         Load the image (converted to np.float) and primary header of the input file
 
@@ -29,10 +37,6 @@ class Spectrograph(object):
 
         Args:
             raw_file:  str, filename
-            disp_dir: int
-              This is an example where JFH would rant that this is known
-              given the instrument so should not be a settting.  He is
-              probably right.
             dataext: int, optional
               Extension in the FITS list for the data
             det: int, optional
@@ -40,17 +44,21 @@ class Spectrograph(object):
 
         Returns:
             img: ndarray
-              Converted to np.float and transpsed if necessary
+              Converted to np.float and transposed if necessary
             head0: Header
 
         """
+        self._check_detector()
+        _det = 1 if det is None else det
+
         # Load the raw image
-        raw_img, head0 = self.load_raw_img_head(raw_file, dataext=dataext, det=det)
+        raw_img, head0 = self.load_raw_img_head(raw_file, dataext=self.detector[_det-1]['dataext'],
+                                                det=_det)
 
         # Turn to float
         img = raw_img.astype(np.float)
         # Transpose?
-        if disp_dir == 1:
+        if self.detector[_det-1]['dispaxis'] == 1:
             img = img.T
         # Return
         return img, head0
@@ -94,12 +102,7 @@ class Spectrograph(object):
             naxis0: int
             naxis1: int
         """
-        # Check the detector
-        if self.detector is None:
-            raise ValueError('Must first define spectrograph detector parameters!')
-        if not isinstance(self.detector, DetectorPar):
-            raise TypeError('Detector parameters must be specified using a DetectorPar instance.')
-
+        self._check_detector()
         # TODO: This seems like a lot of effort to get the size of the
         # image.
         # Read the image for the shape (just in case)
@@ -120,18 +123,13 @@ class Spectrograph(object):
               0=not masked; 1=masked
 
         """
-        bpm = np.zeros((shape[0], shape[1]), dtype=int)
-        #
-        return bpm
+        return np.zeros((shape[0], shape[1]), dtype=int)
 
     def setup_arcparam(self, **null_kwargs):
-        modify_dict = None
-        return modify_dict
+        return None
 
     @property
     def ndet(self):
         """Return the number of detectors."""
-        if self.detector is None:
-            return 0
-        return len(self.detector)
+        return 0 if self.detector is None else len(self.detector)
 

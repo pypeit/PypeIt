@@ -14,12 +14,12 @@ from astropy.io import fits
 
 from pypit import msgs
 from pypit import arparse
+from ..par.pypitpar import DetectorPar
+from . import spectrograph
+
 from pypit import ardebug as debugger
-from pypit.spectrographs import spectroclass
 
-from pypit.par.pypitpar import DetectorPar
-
-class KeckLRISSpectrograph(spectroclass.Spectrograph):
+class KeckLRISSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/LRIS specific code
     """

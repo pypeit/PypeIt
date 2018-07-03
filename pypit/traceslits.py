@@ -148,6 +148,9 @@ class TraceSlits(masterframe.MasterFrame):
         # Set the parameters, using the defaults if none are provided
         self.par = TraceSlitsPar() if par is None else par
 
+        # TODO: Kludge to deal with MasterFrame settings
+        self.settings = None
+
         # Attributes
         self.frametype = frametype
 
@@ -188,7 +191,7 @@ class TraceSlits(masterframe.MasterFrame):
         # MasterFrame
         # TODO: Treat parameters needed to run TraceSlits different from
         # parameters needed to save TraceSlits as a master frame...
-        masterframe.MasterFrame.__init__(self, self.frametype, setup, self.par) # self.settings)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
 
 
     @classmethod

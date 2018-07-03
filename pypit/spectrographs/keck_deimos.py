@@ -9,15 +9,12 @@ from astropy.io import fits
 
 from pypit import msgs
 from pypit import arparse
-from pypit.spectrographs import spectroclass
+from ..par.pypitpar import DetectorPar
+from . import spectrograph
 
 from pypit import ardebug as debugger
 
-
-# Logging
-#msgs = armsgs.get_logger()
-
-class KeckDEIMOSSpectrograph(spectroclass.Spectrograph):
+class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/DEIMOS specific code
     """

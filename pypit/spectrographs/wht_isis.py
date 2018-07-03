@@ -12,10 +12,12 @@ import glob
 import numpy as np
 
 from pypit import msgs
-from pypit import ardebug as debugger
-from pypit.spectrographs import spectroclass
+from ..par.pypitpar import DetectorPar
+from . import spectrograph
 
-class WhtIsisSpectrograph(spectroclass.Spectrograph):
+from pypit import ardebug as debugger
+
+class WhtIsisSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Shane/Kast specific code
     """

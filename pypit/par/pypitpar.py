@@ -121,6 +121,7 @@ from .parset import ParSet
 #-----------------------------------------------------------------------------
 # Helper functions
 
+# TODO: This should go in a different module, or in __init__
 def _pypit_root_directory():
     """
     Get the root directory for the PYPIT source distribution.
@@ -1947,26 +1948,28 @@ class DetectorPar(ParSet):
         dtypes['numamplifiers'] = int
         descr['numamplifiers'] = 'Number of amplifiers'
 
-        defaults['gain'] = 1.0
+        defaults['gain'] = 1.0 if pars['numamplifiers'] is None else [1.0]*pars['numamplifiers']
         dtypes['gain'] = [ int, float, list ]
         descr['gain'] = 'Inverse gain (e-/ADU). A list should be provided if a detector ' \
                         'contains more than one amplifier.'
 
-        defaults['ronoise'] = 4.0
+        defaults['gain'] = 4.0 if pars['numamplifiers'] is None else [4.0]*pars['numamplifiers']
         dtypes['ronoise'] = [ int, float, list ]
         descr['ronoise'] = 'Read-out noise (e-). A list should be provided if a detector ' \
                            'contains more than one amplifier.'
 
         # TODO: Allow for None, such that the entire image is the data
         # section
-        defaults['datasec'] = 'DATASEC'
+        defaults['datasec'] = 'DATASEC' if pars['numamplifiers'] is None \
+                                        else ['DATASEC']*pars['numamplifiers']
         dtypes['datasec'] = [basestring, list]
         descr['datasec'] = 'Either the data sections or the header keyword where the valid ' \
                            'data sections can be obtained, one per amplifier. If defined ' \
                            'explicitly should have the format of a numpy array slice'
 
         # TODO: Allow for None, such that there is no overscan region
-        defaults['oscansec'] = 'BIASSEC'
+        defaults['oscansec'] = 'BIASSEC' if pars['numamplifiers'] is None \
+                                        else ['BIASSEC']*pars['numamplifiers']
         dtypes['oscansec'] = [basestring, list]
         descr['oscansec'] = 'Either the overscan section or the header keyword where the valid ' \
                             'data sections can be obtained, one per amplifier. If defined ' \
@@ -2004,15 +2007,17 @@ class DetectorPar(ParSet):
         if self.data['numamplifiers'] > 1:
             keys = [ 'gain', 'ronoise', 'datasec', 'oscansec' ]
             dtype = [ (int, float), (int, float), basestring, basestring ]
-            for i in range(len(check_list)):
+            for i in range(len(keys)):
+                if self.data[keys[i]] is None:
+                    continue
                 if not isinstance(self.data[keys[i]], list) \
                         or len(self.data[keys[i]]) != self.data['numamplifiers']:
-                    raise ValueError('Provided {0} does not match number of amplifiers.'.format(k))
+                    raise ValueError('Provided {0} does not match amplifiers.'.format(keys[i]))
 
             for j in range(self.data['numamplifiers']):
-                if not isinstance(self.data[keys[i]][j], dtype[i]):
-                    TypeError('Incorrect element type for {0}; should be {1}'.format(key[i],
-                                                                                     dtype[i]))
+                if self.data[keys[i]] is not None \
+                        and not isinstance(self.data[keys[i]][j], dtype[i]):
+                    TypeError('Incorrect type for {0}; should be {1}'.format(keys[i], dtype[i]))
 
 
 class InstrumentPar(ParSet):
