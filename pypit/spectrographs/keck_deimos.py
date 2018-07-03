@@ -17,7 +17,7 @@ from pypit import ardebug as debugger
 # Logging
 #msgs = armsgs.get_logger()
 
-class DEIMOSSpectrograph(spectroclass.Spectrograph):
+class KeckDEIMOSSpectrograph(spectroclass.Spectrograph):
     """
     Child to handle Keck/DEIMOS specific code
     """
@@ -80,6 +80,44 @@ class DEIMOSSpectrograph(spectroclass.Spectrograph):
 
         # Return
         return datasec, oscansec, naxis0, naxis1
+
+    def bpm(self, det=None, **null_kwargs):
+        """ Generate a BPM for DEIMOS
+        Currently assumes 1x1 binning
+
+        Parameters
+        ----------
+        det : int, REQUIRED
+        **null_kwargs:
+            Captured and never used
+
+        Returns
+        -------
+        bpix : ndarray
+          0 = ok; 1 = Mask
+
+        """
+        bpix = np.zeros((4096, 2048), dtype=int)
+        if det == 1:
+            bpix[:,1052:1054] = 1.
+        elif det == 2:
+            bpix[:,0:4] = 1.
+            bpix[:,376:380] = 1.
+            bpix[:,2047] = 1.
+        elif det == 3:
+            bpix[:,851] = 1.
+        elif det == 4:
+            bpix[:,0:4] = 1.
+            bpix[:,997:998] = 1.
+        elif det == 5:
+            bpix[:,129] = 1.
+        elif det == 7:
+            bpix[:,426:428] = 1.
+        elif det == 8:
+            bpix[:,931] = 1.
+            bpix[:,933] = 1.
+
+        return bpix
 
 
 def read_deimos(raw_file, det=None):
@@ -260,41 +298,5 @@ def deimos_read_1chip(hdu,chipno):
 
     # Return
     return data, oscan
-
-def bpm(det):
-    """ Generate a BPM for DEIMOS
-    Currently assumes 1x1 binning
-
-    Parameters
-    ----------
-    det : int
-
-    Returns
-    -------
-    bpix : ndarray
-      0 = ok; 1. = Mask
-
-    """
-    bpix = np.zeros((4096, 2048))
-    if det == 1:
-        bpix[:,1052:1054] = 1.
-    elif det == 2:
-        bpix[:,0:4] = 1.
-        bpix[:,376:380] = 1.
-        bpix[:,2047] = 1.
-    elif det == 3:
-        bpix[:,851] = 1.
-    elif det == 4:
-        bpix[:,0:4] = 1.
-        bpix[:,997:998] = 1.
-    elif det == 5:
-        bpix[:,129] = 1.
-    elif det == 7:
-        bpix[:,426:428] = 1.
-    elif det == 8:
-        bpix[:,931] = 1.
-        bpix[:,933] = 1.
-
-    return bpix
 
 

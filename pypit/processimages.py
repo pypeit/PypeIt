@@ -113,11 +113,7 @@ class ProcessImages(object):
         self.spectrograph = spectrograph
 
         if self.spectro_class is None:
-            if self.spectrograph is not None:
-                self.spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
-            else:
-                msgs.warn("No Spectograph class instantiated.  Limited functionality...")
-                self.spectro_class = None
+            self.spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
 
         self.raw_images = []
         self.proc_images = None  # Will be an ndarray

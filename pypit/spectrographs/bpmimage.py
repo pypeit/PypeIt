@@ -6,8 +6,7 @@ import os
 
 from pypit import msgs
 from pypit.core import arprocimg
-from pypit.spectrographs import lris
-from pypit.spectrographs import deimos
+from pypit.spectrographs import spectro_utils
 
 from pypit import ardebug as debugger
 
@@ -62,12 +61,14 @@ class BPMImage(object):
     """
     # Keep order same as processimages (or else!)
     def __init__(self, spectrograph=None, settings=None, det=None,
-                 binning=None, reduce_badpix=None, msbias=None, shape=None):
+                 binning=None, reduce_badpix=None, msbias=None, shape=None,
+                 spectro_class=None):
 
         # Parameters unique to this Object
         self.spectrograph = spectrograph
         self.binning = binning
         self.det = det
+        self.spectro_class = spectro_class
 
         self.reduce_badpix = reduce_badpix
         self.msbias = msbias
@@ -84,6 +85,10 @@ class BPMImage(object):
             msgs.error("Need to supply det with this option")
         if (self.spectrograph == 'keck_lris_red') and (self.binning is None):
             msgs.error("Need to supply binning with this option")
+
+        # Spectrograph class
+        if self.spectro_class is None:
+            self.spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
 
         # Attributes (set after init)
         self.frametype = frametype
@@ -115,23 +120,8 @@ class BPMImage(object):
             # Construct
             self.bpm = arprocimg.badpix(self.msbias, self.settings['detector']['numamplifiers'], datasec)
         else:
-            # Instrument dependent
-            if self.spectrograph in ['keck_lris_red']:
-                # Index in fitstbl for binning
-                xbin, ybin = [int(ii) for ii in self.binning.split(',')]
-                self.bpm = lris.bpm(xbin, ybin, 'red', self.det)
-            elif self.spectrograph in ['keck_deimos']:
-                self.bpm = deimos.bpm(self.det)
-            elif self.spectrograph in ['keck_nirspec']:
-                # Edges of the detector are junk
-                msgs.info("Custom bad pixel mask for NIRSPEC")
-                self.bpm = np.zeros((self.shape[0], self.shape[1]))
-                self.bpm[:, :20] = 1.
-                self.bpm[:, 1000:] = 1.
-            else:
-                ###############
-                # Set the number of spectral and spatial pixels, and the bad pixel mask is it does not exist
-                self.bpm = np.zeros((self.shape[0], self.shape[1]))
+            self.bpm = self.spectro_class.bpm(binning=self.binning, det=self.det,
+                                              shape=self.shape)
         # Return
         return self.bpm
 

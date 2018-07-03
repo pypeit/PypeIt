@@ -112,4 +112,19 @@ class Spectrograph(object):
         # Return
         return datasec, oscansec, naxis0, naxis1
 
+    def bpm(self, shape=None, **null_kwargs):
+        """
+        Generate a generic (empty) BPM
 
+        Args:
+            shape: tuple, REQUIRED
+            **null_kwargs:
+
+        Returns:
+            bpm: ndarray, int
+              0=not masked; 1=masked
+
+        """
+        bpm = np.zeros((shape[0], shape[1]), dtype=int)
+        #
+        return bpm

@@ -15,9 +15,9 @@ from astropy.io import fits
 from pypit import msgs
 from pypit import arparse
 from pypit import ardebug as debugger
-from. import spectroclass
+from pypit.spectrographs import spectroclass
 
-class LRISSpectrograph(spectroclass.Spectrograph):
+class KeckLRISSpectrograph(spectroclass.Spectrograph):
     """
     Child to handle Keck/LRIS specific code
     """
@@ -26,7 +26,7 @@ class LRISSpectrograph(spectroclass.Spectrograph):
 
         # Get it started
         spectroclass.Spectrograph.__init__(self)
-        self.spectrograph = 'keck_lris'  # Note this is a base of keck_lris_red and keck_lris_blue; we might have to sub-class each
+        self.spectrograph = 'keck_lris'
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -80,6 +80,53 @@ class LRISSpectrograph(spectroclass.Spectrograph):
         # Return
         return datasec, oscansec, naxis0, naxis1
 
+class KeckLRISBSpectrograph(KeckLRISSpectrograph):
+    """
+    Child to handle Keck/LRISb specific code
+    """
+    def __init__(self):
+
+        # Get it started
+        spectroclass.Spectrograph.__init__(self)
+        self.spectrograph = 'keck_lris_blue'
+
+class KeckLRISRSpectrograph(KeckLRISSpectrograph):
+    """
+    Child to handle Keck/LRISr specific code
+    """
+    def __init__(self):
+
+        # Get it started
+        spectroclass.Spectrograph.__init__(self)
+        self.spectrograph = 'keck_lris_red'
+
+    def bpm(self, binning=None, det=None, **null_kwargs):
+        """ Generate a BPM
+
+        Parameters
+        ----------
+        binning : str, REQUIRED
+          Formatted like '1,1'
+        det : int, REQUIRED
+        **null_kwargs:
+           Captured and never used
+
+        Returns
+        -------
+        badpix : ndarray
+
+        """
+        xbin, ybin = [int(ii) for ii in binning.split(',')]
+        xshp = 2048 // xbin
+        yshp = 4096 // ybin
+        badpix = np.zeros((yshp, xshp), dtype=np.int)
+        # Do it
+        if det == 2:
+            msgs.info("Using hard-coded BPM for det=2 on LRISr")
+            badc = 16 // xbin
+            badpix[:, 0:badc] = 1.
+        # Return
+        return badpix
 
 
 def read_lris(raw_file, det=None, TRIM=False):
@@ -425,34 +472,6 @@ def bpm(slf, camera, fitsdict, det):
     return core_bpm(xbin, ybin, camera, det)
 '''
 
-def bpm(xbin, ybin, camera, det):
-    """ Generate a BPM
-
-    Parameters
-    ----------
-    xbin : int
-      binning in x
-    ybin : int
-      binning in y
-    camera : str
-    det : int
-
-    Returns
-    -------
-    badpix : ndarray
-
-    """
-    xshp = 2048 // xbin
-    yshp = 4096 // ybin
-    badpix = np.zeros((yshp, xshp), dtype=np.int)
-    # Hard-code bad column in LRISr
-    if camera == 'red':
-        if det == 2:
-            msgs.info("Using hard-coded BPM for det=2 on LRISr")
-            badc = 16 // xbin
-            badpix[:, 0:badc] = 1.
-    # Return
-    return badpix
 
 
 def convert_lowredux_pixelflat(infil, outfil):

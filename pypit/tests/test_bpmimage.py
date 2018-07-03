@@ -46,7 +46,7 @@ def test_instantiate():
 def test_dummy_image():
     # Simple
     shape=(2048,2048)
-    bpmImage = bpmimage.BPMImage(shape=shape)
+    bpmImage = bpmimage.BPMImage(shape=shape, spectrograph='generic')
     bpm = bpmImage.build()
     assert isinstance(bpm, np.ndarray)
     assert bpm.shape == shape
