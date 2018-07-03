@@ -18,7 +18,7 @@ from pypit.core import armasters
 
 from pypit import arcimage
 from pypit import biasframe
-from pypit.spectrographs import bpmimage
+from pypit import bpmimage
 from pypit import flatfield
 from pypit import traceimage
 from pypit import traceslits
@@ -26,9 +26,9 @@ from pypit import wavecalib
 from pypit import wavetilts
 from pypit import waveimage
 
-from pypit import ardebug as debugger
+from pypit.spectrographs import spectro_utils
 
-from pypit.spectrographs import io
+from pypit import ardebug as debugger
 
 # For out of PYPIT running
 if msgs._debug is None:
@@ -53,15 +53,17 @@ class Calibrations(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, fitstbl, save_masters=True, write_qa=True):
+    def __init__(self, fitstbl, spectro_class=None, save_masters=True, write_qa=True):
 
         # Parameters unique to this Object
         self.fitstbl = fitstbl
+        self.spectro_class = spectro_class
         self.save_masters = save_masters
         self.write_qa = write_qa
 
         # Set spectrograph from FITS table
-        self.spectrograph = self.fitstbl['instrume'][0]
+        if spectro_class is None:
+            self.spectro_class = spectro_utils(spectrograph=self.fitstbl['instrume'][0])
 
         # Attributes
         self.calib_dict = {}

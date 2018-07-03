@@ -96,7 +96,6 @@ class BPMImage(object):
         # Output
         self.bpm = None
 
-
     def build(self):
         """
         Generate the BPM Image

@@ -23,7 +23,6 @@ def test_setup_param():
     
     Returns
     -------
-
     """
     # Initialize some settings
     settings.dummy_settings()

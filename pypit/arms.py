@@ -11,23 +11,15 @@ from pypit import msgs
 from pypit import arparse as settings
 from pypit import arload
 from pypit import arutils
-from pypit.core import arprocimg
 from pypit.core import arsave
 from pypit.core import arwave
 from pypit.core import arsetup
-from pypit import arpixels
 from pypit.core import arsort
-from pypit import arcimage
-from pypit import biasframe
-from pypit import bpmimage
 from pypit import calibrations
-from pypit import flatfield
 from pypit import fluxspec
-from pypit import traceslits
-from pypit import wavecalib
-from pypit import waveimage
-from pypit import wavetilts
 from pypit import scienceimage
+
+from pypit.spectrographs import spectro_utils
 
 from pypit import ardebug as debugger
 
@@ -60,11 +52,11 @@ def ARMS(spectrograph, fitstbl, setup_dict):
     numsci = len(all_sci_ID)
     basenames = [None]*numsci  # For fluxing at the very end
 
-    # Init calib dict
-    caliBrate = calibrations.MultiSlitCalibrations(fitstbl, save_masters=True)
-
     # Spectrometer class
     spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
+
+    # Init calib dict
+    caliBrate = calibrations.MultiSlitCalibrations(fitstbl, spectro_class, save_masters=True)
 
     # Loop on science exposure first
     #  calib frames, e.g. arcs)
