@@ -110,7 +110,7 @@ def analyze_lines(msarc, trcdict, slit, pixcen, tilt_settings, maskval=-999999.9
     return badlines, all_tilts
 
 
-def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
+def tilts_image(tilts, lordloc, rordloc, pad, sz_y):
     """
     Using the tilt (assumed to be fit with a first order polynomial)
     generate an image of the tilts for each slit.
@@ -199,7 +199,6 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
         indict["wmask"].append(None)
         return indict
 
-    # from pypit import arcyutils
     dnum = arparse.get_dnum(det)
 
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
@@ -652,16 +651,8 @@ def echelle_tilt(slf, msarc, det, settings_argflag, settings_spect, pcadesc="PCA
             tilts = np.zeros_like(slf._lordloc)
 
     # Generate tilts image
-#    print('calling tilts_image')
-#    t = time.clock()
-#    _tiltsimg = arcytrace.tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
-#                                     settings.argflag['trace']['slits']['pad'], msarc.shape[1])
-#    print('Old tilts_image: {0} seconds'.format(time.clock() - t))
-#    t = time.clock()
-    tiltsimg = new_tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
-                                settings_argflag['trace']['slits']['pad'], msarc.shape[1])
-#    print('New tilts_image: {0} seconds'.format(time.clock() - t))
-#    assert np.sum(_tiltsimg != tiltsimg) == 0, 'Difference between old and new tilts_image'
+    tiltsimg = tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
+                           settings_argflag['trace']['slits']['pad'], msarc.shape[1])
 
     return tiltsimg, satmask, outpar
 

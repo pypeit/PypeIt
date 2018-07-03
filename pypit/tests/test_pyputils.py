@@ -11,7 +11,7 @@ try:
 except NameError:
     basestring = str
 
-from pypit import __version__, __last_updated__
+from pypit import __version__ #, __last_updated__
 from pypit import pyputils
 
 #def data_path(filename):
@@ -21,7 +21,8 @@ from pypit import pyputils
 def test_version():
     # Dummy self
 #    ver,upd = pyputils.get_version()
-    ver,upd = __version__, __last_updated__
+    ver = __version__
+#    ver,upd = __version__, __last_updated__
     assert isinstance(ver,basestring)
 
 

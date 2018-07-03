@@ -13,7 +13,7 @@ from astropy.table import Table
 
 from pypit import arutils
 from pypit import artrace
-from pypit import arcytrace
+#from pypit import arcytrace
 from pypit import pyputils
 
 msgs = pyputils.get_dummy_logger()
@@ -44,7 +44,8 @@ def test_objstd():
     # Call
     bgreg = trcprof.size - 10
     mad = 0.03
-    objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+#    objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+    objl, objr, bckl, bckr = artrace.find_objects(trcprof, bgreg, mad)
     assert len(objl) == 5
     assert objl[1] == 36
     assert objr[1] == 82

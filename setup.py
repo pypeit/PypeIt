@@ -14,42 +14,6 @@ import glob
 
 from setuptools import setup, find_packages
 
-# For building in Cython functions -------------------------------------
-import numpy
-from Cython.Build import cythonize
-from Cython.Distutils import build_ext
-from distutils.extension import Extension
-
-def gsl_dirs():
-    """ Test for and return the necessary GSL directories. """
-    subdir = [ 'include', 'lib' ]
-    dirs = []
-    for i,sd in enumerate(subdir):
-        dirs.append(os.path.join(os.getenv('GSL_PATH'), sd))
-        if not os.path.isdir(dirs[i]):
-            raise NotADirectoryError('No directory {0}.  '.format(dirs[i]) +
-                                     'Must define GSL_PATH environmental variable.')
-    return tuple(dirs)
-
-
-def get_extensions():
-    """ Build the extension modules for GSL. """
-    include_gsl_dir, lib_gsl_dir = gsl_dirs()
-
-    cython_files = glob.glob('pypit/*.pyx')
-    ext_modules = []
-    for f in cython_files:
-        name = ('pypit.'+f.split('.')[0].split('/')[1])
-        sources = [f]
-        ext_modules.append(Extension(name, sources,
-                                     include_dirs=[numpy.get_include(), include_gsl_dir],
-                                     library_dirs=[lib_gsl_dir],
-                                     libraries=['gsl','gslcblas']))
-#    return cythonize(ext_modules)
-    return ext_modules
-# ----------------------------------------------------------------------
-
-
 def get_data_files():
     """ Build the list of data files to include.  """
     data_files = []
@@ -93,8 +57,7 @@ NAME = 'pypit'
 VERSION = '0.8.0dev'
 RELEASE = 'dev' not in VERSION
 
-
-def run_setup(data_files, scripts, packages, ext_modules, install_requires):
+def run_setup(data_files, scripts, packages, install_requires):
 
     # TODO: Are any/all of the *'d keyword arguments needed? I.e., what
     # are the default values?
@@ -102,7 +65,7 @@ def run_setup(data_files, scripts, packages, ext_modules, install_requires):
     setup(name=NAME,
           provides=NAME,                                                # *
           version=VERSION,
-          license='BSD3',                                               # TODO: Or is this 'BSD'?
+          license='BSD3',
           description='PYPIT Spectroscopic Reduction',
           long_description=open('README.md').read(),
           author='PYPIT Collaboration',
@@ -117,11 +80,9 @@ def run_setup(data_files, scripts, packages, ext_modules, install_requires):
           requires=[ 'Python (>2.7.0)' ],                               # *
           zip_safe=False,                                               # *
           use_2to3=False,                                               # *
-          setup_requires=[ 'pytest-runner', 'cython>=0.27' ],           # *
-          tests_require=[ 'pytest' ],                                   # *
-          ext_modules=ext_modules,                                      # only needed for cython
-          cmdclass={'build_ext': build_ext},                            # only needed for cython
-          classifiers=[                                                 # TODO: Check these
+          setup_requires=[ 'pytest-runner' ],
+          tests_require=[ 'pytest' ],
+          classifiers=[
               'Development Status :: 4 - Beta',
               'Intended Audience :: Science/Research',
               'License :: OSI Approved :: BSD License',
@@ -146,12 +107,10 @@ if __name__ == '__main__':
     scripts = get_scripts()
     # Get the packages to include
     packages = find_packages()
-    # Include the module extensions; CURRENTLY ONLY NEEDED FOR CYTHON
-    ext_modules = get_extensions()
     # Collate the dependencies based on the system text file
     install_requires = get_requirements()
     install_requires = []  # Remove this line to enforce actual installation
     # Run setup from setuptools
-    run_setup(data_files, scripts, packages, ext_modules, install_requires)
+    run_setup(data_files, scripts, packages, install_requires)
 
 

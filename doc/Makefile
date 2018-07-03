@@ -2,7 +2,9 @@
 #
 
 # You can set these variables from the command line.
-SPHINXOPTS    =
+SPHINXAPI     = sphinx-apidoc
+SPHINXAPIOPT  = members,private-members,undoc-members,show-inheritance
+SPHINXOPTS    = -aE -w ./sphinx_warnings.out
 SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = _build
@@ -51,8 +53,11 @@ help:
 clean:
 	rm -rf $(BUILDDIR)/*
 	rm -rf api
+	rm -rf module.rst pypit.rst pypit.*.rst
 
 html:
+	export SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT)
+	$(SPHINXAPI) -o . ../pypit --separate
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."

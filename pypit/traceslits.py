@@ -538,7 +538,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         # Assign a number to each edge 'grouping'
 
-        Wrapper to artraceslits.new_match_edges()
+        Wrapper to artraceslits.match_edges()
 
         Returns
         -------
@@ -548,7 +548,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
 
-        self.lcnt, self.rcnt = artraceslits.new_match_edges(self.edgearr, self.ednum)
+        self.lcnt, self.rcnt = artraceslits.match_edges(self.edgearr, self.ednum)
         # Sanity check (unlikely we will ever hit this)
         if self.lcnt >= self.ednum or self.rcnt >= self.ednum:
             msgs.error("Found more edges than allowed by ednum. Set ednum to a larger number.")
