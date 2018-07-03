@@ -1305,11 +1305,11 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
             specobjs[iobj].fwhm = FWHM
 
 
-
+    objmask = np.zeros_like(thismask, dtype=bool)
+    skymask = np.copy(thismask)
     if (len(specobjs) == 0) & (HAND_DICT == None):
-        print('Put a return statement here')
-        # print_objects(
-        # return None, None, None, None
+        msgs.info('No objects found')
+        return (None, objmask, skymask)
 
 
     msgs.info('Tweaking the object traces')
@@ -1451,8 +1451,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
                 specobj.fwhm = FWHM
             specobjs.append(specobj)
 
-    objmask = np.zeros_like(thismask, dtype=bool)
-    skymask = np.copy(thismask)
+
     nobj = len(specobjs)
     # If there are no regular aps and no hand aps, just return
     #if nobj == 0:
