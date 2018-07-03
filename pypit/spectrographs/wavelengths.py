@@ -150,6 +150,15 @@ def setup_param(spectrograph, msarc_shape, fitstbl, arc_idx,
             arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+    elif spectrograph == 'keck_nirspec':
+        lamps = ['OH_R24000']
+        if fitstbl['filter1'][arc_idx] == 'NIRSPEC-1':
+            arcparam['n_first'] = 2  # Too much curvature for 1st order
+            arcparam['disp'] = 2.1093  # Ang per pixel for Low-Res, NIRSPEC-1 filter
+            arcparam['b1'] = 1. / arcparam['disp'] / msarc_shape[0]
+            arcparam['wvmnx'][0] = 9400.  # Min wavelength
+            arcparam['wvmnx'][1] = 11300.  # Max wavelength
+            arcparam['wv_cen'] = 10000.  # Central wavelength
     elif spectrograph=='wht_isis_blue':
         modify_dict = dict(NeI={'min_wave': 3000.,'min_intensity': 299,
                                 'min_Aki': 0.},ArI={'min_intensity': 399.})

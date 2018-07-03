@@ -14,6 +14,22 @@ from astropy.io import fits
 from pypit import msgs
 from pypit.arparse import load_sections
 from pypit import ardebug as debugger
+from. import spectroclass
+
+class LRISSpectrograph(spectroclass.Spectrograph):
+
+    def __init__(self):
+
+        spectroclass.Spectrograph.__init__(self)
+        self.spectrograph = 'keck_lris'  # Note this is a base of keck_lris_red and keck_lris_blue; we might have to sub-class each
+
+    def load_raw_frame(self, raw_file, det=1, disp_dir=0, dataext=None):
+        raw_img, head0, _ = read_lris(raw_file, det=det)
+
+        return self.fuss_with_raw(raw_img, disp_dir=disp_dir), head0
+
+
+
 
 def read_lris(raw_file, det=None, TRIM=False):
     """
