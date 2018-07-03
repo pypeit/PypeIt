@@ -277,8 +277,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
                                          inmask=tempin, outmask=maskwork,
                                          upper=upper*relative_factor,
                                          lower=lower*relative_factor, **kwargs_reject)
-            from IPython import embed
-            embed()
             tempin = maskwork
             msgs.info("                             {:4d}".format(iiter) + "{:8.3f}".format(reduced_chi) +
                       "  {:7d}".format((maskwork == 0).sum()) + "      {:6.2f}".format(relative_factor))
