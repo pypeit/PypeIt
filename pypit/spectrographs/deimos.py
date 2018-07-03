@@ -18,18 +18,55 @@ from pypit import ardebug as debugger
 #msgs = armsgs.get_logger()
 
 class DEIMOSSpectrograph(spectroclass.Spectrograph):
+    """
+    Child to handle Keck/DEIMOS specific code
+    """
 
     def __init__(self):
 
+        # Get it started
         spectroclass.Spectrograph.__init__(self)
-        self.spectrograph = 'keck_lris'  # Note this is a base of keck_lris_red and keck_lris_blue; we might have to sub-class each
+        self.spectrograph = 'keck_deimos'
 
-    def load_raw_img_head(self, raw_file, det=1, **null_kwargs):
+    def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
+        """
+        Wrapper to the raw image reader for DEIMOS
+
+        Args:
+            raw_file:  str, filename
+            det: int, REQUIRED
+              Desired detector
+            **null_kwargs:
+              Captured and never used
+
+        Returns:
+            raw_img: ndarray
+              Raw image;  likely unsigned int
+            head0: Header
+
+        """
         raw_img, head0, _ = read_deimos(raw_file, det=det)
 
         return raw_img, head0
 
     def get_datasec(self, filename, det, settings_det):
+        """
+        Load up the datasec and oscansec and also naxis0 and naxis1
+
+        Args:
+            filename: str
+              data filename
+            det: int
+              Detector specification
+            settings_det: ParSet
+              numamplifiers
+
+        Returns:
+            datasec: list
+            oscansec: list
+            naxis0: int
+            naxis1: int
+        """
 
         datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
         temp, head0, secs = read_deimos(filename, det)
