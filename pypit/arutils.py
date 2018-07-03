@@ -732,43 +732,6 @@ def guess_gauss(x,y):
     # Return
     return mx, cent, sigma
 
-# TODO: This function must be obsolete because there was no
-# arcyarc.fit_gauss function, even before I (KBW) removed the
-# arcyarc.pyx file!
-#def gauss_lsqfit(x,y,pcen):
-#    """
-#
-#    :param x:
-#    :param y:
-#    :param pcen: An estimate of the Gaussian mean
-#    :return:
-#    """
-#    def gfunc(x,ampl,cent,sigm,cons,tilt):
-#        df = (x[1:]-x[:-1])/2.0
-#        df = np.append(df,df[-1])
-#        dff = (x[1:]**2 - x[:-1]**2)/2.0
-#        dff = np.append(dff,dff[-1])
-#        sqt = sigm*np.sqrt(2.0)
-#        return cons*df*2.0 + tilt*dff + ampl*0.5*np.sqrt(np.pi)*sqt*(erf((x+df-cent)/sqt) - erf((x-df-cent)/sqt))
-#        #return cons + ampl*np.exp(-0.5*((x-cent)/sigm)**2)
-#
-#    if np.any(y<0.0):
-#        return [0.0, 0.0, 0.0], True
-#    # Obtain a quick first guess at the parameters
-#    ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
-#    if good == 0:
-#        return [0.0, 0.0, 0.0], True
-#    elif np.any(np.isnan([ampl, cent, sigm])):
-#        return [0.0, 0.0, 0.0], True
-#    else:
-#        # Perform a least squares fit
-#        try:
-#            popt, pcov = curve_fit(gfunc, x, y, p0=[ampl, cent, sigm, 0.0, 0.0], maxfev=100)
-#            #popt, pcov = curve_fit(gfunc, x, y, p0=[0.0,ampl, cent, sigm], maxfev=100)
-#        except:
-#            return [0.0, 0.0, 0.0], True
-#        return [popt[0], popt[1], popt[2]], False
-
 
 # TODO: This function was never called as far as I (KBW) could tell
 #def gauss_fit(x, y, pcen):
