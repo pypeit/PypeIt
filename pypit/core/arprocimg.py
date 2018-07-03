@@ -165,8 +165,8 @@ def sn_frame(slf, sciframe, idx):
 '''
 
 
-def lacosmic(det, sciframe, settings_det, maxiter=1, grow=1.5,
-             varframe=None, remove_compact_obj=True):
+def lacosmic(det, sciframe, saturation, nonlinear, maxiter=1, grow=1.5,
+             varframe=None, remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
     """
     settings_det : settings.spect[dnum]
       Detector info
@@ -182,10 +182,10 @@ def lacosmic(det, sciframe, settings_det, maxiter=1, grow=1.5,
     dnum = arparse.get_dnum(det)
 
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
-    msgs.work("Include these parameters in the settings files to be adjusted by the user")
-    sigclip = 5.0
-    sigfrac = 0.3
-    objlim  = 5.0
+#    msgs.work("Include these parameters in the settings files to be adjusted by the user")
+#    sigclip = 5.0
+#    sigfrac = 0.3
+#    objlim  = 5.0
     # Set the settings
     scicopy = sciframe.copy()
     crmask = np.cast['bool'](np.zeros(sciframe.shape))
@@ -193,7 +193,8 @@ def lacosmic(det, sciframe, settings_det, maxiter=1, grow=1.5,
 
     # Determine if there are saturated pixels
     satpix = np.zeros_like(sciframe)
-    satlev = settings_det['saturation']*settings_det['nonlinear']
+#    satlev = settings_det['saturation']*settings_det['nonlinear']
+    satlev = saturation*nonlinear
     wsat = np.where(sciframe >= satlev)
     if wsat[0].size == 0: satpix = None
     else:

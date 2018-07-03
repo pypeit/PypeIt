@@ -8,6 +8,8 @@ from astropy.io import fits
 
 from abc import ABCMeta
 
+from pypit.par.pypitpar import DetectorPar
+
 class Spectrograph(object):
     """
     Generic class for spectrograph-specific codes
@@ -15,8 +17,8 @@ class Spectrograph(object):
     __metaclass__ = ABCMeta
 
     def __init__(self):
-
         self.spectrograph = 'generic'
+        self.detector = None
 
     def load_raw_frame(self, raw_file, disp_dir, dataext=None, det=None):
         """
@@ -42,7 +44,6 @@ class Spectrograph(object):
             head0: Header
 
         """
-
         # Load the raw image
         raw_img, head0 = self.load_raw_img_head(raw_file, dataext=dataext, det=det)
 
@@ -77,19 +78,15 @@ class Spectrograph(object):
         # Return
         return raw_img, head0
 
-    def get_datasec(self, filename, det, settings_det):
+    def get_datasec(self, filename, det):
         """
         Load up the datasec and oscansec and also naxis0 and naxis1
 
         Args:
-            filename: str
-              data filename
-            det: int
-              Detector specification
-            settings_det: ParSet
-              numamplifiers
-              dispaxis
-              dataext01
+            filename (str):
+                data filename
+            det (int):
+                Detector number
 
         Returns:
             datasec: list
@@ -97,23 +94,18 @@ class Spectrograph(object):
             naxis0: int
             naxis1: int
         """
+        # Check the detector
+        if self.detector is None:
+            raise ValueError('Must first define spectrograph detector parameters!')
+        if not isinstance(self.detector, DetectorPar):
+            raise TypeError('Detector parameters must be specified using a DetectorPar instance.')
 
-        datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
-        for i in range(settings_det['numamplifiers']):
-            sdatasec = "datasec{0:02d}".format(i+1)
-            datasec.append(settings_det[sdatasec])
-            soscansec = "oscansec{0:02d}".format(i+1)
-            oscansec.append(settings_det[soscansec])
-
+        # TODO: This seems like a lot of effort to get the size of the
+        # image.
         # Read the image for the shape (just in case)
-        temp, _ = self.load_raw_frame(filename, settings_det['dispaxis'],
-                                      det=det, dataext=settings_det['dataext01'])
-        # Need naxis0, naxis1 too
-        naxis0 = temp.shape[0]
-        naxis1 = temp.shape[1]
-
-        # Return
-        return datasec, oscansec, naxis0, naxis1
+        temp, _ = self.load_raw_frame(filename, self.detector['dispaxis'], det=det,
+                                      dataext=self.detector['dataext'])
+        return (self.detector['datasec'], self.detector['oscansec']) + temp.shape
 
     def bpm(self, shape=None, **null_kwargs):
         """
@@ -135,3 +127,11 @@ class Spectrograph(object):
     def setup_arcparam(self, **null_kwargs):
         modify_dict = None
         return modify_dict
+
+    @property
+    def ndet(self):
+        """Return the number of detectors."""
+        if self.detector is None:
+            return 0
+        return len(self.detector)
+

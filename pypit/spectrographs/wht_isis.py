@@ -21,9 +21,7 @@ class WhtIsisSpectrograph(spectroclass.Spectrograph):
     """
 
     def __init__(self):
-
-        # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(WhtIsisSpectrograph, self).__init__()
         self.spectrograph = 'NULL'
 
 class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
@@ -31,10 +29,16 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
     Child to handle WHT/ISIS blue specific code
     """
     def __init__(self):
-
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(WhtIsisBlueSpectrograph, self).__init__()
         self.spectrograph = 'wht_isis_blue'
+        self.detector = [
+                # Detector 1
+                DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.225,
+                            darkcurr=0.0, saturation=65535., nonlinear=0.76, numamplifiers=1,
+                            gain=1.2, ronoise=5.0, datasec='[:,2:4030]', suffix='_blue')
+            ]
+        
 
     def setup_arcparam(self, arcparam, disperser=None, fitstbl=None,
                        arc_idx=None, msarc_shape=None, **null_kwargs):

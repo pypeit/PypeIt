@@ -2408,8 +2408,7 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
     if msgs._debug['trace']:
         debugger.set_trace()
     if mnvalp > mnvalm:
-        lvp = (arutils.func_val(lcoeff[:, lval + 1 - lmin], xv,
-                                settings['trace']['slits']['function'], minv=minvf, maxv=maxvf) \
+        lvp = (arutils.func_val(lcoeff[:, lval + 1 - lmin], xv, function, minv=minvf, maxv=maxvf) \
                + 0.5).astype(np.int)
 
         edgbtwn = find_between(edgearr, lv, lvp, 1)
@@ -2424,7 +2423,7 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
         else:  # There's an order overlap
             rsub = edgbtwn[1] - lval
     else:
-        lvp = (arutils.func_val(lcoeff[:, lval - 1 - lmin], xv, settings['trace']['slits']['function'],
+        lvp = (arutils.func_val(lcoeff[:, lval - 1 - lmin], xv, function,
                                 minv=minvf, maxv=maxvf) + 0.5).astype(np.int)
         edgbtwn = find_between(edgearr, lvp, lv, -1)
 

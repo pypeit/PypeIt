@@ -21,10 +21,15 @@ class TngDoloresSpectrograph(spectroclass.Spectrograph):
     """
 
     def __init__(self):
-
-        # Get it started
-        spectroclass.Spectrograph.__init__(self)
-        self.spectrograph = 'NULL'
+        super(TngDoloresSpectrograph, self).__init__()
+        self.spectrograph = 'tng_dolores'
+        self.detector = [
+                # Detector 1
+                DetectorPar(dataext=0, dispaxis=1, xgap=0., ygap=0., ysize=1., platescale=0.252,
+                            darkcurr=0.0, saturation=65535., nonlinear=0.76, numamplifiers=1,
+                            gain=0.97, ronoise=9.0, datasec='[51:,1:2045]', oscansec='[51:,2054:]',
+                            suffix='_lrr')
+            ]
 
     def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
                        binspectral=None, **null_kwargs):

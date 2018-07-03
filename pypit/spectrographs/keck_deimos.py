@@ -21,12 +21,44 @@ class KeckDEIMOSSpectrograph(spectroclass.Spectrograph):
     """
     Child to handle Keck/DEIMOS specific code
     """
-
     def __init__(self):
-
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(KeckDEIMOSSpectrograph, self).__init__()
         self.spectrograph = 'keck_deimos'
+        self.detector = [
+                # Detector 1
+                DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.1185,
+                            darkcurr=4.19, saturation=65535., nonlinear=0.86, numamplifiers=1,
+                            gain=1.226, ronoise=2.570, suffix='_01'),
+                # Detector 2
+                DetectorPar(dataext=2, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.1185,
+                            darkcurr=3.46, saturation=65535., nonlinear=0.86, numamplifiers=1,
+                            gain=1.188, ronoise=2.491, suffix='_02'),
+                # Detector 3
+                DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.1185,
+                            darkcurr=4.03, saturation=65535., nonlinear=0.86, numamplifiers=1,
+                            gain=1.248, ronoise=2.618, suffix='_03'),
+                # Detector 4
+                DetectorPar(dataext=2, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.1185,
+                            darkcurr=3.80, saturation=65535., nonlinear=0.86, numamplifiers=1,
+                            gain=1.220, ronoise=2.557, suffix='_04'),
+                # Detector 5
+                DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.1185,
+                            darkcurr=4.71, saturation=65535., nonlinear=0.86, numamplifiers=1,
+                            gain=1.184, ronoise=2.482, suffix='_05'),
+                # Detector 6
+                DetectorPar(dataext=2, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.1185,
+                            darkcurr=4.28, saturation=65535., nonlinear=0.86, numamplifiers=1,
+                            gain=1.177, ronoise=2.469, suffix='_06'),
+                # Detector 7
+                DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.1185,
+                            darkcurr=3.33, saturation=65535., nonlinear=0.86, numamplifiers=1,
+                            gain=1.201, ronoise=2.518, suffix='_07'),
+                # Detector 8
+                DetectorPar(dataext=2, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.1185,
+                            darkcurr=3.69, saturation=65535., nonlinear=0.86, numamplifiers=1,
+                            gain=1.230, ronoise=2.580, suffix='_08')
+            ]
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -49,7 +81,7 @@ class KeckDEIMOSSpectrograph(spectroclass.Spectrograph):
 
         return raw_img, head0
 
-    def get_datasec(self, filename, det, settings_det):
+    def get_datasec(self, filename, det):
         """
         Load up the datasec and oscansec and also naxis0 and naxis1
 
@@ -58,8 +90,6 @@ class KeckDEIMOSSpectrograph(spectroclass.Spectrograph):
               data filename
             det: int
               Detector specification
-            settings_det: ParSet
-              numamplifiers
 
         Returns:
             datasec: list
@@ -67,19 +97,24 @@ class KeckDEIMOSSpectrograph(spectroclass.Spectrograph):
             naxis0: int
             naxis1: int
         """
+        # Check the detector
+        if self.detector is None:
+            raise ValueError('Must first define spectrograph detector parameters!')
+        for d in self.detector:
+            if not isinstance(d, DetectorPar):
+                raise TypeError('Detectors must be specified using a DetectorPar instance.')
 
-        datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
+        # Read the file
         temp, head0, secs = read_deimos(filename, det)
-        for kk in range(settings_det['numamplifiers']):
+
+        # Get the data and overscan regions
+        datasec, oscansec = [], []
+        for kk in range(self.detector[det]['numamplifiers']):
             datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
             oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
 
-        # Need naxis0, naxis1 too
-        naxis0 = temp.shape[0]
-        naxis1 = temp.shape[1]
-
-        # Return
-        return datasec, oscansec, naxis0, naxis1
+        # Return the sections and the shape of the image
+        return (datasec, oscansec) + temp.shape
 
     def bpm(self, det=None, **null_kwargs):
         """ Generate a BPM for DEIMOS

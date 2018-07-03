@@ -20,12 +20,16 @@ class KeckNIRSPECSpectrograph(spectroclass.Spectrograph):
     """
     Child to handle Keck/LRIS specific code
     """
-
     def __init__(self):
-
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(KeckNIRSPECSpectrograph, self).__init__()
         self.spectrograph = 'keck_nirspec'
+        self.detector = [
+                # Detector 1
+                DetectorPar(dataext=0, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.193,
+                            darkcurr=0.8, saturation=65535., nonlinear=0.76, numamplifiers=1,
+                            gain=5.8, ronoise=23)
+            ]
 
     def bpm(self, shape=None, **null_kwargs):
         """ Generate a BPM

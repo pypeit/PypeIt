@@ -17,15 +17,18 @@ from pypit import arparse
 from pypit import ardebug as debugger
 from pypit.spectrographs import spectroclass
 
+from pypit.par.pypitpar import DetectorPar
+
 class KeckLRISSpectrograph(spectroclass.Spectrograph):
     """
     Child to handle Keck/LRIS specific code
     """
 
-    def __init__(self):
+    # TODO: This should be an abstract class!
 
+    def __init__(self):
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(KeckLRISSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris'
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
@@ -49,17 +52,15 @@ class KeckLRISSpectrograph(spectroclass.Spectrograph):
 
         return raw_img, head0
 
-    def get_datasec(self, filename, det, settings_det):
+    def get_datasec(self, filename, det):
         """
         Load up the datasec and oscansec and also naxis0 and naxis1
 
         Args:
-            filename: str
-              data filename
-            det: int
-              Detector specification
-            settings_det: ParSet
-              numamplifiers
+            filename (str):
+                data filename
+            det (int):
+                Detector number
 
         Returns:
             datasec: list
@@ -67,28 +68,44 @@ class KeckLRISSpectrograph(spectroclass.Spectrograph):
             naxis0: int
             naxis1: int
         """
-        datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
+        # Check the detector
+        if self.detector is None:
+            raise ValueError('Must first define spectrograph detector parameters!')
+        for d in self.detector:
+            if not isinstance(d, DetectorPar):
+                raise TypeError('Detectors must be specified using a DetectorPar instance.')
+        
+        # Read the file
         temp, head0, secs = read_lris(filename, det)
-        for kk in range(settings_det['numamplifiers']):
+
+        # Get the data and overscan regions
+        datasec, oscansec = [], []
+        for kk in range(self.detector[det]['numamplifiers']):
             datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
             oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
 
-        # Need naxis0, naxis1 too
-        naxis0 = temp.shape[0]
-        naxis1 = temp.shape[1]
+        # Return the sections and the shape of the image
+        return (datasec, oscansec) + temp.shape
 
-        # Return
-        return datasec, oscansec, naxis0, naxis1
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISb specific code
     """
     def __init__(self):
-
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(KeckLRISBSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris_blue'
+        self.detector = [
+                # Detector 1
+                DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.135,
+                            darkcurr=0.0, saturation=65535., nonlinear=0.86, numamplifiers=2,
+                            gain=[1.55, 1.56], ronoise=[3.9, 4.2], suffix='_01blue'),
+                #Detector 2
+                DetectorPar(dataext=2, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.135,
+                            darkcurr=0., saturation=65535., nonlinear=0.86, numamplifiers=2,
+                            gain=[1.63, 1.70], ronoise=[3.6, 3.6], suffix='_02blue')
+            ]
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
@@ -125,15 +142,25 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
+
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISr specific code
     """
     def __init__(self):
-
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(KeckLRISRSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris_red'
+        self.detector = [
+                # Detector 1
+                DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.135,
+                            darkcurr=0.0, saturation=65535., nonlinear=0.76, numamplifiers=2,
+                            gain=[1.255, 1.18], ronoise=[4.64, 4.76], suffix='_01red'),
+                #Detector 2
+                DetectorPar(dataext=2, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.135,
+                            darkcurr=0., saturation=65535., nonlinear=0.76, numamplifiers=2,
+                            gain=[1.191, 1.162], ronoise=[4.54, 4.62], suffix='_02red')
+            ]
 
     def bpm(self, binning=None, det=None, **null_kwargs):
         """ Generate a BPM
@@ -202,6 +229,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+
 
 def read_lris(raw_file, det=None, TRIM=False):
     """

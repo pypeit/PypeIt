@@ -1903,21 +1903,6 @@ class DetectorPar(ParSet):
         dtypes['dataext'] = int
         descr['dataext'] = 'Index of fits extension containing data'
 
-        # TODO: Allow for None, such that the entire image is the data
-        # section
-        defaults['datasec'] = 'DATASEC'
-        dtypes['datasec'] = basestring
-        descr['datasec'] = 'Either the data sections or the header keyword where the valid ' \
-                           'data sections can be obtained. If defined explicitly should have ' \
-                           'the format of a numpy array slice'
-
-        # TODO: Allow for None, such that there is no overscan region
-        defaults['oscansec'] = 'BIASSEC'
-        dtypes['oscansec'] = basestring
-        descr['oscansec'] = 'Either the overscan section or the header keyword where the valid ' \
-                            'data sections can be obtained. If defined explicitly should have ' \
-                            'the format of a numpy array slice'
-
         # TODO: Should this be detector-specific, or camera-specific?
         defaults['dispaxis'] = 0
         options['dispaxis'] = [ 0, 1 ]
@@ -1956,6 +1941,8 @@ class DetectorPar(ParSet):
         descr['nonlinear'] = 'Percentage of detector range which is linear (i.e. everything ' \
                              'above nonlinear*saturation will be flagged as saturated)'
 
+        # gain, ronoise, datasec, and oscansec must be lists if there is
+        # more than one amplifier
         defaults['numamplifiers'] = 1
         dtypes['numamplifiers'] = int
         descr['numamplifiers'] = 'Number of amplifiers'
@@ -1969,6 +1956,21 @@ class DetectorPar(ParSet):
         dtypes['ronoise'] = [ int, float, list ]
         descr['ronoise'] = 'Read-out noise (e-). A list should be provided if a detector ' \
                            'contains more than one amplifier.'
+
+        # TODO: Allow for None, such that the entire image is the data
+        # section
+        defaults['datasec'] = 'DATASEC'
+        dtypes['datasec'] = [basestring, list]
+        descr['datasec'] = 'Either the data sections or the header keyword where the valid ' \
+                           'data sections can be obtained, one per amplifier. If defined ' \
+                           'explicitly should have the format of a numpy array slice'
+
+        # TODO: Allow for None, such that there is no overscan region
+        defaults['oscansec'] = 'BIASSEC'
+        dtypes['oscansec'] = [basestring, list]
+        descr['oscansec'] = 'Either the overscan section or the header keyword where the valid ' \
+                            'data sections can be obtained, one per amplifier. If defined ' \
+                            'explicitly should have the format of a numpy array slice'
 
         # TODO: Allow this to be None?
         defaults['suffix'] = ''
@@ -2000,18 +2002,17 @@ class DetectorPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         if self.data['numamplifiers'] > 1:
-            if not isinstance(self.data['gain'], list) \
-                    or len(self.data['gain']) != self.data['numamplifiers']:
-                raise ValueError('Provided gain is not a list of the correct length.')
-            if not isinstance(self.data['ronoise'], list) \
-                    or len(self.data['ronoise']) != self.data['numamplifiers']:
-                raise ValueError('Provided read-out noise is not a list of the correct length.')
+            keys = [ 'gain', 'ronoise', 'datasec', 'oscansec' ]
+            dtype = [ (int, float), (int, float), basestring, basestring ]
+            for i in range(len(check_list)):
+                if not isinstance(self.data[keys[i]], list) \
+                        or len(self.data[keys[i]]) != self.data['numamplifiers']:
+                    raise ValueError('Provided {0} does not match number of amplifiers.'.format(k))
 
-            for k in range(self.data['numamplifiers']):
-                if not isinstance(self.data['gain'][k], (int, float)):
-                    TypeError('Gain values must be a integer or floating-point number.')
-                if not isinstance(self.data['ronoise'][k], (int, float)):
-                    TypeError('Read-out noise values must be a integer or floating-point number.')
+            for j in range(self.data['numamplifiers']):
+                if not isinstance(self.data[keys[i]][j], dtype[i]):
+                    TypeError('Incorrect element type for {0}; should be {1}'.format(key[i],
+                                                                                     dtype[i]))
 
 
 class InstrumentPar(ParSet):
