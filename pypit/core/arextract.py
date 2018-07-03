@@ -1509,7 +1509,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
 
     # Still have to make the skymask
     all_fwhm = np.array([spec.fwhm for spec in specobjs])
-    med_fwhm = np.median(spec_fwhm)
+    med_fwhm = np.median(all_fwhm)
     for iobj in range(nobj):
         for ispec in range(nspec):
             spat_min = np.fmin(np.fmax(int(np.floor(specobjs[iobj].trace_spat[ispec] - med_fwhm)),0),nspat)
@@ -1518,14 +1518,15 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
 
 
     # If requested display the resulting traces on top of the image
-    if SHOW_TRACE == True:
+    if (nobj > 0) & (SHOW_TRACE is True):
         viewer, ch = ginga.show_image(image*(thismask==True))
-        ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = [slitid])
+        ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = specobjs[0].slitid)
         for iobj in range(nobj):
             if specobjs[iobj].HAND_FLAG == False:
                 color = 'green'
             else:
                 color = 'orange'
+            from IPython import embed
             ginga.show_trace(viewer, ch,specobjs[iobj].trace_spat, trc_name = specobjs[iobj].idx, color=color)
 
 
