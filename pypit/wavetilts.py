@@ -255,11 +255,19 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Determine the tilts for this slit
+        tracethresh_in = self.settings['tilts']['tracethresh']
+        if isinstance(tracethresh_in,float) | isinstance(tracethresh_in,int):
+            tracethresh = tracethresh_in
+        elif isinstance(tracethresh_in, list) | isinstance(tracethresh_in, np.ndarray):
+            tracethresh = tracethresh_in[slit]
+        else:
+            raise ValueError('Invalid input for parameter tracethresh')
+
         trcdict = artracewave.trace_tilt(self.tslits_dict['pixcen'], self.tslits_dict['lcen'],
                                          self.tslits_dict['rcen'], self.det,
                                          self.msarc, slit, self.settings_det, self.settings,
                                          censpec=self.arccen[:, slit], nsmth=3,
-                                         tracethresh=self.settings['tilts']['tracethresh'],
+                                         tracethresh=tracethresh,
                                          wv_calib=wv_calib)
         # Load up
         self.all_trcdict[slit] = trcdict.copy()
@@ -411,7 +419,7 @@ class WaveTilts(masterframe.MasterFrame):
         attr : str
           'fweight' -- Show the msarc image and the tilts traced by fweight
           'model' -- Show the msarc image and the tilts traced by fweight
-          'tilts' -- Show the msarc image and the tilts traced by fweight
+          'tilts_img' -- Show the msarc image and the tilts traced by fweight
           'final_tilts' -- Show the msarc image and the tilts traced by fweight
         slit : int, optional
         display : str (optional)

@@ -239,7 +239,7 @@ def extract_boxcar(image,trace_in, radius_in, ycen = None):
     return fextract
 
 
-def extract_optimal(waveimg, imgminsky, ivar, mask, oprof, skyimg, rn_img, box_radius, specobj):
+def extract_optimal(waveimg, imgminsky, ivar, mask, oprof, skyimg, rn2_img, box_radius, specobj):
 
     nspat = imgminsky.shape[1]
     nspec = imgminsky.shape[0]
@@ -247,7 +247,7 @@ def extract_optimal(waveimg, imgminsky, ivar, mask, oprof, skyimg, rn_img, box_r
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
 
-    var_no = np.abs(skyimg - np.sqrt(2.0) * rn_img) +rn_img**2
+    var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
     ispec, ispat = np.where(oprof > 0.0)
     mincol = np.min(ispat)
@@ -259,7 +259,7 @@ def extract_optimal(waveimg, imgminsky, ivar, mask, oprof, skyimg, rn_img, box_r
     ivar_sub = np.fmax(ivar[:,mincol:maxcol],0.0) # enforce positivity since these are used as weights
     vno_sub = np.fmax(var_no[:,mincol:maxcol],0.0)
 
-    rn2_sub = rn_img[:,mincol:maxcol]**2
+    rn2_sub = rn2_img[:,mincol:maxcol]
     img_sub = imgminsky[:,mincol:maxcol]
     sky_sub = skyimg[:,mincol:maxcol]
     oprof_sub = oprof[:,mincol:maxcol]
@@ -333,7 +333,7 @@ def extract_optimal(waveimg, imgminsky, ivar, mask, oprof, skyimg, rn_img, box_r
     var_box  = extract_boxcar(varimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
     nvar_box  = extract_boxcar(var_no*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
     sky_box  = extract_boxcar(skyimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
-    rn2_box  = extract_boxcar(rn_img**2*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    rn2_box  = extract_boxcar(rn2_img*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
     rn_posind = (rn2_box > 0.0)
     rn_box = np.zeros(rn2_box.shape,dtype=float)
     rn_box[rn_posind] = np.sqrt(rn2_box[rn_posind])

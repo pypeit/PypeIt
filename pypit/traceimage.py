@@ -19,7 +19,7 @@ if msgs._debug is None:
 # Does not need to be global, but I prefer it
 frametype = 'trace_image'
 
-
+# ToDO This syntax for instantiaion differs slightlhy from ArcIMage, and I think they need to be homogenized.
 class TraceImage(processimages.ProcessImages):
     """
     This class is primarily designed to generate a Bias frame for bias subtraction
@@ -44,6 +44,7 @@ class TraceImage(processimages.ProcessImages):
       Indices for bias frames (if a Bias image may be generated)
     fitstbl : Table (optional)
       FITS info (mainly for filenames)
+    #ToDO datasec_img is not documented!
 
     Attributes
     ----------
