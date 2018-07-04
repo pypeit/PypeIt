@@ -123,6 +123,8 @@ class Spectrograph(object):
               0=not masked; 1=masked
 
         """
+        if shape is None:
+            raise ValueError('Must provide shape for default bad-pixel-map image.')
         return np.zeros((shape[0], shape[1]), dtype=int)
 
     def setup_arcparam(self, **null_kwargs):

@@ -165,8 +165,8 @@ def sn_frame(slf, sciframe, idx):
 '''
 
 
-def lacosmic(det, sciframe, saturation, nonlinear, maxiter=1, grow=1.5,
-             varframe=None, remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
+def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
+             remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
     """
     settings_det : settings.spect[dnum]
       Detector info
@@ -414,30 +414,28 @@ def gain_frame(datasec_img, namp, gain_list):
     return gain_img
 
 
-def rn_frame(det, datasec_img, settings_det):
+def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
     """ Generate a RN image
 
     Parameters
     ----------
-    det
-    settings_det : settings.spect[dnum]
 
     Returns
     -------
     rn_img : ndarray
       Read noise *variance* image (i.e. RN**2)
     """
-    dnum = arparse.get_dnum(det)
-
-    # Loop on amplifiers
-    rnimg = np.zeros_like(datasec_img)
-    for ii in range(settings_det['numamplifiers']):
-        amp = ii+1
-        amppix = datasec_img == amp
-        rnimg[amppix] = (settings_det['ronoise'][ii]**2 +
-                         (0.5*settings_det['gain'][ii])**2)
-    # Return
-    return rnimg
+    _gain = np.asarray(gain) if isinstance(gain, (list, np.ndarray)) else np.array([gain])
+    _ronoise = np.asarray(ronoise) if isinstance(ronoise, (list, np.ndarray)) \
+                        else np.array([ronoise])
+    if len(_gain) != numamplifiers:
+        raise ValueError('Must provide a gain for each amplifier.')
+    if len(_ronoise) != numamplifiers:
+        raise ValueError('Must provide a read-noise for each amplifier.')
+    if np.any(datasec_img > numamplifiers):
+        raise ValueError('Pixel amplifier IDs do not match number of amplifiers.')
+    indx = datasec_img - 1
+    return np.square(_ronoise[indx]) + np.square(0.5*_gain[indx])
 
 
 def sub_overscan(rawframe, numamplifiers, datasec, oscansec, settings=None):
@@ -640,20 +638,29 @@ def trim(frame, numamplifiers, datasec):
         msgs.error("Cannot trim file")
 
 
-def variance_frame(datasec_img, det, sciframe, settings_det=None,
-                   fitsdict=None, skyframe=None, objframe=None,
-                   idx=None, dnoise=None):
-    """ Calculate the variance image including detector noise
-    Parameters
-    ----------
-    datasec_img : ndarray
-    det
-    sciframe
-    settings_det : settings.spect[dnum]
-      Detector info
-    fitsdict : dict, optional
-      Contains relevant information from fits header files
-    idx : int, optional
+def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, dnoise=None,
+                   exptime=None, skyframe=None, objframe=None):
+    """
+    Calculate the variance image including detector noise.
+
+    Args:
+        datasec_img (:obj:`numpy.ndarray`):
+            Image that identifies which amplifier (1-indexed) was used
+            to read each pixel.  Anything less than 1 is ignored.
+        sciframe (:obj:`numpy.ndarray`):
+            Science frame with counts in ?
+        gain (:obj:`float`, array-like):
+            Gain for each amplifier
+        ronoise (:obj:`float`, array-like):
+            Read-noise for each amplifier
+        numamplifiers (:obj:`int`, optional):
+            Number of amplifiers.  Default is 1.  (TODO: This is
+            superfluous.  Could get the number of amplifiers from the
+            maximum value in datasec_img or the length of the
+            gain/ronoise lists.)
+        ronoise (:obj:`float`, array-like):
+
+        darkcurrent (:noise (:
     objframe : ndarray, optional
       Model of object counts
     Returns
@@ -661,7 +668,7 @@ def variance_frame(datasec_img, det, sciframe, settings_det=None,
     variance image : ndarray
     """
     # The effective read noise (variance image)
-    rnoise = rn_frame(det, datasec_img, settings_det)
+    rnoise = rn_frame(datasec_img, gain, ronoise, numamplifiers=numamplifiers)
     if skyframe is not None:
         if objframe is None:
             objframe = np.zeros_like(skyframe)

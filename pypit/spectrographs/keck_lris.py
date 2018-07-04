@@ -162,6 +162,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                             gain=[1.191, 1.162], ronoise=[4.54, 4.62], suffix='_02red')
             ]
 
+    # TODO: Anything that isn't general to the bpm methods for *all*
+    # spectrograph should be held as part of the class (like detector)A
+    # I think this means that bpm should be created when the data is
+    # read using the binning from the fits headers.
     def bpm(self, binning=None, det=None, **null_kwargs):
         """ Generate a BPM
 

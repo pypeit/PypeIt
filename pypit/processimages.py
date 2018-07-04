@@ -14,6 +14,9 @@ from pypit.core import arprocimg
 from pypit.core import arflat
 from pypit import ginga
 
+from .par import pypitpar
+
+from .spectrographs.spectrograph import Spectrograph
 from .spectrographs.util import load_spec_class
 
 # For out of PYPIT running
@@ -45,38 +48,40 @@ def default_settings():
 
 
 class ProcessImages(object):
-    """Base class to guide image loading+processing
-
-    Parameters
-    ----------
-    file_list : list
-      List of filenames
-    spectrograph : str (optional)
-       Used to specify properties of the detector (for processing)
-       Attempt to set with settings['run']['spectrograph'] if not input
-    det : int, optional
-      Detector index, starts at 1
-    settings : dict, optional
-      Settings for trace slits
-    user_settings : dict, optional
-      Allow for user to over-ride individual internal/default settings
-      without providing a full settings dict
-    datasec_img : ndarray, optional
-      Specifies which pixels go with which amplifier
-
-    Attributes
-    ----------
-    stack : ndarray
-    steps : list
-    raw_images : list
-    headers : list
-    proc_images : ndarray
-      3D array of processed, individual images
-    datasec : list
-    oscansec : list
     """
-    def __init__(self, file_list, spectrograph=None, settings=None, det=1, user_settings=None,
-                 datasec_img=None, bpm=None, spectro_class=None):
+    Base class to guide image loading and processing.
+
+    Args:
+        file_list (list):
+            List of files to read and process.
+        spectrograph (:obj:`str`, :class:`Spectrograph`):
+            The spectrograph from which the data was taken.  Must be
+            provided as a string that can be interpreted by
+            :func:`pypit.spectrographs.util.load_spec_class` or a
+            preconstructed instance of :class:`Spectrograph`.
+        det (:obj:`int`, optional):
+            The 1-indexed number of the detector.  Default is 1.
+
+    Attributes:
+        file_list (list):
+        det (int):
+        spectrograph (:obj:`str`, :class:`Spectrograph`):
+        frametype (str):
+        stack (:obj:`numpy.ndarray`):
+        steps (list):
+        raw_images (list):
+        headers (list):
+        proc_images (:obj:`numpy.ndarray`):
+            3D array of processed, individual images
+        datasec (list):
+        oscansec (list):
+
+    Raises:
+        IOError: Raised if the provided file_list is not a list.
+        TypeError: Raised if the spectrograph is not a :obj:`str` or
+            :class:`Spectrograph`.
+    """
+    def __init__(self, file_list, spectrograph, det=1):
 
         # Required parameters
         if not isinstance(file_list, list):
@@ -85,42 +90,38 @@ class ProcessImages(object):
 
         # Optional
         self.det = det
-        self.datasec_img = datasec_img
-        self.bpm = bpm
-        self.spectro_class = spectro_class
-
-        if settings is None:
-            self.settings = default_settings()
+        if isinstance(spectrograph, basestring):
+            self.spectrograph = load_spec_class(spectrograph=spectrograph)
+        elif isinstance(spectrograph, Spectrograph):
+            self.spectrograph = spectrograph
         else:
-            # The copy allows up to update settings with user settings without changing the original
-            self.settings = settings.copy()
-        if user_settings is not None:
-            # This only works to replace entire dicts
-            #    Hopefully parsets will work more cleanly..
-            self.settings.update(user_settings)
+            raise TypeError('Must provide a name or instance for the Spectrograph.')
+
         self.frametype='Unknown'
+        # TODO: bpm should be loaded and held by the spectrograph class
+        try:
+            self.bpm = self.spectrograph.bpm(det=self.det)
+        except Exception as e:
+            msgs.error('Error constructing bpm for {0}'.format(self.spectrograph.spectrograph))
 
         # Main (possible) outputs
         self.stack = None
         self.steps = []
 
-        # Key Internals
-        if spectrograph is None:
-            try:
-                spectrograph = self.settings['run']['spectrograph']
-            except:
-                msgs.warn("No information on the spectrograph was given.  Do not attempt to (re)process the images")
-        self.spectrograph = spectrograph
-
-        if self.spectro_class is None:
-            self.spectro_class = load_spec_class(spectrograph=spectrograph)
-
         self.raw_images = []
-        self.proc_images = None  # Will be an ndarray
         self.headers = []
+
+        self.proc_images = None  # Will be an ndarray
         self.datasec = []
         self.oscansec = []
 
+        # Constructed by process:
+        self.crmask = None          # build_crmask
+        self.rawvarframe = None     # build_rawvarframe
+        self.pixel_flat = None      # passed as an argument of process()
+        self.slitprof = None        # passed as an argument of process()
+
+    # TODO: Is this used?
     @classmethod
     def from_fits(cls, fits_file, **kwargs):
         """
@@ -178,19 +179,16 @@ class ProcessImages(object):
         """ Load raw images from the disk
         Also loads the datasec info
 
-
         Returns
         -------
         self.raw_images : list
         self.headers : list
         """
+        # Load the image data and headers
         self.raw_images = []  # Zeros out any previous load
         self.headers = []
         for ifile in self.file_list:
-            img, head = self.spectro_class.load_raw_frame(
-                ifile, self.settings['detector']['dispaxis'],
-                det=self.det, dataext=self.settings['detector']['dataext'])
-            # Save
+            img, head = self.spectrograph.load_raw_frame(ifile, det=self.det)
             self.raw_images.append(img)
             self.headers.append(head)
         # Grab datasec (almost always desired)
@@ -214,12 +212,12 @@ class ProcessImages(object):
         if (self.datasec is not None) and (not redo):
             return
         # Spectrograph specific
-        self.datasec, self.oscansec, _, _ = self.spectro_class.get_datasec(
-            self.file_list[0], self.det, self.settings['detector'])
+        self.datasec, self.oscansec, _, _ \
+                    = self.spectrograph.get_datasec(self.file_list[0], self.det)
 
     def apply_gain(self, datasec_img):
         """
-        # Apply gain (instead of ampsec scale)
+        Apply gain (instead of ampsec scale)
 
         Parameters
         ----------
@@ -233,17 +231,20 @@ class ProcessImages(object):
         """
         if datasec_img is None:
             msgs.error("Need to input datasec_img!")
-        self.stack = self.stack*arprocimg.gain_frame(datasec_img,
-                                                 self.settings['detector']['numamplifiers'],
-                                                 self.settings['detector']['gain'])
+        
+        numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
+        gain = self.spectrograph.detector[self.det-1]['gain']
+        self.stack = self.stack * arprocimg.gain_frame(datasec_img, numamplifiers, gain)
+
         # Step
         self.steps.append(inspect.stack()[0][3])
+
         # Return
         return self.stack
 
-
     def bias_subtract(self, msbias, trim=True, force=False):
         """
+        Subtract the bias.
 
         Parameters
         ----------
@@ -256,20 +257,22 @@ class ProcessImages(object):
         -------
 
         """
+        # Check if the bias has already been subtracted
         if (inspect.stack()[0][3] in self.steps) & (not force):
-            msgs.warn("Images already bias subtracted.  Use force=True to reset proc_images and do it again.")
-            msgs.warn("Returning..")
+            msgs.warn("Images already bias subtracted.  Use force=True to reset proc_images "
+                      "and do it again. Returning...")
             return
+
         msgs.info("Bias subtracting your image(s)")
         # Reset proc_images -- Is there any reason we wouldn't??
+        numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
         for kk,image in enumerate(self.raw_images):
             # Bias subtract
-            temp = arprocimg.bias_subtract(image, msbias,
-                                        numamplifiers=self.settings['detector']['numamplifiers'],
-                                        datasec=self.datasec, oscansec=self.oscansec)
+            temp = arprocimg.bias_subtract(image, msbias, numamplifiers=numamplifiers,
+                                           datasec=self.datasec, oscansec=self.oscansec)
             # Trim?
             if trim:
-                temp = arprocimg.trim(temp, self.settings['detector']['numamplifiers'], self.datasec)
+                temp = arprocimg.trim(temp, numamplifiers, self.datasec)
 
             # Save
             if kk==0:
@@ -280,7 +283,7 @@ class ProcessImages(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def combine(self):
+    def combine(self, par=None):
         """
         Combine the processed images
 
@@ -289,17 +292,21 @@ class ProcessImages(object):
         self.stack : ndarray
 
         """
+        # Set the parameters
+        _par = pypitpar.CombineFramesPar() if par is None else par
+
         # Now we can combine
+        saturation = self.spectrograph.detector[self.det-1]['saturation']
         self.stack = arcomb.core_comb_frames(self.proc_images, frametype=self.frametype,
-                                             method=self.settings['combine']['method'],
-                                             reject=self.settings['combine']['reject'],
-                                             satpix=self.settings['combine']['satpix'],
-                                             saturation=self.settings['detector']['saturation'])
+                                             saturation=saturation, method=_par['method'],
+                                             satpix=_par['satpix'], cosmics=_par['cosmics'],
+                                             n_lohi=_par['n_lohi'], sig_lohi=_par['sig_lohi'],
+                                             replace=_par['replace'])
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.stack
 
-    def build_crmask(self, varframe=None):
+    def build_crmask(self, varframe=None, par=None):
         """
         Generate the CR mask frame
 
@@ -315,16 +322,29 @@ class ProcessImages(object):
           1. = Masked CR
 
         """
-        self.crmask = arprocimg.lacosmic(self.det, self.stack, self.settings['detector'],
-                                    grow=1.5, varframe=varframe)
+        # Set the parameters
+        _par = pypitpar.LACosmicPar() if par is None else par
+
+        # Run LA Cosmic to get the cosmic ray mask
+        saturation = self.spectrograph.detector[self.det-1]['saturation']
+        nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
+        self.crmask = arprocimg.lacosmic(self.det, self.stack, saturation, nonlinear,
+                                         varframe=varframe, maxiter=_par['maxiter'],
+                                         grow=_par['grow'], remove_compact_obj=_par['rmcompact'],
+                                         sigclip=_par['sigclip'], sigfrac=_par['sigfrac'],
+                                         objlim=_par['objlim'])
+
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
         return self.crmask
 
-    def flat_field(self):
+    def flat_field(self, pixel_flat, slitprofile=None):
         """
         Flat field the stack image
+
+        pixel_flat and slitprofile are passed here to force users to
+        consider that they're needed when calling flat_field().
 
         Wrapper to arflat.flatfield()
 
@@ -334,14 +354,21 @@ class ProcessImages(object):
           Flat fielded
 
         """
+        # Assign the relevant data to self
+        self.pixel_flat = pixel_flat
+        self.slitprof = slitprof
+
+        # Check that the bad-pixel mask is available
         if self.bpm is None:
-            msgs.error("Need to set the BPM image, even if all zeros")
-        self.stack = arflat.flatfield(self.stack, self.pixel_flat, self.bpm, slitprofile=self.slitprof)
+            msgs.error('No bpm for {0}'.format(self.spectrograph.spectrograph))
+
+        # Flat-field the data and return the result
+        self.stack = arflat.flatfield(self.stack, self.pixel_flat, self.bpm,
+                                      slitprofile=self.slitprof)
         return self.stack
 
 
-    def process(self, bias_subtract=None, apply_gain=False,
-                trim=True, overwrite=False,
+    def process(self, bias_subtract=None, apply_gain=False, trim=True, overwrite=False,
                 pixel_flat=None, slitprof=None):
         """
         Process the images from loading to combining
@@ -368,8 +395,9 @@ class ProcessImages(object):
         # Load images
         if 'load_images' not in self.steps:
             self.load_images()
+
         # Bias subtract
-        if (bias_subtract is not None):
+        if bias_subtract is not None:
             self.bias_subtract(bias_subtract, trim=trim)
         else:
             if 'bias_subtract' not in self.steps:
@@ -378,11 +406,11 @@ class ProcessImages(object):
         # Create proc_images from raw_images if need be
         #   Mainly if no bias subtraction was performed
         if self.proc_images is None:
-            self.proc_images = np.zeros((self.raw_images[0].shape[0],
-                                         self.raw_images[0].shape[1],
+            self.proc_images = np.zeros((self.raw_images[0].shape[0], self.raw_images[0].shape[1],
                                          self.nloaded))
             for kk,image in enumerate(self.raw_images):
                 self.proc_images[:,:,kk] = image
+
         # Combine
         if self.proc_images.shape[2] == 1:  # Nothing to combine
             self.stack = self.proc_images[:,:,0]
@@ -395,9 +423,7 @@ class ProcessImages(object):
 
         # Flat field?
         if pixel_flat is not None:
-            self.pixel_flat = pixel_flat
-            self.slitprof = slitprof
-            self.stack = self.flat_field()
+            self.stack = self.flat_field(pixel_flat, slitprofile=slitprof)
 
         # Done
         return self.stack.copy()

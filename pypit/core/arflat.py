@@ -715,8 +715,7 @@ def sn_frame(slf, sciframe, idx):
 '''
 
 
-def flatfield(sciframe, flatframe, bpix, snframe=None,
-              varframe=None, slitprofile=None):
+def flatfield(sciframe, flatframe, bpix, snframe=None, varframe=None, slitprofile=None):
     """ Flat field the input image
     Parameters
     ----------

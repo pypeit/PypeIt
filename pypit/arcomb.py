@@ -32,16 +32,22 @@ def comb_frames(frames_arr, det, frametype, **kwargs):
     method = settings.argflag[frametype]['combine']['method']
     satpix = settings.argflag[frametype]['combine']['satpix']
     saturation = settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear']
-    return core_comb_frames(frames_arr, frametype=frametype,
-                method=method, reject=reject, satpix=satpix, saturation=saturation, **kwargs)
+    return core_comb_frames(frames_arr, frametype=frametype, saturation=saturation,
+                            method=method, satpix=satpix, cosmics=reject['cosmics'],
+                            n_lohi=reject['lowhigh'], sig_lohi=reject['level'],
+                            replace=reject['replace'], **kwargs)
 
-def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='Unknown',
-                method='weightmean', reject=None, satpix='reject', saturation=None):
-    """ Combine several frames
+
+def core_comb_frames(frames_arr, printtype=None, frametype='Unknown', saturation=None,
+                     maskvalue=1048577, method='weightmean', satpix='reject', cosmics=None,
+                     n_lohi=[0,0], sig_lohi=[3.,3.], replace='maxnonsat'):
+    """
+    Combine several frames
 
     .. todo::
         - Make better use of np.ma.MaskedArray objects throughout?
         - More testing of replacement code necessary?
+        - Improve docstring...
 
     Parameters
     ----------
@@ -70,9 +76,6 @@ def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='U
     -------
     comb_frame : ndarray
     """
-    if reject is None:
-        reject = {'cosmics': 20., 'lowhigh': [0,0], 'level': [3.,3.], 'replace': 'maxnonsat'}
-
     ###########
     # FIRST DO SOME CHECKS ON THE INPUT
     ###########
@@ -94,32 +97,26 @@ def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='U
     # frames (e.g. different exposure times)
     msgs.work("lscomb feature has not been included here yet...")
     # Check the user hasn't requested to reject more frames than available
-    if reject['lowhigh'][0] > 0 and reject['lowhigh'][1] > 0 and \
-        reject['lowhigh'][0] + reject['lowhigh'][1] >= num_frames:
-        msgs.error('You cannot reject more frames than is available with \'reject lowhigh\'.'
+    if n_lohi[0] > 0 and n_lohi[1] > 0 and n_lohi[0] + n_lohi[1] >= num_frames:
+        msgs.error('You cannot reject more frames than are available with \'n_lohi\'.'
                    + msgs.newline() + 'There are {0:d} frames '.format(num_frames)
-                   + 'and reject lowhigh will reject {0:d} low '.format(reject['lowhigh'][0])
-                   + 'and {0:d} high'.format(reject['lowhigh'][1]))
+                   + 'and n_lohi will reject {0:d} low and {1:d} high values.'.format(
+                                                                n_lohi[0], n_lohi[1]))
 
-
-    # Check that some information on the frames was supplied
-    #if settings.spect is None:
-    #    msgs.error('When combining the {0:s} frames, spectrograph information'.format(printtype)
-    #               + msgs.newline() + 'was not provided.')
     # Calculate the values to be used if all frames are rejected in some pixels
-    if reject['replace'] == 'min':
+    if replace == 'min':
         allrej_arr = np.amin(frames_arr, axis=2)
-    elif reject['replace'] == 'max':
+    elif replace == 'max':
         allrej_arr = np.amax(frames_arr, axis=2)
-    elif reject['replace'] == 'mean':
+    elif replace == 'mean':
         allrej_arr = np.mean(frames_arr, axis=2)
-    elif reject['replace'] == 'median':
+    elif replace == 'median':
         allrej_arr = np.median(frames_arr, axis=2)
-    elif reject['replace'] == 'weightmean':
+    elif replace == 'weightmean':
         msgs.work("No weights are implemented yet")
         allrej_arr = frames_arr.copy()
         allrej_arr = masked_weightmean(allrej_arr, maskvalue)
-    elif reject['replace'] == 'maxnonsat':
+    elif replace == 'maxnonsat':
         allrej_arr = frames_arr.copy()
         allrej_arr = maxnonsat(allrej_arr, saturation)
     else:
@@ -147,38 +144,40 @@ def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='U
     else:
         msgs.error('Option \'{0}\' '.format(satpix)
                    + 'for dealing with saturated pixels was not recognised.')
-    # Delete unecessary arrays
-    # None!
+
     ################
     # Cosmic Rays
-    if reject['cosmics'] > 0.0:
+    if cosmics > 0.0:
         msgs.info("Rejecting cosmic rays")  # Use a robust statistic
         masked_fa = np.ma.MaskedArray(frames_arr, mask=frames_arr==maskvalue)
         medarr = np.ma.median(masked_fa, axis=2)
         stdarr = 1.4826*np.ma.median(np.ma.absolute(masked_fa - medarr[:,:,None]), axis=2)
         indx = (frames_arr != maskvalue) \
-                    & (frames_arr > (medarr.data + reject['cosmics']*stdarr.data)[:,:,None])
+                    & (frames_arr > (medarr.data + cosmics * stdarr.data)[:,:,None])
         frames_arr[indx] = maskvalue
         # Delete unecessary arrays
         del medarr, stdarr
     else:
         msgs.info("Not rejecting cosmic rays")
+
     ################
     # Low and High pixel rejection --- Masks *additional* pixels
-    rejlo, rejhi = reject['lowhigh']
-    if reject['lowhigh'][0] > 0 or reject['lowhigh'][1] > 0:
+    rejlo, rejhi = n_lohi
+    if n_lohi[0] > 0 or n_lohi[1] > 0:
+
         # First reject low pixels
         frames_arr = np.sort(frames_arr, axis=2)
-        if reject['lowhigh'][0] > 0:
-            msgs.info("Rejecting {0:d} deviant low pixels".format(reject['lowhigh'][0]))
+        if n_lohi[0] > 0:
+            msgs.info("Rejecting {0:d} deviant low pixels".format(n_lohi[0]))
             while rejlo > 0:
                 xi, yi = np.indices(sz_x, sz_y)
                 frames_arr[xi, yi, np.argmin(frames_arr, axis=2)] = maskvalue
                 del xi, yi
                 rejlo -= 1
+
         # Now reject high pixels
-        if reject['lowhigh'][1] > 0:
-            msgs.info("Rejecting {0:d} deviant high pixels".format(reject['lowhigh'][1]))
+        if n_lohi[1] > 0:
+            msgs.info("Rejecting {0:d} deviant high pixels".format(n_lohi[1]))
             frames_arr[np.where(frames_arr == maskvalue)] *= -1
             while rejhi > 0:
                 xi, yi = np.indices(sz_x, sz_y)
@@ -186,23 +185,29 @@ def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='U
                 del xi, yi
                 rejhi -= 1
             frames_arr[np.where(frames_arr) == -maskvalue] *= -1
+
+# TODO: Do we need this?
 # The following is an example of *not* masking additional pixels
 #		if reject['lowhigh'][1] > 0:
 #			msgs.info("Rejecting {0:d} deviant high pixels".format(reject['lowhigh'][1]))
 #			masktemp[:,:,-reject['lowhigh'][0]:] = True
     else:
         msgs.info("Not rejecting any low/high pixels")
+
     ################
     # Deviant Pixels
-    if reject['level'][0] > 0.0 or reject['level'][1] > 0.0:
+    # TODO: sig_lohi (what was level) is not actually used, instead this
+    # just selects if cosmics should be used.  Is this intentional?  Why
+    # not just do: `if cosmics > 0:`?
+    if sig_lohi[0] > 0.0 or sig_lohi[1] > 0.0:
         msgs.info("Rejecting deviant pixels")  # Use a robust statistic
 
         masked_fa = np.ma.MaskedArray(frames_arr, mask=frames_arr==maskvalue)
         medarr = np.ma.median(masked_fa, axis=2)
         stdarr = 1.4826*np.ma.median(np.ma.absolute(masked_fa - medarr[:,:,None]), axis=2)
         indx = (frames_arr != maskvalue) \
-                    & ( (frames_arr > (medarr.data + reject['cosmics']*stdarr.data)[:,:,None])
-                        | (frames_arr < (medarr.data - reject['cosmics']*stdarr.data)[:,:,None]))
+                    & ( (frames_arr > (medarr.data + cosmics*stdarr.data)[:,:,None])
+                        | (frames_arr < (medarr.data - cosmics*stdarr.data)[:,:,None]))
         frames_arr[indx] = maskvalue
 
         # Delete unecessary arrays
@@ -222,18 +227,21 @@ def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='U
         comb_frame = masked_weightmean(comb_frame, maskvalue)
     else:
         msgs.error("Combination type '{0:s}' is unknown".format(method))
+
     ##############
     # If any pixels are completely masked, apply user-specified function
-    msgs.info("Replacing completely masked pixels with the {0:s} value of the input frames".format(reject['replace']))
+    msgs.info("Replacing completely masked pixels with the {0:s} value of the input frames".format(replace))
     indx = comb_frame == maskvalue
     comb_frame[indx] = allrej_arr[indx]
     # Delete unecessary arrays
     del allrej_arr
+
     ##############
     # Apply the saturated pixels:
     if satpix == 'force':
         msgs.info("Applying saturated pixels to final combined image")
         comb_frame[setsat] = saturation # settings.spect[dnum]['saturation']
+
     ##############
     # And return a 2D numpy array
     msgs.info("{0:d} {1:s} frames combined successfully!".format(num_frames, printtype))

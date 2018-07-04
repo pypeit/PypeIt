@@ -22,6 +22,7 @@ data:
     - FrameGroupPar: Sets parameters that are used to group and combined
       frames.
         - CombineFramesPar - Parameters for combining frames
+        - LACosmicPar - Parameters for cosmic ray detection (frame specific)
 
     - WavelengthSolutionPar: Parameters used for constructing the wavelength
       solution
@@ -342,6 +343,10 @@ class FrameGroupPar(ParSet):
         dtypes['combine'] = [ParSet, dict]
         descr['combine'] = 'Parameters used when combining frames of this type'
 
+        defaults['cosmic'] = LACosmicPar()
+        dtypes['cosmic'] = [ParSet, dict]
+        descr['cosmic'] = 'Parameters used for cosmic ray detection for frames of this type'
+
         # Instantiate the parameter set
         super(FrameGroupPar, self).__init__(list(pars.keys()),
                                             values=list(pars.values()),
@@ -361,6 +366,8 @@ class FrameGroupPar(ParSet):
             kwargs[pk] = cfg[pk] if pk in k else None
         pk = 'combine'
         kwargs[pk] = CombineFramesPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'cosmic'
+        kwargs[pk] = LACosmicPar.from_dict(cfg[pk]) if pk in k else None
         return cls(frametype=frametype, **kwargs)
 
     @staticmethod
@@ -469,6 +476,76 @@ class CombineFramesPar(ParSet):
         Return the valid replacement methods for rejected pixels.
         """
         return [ 'min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat' ]
+
+    def validate(self):
+        pass
+
+
+class LACosmicPar(ParSet):
+    """
+    ADD DOCSTRING
+
+    Should these be frame specific like CombineFramesPar?  Assuming yes...
+
+    """
+    def __init__(self, maxiter=None, grow=None, rmcompact=None, sigclip=None, sigfrac=None,
+                 objlim=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+        # TODO: Improve description of all of these (I'm not sure
+        # they're even right as is)
+        defaults['maxiter'] = 1
+        dtypes['maxiter'] = int
+        descr['maxiter'] = 'Maximum number of iterations.'
+
+        defaults['grow'] = 1.5
+        dtypes['grow'] = [int, float]
+        descr['grow'] = 'Factor by which to expand regions with detected cosmic rays.'
+
+        defaults['rmcompact'] = True
+        dtypes['rmcompact'] = bool
+        descr['rmcompact'] = 'Remove compact detections'
+
+        defaults['sigclip'] = 5.0
+        dtypes['sigclip'] = [int, float]
+        descr['sigclip'] = 'Sigma level for rejection'
+
+        defaults['sigfrac'] = 0.3
+        dtypes['sigfrac'] = [int, float]
+        descr['sigfrac'] = 'Fraction for the lower clipping threshold.'
+
+        defaults['objlim'] = 5.0
+        dtypes['objlim'] = [int, float]
+        descr['objlim'] = 'Object detection limit'
+
+        # Instantiate the parameter set
+        super(LACosmicPar, self).__init__(list(pars.keys()), values=list(pars.values()),
+                                          defaults=list(defaults.values()),
+                                          dtypes=list(dtypes.values()),
+                                          descr=list(descr.values()))
+        
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+        parkeys = [ 'maxiter', 'grow', 'rmcompact', 'sigclip', 'sigfrac', 'objlim' ]
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
 
     def validate(self):
         pass
