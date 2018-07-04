@@ -21,7 +21,7 @@ import scipy
 import numpy
 import astropy
 
-from pypit import __version__, __last_updated__
+from pypit import __version__ #, __last_updated__
 from pypit.arqa import close_qa
 
 #pypit_logger = None
@@ -58,7 +58,7 @@ class Messages:
         # TODO: debug could just be develop=True or False
         self._debug = debug
         self._verbosity = 1 if verbosity is None else verbosity
-        self._last_updated = __last_updated__
+#        self._last_updated = __last_updated__
         self._version = __version__
 
         # TODO: Why are these two necessary?  It would seem better to
@@ -131,7 +131,7 @@ class Messages:
         self._log = open(log, 'w')
 
         self._log.write("------------------------------------------------------\n\n")
-        self._log.write("PYPIT was last updated {0:s}\n".format(self._last_updated))
+#        self._log.write("PYPIT was last updated {0:s}\n".format(self._last_updated))
         self._log.write("This log was generated with version {0:s} of PYPIT\n\n".format(
                                                                                     self._version))
         self._log.write("You are using scipy version={:s}\n".format(scipy.__version__))
@@ -213,7 +213,7 @@ class Messages:
         for ispcl in spcl:
             descs += '\n##   ' + ispcl
 
-        descs += '\n##  Last updated: {0:s}'.format(self._last_updated)
+#        descs += '\n##  Last updated: {0:s}'.format(self._last_updated)
 
         return descs
 

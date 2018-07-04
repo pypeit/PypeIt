@@ -41,7 +41,8 @@ def test_user_redo():
         assert True
         return
     # Check for files
-    wvcalib_file = os.getenv('PYPIT_DEV') + '/Cooked/WaveCalib/MasterWaveCalib_ShaneKastBlue_A.json'
+    wvcalib_file = os.path.join(os.getenv('PYPIT_DEV'),
+                                'Cooked/WaveCalib/MasterWaveCalib_ShaneKastBlue_A.json')
     assert chk_for_files(wvcalib_file)
     # Instantiate
     waveCalib = wavecalib.WaveCalib(None, spectrograph='shane_kast_blue')
@@ -57,15 +58,18 @@ def test_step_by_step():
         assert True
         return
     settings = dict(masters={})
-    settings['masters']['directory'] = os.getenv('PYPIT_DEV') + '/Cooked/MF_shane_kast_blue'
+    settings['masters']['directory'] = os.path.join(os.getenv('PYPIT_DEV'),
+                                                    'Cooked/MF_shane_kast_blue')
     settings['masters']['reuse'] = True
     setup = 'A_01_aa'
     # Load up the Masters
     AImg = arcimage.ArcImage(setup=setup, settings=settings)
     msarc, header, _ = AImg.load_master_frame()
-    TSlits = traceslits.TraceSlits.from_master_files(settings['masters']['directory'] + '/MasterTrace_A_01_aa')
+    TSlits = traceslits.TraceSlits.from_master_files(os.path.join(settings['masters']['directory'],
+                                                                  'MasterTrace_A_01_aa'))
     TSlits._make_pixel_arrays()
-    fitstbl = Table.read(settings['masters']['directory']+'/shane_kast_blue_setup_A.fits')
+    fitstbl = Table.read(os.path.join(settings['masters']['directory'],
+                                      'shane_kast_blue_setup_A.fits'))
 
     # Instantiate
     waveCalib = wavecalib.WaveCalib(msarc, spectrograph='shane_kast_blue', settings=settings, setup=setup,
@@ -88,15 +92,18 @@ def test_one_shot():
         assert True
         return
     settings = dict(masters={})
-    settings['masters']['directory'] = os.getenv('PYPIT_DEV') + '/Cooked/MF_shane_kast_blue'
+    settings['masters']['directory'] = os.path.join(os.getenv('PYPIT_DEV'),
+                                                    'Cooked/MF_shane_kast_blue')
     settings['masters']['reuse'] = True
     setup = 'A_01_aa'
     # Load up the Masters
     AImg = arcimage.ArcImage(setup=setup, settings=settings)
     msarc, header, _ = AImg.load_master_frame()
-    TSlits = traceslits.TraceSlits.from_master_files(settings['masters']['directory'] + '/MasterTrace_A_01_aa')
+    TSlits = traceslits.TraceSlits.from_master_files(os.path.join(settings['masters']['directory'],
+                                                                  'MasterTrace_A_01_aa'))
     TSlits._make_pixel_arrays()
-    fitstbl = Table.read(settings['masters']['directory']+'/shane_kast_blue_setup_A.fits')
+    fitstbl = Table.read(os.path.join(settings['masters']['directory'],
+                                      'shane_kast_blue_setup_A.fits'))
     # Do it
     settings['masters']['reuse'] = False
     settings['masters']['force'] = False

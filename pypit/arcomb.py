@@ -40,11 +40,8 @@ def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='U
     """ Combine several frames
 
     .. todo::
-        - I've just replaced the arcycomb calls, but this function
-          should probably be rewritten so that it makes better use of
-          np.ma.MaskedArray objects throughout.
-
-        - Some of the replacement code still needs to be tested!
+        - Make better use of np.ma.MaskedArray objects throughout?
+        - More testing of replacement code necessary?
 
     Parameters
     ----------
@@ -111,49 +108,20 @@ def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='U
     #               + msgs.newline() + 'was not provided.')
     # Calculate the values to be used if all frames are rejected in some pixels
     if reject['replace'] == 'min':
-#        allrej_arr = arcycomb.minmax(frames_arr, 0)
         allrej_arr = np.amin(frames_arr, axis=2)
     elif reject['replace'] == 'max':
-#        allrej_arr = arcycomb.minmax(frames_arr, 1)
         allrej_arr = np.amax(frames_arr, axis=2)
     elif reject['replace'] == 'mean':
-#        allrej_arr = arcycomb.mean(frames_arr)
         allrej_arr = np.mean(frames_arr, axis=2)
     elif reject['replace'] == 'median':
-#        allrej_arr = arcycomb.median(frames_arr)
         allrej_arr = np.median(frames_arr, axis=2)
     elif reject['replace'] == 'weightmean':
         msgs.work("No weights are implemented yet")
-#        print('calling masked_weightmean')
-#        _allrej_arr = frames_arr.copy()
-#        t = time.clock()
-#        _allrej_arr = arcycomb.masked_weightmean(_allrej_arr, maskvalue)
-#        print('Old masked_weightmean: {0} seconds'.format(time.clock() - t))
-        __allrej_arr = frames_arr.copy()
-#        t = time.clock()
-        __allrej_arr = new_masked_weightmean(__allrej_arr, maskvalue)
-#        print('New masked_weightmean: {0} seconds'.format(time.clock() - t))
-#        print(__allrej_arr.shape)
-#        assert np.sum(__allrej_arr != _allrej_arr) == 0, \
-#                    'Difference between old and new masked_weightmean'
-        allrej_arr = __allrej_arr
-##        allrej_arr = arcycomb.masked_weightmean(frames_arr, maskvalue)
-#        allrej_arr = new_masked_weightmean(frames_arr, maskvalue)
+        allrej_arr = frames_arr.copy()
+        allrej_arr = masked_weightmean(allrej_arr, maskvalue)
     elif reject['replace'] == 'maxnonsat':
-#        print('calling maxnonsat')
-#        _allrej_arr = frames_arr.copy()
-#        t = time.clock()
-#        _allrej_arr = arcycomb.maxnonsat(_allrej_arr, saturation)
-#        print('Old maxnonsat: {0} seconds'.format(time.clock() - t))
-        __allrej_arr = frames_arr.copy()
-#        t = time.clock()
-        __allrej_arr = new_maxnonsat(__allrej_arr, saturation)
-#        print('New maxnonsat: {0} seconds'.format(time.clock() - t))
-#       Bug in arcycomb.maxnonsat ?
-#        assert np.sum(__allrej_arr != _allrej_arr) == 0, 'Difference between old and new maxnonsat'
-        allrej_arr = __allrej_arr
-##        allrej_arr = arcycomb.maxnonsat(frames_arr, settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
-#        allrej_arr = new_maxnonsat(frames_arr, saturation)
+        allrej_arr = frames_arr.copy()
+        allrej_arr = maxnonsat(allrej_arr, saturation)
     else:
         msgs.error("You must specify what to do in case all pixels are rejected")
 
@@ -167,12 +135,10 @@ def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='U
 #		satw[np.where(frames_arr > settings.spect['det']['saturation']*settings.spect['det']['nonlinear'])] = 1.0
 #		satw = np.any(satw,axis=2)
 #		del satw
-#        setsat = arcycomb.masked_limitget(frames_arr, settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'], 2)
         setsat = np.zeros_like(frames_arr)
         setsat[frames_arr > saturation] = 1
     elif satpix == 'reject':
         # Ignore saturated pixels in frames if possible
-#        frames_arr = arcycomb.masked_limitset(frames_arr, settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'], 2, maskvalue)
         frames_arr[frames_arr > saturation] = maskvalue
     elif satpix == 'nothing':
         # Don't do anything special for saturated pixels (Hopefully the
@@ -193,9 +159,6 @@ def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='U
         indx = (frames_arr != maskvalue) \
                     & (frames_arr > (medarr.data + reject['cosmics']*stdarr.data)[:,:,None])
         frames_arr[indx] = maskvalue
-#        medarr = arcycomb.masked_median(frames_arr, maskvalue)
-#        stdarr = 1.4826*arcycomb.masked_median(np.abs(frames_arr-medarr[:, :, np.newaxis]), maskvalue)
-#        frames_arr = arcycomb.masked_limitsetarr(frames_arr, (medarr + reject['cosmics']*stdarr), 2, maskvalue)
         # Delete unecessary arrays
         del medarr, stdarr
     else:
@@ -242,10 +205,6 @@ def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='U
                         | (frames_arr < (medarr.data - reject['cosmics']*stdarr.data)[:,:,None]))
         frames_arr[indx] = maskvalue
 
-#        medarr = arcycomb.masked_median(frames_arr, maskvalue)
-#        stdarr = 1.4826*arcycomb.masked_median(np.abs(frames_arr-medarr[:, :, np.newaxis]), maskvalue)
-#        frames_arr = arcycomb.masked_limitsetarr(frames_arr, (medarr - reject['level'][0]*stdarr), -2, maskvalue)
-#        frames_arr = arcycomb.masked_limitsetarr(frames_arr, (medarr + reject['level'][1]*stdarr), 2, maskvalue)
         # Delete unecessary arrays
         del medarr, stdarr
     else:
@@ -255,44 +214,17 @@ def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='U
     # Combine the arrays
     msgs.info("Combining frames with a {0:s} operation".format(method))
     if method == 'mean':
-#        frames_arr = arcycomb.masked_mean(frames_arr, maskvalue)
         comb_frame = np.ma.mean(np.ma.MaskedArray(frames_arr, mask=frames_arr==maskvalue), axis=2)
     elif method == 'median':
-#        frames_arr = arcycomb.masked_median(frames_arr, maskvalue)
         comb_frame = np.ma.median(np.ma.MaskedArray(frames_arr, mask=frames_arr==maskvalue), axis=2)
     elif method == 'weightmean':
-#        print('calling masked_weightmean')
-#        _frames_arr = frames_arr.copy()
-#        t = time.clock()
-#        _frames_arr = arcycomb.masked_weightmean(_frames_arr, maskvalue)
-#        print('Old masked_weightmean: {0} seconds'.format(time.clock() - t))
-        __frames_arr = frames_arr.copy()
-#        t = time.clock()
-        __frames_arr = new_masked_weightmean(__frames_arr, maskvalue)
-#        print('New masked_weightmean: {0} seconds'.format(time.clock() - t))
-#        print(__frames_arr.shape)
-#
-#        if np.sum(np.absolute(__frames_arr-_frames_arr) > 1e-10) != 0:
-#            print(np.sum(np.absolute(__frames_arr-_frames_arr) > 1e-10))
-#            plt.imshow(_frames_arr, origin='lower', interpolation='nearest', aspect='auto')
-#            plt.show()
-#            plt.imshow(__frames_arr, origin='lower', interpolation='nearest', aspect='auto')
-#            plt.show()
-#            plt.imshow(_frames_arr - __frames_arr, origin='lower', interpolation='nearest', aspect='auto')
-#            plt.show()
-#            plt.imshow(np.ma.divide(_frames_arr,__frames_arr) - 1, origin='lower', interpolation='nearest', aspect='auto')
-#            plt.colorbar()
-#            plt.show()
-#                    
-#        assert np.sum( np.absolute(__frames_arr-_frames_arr) > 1e-10 ) == 0, \
-#                    'Difference between old and new masked_weightmean'
-        comb_frame = __frames_arr
+        comb_frame = frames_arr.copy()
+        comb_frame = masked_weightmean(comb_frame, maskvalue)
     else:
         msgs.error("Combination type '{0:s}' is unknown".format(method))
     ##############
     # If any pixels are completely masked, apply user-specified function
     msgs.info("Replacing completely masked pixels with the {0:s} value of the input frames".format(reject['replace']))
-#    frames_arr = arcycomb.masked_replace(frames_arr, allrej_arr, maskvalue)
     indx = comb_frame == maskvalue
     comb_frame[indx] = allrej_arr[indx]
     # Delete unecessary arrays
@@ -310,7 +242,11 @@ def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='U
     return comb_frame
 
 
-def new_masked_weightmean(a, maskvalue):
+def masked_weightmean(a, maskvalue):
+    """
+    .. todo::
+        Document this!
+    """
     num = np.ma.MaskedArray(a.copy(), mask=(a==maskvalue))
     num[np.invert(num.mask) & (num <= 1.0)] = 0.0
     num = np.ma.sum(np.ma.sqrt(num)*num, axis=2)
@@ -320,26 +256,10 @@ def new_masked_weightmean(a, maskvalue):
     return np.ma.divide(num, den).filled(maskvalue)
 
 
-def new_maxnonsat(array, saturated):
+def maxnonsat(array, saturated):
     """
-    sz_x, sz_y, nfr = array.shape
-    mmarr = np.zeros((sz_x,sz_y), dtype=float)
-    d = 0
-    for x in range(sz_x):
-        for y in range(sz_y):
-            # Sort the array
-            temp = 0.0
-            minv = saturated
-            for n in range(nfr):
-                if array[x,y,n] > temp and (BUG: temp) < saturated:
-                    temp = array[x,y,n]
-                if array[x,y,n] < minv:
-                    minv = array[x,y,n]
-            if temp == 0.0:
-                mmarr[x,y] = minv
-            else:
-                mmarr[x,y] = temp
-    return mmarr
+    .. todo::
+        Document this!
     """
     minimum = np.amin(np.clip(array, None, saturated), axis=2)
     _array = np.ma.MaskedArray(array, mask=np.invert((array > 0.0) & (array<saturated)))
