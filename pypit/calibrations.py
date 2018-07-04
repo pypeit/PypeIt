@@ -265,6 +265,21 @@ class Calibrations(object):
         return self.datasec_img, naxis0, naxis1
 
     def get_pixflatnrm(self):
+        """
+        Load or generate a normalized pixel flat
+          and slit profile
+
+        Requirements:
+           tslits_dict
+           mstilts
+           datasec_img
+           det, sci_ID, settings, setup
+
+        Returns:
+            self.mspixflatnrm: ndarray
+            self.slitprof: ndarray
+
+        """
         if self.settings['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
             # Checks
             if not self._chk_objs(['tslits_dict', 'mstilts', 'datasec_img']):
@@ -285,7 +300,7 @@ class Calibrations(object):
                 # Instantiate
                 pixflat_image_files = arsort.list_of_files(self.fitstbl, 'pixelflat', self.sci_ID)
                 self.flatField = flatfield.FlatField(file_list=pixflat_image_files, msbias=self.msbias,
-                                      spectrograph=self.spectrograph,
+                                      spectrograph=self.spectro_class.spectrograph,
                                       settings=flat_settings,
                                       tslits_dict=self.tslits_dict,
                                       tilts=self.mstilts, det=self.det, setup=self.setup,
@@ -328,6 +343,20 @@ class Calibrations(object):
         return self.mspixflatnrm, self.slitprof
 
     def get_slits(self):
+        """
+        Load or generate a normalized pixel flat
+        First, a trace flat image is generated
+
+        Requirements:
+           pixlocn
+           datasec_img
+           det settings setup sci_ID
+
+        Returns:
+            self.tslits_dict
+            self.maskslits
+
+        """
         if not self._chk_objs(['pixlocn', 'datasec_img']):
             return
         # Check me
@@ -345,7 +374,7 @@ class Calibrations(object):
                 # Build the trace image first
                 trace_image_files = arsort.list_of_files(self.fitstbl, 'trace', self.sci_ID)
                 Timage = traceimage.TraceImage(trace_image_files,
-                                               spectrograph=self.spectrograph,
+                                               spectrograph=self.spectro_class.spectrograph,
                                                settings=self.settings, det=self.det,
                                                datasec_img=self.datasec_img)
                 mstrace = Timage.process(bias_subtract=self.msbias, trim=self.settings['reduce']['trim'],
