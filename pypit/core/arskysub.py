@@ -132,6 +132,115 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
     return bgframe
 
 
+# ToDO Fix masking logic. This code should also take an ivar for consistency with rest of extraction
+def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3., POS_MASK=True, PLOT_FIT=False):
+    """
+    Perform global sky subtraction on an input slit
+
+    Parameters
+    ----------
+    image : ndarray
+          Frame to be sky subtracted
+
+    thismask : numpy boolean array
+      Specifies pixels in the slit in question
+    edgemask : ndarray
+      Mask edges of the slit
+    sciframe : ndarray
+      science frame
+    varframe : ndarray
+      Variance array
+    tilts : ndarray
+      Tilts of the wavelengths
+    bpm : ndarray, optional
+      Bad pixel mask
+    crmask : ndarray
+      Cosmic ray mask
+    tracemask : ndarray
+      Object mask
+    bsp : float
+      Break point spacing
+    sigrej : float
+      rejection
+
+    Returns
+    -------
+    bgframe : ndarray
+      Sky background image
+
+    """
+
+    # Init
+    bgframe = np.zeros_like(image)
+    nspec = image.shape[0]
+    piximg = tilts * (nspec-1)
+    if inmask is None:
+        inmask = np.copy(thismask)
+
+    # Sky pixels for fitting
+    fit_sky = (thismask == True) & (ivar > 0.0) & (inmask == True)
+    isrt = np.argsort(piximg[fit_sky])
+    wsky = piximg[fit_sky][isrt]
+    sky = image[fit_sky][isrt]
+    sky_ivar = ivar[fit_sky][isrt]
+
+    # Restrict fit to positive pixels only and mask out large outliers via a pre-fit to the log
+    if (POS_MASK==True):
+        pos_sky = (sky > 1.0) & (sky_ivar > 0.0)
+        if np.sum(pos_sky) > nspec:
+            lsky = np.log(sky[pos_sky])
+            lsky_ivar = lsky * 0. + 0.1
+
+            # Init bspline to get the sky breakpoints (kludgy)
+            tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
+
+            #skybkpt = bspline_bkpts(wsky[pos_sky], nord=4, bkspace=bsp $
+            #, / silent)
+            if False:
+                plt.clf()
+                ax = plt.gca()
+                ax.scatter(wsky[pos_sky], lsky)
+                #ax.scatter(wsky[~full_out], sky[~full_out], color='red')
+                #ax.plot(wsky, yfit, color='green')
+                plt.show()
+                #debugger.set_trace()
+            lskyset, outmask, lsky_fit, red_chi = arutils.bspline_profile(
+                wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
+                fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
+                kwargs_reject={'groupbadpix':True})
+            res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
+            lmask = (res < 5.0) & (res > -4.0)
+            sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
+
+    # Full fit now
+    full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp)
+    skyset, outmask, yfit, _ = arutils.bspline_profile(
+        wsky, sky, sky_ivar, np.ones_like(sky),
+        fullbkpt=full_bspline.breakpoints,
+        upper=sigrej, lower=sigrej, kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    # Evaluate and save
+    bgframe[thismask], _ = skyset.value(piximg[thismask])
+
+    # Debugging/checking
+    if PLOT_FIT:
+        goodbk = skyset.mask
+        yfit_bkpt = np.interp(skyset.breakpoints[goodbk], wsky,yfit)
+        plt.clf()
+        ax = plt.gca()
+        was_fit = (sky_ivar > 0.0)
+        was_fit_and_masked = (was_fit == True) & (outmask == False)
+        ax.plot(wsky[was_fit], sky[was_fit], color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None')
+        ax.plot(wsky[was_fit_and_masked], sky[was_fit_and_masked], color='red', marker='+', markersize=1.5, mfc='red', fillstyle='full', linestyle='None')
+        ax.plot(wsky, yfit, color='cornflowerblue')
+        ax.plot(skyset.breakpoints[goodbk], yfit_bkpt, color='lawngreen', marker='o', markersize=2.0, mfc='lawngreen', fillstyle='full', linestyle='None')
+        ax.set_ylim((0.99*yfit.min(),1.01*yfit.max()))
+        plt.show()
+
+    # Return
+    return bgframe, outmask
+
+
+
 # Utility routine used by local_bg_subtraction_slit
 def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial = None, fullbkpt = None):
 

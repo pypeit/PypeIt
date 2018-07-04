@@ -620,7 +620,6 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     nspec = image.shape[0]
 
     # create some images we will need
-    profile_model = np.zeros((nspec,nspat))
     sub_obj = image
     sub_ivar = ivar
     sub_wave = waveimg
