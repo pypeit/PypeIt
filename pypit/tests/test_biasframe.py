@@ -50,10 +50,12 @@ def kast_blue_bias_files():
 def kast_settings():
     kast_settings = processimages.default_settings()
     kast_settings['detector']['dataext'] = 0
+    kast_settings['detector']['dataext01'] = 0
     kast_settings['detector']['datasec01'] = [[0, 1024], [0, 0]]
     kast_settings['detector']['datasec02'] = [[1024, 2048], [0, 0]]
     kast_settings['detector']['oscansec01'] = [[2049, 2080], [0, 0]]
     kast_settings['detector']['oscansec02'] = [[2080, 2111], [0, 0]]
+    kast_settings['detector']['dispaxis'] = 1
     kast_settings['bias'] = {}  # This is a kludge
     kast_settings['bias']['combine'] = kast_settings['combine']  # This is a kludge
     kast_settings['bias']['useframe'] = 'bias'  # For the run() method only

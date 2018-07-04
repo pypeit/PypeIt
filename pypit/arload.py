@@ -23,8 +23,6 @@ from pypit import msgs
 from pypit import arparse as settings
 from pypit.core import arprocimg
 from pypit import arspecobj
-from pypit.core import ardeimos
-from pypit.core import arlris
 from pypit import ardebug as debugger
 
 

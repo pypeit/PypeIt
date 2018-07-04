@@ -1,4 +1,5 @@
-# Module for LRIS specific codes
+""" Module for LRIS specific codes
+"""
 from __future__ import absolute_import, division, print_function
 
 try:
@@ -12,8 +13,195 @@ import numpy as np
 from astropy.io import fits
 
 from pypit import msgs
-from pypit.arparse import load_sections
+from pypit import arparse
 from pypit import ardebug as debugger
+from pypit.spectrographs import spectroclass
+
+class KeckLRISSpectrograph(spectroclass.Spectrograph):
+    """
+    Child to handle Keck/LRIS specific code
+    """
+
+    def __init__(self):
+
+        # Get it started
+        spectroclass.Spectrograph.__init__(self)
+        self.spectrograph = 'keck_lris'
+
+    def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
+        """
+        Wrapper to the raw image reader for LRIS
+
+        Args:
+            raw_file:  str, filename
+            det: int, REQUIRED
+              Desired detector
+            **null_kwargs:
+              Captured and never used
+
+        Returns:
+            raw_img: ndarray
+              Raw image;  likely unsigned int
+            head0: Header
+
+        """
+        raw_img, head0, _ = read_lris(raw_file, det=det)
+
+        return raw_img, head0
+
+    def get_datasec(self, filename, det, settings_det):
+        """
+        Load up the datasec and oscansec and also naxis0 and naxis1
+
+        Args:
+            filename: str
+              data filename
+            det: int
+              Detector specification
+            settings_det: ParSet
+              numamplifiers
+
+        Returns:
+            datasec: list
+            oscansec: list
+            naxis0: int
+            naxis1: int
+        """
+        datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
+        temp, head0, secs = read_lris(filename, det)
+        for kk in range(settings_det['numamplifiers']):
+            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
+            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
+
+        # Need naxis0, naxis1 too
+        naxis0 = temp.shape[0]
+        naxis1 = temp.shape[1]
+
+        # Return
+        return datasec, oscansec, naxis0, naxis1
+
+class KeckLRISBSpectrograph(KeckLRISSpectrograph):
+    """
+    Child to handle Keck/LRISb specific code
+    """
+    def __init__(self):
+
+        # Get it started
+        spectroclass.Spectrograph.__init__(self)
+        self.spectrograph = 'keck_lris_blue'
+
+    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
+        """
+        Setup the arc parameters
+
+        Args:
+            arcparam: dict
+            disperser: str, REQUIRED
+            **null_kwargs:
+              Captured and never used
+
+        Returns:
+            arcparam is modified in place
+
+        """
+        arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'CdI', 'HgI']
+        if disperser == '600/4000':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.63 # Ang per pixel (unbinned)
+            arcparam['b1']= 4.54698031e-04
+            arcparam['b2']= -6.86414978e-09
+            arcparam['wvmnx'][1] = 6000.
+            arcparam['wv_cen'] = 4000.
+        elif disperser == '400/3400':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=1.02
+            arcparam['b1']= 2.72694493e-04
+            arcparam['b2']= -5.30717321e-09
+            arcparam['wvmnx'][1] = 6000.
+        elif disperser == '300/5000':
+            arcparam['n_first'] = 2
+            arcparam['wv_cen'] = 4500.
+            arcparam['disp'] = 1.43
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+
+class KeckLRISRSpectrograph(KeckLRISSpectrograph):
+    """
+    Child to handle Keck/LRISr specific code
+    """
+    def __init__(self):
+
+        # Get it started
+        spectroclass.Spectrograph.__init__(self)
+        self.spectrograph = 'keck_lris_red'
+
+    def bpm(self, binning=None, det=None, **null_kwargs):
+        """ Generate a BPM
+
+        Parameters
+        ----------
+        binning : str, REQUIRED
+          Formatted like '1,1'
+        det : int, REQUIRED
+        **null_kwargs:
+           Captured and never used
+
+        Returns
+        -------
+        badpix : ndarray
+
+        """
+        xbin, ybin = [int(ii) for ii in binning.split(',')]
+        xshp = 2048 // xbin
+        yshp = 4096 // ybin
+        badpix = np.zeros((yshp, xshp), dtype=np.int)
+        # Do it
+        if det == 2:
+            msgs.info("Using hard-coded BPM for det=2 on LRISr")
+            badc = 16 // xbin
+            badpix[:, 0:badc] = 1.
+        # Return
+        return badpix
+
+    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
+                       msarc_shape=None, binspectral=None, **null_kwargs):
+        """
+        Setup the arc parameters
+
+        Args:
+            arcparam: dict
+            disperser: str, REQUIRED
+
+        Returns:
+            arcparam is modified in place
+
+        """
+        arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
+        arcparam['lamps'] = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
+        if disperser == '600/7500':
+            arcparam['n_first']=3 # Too much curvature for 1st order
+            arcparam['disp']=0.80 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
+            arcparam['wvmnx'][1] = 11000.
+        elif disperser == '600/10000':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.80 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
+            arcparam['wvmnx'][1] = 12000.
+        elif disperser == '400/8500':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=1.19 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
+            arcparam['wvmnx'][1] = 11000.
+            arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
+            arcparam['nsig_rej_final'] = 5.
+        elif disperser == '900/5500':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.53 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
+            arcparam['wvmnx'][1] = 7000.
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 def read_lris(raw_file, det=None, TRIM=False):
     """
@@ -75,7 +263,7 @@ def read_lris(raw_file, det=None, TRIM=False):
         detsec = theader['DETSEC']
         if detsec != '0':
             # parse the DETSEC keyword to determine the size of the array.
-            x1, x2, y1, y2 = np.array(load_sections(detsec, fmt_iraf=False)).flatten()
+            x1, x2, y1, y2 = np.array(arparse.load_sections(detsec, fmt_iraf=False)).flatten()
 
             # find the range of detector space occupied by the data
             # [xmin:xmax,ymin:ymax]
@@ -260,11 +448,11 @@ def lris_read_amp(inp, ext):
     # parse the DETSEC keyword to determine the size of the array.
     header = hdu[ext].header
     detsec = header['DETSEC']
-    x1, x2, y1, y2 = np.array(load_sections(detsec, fmt_iraf=False)).flatten()
+    x1, x2, y1, y2 = np.array(arparse.load_sections(detsec, fmt_iraf=False)).flatten()
 
     # parse the DATASEC keyword to determine the size of the science region (unbinned)
     datasec = header['DATASEC']
-    xdata1, xdata2, ydata1, ydata2 = np.array(load_sections(datasec, fmt_iraf=False)).flatten()
+    xdata1, xdata2, ydata1, ydata2 = np.array(arparse.load_sections(datasec, fmt_iraf=False)).flatten()
 
     # grab the components...
     predata = temp[0:precol, :]
@@ -358,34 +546,6 @@ def bpm(slf, camera, fitsdict, det):
     return core_bpm(xbin, ybin, camera, det)
 '''
 
-def bpm(xbin, ybin, camera, det):
-    """ Generate a BPM
-
-    Parameters
-    ----------
-    xbin : int
-      binning in x
-    ybin : int
-      binning in y
-    camera : str
-    det : int
-
-    Returns
-    -------
-    badpix : ndarray
-
-    """
-    xshp = 2048 // xbin
-    yshp = 4096 // ybin
-    badpix = np.zeros((yshp, xshp), dtype=np.int)
-    # Hard-code bad column in LRISr
-    if camera == 'red':
-        if det == 2:
-            msgs.info("Using hard-coded BPM for det=2 on LRISr")
-            badc = 16 // xbin
-            badpix[:, 0:badc] = 1.
-    # Return
-    return badpix
 
 
 def convert_lowredux_pixelflat(infil, outfil):
