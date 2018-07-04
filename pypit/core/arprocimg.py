@@ -11,11 +11,8 @@ from scipy import signal, ndimage
 
 from pypit import msgs
 
-from pypit.core import arlris
-from pypit.core import ardeimos
 from pypit import arutils
 from pypit import arparse
-from pypit import arpixels
 
 from pypit import ardebug as debugger
 
@@ -98,7 +95,7 @@ def error_frame_postext(sciframe, idx, fitsdict, settings_spect):
     return errframe
 '''
 
-
+'''
 def get_datasec_trimmed(spectrograph, scifile, det, settings_det,
                         naxis0=None, naxis1=None):
     """
@@ -144,56 +141,7 @@ def get_datasec_trimmed(spectrograph, scifile, det, settings_det,
     #naxis0, naxis1 = int(fitstbl['naxis0'][scidx]), int(fitstbl['naxis1'][scidx])
     datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, settings_det['numamplifiers'])
     return datasec_img, naxis0, naxis1
-
-
-def get_datasec(spectrograph, scifile, numamplifiers=None, det=None):
-    """  Determine the data and overscan sections of an image
-
-    Currently only used for LRIS and DEIMOS (with their multiple detectors
-    packed in funny ways).  Should consider another approach.
-
-    Parameters
-    ----------
-    spectrograph : str
-    scifile : str
-    numamplifiers : int (optional)
-    det : int (optional)
-      Detector number, starts at 1
-
-    Returns
-    -------
-    datasec : list
-    oscansec : list
-    naxis0 : int
-    naxis1 : int
-    """
-    # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
-    datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
-    # TODO -- Remove instrument specific items in a method like this
-    if spectrograph in ['keck_lris_blue', 'keck_lris_red']:
-        msgs.info("Parsing datasec and oscansec from headers")
-        temp, head0, secs = arlris.read_lris(scifile, det)
-        for kk in range(numamplifiers):
-            #datasec = "datasec{0:02d}".format(kk+1)
-            #settings.spect[dnum][datasec] = settings.load_sections(secs[0][kk], fmt_iraf=False)
-            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
-            #oscansec = "oscansec{0:02d}".format(kk+1)
-            #settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk], fmt_iraf=False)
-            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
-    elif spectrograph in ['keck_deimos']:
-        msgs.info("Parsing datasec and oscansec from headers")
-        temp, head0, secs = ardeimos.read_deimos(scifile, det=det)
-        datasec.append(arparse.load_sections(secs[0][0], fmt_iraf=False))
-        oscansec.append(arparse.load_sections(secs[1][0], fmt_iraf=False))
-    else:  # Other instruments are set in their settings file
-        msgs.warn("Should not have called get_datasec!")
-        return datasec, oscansec, naxis0, naxis1
-
-    naxis0 = temp.shape[0]
-    naxis1 = temp.shape[1]
-    # Return
-    return datasec, oscansec, naxis0, naxis1
-
+'''
 
 
 '''

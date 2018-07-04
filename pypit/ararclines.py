@@ -97,6 +97,7 @@ def reject_lines(tbl, rej_dict, disperser, spectrograph):
     tbl : Table
       Rows not rejected
     '''
+    msgs.warn("Am not sure this method does anything for real -- JXP 03-Jul-2018")
     msk = tbl['wave'] == tbl['wave']
     # Loop on rejected lines
     for wave in rej_dict.keys():
