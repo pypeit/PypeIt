@@ -8,12 +8,8 @@ from matplotlib import pyplot as plt
 
 #from pydl.pydlutils.bspline import bspline
 from pypit.core import pydl
-
 from pypit import msgs
-
 from pypit import arutils
-from pypit import arpixels
-
 from pypit import ardebug as debugger
 
 # ToDO Fix masking logic. This code should also take an ivar for consistency with rest of extraction
@@ -217,6 +213,29 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     return (sky_bmodel, obj_bmodel, outmask)
 
 
+def order_pixels(pixlocn, lord, rord):
+    """
+    Based on physical pixel locations, determine which pixels are within the orders
+    """
+
+    sz_x, sz_y, _ = pixlocn.shape
+    sz_o = lord.shape[1]
+
+    outfr = np.zeros((sz_x, sz_y), dtype=int)
+
+    for y in range(sz_y):
+        for o in range(sz_o):
+            indx = (lord[:,o] < rord[:,o]) & (pixlocn[:,y,1] > lord[:,o]) \
+                   & (pixlocn[:,y,1] < rord[:,o])
+            indx |= ( (lord[:,o] > rord[:,o]) & (pixlocn[:,y,1] < lord[:,o])
+                      & (pixlocn[:,y,1] > rord[:,o]) )
+            if np.any(indx):
+                # Only assign a single order to a given pixel
+                outfr[indx,y] = o+1
+                break
+
+    return outfr
+
 
 # This code is deprecated and replaced by bg_subtraction_slit
 def orig_bg_subtraction_slit(tslits_dict, pixlocn,
@@ -241,8 +260,7 @@ def orig_bg_subtraction_slit(tslits_dict, pixlocn,
     # Begin the algorithm
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
-    ordpix = arpixels.new_order_pixels(pixlocn, lordloc*0.95+rordloc*0.05,
-                              lordloc*0.05+rordloc*0.95)
+    ordpix = order_pixels(pixlocn, lordloc*0.95+rordloc*0.05, lordloc*0.05+rordloc*0.95)
 
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-bpix.astype(np.int)) * (1-crpix.astype(np.int))

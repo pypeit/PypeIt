@@ -103,7 +103,12 @@ Other
    flow
    api
 
+Contents
+++++++++
+.. toctree::
+   :maxdepth: 4
 
+   pypit
 
 Indices and tables
 ++++++++++++++++++

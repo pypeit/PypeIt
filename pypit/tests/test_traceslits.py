@@ -34,7 +34,8 @@ def test_load_from_master():
         assert True
         return
     # Check for files
-    mstrace_root = os.getenv('PYPIT_DEV') + 'Cooked/Trace/MasterTrace_KeckLRISr_150420_402'
+    mstrace_root = os.path.join(os.getenv('PYPIT_DEV'),
+                                'Cooked/Trace/MasterTrace_KeckLRISr_150420_402')
     assert chk_for_files(mstrace_root)
     # Load
     traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)#, load_pix_obj=True)
@@ -46,7 +47,8 @@ def test_add_slit():
         assert True
         return
     # Check for files
-    mstrace_root = os.getenv('PYPIT_DEV') + 'Cooked/Trace/MasterTrace_KeckLRISr_150420_402'
+    mstrace_root = os.path.join(os.getenv('PYPIT_DEV'),
+                                'Cooked/Trace/MasterTrace_KeckLRISr_150420_402')
     assert chk_for_files(mstrace_root)
     # Load
     traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
@@ -62,7 +64,8 @@ def test_remove_slit():
         assert True
         return
     # Check for files
-    mstrace_root = os.getenv('PYPIT_DEV') + 'Cooked/Trace/MasterTrace_KeckLRISr_20160110_A'
+    mstrace_root = os.path.join(os.getenv('PYPIT_DEV'),
+                                'Cooked/Trace/MasterTrace_KeckLRISr_20160110_A')
     assert chk_for_files(mstrace_root)
     # Load
     traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)

@@ -1622,53 +1622,8 @@ def boxcar(specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace, mswav
             mask_sci = np.ma.array(skysub, mask=bg_mask, fill_value=0.)
             clip_image = sigma_clip(mask_sci, axis=1, sigma=3.)  # For the mask only
             # Fit
-#            print('calling func2d_fit_val')
-#            t = time.clock()
-#            _bgframe = arcyutils.func2d_fit_val(bgfit, sciframe,
-#                                                (~clip_image.mask)*bckreg*cr_mask, bgfitord)
-#            print('Old func2d_fit_val: {0} seconds'.format(time.clock() - t))
-#            t = time.clock()
-            bgframe = new_func2d_fit_val(skysub, bgfitord, x=bgfit,
-                                         w=(~clip_image.mask)*bckreg*cr_mask)
-#            print('New func2d_fit_val: {0} seconds'.format(time.clock() - t))
-            # Some fits are really wonky ... in both methods
-#            if np.sum(bgframe != _bgframe) != 0:
-#                plt.imshow(np.ma.log10(sciframe), origin='lower', interpolation='nearest',
-#                           aspect='auto')
-#                plt.colorbar()
-#                plt.show()
-#                w=(~clip_image.mask)*bckreg*cr_mask
-#                plt.imshow(np.ma.log10(sciframe*w), origin='lower', interpolation='nearest',
-#                           aspect='auto')
-#                plt.colorbar()
-#                plt.show()
-#                plt.imshow(np.ma.log10(_bgframe), origin='lower',
-#                           interpolation='nearest', aspect='auto')
-#                plt.colorbar()
-#                plt.show()
-#                plt.imshow(np.ma.log10(bgframe), origin='lower',
-#                           interpolation='nearest', aspect='auto')
-#                plt.colorbar()
-#                plt.show()
-#                plt.imshow(np.ma.log10(np.absolute(bgframe-_bgframe)), origin='lower',
-#                           interpolation='nearest', aspect='auto')
-#                plt.colorbar()
-#                plt.show()
-#                plt.imshow(np.ma.log10(np.ma.divide(bgframe,_bgframe)), origin='lower',
-#                           interpolation='nearest', aspect='auto')
-#                plt.colorbar()
-#                plt.show()
-#
-#                d = np.amax(np.absolute(bgframe-_bgframe), axis=1)
-#                i = np.argmax(d)
-#                plt.plot(bgfit, sciframe[i,:])
-#                plt.plot(bgfit, sciframe[i,:]*w[i,:])
-#                plt.plot(bgfit, bgframe[i,:])
-#                plt.plot(bgfit, _bgframe[i,:])
-#                plt.show()
-#
-#            assert np.sum(bgframe != _bgframe) == 0, 'Difference between old and new func2d_fit_val'
-
+            bgframe = func2d_fit_val(skysub, bgfitord, x=bgfit,
+                                     w=(~clip_image.mask)*bckreg*cr_mask)
             # Weights
             weight = objreg*mask_slit
             sumweight = np.sum(weight, axis=1)
@@ -2095,7 +2050,7 @@ def boxcar_cen(slf, det, img):
     return censpec
 
 
-def new_func2d_fit_val(y, order, x=None, w=None):
+def func2d_fit_val(y, order, x=None, w=None):
     """
     Fit a polynomial to each column in y.
 
