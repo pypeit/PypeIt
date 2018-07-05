@@ -70,9 +70,15 @@ def test_datasec(multi_caliBrate):
         assert True
         return
     datasec_img, naxis0, naxis1 = multi_caliBrate.get_datasec_img()
-    #
+    # Test
     assert naxis0 == 2112
     assert naxis1 == 350
+
+def test_pixlocn(multi_caliBrate):
+    multi_caliBrate.shape = (2048,350)
+    pixlocn = multi_caliBrate.get_pixlocn()
+    # Test
+    assert pixlocn.shape == (2048,350,4)
 
 def test_bias(multi_caliBrate):
     #
@@ -99,3 +105,24 @@ def test_bpm(multi_caliBrate):
     bpm = multi_caliBrate.get_bpm()
     assert bpm.shape == (2048,350)
     assert np.sum(bpm) == 0.
+
+
+def test_slits(multi_caliBrate):
+    if skip_test:
+        assert True
+        return
+    # Setup
+    multi_caliBrate.shape = (2048,350)
+    pixlocn = multi_caliBrate.get_pixlocn()
+    datasec_img, naxis0, naxis1 = multi_caliBrate.get_datasec_img()
+    multi_caliBrate.settings['reduce'] = {}
+    multi_caliBrate.settings['reduce']['badpix'] = False
+    _ = multi_caliBrate.get_bpm()
+    # Settings -- To be replaced
+    from pypit import traceslits
+    multi_caliBrate.settings['trace'] = traceslits.default_settings()['trace']
+    # Run
+    tslits_dict, maskslits = multi_caliBrate.get_slits()
+    # Test
+    assert isinstance(tslits_dict, dict)
+    assert isinstance(maskslits, np.ndarray)

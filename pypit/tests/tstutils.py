@@ -49,6 +49,10 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
     settings['detector']['numamplifiers'] = 2
     settings['detector']['gain'] = [1.2, 1.2]
 
+    settings['detector']['xgap'] = 0
+    settings['detector']['ygap'] = 0
+    settings['detector']['ysize'] = 1.
+
     # Load up the Masters
     ret = []
 

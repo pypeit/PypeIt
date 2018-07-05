@@ -357,7 +357,7 @@ class Calibrations(object):
             self.maskslits
 
         """
-        if not self._chk_objs(['pixlocn', 'datasec_img']):
+        if not self._chk_objs(['pixlocn', 'datasec_img', 'msbpm']):
             return
         # Check me
         self._chk_set(['det', 'settings', 'setup', 'sci_ID'])
@@ -483,16 +483,23 @@ class Calibrations(object):
         return self.wv_calib, self.maskslits
 
 
-    def get_pixlocn(self, arc=None):
-        if arc is not None:
-            self.msarc = arc
+    def get_pixlocn(self):
+        """
+        Generate the pixlocn image
+
+        Requirements:
+          settings, shape
+
+        Returns:
+            self.pixlocn: ndarray
+        """
         # Check
-        self._chk_set(['settings'])
-        #
+        self._chk_set(['settings', 'shape'])
+        # Detector
         xgap = self.settings['detector']['xgap']
         ygap = self.settings['detector']['ygap']
         ysize = self.settings['detector']['ysize']
-        self.pixlocn = arpixels.core_gen_pixloc(self.msarc.shape, xgap=xgap, ygap=ygap, ysize=ysize)
+        self.pixlocn = arpixels.core_gen_pixloc(self.shape, xgap=xgap, ygap=ygap, ysize=ysize)
         # Return
         return self.pixlocn
 
