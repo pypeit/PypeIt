@@ -18,7 +18,7 @@ from. import spectroclass
 
 class KeckNIRESpectrograph(spectroclass.Spectrograph):
     """
-    Child to handle Keck/LRIS specific code
+    Child to handle Keck/NIRES specific code
     """
 
     def __init__(self):
@@ -40,7 +40,7 @@ class KeckNIRESpectrograph(spectroclass.Spectrograph):
 
         """
         # Edges of the detector are junk
-        msgs.info("Custom bad pixel mask for NIRSPEC")
+        msgs.info("Custom bad pixel mask for NIRES")
         self.bpm = np.zeros((self.shape[0], self.shape[1]))
         #self.bpm[:, :20] = 1.
         #self.bpm[:, 1000:] = 1.

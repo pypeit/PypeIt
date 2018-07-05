@@ -78,22 +78,37 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Settings
         # The copy allows up to update settings with user settings without changing the original
-        if settings is None:
-            # Defaults
-            self.settings = processimages.default_settings()
-        else:
-            self.settings = settings.copy()
-            # The following is somewhat kludgy and the current way we do settings may
-            #   not touch all the options (not sure .update() would help)
-            if 'combine' not in settings.keys():
-                if self.frametype in settings.keys():
-                    self.settings['combine'] = settings[self.frametype]['combine']
+
+
+        # TODO, JFH I think the logic below flawed here. The processimages class is already dealing with the settings and setting them to defaults if the user
+        # did not pass anythign in, and to the union of settings and user_settings if the user did pass them in. The only thing that should be done
+        # below is to guarantee that frametype=arc specific settings get put in to the settings dict, since processimages does not know about that
+
+        # TODO, JFH Commented out because this duplicates code, is unnecessary, and the logic is flawed.
+        # It also has the effect of overwriting any user input settings that
+        # processimages just dealt with the default settings
+        #if settings is None:
+        #    self.settings = processimages.default_settings()
+        #else:
+        #    self.settings = settings.copy()
+        #    # The following is somewhat kludgy and the current way we do settings may
+        #    #   not touch all the options (not sure .update() would help)
+        #    if 'combine' not in settings.keys():
+        #        if self.frametype in settings.keys():
+        #            self.settings['combine'] = settings[self.frametype]['combine']
+
+        # JFH This is the only code snippet dealing with settings that should be run here, since it is frametype=arc specific. I'm still not following
+        # the logic here though
+        if 'combine' not in self.settings.keys():
+            if self.frametype in self.settings.keys():
+                self.settings['combine'] = settings[self.frametype]['combine']
 
         # Child-specific Internals
         #    See ProcessImages for the rest
 
         # MasterFrames
         masterframe.MasterFrame.__init__(self, self.frametype, self.setup, self.settings)
+
 
     def build_image(self):
         """

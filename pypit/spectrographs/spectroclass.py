@@ -72,7 +72,6 @@ class Spectrograph(object):
         """
         # Open and go
         hdulist = fits.open(raw_file)
-        from IPython import embed
         raw_img = hdulist[dataext].data
         head0 = hdulist[0].header
         # Return

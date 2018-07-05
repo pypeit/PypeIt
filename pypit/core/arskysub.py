@@ -214,10 +214,20 @@ def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3
 
     # Full fit now
     full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp)
-    skyset, outmask, yfit, _ = arutils.bspline_profile(
-        wsky, sky, sky_ivar, np.ones_like(sky),
-        fullbkpt=full_bspline.breakpoints,
-        upper=sigrej, lower=sigrej, kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    #skyset, outmask, yfit, _ = arutils.bspline_profile(
+    #    wsky, sky, sky_ivar, np.ones_like(sky),
+    #    fullbkpt=full_bspline.breakpoints,
+    #    upper=sigrej, lower=sigrej, kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+
+    skyset, outmask, yfit, _ = arutils.bspline_profile(wsky, sky, sky_ivar, np.ones_like(sky),
+                                                       upper=3.0, lower=3.0,
+                                                       kwargs_bspline={'bkspace':bsp},
+                                                       kwargs_reject={'maxrej': 10,'maxiter':20})
+
+    #skyset, outmask   = bspline_iterfit(wsky, sky, invvar = sky_ivar,fullbkpt = full_bspline.breakpoints,
+    #                                    kwargs_reject={'groupbadpix':True,'maxrej':10})
+
+
     # Evaluate and save
     bgframe[thismask], _ = skyset.value(piximg[thismask])
 
