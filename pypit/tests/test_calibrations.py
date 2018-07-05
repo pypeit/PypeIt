@@ -201,3 +201,20 @@ def test_flat(multi_caliBrate):
     mspixflatnrm, slitprof = multi_caliBrate.get_pixflatnrm()
     assert mspixflatnrm.shape == (2048,350)
     assert slitprof.shape == (2048,350)
+    
+
+def test_waveimg(multi_caliBrate):
+    # Setup
+    multi_caliBrate.shape = (2048,350)
+    _ = multi_caliBrate.get_pixlocn()
+    _ = multi_caliBrate.get_datasec_img()
+    _ = multi_caliBrate.get_bpm()
+    multi_caliBrate.msbias = 'overscan'
+    _ = multi_caliBrate.get_slits()
+    _ = multi_caliBrate.get_arc()
+    _ = multi_caliBrate.get_wv_calib()
+    _ = multi_caliBrate.get_tilts()
+    _ = multi_caliBrate.get_pixflatnrm()
+    # Run
+    mswave = multi_caliBrate.get_wave()
+    assert mswave.shape == (2048,350)

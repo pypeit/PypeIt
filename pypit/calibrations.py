@@ -406,6 +406,17 @@ class Calibrations(object):
         return self.tslits_dict, self.maskslits
 
     def get_wave(self):
+        """
+        Load or generate a wavelength image
+
+        Requirements:
+           mstilts, tslits_dict, wv_calib, maskslits
+           det, settings, setup
+
+        Returns:
+            self.mswave: ndarray
+
+        """
         # Checks
         if not self._chk_objs(['mstilts','tslits_dict','wv_calib','maskslits']):
             return
@@ -418,9 +429,10 @@ class Calibrations(object):
                 self.mswave = self.mstilts * (self.mstilts.shape[0]-1.0)
             else:
                 # Instantiate
-                self.waveImage = waveimage.WaveImage(self.mstilts, self.wv_calib, settings=self.settings,
-                                      setup=self.setup, maskslits=self.maskslits,
-                                      slitpix=self.tslits_dict['slitpix'])
+                self.waveImage = waveimage.WaveImage(self.tslits_dict['slitpix'],
+                                                     self.mstilts, self.wv_calib,
+                                                     settings=self.settings, setup=self.setup,
+                                                     maskslits=self.maskslits)
                 # Attempt to load master
                 self.mswave = self.waveImage.master()
                 if self.mswave is None:
