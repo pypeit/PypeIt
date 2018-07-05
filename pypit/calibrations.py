@@ -166,12 +166,10 @@ class Calibrations(object):
                 # Save to Masters
                 if self.save_masters:
                     self.arcImage.save_master(self.msarc, raw_files=self.arcImage.file_list, steps=self.arcImage.steps)
-            # Return
-            return self.msarc
             # Save
             self.calib_dict[self.setup]['arc'] = self.msarc
-        # Return
         self.shape = self.msarc.shape
+        # Return
         return self.msarc
 
     def get_bias(self):
@@ -582,12 +580,12 @@ class Calibrations(object):
     def _chk_set(self, items):
         for item in items:
             if getattr(self, item) is None:
-                msgs.error("Use self.set to specify '{:s}' prior to generating the bias".format(item))
+                msgs.error("Use self.set to specify '{:s}' prior to generating XX".format(item))
 
     def _chk_objs(self, items):
         for obj in items:
             if getattr(self, obj) is None:
-                msgs.warn("You need to generate {:s} prior to wavelength calibration..".format(obj))
+                msgs.warn("You need to generate {:s} prior to this calibration..".format(obj))
                 if obj in ['tslits_dict','maskslits']:
                     msgs.warn("Use get_slits".format(obj))
                 else:
