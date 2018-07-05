@@ -512,9 +512,21 @@ class Calibrations(object):
         # Return
         return self.pixlocn
 
-    def get_tilts(self, arc=None, ):
+    def get_tilts(self):
+        """
+        Load or generate the tilts image
+
+        Requirements:
+           msarc, tslits_dict, pixlocn, wv_calib, maskslits
+           det, settings, setup, sci_ID
+
+        Returns:
+            self.mstilts: ndarray (2D)
+            self.maskslits: ndarray
+
+        """
         # Checks
-        if not self._chk_objs(['msarc','tslits_dict','pixlocn','wv_calib','maskslits']):
+        if not self._chk_objs(['msarc', 'tslits_dict', 'pixlocn', 'wv_calib', 'maskslits']):
             return
         self._chk_set(['det', 'settings', 'setup', 'sci_ID'])
         #

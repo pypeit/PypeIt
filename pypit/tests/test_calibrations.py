@@ -74,6 +74,9 @@ def multi_caliBrate():
     from pypit import wavecalib
     multi_caliBrate.settings['arc'] = {}
     multi_caliBrate.settings['arc']['calibrate'] = wavecalib.default_settings()['calibrate']
+    # Yet another
+    from pypit import wavetilts
+    multi_caliBrate.settings['trace']['slits']['tilts'] = wavetilts.default_settings()['tilts'].copy()
     # Return
     return multi_caliBrate
 
@@ -136,6 +139,7 @@ def test_slits(multi_caliBrate):
     assert isinstance(tslits_dict, dict)
     assert isinstance(maskslits, np.ndarray)
 
+
 def test_wv_calib(multi_caliBrate):
     if skip_test:
         assert True
@@ -151,4 +155,22 @@ def test_wv_calib(multi_caliBrate):
     # Run
     wv_calib, maskslits = multi_caliBrate.get_wv_calib()
     assert isinstance(wv_calib, dict)
+    assert isinstance(maskslits, np.ndarray)
+
+def test_tilts(multi_caliBrate):
+    if skip_test:
+        assert True
+        return
+    # Setup
+    multi_caliBrate.shape = (2048,350)
+    _ = multi_caliBrate.get_pixlocn()
+    _ = multi_caliBrate.get_datasec_img()
+    _ = multi_caliBrate.get_bpm()
+    multi_caliBrate.msbias = 'overscan'
+    _ = multi_caliBrate.get_slits()
+    _ = multi_caliBrate.get_arc()
+    _ = multi_caliBrate.get_wv_calib()
+    # Run
+    mstilts, maskslits = multi_caliBrate.get_tilts()
+    assert mstilts.shape == (2048,350)
     assert isinstance(maskslits, np.ndarray)
