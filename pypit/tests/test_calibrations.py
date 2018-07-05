@@ -31,6 +31,7 @@ def data_path(filename):
 if os.getenv('PYPIT_DEV') is None:
     skip_test=True
     fitstbl = arsort.dummy_fitstbl(directory=data_path(''))
+    fitstbl['filename'][1] = 'b1.fits.gz'
 else:
     skip_test=False
     # MultiSlit
@@ -188,6 +189,10 @@ def test_tilts(multi_caliBrate):
 
 
 def test_flat(multi_caliBrate):
+    if skip_test:
+        assert True
+        return
+    # Setup
     # Setup
     multi_caliBrate.shape = (2048,350)
     _ = multi_caliBrate.get_pixlocn()
@@ -205,6 +210,9 @@ def test_flat(multi_caliBrate):
 
 
 def test_waveimg(multi_caliBrate):
+    if skip_test:
+        assert True
+        return
     # Setup
     multi_caliBrate.shape = (2048,350)
     _ = multi_caliBrate.get_pixlocn()
