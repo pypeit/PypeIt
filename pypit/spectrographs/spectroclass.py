@@ -51,7 +51,13 @@ class Spectrograph(object):
         # Transpose?
         if disp_dir == 1:
             img = img.T
+        elif disp_dir == -1:
+            img = np.flip(img.T, axis=0)
+        #    else:
+        #        msgs.error('disp_dir must be 0, 1 or -1') # ToDO we need to deal with flips in the spectral direction someday
+
         # Return
+
         return img, head0
 
     def load_raw_img_head(self, raw_file, dataext, **null_kwargs):
