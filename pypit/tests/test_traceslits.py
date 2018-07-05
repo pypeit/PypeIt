@@ -29,7 +29,7 @@ def chk_for_files(root):
         return True
 
 
-def test_load_from_master():
+def test_load_from_master_and_run():
     if skip_test:
         assert True
         return

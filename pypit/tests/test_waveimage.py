@@ -44,9 +44,8 @@ def test_build_me():
     # Instantiate
     setup = 'A_01_aa'
     maskslits = np.zeros(TSlits.nslit, dtype=bool)
-    wvImg = waveimage.WaveImage(tilts, wv_calib, settings=settings,
-                                setup=setup, maskslits=maskslits,
-                                slitpix=TSlits.slitpix)
+    wvImg = waveimage.WaveImage(TSlits.slitpix, tilts, wv_calib, settings=settings,
+                                setup=setup, maskslits=maskslits)
     # Build
     wave = wvImg._build_wave()
     assert int(np.max(wave)) == 5516

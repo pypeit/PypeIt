@@ -137,6 +137,10 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         or return the command
         or return None
 
+        Note that the user-preference currently holds court, e.g.
+          'userframe' = 'overscan' will do an Overscan analysis instead
+          of loading an existing MasterFrame bias image
+
         Returns
         -------
         msframe : ndarray or str or None

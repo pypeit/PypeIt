@@ -64,7 +64,7 @@ def test_user_frametype(fitstbl):
     settings.dummy_settings(spectrograph='shane_kast_blue', set_idx=False)
     # Modify settings -- WARNING: THIS IS GLOBAL!
     settings.spect['set'] = {}
-    settings.spect['set']['standard'] = ['b009.fits']
+    settings.spect['set']['standard'] = ['b009.fits.gz']
     filesort = arsort.type_data(fitstbl, settings.spect, settings.argflag)
     assert filesort['standard'][9]
     settings.spect['set'] = {}
@@ -147,4 +147,4 @@ def test_instr_setup(fitstblno):
     # Run
     setupID3 = arsetup.instr_setup(2, 1, fitstbl, setup_dict, namp)
     assert setupID3 == 'A_01_ab'
-    assert setup_dict['A']['ab']['arc'][0] == 'b009.fits'
+    assert setup_dict['A']['ab']['arc'][0] == 'b009.fits.gz'

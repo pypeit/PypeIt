@@ -77,7 +77,11 @@ class BPMImage(object):
         self.shape = shape
         self.settings = settings
 
+        if self.spectrograph is None and (not spectro_class is None):
+            self.spectrograph = self.spectro_class.spectrograph
+
         # Checks
+        # TODO -- Move this (somehow) to the instrument specific classes
         if (self.reduce_badpix == 'bias') and (self.msbias is None):
             msgs.error("Need to supply msbias image with this option")
         if (self.spectrograph == 'keck_deimos') and (self.det is None):
@@ -126,6 +130,7 @@ class BPMImage(object):
         return self.bpm
 
 
+'''
 def get_mspbm(det, spectrograph, tsettings, shape, binning=None, reduce_badpix=None, msbias=None):
     """
     Load/Generate the bad pixel image
@@ -162,3 +167,4 @@ def get_mspbm(det, spectrograph, tsettings, shape, binning=None, reduce_badpix=N
     msbpm = bpmImage.build()
     # Return
     return msbpm, bpmImage
+'''
