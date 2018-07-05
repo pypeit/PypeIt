@@ -61,7 +61,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
       Final output image
     """
     # Keep order same as processimages (or else!)
-    def __init__(self, file_list=[], spectrograph=None, settings=None, det=1, setup=None, sci_ID=None,
+    def __init__(self, file_list=[], spectrograph=None, settings=None, user_settings = None, det=1, setup=None, sci_ID=None,
                  msbias=None, fitstbl=None):
 
         # Parameters unique to this Object
@@ -71,7 +71,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         self.setup = setup
 
         # Start us up
-        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, det=det)
+        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, user_settings = user_settings, det=det)
 
         # Attributes (set after init)
         self.frametype = frametype

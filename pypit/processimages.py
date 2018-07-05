@@ -30,7 +30,7 @@ def default_settings():
     default_settings = dict(detector={'numamplifiers': 1,   # This dict is not complete; consider readnoise, binning
                                   'saturation': 60000.,  # Spectra aligned with columns
                                   'dispaxis': 0,  # Spectra aligned with columns
-                                  'dataext': None,
+                                  'dataext': None, # JFH Should this be 0 so that things don't crash for the defaults?
                                   'gain': [1.],
                                       },
                         combine={'match': -1.,
@@ -120,6 +120,7 @@ class ProcessImages(object):
         self.headers = []
         self.datasec = []
         self.oscansec = []
+
 
     @classmethod
     def from_fits(cls, fits_file, **kwargs):
