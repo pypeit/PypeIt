@@ -82,7 +82,8 @@ class WaveCalib(masterframe.MasterFrame):
       Arc parameter (instrument/disperser specific)
     """
     def __init__(self, msarc, spectrograph=None, settings=None, det=None,
-                 setup=None, fitstbl=None, sci_ID=None, spectro_class=None, arcparam=None):
+                 setup=None, fitstbl=None, sci_ID=None, spectro_class=None,
+                 arcparam=None):
 
         # Required parameters (but can be None)
         self.msarc = msarc
