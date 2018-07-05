@@ -37,6 +37,8 @@ else:
     fitstbl = arsort.dummy_fitstbl(
         directory=os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/'))
     fitstbl['filename'][1] = 'b1.fits.gz'
+    for ii in range(2,5):
+        fitstbl['filename'][ii] = 'b{:d}.fits.gz'.format(ii)
     fitstbl['filename'][5] = 'b27.fits.gz'
 
 def chk_for_files(root):
@@ -53,9 +55,25 @@ def multi_caliBrate():
     det = 1
     sci_ID = 1
     settings = tstutils.load_kast_blue_masters(get_settings=True)[0]
-    multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl)
+    multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl, save_masters=False, write_qa=False)
     #
     multi_caliBrate.reset(setup, det, sci_ID, settings)
+    # Extra settings
+    multi_caliBrate.settings['masters']['reuse'] = False
+    multi_caliBrate.settings['bias'] = {}
+    multi_caliBrate.settings['bias']['useframe'] = 'overscan'
+    multi_caliBrate.settings['reduce'] = {}
+    multi_caliBrate.settings['reduce']['badpix'] = False
+    multi_caliBrate.settings['reduce']['trim'] = True
+    multi_caliBrate.settings['reduce']['calibrate'] = {}
+    multi_caliBrate.settings['reduce']['calibrate']['wavelength'] = True
+    # Kludge me
+    from pypit import traceslits
+    multi_caliBrate.settings['trace'] = traceslits.default_settings()['trace']
+    # Kludge me
+    from pypit import wavecalib
+    multi_caliBrate.settings['arc'] = {}
+    multi_caliBrate.settings['arc']['calibrate'] = wavecalib.default_settings()['calibrate']
     # Return
     return multi_caliBrate
 
@@ -82,15 +100,12 @@ def test_pixlocn(multi_caliBrate):
 
 def test_bias(multi_caliBrate):
     #
-    multi_caliBrate.settings['bias'] = {}
-    multi_caliBrate.settings['bias']['useframe'] = 'overscan'
     # Build
     multi_caliBrate.get_bias()
 
 
 def test_arc(multi_caliBrate):
     multi_caliBrate.msbias = 'overscan'
-    multi_caliBrate.settings['masters']['reuse'] = False
     # Build
     arc = multi_caliBrate.get_arc()
     assert arc.shape == (2048,350)
@@ -98,8 +113,6 @@ def test_arc(multi_caliBrate):
 
 def test_bpm(multi_caliBrate):
     # Prep
-    multi_caliBrate.settings['reduce'] = {}
-    multi_caliBrate.settings['reduce']['badpix'] = False
     multi_caliBrate.shape = (2048,350)
     # Build
     bpm = multi_caliBrate.get_bpm()
@@ -113,16 +126,29 @@ def test_slits(multi_caliBrate):
         return
     # Setup
     multi_caliBrate.shape = (2048,350)
-    pixlocn = multi_caliBrate.get_pixlocn()
-    datasec_img, naxis0, naxis1 = multi_caliBrate.get_datasec_img()
-    multi_caliBrate.settings['reduce'] = {}
-    multi_caliBrate.settings['reduce']['badpix'] = False
+    _ = multi_caliBrate.get_pixlocn()
+    _ = multi_caliBrate.get_datasec_img()
     _ = multi_caliBrate.get_bpm()
-    # Settings -- To be replaced
-    from pypit import traceslits
-    multi_caliBrate.settings['trace'] = traceslits.default_settings()['trace']
+    multi_caliBrate.msbias = 'overscan'
     # Run
     tslits_dict, maskslits = multi_caliBrate.get_slits()
     # Test
     assert isinstance(tslits_dict, dict)
+    assert isinstance(maskslits, np.ndarray)
+
+def test_wv_calib(multi_caliBrate):
+    if skip_test:
+        assert True
+        return
+    # Setup
+    multi_caliBrate.shape = (2048,350)
+    _ = multi_caliBrate.get_pixlocn()
+    _ = multi_caliBrate.get_datasec_img()
+    _ = multi_caliBrate.get_bpm()
+    multi_caliBrate.msbias = 'overscan'
+    _ = multi_caliBrate.get_slits()
+    _ = multi_caliBrate.get_arc()
+    # Run
+    wv_calib, maskslits = multi_caliBrate.get_wv_calib()
+    assert isinstance(wv_calib, dict)
     assert isinstance(maskslits, np.ndarray)

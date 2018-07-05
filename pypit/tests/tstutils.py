@@ -52,6 +52,7 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
     settings['detector']['xgap'] = 0
     settings['detector']['ygap'] = 0
     settings['detector']['ysize'] = 1.
+    settings['detector']['nonlinear'] = 0.76
 
     # Load up the Masters
     ret = []

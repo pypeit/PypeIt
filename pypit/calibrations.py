@@ -379,7 +379,6 @@ class Calibrations(object):
                                                datasec_img=self.datasec_img)
                 mstrace = Timage.process(bias_subtract=self.msbias, trim=self.settings['reduce']['trim'],
                                          apply_gain=True)
-
                 # Load up and get ready
                 self.traceSlits.mstrace = mstrace
                 _ = self.traceSlits.make_binarr()
@@ -435,11 +434,21 @@ class Calibrations(object):
         # Return
         return self.mswave
 
-    def get_wv_calib(self, arc=None):
-        if arc is not None:
-            self.msarc = arc
+    def get_wv_calib(self):
+        """
+        Load or generate the 1D wavelength calibrations
+
+        Requirements:
+          msarc, tslits_dict, pixlocn
+          det, settings, setup, sci_ID
+
+        Returns:
+            self.wv_calib: dict
+            self.maskslits -- Updated
+
+        """
         # Checks
-        if not self._chk_objs(['msarc','tslits_dict','pixlocn']):
+        if not self._chk_objs(['msarc', 'tslits_dict', 'pixlocn']):
             return
         self._chk_set(['det', 'settings', 'setup', 'sci_ID'])
         ###############################################################################
@@ -456,7 +465,7 @@ class Calibrations(object):
             nonlinear = self.settings['detector']['saturation'] * self.settings['detector']['nonlinear']
             self.settings['calibrate'] = self.settings['arc']['calibrate']
             # Instantiate
-            self.waveCalib = wavecalib.WaveCalib(self.msarc, spectrograph=self.spectrograph,
+            self.waveCalib = wavecalib.WaveCalib(self.msarc, spectrograph=self.spectro_class.spectrograph,
                                   settings=self.settings, det=self.det,
                                   setup=self.setup, fitstbl=self.fitstbl, sci_ID=self.sci_ID)
             # Load from disk (MasterFrame)?
