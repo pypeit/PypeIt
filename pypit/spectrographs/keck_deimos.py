@@ -145,6 +145,13 @@ class KeckDEIMOSSpectrograph(spectroclass.Spectrograph):
             arcparam['wvmnx'][0] = 550.
             arcparam['wvmnx'][1] = 11000.
             arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
+        elif disperser == '1200G': # Blaze 7760
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.32 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
+            arcparam['wvmnx'][0] = 550.
+            arcparam['wvmnx'][1] = 11000.
+            arcparam['min_ampl'] = 2000.  # Lines tend to be very strong
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 

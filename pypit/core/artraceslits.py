@@ -986,7 +986,9 @@ def edgearr_close_slits(binarr, edgearrcp, edgearr, ednum, settings):
 
     vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
 #    hasedge = arcytrace.close_edges(edgearrcp, vals, int(settings['trace']['slits']['maxgap']))
-    # TODO: This pure python function was never tested!
+    # TODO: This pure python function was translated from the cython
+    # function above but was never fully tested; compare with function
+    # in pypit/arcytrace.pyx!
     hasedge = close_edges(edgearrcp, vals, int(settings['trace']['slits']['maxgap']))
 
     # Find all duplicate edges
@@ -1074,7 +1076,10 @@ def edgearr_close_slits(binarr, edgearrcp, edgearr, ednum, settings):
             # Now generate the dual edge
 #            arcytrace.dual_edge(edgearr, edgearrcp, wdup[0], wdup[1], wvla, wvlb, shadj,
 #                                int(settings['trace']['slits']['maxgap']), edgedup[jj])
-            # TODO: This pure python function was never tested!
+
+            # TODO: This pure python function was translated from the
+            # cython function above but was never fully tested; compare
+            # with function in pypit/arcytrace.pyx!
             dual_edge(edgearr, edgearrcp, wdup[0], wdup[1], wvla, wvlb, shadj,
                       int(settings['trace']['slits']['maxgap']), edgedup[jj])
     # Now introduce new edge locations
@@ -1083,7 +1088,10 @@ def edgearr_close_slits(binarr, edgearrcp, edgearr, ednum, settings):
 #        exit()
 #    edgearrcp = arcytrace.close_slits(binarr, edgearrcp, vals,
 #                                      int(settings['trace']['slits']['maxgap']), int(ednum))
-    # TODO: This pure python function was never tested!
+
+    # TODO: This pure python function was translated from the cython
+    # function above but was never fully tested; compare with function
+    # in pypit/arcytrace.pyx!
     return close_slits(binarr, edgearrcp, vals, int(settings['trace']['slits']['maxgap']),
                        int(ednum))
 
@@ -1685,9 +1693,9 @@ def match_edges(edgdet, ednum, mr=50):
 
 
 
-
-# TODO: Just a 1-1 mapping of the cython function to python.  Needs to
-# be tested!!
+# TODO: This pure python function was translated from the cython
+# function above but was never fully tested; compare with function in
+# pypit/arcytrace.pyx!
 def close_edges(edgdet, dets, npix):
     sz_x, sz_y = edgdet.shape
     sz_d = dets.size
@@ -1713,8 +1721,9 @@ def close_edges(edgdet, dets, npix):
     return hasedge
 
 
-# TODO: Just a 1-1 mapping of the cython function to python.  Needs to
-# be tested!!  This is super knarly and needs some attention!
+# TODO: This pure python function was translated from the cython
+# function above but was never fully tested; compare with function in
+# pypit/arcytrace.pyx!  The code is knarly and may need some attention!
 def close_slits(trframe, edgdet, dets, npix, ednum):
 
     sz_x, sz_y = edgdet.shape
@@ -1819,8 +1828,10 @@ def close_slits(trframe, edgdet, dets, npix, ednum):
     return edgearr
 
 
-# TODO: Just a 1-1 mapping of the cython function to python.  Needs to
-# be tested!!  This edits everything in place.  Do we want to do that?
+# TODO: This pure python function was translated from the cython
+# function above but was never fully tested; compare with function in
+# pypit/arcytrace.pyx!  This edits everything in place.  Do we want to
+# do that?
 def dual_edge(edgearr, edgearrcp, wx, wy, wl, wr, shft, npix, newval):
 
     sz_x, sz_y = edgearr.shape
