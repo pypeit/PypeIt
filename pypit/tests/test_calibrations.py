@@ -22,11 +22,22 @@ from pypit import calibrations
 
 from pypit.tests import tstutils
 
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files')
+    return os.path.join(data_dir, filename)
+
+
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:
     skip_test=True
+    fitstbl = arsort.dummy_fitstbl(directory=data_path(''))
 else:
     skip_test=False
+    # MultiSlit
+    fitstbl = arsort.dummy_fitstbl(
+        directory=os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/'))
+    fitstbl['filename'][1] = 'b1.fits.gz'
+    fitstbl['filename'][5] = 'b27.fits.gz'
 
 def chk_for_files(root):
     files = glob.glob(root+'*')
@@ -35,13 +46,6 @@ def chk_for_files(root):
     else:
         return True
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
-
-# MultiSlit
-fitstbl = arsort.dummy_fitstbl(directory=data_path(''))
-fitstbl['filename'][1] = 'b1.fits.gz'
 
 @pytest.fixture
 def multi_caliBrate():
@@ -60,6 +64,15 @@ def test_instantiate():
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
     print(caliBrate)
 
+
+def test_datasec(multi_caliBrate):
+    if skip_test:
+        assert True
+        return
+    datasec_img, naxis0, naxis1 = multi_caliBrate.get_datasec_img()
+    #
+    assert naxis0 == 2112
+    assert naxis1 == 350
 
 def test_bias(multi_caliBrate):
     #

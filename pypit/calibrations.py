@@ -252,7 +252,7 @@ class Calibrations(object):
         self._chk_set(['det', 'settings', 'sci_ID'])
         #
         scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
-        scifile = os.path.join(self.fitstbl['directory'][scidx],self.fitstbl['filename'][scidx])
+        scifile = os.path.join(self.fitstbl['directory'][scidx], self.fitstbl['filename'][scidx])
         # datasec, etc.
         datasec, _, naxis0, naxis1 = self.spectro_class.get_datasec(
             scifile, self.det, self.settings['detector'])
