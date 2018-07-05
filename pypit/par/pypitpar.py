@@ -119,6 +119,11 @@ from astropy.time import Time
 
 from .parset import ParSet
 
+# Needs this to determine the valid spectrographs TODO: This causes a
+# circular import.  Spectrograph specific parameter sets and where they
+# go needs to be rethought.
+#from ..spectrographs.util import valid_spectrographs
+
 #-----------------------------------------------------------------------------
 # Helper functions
 
@@ -311,7 +316,7 @@ def _get_parset_list(cfg, pk, parsetclass):
 # Reduction ParSets
 
 class FrameGroupPar(ParSet):
-    def __init__(self, frametype=None, useframe=None, number=None, combine=None):
+    def __init__(self, frametype=None, useframe=None, number=None, combine=None, lacosmic=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -333,7 +338,7 @@ class FrameGroupPar(ParSet):
                              'Options are: {0}'.format(', '.join(options['frametype']))
 
         dtypes['useframe'] = basestring
-        descr['useframe'] = 'A master calibrations file to use if it exists'
+        descr['useframe'] = 'A master calibrations file to use if it exists.'
 
         defaults['number'] = 0
         dtypes['number'] = int
@@ -343,9 +348,9 @@ class FrameGroupPar(ParSet):
         dtypes['combine'] = [ParSet, dict]
         descr['combine'] = 'Parameters used when combining frames of this type'
 
-        defaults['cosmic'] = LACosmicPar()
-        dtypes['cosmic'] = [ParSet, dict]
-        descr['cosmic'] = 'Parameters used for cosmic ray detection for frames of this type'
+        defaults['lacosmic'] = LACosmicPar()
+        dtypes['lacosmic'] = [ParSet, dict]
+        descr['lacosmic'] = 'Parameters used for cosmic ray detection for frames of this type'
 
         # Instantiate the parameter set
         super(FrameGroupPar, self).__init__(list(pars.keys()),
@@ -366,7 +371,7 @@ class FrameGroupPar(ParSet):
             kwargs[pk] = cfg[pk] if pk in k else None
         pk = 'combine'
         kwargs[pk] = CombineFramesPar.from_dict(cfg[pk]) if pk in k else None
-        pk = 'cosmic'
+        pk = 'lacosmic'
         kwargs[pk] = LACosmicPar.from_dict(cfg[pk]) if pk in k else None
         return cls(frametype=frametype, **kwargs)
 
@@ -1248,7 +1253,7 @@ class ReducePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['spectrograph'] = 'KECK_LRISb'
+        defaults['spectrograph'] = 'keck_lris_blue'
         options['spectrograph'] = ReducePar.valid_spectrographs()
         dtypes['spectrograph'] = basestring
         descr['spectrograph'] = 'Spectrograph that provided the data to be reduced.  ' \
@@ -1357,28 +1362,33 @@ class ReducePar(ParSet):
 
     @staticmethod
     def valid_spectrographs():
-        """
-        Return the list of allowed spectrographs for pypit reductions.
-        The valid spectrographs are determined by finding the *.cfg
-        files in PYPIT source directory structure, and any *.cfg files
-        in the current working directory.
-        
-        .. todo::
-            - Remove default_spectrograph.cfg
-        """
-        # Find the spectrograph files included in the distribution
-        pypit_root = _pypit_root_directory()
-        spec_dir = os.path.join(pypit_root, 'pypit', 'config', 'spectrographs')
-        cfg_files = glob.glob(os.path.join(spec_dir, '*_spectrograph.cfg'))
+#        """
+#        Return the list of allowed spectrographs for pypit reductions.
+#        The valid spectrographs are determined by finding the *.cfg
+#        files in PYPIT source directory structure, and any *.cfg files
+#        in the current working directory.
+#        
+#        .. todo::
+#            - Remove default_spectrograph.cfg
+#        """
+#        # Find the spectrograph files included in the distribution
+#        pypit_root = _pypit_root_directory()
+#        spec_dir = os.path.join(pypit_root, 'pypit', 'config', 'spectrographs')
+#        cfg_files = glob.glob(os.path.join(spec_dir, '*_spectrograph.cfg'))
+#
+#        # Find any user spectrograph files
+#        user_cfg_files = glob.glob(os.path.join('*_spectrograph.cfg'))
+#        if len(user_cfg_files) > 0:
+#            warnings.warn('Found *_spectrograph.cfg files in current working directory.  '
+#                          'Spectrograph options will include these files.')
+#            cfg_files += user_cfg_files
+#        
+#        return [ '_'.join((f.split('/')[-1]).split('_')[:-1]) for f in cfg_files ]
 
-        # Find any user spectrograph files
-        user_cfg_files = glob.glob(os.path.join('*_spectrograph.cfg'))
-        if len(user_cfg_files) > 0:
-            warnings.warn('Found *_spectrograph.cfg files in current working directory.  '
-                          'Spectrograph options will include these files.')
-            cfg_files += user_cfg_files
-        
-        return [ '_'.join((f.split('/')[-1]).split('_')[:-1]) for f in cfg_files ]
+        return ['keck_lris_blue', 'keck_lris_red', 'keck_deimos', 'keck_nirspec',
+                'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'wht_isis_blue',
+                'tng_dolores' ]
+
 
     @staticmethod
     def spectrograph_config_file(key, verbose=False):

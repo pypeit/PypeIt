@@ -60,7 +60,6 @@ except NameError:
 
 
 import numpy
-from astropy.table import Table
 
 class ParSet(object):
     """

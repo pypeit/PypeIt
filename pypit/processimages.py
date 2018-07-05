@@ -14,38 +14,36 @@ from pypit.core import arprocimg
 from pypit.core import arflat
 from pypit import ginga
 
-from .par import pypitpar
+from .par.pypitpar import CombineFramesPar, LACosmicPar
 
 from .spectrographs.spectrograph import Spectrograph
 from .spectrographs.util import load_spec_class
 
-# For out of PYPIT running
-if msgs._debug is None:
-    debug = debugger.init()
-    debug['develop'] = True
-    msgs.reset(debug=debug, verbosity=2)
+try:
+    basestring
+except NameError:
+    basestring = str
 
-# Place these here or elsewhere?
-#  Wherever they be, they need to be defined, described, etc.
-def default_settings():
-    # Hiding in a def because of the nested dicts
-    #  I prefer this to deepcopy
-    default_settings = dict(detector={'numamplifiers': 1,   # This dict is not complete; consider readnoise, binning
-                                  'saturation': 60000.,  # Spectra aligned with columns
-                                  'dispaxis': 0,  # Spectra aligned with columns
-                                  'dataext': None,
-                                  'gain': [1.],
-                                      },
-                        combine={'match': -1.,
-                                 'satpix': 'reject',
-                                 'method': 'weightmean',
-                                 'reject': {'cosmics': 20.,
-                                            'lowhigh': [0,0],
-                                            'level': [3.,3.],
-                                            'replace': 'maxnonsat'}}
-                        )
-    return default_settings
-
+## Place these here or elsewhere?
+##  Wherever they be, they need to be defined, described, etc.
+#def default_settings():
+#    # Hiding in a def because of the nested dicts
+#    #  I prefer this to deepcopy
+#    default_settings = dict(detector={'numamplifiers': 1,   # This dict is not complete; consider readnoise, binning
+#                                  'saturation': 60000.,  # Spectra aligned with columns
+#                                  'dispaxis': 0,  # Spectra aligned with columns
+#                                  'dataext': None,
+#                                  'gain': [1.],
+#                                      },
+#                        combine={'match': -1.,
+#                                 'satpix': 'reject',
+#                                 'method': 'weightmean',
+#                                 'reject': {'cosmics': 20.,
+#                                            'lowhigh': [0,0],
+#                                            'level': [3.,3.],
+#                                            'replace': 'maxnonsat'}}
+#                        )
+#    return default_settings
 
 class ProcessImages(object):
     """
@@ -81,15 +79,13 @@ class ProcessImages(object):
         TypeError: Raised if the spectrograph is not a :obj:`str` or
             :class:`Spectrograph`.
     """
-    def __init__(self, file_list, spectrograph, det=1):
+    def __init__(self, file_list, spectrograph, det=1, combine_par=None, lacosmic_par=None):
 
         # Required parameters
         if not isinstance(file_list, list):
             raise IOError("file_list input to ProcessImages must be list. Empty is fine")
         self.file_list = file_list
 
-        # Optional
-        self.det = det
         if isinstance(spectrograph, basestring):
             self.spectrograph = load_spec_class(spectrograph=spectrograph)
         elif isinstance(spectrograph, Spectrograph):
@@ -97,12 +93,23 @@ class ProcessImages(object):
         else:
             raise TypeError('Must provide a name or instance for the Spectrograph.')
 
+        # Optional
+        self.det = det
+
+        if combine_par is not None and not isinstance(combine_par, CombineFramesPar):
+            raise TypeError('Provided ParSet for combining frames must be type CombineFramesPar.')
+        self.combine_par = CombineFramesPar() if combine_par is None else combine_par
+
+        if lacosmic_par is not None and not isinstance(lacosmic_par, LACosmicPar):
+            raise TypeError('Provided ParSet for LACosmic must be type LACosmicPar.')
+        self.lacosmic_par = LACosmicPar() if lacosmic_par is None else lacosmic_par
+
         self.frametype='Unknown'
-        # TODO: bpm should be loaded and held by the spectrograph class
-        try:
-            self.bpm = self.spectrograph.bpm(det=self.det)
-        except Exception as e:
-            msgs.error('Error constructing bpm for {0}'.format(self.spectrograph.spectrograph))
+#        # TODO: bpm should be loaded and held by the spectrograph class
+#        try:
+#            self.bpm = self.spectrograph.bpm(det=self.det)
+#        except Exception as e:
+#            msgs.error('Error constructing bpm for {0}'.format(self.spectrograph.spectrograph))
 
         # Main (possible) outputs
         self.stack = None
@@ -114,12 +121,13 @@ class ProcessImages(object):
         self.proc_images = None  # Will be an ndarray
         self.datasec = []
         self.oscansec = []
+        self.exptime = None     # TODO: This needs to be defined.
 
         # Constructed by process:
         self.crmask = None          # build_crmask
         self.rawvarframe = None     # build_rawvarframe
-        self.pixel_flat = None      # passed as an argument of process()
-        self.slitprof = None        # passed as an argument of process()
+        self.pixel_flat = None      # passed as an argument to process(), flat_field()
+        self.slitprof = None        # passed as an argument to process(), flat_field()
 
     # TODO: Is this used?
     @classmethod
@@ -283,7 +291,7 @@ class ProcessImages(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def combine(self, par=None):
+    def combine(self, combine_par=None):
         """
         Combine the processed images
 
@@ -293,20 +301,29 @@ class ProcessImages(object):
 
         """
         # Set the parameters
-        _par = pypitpar.CombineFramesPar() if par is None else par
+        if combine_par is not None and not isinstance(combine_par, CombineFramesPar):
+            raise TypeError('Provided ParSet for combining frames must be type CombineFramesPar.')
+        if combine_par is not None:
+            self.combine_par = combine_par
 
         # Now we can combine
         saturation = self.spectrograph.detector[self.det-1]['saturation']
+        # (KBW) We could shorten this call to, if we want to:
+#        self.stack = arcomb.core_comb_frames(self.proc_images, frametype=self.frametype,
+#                                             saturation=saturation, **self.combine_par)
         self.stack = arcomb.core_comb_frames(self.proc_images, frametype=self.frametype,
-                                             saturation=saturation, method=_par['method'],
-                                             satpix=_par['satpix'], cosmics=_par['cosmics'],
-                                             n_lohi=_par['n_lohi'], sig_lohi=_par['sig_lohi'],
-                                             replace=_par['replace'])
+                                             saturation=saturation,
+                                             method=self.combine_par['method'],
+                                             satpix=self.combine_par['satpix'],
+                                             cosmics=self.combine_par['cosmics'],
+                                             n_lohi=self.combine_par['n_lohi'],
+                                             sig_lohi=self.combine_par['sig_lohi'],
+                                             replace=self.combine_par['replace'])
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.stack
 
-    def build_crmask(self, varframe=None, par=None):
+    def build_crmask(self, varframe=None, lacosmic_par=None):
         """
         Generate the CR mask frame
 
@@ -323,16 +340,26 @@ class ProcessImages(object):
 
         """
         # Set the parameters
-        _par = pypitpar.LACosmicPar() if par is None else par
+        if lacosmic_par is not None and not isinstance(lacosmic_par, LACosmicPar):
+            raise TypeError('Provided ParSet for LACosmic must be type LACosmicPar.')
+        if lacosmic_par is not None:
+            self.lacosmic_par = lacosmic_par
 
         # Run LA Cosmic to get the cosmic ray mask
         saturation = self.spectrograph.detector[self.det-1]['saturation']
         nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
+        # (KBW) We can't do this:
+#        self.crmask = arprocimg.lacosmic(self.det, self.stack, saturation, nonlinear,
+#                                         varframe=varframe, **lacosmic_par['maxiter'])
+        # unless I change the key from rmcompact to remove_compact_obj
+        # (or change the keyword in arprocimg.lacosmic)
         self.crmask = arprocimg.lacosmic(self.det, self.stack, saturation, nonlinear,
-                                         varframe=varframe, maxiter=_par['maxiter'],
-                                         grow=_par['grow'], remove_compact_obj=_par['rmcompact'],
-                                         sigclip=_par['sigclip'], sigfrac=_par['sigfrac'],
-                                         objlim=_par['objlim'])
+                                         varframe=varframe, maxiter=lacosmic_par['maxiter'],
+                                         grow=lacosmic_par['grow'],
+                                         remove_compact_obj=lacosmic_par['rmcompact'],
+                                         sigclip=lacosmic_par['sigclip'],
+                                         sigfrac=lacosmic_par['sigfrac'],
+                                         objlim=lacosmic_par['objlim'])
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -428,16 +455,11 @@ class ProcessImages(object):
         # Done
         return self.stack.copy()
 
-    def build_rawvarframe(self, dnoise=None):
+    def build_rawvarframe(self):
         """
         Generate the Raw Variance frame
 
         Wrapper to arprocimg.variance_frame
-
-        Parameters
-        ----------
-        dnoise : float
-          Noise related to dark current (generally 0.)
 
         Returns
         -------
@@ -445,8 +467,12 @@ class ProcessImages(object):
 
         """
         msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
-        self.rawvarframe = arprocimg.variance_frame(self.datasec_img, self.det, self.stack,
-                                               self.settings['detector'], dnoise=dnoise)
+        detector = self.spectrograph.detector[self.det-1]
+        self.rawvarframe = arprocimg.variance_frame(self.datasec_img, self.stack,
+                                                    detector['gain'], detector['ronoise'],
+                                                    numamplifiers=detector['numamplifiers'],
+                                                    darkcurr=detector['darkcurr'],
+                                                    exptime=self.exptime)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return

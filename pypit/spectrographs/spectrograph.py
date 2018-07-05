@@ -106,9 +106,8 @@ class Spectrograph(object):
         # TODO: This seems like a lot of effort to get the size of the
         # image.
         # Read the image for the shape (just in case)
-        temp, _ = self.load_raw_frame(filename, self.detector['dispaxis'], det=det,
-                                      dataext=self.detector['dataext'])
-        return (self.detector['datasec'], self.detector['oscansec']) + temp.shape
+        temp, _ = self.load_raw_frame(filename, det=det)
+        return (self.detector[det-1]['datasec'], self.detector[det-1]['oscansec']) + temp.shape
 
     def bpm(self, shape=None, **null_kwargs):
         """

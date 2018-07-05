@@ -434,8 +434,15 @@ def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
         raise ValueError('Must provide a read-noise for each amplifier.')
     if np.any(datasec_img > numamplifiers):
         raise ValueError('Pixel amplifier IDs do not match number of amplifiers.')
-    indx = datasec_img - 1
-    return np.square(_ronoise[indx]) + np.square(0.5*_gain[indx])
+
+    # Get the amplifier indices
+    indx = datasec_img.astype(int) == 0
+    amp = numpy.ma.MaskedArray(datasec_img.astype(int) - 1, mask=indx).filled(0)
+
+    # Return the read-noise image.  Any pixels without an assigned
+    # amplifier are given a noise of 0.
+    return numpy.ma.MaskedArray(np.square(_ronoise[amp]) + np.square(0.5*_gain[amp]),
+                                mask=indx).filled(0.0)
 
 
 def sub_overscan(rawframe, numamplifiers, datasec, oscansec, settings=None):
@@ -638,7 +645,7 @@ def trim(frame, numamplifiers, datasec):
         msgs.error("Cannot trim file")
 
 
-def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, dnoise=None,
+def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
                    exptime=None, skyframe=None, objframe=None):
     """
     Calculate the variance image including detector noise.
@@ -669,18 +676,20 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, dnoise
     """
     # The effective read noise (variance image)
     rnoise = rn_frame(datasec_img, gain, ronoise, numamplifiers=numamplifiers)
-    if skyframe is not None:
-        if objframe is None:
-            objframe = np.zeros_like(skyframe)
-        varframe = np.abs(skyframe + objframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise
-        return varframe
-    else:
-        # Dark Current noise
-        if dnoise is None:
-            dnoise = (settings_det['darkcurr'] * float(fitsdict["exptime"][idx])/3600.0)
-        # Return
-        varframe = np.abs(sciframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise + dnoise
-        return varframe
-#        return np.abs(sciframe.copy()) + rnoise + dnoise
+
+    # No sky frame provided
+    if skyframe is None:
+        _darkcurr = 0 if darkcurr is None else darkcurr
+        if exptime is not None:
+            _darkcurr *= exptime/3600.
+        return np.abs(sciframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise + _darkcurr
+
+    # TODO: There's some complicated logic here.  Why is objframe
+    # needed?  Can't a users just use objframe in place of sciframe and
+    # get the same behavior?  Why is darkcurr (what was dnoise) used
+    # with sciframe and not objframe?
+
+    _objframe = np.zeros_like(skyframe) if objframe is None else objframe
+    return np.abs(skyframe + objframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise
 
 
