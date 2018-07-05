@@ -198,8 +198,16 @@
 - Add API docs
 - Add bumpversion
 
+- Adds a demo Notebook for LRISr redux
+- Other odds and ends including code flow doc
+
+- Introduce pypit/par and pypit/config directories
+- Introduce PypitPar as an initial step toward refactoring the front end
 - Move spectrograph specific code into spectographs/ folder
 - Introduces the Spectrographs class
+
+- Introduces the Calibrations class
+- with Notebook
 
 
 0.7 (2017-02-07)

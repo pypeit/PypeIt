@@ -1495,7 +1495,7 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='./', noty
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
     fitsdict['utc'] = ['2015-01-23']*nfile
     fitsdict['directory'] = [directory]*nfile
-    fitsdict['filename'] = ['b{:03d}.fits'.format(i) for i in range(nfile)]
+    fitsdict['filename'] = ['b{:03d}.fits.gz'.format(i) for i in range(nfile)]
     fitsdict['date'] = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]  # Will fail at 60
     fitsdict['time'] = [(1432085758+i*60)/3600. for i in range(nfile)]
     fitsdict['target'] = ['Dummy']*nfile

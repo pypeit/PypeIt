@@ -27,7 +27,8 @@ frametype = 'wv_calib'
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-default_settings = dict(calibrate={'nfitpix': 5,
+def default_settings():
+    tmp = dict(calibrate={'nfitpix': 5,
                                    'IDpixels': None, # User input pixel values
                                    'IDwaves': None,  # User input wavelength values
                                    'lamps': None,
@@ -36,6 +37,7 @@ default_settings = dict(calibrate={'nfitpix': 5,
                                    'numsearch': 20,
                                    }
                         )
+    return tmp
 #settings_spect[dnum]['saturation']*settings_spect[dnum]['nonlinear'])  -- For satmask (echelle)
 
 #  See save_master() for the data model for output

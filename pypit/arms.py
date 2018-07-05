@@ -11,21 +11,12 @@ from pypit import msgs
 from pypit import arparse as settings
 from pypit import arload
 from pypit import arutils
-from pypit.core import arprocimg
 from pypit.core import arsave
 from pypit.core import arwave
 from pypit.core import arsetup
-from pypit import arpixels
 from pypit.core import arsort
-from pypit import arcimage
-from pypit import biasframe
-from pypit import bpmimage
-from pypit import flatfield
+from pypit import calibrations
 from pypit import fluxspec
-from pypit import traceslits
-from pypit import wavecalib
-from pypit import waveimage
-from pypit import wavetilts
 from pypit import scienceimage
 
 from pypit.spectrographs import spectro_utils
@@ -61,11 +52,11 @@ def ARMS(spectrograph, fitstbl, setup_dict):
     numsci = len(all_sci_ID)
     basenames = [None]*numsci  # For fluxing at the very end
 
-    # Init calib dict
-    calib_dict = {}
-
     # Spectrometer class
     spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
+
+    # Init calib dict
+    caliBrate = calibrations.MultiSlitCalibrations(fitstbl, spectro_class, save_masters=True)
 
     # Loop on science exposure first
     #  calib frames, e.g. arcs)
@@ -94,28 +85,8 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
             namp = settings.spect[dnum]["numamplifiers"]
             setup = arsetup.instr_setup(sci_ID, det, fitstbl, setup_dict, namp, must_exist=True)
-            settings.argflag['reduce']['masters']['setup'] = setup
 
-            ###############
-            # Get data sections (Could avoid doing this for every sciexp, but it is quick)
-            # TODO -_ Clean this up!
-            scifile = os.path.join(fitstbl['directory'][scidx],fitstbl['filename'][scidx])
-            settings_det = settings.spect[dnum].copy()  # Should include naxis0, naxis1 in this
-            # Binning
-            settings_det['binning'] = fitstbl['binning'][0]
-            settings_det['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
-            # Yes, this looks goofy.  Is needed for LRIS and DEIMOS for now
-            datasec, _, naxis0, naxis1 = spectro_class.get_datasec(scifile, det, settings_det)
-
-            settings.spect[dnum]['naxis0'] = naxis0
-            settings.spect[dnum]['naxis1'] = naxis1
-            # Build the datasec_img
-            datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, settings_det['numamplifiers'])
-            settings.spect[dnum] = settings_det.copy()  # Used internally..
-
-            # Calib dict
-            if setup not in calib_dict.keys():
-                calib_dict[setup] = {}
+            #settings.argflag['reduce']['masters']['setup'] = setup
 
             # TODO -- Update/avoid the following with new settings
             tsettings = settings.argflag.copy()
@@ -125,153 +96,34 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             except KeyError: # LRIS, DEIMOS
                 tsettings['detector']['dataext'] = None
             tsettings['detector']['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
+            tsettings['detector']['binning'] = fitstbl['binning'][0]
+
+            # New ones
+            #tsettings['trace'] = settings.argflag['trace'].copy()
+            tsettings['masters'] = settings.argflag['reduce']['masters']
+            tsettings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+            tsettings['masters']['setup'] = setup
 
             ###############################################################################
-            # Prepare for Bias subtraction
-            if 'bias' in calib_dict[setup].keys():
-                msbias = calib_dict[setup]['bias']
-            else:
-                # Grab it
-                #   Bias will either be an image (ndarray) or a command (str, e.g. 'overscan') or none
-                msbias, _ = biasframe.get_msbias(det, setup, sci_ID, fitstbl, tsettings)
-                # Save
-                calib_dict[setup]['bias'] = msbias
+            # Begin calibrations
+            caliBrate.reset(setup, det, sci_ID, tsettings)
 
-            ###############################################################################
-            # Generate a master arc frame
-            if 'arc' in calib_dict[setup].keys():
-                msarc = calib_dict[setup]['arc']
-            else:
-                # Grab it -- msarc will be a 2D image
-                msarc, _ = arcimage.get_msarc(det, setup, sci_ID, spectrograph, fitstbl, tsettings, msbias)
-                # Save
-                calib_dict[setup]['arc'] = msarc
+            datasec_img, naxis0, naxis1 = caliBrate.get_datasec_img()
 
-            ###############################################################################
-            # Generate a bad pixel mask (should not repeat)
-            if 'bpm' in calib_dict[setup].keys():
-                msbpm = calib_dict[setup]['bpm']
-            else:
-                # Grab it -- msbpm is a 2D image
-                msbpm, _ = bpmimage.get_mspbm(det, spectrograph, tsettings, msarc.shape,
-                                      binning=fitstbl['binning'][scidx],
-                                      reduce_badpix=settings.argflag['reduce']['badpix'],
-                                      msbias=msbias)
-                # Save
-                calib_dict[setup]['bpm'] = msbpm
+            msbias = caliBrate.get_bias() # Bias frame or command
+            msarc = caliBrate.get_arc() # Arc Image
+            msbpm = caliBrate.get_bpm() # Bad pixel mask
+            pixlocn = caliBrate.get_pixlocn()  # Physical pixel locations on the detector
+            tslits_dict, maskslits = caliBrate.get_slits() # Slit Tracing
+            wv_calib, maskslits = caliBrate.get_wv_calib() # Generate the 1D wavelength solution
+            mstilts, maskslits = caliBrate.get_tilts() # Derive the spectral tilt
+            mspixflatnrm, slitprof = caliBrate.get_pixflatnrm() # Prepare the pixel flat field frame
+            mswave = caliBrate.get_wave() # Generate/load a master wave frame
 
-            ###############################################################################
-            # Generate an array that provides the physical pixel locations on the detector
-            pixlocn = arpixels.gen_pixloc(msarc.shape, det, settings.argflag)
-
-            ###############################################################################
-            # Slit Tracing
-            if 'trace' in calib_dict[setup].keys():  # Internal
-                tslits_dict = calib_dict[setup]['trace']
-            else:
-                # Setup up the settings (will be Refactored with settings)
-                ts_settings = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
-                ts_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                # Get it -- Key arrays are in the tslits_dict
-                tslits_dict, _ = traceslits.get_tslits_dict(
-                    det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn,
-                    msbias, msbpm, datasec_img, trim=settings.argflag['reduce']['trim'])
-                # Save in calib
-                calib_dict[setup]['trace'] = tslits_dict
-
-            ###############################################################################
-            # Initialize maskslits
-            nslits = tslits_dict['lcen'].shape[1]
-            maskslits = np.zeros(nslits, dtype=bool)
-
-            ###############################################################################
-            # Generate the 1D wavelength solution
-            if 'wavecalib' in calib_dict[setup].keys():
-                wv_calib = calib_dict[setup]['wavecalib']
-                wv_maskslits = calib_dict[setup]['wvmask']
-            elif settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
-                msgs.info("A wavelength calibration will not be performed")
-                wv_calib = None
-                wv_maskslits = np.zeros_like(maskslits, dtype=bool)
-            else:
-                # Setup up the settings (will be Refactored with settings)
-                wvc_settings = dict(calibrate=settings.argflag['arc']['calibrate'], masters=settings.argflag['reduce']['masters'])
-                wvc_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                nonlinear = settings.spect[settings.get_dnum(det)]['saturation'] * settings.spect[settings.get_dnum(det)]['nonlinear']
-                # Get it
-                wv_calib, wv_maskslits, _ = wavecalib.get_wv_calib(
-                    det, setup, spectrograph, sci_ID, wvc_settings, fitstbl, tslits_dict, pixlocn,
-                    msarc, nonlinear=nonlinear)
-                # Save in calib
-                calib_dict[setup]['wavecalib'] = wv_calib
-                calib_dict[setup]['wvmask'] = wv_maskslits
-            # Mask me
-            maskslits += wv_maskslits
-
-            ###############################################################################
-            # Derive the spectral tilt
-            if 'tilts' in calib_dict[setup].keys():
-                mstilts = calib_dict[setup]['tilts']
-                wt_maskslits = calib_dict[setup]['wtmask']
-            else:
-                # Settings kludges
-                tilt_settings = dict(tilts=settings.argflag['trace']['slits']['tilts'].copy(),
-                                     masters=settings.argflag['reduce']['masters'])
-                tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
-                tilt_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                # Get it
-                mstilts, wt_maskslits, _ = wavetilts.get_wv_tilts(
-                    det, setup, tilt_settings, settings_det, tslits_dict, pixlocn,
-                    msarc, wv_calib, maskslits)
-                # Save
-                calib_dict[setup]['tilts'] = mstilts
-                calib_dict[setup]['wtmask'] = wt_maskslits
-
-            # Mask me
-            maskslits += wt_maskslits
-
-            ###############################################################################
-            # Prepare the pixel flat field frame
-            if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
-                if 'normpixelflat' in calib_dict[setup].keys():
-                    mspixflatnrm = calib_dict[setup]['normpixelflat']
-                    slitprof = calib_dict[setup]['slitprof']
-                else:
-                    # Settings
-                    flat_settings = dict(flatfield=settings.argflag['reduce']['flatfield'].copy(),
-                                         slitprofile=settings.argflag['reduce']['slitprofile'].copy(),
-                                         combine=settings.argflag['pixelflat']['combine'].copy(),
-                                         masters=settings.argflag['reduce']['masters'].copy(),
-                                         detector=settings.spect[dnum])
-                    flat_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                    # Get it
-                    mspixflatnrm, slitprof, _ = flatfield.get_msflat(
-                        det, setup, spectrograph, sci_ID, fitstbl, tslits_dict, datasec_img,
-                        flat_settings, msbias, mstilts)
-                    # Save internallly
-                    calib_dict[setup]['normpixelflat'] = mspixflatnrm
-                    calib_dict[setup]['slitprof'] = slitprof
-            else:
-                mspixflatnrm = None
-                slitprof = None
-
-
-            ###############################################################################
-            # Generate/load a master wave frame
-            if 'wave' in calib_dict[setup].keys():
-                mswave = calib_dict[setup]['wave']
-            else:
-                if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
-                    mswave = mstilts * (mstilts.shape[0]-1.0)
-                else:
-                    # Settings
-                    wvimg_settings = dict(masters=settings.argflag['reduce']['masters'].copy())
-                    wvimg_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                    # Get it
-                    mswave, _ = waveimage.get_mswave(
-                        setup, tslits_dict, wvimg_settings, mstilts, wv_calib, maskslits)
-                # Save internally
-                calib_dict[setup]['wave'] = mswave
+            ''' Could also be run with 
+            caliBrate.run_the_steps()
+            #  And we could pull the items we need out of it or just use the attributes
+            '''
 
             # CALIBS END HERE
             ###############################################################################
@@ -296,7 +148,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 basenames[sc] = basename
 
             # Process (includes Variance image and CRs)
-            dnoise = (settings_det['darkcurr'] * float(fitstbl["exptime"][scidx])/3600.0)
+            dnoise = (tsettings['detector']['darkcurr'] * float(fitstbl["exptime"][scidx])/3600.0)
             sciframe, rawvarframe, crmask = sciI._process(
                 msbias, mspixflatnrm, apply_gain=True, dnoise=dnoise)
 

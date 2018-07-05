@@ -48,7 +48,8 @@ class WaveImage(masterframe.MasterFrame):
     steps : list
       List of the processing steps performed
     """
-    def __init__(self, slitpix, tilts, wv_calib, settings=None, setup=None, maskslits=None):
+    def __init__(self, slitpix, tilts, wv_calib, settings=None,
+                 setup=None, maskslits=None):
 
         # Required parameters (but can be None)
         self.slitpix = slitpix
@@ -118,7 +119,7 @@ class WaveImage(masterframe.MasterFrame):
         return txt
 
 
-# This is the old JXP version with 40 unnecessary arguments.
+'''
 def get_mswave(setup, tslits_dict, wvimg_settings, mstilts, wv_calib, maskslits):
     """
     Load/Generate the wavelength image
@@ -200,3 +201,4 @@ def get_mswave_jfh(slitpix, mstilts, wv_calib, setup = None, wvimg_settings = No
     waveImage.save_master(mswave, steps=waveImage.steps)
     # Return
     return mswave, waveImage
+'''

@@ -80,7 +80,7 @@ def test_process(kast_blue_bias_files, kast_settings):
     # Instantiate
     bias_frame = biasframe.BiasFrame(spectrograph='shane_kast_blue', settings=kast_settings, file_list=kast_blue_bias_files)
     # Run
-    bias_img = bias_frame.process_bias()
+    bias_img = bias_frame.build_image()
     assert isinstance(bias_img, np.ndarray)
     assert isinstance(bias_frame.stack, np.ndarray)
     assert bias_frame.steps[-1] == 'combine'
@@ -93,7 +93,7 @@ def test_read_write(kast_blue_bias_files, kast_settings):
     # Instantiate
     bias_frame = biasframe.BiasFrame(spectrograph='shane_kast_blue', settings=kast_settings, file_list=kast_blue_bias_files)
     # Run
-    bias_img = bias_frame.process_bias()
+    bias_img = bias_frame.build_image()
     # Write
     bias_frame.write_stack_to_fits(data_path('tmp.fits'))
     # Read
