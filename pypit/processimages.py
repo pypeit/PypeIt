@@ -188,8 +188,6 @@ class ProcessImages(object):
         self.raw_images = []  # Zeros out any previous load
         self.headers = []
         for ifile in self.file_list:
-            from IPython import embed
-            embed()
             img, head = self.spectro_class.load_raw_frame(
                 ifile, self.settings['detector']['dispaxis'],
                 det=self.det, dataext=self.settings['detector']['dataext'])
