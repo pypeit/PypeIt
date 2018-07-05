@@ -41,6 +41,7 @@ else:
         fitstbl['filename'][ii] = 'b{:d}.fits.gz'.format(ii)
     fitstbl['filename'][5] = 'b27.fits.gz'
 
+
 def chk_for_files(root):
     files = glob.glob(root+'*')
     if len(files) == 0:
@@ -201,7 +202,7 @@ def test_flat(multi_caliBrate):
     mspixflatnrm, slitprof = multi_caliBrate.get_pixflatnrm()
     assert mspixflatnrm.shape == (2048,350)
     assert slitprof.shape == (2048,350)
-    
+
 
 def test_waveimg(multi_caliBrate):
     # Setup
