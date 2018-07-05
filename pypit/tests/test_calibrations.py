@@ -77,6 +77,15 @@ def multi_caliBrate():
     # Yet another
     from pypit import wavetilts
     multi_caliBrate.settings['trace']['slits']['tilts'] = wavetilts.default_settings()['tilts'].copy()
+    # Yup
+    from pypit import flatfield
+    from pypit import processimages
+    multi_caliBrate.settings['reduce']['flatfield'] = flatfield.default_settings()['flatfield']
+    multi_caliBrate.settings['reduce']['flatfield']['perform'] = True
+    multi_caliBrate.settings['reduce']['flatfield']['useframe'] = 'pixelflat'
+    multi_caliBrate.settings['reduce']['slitprofile'] = flatfield.default_settings()['slitprofile']
+    multi_caliBrate.settings['pixelflat'] = {}
+    multi_caliBrate.settings['pixelflat']['combine'] = processimages.default_settings()['combine']
     # Return
     return multi_caliBrate
 
@@ -157,6 +166,7 @@ def test_wv_calib(multi_caliBrate):
     assert isinstance(wv_calib, dict)
     assert isinstance(maskslits, np.ndarray)
 
+
 def test_tilts(multi_caliBrate):
     if skip_test:
         assert True
@@ -174,3 +184,20 @@ def test_tilts(multi_caliBrate):
     mstilts, maskslits = multi_caliBrate.get_tilts()
     assert mstilts.shape == (2048,350)
     assert isinstance(maskslits, np.ndarray)
+
+
+def test_flat(multi_caliBrate):
+    # Setup
+    multi_caliBrate.shape = (2048,350)
+    _ = multi_caliBrate.get_pixlocn()
+    _ = multi_caliBrate.get_datasec_img()
+    _ = multi_caliBrate.get_bpm()
+    multi_caliBrate.msbias = 'overscan'
+    _ = multi_caliBrate.get_slits()
+    _ = multi_caliBrate.get_arc()
+    _ = multi_caliBrate.get_wv_calib()
+    _ = multi_caliBrate.get_tilts()
+    # Run
+    mspixflatnrm, slitprof = multi_caliBrate.get_pixflatnrm()
+    assert mspixflatnrm.shape == (2048,350)
+    assert slitprof.shape == (2048,350)
