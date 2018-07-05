@@ -48,7 +48,8 @@ class WaveImage(masterframe.MasterFrame):
     steps : list
       List of the processing steps performed
     """
-    def __init__(self, slitpix, tilts, wv_calib, settings=None, setup=None, maskslits=None):
+    def __init__(self, slitpix, tilts, wv_calib, settings=None,
+                 setup=None, maskslits=None):
 
         # Required parameters (but can be None)
         self.slitpix = slitpix
