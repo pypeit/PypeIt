@@ -107,7 +107,7 @@ class Spectrograph(object):
 
         # Read the image for the shape (just in case)
         temp, _ = self.load_raw_frame(filename, settings_det['dispaxis'],
-                                      det=det, dataext=settings_det['dataext01'])
+                                      det=det, dataext=settings_det['dataext'])
         # Need naxis0, naxis1 too
         naxis0 = temp.shape[0]
         naxis1 = temp.shape[1]

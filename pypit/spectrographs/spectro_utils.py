@@ -47,6 +47,8 @@ def load_spec_class(spectrograph=None, data_file=None):
             spec_class = wht_isis.WhtIsisBlueSpectrograph()
         elif 'tng_dolores' in spectrograph:
             spec_class = tng_dolores.TngDoloresSpectrograph()
+        elif 'keck_nires' in spectrograph:
+            spec_class = keck_nirspec.KeckNIRSPECSpectrograph()
         else:
             msgs.error("Spectrograph not supported")
     #
