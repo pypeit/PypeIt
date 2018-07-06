@@ -1,4 +1,4 @@
-""" Module for Keck/NIRSPEC specific codes
+""" Module for Keck/NIRES specific codes
 """
 from __future__ import absolute_import, division, print_function
 
@@ -66,7 +66,7 @@ class KeckNIRESpectrograph(spectroclass.Spectrograph):
                         b2=0.,  # Pixel fit term
                         lamps=['OH_triplespec'],  # Line lamps on
                         wv_cen=0.,  # Estimate of central wavelength
-                        wvmnx=[14150., 18500.],  # Guess at wavelength range
+                        wvmnx=[9000., 25000.],  # Guess at wavelength range
                         disp_toler=0.1,  # 10% tolerance
                         match_toler=3.,  # Matching tolerance (pixels)
                         min_ampl=1000.,  # Minimum amplitude
