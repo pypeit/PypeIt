@@ -301,58 +301,6 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     return frames
 
 
-def load_raw_frame(spectrograph, raw_file, det, dataext = 0, disp_dir=0):
-    """
-    Load data frames, usually raw.
-
-    Parameters
-    ----------
-    raw_file : str
-       Full path to raw_file
-    det : int
-      Detector number requested, starts at 1
-    dataext : int, optional
-      Data extension for this detector in the HDU list
-    disp_dir : int, optional
-      if 1, Transpose the image to align spectral dimension with columns
-
-    Returns
-    -------
-    frame : ndarray
-      the raw_frame
-    head : FITS header of the 0th HDU
-    """
-
-    # ToDO this would be a great place to parse the spectrograph name from the header that you are about to read in
-    # and figure out the instrument omitting one parameter. Remember the PYPIT philosophy -- the fewer parameters the better
-
-    msgs.info("Loading raw_file: {:s}".format(raw_file))
-    #msgs.work("Implement multiprocessing here (better -- at the moment it's slower than not) to speed up data reading")
-    # Instrument specific read
-    if spectrograph in ['keck_lris_blue', 'keck_lris_red']:
-        #temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
-        temp, head0, _ = arlris.read_lris(raw_file, det=det)
-    elif spectrograph in ['keck_deimos']:
-        temp, head0, _ = ardeimos.read_deimos(raw_file, det=det)
-        #temp, head0, _ = ardeimos.read_deimos(fitsdict['directory'][ind[i]] + fitsdict['filename'][ind[i]])
-    else:
-        #hdulist = fits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
-        hdulist = fits.open(raw_file)
-        #temp = hdulist[settings.spect[dnum]['dataext01']].data
-        temp = hdulist[dataext].data
-        head0 = hdulist[0].header
-    temp = temp.astype(np.float)  # Let us avoid uint16
-    #if settings.argflag['trace']['dispersion']['direction'] == 1:
-    if disp_dir == 1:
-        temp = temp.T
-    elif disp_dir == -1:
-        temp = np.flip(temp.T,axis=0)
-#    else:
-#        msgs.error('disp_dir must be 0, 1 or -1') # ToDO we need to deal with flips in the spectral direction someday
-
-    return temp, head0
-
-
 def load_extraction(name, frametype='<None>', wave=True):
     msgs.info("Loading a pre-existing {0:s} extraction frame:".format(frametype)+msgs.newline()+name)
     props_savas = dict({"ORDWN":"ordwnum"})

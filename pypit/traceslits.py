@@ -301,18 +301,29 @@ class TraceSlits(masterframe.MasterFrame):
         Add left/right edges to edgearr
 
         Wrapper to artraceslits.edgearr_add_left_right()
+        If 0 is returned for both counts, this detector will be skipped
 
         Returns
         -------
+        any_slits: bool
+
         self.edgearr : ndarray (internal)
         self.lcnt : int (internal)
         self.rcnt : int (internal)
 
+
         """
         self.edgearr, self.lcnt, self.rcnt = artraceslits.edgearr_add_left_right(
             self.edgearr, self.binarr, self.binbpx, self.lcnt, self.rcnt, self.ednum)
+        # Check on return
+        if (self.lcnt == 0) and (self.rcnt == 0):
+            any_slits = False
+        else:
+            any_slits = True
+
         # Step
         self.steps.append(inspect.stack()[0][3])
+        return any_slits
 
     def add_user_slits(self, user_slits, run_to_finish=False):
         """
@@ -988,7 +999,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         Returns
         -------
-        tslits_dict : dict
+        tslits_dict : dict or None (if no slits)
           'lcen'
           'rcen'
           'pixcen'
@@ -1010,7 +1021,9 @@ class TraceSlits(masterframe.MasterFrame):
         self._match_edges()
 
         # Add in a single left/right edge?
-        self._add_left_right()
+        any_slits = self._add_left_right()
+        if not any_slits:
+            return None
 
         # If slits are set as "close" by the user, take the absolute value
         # of the detections and ignore the left/right edge detections
@@ -1073,7 +1086,7 @@ class TraceSlits(masterframe.MasterFrame):
         self._make_pixel_arrays()
 
         # fill dict for PYPIT
-        _ = self._fill_tslits_dict()
+        self.tslits_dict = self._fill_tslits_dict()
 
         # Return it
         return self.tslits_dict

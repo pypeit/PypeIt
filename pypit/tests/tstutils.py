@@ -34,6 +34,7 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
     else:
         settings['masters']['directory'] = data_path('MF')+'_shane_kast_blue'
     settings['masters']['reuse'] = True
+    settings['masters']['force'] = False
     settings['masters']['loaded'] = []
 
     settings['detector']['dataext'] = 0
@@ -47,6 +48,11 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
     settings['detector']['naxis1'] = 350
     settings['detector']['numamplifiers'] = 2
     settings['detector']['gain'] = [1.2, 1.2]
+
+    settings['detector']['xgap'] = 0
+    settings['detector']['ygap'] = 0
+    settings['detector']['ysize'] = 1.
+    settings['detector']['nonlinear'] = 0.76
 
     # Load up the Masters
     ret = []

@@ -490,7 +490,7 @@ class WaveTilts(masterframe.MasterFrame):
         txt += '>'
         return txt
 
-
+'''
 def get_wv_tilts(det, setup, tilt_settings, settings_det, tslits_dict,
                  pixlocn, msarc, wv_calib, maskslits):
     """
@@ -540,3 +540,4 @@ def get_wv_tilts(det, setup, tilt_settings, settings_det, tslits_dict,
         wt_maskslits = np.zeros_like(maskslits, dtype=bool)
     # Return
     return mstilts, wt_maskslits, waveTilts
+'''
