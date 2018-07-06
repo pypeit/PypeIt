@@ -38,8 +38,8 @@ def main(args):
     from astropy.io import fits
 
     from pypit import pyputils
-    from pypit.core import arlris
-    from pypit.core import ardeimos
+    from pypit.spectrographs import keck_lris
+    from pypit.spectrographs import keck_deimos
 
     # List only?
     if args.list:
@@ -67,7 +67,7 @@ def main(args):
     # RAW_LRIS??
     if args.raw_lris:
         # 
-        img, head, _ = arlris.read_lris(args.file)
+        img, head, _ = keck_lris.read_lris(args.file)
         # Generate hdu
         hdu = fits.PrimaryHDU(img)
         hdulist = fits.HDUList([hdu])
@@ -79,7 +79,7 @@ def main(args):
     # RAW_DEIMOS??
     if args.raw_deimos:
         #
-        img, head, _ = ardeimos.read_deimos(args.file)
+        img, head, _ = keck_deimos.read_deimos(args.file)
         # Generate hdu
         hdu = fits.PrimaryHDU(img)
         hdulist = fits.HDUList([hdu])
