@@ -212,12 +212,21 @@ def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3
             lmask = (res < 5.0) & (res > -4.0)
             sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
 
+
     # Full fit now
-    # DEBUG replace this with bspline_iterfit. It is buggy.
     full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp)
     skyset, outmask, yfit, _ = arutils.bspline_profile(wsky, sky, sky_ivar, np.ones_like(sky),
                                                        fullbkpt=full_bspline.breakpoints,upper=sigrej, lower=sigrej,
                                                        kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    if (np.sum(outmask == False) == 19233):
+        import pickle
+        import sys
+        picklefile = '/Users/joe/python/PYPIT-development-suite/dev_algorithms/nb/iterfit_vs_profile.pkl'
+        out_tuple = (image, ivar, thismask, piximg, inmask, bsp, sigrej, wsky, sky, sky_ivar)
+        fileObject = open(picklefile, 'wb')
+        pickle.dump(out_tuple, fileObject)
+        fileObject.close()
+        sys.exit(-1)
 
     # Evaluate and save
     bgframe[thismask], _ = skyset.value(piximg[thismask])
@@ -229,12 +238,12 @@ def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3
 #                                                       kwargs_reject={'maxrej': 10})
 
     #  fullbkpt = full_bspline.breakpoints,
-#    from pypit.core.pydl import iterfit as bspline_iterfit
-#    skyset2, outmask2   = bspline_iterfit(wsky, sky, invvar = sky_ivar, upper = sigrej, lower = sigrej, maxiter = 25,
-#                                        fullbkpt = full_bspline.breakpoints, kwargs_reject={'groupbadpix':True,'maxrej':10})
-#    yfit2, _ = skyset2.value(wsky)
-#    bgframe2 = np.zeros_like(bgframe)
-#    bgframe2[thismask], _ = skyset2.value(piximg[thismask])
+    from pypit.core.pydl import iterfit as bspline_iterfit
+    skyset2, outmask2   = bspline_iterfit(wsky, sky, invvar = sky_ivar, upper = sigrej, lower = sigrej, maxiter = 25,
+                                        fullbkpt = full_bspline.breakpoints, kwargs_reject={'groupbadpix':True,'maxrej':10})
+    yfit2, _ = skyset2.value(wsky)
+    bgframe2 = np.zeros_like(bgframe)
+    bgframe2[thismask], _ = skyset2.value(piximg[thismask])
 
     # Debugging/checking
     if PLOT_FIT:
@@ -248,13 +257,12 @@ def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3
         ax.plot(wsky, yfit, color='cornflowerblue')
         ax.plot(skyset.breakpoints[goodbk], yfit_bkpt, color='lawngreen', marker='o', markersize=4.0, mfc='lawngreen', fillstyle='full', linestyle='None')
         ax.set_ylim((0.99*yfit.min(),1.01*yfit.max()))
-        plt.show()
 
         # Debugging
-#        ax.plot(wsky, yfit2, color='magenta')
-#        plt.plot(piximg[thismask].flatten(), bgframe2[thismask].flatten(), '.', markersize=2.0, color='orange')
-#        plt.plot(piximg[thismask].flatten(), bgframe[thismask].flatten(), '.', markersize=2.0, color='blue')
-
+        ax.plot(wsky, yfit2, color='magenta')
+        plt.plot(piximg[thismask].flatten(), bgframe2[thismask].flatten(), '.', markersize=2.0, color='orange')
+        plt.plot(piximg[thismask].flatten(), bgframe[thismask].flatten(), '.', markersize=2.0, color='blue')
+        plt.show()
 
     # Return
     return bgframe, outmask
