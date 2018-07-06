@@ -115,6 +115,8 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             msbpm = caliBrate.get_bpm() # Bad pixel mask
             pixlocn = caliBrate.get_pixlocn()  # Physical pixel locations on the detector
             tslits_dict, maskslits = caliBrate.get_slits() # Slit Tracing
+            if tslits_dict is None: # No slits
+                continue
             wv_calib, maskslits = caliBrate.get_wv_calib() # Generate the 1D wavelength solution
             mstilts, maskslits = caliBrate.get_tilts() # Derive the spectral tilt
             mspixflatnrm, slitprof = caliBrate.get_pixflatnrm() # Prepare the pixel flat field frame
@@ -280,7 +282,10 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             if key in ['meta']:
                 continue
             #
-            all_specobjs += sci_dict[key]['specobjs']
+            try:
+                all_specobjs += sci_dict[key]['specobjs']
+            except KeyError:  # No object extracted
+                continue
 
         # Write 1D spectra
         save_format = 'fits'

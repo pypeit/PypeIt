@@ -927,6 +927,7 @@ def edgearr_add_left_right(edgearr, binarr, binbpx, lcnt, rcnt, ednum):
       Updated count
     rcnt : int
       Updated count
+    If 0 is returned for both counts, this detector will be skipped
     """
     if lcnt == 1:
         letxt = "edge"
@@ -945,7 +946,8 @@ def edgearr_add_left_right(edgearr, binarr, binbpx, lcnt, rcnt, ednum):
             edgearr[:, 0] = -2*ednum
             lcnt = 1
         else:
-            msgs.error("Unable to trace any edges"+msgs.newline()+"try a different method to trace the order edges")
+            msgs.warn("Unable to trace any edges"+msgs.newline()+"try a different method to trace the order edges")
+            return None, 0, 0
     elif rcnt == 0:
         msgs.warn("Unable to find a right edge. Adding one in.")
         # Respecting the BPM (using first column where there is no mask)

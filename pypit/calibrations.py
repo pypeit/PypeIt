@@ -380,7 +380,10 @@ class Calibrations(object):
                 self.traceSlits.mstrace = mstrace
                 _ = self.traceSlits.make_binarr()
                 # Now we go forth
-                self.traceSlits.run(arms=True)
+                self.tslits_dict = self.traceSlits.run(arms=True)
+                # No slits?
+                if self.tslits_dict is None:
+                    return None, None
                 # QA
                 if self.write_qa:
                     self.traceSlits._qa()
@@ -388,9 +391,8 @@ class Calibrations(object):
                 if self.save_masters:
                     # Master
                     self.traceSlits.save_master()
-
-            # Dict
-            self.tslits_dict = self.traceSlits._fill_tslits_dict()
+            else:
+                self.tslits_dict = self.traceSlits._fill_tslits_dict()
             # Save in calib
             self.calib_dict[self.setup]['trace'] = self.tslits_dict
 
