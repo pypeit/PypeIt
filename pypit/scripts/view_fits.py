@@ -22,7 +22,9 @@ def parser(options=None):
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument('--raw_lris', action="store_true")
     parser.add_argument('--raw_deimos', action="store_true")
+    parser.add_argument('--raw_gemini', action="store_true")
     parser.add_argument('--exten', type=int, help="FITS extension")
+    parser.add_argument('--det', type=int, default=1, help="Detector number")
 
     if options is None:
         args = parser.parse_args()
@@ -40,6 +42,7 @@ def main(args):
     from pypit import pyputils
     from pypit.spectrographs import keck_lris
     from pypit.spectrographs import keck_deimos
+    from pypit.spectrographs import gemini_gmos
 
     # List only?
     if args.list:
@@ -80,6 +83,18 @@ def main(args):
     if args.raw_deimos:
         #
         img, head, _ = keck_deimos.read_deimos(args.file)
+        # Generate hdu
+        hdu = fits.PrimaryHDU(img)
+        hdulist = fits.HDUList([hdu])
+        # Write
+        msgs.warn('Writing kludge file to {:s}'.format(kludge_fil))
+        hdulist.writeto(kludge_fil,clobber=True)
+        args.file = kludge_fil
+
+    # RAW_GEMINI??
+    if args.raw_gemini:
+        #
+        img, head, _ = gemini_gmos.read_gemini(args.file, det=args.det)
         # Generate hdu
         hdu = fits.PrimaryHDU(img)
         hdulist = fits.HDUList([hdu])

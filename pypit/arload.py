@@ -83,7 +83,10 @@ def load_headers(datlines, settings_spect, settings_argflag):
         headarr = ['None' for k in range(settings_spect['fits']['numhead'])]
         try:
             for k in range(settings_spect['fits']['numhead']):
-                headarr[k] = fits.getheader(datlines[i], ext=settings_spect['fits']['headext{0:02d}'.format(k+1)])
+                try:
+                    headarr[k] = fits.getheader(datlines[i], ext=settings_spect['fits']['headext{0:02d}'.format(k+1)])
+                except:
+                    debugger.set_trace()
                 whddict['{0:02d}'.format(settings_spect['fits']['headext{0:02d}'.format(k+1)])] = k
         except:
             if settings_argflag['run']['setup']:
@@ -101,7 +104,10 @@ def load_headers(datlines, settings_spect, settings_argflag):
         for ch in chks:
             tfrhd = int(ch.split('.')[0])-1
             kchk = '.'.join(ch.split('.')[1:])
-            frhd = whddict['{0:02d}'.format(tfrhd)]
+            try:
+                frhd = whddict['{0:02d}'.format(tfrhd)]
+            except KeyError:
+                debugger.set_trace()
             # JFH changed to in instead of !=
             if ((settings_spect['check'][ch] in str(headarr[frhd][kchk]).strip()) == False):
                 print(ch, frhd, kchk)

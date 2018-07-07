@@ -4563,7 +4563,7 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
     """
     # Dummy argflag
     if spectrograph not in ['shane_kast_blue', 'keck_nirspec', 'keck_deimos', 'keck_nires',
-                            'keck_lris_red']:
+                            'keck_lris_red', 'gemini_gmos_south']:
         msgs.error("Not setup for your instrument")  # You will need to fuss with scidx
     argf = get_argflag_class(("ARMS", spectrograph))
     argf.init_param()
