@@ -116,7 +116,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 
-def read_gemini(raw_file, det=1):
+def read_gmos(raw_file, det=1):
     """
 
     Parameters
@@ -214,7 +214,7 @@ def read_gemini(raw_file, det=1):
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
-    return array.T, head0, (dsec, osec)
+    return array, head0, (dsec, osec)
 
 
 def gemini_read_amp(inp, ext):

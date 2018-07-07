@@ -22,7 +22,7 @@ def parser(options=None):
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument('--raw_lris', action="store_true")
     parser.add_argument('--raw_deimos', action="store_true")
-    parser.add_argument('--raw_gemini', action="store_true")
+    parser.add_argument('--raw_gmos', action="store_true")
     parser.add_argument('--exten', type=int, help="FITS extension")
     parser.add_argument('--det', type=int, default=1, help="Detector number")
 
@@ -92,9 +92,9 @@ def main(args):
         args.file = kludge_fil
 
     # RAW_GEMINI??
-    if args.raw_gemini:
+    if args.raw_gmos:
         #
-        img, head, _ = gemini_gmos.read_gemini(args.file, det=args.det)
+        img, head, _ = gemini_gmos.read_gmos(args.file, det=args.det)
         # Generate hdu
         hdu = fits.PrimaryHDU(img)
         hdulist = fits.HDUList([hdu])

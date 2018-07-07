@@ -4,6 +4,7 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import numpy as np
 
 from pypit import msgs
+from pypit.spectrographs import gemini_gmos
 from pypit.spectrographs import keck_deimos
 from pypit.spectrographs import keck_lris
 from pypit.spectrographs import keck_nirspec
@@ -47,6 +48,8 @@ def load_spec_class(spectrograph=None, data_file=None):
             spec_class = wht_isis.WhtIsisBlueSpectrograph()
         elif 'tng_dolores' in spectrograph:
             spec_class = tng_dolores.TngDoloresSpectrograph()
+        elif 'gemini_gmos_south' in spectrograph:
+            spec_class = gemini_gmos.GeminiGMOSSSpectrograph()
         else:
             msgs.error("Spectrograph not supported")
     #
