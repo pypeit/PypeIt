@@ -1248,7 +1248,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
         nobj_reg = 0
 
     #ToDo add peak finding QA here!
-    if(SHOW_QA == True):
+    if SHOW_QA:
         plt.plot(np.arange(nsamp), fluxsub, color ='cornflowerblue',linestyle=':', label='Collapsed Slit profile')
         plt.plot(np.arange(nsamp), fluxconv, color='black', label = 'FWHM Convolved Profile')
         plt.plot(xcen, ypeak, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
@@ -1536,7 +1536,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
 
 
     # If requested display the resulting traces on top of the image
-    if (nobj > 0) & (SHOW_TRACE is True):
+    if (nobj > 0) & SHOW_TRACE):
         viewer, ch = ginga.show_image(image*(thismask==True))
         ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = specobjs[0].slitid)
         for iobj in range(nobj):
