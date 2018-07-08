@@ -18,17 +18,11 @@ from pypit.core import arextract
 from pypit import artrace
 from pypit import ginga
 
+from pypit.par import pypitpar
+
 from pypit import ardebug as debugger
 
-# For out of PYPIT running
-if msgs._debug is None:
-    debug = debugger.init()
-    debug['develop'] = True
-    msgs.reset(debug=debug, verbosity=2)
-
-# Does not need to be global, but I prefer it
 frametype = 'science'
-
 
 class ScienceImage(processimages.ProcessImages):
     """
@@ -102,13 +96,15 @@ class ScienceImage(processimages.ProcessImages):
 
     """
     # Keep order same as processimages (or else!)
-    def __init__(self, file_list=[], spectrograph=None, settings=None,
-                 tslits_dict=None, tilts=None, det=None, setup=None, datasec_img=None,
-                 bpm=None, maskslits=None, pixlocn=None, objtype='science',
-                 fitstbl=None, scidx=0):
+    def __init__(self, spectrograph, file_list=[], frame_par=None, trace_objects_par=None,
+                 extract_objects_par=None, tslits_dict=None, tilts=None, det=None, setup=None,
+                 datasec_img=None, bpm=None, maskslits=None, pixlocn=None, fitstbl=None, scidx=0,
+                 objtype='science'):
+
+        # TODO: Consider removing bpm and datasec_img from this argument list.  Can be
+        # obtained from Spectrograph class directly
 
         # Parameters unique to this Object
-        self.det = det
         self.setup = setup
         self.tslits_dict = tslits_dict
         self.tilts = tilts
@@ -117,14 +113,28 @@ class ScienceImage(processimages.ProcessImages):
         self.objtype = objtype
         self.fitstbl = fitstbl
         self.scidx = scidx
+        self.datasec_img = datasec_img
+        self.bpm = bpm
+        self.exptime = self.fitstbl['exptime'][self.scidx]
+        self.binning = self.fitstbl['binning'][self.scidx]      # TODO: Check this!
+
+        # Also done in ProcessImages
+#        self.det = det
+
+        # Parameters
+        # NOTE: This uses objtype, not frametype!
+        self.frame_par = pypitpar.FrameGroupPar(objtype) if frame_par is None else frame_par
+        self.trace_objects_par = pypitpar.TraceObjectsPar() \
+                                        if trace_objects_par is None else trace_objects_par
+        self.extract_objects_par = pypitpar.ExtractObjectsPar() \
+                                        if extract_objects_par is None else extract_objects_par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph,
-                                             settings=settings, det=det,
-                                             datasec_img=datasec_img,
-                                             bpm=bpm)
+        processimages.ProcessImages.__init__(self, file_list, spectrograph, det=det,
+                                             combine_par=self.frame_par['combine'],
+                                             lacosmic_par=self.frame_par['lacosmic'])
 
-        # Attributes (set after init)
+        # Overwrite frametype set by ProcessImages
         self.frametype = frametype
 
         # Key outputs/internals
@@ -145,15 +155,6 @@ class ScienceImage(processimages.ProcessImages):
         self.basename = None
 
         self.specobjs = []
-
-
-        # Settings
-        # The copy allows up to update settings with user settings without changing the original
-        if settings is None:
-            # Defaults
-            self.settings = processimages.default_settings()
-        else:
-            self.settings = settings.copy()
 
         # Child-specific Internals
         #    See ProcessImages
@@ -179,19 +180,21 @@ class ScienceImage(processimages.ProcessImages):
         """
         tbname = None
         try:
-            if "T" in self.fitstbl['date'][self.scidx]:
+            if 'T' in self.fitstbl['date'][self.scidx]:
                 tbname = self.fitstbl['date'][self.scidx]
         except IndexError:
             debugger.set_trace()
         else:
             if tbname is None:
-                if timeunit == "mjd":
+                if timeunit == 'mjd':
                     # Not ideal, but convert MJD into a date+time
-                    timval = Time(self.fitstbl['time'][self.scidx] / 24.0, scale='tt', format='mjd')
+                    timval = Time(self.fitstbl['time'][self.scidx] / 24.0, scale='tt',
+                                  format='mjd')
                     tbname = timval.isot
                 else:
                     # Really not ideal... just append date and time
-                    tbname = self.fitstbl['date'][self.scidx] + "T" + str(self.fitstbl['time'][self.scidx])
+                    tbname = self.fitstbl['date'][self.scidx] + 'T' \
+                                    + str(self.fitstbl['time'][self.scidx])
         # Time
         tval = Time(tbname, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
         dtime = datetime.datetime.strptime(tval.value, '%Y-%m-%dT%H:%M:%S.%f')
@@ -217,13 +220,10 @@ class ScienceImage(processimages.ProcessImages):
         self.specobjs : list
 
         """
-        self.specobjs = arspecobj.init_exp(self.tslits_dict['lcen'],
-                                           self.tslits_dict['rcen'],
-                                           self.sciframe.shape,
-                                           self.maskslits,
-                                           self.det, self.scidx, self.fitstbl,
-                                           self.tracelist, self.settings,
-                                           objtype=self.objtype)
+        self.specobjs = arspecobj.init_exp(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
+                                           self.sciframe.shape, self.maskslits, self.det,
+                                           self.scidx, self.fitstbl, self.tracelist,
+                                           binning=self.binning, objtype=self.objtype)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -251,9 +251,12 @@ class ScienceImage(processimages.ProcessImages):
         """
         if skyframe is None:
             skyframe = self.global_sky
-        self.modelvarframe = arprocimg.variance_frame(
-            self.datasec_img, self.det, self.sciframe, skyframe=skyframe,
-            settings_det=self.settings['detector'], objframe=objframe)
+        self.modelvarframe = arprocimg.variance_frame(self.datasec_img, self.sciframe,
+                            self.spectrograph.detector[self.det-1]['gain'],
+                            self.spectrograph.detector[self.det-1]['ronoise'],
+                            numamplifiers=self.spectrograph.detector[self.det-1]['numamplifiers'],
+                            darkcurr=self.spectrograph.detector[self.det-1]['darkcurr'],
+                            exptime=self.exptime, skyframe=skyframe, objframe=objframe)
         return self.modelvarframe
 
     def boxcar(self, mswave):
@@ -305,15 +308,16 @@ class ScienceImage(processimages.ProcessImages):
         """
         msgs.info("Attempting optimal extraction with model profile")
         # Profile
-        arextract.obj_profiles(self.det, self.specobjs, self.sciframe-self.global_sky-self.skycorr_box,
+        arextract.obj_profiles(self.det, self.specobjs,
+                               self.sciframe-self.global_sky-self.skycorr_box,
                                self.modelvarframe, self.crmask, self.tracelist, self.tilts,
                                self.maskslits, self.tslits_dict['slitpix'], doqa=False)
         # Extract
         self.obj_model = arextract.optimal_extract(self.specobjs,
-                                              self.sciframe-self.global_sky-self.skycorr_box,
-                                              self.modelvarframe, self.crmask,
-                                              self.tracelist, self.tilts,
-                                              mswave, self.maskslits, self.tslits_dict['slitpix'])
+                                                   self.sciframe-self.global_sky-self.skycorr_box,
+                                                   self.modelvarframe, self.crmask,
+                                                   self.tracelist, self.tilts, mswave,
+                                                   self.maskslits, self.tslits_dict['slitpix'])
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -404,9 +408,16 @@ class ScienceImage(processimages.ProcessImages):
                 self.tracelist.append({})
                 continue
             msgs.info("Finding objects in slit: {}".format(slit))
-            tlist = artrace.trace_objects_in_slit(self.det, slit, self.tslits_dict,
-                                                  self.sciframe, self.global_sky,
-                                                  varframe, self.crmask, self.settings)
+
+            tlist = artrace.trace_objects_in_slit(self.det, slit, self.tslits_dict, self.sciframe,
+                                                  self.global_sky, varframe, self.crmask,
+                                                  trace_objects_par['function'],
+                                                  trace_objects_par['order'],
+                                                  trace_objects_par['find'],
+                                                  trace_objects_par['nsmooth'],
+                                                  xedge=trace_objects_par['xedge'],
+                                                  manual=extract_objects_par['manual'],
+                                                  manual=extract_objects_par['maxnumber'])
             # Append
             self.tracelist += tlist
 
@@ -419,51 +430,46 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.tracelist, self.nobj
 
-    def global_skysub(self, settings_skysub, use_tracemask=False):
+    # TODO: This default needs to be kept in sync with default in
+    # bg_subtraction_slit()
+    def global_skysub(self, bspline_spacing=0.6, use_tracemask=False):
         """
         Perform global sky subtraction, slit by slit
 
         Wrapper to arskysub.bg_subtraction_slit
 
-        Parameters
-        ----------
-        settings_skysub : dict
-          Guides sky subtraction algorithm(s)
-        use_tracemask : bool, optional
-          Mask objects (requires they were found previously)
+        Args:
+            bspline_spaceing (float):
+                Break-point spacing for bspline
+            use_tracemask (:`obj`:bool, optional):
+                Mask objects (requires they were found previously)
 
-        Returns
-        -------
-        self.global_sky : ndarray
-        self.modelvarframe : ndarray
-          Variance image using the sky model
-
+        Returns:
+            numpy.ndarray: Two `numpy.ndarray`s, the first with the
+            global sky and the second with the variance frame based on
+            the sky model.
         """
         # Prep
         self.global_sky = np.zeros_like(self.sciframe)
         gdslits = np.where(~self.maskslits)[0]
+
         # Grab the currently 'best' variance frame
-        if self.modelvarframe is not None:
-            # JFH does not quite approve of this..
-            varframe = self.modelvarframe
-        else:
-            varframe = self.rawvarframe
+        # JFH does not quite approve of this..
+        varframe = self.rawvarframe if self.modelvarframe is None else self.modelvarframe
 
         # Mask objects?
-        if use_tracemask:
-            tracemask = self._build_tracemask()
-        else:
-            tracemask = None
+        tracemask = self._build_tracemask() if use_tracemask else None
 
         # Loop on slits
         #gdslits = [gdslits[-1]]
         for slit in gdslits:
             msgs.info("Working on slit: {:d}".format(slit))
             # Find sky
-            slit_bgframe = arskysub.bg_subtraction_slit(
-                slit+1, self.tslits_dict['slitpix'], self.tslits_dict['edge_mask'],
-                self.sciframe, varframe, self.tilts,
-                bpm=self.bpm, crmask=self.crmask, tracemask=tracemask)
+            slit_bgframe = arskysub.bg_subtraction_slit(slit+1, self.tslits_dict['slitpix'],
+                                                        self.tslits_dict['edge_mask'],
+                                                        self.sciframe, varframe, self.tilts,
+                                                        bpm=self.bpm, crmask=self.crmask,
+                                                        tracemask=tracemask, bsp=bspline_spacing)
             # Mask?
             if np.sum(slit_bgframe) == 0.:
                 self.maskslits[slit] = True
@@ -478,7 +484,7 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.global_sky, self.modelvarframe
 
-    def _process(self, bias_subtract, pixel_flat, apply_gain=True, dnoise=0.):
+    def process(self, bias_subtract, pixel_flat, apply_gain=True, dnoise=0.):
         """ Process the image
 
         Wrapper to ProcessImages.process()
@@ -493,7 +499,8 @@ class ScienceImage(processimages.ProcessImages):
 
         """
         # Process
-        self.sciframe = self.process(bias_subtract=bias_subtract, apply_gain=apply_gain, pixel_flat=pixel_flat)
+        self.sciframe = self.process(bias_subtract=bias_subtract, apply_gain=apply_gain,
+                                     pixel_flat=pixel_flat, bpm=self.bpm)
 
         # Construct raw variance image
         self.rawvarframe = self.build_rawvarframe(dnoise=dnoise)

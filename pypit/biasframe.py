@@ -12,6 +12,7 @@ from pypit.core import armasters
 from pypit.core import arsort
 from pypit import processimages
 from pypit import masterframe
+from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 
@@ -37,7 +38,8 @@ frametype = 'bias'
 #  These are settings beyond those in the Parent class (ProcessImages)
 # additional_default_settings = {frametype: {'useframe': 'none'}}
 
-
+# (KBW): Why isn't this class called BiasImage (like ArcImage, BPMImage,
+# etc...)
 class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     """
     This class is primarily designed to generate a Bias frame for bias subtraction
@@ -98,7 +100,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # preferable to `self.frametype = 'bias'`
         # (KBW) This copying to self also happens in MasterFrame and
         # doesn't need to happen here.
-        self.frametype = frametype
+#        self.frametype = frametype
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name

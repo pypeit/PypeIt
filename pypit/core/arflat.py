@@ -210,7 +210,7 @@ def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid,
     return modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit
 
 
-def prep_ntck(pixwid, settings, ntcky=None):
+def prep_ntck(pixwid, method='bspline', params=[20], get_slitprofile=True, ntcky=None):
     """
     Prepare the number of knots for the bspline fitting
 
@@ -231,9 +231,9 @@ def prep_ntck(pixwid, settings, ntcky=None):
     """
     # Set the number of knots in the spectral direction
     if ntcky is None:
-        if settings["flatfield"]["method"] == "bspline":
-            ntcky = settings["flatfield"]["params"][0]
-            if settings["flatfield"]["params"][0] < 1.0:
+        if method == 'bspline':
+            ntcky = params[0]
+            if params[0] < 1.0:
                 ntcky = int(1.0/ntcky)+0.5
         else:
             ntcky = 20
@@ -244,7 +244,7 @@ def prep_ntck(pixwid, settings, ntcky=None):
     # Set the number of knots in the spatial direction
     # TODO -- Should this be set per slit/order?
     ntckx = 2 * np.max(pixwid)
-    if not settings["slitprofile"]["perform"]:
+    if not get_slitprofile:
         # The slit profile is not needed, so just do the quickest possible fit
         ntckx = 3
     # Return
@@ -717,6 +717,10 @@ def sn_frame(slf, sciframe, idx):
 
 def flatfield(sciframe, flatframe, bpix, snframe=None, varframe=None, slitprofile=None):
     """ Flat field the input image
+
+    .. todo::
+        - Is bpix required?
+
     Parameters
     ----------
     sciframe : 2d image

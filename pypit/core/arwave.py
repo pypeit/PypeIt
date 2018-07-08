@@ -23,8 +23,8 @@ from pypit import msgs
 from pypit.core import ararc
 from pypit import arqa
 from pypit import arutils
-from pypit import ardebug as debugger
 
+from pypit import ardebug as debugger
 
 def flex_shift(obj_skyspec, arx_skyspec, mxshft=None):
     """ Calculate shift between object sky spectrum and archive sky spectrum
@@ -185,30 +185,30 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=None):
     # Return
     return flex_dict
 
-
-def flexure_archive(spectrograph=None, skyspec_fil=None):
-    """  Load archived sky spectrum
-    """
-    #   latitude = settings.spect['mosaic']['latitude']
-    #   longitude = settings.spect['mosaic']['longitude']
-    root = resource_filename('pypit', 'data/sky_spec/')
-    if skyspec_fil is None: #settings.argflag['reduce']['flexure']['spectrum'] is None:
-        # Red or blue?
-        if spectrograph in ['shane_kast_blue']:
-            skyspec_fil = 'sky_kastb_600.fits'
-        elif spectrograph in ['keck_lris_blue']:
-            skyspec_fil = 'sky_LRISb_600.fits'
-        else:
-            skyspec_fil = 'paranal_sky.fits'
-    #
-    msgs.info("Using {:s} file for Sky spectrum".format(skyspec_fil))
-    arx_sky = xspectrum1d.XSpectrum1D.from_file(root+skyspec_fil)
-    #hdu = fits.open(root+'/data/sky_spec/'+skyspec_fil)
-    #archive_wave = hdu[0].data
-    #archive_flux = hdu[1].data
-    #arx_sky = xspectrum1d.XSpectrum1D.from_tuple((archive_wave, archive_flux))
-    # Return
-    return skyspec_fil, arx_sky
+# This has been moved into the spectrographs class
+#def flexure_archive(spectrograph=None, skyspec_fil=None):
+#    """  Load archived sky spectrum
+#    """
+#    #   latitude = settings.spect['mosaic']['latitude']
+#    #   longitude = settings.spect['mosaic']['longitude']
+#    root = resource_filename('pypit', 'data/sky_spec/')
+#    if skyspec_fil is None: #settings.argflag['reduce']['flexure']['spectrum'] is None:
+#        # Red or blue?
+#        if spectrograph in ['shane_kast_blue']:
+#            skyspec_fil = 'sky_kastb_600.fits'
+#        elif spectrograph in ['keck_lris_blue']:
+#            skyspec_fil = 'sky_LRISb_600.fits'
+#        else:
+#            skyspec_fil = 'paranal_sky.fits'
+#    #
+#    msgs.info("Using {:s} file for Sky spectrum".format(skyspec_fil))
+#    arx_sky = xspectrum1d.XSpectrum1D.from_file(root+skyspec_fil)
+#    #hdu = fits.open(root+'/data/sky_spec/'+skyspec_fil)
+#    #archive_wave = hdu[0].data
+#    #archive_flux = hdu[1].data
+#    #arx_sky = xspectrum1d.XSpectrum1D.from_tuple((archive_wave, archive_flux))
+#    # Return
+#    return skyspec_fil, arx_sky
 
 
 '''
@@ -260,8 +260,7 @@ def flexure_slit():
 '''
 
 
-def flexure_obj(specobjs, maskslits, method, spectrograph,
-                skyspec_fil=None, mxshft=None):
+def flexure_obj(specobjs, maskslits, method, sky_spectrum, sky_file=None, mxshft=None):
     """Correct wavelengths for flexure, object by object
 
     Parameters:
@@ -280,7 +279,7 @@ def flexure_obj(specobjs, maskslits, method, spectrograph,
     """
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
     # Load Archive
-    skyspec_fil, arx_sky = flexure_archive(spectrograph=spectrograph, skyspec_fil=skyspec_fil)
+#    skyspec_fil, arx_sky = flexure_archive(spectrograph=spectrograph, skyspec_fil=skyspec_fil)
 
     # Loop on objects
     flex_list = []
@@ -289,7 +288,7 @@ def flexure_obj(specobjs, maskslits, method, spectrograph,
     for sl in range(len(specobjs)):
         # Reset
         flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
-                         corr_cen=[], spec_file=skyspec_fil, smooth=[],
+                         corr_cen=[], spec_file=sky_file, smooth=[],
                          arx_spec=[], sky_spec=[])
         if sl not in gdslits:
             flex_list.append(flex_dict.copy())
@@ -310,7 +309,7 @@ def flexure_obj(specobjs, maskslits, method, spectrograph,
             obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
 
             # Calculate the shift
-            fdict = flex_shift(obj_sky, arx_sky, mxshft=mxshft)
+            fdict = flex_shift(obj_sky, sky_spectrum, mxshft=mxshft)
 
             # Simple interpolation to apply
             npix = len(sky_wave)
@@ -339,24 +338,18 @@ def flexure_obj(specobjs, maskslits, method, spectrograph,
     return flex_list
 
 
-def geomotion_calculate(fitstbl, idx, time, settings_mosaic, refframe):
+def geomotion_calculate(fitstbl, idx, time, longitude, latitude, altitude, refframe):
     """
     Correct the wavelength calibration solution to the desired reference frame
     """
-
-    lat = settings_mosaic['mosaic']['latitude']
-    lon = settings_mosaic['mosaic']['longitude']
-    alt = settings_mosaic['mosaic']['elevation']
-    loc = (lon * units.deg, lat * units.deg, alt * units.m,)
-
-    radec = SkyCoord(fitstbl["ra"][idx], fitstbl["dec"][idx], unit=(units.hourangle, units.deg), frame='fk5')
+    loc = (longitude * units.deg, latitude * units.deg, altitude * units.m,)
+    radec = SkyCoord(fitstbl["ra"][idx], fitstbl["dec"][idx], unit=(units.hourangle, units.deg),
+                     frame='fk5')
     obstime = Time(time.value, format=time.format, scale='utc', location=loc)
-
-    vcorr = geomotion_velocity(obstime, radec, frame=refframe)
-    return vcorr
+    return geomotion_velocity(obstime, radec, frame=refframe)
 
 
-def geomotion_correct(specobjs, maskslits, fitstbl, scidx, time, settings_mosaic,
+def geomotion_correct(specobjs, maskslits, fitstbl, scidx, time, longitude, latitude, elevation,
                       refframe):
     """ Correct the wavelength of every pixel to a barycentric/heliocentric frame.
 

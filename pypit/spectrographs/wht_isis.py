@@ -14,6 +14,7 @@ import numpy as np
 from pypit import msgs
 from ..par.pypitpar import DetectorPar
 from . import spectrograph
+from .. import telescopes
 
 from pypit import ardebug as debugger
 
@@ -25,6 +26,7 @@ class WhtIsisSpectrograph(spectrograph.Spectrograph):
     def __init__(self):
         super(WhtIsisSpectrograph, self).__init__()
         self.spectrograph = 'NULL'
+        self.telescope = telescopes.WHTTelescopePar()
 
 class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
     """
@@ -34,12 +36,16 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
         # Get it started
         super(WhtIsisBlueSpectrograph, self).__init__()
         self.spectrograph = 'wht_isis_blue'
+        self.camera = 'ISISb'
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.225,
                             darkcurr=0.0, saturation=65535., nonlinear=0.76, numamplifiers=1,
                             gain=1.2, ronoise=5.0, datasec='[:,2:4030]', suffix='_blue')
             ]
+        # Uses default timeunit
+        # Uses default primary_hdrext
+        # self.sky_file = ?
         
 
     def setup_arcparam(self, arcparam, disperser=None, fitstbl=None,

@@ -15,6 +15,7 @@ from astropy.io import fits
 from pypit import msgs
 from ..par.pypitpar import DetectorPar
 from . import spectrograph
+from .. import telescopes
 
 from pypit import ardebug as debugger
 
@@ -26,13 +27,19 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(KeckNIRSPECSpectrograph, self).__init__()
         self.spectrograph = 'keck_nirspec'
+        self.telescope = telescopes.KeckTelescopePar()
+        self.camera = 'NIRSPEC'
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext=0, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.193,
                             darkcurr=0.8, saturation=65535., nonlinear=0.76, numamplifiers=1,
                             gain=5.8, ronoise=23)
             ]
+        # Uses default timeunit
+        # Uses default primary_hdrext
+        # self.sky_file = ?
 
+    # TODO: This function is unstable to shape...
     def bpm(self, shape=None, **null_kwargs):
         """ Generate a BPM
 
@@ -45,11 +52,15 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         badpix : ndarray
 
         """
+        if shape is None:
+            raise ValueError('Must provide shape for Keck NIRSPEC bpm.')
         # Edges of the detector are junk
         msgs.info("Custom bad pixel mask for NIRSPEC")
-        self.bpm = np.zeros((self.shape[0], self.shape[1]))
-        self.bpm[:, :20] = 1.
-        self.bpm[:, 1000:] = 1.
+        self.bpm_img = np.zeros(shape, dtype=np.int8)
+        self.bpm_img[:, :20] = 1.
+        self.bpm_img[:, 1000:] = 1.
+        return self.bpm_img
+        
 
     def setup_arcparam(self, arcparam, fitstbl=None, arc_idx=None,
                        msarc_shape=None, **null_kwargs):

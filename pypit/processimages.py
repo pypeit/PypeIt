@@ -17,7 +17,7 @@ from pypit import ginga
 from .par.pypitpar import CombineFramesPar, LACosmicPar
 
 from .spectrographs.spectrograph import Spectrograph
-from .spectrographs.util import load_spec_class
+from .spectrographs.util import load_spectrograph
 
 try:
     basestring
@@ -55,7 +55,7 @@ class ProcessImages(object):
         spectrograph (:obj:`str`, :class:`Spectrograph`):
             The spectrograph from which the data was taken.  Must be
             provided as a string that can be interpreted by
-            :func:`pypit.spectrographs.util.load_spec_class` or a
+            :func:`pypit.spectrographs.util.load_spectrograph` or a
             preconstructed instance of :class:`Spectrograph`.
         det (:obj:`int`, optional):
             The 1-indexed number of the detector.  Default is 1.
@@ -87,7 +87,7 @@ class ProcessImages(object):
         self.file_list = file_list
 
         if isinstance(spectrograph, basestring):
-            self.spectrograph = load_spec_class(spectrograph=spectrograph)
+            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
         elif isinstance(spectrograph, Spectrograph):
             self.spectrograph = spectrograph
         else:
@@ -126,6 +126,7 @@ class ProcessImages(object):
         # Constructed by process:
         self.crmask = None          # build_crmask
         self.rawvarframe = None     # build_rawvarframe
+        self.bpm = None             # passed as an argument to process(), flat_field()
         self.pixel_flat = None      # passed as an argument to process(), flat_field()
         self.slitprof = None        # passed as an argument to process(), flat_field()
 
@@ -223,27 +224,22 @@ class ProcessImages(object):
         self.datasec, self.oscansec, _, _ \
                     = self.spectrograph.get_datasec(self.file_list[0], self.det)
 
-    def apply_gain(self, datasec_img):
+    def apply_gain(self):
         """
         Apply gain (instead of ampsec scale)
 
         Parameters
         ----------
-        datasec_img : ndarray
-          Defines which pixels belong to which amplifier
 
         Returns
         -------
         self.mspixelflat -- Modified internally
 
         """
-        if datasec_img is None:
-            msgs.error("Need to input datasec_img!")
-        
-        numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
-        gain = self.spectrograph.detector[self.det-1]['gain']
-        self.stack = self.stack * arprocimg.gain_frame(datasec_img, numamplifiers, gain)
-
+        datasec_img = self.spectrograph.get_datasec_img(file_list[0], det=self.det)
+        self.stack *= arprocimg.gain_frame(datasec_img,
+                                           self.spectrograph.detector[self.det-1]['numamplifiers'],
+                                           self.spectrograph.detector[self.det-1]['gain'])
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -311,6 +307,7 @@ class ProcessImages(object):
         # (KBW) We could shorten this call to, if we want to:
 #        self.stack = arcomb.core_comb_frames(self.proc_images, frametype=self.frametype,
 #                                             saturation=saturation, **self.combine_par)
+        # TODO: frametype does not seem to be required here.  
         self.stack = arcomb.core_comb_frames(self.proc_images, frametype=self.frametype,
                                              saturation=saturation,
                                              method=self.combine_par['method'],
@@ -366,7 +363,7 @@ class ProcessImages(object):
         # Return
         return self.crmask
 
-    def flat_field(self, pixel_flat, slitprofile=None):
+    def flat_field(self, pixel_flat, bpm, slitprofile=None):
         """
         Flat field the stack image
 
@@ -383,6 +380,7 @@ class ProcessImages(object):
         """
         # Assign the relevant data to self
         self.pixel_flat = pixel_flat
+        self.bpm = bpm
         self.slitprof = slitprof
 
         # Check that the bad-pixel mask is available
@@ -396,7 +394,7 @@ class ProcessImages(object):
 
 
     def process(self, bias_subtract=None, apply_gain=False, trim=True, overwrite=False,
-                pixel_flat=None, slitprof=None):
+                pixel_flat=None, bpm=None, slitprof=None):
         """
         Process the images from loading to combining
 
@@ -426,9 +424,8 @@ class ProcessImages(object):
         # Bias subtract
         if bias_subtract is not None:
             self.bias_subtract(bias_subtract, trim=trim)
-        else:
-            if 'bias_subtract' not in self.steps:
-                msgs.warn("Your images have not been bias subtracted!")
+        elif 'bias_subtract' not in self.steps:
+            msgs.warn("Your images have not been bias subtracted!")
 
         # Create proc_images from raw_images if need be
         #   Mainly if no bias subtraction was performed
@@ -439,22 +436,20 @@ class ProcessImages(object):
                 self.proc_images[:,:,kk] = image
 
         # Combine
-        if self.proc_images.shape[2] == 1:  # Nothing to combine
-            self.stack = self.proc_images[:,:,0]
-        else:
-            self.stack = self.combine()
+        self.stack = self.proc_images[:,:,0] if self.proc_images.shape[2] == 1 else self.combine()
 
         # Apply gain?
         if apply_gain:
-            self.apply_gain(self.datasec_img)
+            self.apply_gain()
 
         # Flat field?
         if pixel_flat is not None:
-            self.stack = self.flat_field(pixel_flat, slitprofile=slitprof)
+            self.stack = self.flat_field(pixel_flat, bpm, slitprofile=slitprof)
 
         # Done
         return self.stack.copy()
 
+    # TODO: Is this used by anything other than ScienceImage?
     def build_rawvarframe(self):
         """
         Generate the Raw Variance frame
@@ -467,8 +462,9 @@ class ProcessImages(object):
 
         """
         msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
+        datasec_img = self.spectrograph.get_datasec_img(file_list[0], det=self.det)
         detector = self.spectrograph.detector[self.det-1]
-        self.rawvarframe = arprocimg.variance_frame(self.datasec_img, self.stack,
+        self.rawvarframe = arprocimg.variance_frame(datasec_img, self.stack,
                                                     detector['gain'], detector['ronoise'],
                                                     numamplifiers=detector['numamplifiers'],
                                                     darkcurr=detector['darkcurr'],

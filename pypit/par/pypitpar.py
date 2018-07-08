@@ -635,7 +635,7 @@ class OverscanPar(ParSet):
 
 
 class FlatFieldPar(ParSet):
-    def __init__(self, frame=None, method=None, params=None, twodpca=None):
+    def __init__(self, frame=None, slitprofile=None, method=None, params=None, twodpca=None):
     
         # Grab the parameter names and values from the function
         # arguments
@@ -657,6 +657,10 @@ class FlatFieldPar(ParSet):
         dtypes['frame'] = basestring
         descr['frame'] = 'Frame to use for field flattening.  Options are: pixelflat, pinhole, ' \
                          'or a specified master calibration file.'
+
+        defaults['slitprofile'] = True
+        dtypes['slitprofile'] = bool
+        descr['slitprofile'] = 'Use the flat field to determine the spatial profile of each slit.'
 
         defaults['method'] = 'bspline'
         options['method'] = FlatFieldPar.valid_methods()
@@ -693,7 +697,7 @@ class FlatFieldPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'frame', 'method', 'params', 'twodpca' ]
+        parkeys = [ 'frame', 'slitprofile', 'method', 'params', 'twodpca' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -857,14 +861,17 @@ class WavelengthCalibrationPar(ParSet):
     @staticmethod
     def valid_media():
         """
-        Return the valid flat-field methods
+        Return the valid media for the wavelength calibration.  'Pixel'
+        is the same as no performing no wavelength calibration.
+        
+        TODO: Can 'pixel' just be replaced with None?
         """
-        return [ 'vacuum', 'air' ]
+        return [ 'pixel', 'vacuum', 'air' ]
 
     @staticmethod
     def valid_reference_frames():
         """
-        Return the valid frame types.
+        Return the valid reference frames for the wavelength calibration
         """
         return [ 'heliocentric', 'barycentric' ]
     
@@ -927,9 +934,9 @@ class FluxCalibrationPar(ParSet):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
 
-
+# TODO: What other parameters should there be?
 class SkySubtractionPar(ParSet):
-    def __init__(self, method=None, params=None):
+    def __init__(self, bspline_spacing=None): #method=None, params=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -945,15 +952,20 @@ class SkySubtractionPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['method'] = 'bspline'
-        options['method'] = SkySubtractionPar.valid_methods()
-        dtypes['method'] = basestring
-        descr['method'] = 'Method used to for sky subtraction.  ' \
-                          'Options are: None, {0}'.format(', '.join(options['method']))
 
-        defaults['params'] = 20
-        dtypes['params'] = int
-        descr['params'] = 'Sky-subtraction method parameters.  For bspline, set params = spacing.'
+        defaults['bspline_spacing'] = 0.6
+        dtypes['bspline_spacing'] = [int, float]
+        descr['bspline_spacing'] = 'Break-point spacing for the bspline fit'
+
+#        defaults['method'] = 'bspline'
+#        options['method'] = SkySubtractionPar.valid_methods()
+#        dtypes['method'] = basestring
+#        descr['method'] = 'Method used to for sky subtraction.  ' \
+#                          'Options are: None, {0}'.format(', '.join(options['method']))
+#
+#        defaults['params'] = 20
+#        dtypes['params'] = int
+#        descr['params'] = 'Sky-subtraction method parameters.  For bspline, set params = spacing.'
 
         # Instantiate the parameter set
         super(SkySubtractionPar, self).__init__(list(pars.keys()),
@@ -967,25 +979,27 @@ class SkySubtractionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'method', 'params' ]
+        parkeys = [ 'bspline_spacing' ] #'method', 'params' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
 
-    @staticmethod
-    def valid_methods():
-        """
-        Return the valid sky-subtraction methods
-        """
-        return [ 'bspline' ]
+#    @staticmethod
+#    def valid_methods():
+#        """
+#        Return the valid sky-subtraction methods
+#        """
+#        return [ 'bspline' ]
 
     def validate(self):
-        """
-        Check the parameters are valid for the provided method.
-        """
-        if self.data['method'] == 'bspline' and not isinstance(self.data['params'], int):
-            raise ValueError('For bspline sky-subtraction method, set params = spacing (integer).')
+        pass
+
+#        """
+#        Check the parameters are valid for the provided method.
+#        """
+#        if self.data['method'] == 'bspline' and not isinstance(self.data['params'], int):
+#            raise ValueError('For bspline sky-subtraction method, set params = spacing (integer).')
 
 
 class PCAPar(ParSet):
@@ -1708,7 +1722,7 @@ class TraceTiltsPar(ParSet):
                            'tilts'
 
         defaults['tracethresh'] = 1000.
-        dtypes['tracethresh'] = [int, float]
+        dtypes['tracethresh'] = [int, float, list, numpy.ndarray]
         descr['tracethresh'] = 'TODO: X fill in the doc for this'
 
         defaults['order'] = 1
@@ -1772,7 +1786,9 @@ class TraceTiltsPar(ParSet):
     def validate(self):
         pass
 
-
+# TODO: Should these be added?:
+# From artrace.trace_objects_in_slit
+#       trim=2, triml=None, trimr=None, sigmin=2.0, bgreg=None
 class TraceObjectsPar(ParSet):
     """
     Parameters specific to PypIts object tracing algorithm
@@ -1969,9 +1985,18 @@ class ExtractObjectsPar(ParSet):
 # Instrument ParSets
 
 class DetectorPar(ParSet):
-    def __init__(self, dataext=None, datasec=None, oscansec=None, dispaxis=None, xgap=None,
-                 ygap=None, ysize=None, platescale=None, darkcurr=None, saturation=None,
-                 nonlinear=None, numamplifiers=None, gain=None, ronoise=None, suffix=None):
+    """
+
+    The intention is that these are independent of any exposure and
+    taken as always true for a given isntrument.
+
+    .. todo::
+        - Having said that, should we add 'binning' to this?
+    """
+    def __init__(self, dataext=None, dispaxis=None, xgap=None, ygap=None, ysize=None,
+                 platescale=None, darkcurr=None, saturation=None, nonlinear=None,
+                 numamplifiers=None, gain=None, ronoise=None, datasec=None, oscansec=None,
+                 suffix=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2079,9 +2104,9 @@ class DetectorPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'dataext', 'datasec', 'oscansec', 'dispaxis', 'xgap', 'ygap', 'ysize',
-                    'platescale', 'darkcurr', 'saturation', 'nonlinear', 'numamplifiers', 'gain',
-                    'ronoise', 'suffix' ]
+        parkeys = [ 'dataext', 'dispaxis', 'xgap', 'ygap', 'ysize', 'platescale', 'darkcurr',
+                    'saturation', 'nonlinear', 'numamplifiers', 'gain', 'ronoise', 'datasec',
+                    'oscansec', 'suffix' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2105,6 +2130,72 @@ class DetectorPar(ParSet):
                 if self.data[keys[i]] is not None \
                         and not isinstance(self.data[keys[i]][j], dtype[i]):
                     TypeError('Incorrect type for {0}; should be {1}'.format(keys[i], dtype[i]))
+
+class TelescopePar(ParSet):
+    def __init__(self, name=None, longitude=None, latitude=None, elevation=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+        defaults['name'] = 'KECK'
+        options['name'] = TelescopePar.valid_telescopes()
+        dtypes['name'] = basestring
+        descr['name'] = 'Name of the telescope used to obtain the observations.  ' \
+                        'Options are: {0}'.format(', '.join(options['telescope']))
+        
+        defaults['longitude'] = 155.47833
+        dtypes['longitude'] = [int, float]
+        descr['longitude'] = 'Longitude of the telescope on Earth in degrees.'
+
+        defaults['latitude'] = 19.82833
+        dtypes['latitude'] = [int, float]
+        descr['latitude'] = 'Latitude of the telescope on Earth in degrees.'
+
+        defaults['elevation'] = 4160.0
+        dtypes['elevation'] = [int, float]
+        descr['elevation'] = 'Elevation of the telescope in m'
+
+        # Instantiate the parameter set
+        super(TelescopePar, self).__init__(list(pars.keys()),
+                                           values=list(pars.values()),
+                                           defaults=list(defaults.values()),
+                                           options=list(options.values()),
+                                           dtypes=list(dtypes.values()),
+                                           descr=list(descr.values()))
+
+        # Check the parameters match the method requirements
+        self.validate()
+
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+        parkeys = [ 'name', 'longitude', 'latitude', 'elevation' ]
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    @staticmethod
+    def valid_telescopes():
+        """
+        Return the valid telescopes.
+        """
+        return [ 'KECK', 'SHANE', 'WHT', 'APF', 'TNG' ]
+
+    def validate(self):
+        pass
 
 
 class InstrumentPar(ParSet):
@@ -2400,6 +2491,137 @@ class FrameIDPar(ParSet):
             if k not in self.fitspar['keydef'].keys():
                 raise KeyError('{0} does not have an associated keyword definition.'.format(k))
 
+
+#-----------------------------------------------------------------------------
+# Calibration Parameters superset
+class CalibrationsPar(ParSet):
+    """
+    The superset of parameters needed by the Calibrations class.
+    """
+    def __init__(self, caldir=None, masters=None, setup=None, trim=None, badpix=None,
+                 flatfield=None, biasframe=None, arcframe=None, pixelflatframe=None,
+                 traceframe=None, wavelengths=None, slits=None, tilts=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+        defaults['caldir'] = 'MF'
+        dtypes['caldir'] = basestring
+        descr['caldir'] = 'Directory relative to calling directory to write master files.'
+
+        options['masters'] = CalibrationsPar.allowed_master_options()
+        dtypes['masters'] = basestring
+        descr['masters'] = 'Treatment of master frames.  Use None to select the default ' \
+                           'behavior (which is?), \'reuse\' to use any existing masters, and ' \
+                           '\'force\' to __only__ use master frames.  ' \
+                           'Options are: None, {0}'.format(', '.join(options['masters']))
+
+        dtypes['setup'] = basestring
+        descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
+                         'C_02_aa .  The detector number is ignored but the other information ' \
+                         'must match the Master Frames in the master frame folder.'
+
+        defaults['trim'] = True
+        dtypes['trim'] = bool
+        descr['trim'] = 'Trim the frame to isolate the data'
+
+        defaults['badpix'] = True
+        dtypes['badpix'] = bool
+        descr['badpix'] = 'Make a bad pixel mask? Bias frames must be provided.'
+
+        defaults['flatfield'] = FlatFieldPar()
+        dtypes['flatfield'] = [ ParSet, dict ]
+        descr['flatfield'] = 'Parameters used to set the flat-field procedure'
+
+        defaults['biasframe'] = FrameGroupPar(frametype='bias')
+        dtypes['biasframe'] = [ ParSet, dict ]
+        descr['biasframe'] = 'The frames and combination rules for the bias correction'
+
+        defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat')
+        dtypes['pixelflatframe'] = [ ParSet, dict ]
+        descr['pixelflatframe'] = 'The frames and combination rules for the field flattening'
+
+        defaults['arcframe'] = FrameGroupPar(frametype='arc')
+        dtypes['arcframe'] = [ ParSet, dict ]
+        descr['arcframe'] = 'The frames and combination rules for the wavelength calibration'
+
+        defaults['traceframe'] = FrameGroupPar(frametype='trace')
+        dtypes['traceframe'] = [ ParSet, dict ]
+        descr['traceframe'] = 'The frames and combination rules for images used for slit tracing'
+
+        defaults['wavelengths'] = WavelengthSolutionPar()
+        dtypes['wavelengths'] = [ ParSet, dict ]
+        descr['wavelengths'] = 'Parameters used to derive the wavelength solution'
+
+        defaults['slits'] = TraceSlitsPar()
+        dtypes['slits'] = [ ParSet, dict ]
+        descr['slits'] = 'Define how the slits should be traced using the trace ?PINHOLE? frames'
+
+        defaults['tilts'] = TraceTiltsPar()
+        dtypes['tilts'] = [ ParSet, dict ]
+        descr['tilts'] = 'Define how to tract the slit tilts using the trace frames'
+
+        # Instantiate the parameter set
+        super(CalibrationsPar, self).__init__(list(pars.keys()),
+                                              values=list(pars.values()),
+                                              defaults=list(defaults.values()),
+                                              options=list(options.values()),
+                                              dtypes=list(dtypes.values()),
+                                              descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+
+        # Basic keywords
+        parkeys = [ 'caldir', 'masters', 'setup', 'trim', 'badpix' ]
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+
+        # Keywords that are ParSets
+        pk = 'flatfield'
+        kwargs[pk] = FlatFieldPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'biasframe'
+        kwargs[pk] = FrameGroupPar.from_dict('bias', cfg[pk]) if pk in k else None
+        pk = 'arcframe'
+        kwargs[pk] = FrameGroupPar.from_dict('arc', cfg[pk]) if pk in k else None
+        pk = 'pixelflatframe'
+        kwargs[pk] = FrameGroupPar.from_dict('pixelflat', cfg[pk]) if pk in k else None
+        pk = 'traceframe'
+        kwargs[pk] = FrameGroupPar.from_dict('trace', cfg[pk]) if pk in k else None
+        pk = 'wavelengths'
+        kwargs[pk] = WavelengthSolutionPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'slits'
+        kwargs[pk] = TraceSlitsPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'tilts'
+        kwargs[pk] = TraceTiltsPar.from_dict(cfg[pk]) if pk in k else None
+
+        return cls(**kwargs)
+
+    @staticmethod
+    def allowed_master_options():
+        """Return the allowed handling methods for the master frames."""
+        return [ 'reuse', 'force' ]
+
+    # TODO: Perform extensive checking that the parameters are valid for
+    # the Calibrations class.  May not be necessary because validate will
+    # be called for all the sub parameter sets, but this can do higher
+    # level checks, if necessary.
+    def validate(self):
+        pass
 
 #-----------------------------------------------------------------------------
 # Parameters superset

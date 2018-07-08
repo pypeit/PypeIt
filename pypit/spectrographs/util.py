@@ -8,12 +8,15 @@ from pypit import spectrographs
 
 from pypit import ardebug as debugger
 
+# TODO: Allow the spectrographs to be identified by their camera?  Won't
+# work for 'shane_kast_red' and 'shane_kast_red_ret'.
+
 def valid_spectrographs():
     # TODO: Is there a more clever way to do this?
     return ['keck_lris_blue', 'keck_lris_red', 'keck_deimos', 'keck_nirspec', 'shane_kast_blue',
             'shane_kast_red', 'shane_kast_red_ret', 'wht_isis_blue', 'tng_dolores' ]
 
-def load_spec_class(spectrograph=None): #, data_file=None):
+def load_spectrograph(spectrograph=None): #, data_file=None):
     """
     Instantiate a Spectrograph class based on the given input
 

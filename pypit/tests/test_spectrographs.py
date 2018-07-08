@@ -26,7 +26,9 @@ def test_keckdeimos():
                                 '830G_L', 'd0914_0002.fits')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Keck DEIMOS read.')
-    s.load_raw_frame(example_file)
+    data, _ = s.load_raw_frame(example_file)
+    bpm = s.bpm(filename=example_file)
+    assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
 
 
 def test_kecklrisblue():
@@ -37,7 +39,9 @@ def test_kecklrisblue():
                                 'long_400_3400_d560', 'LB.20160109.14149.fits.gz')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Keck LRIS Blue read.')
-    s.load_raw_frame(example_file)
+    data, _ = s.load_raw_frame(example_file)
+    bpm = s.bpm(filename=example_file)
+    assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
 
 
 def test_kecklrisred():
@@ -48,7 +52,9 @@ def test_kecklrisred():
                                 'long_600_7500_d560', 'LR.20160216.05529.fits')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Keck LRIS Red read.')
-    s.load_raw_frame(example_file)
+    data, _ = s.load_raw_frame(example_file)
+    bpm = s.bpm(filename=example_file)
+    assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
 
 
 def test_kecknirspec():
@@ -59,7 +65,9 @@ def test_kecknirspec():
                                 'NIRSPEC-1', 'NS.20160414.02171.fits.gz')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Keck LRIS Red read.')
-    s.load_raw_frame(example_file)
+    data, _ = s.load_raw_frame(example_file)
+    bpm = s.bpm(shape=data.shape)
+    assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
 
 
 def test_shanekastblue():
@@ -68,7 +76,9 @@ def test_shanekastblue():
                                 'b1.fits.gz')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Shane Kast Blue read.')
-    s.load_raw_frame(example_file)
+    data, _ = s.load_raw_frame(example_file)
+    bpm = s.bpm(shape=data.shape)
+    assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
 
 
 def test_shanekastred():
@@ -79,7 +89,9 @@ def test_shanekastred():
                                 '600_7500_d55', 'r112.fits.gz')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Shane Kast Red read.')
-    s.load_raw_frame(example_file)
+    data, _ = s.load_raw_frame(example_file)
+    bpm = s.bpm(shape=data.shape)
+    assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
 
 
 def test_shanekastredret():
@@ -100,5 +112,7 @@ def test_whtisisblue():
                                 'long_R300B_d5300', 'r2324566.fit.gz')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for WHT ISIS Blue read.')
-    s.load_raw_frame(example_file)
+    data, _ = s.load_raw_frame(example_file)
+    bpm = s.bpm(shape=data.shape)
+    assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
 

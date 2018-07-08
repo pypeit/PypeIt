@@ -56,30 +56,12 @@ class TraceImage(processimages.ProcessImages):
     stack : ndarray
     """
     # Keep order same as processimages (or else!)
-    def __init__(self, file_list, spectrograph=None, settings=None, det=1, datasec_img=None):
-
-        # Parameters unique to this Object
-
-        # Start us up
-        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph,
-                                             settings=settings, det=det, datasec_img=datasec_img)
-
-        # Attributes (set after init)
+    # TODO: Need to ask why and then fix it
+    def __init__(self, spectrograph, file_list=[], det=1, par=None):
         self.frametype = frametype
-
-        # Settings
-        # The copy allows up to update settings with user settings without changing the original
-        if settings is None:
-            # Defaults
-            self.settings = processimages.default_settings()
-        else:
-            self.settings = settings.copy()
-            # The following is somewhat kludgy and the current way we do settings may
-            #   not touch all the options (not sure .update() would help)
-            if 'combine' not in settings.keys():
-                self.settings['combine'] = settings['trace']['combine']
-
-        # Child-specific Internals
-        #    See ProcessImages for the rest
+        self.par = pypitpar.FrameGroupPar(frametype) if par is None else par
+        processimages.ProcessImages.__init__(self, file_list, spectrograph, det=det,
+                                             combine_par=self.par['combine'],
+                                             lacosmic_par=self.par['lacosmic'])
 
 

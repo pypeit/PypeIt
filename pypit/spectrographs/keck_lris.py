@@ -16,6 +16,7 @@ from pypit import msgs
 from pypit import arparse
 from ..par.pypitpar import DetectorPar
 from . import spectrograph
+from .. import telescopes
 
 from pypit import ardebug as debugger
 
@@ -30,6 +31,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(KeckLRISSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris'
+        self.telescope = telescopes.KeckTelescopePar()
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -68,24 +70,40 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             naxis0: int
             naxis1: int
         """
-        # Check the detector
-        if self.detector is None:
-            raise ValueError('Must first define spectrograph detector parameters!')
-        for d in self.detector:
-            if not isinstance(d, DetectorPar):
-                raise TypeError('Detectors must be specified using a DetectorPar instance.')
+#        # Check the detector
+#        if self.detector is None:
+#            raise ValueError('Must first define spectrograph detector parameters!')
+#        for d in self.detector:
+#            if not isinstance(d, DetectorPar):
+#                raise TypeError('Detectors must be specified using a DetectorPar instance.')
         
         # Read the file
         temp, head0, secs = read_lris(filename, det)
+        return secs[0], False, False, False
 
-        # Get the data and overscan regions
-        datasec, oscansec = [], []
-        for kk in range(self.detector[det]['numamplifiers']):
-            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
-            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
+#        # Get the data and overscan regions
+#        datasec, oscansec = [], []
+#        for kk in range(self.detector[det]['numamplifiers']):
+#            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
+#            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
+#
+#        # Return the sections and the shape of the image
+#        return (datasec, oscansec) + temp.shape
 
-        # Return the sections and the shape of the image
-        return (datasec, oscansec) + temp.shape
+    def get_image_shape(self, filename=None, det=None, **null_kwargs):
+        """
+        Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
+
+        Must always provide a file.
+        """
+        # Cannot be determined without file
+        if filename is None:
+            raise ValueError('Must provide a file to determine the shape of an LRIS image.')
+
+        # Use a file
+        self._check_detector()
+        self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
+        return self.naxis
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
@@ -96,6 +114,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Get it started
         super(KeckLRISBSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris_blue'
+        self.camera = 'LRISb'
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.135,
@@ -106,6 +125,9 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                             darkcurr=0., saturation=65535., nonlinear=0.86, numamplifiers=2,
                             gain=[1.63, 1.70], ronoise=[3.6, 3.6], suffix='_02blue')
             ]
+        # Uses default timeunit
+        # Uses default primary_hdrext
+        self.sky_file = 'sky_LRISb_600.fits'
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
@@ -143,6 +165,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 
+
+
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISr specific code
@@ -151,6 +175,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Get it started
         super(KeckLRISRSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris_red'
+        self.camera = 'LRISr'
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.135,
@@ -161,18 +186,19 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                             darkcurr=0., saturation=65535., nonlinear=0.76, numamplifiers=2,
                             gain=[1.191, 1.162], ronoise=[4.54, 4.62], suffix='_02red')
             ]
+        # Uses default timeunit
+        # Uses default primary_hdrext
+        # self.sky_file ?
 
     # TODO: Anything that isn't general to the bpm methods for *all*
     # spectrograph should be held as part of the class (like detector)A
     # I think this means that bpm should be created when the data is
     # read using the binning from the fits headers.
-    def bpm(self, binning=None, det=None, **null_kwargs):
+    def bpm(self, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 
         Parameters
         ----------
-        binning : str, REQUIRED
-          Formatted like '1,1'
         det : int, REQUIRED
         **null_kwargs:
            Captured and never used
@@ -182,17 +208,25 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         badpix : ndarray
 
         """
-        xbin, ybin = [int(ii) for ii in binning.split(',')]
-        xshp = 2048 // xbin
-        yshp = 4096 // ybin
-        badpix = np.zeros((yshp, xshp), dtype=np.int)
-        # Do it
+        # Get the empty bpm: force is always True
+        self.empty_bpm(filename=filename, det=det)
+        
+        # Only defined for det=2
         if det == 2:
             msgs.info("Using hard-coded BPM for det=2 on LRISr")
-            badc = 16 // xbin
-            badpix[:, 0:badc] = 1.
-        # Return
-        return badpix
+
+            # Get the binning
+            hdu = fits.open(filename)
+            binning = hdu[0].header['BINNING']
+            hdu.close()
+
+            # Apply the mask
+            # TODO: Does this always give the correct shape?
+            xbin = int(binning.split(',')[0])
+            badc = 16//xbin
+            self.bpm_img[:, 0:badc] = 1
+
+        return self.bpm_img
 
     def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
                        msarc_shape=None, binspectral=None, **null_kwargs):

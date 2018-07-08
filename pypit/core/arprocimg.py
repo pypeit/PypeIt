@@ -650,6 +650,10 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
     """
     Calculate the variance image including detector noise.
 
+    .. todo::
+        This needs particular attention because exptime and darkcurr;
+        used to be dnoise
+
     Args:
         datasec_img (:obj:`numpy.ndarray`):
             Image that identifies which amplifier (1-indexed) was used

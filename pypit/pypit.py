@@ -245,6 +245,20 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     else:
         pass
 
+    # To pass to ARMS:
+    # rdx:
+    #       detnum
+    #       scidir
+    # calibrations
+    # scienceframe
+    # standardframe - can be None
+    # objects
+    # extract
+    # wavecalib
+    # skysubtract - can be None
+    # flexure - can be None
+    # fluxcalib - can be None
+
     # Reduce the data!
     if mode == 'run':
         arsort.make_dirs(arparse.argflag)

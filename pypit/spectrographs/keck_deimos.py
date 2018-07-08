@@ -9,8 +9,9 @@ from astropy.io import fits
 
 from pypit import msgs
 from pypit import arparse
-from ..par.pypitpar import DetectorPar
+from ..par.pypitpar import DetectorPar, InstrumentPar
 from . import spectrograph
+from .. import telescopes
 
 from pypit import ardebug as debugger
 
@@ -22,6 +23,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(KeckDEIMOSSpectrograph, self).__init__()
         self.spectrograph = 'keck_deimos'
+        self.telescope = telescopes.KeckTelescopePar()
+        self.camera = 'DEIMOS'
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.1185,
@@ -56,6 +59,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             darkcurr=3.69, saturation=65535., nonlinear=0.86, numamplifiers=1,
                             gain=1.230, ronoise=2.580, suffix='_08')
             ]
+        # Uses default timeunit
+        # Uses default primary_hdrext
+        # self.sky_file ?
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -94,28 +100,32 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             naxis0: int
             naxis1: int
         """
-        # Check the detector
-        if self.detector is None:
-            raise ValueError('Must first define spectrograph detector parameters!')
-        for d in self.detector:
-            if not isinstance(d, DetectorPar):
-                raise TypeError('Detectors must be specified using a DetectorPar instance.')
+#        # Check the detector
+#        if self.detector is None:
+#            raise ValueError('Must first define spectrograph detector parameters!')
+#        for d in self.detector:
+#            if not isinstance(d, DetectorPar):
+#                raise TypeError('Detectors must be specified using a DetectorPar instance.')
 
         # Read the file
         temp, head0, secs = read_deimos(filename, det)
+        return secs[0], False, False, False
 
-        # Get the data and overscan regions
-        datasec, oscansec = [], []
-        for kk in range(self.detector[det]['numamplifiers']):
-            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
-            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
+#        # Get the data and overscan regions
+#        datasec, oscansec = [], []
+#        for kk in range(self.detector[det]['numamplifiers']):
+#            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
+#            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
+#
+#        # Return the sections and the shape of the image
+#        return (datasec, oscansec) + temp.shape
 
-        # Return the sections and the shape of the image
-        return (datasec, oscansec) + temp.shape
+    def bpm(self, filename=None, det=None, **null_kwargs):
+        """
+        Override parent bpm function with BPM specific to DEIMOS.
 
-    def bpm(self, det=None, **null_kwargs):
-        """ Generate a BPM for DEIMOS
-        Currently assumes 1x1 binning
+        .. todo::
+            Allow for binning changes.
 
         Parameters
         ----------
@@ -129,27 +139,28 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
           0 = ok; 1 = Mask
 
         """
-        bpix = np.zeros((4096, 2048), dtype=int)
+        # TODO: Does this work if the file image is binned?
+        self.empty_bpm(filename=filename, det=det)
         if det == 1:
-            bpix[:,1052:1054] = 1.
+            self.bpm_img[:,1052:1054] = 1
         elif det == 2:
-            bpix[:,0:4] = 1.
-            bpix[:,376:380] = 1.
-            bpix[:,2047] = 1.
+            self.bpm_img[:,0:4] = 1
+            self.bpm_img[:,376:380] = 1
+            self.bpm_img[:,2047] = 1
         elif det == 3:
-            bpix[:,851] = 1.
+            self.bpm_img[:,851] = 1
         elif det == 4:
-            bpix[:,0:4] = 1.
-            bpix[:,997:998] = 1.
+            self.bpm_img[:,0:4] = 1
+            self.bpm_img[:,997:998] = 1
         elif det == 5:
-            bpix[:,129] = 1.
+            self.bpm_img[:,129] = 1
         elif det == 7:
-            bpix[:,426:428] = 1.
+            self.bpm_img[:,426:428] = 1
         elif det == 8:
-            bpix[:,931] = 1.
-            bpix[:,933] = 1.
+            self.bpm_img[:,931] = 1
+            self.bpm_img[:,933] = 1
 
-        return bpix
+        return self.bpm_img
 
     def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
                        msarc_shape=None, **null_kwargs):
@@ -186,6 +197,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             arcparam['min_ampl'] = 2000.  # Lines tend to be very strong
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+
+
+    def 
 
 def read_deimos(raw_file, det=None):
     """

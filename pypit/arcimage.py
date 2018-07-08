@@ -1,26 +1,19 @@
 # Module for generating the Arc image
 from __future__ import absolute_import, division, print_function
 
+import os
 import inspect
 import numpy as np
-import os
 
 from pypit import msgs
 from pypit import processimages
 from pypit import masterframe
 from pypit.core import arsort
+from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 
-# For out of PYPIT running
-if msgs._debug is None:
-    debug = debugger.init()
-    debug['develop'] = True
-    msgs.reset(debug=debug, verbosity=2)
-
-# Does not need to be global, but I prefer it
 frametype = 'arc'
-
 
 class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     """
@@ -61,39 +54,28 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
       Final output image
     """
     # Keep order same as processimages (or else!)
-    def __init__(self, file_list=[], spectrograph=None, settings=None, det=1, setup=None, sci_ID=None,
-                 msbias=None, fitstbl=None):
-
+    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, root_path=None,
+                 mode=None, fitstbl=None, sci_ID=None, msbias=None):
+    
         # Parameters unique to this Object
+        self.fitstbl = fitstbl
         self.sci_ID = sci_ID
         self.msbias = msbias
-        self.fitstbl = fitstbl
-        self.setup = setup
+
+        # Parameters
+        self.par = pypitpar.FrameGroupPar(frametype) if par is None else par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, det=det)
+        processimages.ProcessImages.__init__(self, file_list, spectrograph, det=det,
+                                             combine_par=self.par['combine'],
+                                             lacosmic_par=self.par['lacosmic'])
 
-        # Attributes (set after init)
-        self.frametype = frametype
-
-        # Settings
-        # The copy allows up to update settings with user settings without changing the original
-        if settings is None:
-            # Defaults
-            self.settings = processimages.default_settings()
-        else:
-            self.settings = settings.copy()
-            # The following is somewhat kludgy and the current way we do settings may
-            #   not touch all the options (not sure .update() would help)
-            if 'combine' not in settings.keys():
-                if self.frametype in settings.keys():
-                    self.settings['combine'] = settings[self.frametype]['combine']
-
-        # Child-specific Internals
-        #    See ProcessImages for the rest
-
-        # MasterFrames
-        masterframe.MasterFrame.__init__(self, self.frametype, self.setup, self.settings)
+        # MasterFrames: Specifically pass the ProcessImages-constructed
+        # spectrograph even though it really only needs the string name
+        directory_path = None if root_path is None \
+                                else root_path+'_'+self.spectrograph.spectrograph
+        masterframe.MasterFrame.__init__(self, frametype, setup, directory_path=directory_path,
+                                         mode=mode)
 
     def build_image(self):
         """
@@ -111,5 +93,8 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         self.stack = self.process(bias_subtract=self.msbias)
         #
         return self.stack
+
+    # TODO: There is not master() method.  Does this mean useframe is
+    # always 'arc'?
 
 

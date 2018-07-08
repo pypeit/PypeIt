@@ -14,8 +14,10 @@ import numpy as np
 from pypit import msgs
 from ..par.pypitpar import DetectorPar
 from . import spectrograph
+from .. import telescopes
 
 from pypit import ardebug as debugger
+
 
 class ShaneKastSpectrograph(spectrograph.Spectrograph):
     """
@@ -24,7 +26,9 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
     def __init__(self):
         # Get it started
         super(ShaneKastSpectrograph, self).__init__()
-        self.spectrograph = 'NULL'
+        self.spectrograph = 'shane_kast'
+        self.telescope = telescopes.ShaneTelescopePar()
+        self.timeunit = 's'
 
 
 class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
@@ -35,6 +39,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # Get it started
         super(ShaneKastBlueSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast_blue'
+        self.camera = 'KASTb'
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext=0, dispaxis=1, xgap=0., ygap=0., ysize=1., platescale=0.43,
@@ -44,6 +49,9 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
                             oscansec=[ '[2050:2080,:]', '[2081:2111,:]'],
                             suffix='_blue')
             ]
+        # Uses timeunit from parent class
+        # Uses default primary_hdrext
+        self.sky_file = 'sky_kastb_600.fits'
         
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
@@ -79,6 +87,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         # Get it started
         super(ShaneKastRedSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast_red'
+        self.camera = 'KASTr'
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext=0, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.43,
@@ -88,6 +97,9 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                             oscansec=['[527:625,:]', '[627:725,:]'],
                             suffix='_red')
             ]
+        # Uses timeunit from parent class
+        # Uses default primary_hdrext
+        # self.sky_file = ?
 
     def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
                        binspectral=None, **null_kwargs):
@@ -127,12 +139,17 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         # Get it started
         super(ShaneKastRedRetSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast_red_ret'
+        # WARNING: This is not unique wrt ShaneKastRed...
+        self.camera = 'KASTr'
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext=0, dispaxis=1, xgap=0., ygap=0., ysize=1., platescale=0.774,
                             darkcurr=0.0, saturation=65535., nonlinear=0.76, numamplifiers=1,
                             gain=3.0, ronoise=12.5, oscansec='[1203:1232,:]', suffix='_red')
             ]
+        # Uses timeunit from parent class
+        # Uses default primary_hdrext
+        # self.sky_file = ?
 
     def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
                        binspectral=None, **null_kwargs):

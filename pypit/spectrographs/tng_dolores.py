@@ -14,6 +14,7 @@ import numpy as np
 from pypit import msgs
 from ..par.pypitpar import DetectorPar
 from . import spectrograph
+from .. import telescopes
 
 from pypit import ardebug as debugger
 
@@ -25,6 +26,8 @@ class TngDoloresSpectrograph(spectrograph.Spectrograph):
     def __init__(self):
         super(TngDoloresSpectrograph, self).__init__()
         self.spectrograph = 'tng_dolores'
+        self.telescope = telescopes.TNGTelescopePar()
+        self.camera = 'DOLORES'
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext=0, dispaxis=1, xgap=0., ygap=0., ysize=1., platescale=0.252,
@@ -32,6 +35,9 @@ class TngDoloresSpectrograph(spectrograph.Spectrograph):
                             gain=0.97, ronoise=9.0, datasec='[51:,1:2045]', oscansec='[51:,2054:]',
                             suffix='_lrr')
             ]
+        # Uses default primary_hdrext
+        self.timeunit = 'isot'
+        # self.sky_file = ?
 
     def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
                        binspectral=None, **null_kwargs):
