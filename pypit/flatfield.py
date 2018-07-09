@@ -29,6 +29,10 @@ frametype = 'pixelflat'
 #                        )
 #    return default_settings
 
+# TODO, JFH: I do not understand why ArcImage is its own class whereas there is no class called FlatImage. In principle
+# this is because several codes like tilts, and wv_calib use the msarc so it made sense to make reading the image
+# a separate class. However, that is also true for flats, since the flat fielding code and the tracing code both
+# use the flat image
 class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     """
     This class will generat the pixel-level FlatField
@@ -68,6 +72,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
       Number of knots in the spectral dimension
 
     """
+
+    # TODO user settings need to be added to these codes!!
     # Keep order same as processimages (or else!)
     def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, root_path=None,
                  mode=None, flatpar=None, msbias=None, tslits_dict=None, tilts=None):

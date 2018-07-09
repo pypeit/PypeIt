@@ -689,6 +689,8 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         else:
             det = key
         sdet = arparse.get_dnum(det, caps=True)  # e.g. DET02
+        if 'sciframe' not in sci_output[det]:
+            continue
         # Specified detector number?
         #if settings.argflag['reduce']['detnum'] is not None:
         #    if det not in map(int, settings.argflag['reduce']['detnum']):

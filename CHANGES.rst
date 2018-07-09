@@ -216,15 +216,18 @@
 - Move spectrograph specific code into spectographs/ folder
 - Introduces the Spectrographs class
 - Introduces the Calibrations class with Notebook
-
 - Bug fix in view_fits script
 - Handle no-slits-found condition
-
+- Added NIRES to spectrographs folder
+- Fixed logic in ArcImage class related to settings and user settings
+- Added user settings to some of the other classes.
+- Enabled load_raw_frame to take a negative dispersion axis indicating
+  flips.
+- Major bug fixed in bspline_profile where it was producing gargabe
+  results when breakpoints were being rejected.
 - Edits to Spectrograph class
 - Removed all use of settings in ARMS and its subsequent calls.  ARMS
   now uses PypitPar and its sub parameter sets
-
-
 
 0.7 (2017-02-07)
 ----------------

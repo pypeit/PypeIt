@@ -222,6 +222,10 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, satval,
             if ampl[w[u]] > ampl[olduse][s]:
                 aduse[idxuse[s]] = False
                 break
+    # TODO Perhaps a more robust version of this code would only use the lines that were used in the wavelength solution. I guess
+    # that would filter out these ghosts and it would also filter out blends for which the tracing will be less robust becuase
+    # you are trace_fweighting a blended line?
+
     # Restricted to ID lines? [introduced to avoid LRIS ghosts]
     if idsonly:
         ids_pix = np.round(np.array(wv_calib[str(slitnum)]['xfit'])*(msarc.shape[0]-1))
