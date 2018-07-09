@@ -2,7 +2,6 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import inspect
 import numpy as np
 import os
 
@@ -451,7 +450,11 @@ class Calibrations(object):
             # Now we go forth
             # TODO: This arms argument should be passed to
             # get_slits()
-            self.traceSlits.run(arms=True)
+            self.tslits_dict = self.traceSlits.run(arms=True)
+             # No slits?
+            if self.tslits_dict is None:
+                self.maskslits = None
+                return self.tslits_dict, self.maskslits
             # QA
             if self.write_qa:
                 self.traceSlits._qa()

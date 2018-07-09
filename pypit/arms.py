@@ -135,6 +135,9 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
             pixlocn = caliBrate.get_pixlocn()
             # Slit Tracing
             tslits_dict, maskslits = caliBrate.get_slits()
+            if tslits_dict is None: # No slits
+                # TODO: Add a warning?
+                continue
             # Generate the 1D wavelength solution
             wv_calib, maskslits = caliBrate.get_wv_calib()
             # Derive the spectral tilt
@@ -329,7 +332,10 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
             if key in ['meta']:
                 continue
             #
-            all_specobjs += sci_dict[key]['specobjs']
+            try:
+                all_specobjs += sci_dict[key]['specobjs']
+            except KeyError:  # No object extracted
+                continue
 
         # Write 1D spectra
         save_format = 'fits'
