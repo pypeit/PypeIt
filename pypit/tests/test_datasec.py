@@ -39,6 +39,7 @@ def test_ampsec(spec_class):
     settings_det['datasec02'] = [[1024, 2048], [0, 0]]
     settings_det['oscansec01'] = [[2049, 2080], [0, 0]]
     settings_det['oscansec02'] = [[2080, 2111], [0, 0]]
+    settings_det['dataext'] = 0
     settings_det['dispaxis'] = 1
     #datasec_img, naxis0, naxis1 = arprocimg.get_datasec_trimmed(
     #    settings.argflag['run']['spectrograph'], None, det, settings_det,

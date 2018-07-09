@@ -620,7 +620,6 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     nspec = image.shape[0]
 
     # create some images we will need
-    profile_model = np.zeros((nspec,nspat))
     sub_obj = image
     sub_ivar = ivar
     sub_wave = waveimg
@@ -1249,10 +1248,10 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
         nobj_reg = 0
 
     #ToDo add peak finding QA here!
-    if(PLOT_QA == True):
+    if SHOW_QA:
         plt.plot(np.arange(nsamp), fluxsub, color ='cornflowerblue',linestyle=':', label='Collapsed Slit profile')
         plt.plot(np.arange(nsamp), fluxconv, color='black', label = 'FWHM Convolved Profile')
-        plt.plot(xcen, ypeak, color='lawngreen', marker='o', markersize=2.0, mfc='lawngreen', fillstyle='full',
+        plt.plot(xcen, ypeak, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
                  linestyle='None', zorder = 10,label='Object Found')
         plt.legend()
         plt.show()
@@ -1346,6 +1345,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     yind = np.arange(nspec,dtype=int)
     for iiter in range(niter):
         xpos1, xerr1 = trace_fweight(image*mask,xfit1, invvar = invvar*mask, radius = fwhm_vec[iiter])
+        xerr1 =0.0*xerr1 + 1.0
         # Get the indices of the current trace
         tracemask = np.zeros_like(xpos0,dtype=int)
         #xfit1[:,ireg] = 0.0
@@ -1382,6 +1382,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     for iiter in range(niter):
         # ToDO errors look wrong here. Check them.
         xpos2, xerr2 = trace_gweight(image*mask,xfit2, invvar = invvar*mask, sigma = FWHM/2.3548)
+        xerr2 =0.0*xerr2 + 1.0
         # Get the indices of the current trace
         tracemask = np.zeros_like(xpos0,dtype=int)
         #xfit1[:,ireg] = 0.0
@@ -1535,7 +1536,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
 
 
     # If requested display the resulting traces on top of the image
-    if (nobj > 0) & (SHOW_TRACE is True):
+    if (nobj > 0) & (SHOW_TRACE):
         viewer, ch = ginga.show_image(image*(thismask==True))
         ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = specobjs[0].slitid)
         for iobj in range(nobj):

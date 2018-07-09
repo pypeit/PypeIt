@@ -7,6 +7,7 @@ from pypit import msgs
 from pypit.spectrographs import keck_deimos
 from pypit.spectrographs import keck_lris
 from pypit.spectrographs import keck_nirspec
+from pypit.spectrographs import keck_nires
 from pypit.spectrographs import shane_kast
 from pypit.spectrographs import wht_isis
 from pypit.spectrographs import tng_dolores
@@ -47,6 +48,8 @@ def load_spec_class(spectrograph=None, data_file=None):
             spec_class = wht_isis.WhtIsisBlueSpectrograph()
         elif 'tng_dolores' in spectrograph:
             spec_class = tng_dolores.TngDoloresSpectrograph()
+        elif 'keck_nires' in spectrograph:
+            spec_class = keck_nires.KeckNIRESpectrograph()
         else:
             msgs.error("Spectrograph not supported")
     #
