@@ -1536,7 +1536,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
 
 
     # If requested display the resulting traces on top of the image
-    if (nobj > 0) & SHOW_TRACE):
+    if (nobj > 0) & (SHOW_TRACE):
         viewer, ch = ginga.show_image(image*(thismask==True))
         ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = specobjs[0].slitid)
         for iobj in range(nobj):
