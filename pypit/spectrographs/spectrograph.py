@@ -2,6 +2,8 @@
 """
 from __future__ import absolute_import, division, print_function
 
+import os
+
 from abc import ABCMeta
 from pkg_resources import resource_filename
 
@@ -10,6 +12,7 @@ from astropy.io import fits
 
 from linetools.spectra import xspectrum1d
 
+from .. import arparse
 from .. import arpixels
 from ..par.pypitpar import DetectorPar, TelescopePar
 
@@ -144,117 +147,65 @@ class Spectrograph(object):
         # Return
         return raw_img, head0
 
-    def get_datasec(self, filename, det):
+    def get_image_section(self, filename, det, section='datasec'):
         """
-        Return a string representation of the image slice defining the
-        data section of the detector.
-        
-        This default function of the base class assumes that the
-        detector attribute provides the header keyword with the data
-        section in the extension appropriate to each detector.
+        Return a string representation of a slice defining a section of
+        the detector image.
 
+        This default function of the base class tries to get the image
+        section in two ways, first by assuming the image section
+        defined by the detector is a header keyword, and then by just
+        assuming the detector provides the image section directly.
+
+        This is done separately for the data section and the overscan
+        section in case one is defined as a header keyword and the other
+        is defined directly.
+        
         Args:
             filename (str):
                 data filename
             det (int):
                 Detector number
+            section (:obj:`str`, optional):
+                The section to return.  Should be either datasec or
+                oscansec, according to the :class:`DetectorPar`
+                keywords.
 
         Returns:
-            list, bool: A list of the strings defining the data section
-            for each amplifier and a flag that the data sections should
-            be transposed to appropriately match python numpy arrays.
-
+            list, bool: A list of string representations for the image
+            sections, one string per amplifier, followed by three
+            booleans: if the slices are one indexed, if the slices
+            should include the last pixel, and if the slice should have
+            their order transposed.
         """
+        # Check the section is one of the detector keywords
+        # TODO: Is this too broad?  I didn't want to specify 'datasec'
+        # and 'oscansec' in case those change.
+        if section not in self.detector[det-1].keys():
+            raise ValueError('Unrecognized keyword: {0}'.format(section))
+
+        # Check the detector is defined
         self._check_detector()
-        hdu = fits.open(filename)
-        return [ hdu[self.detector[det-1]['dataext']].header[key] \
-                                for key in self.detector[det-1]['datasec'] ], True, True, True
 
-    @staticmethod
-    def parse_sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None,
-                        transpose=False):
-        """
-        Convert a string representation of an array subsection (slice)
-        into a list of slice objects.
+        # Get the data section
+        try:
+            # Try using the image sections as header keywords
+            hdu = fits.open(filename)
+            image_sections = [ hdu[self.detector[det-1]['dataext']].header[key] \
+                                    for key in self.detector[det-1][section] ]
+            # If this is successful, assume normal FITS header formatting
+            one_indexed = True
+            include_last = True
+            transpose = True
+        except:
+            # Otherwise use the detector definition directly
+            image_sections = self.detector[det-1]['datasec']
+            # and assume the string is python formatted.
+            one_indexed = False
+            include_last = False
+            transpose = False
 
-        .. todo::
-            This is really a general utility that should go somewhere
-            else.
-
-        Args:
-            subarray (str):
-                The string to convert.  Should have the form of normal
-                slice operation, e.g.::
-                    
-                    print(x[:10])
-                    print(x[10:])
-                    print(x[::-1])
-                    print(x[:2,:,:])
-                
-                The string ignores whether or not the string has the
-                brackets '[]', but the string must contain the
-                appropriate ':' and ',' characters.
-            one_indexed (:obj:`bool`, optional):
-                The string should be interpreted as 1-indexed.  Default
-                is to assume python indexing.
-            include_end (:obj:`bool`, optional):
-                **If** the end is defined, adjust the slice such that
-                the last element is included.  Default is to exclude the
-                last element as with normal python slicing.
-            require_dim (:obj:`int`, optional):
-                Test if the string indicates the slice along the proper
-                number of dimensions.
-            transpose (:obj:`bool`, optional):
-                Transpose the order of the returned slices.  The
-                following are equivalent::
-                    
-                    tslices = parse_sec2slice('[:10,10:]')[::-1]
-                    tslices = parse_sec2slice('[:10,10:]', transpose=True)
-
-        Returns:
-            list: A list of slice objects, one per dimension of the
-            prospective array.
-
-        Raises:
-            TypeError:
-                Raised if the input `subarray` is not a string.
-            ValueError:
-                Raised if the string does not match the required
-                dimensionality or if the string does not look like a
-                slice.
-        """
-        # Check it's a string
-        if not isinstance(subarray, basestring):
-            raise TypeError('Can only parse string-based subarray sections.')
-        # Remove brackets if they're included
-        sections = subarray.strip('[]').split(',')
-        # Check the dimensionality
-        ndim = len(sections)
-        if require_dim is not None and ndim != require_dim:
-            raise ValueError('Number of slices ({0}) does not match '.format(ndim) + 
-                             'required dimensions ({0}).'.format(require_dim))
-        # Convert the slice of each dimension from a string to a slice
-        # object
-        slices = []
-        for s in sections:
-            # Must be able to find the colon
-            if ':' not in s:
-                raise ValueError('Unrecognized slice string: {0}'.format(s))
-            # Initial conversion
-            s = [ None if x == '' else int(x) for x in s.split(':') ]
-            if len(s) < 3:
-                # Include step
-                s += [ None ]
-            if one_indexed:
-                # Decrement to convert from 1- to 0-indexing
-                s = [ None if x is None else x-1 for x in s ]
-            if include_end and s[1] is not None:
-                # Increment to include last 
-                s[1] += 1
-            # Append the new slice
-            slices += [slice(*s)]
-
-        return slices[::-1] if transpose else slices
+        return image_sections, one_indexed, include_last, transpose
 
     def get_datasec_img(self, filename, det=1, force=True):
         """
@@ -264,7 +215,10 @@ class Spectrograph(object):
         .. todo::
             - I find 1-indexing to be highly annoying...
             - Check for overlapping amplifiers?
-
+            - Consider renaming this datasec_ampid or something like
+              that.  I.e., the image's main purpose is to tell you where
+              the amplifiers are for the data section
+          
         Args:
             filename (str):
                 Name of the file from which to read the image size.
@@ -284,27 +238,17 @@ class Spectrograph(object):
             # Get the image shape
             self.get_image_shape(filename=filename, det=det)
 
-            # Get the data sections
-            one_indexed = False
-            include_end = False
-            transpose = False
-            try:
-                # First try the default approach
-                data_sections, one_indexed, include_end, transpose \
-                            = self.get_datasec(filename, det)
-            except:
-                # If that doesn't work, assume the detector definitions
-                # are correct and appropriately defined
-                # (Danger, Will Robinson! Danger!)
-                data_sections = self.detector[det-1]['datasec']
+            data_sections, one_indexed, include_end, transpose \
+                    = self.get_image_section(filename, det, section='datasec')
 
             # Initialize the image (0 means no amplifier)
             self.datasec_img = np.zeros(self.naxis, dtype=int)
             for i in range(self.detector[det-1]['numamplifiers']):
                 # Convert the data section from a string to a slice
                 # TODO: Should consider doing this in DetectorPar
-                datasec = Spectrograph.parse_sec2slice(data_sections[i], one_indexed=one_indexed,
-                                                       include_end=include_end, require_dim=2)
+                datasec = arparse.sec2slice(data_sections[i], one_indexed=one_indexed,
+                                            include_end=include_end, require_dim=2,
+                                            transpose=transpose)
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
 #            self.datasec_img = arpixels.pix_to_amp(self.naxis[0], self.naxis[1], 

@@ -88,6 +88,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Start us up
         processimages.ProcessImages.__init__(self, file_list, spectrograph, det=det,
+                                             overscan_par=self.par['overscan'],
                                              combine_par=self.par['combine'],
                                              lacosmic_par=self.par['lacosmic'])
 

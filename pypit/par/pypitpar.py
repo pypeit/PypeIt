@@ -316,7 +316,8 @@ def _get_parset_list(cfg, pk, parsetclass):
 # Reduction ParSets
 
 class FrameGroupPar(ParSet):
-    def __init__(self, frametype=None, useframe=None, number=None, combine=None, lacosmic=None):
+    def __init__(self, frametype=None, useframe=None, number=None, overscan=None, combine=None,
+                 lacosmic=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -344,6 +345,10 @@ class FrameGroupPar(ParSet):
         dtypes['number'] = int
         descr['number'] = 'Number of frames to use of this type'
 
+        defaults['overscan'] = OverscanPar()
+        dtypes['overscan'] = [ ParSet, dict ]
+        descr['overscan'] = 'Parameters used to set the overscan procedure'
+
         defaults['combine'] = CombineFramesPar()
         dtypes['combine'] = [ParSet, dict]
         descr['combine'] = 'Parameters used when combining frames of this type'
@@ -369,6 +374,8 @@ class FrameGroupPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
+        pk = 'overscan'
+        kwargs[pk] = OverscanPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'combine'
         kwargs[pk] = CombineFramesPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'lacosmic'
@@ -610,7 +617,7 @@ class OverscanPar(ParSet):
     @staticmethod
     def valid_methods():
         """
-        Return the valid overscane methods.
+        Return the valid overscan methods.
         """
         return [ 'polynomial', 'savgol', 'median' ]
 
@@ -2021,7 +2028,7 @@ class TelescopePar(ParSet):
         options['name'] = TelescopePar.valid_telescopes()
         dtypes['name'] = basestring
         descr['name'] = 'Name of the telescope used to obtain the observations.  ' \
-                        'Options are: {0}'.format(', '.join(options['telescope']))
+                        'Options are: {0}'.format(', '.join(options['name']))
         
         defaults['longitude'] = 155.47833
         dtypes['longitude'] = [int, float]
@@ -2368,8 +2375,8 @@ class CalibrationsPar(ParSet):
     The superset of parameters needed by the Calibrations class.
     """
     def __init__(self, caldir=None, masters=None, setup=None, trim=None, badpix=None,
-                 flatfield=None, biasframe=None, arcframe=None, pixelflatframe=None,
-                 traceframe=None, wavelengths=None, slits=None, tilts=None):
+                 biasframe=None, arcframe=None, pixelflatframe=None, traceframe=None,
+                 flatfield=None, wavelengths=None, slits=None, tilts=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2409,10 +2416,6 @@ class CalibrationsPar(ParSet):
         dtypes['badpix'] = bool
         descr['badpix'] = 'Make a bad pixel mask? Bias frames must be provided.'
 
-        defaults['flatfield'] = FlatFieldPar()
-        dtypes['flatfield'] = [ ParSet, dict ]
-        descr['flatfield'] = 'Parameters used to set the flat-field procedure'
-
         defaults['biasframe'] = FrameGroupPar(frametype='bias')
         dtypes['biasframe'] = [ ParSet, dict ]
         descr['biasframe'] = 'The frames and combination rules for the bias correction'
@@ -2428,6 +2431,10 @@ class CalibrationsPar(ParSet):
         defaults['traceframe'] = FrameGroupPar(frametype='trace')
         dtypes['traceframe'] = [ ParSet, dict ]
         descr['traceframe'] = 'The frames and combination rules for images used for slit tracing'
+
+        defaults['flatfield'] = FlatFieldPar()
+        dtypes['flatfield'] = [ ParSet, dict ]
+        descr['flatfield'] = 'Parameters used to set the flat-field procedure'
 
         defaults['wavelengths'] = WavelengthSolutionPar()
         dtypes['wavelengths'] = [ ParSet, dict ]
@@ -2461,8 +2468,6 @@ class CalibrationsPar(ParSet):
             kwargs[pk] = cfg[pk] if pk in k else None
 
         # Keywords that are ParSets
-        pk = 'flatfield'
-        kwargs[pk] = FlatFieldPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'biasframe'
         kwargs[pk] = FrameGroupPar.from_dict('bias', cfg[pk]) if pk in k else None
         pk = 'arcframe'
@@ -2471,6 +2476,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('pixelflat', cfg[pk]) if pk in k else None
         pk = 'traceframe'
         kwargs[pk] = FrameGroupPar.from_dict('trace', cfg[pk]) if pk in k else None
+        pk = 'flatfield'
+        kwargs[pk] = FlatFieldPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'wavelengths'
         kwargs[pk] = WavelengthSolutionPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'slits'
@@ -2506,9 +2513,10 @@ class PypitPar(ParSet):
     .. todo::
 
         - Is there a better way we can identify and group frames?  Do we
-          need to carry around the *id and *group parameters during the
+          need to carry around the *id and *frame parameters during the
           entire pypit run?
-        - Should the FrameIDPar groups become part of InstrumentPar?
+        - Read overscan as a single parameter set that is assigned to
+          all of the frame groups.
     """
     def __init__(self, rdx=None, calibrations=None, standardframe=None, scienceframe=None,
                  objects=None, extract=None, skysubtract=None, flexure=None, wavecalib=None,
@@ -2713,6 +2721,8 @@ class PypitPar(ParSet):
             masters = 'reuse'
         if argflag['reduce']['masters']['force']:
             masters = 'force'
+        overscan = OverscanPar(method=argflag['reduce']['overscan']['method'],
+                               params=argflag['reduce']['overscan']['params'])
         return cls(rdx=ReducePar(spectrograph=argflag['run']['spectrograph'],
                                  pipeline=spect['mosaic']['reduction'],
                                  ncpus=argflag['run']['ncpus'],
@@ -2723,17 +2733,10 @@ class PypitPar(ParSet):
                                                  setup=argflag['reduce']['masters']['setup'],
                                                  trim=argflag['reduce']['trim'],
                                                  badpix=argflag['reduce']['badpix'],
-                        flatfield=FlatFieldPar(frame=argflag['reduce']['flatfield']['useframe'],
-                                        slitprofile=argflag['reduce']['slitprofile']['perform'],
-                                        method=argflag['reduce']['flatfield']['method'] if 
-                                                argflag['reduce']['flatfield']['perform'] else None,
-                                        params=argflag['reduce']['flatfield']['params'],
-                                        twodpca=None if '2dpca' not in
-                                                argflag['reduce']['flatfield'].keys()
-                                                else argflag['reduce']['flatfield']['2dpca']),
                         biasframe=FrameGroupPar(frametype='bias',
                                                 useframe=argflag['bias']['useframe'],
                                                 number=spect['bias']['number'],
+                                                overscan=overscan,
                             combine=CombineFramesPar(match=None,
                                         method=argflag['bias']['combine']['method'],
                                         satpix=argflag['bias']['combine']['satpix'],
@@ -2745,6 +2748,7 @@ class PypitPar(ParSet):
                         pixelflatframe=FrameGroupPar(frametype='pixelflat',
                                                      useframe=argflag['pixelflat']['useframe'],
                                                      number=spect['pixelflat']['number'],
+                                                     overscan=overscan,
                             combine=CombineFramesPar(match=None,
                                         method=argflag['pixelflat']['combine']['method'],
                                         satpix=argflag['pixelflat']['combine']['satpix'],
@@ -2756,6 +2760,7 @@ class PypitPar(ParSet):
                         arcframe=FrameGroupPar(frametype='arc',
                                                useframe=argflag['arc']['useframe'],
                                                number=spect['arc']['number'],
+                                               overscan=overscan,
                             combine=CombineFramesPar(match=None,
                                         method=argflag['arc']['combine']['method'],
                                         satpix=argflag['arc']['combine']['satpix'],
@@ -2767,6 +2772,7 @@ class PypitPar(ParSet):
                         traceframe=FrameGroupPar(frametype='trace',
                                                useframe=argflag['trace']['useframe'],
                                                number=spect['trace']['number'],
+                                               overscan=overscan,
                             combine=CombineFramesPar(match=None,
                                         method=argflag['trace']['combine']['method'],
                                         satpix=argflag['trace']['combine']['satpix'],
@@ -2775,6 +2781,16 @@ class PypitPar(ParSet):
                                       sig_lohi=argflag['trace']['combine']['reject']['level'],
                                       replace=argflag['trace']['combine']['reject']['replace']),
                             lacosmic=LACosmicPar() ),
+                        overscan=OverscanPar(method=argflag['reduce']['overscan']['method'],
+                                             params=argflag['reduce']['overscan']['params']),
+                        flatfield=FlatFieldPar(frame=argflag['reduce']['flatfield']['useframe'],
+                                        slitprofile=argflag['reduce']['slitprofile']['perform'],
+                                        method=argflag['reduce']['flatfield']['method'] if 
+                                                argflag['reduce']['flatfield']['perform'] else None,
+                                        params=argflag['reduce']['flatfield']['params'],
+                                        twodpca=None if '2dpca' not in
+                                                argflag['reduce']['flatfield'].keys()
+                                                else argflag['reduce']['flatfield']['2dpca']),
                         wavelengths=WavelengthSolutionPar(
                                             method=argflag['arc']['calibrate']['method'],
                                             lamps=argflag['arc']['calibrate']['lamps'],
@@ -2812,6 +2828,7 @@ class PypitPar(ParSet):
                                     FrameGroupPar(frametype='standard',
                                                   useframe=argflag['standard']['useframe'],
                                                   number=spect['standard']['number'],
+                                                  overscan=overscan,
                         combine=CombineFramesPar(match=None,
                                         method=argflag['standard']['combine']['method'],
                                         satpix=argflag['standard']['combine']['satpix'],
@@ -2820,7 +2837,7 @@ class PypitPar(ParSet):
                                       sig_lohi=argflag['standard']['combine']['reject']['level'],
                                       replace=argflag['standard']['combine']['reject']['replace']),
                         lacosmic=LACosmicPar() ),
-                    scienceframe=FrameGroupPar(frametype='science'),
+                    scienceframe=FrameGroupPar(frametype='science', overscan=overscan),
                     objects=TraceObjectsPar(function=argflag['trace']['object']['function'],
                                             order=argflag['trace']['object']['order'],
                                             find=argflag['trace']['object']['find'],
@@ -2842,7 +2859,6 @@ class PypitPar(ParSet):
                                         refframe=argflag['reduce']['calibrate']['refframe']),
                    fluxcalib=FluxCalibrationPar() 
                                 if argflag['reduce']['calibrate']['flux'] else None )
-
 
     # TODO: Perform extensive checking that the parameters are valid for
     # a full run of PYPIT.  May not be necessary because validate will

@@ -21,64 +21,118 @@ try:
 except NameError:
     basestring = str
 
-def badpix(frame, numamplifiers, datasec, sigdev=10.0):
+# TODO: Add sigdev to a parameter list
+def find_bad_pixels(bias, numamplifiers, datasec, sigdev=10.0, trim=True):
     """
-    frame is a master bias frame
-    numamplifiers : int
-    datasec : list
-    sigdev is the number of standard deviations away from the median that a pixel needs to be in order to be classified as a bad pixel
+    Identify bad pixels in the datasection of the bias frame based on
+    their robust deviation from the median.
+
+    Args:
+        bias (:obj:`numpy.ndarray`):
+            Bias frame
+        numamplifiers (int):
+            Number of amplifiers
+        datasec (list):
+            List of slices, one per amplifier, that contain the data in
+            the raw frame.  The slices and be lists of slice ojects or
+            strings.  If they are strings, :func:`arparse.sec2slice` is
+            used to convert them for use in the function.
+        sigdev (:obj:`float`, optional):
+            Number of robust standard deviations beyond which to flag
+            pixels as bad.
+        trim (:obj:`bool`, optional):
+            Flag to trim image to the data section.
+
+    Returns:
+        :obj:`numpy.ndarray`: An integer array with bad pixels set to 1.
+
+    Raises:
+        ValueError:
+            Raised if the number of data sections does not match the
+            number of amplifiers.
     """
-    bpix = np.zeros_like(frame, dtype=np.int)
-    subfr, tframe, temp = None, None, None
-    #for i in range(settings.spect[dnum]['numamplifiers']):
+    # Check input
+    if len(datasec) != numamplifiers:
+        raise ValueError('Number of amplifiers does not match provided data sections.')
+
+    # If the input image sections are strings, convert them
+    if isinstance(datasec[0], str):
+        _datasec = datasec.copy()
+        for i in range(numamplifiers):
+            _datasec[i] = arparse.sec2slice(datasec[i], require_dim=2)
+    else:
+        _datasec = datasec
+
+    # Find the bad pixels and mask them
+    mask = np.zeros_like(bias, dtype=np.int8)
+    is_data = np.zeros_like(bias, dtype=bool)
     for i in range(numamplifiers):
-        #datasec = "datasec{0:02d}".format(i+1)
-        x0, x1 = datasec[i][0][0], datasec[i][0][1]
-        y0, y1 = datasec[i][1][0], datasec[i][1][1]
-        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
-        xv = np.arange(x0, x1)
-        yv = np.arange(y0, y1)
-        # Construct an array with the rows and columns to be extracted
-        w = np.ix_(xv,yv)
-        tframe = frame[w]
-        temp = np.abs(np.median(tframe)-tframe)
-        sigval = max(np.median(temp)*1.4826, 1.4826)
-        ws = np.where(temp > sigdev*sigval)
-        subfr = np.zeros(tframe.shape, dtype=np.int)
-        subfr[ws] = 1
-        bpix[w] = subfr
-    del subfr, tframe, temp
-    # Finally, trim the bad pixel frame
-    bpix = trim(bpix, numamplifiers, datasec)
-    msgs.info("Identified {0:d} bad pixels".format(int(np.sum(bpix))))
-    return bpix
+        is_data[datasec[i]] = True
+        temp = np.abs(np.median(bias[datasec[i]])-bias[datasec[i]])
+        sigval = 1.4826*max(np.median(temp), 1)
+        mask[datasec[i]][temp > sigdev*sigval] = 1
+
+    msgs.info("Identified {0:d} bad pixels".format(int(np.sum(mask))))
+    return mask[is_data] if trim else mask
 
 
-def bias_subtract(rawframe, msbias, numamplifiers=None, datasec=None, oscansec=None):
-    """ Core routine for bias subtraction
-    Calls sub_overscan if msbias == 'overscan'
+#def badpix(frame, numamplifiers, datasec, sigdev=10.0):
+#    """
+#    frame is a master bias frame
+#    numamplifiers : int
+#    datasec : list
+#    sigdev is the number of standard deviations away from the median that a pixel needs to be in order to be classified as a bad pixel
+#    """
+#    bpix = np.zeros_like(frame, dtype=np.int)
+#    subfr, tframe, temp = None, None, None
+#    #for i in range(settings.spect[dnum]['numamplifiers']):
+#    for i in range(numamplifiers):
+#        #datasec = "datasec{0:02d}".format(i+1)
+#        x0, x1 = datasec[i][0][0], datasec[i][0][1]
+#        y0, y1 = datasec[i][1][0], datasec[i][1][1]
+#        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
+#        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+#        xv = np.arange(x0, x1)
+#        yv = np.arange(y0, y1)
+#        # Construct an array with the rows and columns to be extracted
+#        w = np.ix_(xv,yv)
+#        tframe = frame[w]
+#        temp = np.abs(np.median(tframe)-tframe)
+#        sigval = max(np.median(temp)*1.4826, 1.4826)
+#        ws = np.where(temp > sigdev*sigval)
+#        subfr = np.zeros(tframe.shape, dtype=np.int)
+#        subfr[ws] = 1
+#        bpix[w] = subfr
+#    del subfr, tframe, temp
+#    # Finally, trim the bad pixel frame
+#    bpix = trim(bpix, numamplifiers, datasec)
+#    msgs.info("Identified {0:d} bad pixels".format(int(np.sum(bpix))))
+#    return bpix
 
-    Parameters
-    ----------
-    rawframe : ndarray
-    msbias : ndarray or str
 
-    Returns
-    -------
-    newframe : ndarray
-      Bias subtracted frame
-
-    """
-    if type(msbias) is np.ndarray:
-        msgs.info("Subtracting bias image from raw frame")
-        newframe = rawframe-msbias  # Subtract the master bias frame
-    elif isinstance(msbias, basestring):
-        if msbias == "overscan":
-            newframe = sub_overscan(rawframe, numamplifiers, datasec, oscansec, settings=None)
-        else:
-            msgs.error("Could not subtract bias level with the input bias approach") #when loading {0:s} frames".format(frametype))
-    return newframe
+#def bias_subtract(rawframe, msbias, numamplifiers=None, datasec=None, oscansec=None):
+#    """ Core routine for bias subtraction
+#    Calls sub_overscan if msbias == 'overscan'
+#
+#    Parameters
+#    ----------
+#    rawframe : ndarray
+#    msbias : ndarray or str
+#
+#    Returns
+#    -------
+#    newframe : ndarray
+#      Bias subtracted frame
+#
+#    """
+#    if isinstance(msbias, np.ndarray):
+#        msgs.info("Subtracting bias image from raw frame")
+#        # Subtract the master bias frame
+#        return rawframe-msbias
+#    elif isinstance(msbias, basestring) and msbias == 'overscan':
+#        return subtract_overscan(rawframe, numamplifiers, datasec, oscansec, settings=None)
+#    
+#    msgs.error('Could not subtract bias level with the input bias approach.')
 
 
 '''
@@ -445,100 +499,196 @@ def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
                                 mask=indx).filled(0.0)
 
 
-def sub_overscan(rawframe, numamplifiers, datasec, oscansec, settings=None):
+def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol', params=[5, 65]):
     """
     Subtract overscan
 
-    Parameters
-    ----------
-    frame : ndarray
-      frame which should have the overscan region subtracted
-    numamplifiers : int
-    datasec : list
-      Specifies the data sections, one sub-list per amplifier
-    oscansec : list
-      Specifies the overscan sections, one sub-list per amplifier
-    settings : dict, optional
-      Describes the internal options for the overscan subtraction
-      Perhaps we would prefer all of these be on the method call eventually??
+    Args:
+        frame (:obj:`numpy.ndarray`):
+            Frame from which to subtract overscan
+        numamplifiers (int):
+            Number of amplifiers for this detector.
+        datasec (list):
+            List of slices, one per amplifier, that contain the data in
+            the raw frame.  The slices and be lists of slice ojects or
+            strings.  If they are strings, :func:`arparse.sec2slice` is
+            used to convert them for use in the function.
+        oscansec (list):
+            List of slices, one per amplifier, that contain the
+            overscane regions in the raw frame.  The slices and be lists
+            of slice ojects or strings.  If they are strings,
+            :func:`arparse.sec2slice` is used to convert them for use in
+            the function.
+        method (:obj:`str`, optional):
+            The method used to fit the overscan region.  Options are
+            polynomial, savgol, median.
+        params (:obj:`list`, optional):
+            Parameters for the overscan subtraction.  For
+            method=polynomial, set params = order, number of pixels,
+            number of repeats ; for method=savgol, set params = order,
+            window size ; for method=median, params are ignored.
 
-    Returns
-    -------
-    frame : ndarray
-      The input frame with the overscan region subtracted
+    Returns:
+        :obj:`numpy.ndarray`: The input frame with the overscan region
+        subtracted
     """
-    #dnum = settings.get_dnum(det)
-    if settings is None:
-        settings = dict(reduce={'overscan': {'method': 'savgol', 'params': [5,65]}})
+    # Check input
+    if len(datasec) != numamplifiers or len(oscansec) != numamplifiers:
+        raise ValueError('Number of amplifiers does not match provided image sections.')
 
-
+    # If the input image sections are strings, convert them
+    if isinstance(datasec[0], str):
+        _datasec = datasec.copy()
+        for i in range(numamplifiers):
+            _datasec[i] = arparse.sec2slice(datasec[i], require_dim=2)
+    else:
+        _datasec = datasec
+            
+    if isinstance(oscansec[0], str):
+        _oscansec = oscansec.copy()
+        for i in range(numamplifiers):
+            _oscansec[i] = arparse.sec2slice(oscansec[i], require_dim=2)
+    else:
+        _oscansec = oscansec
+    
+    # Check that there are no overlapping data sections
+    testframe = np.zeros_like(rawframe, dtype=int)
     for i in range(numamplifiers):
-        # Determine the section of the chip that contains data
-        #datasec = "datasec{0:02d}".format(i+1)
-        #dx0, dx1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-        #dy0, dy1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
-        dx0, dx1 = datasec[i][0][0], datasec[i][0][1]
-        dy0, dy1 = datasec[i][1][0], datasec[i][1][1]
-        if dx0 < 0: dx0 += rawframe.shape[0]
-        if dx1 <= 0: dx1 += rawframe.shape[0]
-        if dy0 < 0: dy0 += rawframe.shape[1]
-        if dy1 <= 0: dy1 += rawframe.shape[1]
-        xds = np.arange(dx0, dx1)
-        yds = np.arange(dy0, dy1)
-        # Determine the section of the chip that contains the overscan region
-        #oscansec = "oscansec{0:02d}".format(i+1)
-        #ox0, ox1 = settings.spect[dnum][oscansec][0][0], settings.spect[dnum][oscansec][0][1]
-        #oy0, oy1 = settings.spect[dnum][oscansec][1][0], settings.spect[dnum][oscansec][1][1]
-        ox0, ox1 = oscansec[i][0][0], oscansec[i][0][1]
-        oy0, oy1 = oscansec[i][1][0], oscansec[i][1][1]
-        if ox0 < 0: ox0 += rawframe.shape[0]
-        if ox1 <= 0: ox1 += min(rawframe.shape[0], dx1)  # Truncate to datasec
-        if oy0 < 0: oy0 += rawframe.shape[1]
-        if oy1 <= 0: oy1 += min(rawframe.shape[1], dy1)  # Truncate to datasec
-        xos = np.arange(ox0, ox1)
-        yos = np.arange(oy0, oy1)
-        w = np.ix_(xos, yos)
-        oscan = rawframe[w]
-        # Make sure the overscan section has at least one side consistent with datasec
-        if dx1-dx0 == ox1-ox0:
-            osfit = np.median(oscan, axis=1)  # Mean was hit by CRs
-        elif dy1-dy0 == oy1-oy0:
-            osfit = np.median(oscan, axis=0)
-        elif settings['reduce']['overscan']['method'].lower() == "median":
-            osfit = np.median(oscan)
-        else:
-            msgs.error("Overscan sections do not match amplifier sections for amplifier {0:d}".format(i+1))
+        testframe[_datasec[i]] += 1
+    if np.any(testfram > 1):
+        raise ValueError('Image has overlapping data sections!')
+
+    # Copy the data so that the subtraction is not done in place
+    nobias = rawframe.copy()
+
+    # Perform the bias subtraction for each amplifier
+    for i in range(numamplifiers):
+        # Pull out the overscan data
+        overscan = rawframe[_oscansec[i]]
+
+        # Shape along at least one axis must match
+        data_shape = rawframe[_datasec[i]].shape
+        if not numpy.any([ dd == do for dd, do in zip(data_shape, overscan.shape)]):
+            msgs.error('Overscan sections do not match amplifier sections for'
+                       'amplifier {0}'.format(i+1))
+        compress_axis = 1 if data_shape[0] == overscan.shape[0] else 0
+        
         # Fit/Model the overscan region
-        if settings['reduce']['overscan']['method'].lower() == "polynomial":
-            c = np.polyfit(np.arange(osfit.size), osfit, settings['reduce']['overscan']['params'][0])
-            ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
-        elif settings['reduce']['overscan']['method'].lower() == "savgol":
-            ossub = signal.savgol_filter(osfit,
-                                         settings['reduce']['overscan']['params'][1],
-                                         settings['reduce']['overscan']['params'][0])
-        elif settings['reduce']['overscan']['method'].lower() == "median":  # One simple value
-            ossub = osfit * np.ones(1)
+        osfit = np.median(overscan, axis=compress_axis) if method.lower() == 'median' \
+                        else np.median(overscan)
+        if method.lower() == 'polynomial':
+            # TODO: Use np.polynomial.polynomial.polyfit instead?
+            c = np.polyfit(np.arange(osfit.size), osfit, params[0])
+            ossub = np.polyval(c, np.arange(osfit.size))
+        elif method.lower() == 'savgol':
+            ossub = signal.savgol_filter(osfit, params[1], params[0])
+        elif method.lower() == 'median':
+            # Subtract scalar and continue
+            nobias[_datasec[i]] -= osfit
+            continue
         else:
-            msgs.warn("Overscan subtraction method {0:s} is not implemented".format(settings['reduce']['overscan']['method']))
-            msgs.info("Using a linear fit to the overscan region")
-            c = np.polyfit(np.arange(osfit.size), osfit, 1)
-            ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
-        # Determine the section of the chip that contains data for this amplifier
-        if i==0:
-            frame = rawframe.copy()
-        wd = np.ix_(xds, yds)
-        ossub = ossub.reshape(osfit.size, 1)
-        if wd[0].shape[0] == ossub.shape[0]:
-            frame[wd] -= ossub
-        elif wd[1].shape[1] == ossub.shape[0]:
-            frame[wd] -= ossub.T
-        elif settings['reduce']['overscan']['method'].lower() == "median":
-            frame[wd] -= osfit
-        else:
-            msgs.error("Could not subtract bias from overscan region --"+msgs.newline()+"size of extracted regions does not match")
-    # Return
-    del xds, yds, xos, yos, oscan
-    return frame
+            raise ValueError('Unrecognized overscan subtraction method: {0}'.format(method))
+
+        # Subtract along the appropriate axis
+        nobias[_datasec[i]] -= (ossub[:,None] if compress_axis == 1 else ossub[None,:])
+
+    return nobias
+
+
+
+#def sub_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol', params=[5, 65]):
+#    """
+#    Subtract overscan
+#
+#    Args:
+#        frame (:obj:`numpy.ndarray`):
+#            Frame from which to subtract overscan
+#        numamplifiers (int):
+#            Number of amplifiers for this detector.
+#        datasec (list):
+#            Specifies the data sections, one sub-list per amplifier
+#        oscansec (list):
+#            Specifies the overscan sections, one sub-list per amplifier
+#        method (:obj:`str`, optional):
+#            The method used to fit the overscan region.  Options are
+#            polynomial, savgol, median.
+#        params (:obj:`list`, optional):
+#            Parameters for the overscan subtraction.  For
+#            method=polynomial, set params = order, number of pixels,
+#            number of repeats ; for method=savgol, set params = order,
+#            window size ; for method=median, params are ignored.
+#    Returns:
+#        :obj:`numpy.ndarray`: The input frame with the overscan region
+#        subtracted
+#    """
+#    for i in range(numamplifiers):
+#        # Determine the section of the chip that contains data
+#        dx0, dx1 = datasec[i][0][0], datasec[i][0][1]
+#        dy0, dy1 = datasec[i][1][0], datasec[i][1][1]
+#        if dx0 < 0: dx0 += rawframe.shape[0]
+#        if dx1 <= 0: dx1 += rawframe.shape[0]
+#        if dy0 < 0: dy0 += rawframe.shape[1]
+#        if dy1 <= 0: dy1 += rawframe.shape[1]
+#        xds = np.arange(dx0, dx1)
+#        yds = np.arange(dy0, dy1)
+#
+#        # Determine the section of the chip that contains the overscan
+#        # region
+#        ox0, ox1 = oscansec[i][0][0], oscansec[i][0][1]
+#        oy0, oy1 = oscansec[i][1][0], oscansec[i][1][1]
+#        if ox0 < 0: ox0 += rawframe.shape[0]
+#        if ox1 <= 0: ox1 += min(rawframe.shape[0], dx1)  # Truncate to datasec
+#        if oy0 < 0: oy0 += rawframe.shape[1]
+#        if oy1 <= 0: oy1 += min(rawframe.shape[1], dy1)  # Truncate to datasec
+#        xos = np.arange(ox0, ox1)
+#        yos = np.arange(oy0, oy1)
+#        w = np.ix_(xos, yos)
+#        oscan = rawframe[w]
+#
+#        # Make sure the overscan section has at least one side consistent with datasec
+#        if dx1-dx0 == ox1-ox0:
+#            osfit = np.median(oscan, axis=1)  # Mean was hit by CRs
+#        elif dy1-dy0 == oy1-oy0:
+#            osfit = np.median(oscan, axis=0)
+#        elif method.lower() == 'median':
+#            osfit = np.median(oscan)
+#        else:
+#            msgs.error('Overscan sections do not match amplifier sections for'
+#                       'amplifier {0}'.format(i+1))
+#
+#        # Fit/Model the overscan region
+#        if method.lower() == 'polynomial':
+#            c = np.polyfit(np.arange(osfit.size), osfit, params[0])
+#            ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
+#        elif method.lower() == 'savgol':
+#            ossub = signal.savgol_filter(osfit, params[1], params[0])
+#        elif method.lower() == 'median':  # One simple value
+#            ossub = osfit * np.ones(1)
+#        else:
+#            # TODO: Should we raise an exception instead?
+#            msgs.warn('Unknown overscan subtraction method: {0}'.format(method))
+#            msgs.info('Using a linear fit to the overscan region')
+#            c = np.polyfit(np.arange(osfit.size), osfit, 1)
+#            ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
+#
+#        # Determine the section of the chip that contains data for this amplifier
+#        if i==0:
+#            frame = rawframe.copy()
+#        wd = np.ix_(xds, yds)
+#        ossub = ossub.reshape(osfit.size, 1)
+#        if wd[0].shape[0] == ossub.shape[0]:
+#            frame[wd] -= ossub
+#        elif wd[1].shape[1] == ossub.shape[0]:
+#            frame[wd] -= ossub.T
+#        elif method.lower() == 'median':
+#            frame[wd] -= osfit
+#        else:
+#            msgs.error("Could not subtract bias from overscan region --" 
+#                       + msgs.newline() + "size of extracted regions does not match")
+#
+#    # Return
+#    del xds, yds, xos, yos, oscan
+#    return frame
 
 
 def replace_columns(img, bad_cols, replace_with='mean'):

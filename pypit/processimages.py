@@ -14,7 +14,7 @@ from pypit.core import arprocimg
 from pypit.core import arflat
 from pypit import ginga
 
-from .par.pypitpar import CombineFramesPar, LACosmicPar
+from .par.pypitpar import OverscanPar, CombineFramesPar, LACosmicPar
 
 from .spectrographs.spectrograph import Spectrograph
 from .spectrographs.util import load_spectrograph
@@ -59,6 +59,15 @@ class ProcessImages(object):
             preconstructed instance of :class:`Spectrograph`.
         det (:obj:`int`, optional):
             The 1-indexed number of the detector.  Default is 1.
+        overscan_par (:obj:`OverscanPar`, optional):
+            Parameters that dictate the treatment of the overscan
+            region.
+        combine_par (:obj:`CombineFramesPar`, optional):
+            Parameters used when combining frames.  See
+            `pypit.par.pypitpar.CombineFramesPar` for the defaults.
+        lacosmic_par (:obj:`LACosmicPar`, optional):
+            Parameters used for cosmic-ray detection.  See
+            `pypit.par.pypitpar.LACosmicPar` for the defaults.
 
     Attributes:
         file_list (list):
@@ -72,14 +81,19 @@ class ProcessImages(object):
         proc_images (:obj:`numpy.ndarray`):
             3D array of processed, individual images
         datasec (list):
+            List of **slice** objects that select the data section from
+            the images.
         oscansec (list):
+            List of **slice** objects that select the overscan section
+            from the images.
 
     Raises:
         IOError: Raised if the provided file_list is not a list.
         TypeError: Raised if the spectrograph is not a :obj:`str` or
             :class:`Spectrograph`.
     """
-    def __init__(self, file_list, spectrograph, det=1, combine_par=None, lacosmic_par=None):
+    def __init__(self, file_list, spectrograph, det=1, overscan_par=None, combine_par=None,
+                 lacosmic_par=None):
 
         # Required parameters
         if not isinstance(file_list, list):
@@ -96,6 +110,10 @@ class ProcessImages(object):
         # Optional
         self.det = det
 
+        if overscan_par is not None and not isinstance(overscan_par, OverscanPar):
+            raise TypeError('Provided ParSet for combining frames must be type CombineFramesPar.')
+        self.overscan_par = OverscanPar() if overscan_par is None else overscan_par
+
         if combine_par is not None and not isinstance(combine_par, CombineFramesPar):
             raise TypeError('Provided ParSet for combining frames must be type CombineFramesPar.')
         self.combine_par = CombineFramesPar() if combine_par is None else combine_par
@@ -105,11 +123,6 @@ class ProcessImages(object):
         self.lacosmic_par = LACosmicPar() if lacosmic_par is None else lacosmic_par
 
         self.frametype='Unknown'
-#        # TODO: bpm should be loaded and held by the spectrograph class
-#        try:
-#            self.bpm = self.spectrograph.bpm(det=self.det)
-#        except Exception as e:
-#            msgs.error('Error constructing bpm for {0}'.format(self.spectrograph.spectrograph))
 
         # Main (possible) outputs
         self.stack = None
@@ -200,29 +213,25 @@ class ProcessImages(object):
             img, head = self.spectrograph.load_raw_frame(ifile, det=self.det)
             self.raw_images.append(img)
             self.headers.append(head)
-        # Grab datasec (almost always desired)
-        self._grab_datasec(redo=True)
+        # Get the data sections
+        self.datasec, one_indexed, include_end, transpose \
+                = self.spectrograph.get_image_section(self.file_list[0], self.det,
+                                                      section='datasec')
+        self.datasec = [ arparse.sec2slice(sec, one_indexed=one_indexed,
+                                           include_end=include_end, require_dim=2,
+                                           transpose=transpose) for sec in self.datasec ]
+        # Get the overscan sections
+        self.oscansec, one_indexed, include_end, transpose \
+                = self.spectrograph.get_image_section(self.file_list[0], self.det,
+                                                      section='oscansec')
+        self.oscansec = arparse.sec2slice(self.oscansec, one_indexed=one_indexed,
+                                          include_end=include_end, require_dim=2,
+                                          transpose=transpose)
+        self.oscansec = [ arparse.sec2slice(sec, one_indexed=one_indexed,
+                                            include_end=include_end, require_dim=2,
+                                            transpose=transpose) for sec in self.oscansec ]
         # Step
         self.steps.append(inspect.stack()[0][3])
-
-    def _grab_datasec(self, redo=False):
-        """
-        Load the datasec parameters
-
-        Parameters
-        ----------
-        redo : bool, optional
-
-        Returns
-        -------
-        self.datasec : list
-        self.oscansec : list
-        """
-        if (self.datasec is not None) and (not redo):
-            return
-        # Spectrograph specific
-        self.datasec, self.oscansec, _, _ \
-                    = self.spectrograph.get_datasec(self.file_list[0], self.det)
 
     def apply_gain(self):
         """
@@ -236,7 +245,10 @@ class ProcessImages(object):
         self.mspixelflat -- Modified internally
 
         """
-        datasec_img = self.spectrograph.get_datasec_img(file_list[0], det=self.det)
+        # TODO: This is overkill when self.datasec is loaded, and this
+        # call is made for a few of the steps.  Can we be more
+        # efficient?
+        datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
         self.stack *= arprocimg.gain_frame(datasec_img,
                                            self.spectrograph.detector[self.det-1]['numamplifiers'],
                                            self.spectrograph.detector[self.det-1]['gain'])
@@ -246,7 +258,7 @@ class ProcessImages(object):
         # Return
         return self.stack
 
-    def bias_subtract(self, msbias, trim=True, force=False):
+    def bias_subtract(self, msbias, trim=True, force=False, overscan_par=None):
         """
         Subtract the bias.
 
@@ -267,16 +279,38 @@ class ProcessImages(object):
                       "and do it again. Returning...")
             return
 
+        # Set the overscan parameters
+        if overscan_par is not None and not isinstance(overscan_par, OverscanPar):
+            raise TypeError('Provided ParSet for overscan subtraction must be type OverscanPar.')
+        if overscan_par is not None:
+            self.overscan_par = overscan_par
+
+        # If trimming, get the image identifying amplifier used for the
+        # data section
+        datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+
         msgs.info("Bias subtracting your image(s)")
         # Reset proc_images -- Is there any reason we wouldn't??
         numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
         for kk,image in enumerate(self.raw_images):
-            # Bias subtract
-            temp = arprocimg.bias_subtract(image, msbias, numamplifiers=numamplifiers,
-                                           datasec=self.datasec, oscansec=self.oscansec)
+
+            # Bias subtract (move here from arprocimg)
+            if isinstance(msbias, np.ndarray):
+                msgs.info("Subtracting bias image from raw frame")
+                temp = rawframe-msbias
+            elif isinstance(msbias, basestring) and msbias == 'overscan':
+                temp = arprocimg.subtract_overscan(rawframe, numamplifiers, self.datasec,
+                                                   self.oscansec,
+                                                   method=self.overscan_par['method'],
+                                                   params=self.overscan_par['params'])
+            else:
+                msgs.error('Could not subtract bias level with the input bias approach.')
+
             # Trim?
             if trim:
-                temp = arprocimg.trim(temp, numamplifiers, self.datasec)
+                # TODO: Does this work?
+                temp = temp[datasec_img > 0]
+#                temp = arprocimg.trim(temp, numamplifiers, self.datasec)
 
             # Save
             if kk==0:
@@ -462,7 +496,8 @@ class ProcessImages(object):
 
         """
         msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
-        datasec_img = self.spectrograph.get_datasec_img(file_list[0], det=self.det)
+        # TODO: This is overkill when self.datasec is loaded...
+        datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
         detector = self.spectrograph.detector[self.det-1]
         self.rawvarframe = arprocimg.variance_frame(datasec_img, self.stack,
                                                     detector['gain'], detector['ronoise'],

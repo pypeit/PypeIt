@@ -57,7 +57,7 @@ class BPMImage(object):
 
     """
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph, shape=None, filename=None, det=None, msbias=None):
+    def __init__(self, spectrograph, shape=None, filename=None, det=None, msbias=None, trim=True):
 
         # Spectrograph is required
         if isinstance(spectrograph, basestring):
@@ -74,6 +74,7 @@ class BPMImage(object):
 
         # Used to construct the BPM from the bias
         self.msbias = msbias
+        self.trim = trim
 
         # Attributes (set after init)
         self.frametype = frametype
@@ -91,21 +92,22 @@ class BPMImage(object):
 
         """
         # Will raise an exception if could not construct the BPM
-        self.bpm_img = self.spectrograph.bpm(shape=self.shape, filename=self.filename,
-                                             det=self.det) if self.msbias is None else \
-                            arprocimg.badpix(self.msbias,
+        if self.msbias is None:
+            # TODO: Is this trimmed?
+            self.bpm_img = self.spectrograph.bpm(shape=self.shape, filename=self.filename,
+                                                 det=self.det)
+            return self.bpm_img
+
+        # Get the data sections
+        datasec, one_indexed, include_end, transpose \
+                = self.spectrograph.get_image_section(self.filename, self.det, section='datasec')
+        datasec = [ arparse.sec2slice(sec, one_indexed=one_indexed, include_end=include_end,
+                                      require_dim=2, transpose=transpose) for sec in datasec ]
+       
+        # Identify the bad pixels
+        self.bpm_img = arprocimg.find_bad_pixels(self.msbias,
                                     self.spectrograph.detector[self.det-1]['numamplifiers'],
-                                    self.spectrograph.detector[self.det-1]['datasec'])
+                                    datasec, trim=self.trim)
         return self.bpm_img
-#            # Get all of the bias frames for this science frame
-#            if self.msbias is None:
-#                msgs.warn("No bias frame provided!")
-#                msgs.info("Not preparing a bad pixel mask")
-#                return False
-#            # TODO -- Deal better with this datasec kludge
-#            datasec = []
-#            for i in range(self.settings['detector']['numamplifiers']):
-#                sdatasec = "datasec{0:02d}".format(i+1)
-#                datasec.append(self.settings['detector'][sdatasec])
 
 

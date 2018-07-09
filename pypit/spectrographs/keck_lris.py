@@ -54,41 +54,88 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         return raw_img, head0
 
-    def get_datasec(self, filename, det):
+    def get_image_section(self, filename, det, section='datasec'):
         """
-        Load up the datasec and oscansec and also naxis0 and naxis1
+        Return a string representation of a slice defining a section of
+        the detector image.
 
+        Overwrites base class function to use :func:`read_lris` to get
+        the image sections.
+
+        .. todo::
+            - It feels really ineffiecient to just get the image section
+              using the full :func:`read_lris`.  Can we parse that
+              function into something that can give you the image
+              section directly?
+
+        This is done separately for the data section and the overscan
+        section in case one is defined as a header keyword and the other
+        is defined directly.
+        
         Args:
             filename (str):
                 data filename
             det (int):
                 Detector number
+            section (:obj:`str`, optional):
+                The section to return.  Should be either datasec or
+                oscansec, according to the :class:`DetectorPar`
+                keywords.
 
         Returns:
-            datasec: list
-            oscansec: list
-            naxis0: int
-            naxis1: int
+            list, bool: A list of string representations for the image
+            sections, one string per amplifier, followed by three
+            booleans: if the slices are one indexed, if the slices
+            should include the last pixel, and if the slice should have
+            their order transposed.
         """
-#        # Check the detector
-#        if self.detector is None:
-#            raise ValueError('Must first define spectrograph detector parameters!')
-#        for d in self.detector:
-#            if not isinstance(d, DetectorPar):
-#                raise TypeError('Detectors must be specified using a DetectorPar instance.')
-        
         # Read the file
         temp, head0, secs = read_lris(filename, det)
-        return secs[0], False, False, False
+        if section == 'datasec':
+            return secs[0], False, False, False
+        elif section == 'oscansec':
+            return secs[1], False, False, False
+        else:
+            raise ValueError('Unrecognized keyword: {0}'.format(section))
 
-#        # Get the data and overscan regions
-#        datasec, oscansec = [], []
-#        for kk in range(self.detector[det]['numamplifiers']):
-#            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
-#            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
+#    def get_datasec(self, filename, det):
+#        """
+#        Load up the datasec and oscansec and also naxis0 and naxis1
 #
-#        # Return the sections and the shape of the image
-#        return (datasec, oscansec) + temp.shape
+#        .. todo::
+#            - To be deprecated in favor of :func:`get_image_sections`
+#
+#        Args:
+#            filename (str):
+#                data filename
+#            det (int):
+#                Detector number
+#
+#        Returns:
+#            datasec: list
+#            oscansec: list
+#            naxis0: int
+#            naxis1: int
+#        """
+##        # Check the detector
+##        if self.detector is None:
+##            raise ValueError('Must first define spectrograph detector parameters!')
+##        for d in self.detector:
+##            if not isinstance(d, DetectorPar):
+##                raise TypeError('Detectors must be specified using a DetectorPar instance.')
+#        
+#        # Read the file
+#        temp, head0, secs = read_lris(filename, det)
+#        return secs[0], False, False, False
+#
+##        # Get the data and overscan regions
+##        datasec, oscansec = [], []
+##        for kk in range(self.detector[det]['numamplifiers']):
+##            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
+##            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
+##
+##        # Return the sections and the shape of the image
+##        return (datasec, oscansec) + temp.shape
 
     def get_image_shape(self, filename=None, det=None, **null_kwargs):
         """

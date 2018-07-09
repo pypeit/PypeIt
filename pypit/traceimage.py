@@ -70,6 +70,7 @@ class TraceImage(processimages.ProcessImages):
         self.frametype = frametype
         self.par = pypitpar.FrameGroupPar(frametype) if par is None else par
         processimages.ProcessImages.__init__(self, file_list, spectrograph, det=det,
+                                             overscan_par=self.par['overscan'],
                                              combine_par=self.par['combine'],
                                              lacosmic_par=self.par['lacosmic'])
 

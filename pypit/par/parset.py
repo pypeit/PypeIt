@@ -634,6 +634,24 @@ class ParSet(object):
         with open(cfg_file, 'a' if append else 'w') as f:
             f.write('\n'.join(config_output))
 
+    def validate_keys(self, required=None, can_be_None=None):
+        if required is None and can_be_None is None:
+            # No validation rules, so implicitly valid
+            return
+
+        if required is not None:
+            not_defined = numpy.array([ k not in self.keys() for k in required ])
+            if numpy.any(not_defined):
+                raise ValueError('Required keys were not defined: {0}'.format(
+                                    numpy.asarray(required)[not_defined].tolist()))
+
+        if can_be_None is not None:
+            should_not_be_None = numpy.array([ self.data[k] is None and k not in can_be_None 
+                                                                    for k in self.keys()])
+            if numpy.any(should_not_be_None):
+                raise ValueError('These keys should not be None: {0}'.format(
+                                    numpy.asarray(self.keys())[should_not_be_None].tolist()))
+
 
 class ParDatabase(object):
     """

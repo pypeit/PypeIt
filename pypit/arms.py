@@ -19,11 +19,16 @@ from pypit import fluxspec
 from pypit import scienceimage
 from pypit.par import pypitpar
 
-from pypit import arparse as settings
+#from pypit import arparse as settings
 
 from .spectrographs.util import load_spectrograph
 
 from pypit import ardebug as debugger
+
+try:
+    basestring
+except NameError:
+    basestring = str
 
 def ARMS(spectrograph, fitstbl, setup_dict, par=None):
     """
@@ -77,11 +82,10 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
     _par = pypitpar.PypitPar() if par is None else par
     if not isinstance(_par, pypitpar.PypitPar):
         raise TypeError('Input parameters must be a PypitPar instance.')
-    required_keys = [ 'rdx', 'calibrations', 'scienceframe', 'standardframe', 'objects',
-                      'extract', 'wavecalib', 'skysubtract', 'flexure', 'fluxcalib' ]
+    required = [ 'rdx', 'calibrations', 'scienceframe', 'standardframe', 'objects', 'extract',
+                 'wavecalib', 'skysubtract', 'flexure', 'fluxcalib' ]
     can_be_None = [ 'standardframe', 'skysubtract', 'flexure', 'fluxcalib' ]
-    if not _par.can_proceed(required_keys, can_be_None=can_be_None):
-        raise ValueError('Cannot proceed with reductions!')
+    _par.validate_keys(required=required, can_be_None=can_be_None)
 
     # Init calib dict
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl, spectrograph=_spectrograph,
@@ -109,8 +113,8 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
                 else:
                     msgs.warn("Restricting the reduction to detector {:d}".format(det))
             # Setup
-            dnum = settings.get_dnum(det)
-            msgs.info("Working on detector {:s}".format(dnum))
+#            dnum = settings.get_dnum(det)
+            msgs.info("Working on detector {0}".format(det))
             # TODO: Should this be det or dnum; can we deprecate dnum?
             sci_dict[det] = {}
 
@@ -238,8 +242,6 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
                 if specobjs is not None:
                     msgs.info("Performing a {0} correction".format(_par['wavecalib']['refframe']))
 
-                    settings_mosaic = {}  # For long, lat of observatory
-                    settings_mosaic['mosaic'] = settings.spect['mosaic'].copy()
                     vel, vel_corr = arwave.geomotion_correct(specobjs, maskslits, fitstbl, scidx,
                                                              obstime,
                                                              _spectrograph.telescope['longitude'],

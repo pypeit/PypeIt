@@ -60,7 +60,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         self.bpm_img[:, :20] = 1.
         self.bpm_img[:, 1000:] = 1.
         return self.bpm_img
-        
 
     def setup_arcparam(self, arcparam, fitstbl=None, arc_idx=None,
                        msarc_shape=None, **null_kwargs):

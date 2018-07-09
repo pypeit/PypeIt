@@ -27,11 +27,16 @@ from pypit import wavecalib
 from pypit import wavetilts
 from pypit import waveimage
 
-from pypit.par import pypitpar
-
-from pypit.spectrographs.util import load_spectrograph
+from .par import pypitpar
+from .spectrographs.util import load_spectrograph
+from .spectrographs.spectrograph import Spectrograph
 
 from pypit import ardebug as debugger
+
+try:
+    basestring
+except NameError:
+    basestring = str
 
 # TODO: Make sure the attributes checked with chk_set make sense
 
@@ -294,17 +299,6 @@ class Calibrations(object):
         scifile = os.path.join(self.fitstbl['directory'][scidx], self.fitstbl['filename'][scidx])
         # Generate the spectrograph-specific amplifier ID image
         return self.spectrograph.get_datasec_img(scifile, self.det)
-
-#        # datasec, etc.
-#        datasec, _, naxis0, naxis1 = self.spectro_class.get_datasec(
-#            scifile, self.det, self.settings['detector'])
-#        self.settings['detector']['naxis0'] = naxis0
-#        self.settings['detector']['naxis1'] = naxis1
-#        # Datasec image
-#        self.datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec,
-#                                               self.settings['detector']['numamplifiers'])
-#        # Return
-#        return self.datasec_img, naxis0, naxis1
 
     def get_pixflatnrm(self):
         """
