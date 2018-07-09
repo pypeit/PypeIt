@@ -339,6 +339,10 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
             except KeyError:  # No object extracted
                 continue
 
+        if len(all_specobjs) == 0:
+            msgs.warn('No objects!')
+            continue
+
         # Write 1D spectra
         save_format = 'fits'
         if save_format == 'fits':

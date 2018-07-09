@@ -7,9 +7,15 @@ import os
 from pypit import msgs
 from pypit.core import arprocimg
 
+from .spectrographs.spectrograph import Spectrograph
 from .spectrographs.util import load_spectrograph
 
 from pypit import ardebug as debugger
+
+try:
+    basestring
+except NameError:
+    basestring = str
 
 # Does not need to be global, but I prefer it
 frametype = 'bpm'

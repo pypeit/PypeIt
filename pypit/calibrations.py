@@ -272,11 +272,10 @@ class Calibrations(object):
         scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) \
                             & self.fitstbl['science'])[0][0]
 
-        self.bpmImage = bpmimage.BPMImage(self.spectrograph, shape=self.shape,
-                                          filename=self.fitstbl['filename'][scidx], det=self.det,
-                                          msbias=self.msbias
-                                                if self.par['badpix'] == 'bias' else None,
-                                          trim=self.par['trim'])
+        bpmImage = bpmimage.BPMImage(self.spectrograph, shape=self.shape,
+                                     filename=self.fitstbl['filename'][scidx], det=self.det,
+                                     msbias=self.msbias if self.par['badpix'] == 'bias' else None,
+                                     trim=self.par['trim'])
         # Build, save, and return
         self.msbpm = bpmImage.build()
         self.calib_dict[self.setup]['bpm'] = self.msbpm
@@ -604,9 +603,9 @@ class Calibrations(object):
         self._chk_set(['spectrograph', 'shape'])
 
         # Get the pixel locations
-        xgap=self.spectrograph.detector[self.det-1]['xgap'],
-        ygap=self.spectrograph.detector[self.det-1]['ygap'],
-        ysize=self.spectrograph.detector[self.det-1]['ysize'],
+        xgap=self.spectrograph.detector[self.det-1]['xgap']
+        ygap=self.spectrograph.detector[self.det-1]['ygap']
+        ysize=self.spectrograph.detector[self.det-1]['ysize']
         self.pixlocn = arpixels.core_gen_pixloc(self.shape, xgap=xgap, ygap=ygap, ysize=ysize)
 
         # Return
