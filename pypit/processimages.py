@@ -8,16 +8,18 @@ import os
 from astropy.io import fits
 
 from pypit import msgs
-from pypit import ardebug as debugger
 from pypit import arcomb
 from pypit.core import arprocimg
 from pypit.core import arflat
 from pypit import ginga
+from pypit import arparse
 
 from .par.pypitpar import OverscanPar, CombineFramesPar, LACosmicPar
 
 from .spectrographs.spectrograph import Spectrograph
 from .spectrographs.util import load_spectrograph
+
+from pypit import ardebug as debugger
 
 try:
     basestring
@@ -224,9 +226,6 @@ class ProcessImages(object):
         self.oscansec, one_indexed, include_end, transpose \
                 = self.spectrograph.get_image_section(self.file_list[0], self.det,
                                                       section='oscansec')
-        self.oscansec = arparse.sec2slice(self.oscansec, one_indexed=one_indexed,
-                                          include_end=include_end, require_dim=2,
-                                          transpose=transpose)
         self.oscansec = [ arparse.sec2slice(sec, one_indexed=one_indexed,
                                             include_end=include_end, require_dim=2,
                                             transpose=transpose) for sec in self.oscansec ]
@@ -297,9 +296,10 @@ class ProcessImages(object):
             # Bias subtract (move here from arprocimg)
             if isinstance(msbias, np.ndarray):
                 msgs.info("Subtracting bias image from raw frame")
-                temp = rawframe-msbias
+                temp = image-msbias
             elif isinstance(msbias, basestring) and msbias == 'overscan':
-                temp = arprocimg.subtract_overscan(rawframe, numamplifiers, self.datasec,
+                msgs.info("Using overscan to subtact")
+                temp = arprocimg.subtract_overscan(image, numamplifiers, self.datasec,
                                                    self.oscansec,
                                                    method=self.overscan_par['method'],
                                                    params=self.overscan_par['params'])
@@ -308,9 +308,7 @@ class ProcessImages(object):
 
             # Trim?
             if trim:
-                # TODO: Does this work?
-                temp = temp[datasec_img > 0]
-#                temp = arprocimg.trim(temp, numamplifiers, self.datasec)
+                temp = arprocimg.trim_frame(temp, datasec_img < 1)
 
             # Save
             if kk==0:

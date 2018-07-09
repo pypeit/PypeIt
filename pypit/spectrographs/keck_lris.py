@@ -164,13 +164,35 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         self.camera = 'LRISb'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.135,
-                            darkcurr=0.0, saturation=65535., nonlinear=0.86, numamplifiers=2,
-                            gain=[1.55, 1.56], ronoise=[3.9, 4.2], suffix='_01blue'),
+                DetectorPar(dataext         = 1,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.135,
+                            darkcurr        = 0.0,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 2,
+                            gain            = [1.55, 1.56],
+                            ronoise         = [3.9, 4.2],
+                            suffix          = '_01blue'
+                            ),
                 #Detector 2
-                DetectorPar(dataext=2, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.135,
-                            darkcurr=0., saturation=65535., nonlinear=0.86, numamplifiers=2,
-                            gain=[1.63, 1.70], ronoise=[3.6, 3.6], suffix='_02blue')
+                DetectorPar(dataext         = 2,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.135,
+                            darkcurr        = 0.,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 2,
+                            gain            = [1.63, 1.70],
+                            ronoise         = [3.6, 3.6],
+                            suffix          = '_02blue'
+                            )
             ]
         # Uses default timeunit
         # Uses default primary_hdrext
@@ -225,13 +247,35 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         self.camera = 'LRISr'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.135,
-                            darkcurr=0.0, saturation=65535., nonlinear=0.76, numamplifiers=2,
-                            gain=[1.255, 1.18], ronoise=[4.64, 4.76], suffix='_01red'),
+                DetectorPar(dataext         =1,
+                            dispaxis        =0,
+                            xgap            =0.,
+                            ygap            =0.,
+                            ysize           =1.,
+                            platescale      =0.135,
+                            darkcurr        =0.0,
+                            saturation      =65535.,
+                            nonlinear       =0.76,
+                            numamplifiers   =2,
+                            gain            =[1.255, 1.18],
+                            ronoise         =[4.64, 4.76],
+                            suffix          ='_01red'
+                            ),
                 #Detector 2
-                DetectorPar(dataext=2, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.135,
-                            darkcurr=0., saturation=65535., nonlinear=0.76, numamplifiers=2,
-                            gain=[1.191, 1.162], ronoise=[4.54, 4.62], suffix='_02red')
+                DetectorPar(dataext         =2,
+                            dispaxis        =0,
+                            xgap            =0.,
+                            ygap            =0.,
+                            ysize           =1.,
+                            platescale      =0.135,
+                            darkcurr        =0.,
+                            saturation      =65535., 
+                            nonlinear       =0.76,
+                            numamplifiers   =2,
+                            gain            =[1.191, 1.162],
+                            ronoise         =[4.54, 4.62],
+                            suffix          ='_02red'
+                            )
             ]
         # Uses default timeunit
         # Uses default primary_hdrext

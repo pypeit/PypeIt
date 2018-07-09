@@ -28,9 +28,21 @@ class KeckNIRESpectrograph(spectroclass.Spectrograph):
         self.camera = 'NIRES'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext=0, dispaxis=1, xgap=0., ygap=0., ysize=1., platescale=0.123,
-                            darkcurr=0.01, saturation=65535., nonlinear=0.76, numamplifiers=1,
-                            gain=3.8, ronoise=2, datasec='[:,:]', oscansec='[:,:]')
+                DetectorPar(dataext         = 0,
+                            dispaxis        = 1,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.123,
+                            darkcurr        = 0.01,
+                            saturation      = 65535.,
+                            nonlinear       = 0.76,
+                            numamplifiers   = 1,
+                            gain            = 3.8,
+                            ronoise         = 2,
+                            datasec         = '[:,:]',
+                            oscansec        = '[:,:]'
+                            )
             ]
         # Uses default timeunit
         # Uses default primary_hdrext

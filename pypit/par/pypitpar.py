@@ -2781,8 +2781,6 @@ class PypitPar(ParSet):
                                       sig_lohi=argflag['trace']['combine']['reject']['level'],
                                       replace=argflag['trace']['combine']['reject']['replace']),
                             lacosmic=LACosmicPar() ),
-                        overscan=OverscanPar(method=argflag['reduce']['overscan']['method'],
-                                             params=argflag['reduce']['overscan']['params']),
                         flatfield=FlatFieldPar(frame=argflag['reduce']['flatfield']['useframe'],
                                         slitprofile=argflag['reduce']['slitprofile']['perform'],
                                         method=argflag['reduce']['flatfield']['method'] if 

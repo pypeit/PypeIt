@@ -275,7 +275,8 @@ class Calibrations(object):
         self.bpmImage = bpmimage.BPMImage(self.spectrograph, shape=self.shape,
                                           filename=self.fitstbl['filename'][scidx], det=self.det,
                                           msbias=self.msbias
-                                                if self.par['badpix'] == 'bias' else None)
+                                                if self.par['badpix'] == 'bias' else None,
+                                          trim=self.par['trim'])
         # Build, save, and return
         self.msbpm = bpmImage.build()
         self.calib_dict[self.setup]['bpm'] = self.msbpm

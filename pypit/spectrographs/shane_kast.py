@@ -42,12 +42,22 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         self.camera = 'KASTb'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext=0, dispaxis=1, xgap=0., ygap=0., ysize=1., platescale=0.43,
-                            darkcurr=0.0, saturation=65535., nonlinear=0.76, numamplifiers=2,
-                            gain=[1.2, 1.2], ronoise=[3.7, 3.7],
-                            datasec=[ '[1:1024,:]', '[1025:2048,:]'],
-                            oscansec=[ '[2050:2080,:]', '[2081:2111,:]'],
-                            suffix='_blue')
+                DetectorPar(dataext         = 0,
+                            dispaxis        = 1,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.43,
+                            darkcurr        = 0.0,
+                            saturation      = 65535.,
+                            nonlinear       = 0.76,
+                            numamplifiers   = 2,
+                            gain            = [1.2, 1.2],
+                            ronoise         = [3.7, 3.7],
+                            datasec         = [ '[1:1024,:]', '[1025:2048,:]'],
+                            oscansec        = [ '[2050:2080,:]', '[2081:2111,:]'],
+                            suffix          = '_blue'
+                            )
             ]
         # Uses timeunit from parent class
         # Uses default primary_hdrext
@@ -90,12 +100,22 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         self.camera = 'KASTr'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext=0, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.43,
-                            darkcurr=0.0, saturation=65535., nonlinear=0.76, numamplifiers=2,
-                            gain=[1.9, 1.9], ronoise=[3.8, 3.8],
-                            datasec=['[2:511,:]', '[513:525,:]'],
-                            oscansec=['[527:625,:]', '[627:725,:]'],
-                            suffix='_red')
+                DetectorPar(dataext         = 0,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.43,
+                            darkcurr        = 0.0,
+                            saturation      = 65535.,
+                            nonlinear       = 0.76,
+                            numamplifiers   = 2,
+                            gain            = [1.9, 1.9],
+                            ronoise         = [3.8, 3.8],
+                            datasec         = ['[2:511,:]', '[513:525,:]'],
+                            oscansec        = ['[527:625,:]', '[627:725,:]'],
+                            suffix          = '_red'
+                            )
             ]
         # Uses timeunit from parent class
         # Uses default primary_hdrext
@@ -143,9 +163,21 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         self.camera = 'KASTr'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext=0, dispaxis=1, xgap=0., ygap=0., ysize=1., platescale=0.774,
-                            darkcurr=0.0, saturation=65535., nonlinear=0.76, numamplifiers=1,
-                            gain=3.0, ronoise=12.5, oscansec='[1203:1232,:]', suffix='_red')
+                DetectorPar(dataext         = 0,
+                            dispaxis        = 1,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.774,
+                            darkcurr        = 0.0,
+                            saturation      = 65535.,
+                            nonlinear       = 0.76,
+                            numamplifiers   = 1,
+                            gain            = 3.0,
+                            ronoise         = 12.5,
+                            oscansec        = '[1203:1232,:]',
+                            suffix          = '_red'
+                            )
             ]
         # Uses timeunit from parent class
         # Uses default primary_hdrext

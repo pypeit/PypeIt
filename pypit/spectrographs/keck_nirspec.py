@@ -31,9 +31,19 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         self.camera = 'NIRSPEC'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext=0, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.193,
-                            darkcurr=0.8, saturation=65535., nonlinear=0.76, numamplifiers=1,
-                            gain=5.8, ronoise=23)
+                DetectorPar(dataext         = 0,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.193,
+                            darkcurr        = 0.8,
+                            saturation      = 65535.,
+                            nonlinear       = 0.76,
+                            numamplifiers   = 1,
+                            gain            = 5.8,
+                            ronoise         = 23
+                            )
             ]
         # Uses default timeunit
         # Uses default primary_hdrext

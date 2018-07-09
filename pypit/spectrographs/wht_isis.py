@@ -39,9 +39,21 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
         self.camera = 'ISISb'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext=1, dispaxis=0, xgap=0., ygap=0., ysize=1., platescale=0.225,
-                            darkcurr=0.0, saturation=65535., nonlinear=0.76, numamplifiers=1,
-                            gain=1.2, ronoise=5.0, datasec='[:,2:4030]', suffix='_blue')
+                DetectorPar(dataext         = 1,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.225,
+                            darkcurr        = 0.0,
+                            saturation      = 65535.,
+                            nonlinear       = 0.76,
+                            numamplifiers   = 1,
+                            gain            = 1.2,
+                            ronoise         = 5.0,
+                            datasec         = '[:,2:4030]',
+                            suffix          = '_blue'
+                            )
             ]
         # Uses default timeunit
         # Uses default primary_hdrext

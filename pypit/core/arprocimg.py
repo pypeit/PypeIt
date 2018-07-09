@@ -73,7 +73,7 @@ def find_bad_pixels(bias, numamplifiers, datasec, sigdev=10.0, trim=True):
         mask[datasec[i]][temp > sigdev*sigval] = 1
 
     msgs.info("Identified {0:d} bad pixels".format(int(np.sum(mask))))
-    return mask[is_data] if trim else mask
+    return trim_frame(mask, np.invert(is_data)) if trim else mask
 
 
 #def badpix(frame, numamplifiers, datasec, sigdev=10.0):
@@ -741,58 +741,85 @@ def replace_columns(img, bad_cols, replace_with='mean'):
     return img2
 
 
-def trim(frame, numamplifiers, datasec):
-    """ Core method to trim an input image
-
-    Parameters
-    ----------
-    frame : ndarray
-    numamplifiers : int
-    datasec : list of datasecs
-      One per amplifier
-
-    Returns
-    -------
-    frame : ndarray
-      Trimmed
+def trim_frame(frame, mask):
     """
-    for i in range(numamplifiers):
-        #datasec = "datasec{0:02d}".format(i+1)
-        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
-        x0, x1 = datasec[i][0][0], datasec[i][0][1]
-        y0, y1 = datasec[i][1][0], datasec[i][1][1]
-        # Fuss with edges
-        if x0 < 0:
-            x0 += frame.shape[0]
-        if x1 <= 0:
-            x1 += frame.shape[0]
-        if y0 < 0:
-            y0 += frame.shape[1]
-        if y1 <= 0:
-            y1 += frame.shape[1]
-        if i == 0:
-            xv = np.arange(x0, x1)
-            yv = np.arange(y0, y1)
-        else:
-            xv = np.unique(np.append(xv, np.arange(x0, x1)))
-            yv = np.unique(np.append(yv, np.arange(y0, y1)))
-    # Construct and array with the rows and columns to be extracted
-    w = np.ix_(xv, yv)
-#	if len(file.shape) == 2:
-#		trimfile = file[w]
-#	elif len(file.shape) == 3:
-#		trimfile = np.zeros((w[0].shape[0],w[1].shape[1],file.shape[2]))
-#		for f in range(file.shape[2]):
-#			trimfile[:,:,f] = file[:,:,f][w]
-#	else:
-#		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))
-    try:
-        return frame[w]
-    except:
-        msgs.bug("Odds are datasec is set wrong. Maybe due to transpose")
-        debugger.set_trace()
-        msgs.error("Cannot trim file")
+    Trim the masked regions from a frame.
+
+    Args:
+        frame (:obj:`numpy.ndarray`):
+            Image to be trimmed
+        mask (:obj:`numpy.ndarray`):
+            Boolean image set to True for values that should be trimmed
+            and False for values to be returned in the output trimmed
+            image.
+
+    Return:
+        :obj:`numpy.ndarray`:
+            Trimmed image
+
+    Raises:
+        PypitError:
+            Error raised if the trimmed image includes masked values
+            because the shape of the valid region is odd.
+    """
+    # TODO: Should check for this failure mode earlier
+    if np.any(mask[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]):
+        msgs.error('Data section is oddly shaped.  Trimming does not exclude all '
+                   'pixels outside the data sections.')
+    return frame[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]
+
+#def trim(frame, numamplifiers, datasec):
+#    """ Core method to trim an input image
+#
+#    Parameters
+#    ----------
+#    frame : ndarray
+#    numamplifiers : int
+#    datasec : list of datasecs
+#      One per amplifier
+#
+#    Returns
+#    -------
+#    frame : ndarray
+#      Trimmed
+#    """
+#    for i in range(numamplifiers):
+#        #datasec = "datasec{0:02d}".format(i+1)
+#        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
+#        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+#        x0, x1 = datasec[i][0][0], datasec[i][0][1]
+#        y0, y1 = datasec[i][1][0], datasec[i][1][1]
+#        # Fuss with edges
+#        if x0 < 0:
+#            x0 += frame.shape[0]
+#        if x1 <= 0:
+#            x1 += frame.shape[0]
+#        if y0 < 0:
+#            y0 += frame.shape[1]
+#        if y1 <= 0:
+#            y1 += frame.shape[1]
+#        if i == 0:
+#            xv = np.arange(x0, x1)
+#            yv = np.arange(y0, y1)
+#        else:
+#            xv = np.unique(np.append(xv, np.arange(x0, x1)))
+#            yv = np.unique(np.append(yv, np.arange(y0, y1)))
+#    # Construct and array with the rows and columns to be extracted
+#    w = np.ix_(xv, yv)
+##	if len(file.shape) == 2:
+##		trimfile = file[w]
+##	elif len(file.shape) == 3:
+##		trimfile = np.zeros((w[0].shape[0],w[1].shape[1],file.shape[2]))
+##		for f in range(file.shape[2]):
+##			trimfile[:,:,f] = file[:,:,f][w]
+##	else:
+##		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))
+#    try:
+#        return frame[w]
+#    except:
+#        msgs.bug("Odds are datasec is set wrong. Maybe due to transpose")
+#        debugger.set_trace()
+#        msgs.error("Cannot trim file")
 
 
 def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
