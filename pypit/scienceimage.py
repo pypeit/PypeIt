@@ -417,7 +417,7 @@ class ScienceImage(processimages.ProcessImages):
                                                   trace_objects_par['nsmooth'],
                                                   xedge=trace_objects_par['xedge'],
                                                   manual=extract_objects_par['manual'],
-                                                  manual=extract_objects_par['maxnumber'])
+                                                  maxnumber=extract_objects_par['maxnumber'])
             # Append
             self.tracelist += tlist
 

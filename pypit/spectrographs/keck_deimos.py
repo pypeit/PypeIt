@@ -199,8 +199,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 
-    def 
-
 def read_deimos(raw_file, det=None):
     """
     Read a raw DEIMOS data frame (one or more detectors)

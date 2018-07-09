@@ -74,7 +74,7 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
     # TODO: This needs to parse settings...
 
     # Parameter Setups
-    _par = pypitpar.PypitPar() if par is None par
+    _par = pypitpar.PypitPar() if par is None else par
     if not isinstance(_par, pypitpar.PypitPar):
         raise TypeError('Input parameters must be a PypitPar instance.')
     required_keys = [ 'rdx', 'calibrations', 'scienceframe', 'standardframe', 'objects',
@@ -299,7 +299,7 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
 
             # Names and time
             std_basename = stdI.init_time_names(_spectograph.camera,
-                                                timeunit=_spectrograph.timeunit])[1]
+                                                timeunit=_spectrograph.timeunit)[1]
             # Process (includes Variance image and CRs)
             stdframe = stdI.process(msbias, mspixflatnrm, apply_gain=True)[0]
             # Sky

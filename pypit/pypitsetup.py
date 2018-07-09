@@ -15,13 +15,6 @@ from pypit import arparse
 from pypit.core import arsort
 from pypit.core import arsetup
 
-# For out of PYPIT running
-if msgs._debug is None:
-    debug = debugger.init()
-    debug['develop'] = True
-    msgs.reset(debug=debug, verbosity=2)
-
-
 class PypitSetup(object):
     """Class to handle setup
 
