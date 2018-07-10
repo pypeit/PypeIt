@@ -492,6 +492,33 @@ class CombineFramesPar(ParSet):
     def validate(self):
         pass
 
+    def to_header(self, hdr):
+        """
+        Write the parameters to a header object.
+        """
+        # 'match' isn't used!
+        hdr['COMBMAT'] = ('{0}'.format(self.data['match']), 'Frame combination matching')
+        hdr['COMBMETH'] = (self.data['method'], 'Method used to combine frames')
+        hdr['COMBSATP'] = (self.data['satpix'], 'Saturated pixel handling when combining frames')
+        hdr['COMBCOS'] = ('{0}'.format(self.data['cosmics']),
+                                'Cosmic ray rejection when combining')
+        hdr['COMBNLH'] = (','.join([ '{0}'.format(n) for n in self.data['n_lohi']]),
+                                'N low and high pixels rejected when combining')
+        hdr['COMBSLH'] = (','.join([ '{0:.1f}'.format(s) for s in self.data['sig_lohi']]),
+                                'Low and high sigma rejection when combining')
+        hdr['COMBREPL'] = (self.data['replace'], 'Method used to replace pixels when combining')
+
+    @classmethod
+    def from_header(cls, hdr):
+        """
+        Instantiate the object from parameters read from a fits header.
+        """
+        return cls(match=eval(hdr['COMBMAT']), method=hdr['COMBMETH'], satpix=hdr['COMBSATP'],
+                   cosmics=eval(hdr['COMBCOS']),
+                   n_lohi=[int(p) for p in hdr['COMBNLH'].split(',')],
+                   sig_lohi=[float(p) for p in hdr['COMBSLH'].split(',')],
+                   replace=hdr['COMBREPL'])
+
 
 class LACosmicPar(ParSet):
     """
@@ -561,6 +588,29 @@ class LACosmicPar(ParSet):
 
     def validate(self):
         pass
+
+    def to_header(self, hdr):
+        """
+        Write the parameters to a header object.
+        """
+        # 'match' isn't used!
+        hdr['LACMAXI'] = ('{0}'.format(self.data['maxiter']), 'Max iterations for LA cosmic')
+        hdr['LACGRW'] = ('{0:.1f}'.format(self.data['grow']), 'Growth radius for LA cosmic')
+        hdr['LACRMC'] = (str(self.data['rmcompact']), 'Compact objects removed by LA cosmic')
+        hdr['LACSIGC'] = ('{0:.1f}'.format(self.data['sigclip']), 'Sigma clip for LA cosmic')
+        hdr['LACSIGF'] = ('{0:.1f}'.format(self.data['sigfrac']),
+                            'Lower clip threshold for LA cosmic')
+        hdr['LACOBJL'] = ('{0:.1f}'.format(self.data['objlim']),
+                            'Object detect limit for LA cosmic')
+
+    @classmethod
+    def from_header(cls, hdr):
+        """
+        Instantiate the object from parameters read from a fits header.
+        """
+        return cls(maxiter=int(hdr['LACMAXI']), grow=float(hdr['LACGRW']),
+                   rmcompact=eval(hdr['LACRMC']), sigclip=float(hdr['LACSIGC']),
+                   sigfrac=float(hdr['LACSIGF']), objlim=float(hdr['LACOBJL']))
 
 
 class OverscanPar(ParSet):
@@ -639,6 +689,21 @@ class OverscanPar(ParSet):
             
         if self.data['method'] == 'median' and self.data['params'] is not None:
             warnings.warn('No parameters necessary for median overscan method.  Ignoring input.')
+
+    def to_header(self, hdr):
+        """
+        Write the parameters to a header object.
+        """
+        hdr['OSCANMET'] = (self.data['method'], 'Method used for overscan subtraction')
+        hdr['OSCANPAR'] = (','.join([ '{0:d}'.format(p) for p in self.data['params'] ]),
+                                'Overscan method parameters')
+
+    @classmethod
+    def from_header(cls, hdr):
+        """
+        Instantiate the object from parameters read from a fits header.
+        """
+        return cls(method=hdr['OSCANMET'],  params=[int(p) for p in hdr['OSCANPAR'].split(',')])
 
 
 class FlatFieldPar(ParSet):

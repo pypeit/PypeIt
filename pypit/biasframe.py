@@ -16,28 +16,6 @@ from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 
-# Does not need to be global, but I prefer it
-# ----------------------------------------------------------------------
-# (KBW) I don't like doing this, but I realized it's not so bad after
-# playing around a bit.  E.g., if you do:
-#   from pypit import arcimage
-#   from pypit import biasframe
-# You get:
-#   print(arcimage.frametype)   # prints arc
-#   print(biasframe.frametype)  # prints bias
-# So even though you're defining it here, it still respects the
-# namespace.  The only time you'll get into trouble is if you do:
-#   from pypit.arcimage import frametype
-#   from pypit.biasframe import frametype
-# But I don't think you'd ever do that.
-# ----------------------------------------------------------------------
-frametype = 'bias'
-
-# Place these here or elsewhere?
-#  Wherever they be, they need to be defined, described, etc.
-#  These are settings beyond those in the Parent class (ProcessImages)
-# additional_default_settings = {frametype: {'useframe': 'none'}}
-
 # (KBW): Why isn't this class called BiasImage (like ArcImage, BPMImage,
 # etc...)
 class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
@@ -79,6 +57,10 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     --------------------
     stack : ndarray
     """
+
+    # Frame type is a class attribute
+    frametype = 'bias'
+
     # Keep order same as processimages (or else!)
     def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, root_path=None,
                  mode=None, fitstbl=None, sci_ID=None):
@@ -88,26 +70,19 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         self.sci_ID = sci_ID
 
         # Parameters
-        self.par = pypitpar.FrameGroupPar(frametype) if par is None else par
+        self.par = pypitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, file_list, spectrograph, det=det,
+        processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
                                              overscan_par=self.par['overscan'],
                                              combine_par=self.par['combine'],
                                              lacosmic_par=self.par['lacosmic'])
-
-        # Attributes  (set after ProcessImages call)
-        # (KBW) Even given above, I don't understand why this is
-        # preferable to `self.frametype = 'bias'`
-        # (KBW) This copying to self also happens in MasterFrame and
-        # doesn't need to happen here.
-#        self.frametype = frametype
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
         directory_path = None if root_path is None \
                                 else root_path+'_'+self.spectrograph.spectrograph
-        masterframe.MasterFrame.__init__(self, frametype, setup, directory_path=directory_path,
+        masterframe.MasterFrame.__init__(self, self.frametype, setup, directory_path=directory_path,
                                          mode=mode)
 
     def build_image(self, overwrite=False):
@@ -155,18 +130,22 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # Generate a bias or dark image (or load a pre-made Master by PYPIT)?
         if self.par['useframe'] is None:
             msgs.info("Will not perform bias/dark subtraction")
-        elif self.par['useframe'] in ['bias', 'dark']:
+            return None
+
+        # Simple command?
+        if self.par['useframe'] == 'overscan':
+            return self.par['useframe']
+
+        if self.par['useframe'] in ['bias', 'dark']:
             # Load the MasterFrame if it exists and user requested one to load it
             msframe, header, raw_files = self.load_master_frame()
             if msframe is None:
                 return None
-        # Simple command?
-        elif self.par['useframe'] == 'overscan':
-            return self.par['useframe']
-        # It must be a user-specified file the user wishes to load
         else:
+            # It must be a user-specified file the user wishes to load
             msframe_name = os.path.join(self.directory_path, self.par['useframe'])
             msframe, head, _ = armasters._core_load(msframe_name, frametype=self.frametype)
+
         # Put in
         self.stack = msframe
         return msframe.copy()

@@ -87,7 +87,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.par = pypitpar.FrameGroupPar(frametype) if par is None else par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, file_list, spectrograph, det=det,
+        processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
                                              overscan_par=self.par['overscan'],
                                              combine_par=self.par['combine'],
                                              lacosmic_par=self.par['lacosmic'])

@@ -26,6 +26,7 @@ from pypit.core import arflux
 from pypit import arload
 from pypit import arutils
 from pypit.core import arsort
+from pypit import telescopes
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
@@ -46,21 +47,22 @@ def test_bspline_fit():
 
 
 def test_gen_sensfunc():
+
     # Load a random spectrum for the sensitivity function
     sfile = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     specobjs = arload.load_specobj(sfile)
-    # Settings, etc.
-    settings.dummy_settings()
-    settings.argflag['run']['spectrograph'] = 'shane_kast_blue'
-    settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
-    settings.spect['arc'] = {}
-    settings.spect['arc']['index'] = [[0]]
+    telescope = telescopes.ShaneTelescopePar()
     fitstbl = arsort.dummy_fitstbl()
     RA = '05:06:36.6'
     DEC = '52:52:01.0'
-    # Generate
-    sensfunc = arflux.generate_sensfunc(specobjs[0][0], RA, DEC, fitstbl['airmass'][4],
-                                             fitstbl['exptime'][4], settings.spect)
+
+    # Get the sensitivity function
+    extinction_data = arflux.load_extinction_data(telescope['longitude'], telescope['latitude'])
+    extinction_corr = arflux.extinction_correction(specobjs[0][0].boxcar['wave'],
+                                                   fitstbl['airmass'][4], extinction_data)
+    sensfunc = arflux.generate_sensfunc(specobjs[0][0], RA, DEC, fitstbl['exptime'][4],
+                                        extinction_corr)
+
     # Test
     assert isinstance(sensfunc, dict)
     assert isinstance(sensfunc['wave_min'], units.Quantity)
@@ -85,32 +87,23 @@ def test_find_standard():
 
 
 def test_load_extinction():
-    # Dummy self
-    settings.spect['mosaic']['latitude'] = 37.3413889
-    settings.spect['mosaic']['longitude'] = 121.6428
     # Load
-    extinct = arflux.load_extinction_data(settings.spect)
+    extinct = arflux.load_extinction_data(121.6428, 37.3413889)
     np.testing.assert_allclose(extinct['wave'][0], 3200.)
     assert extinct['wave'].unit == units.AA
     np.testing.assert_allclose(extinct['mag_ext'][0], 1.084)
     # Fail
-    settings.spect['mosaic']['latitude'] = 37.3413889
-    settings.spect['mosaic']['longitude'] = 0.
-    #
-    extinct = arflux.load_extinction_data(settings.spect)
+    extinct = arflux.load_extinction_data(0., 37.3413889)
     assert extinct is None
 
 
 def test_extinction_correction():
-    # Dummy self
-    settings.spect['mosaic']['latitude'] = 37.3413889
-    settings.spect['mosaic']['longitude'] = 121.6428
     # Load
-    extinct = arflux.load_extinction_data(settings.spect)
+    extinct = arflux.load_extinction_data(121.6428, 37.3413889)
     # Correction
     wave = np.arange(3000.,10000.)*units.AA
     AM=1.5
-    flux_corr = arflux.extinction_correction(wave,AM,extinct)
+    flux_corr = arflux.extinction_correction(wave, AM, extinct)
     # Test
     np.testing.assert_allclose(flux_corr[0], 4.47095192)
 

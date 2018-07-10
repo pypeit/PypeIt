@@ -130,7 +130,7 @@ class ScienceImage(processimages.ProcessImages):
                                         if extract_objects_par is None else extract_objects_par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, file_list, spectrograph, det=det,
+        processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
                                              overscan_par=self.frame_par['overscan'],
                                              combine_par=self.frame_par['combine'],
                                              lacosmic_par=self.frame_par['lacosmic'])

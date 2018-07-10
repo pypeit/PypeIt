@@ -94,7 +94,11 @@ class ProcessImages(object):
         TypeError: Raised if the spectrograph is not a :obj:`str` or
             :class:`Spectrograph`.
     """
-    def __init__(self, file_list, spectrograph, det=1, overscan_par=None, combine_par=None,
+
+    # Class attribute is unknown.  Will be overwritten by children
+    frametype='Unknown'
+
+    def __init__(self, spectrograph, file_list=[], det=1, overscan_par=None, combine_par=None,
                  lacosmic_par=None):
 
         # Required parameters
@@ -124,8 +128,6 @@ class ProcessImages(object):
             raise TypeError('Provided ParSet for LACosmic must be type LACosmicPar.')
         self.lacosmic_par = LACosmicPar() if lacosmic_par is None else lacosmic_par
 
-        self.frametype='Unknown'
-
         # Main (possible) outputs
         self.stack = None
         self.steps = []
@@ -145,35 +147,44 @@ class ProcessImages(object):
         self.pixel_flat = None      # passed as an argument to process(), flat_field()
         self.slitprof = None        # passed as an argument to process(), flat_field()
 
-    # TODO: Is this used?
-    @classmethod
-    def from_fits(cls, fits_file, **kwargs):
-        """
-        Instantiate from a FITS file
-
-        Parameters
-        ----------
-        fits_file : str
-        kwargs : passed to the __init__
-
-        Returns
-        -------
-        slf
-
-        """
-        if not os.path.isfile(fits_file):
-            msgs.error("FITS file not found: {:s}".format(fits_file))
-        # Load
-        hdul = fits.open(fits_file)
-        head0 = hdul[0].header
-        file_list = []
-        for key in head0:
-            if 'FRAME' in key:
-                file_list.append(head0[key])
-        slf = cls(file_list, **kwargs)
-        # Fill
-        slf.stack = hdul[0].data
-        return slf
+    # TODO: This is currently only use by BiasFrame as a test.  Now that
+    # ProcessImages takes in these other parameter sets, we'll need to
+    # be more clever as to how to do this, or create methods specific to
+    # each child class.
+#    @classmethod
+#    def from_fits(cls, fits_file, **kwargs):
+#        """
+#        Instantiate from a FITS file
+#
+#        Parameters
+#        ----------
+#        fits_file : str
+#        kwargs : passed to the __init__
+#
+#        Returns
+#        -------
+#        slf
+#
+#        """
+#        if not os.path.isfile(fits_file):
+#            msgs.error("FITS file not found: {:s}".format(fits_file))
+#        # Load
+#        hdul = fits.open(fits_file)
+#        head0 = hdul[0].header
+#        file_list = []
+#        for key in head0:
+#            if 'FRAME' in key:
+#                file_list.append(head0[key])
+#
+#        # Initialize
+#        slf = cls(head0['INSTRUME'], file_list=file_list,
+#                  overscan_par=OverscanPar.from_header(head0),
+#                  combine_par=CombineFramesPar.from_header(head0),
+#                  lacosmic_par=LACosmicPar.from_header(head0), **kwargs)
+#
+#        # Fill
+#        slf.stack = hdul[0].data
+#        return slf
 
     @property
     def nfiles(self):
@@ -559,6 +570,12 @@ class ProcessImages(object):
         for i in range(self.nfiles):
             hdrname = "FRAME{0:03d}".format(i+1)
             hdu.header[hdrname] = self.file_list[i]
+        # Spectrograph
+        hdu.header['INSTRUME'] = self.spectrograph.spectrograph
+        # Parameters
+        self.overscan_par.to_header(hdu.header)
+        self.combine_par.to_header(hdu.header)
+        self.lacosmic_par.to_header(hdu.header)
         # Steps
         steps = ','
         hdu.header['STEPS'] = steps.join(self.steps)

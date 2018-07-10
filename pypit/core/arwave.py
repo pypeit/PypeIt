@@ -375,7 +375,7 @@ def geomotion_correct(specobjs, maskslits, fitstbl, scidx, time, longitude, lati
 
     """
     # Calculate
-    vel = geomotion_calculate(fitstbl, scidx, time, settings_mosaic, refframe)
+    vel = geomotion_calculate(fitstbl, scidx, time, longitude, latitude, elevation, refframe)
     vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
 
     gdslits = np.where(~maskslits)[0]
@@ -392,8 +392,9 @@ def geomotion_correct(specobjs, maskslits, fitstbl, scidx, time, longitude, lati
                 if not hasattr(specobj, attr):
                     continue
                 if 'wave' in getattr(specobj, attr).keys():
-                    msgs.info("Applying {0:s} correction to {1:s} extraction for object:".format(refframe, attr) +
-                              msgs.newline() + "{0:s}".format(str(specobj)))
+                    msgs.info('Applying {0} correction to '.format(refframe)
+                              + '{0} extraction for object:'.format(attr)
+                              + msgs.newline() + "{0}".format(str(specobj)))
                     getattr(specobj, attr)['wave'] = getattr(specobj, attr)['wave'] * vel_corr
     # Return
     return vel, vel_corr  # Mainly for debugging

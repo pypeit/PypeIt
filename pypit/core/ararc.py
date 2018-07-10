@@ -17,7 +17,7 @@ from pypit import arqa
 from pypit import arpixels
 from pypit import ardebug as debugger
 
-
+# TODO: This should not be a core algorithm
 def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                 calibrate_lamps=None):
     """ Setup for arc analysis
