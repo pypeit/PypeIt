@@ -23,9 +23,8 @@ from pypit import arutils
 from pypit import masterframe
 from pypit import ginga
 from pypit import traceimage
-from pypit.par import pypitpar
 
-from .spectrographs.spectrograph import Spectrograph
+from .par import pypitpar
 
 try:
     basestring
@@ -107,8 +106,8 @@ class TraceSlits(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'trace'
 
-    def __init__(self, mstrace, pixlocn, spectrograph=None, par=None, det=None, setup=None,
-                 root_path=None, mode=None, binbpx=None, ednum=100000):
+    def __init__(self, mstrace, pixlocn, par=None, det=None, setup=None, directory_path=None,
+                 mode=None, binbpx=None, ednum=100000):
         # TODO -- Remove pixlocn as a required item
 
         # TODO: Why was setup='' in this argument list and setup=None in
@@ -119,14 +118,6 @@ class TraceSlits(masterframe.MasterFrame):
         # Required parameters (but can be None)
         self.mstrace = mstrace
         self.pixlocn = pixlocn
-
-        # Instantiate the spectograph
-        if isinstance(spectrograph, basestring):
-            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
-        elif isinstance(spectrograph, Spectrograph):
-            self.spectrograph = spectrograph
-        else:
-            raise TypeError('Must provide a name or instance for the Spectrograph.')
 
         # Set the parameters, using the defaults if none are provided
         self.par = pypitpar.TraceSlitsPar() if par is None else par
@@ -176,8 +167,6 @@ class TraceSlits(masterframe.MasterFrame):
         self.rwghtarr = None
 
         # MasterFrame
-        directory_path = None if root_path is None \
-                                else root_path+'_'+self.spectrograph.spectrograph
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
                                          directory_path=directory_path, mode=mode)
 
@@ -207,7 +196,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Instantiate
         slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], binbpx=binbpx,
-                  par=TraceSlitsPar.from_dict(ts_dict['settings']['trace']))
+                  par=pypitpar.TraceSlitsPar.from_dict(ts_dict['settings']['trace']))
 
         # Fill in a bit more (Attributes)
         slf.steps = ts_dict['steps']
@@ -1173,67 +1162,67 @@ def load_traceslit_files(root):
     return fits_dict, ts_dict
 
 
-# TODO: Is this the same as Calibrations.get_slits()?
-def get_tslits_dict(det, setup, spectrograph, sci_ID, ts_par, ti_settings, fitstbl, pixlocn,
-                    msbias, msbpm, datasec_img, trim=True, root_path=None, mode=None):
-    """
-    Load/generate the trace image and then the trace slits objects
-
-    Parameters
-    ----------
-    det : int
-      Required for processing
-    setup : str
-      Required for MasterFrame loading
-    spectrograph : str
-      Required for processing
-    sci_ID : int
-      Required to choose the right flats for processing
-    ts_par : ParSet, dict
-      Trace slit parameters
-    ti_settings ; dict
-      Required for processing
-      Trace image settings
-    fitstbl : Table
-      Required to choose the right flats for processing
-    pixlocn : ndarray
-      Required for processing
-    msbias : ndarray or str
-      Required for processing
-    msbpm : ndarray
-      Bad pixel image
-      Required for processing
-    datasec_img : ndarray
-    trim : bool, optional
-      Trim the image?  Could probably hide in ti_settings
-
-    Returns
-    -------
-    tslits_dict : dict
-    traceSlits : TraceSlits object
-
-    """
-    # Instantiate (without mstrace)
-    traceSlits = TraceSlits(None, pixlocn, spectrograph=spectrograph, par=ts_par, det=det,
-                            setup=setup, root_path=root_path, mode=mode, binbpx=msbpm)
-
-    # Load via masters, as desired
-    if not traceSlits.master():
-        # Build the trace image first
-        trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
-        par = pypitpar.FrameGroupPar.from_dict(frametype, ti_settings)
-        Timage = traceimage.TraceImage(spectrograph, file_list=trace_image_files,
-                                       det=det, par=par)
-        traceSlits.mstrace = Timage.process(bias_subtract=msbias, trim=trim, apply_gain=True)
-
-        # Load up and get ready
-        _ = traceSlits.make_binarr()
-        # Now we go forth
-        traceSlits.run(arms=True)
-        # QA
-        traceSlits._qa()
-        # Save to disk
-        traceSlits.save_master()
-    # Return
-    return traceSlits.tslits_dict, traceSlits
+## TODO: Is this the same as Calibrations.get_slits()?
+#def get_tslits_dict(det, setup, spectrograph, sci_ID, ts_par, ti_settings, fitstbl, pixlocn,
+#                    msbias, msbpm, datasec_img, trim=True, root_path=None, mode=None):
+#    """
+#    Load/generate the trace image and then the trace slits objects
+#
+#    Parameters
+#    ----------
+#    det : int
+#      Required for processing
+#    setup : str
+#      Required for MasterFrame loading
+#    spectrograph : str
+#      Required for processing
+#    sci_ID : int
+#      Required to choose the right flats for processing
+#    ts_par : ParSet, dict
+#      Trace slit parameters
+#    ti_settings ; dict
+#      Required for processing
+#      Trace image settings
+#    fitstbl : Table
+#      Required to choose the right flats for processing
+#    pixlocn : ndarray
+#      Required for processing
+#    msbias : ndarray or str
+#      Required for processing
+#    msbpm : ndarray
+#      Bad pixel image
+#      Required for processing
+#    datasec_img : ndarray
+#    trim : bool, optional
+#      Trim the image?  Could probably hide in ti_settings
+#
+#    Returns
+#    -------
+#    tslits_dict : dict
+#    traceSlits : TraceSlits object
+#
+#    """
+#    # Instantiate (without mstrace)
+#    traceSlits = TraceSlits(None, pixlocn, spectrograph=spectrograph, par=ts_par, det=det,
+#                            setup=setup, root_path=root_path, mode=mode, binbpx=msbpm)
+#
+#    # Load via masters, as desired
+#    if not traceSlits.master():
+#        # Build the trace image first
+#        trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
+#        par = pypitpar.FrameGroupPar.from_dict(frametype, ti_settings)
+#        Timage = traceimage.TraceImage(spectrograph, file_list=trace_image_files,
+#                                       det=det, par=par)
+#        traceSlits.mstrace = Timage.process(bias_subtract=msbias, trim=trim, apply_gain=True)
+#
+#        # Load up and get ready
+#        _ = traceSlits.make_binarr()
+#        # Now we go forth
+#        traceSlits.run(arms=True)
+#        # QA
+#        traceSlits._qa()
+#        # Save to disk
+#        traceSlits.save_master()
+#    # Return
+#    return traceSlits.tslits_dict, traceSlits
 

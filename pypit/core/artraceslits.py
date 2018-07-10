@@ -2418,8 +2418,8 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
     else: # There's an order overlap
         rsub = edgbtwn[1]-(lval)
     """
-    if msgs._debug['trace']:
-        debugger.set_trace()
+#    if msgs._debug['trace']:
+#        debugger.set_trace()
     if mnvalp > mnvalm:
         lvp = (arutils.func_val(lcoeff[:, lval + 1 - lmin], xv, function, minv=minvf, maxv=maxvf) \
                + 0.5).astype(np.int)

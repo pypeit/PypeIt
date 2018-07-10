@@ -993,7 +993,7 @@ class FluxCalibrationPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'flux', 'nonlinear', 'sensfunc' ]
+        parkeys = [ 'nonlinear', 'sensfunc' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

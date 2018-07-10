@@ -24,7 +24,10 @@ from pypit import masterframe
 
 # Currently no parameters needed!
 #from .par import pypitpar
+from .spectrographs.spectrograph import Spectrograph
 from .spectrographs.util import load_spectrograph
+
+from .par.pypitpar import TelescopePar
 
 from pypit import ardebug as debugger
 
@@ -137,29 +140,42 @@ class FluxSpec(masterframe.MasterFrame):
 
         # Instantiate the spectograph
         _spectrograph = spectrograph
+        spectrograph_name = None
         if _spectrograph is None:
             _spectrograph = std_spectro
-            msgs.info("Spectrograph set to {0} from standard file".format(_spectrograph))
+            spectrograph_name = _spectrograph
+            if _spectrograph is not None:
+                msgs.info("Spectrograph set to {0} from standard file".format(_spectrograph))
         if _spectrograph is None:
             _spectrograph = sci_spectro
-            msgs.info("Spectrograph set to {0} from science file".format(_spectrograph))
+            spectrograph_name = _spectrograph
+            if _spectrograph is not None:
+                msgs.info("Spectrograph set to {0} from science file".format(_spectrograph))
         if isinstance(_spectrograph, basestring):
-            self.spectrograph = load_spectrograph(spectrograph=_spectrograph)
+            spectrograph_name = _spectrograph
+            msgs.info("Spectrograph set to {0}, from argument string".format(_spectrograph))
         elif isinstance(_spectrograph, Spectrograph):
-            self.spectrograph = _spectrograph
-        else:
-            raise TypeError('Spectrograph name must be in header, provided, or a Spectrograph '
-                            'instance.')
+            spectrograph_name = _spectrograph.spectrograph
+            msgs.info("Spectrograph set to {0}, from argument object".format(_spectrograph))
+    
+        # Get the extinction data
+        self.extinction_data = None
+        if _spectrograph is not None:
+            telescope = load_spectrograph(spectrograph=_spectrograph).telescope \
+                                    if isinstance(_spectrograph, basestring) \
+                                    else _spectrograph.telescope
+            self.extinction_data \
+                    = arflux.load_extinction_data(telescope['longitude'], telescope['latitude'])
+        elif self.sci_header is not None and 'LON-OBS' in self.sci_header.keys():
+            self.extinction_data \
+                    = arflux.load_extinction_data(self.sci_header['LON-OBS'],
+                                                  self.sci_header['LAT-OBS'])
        
         # Once the spectrograph is instantiated, can also set the
         # extinction data
-        self.extinction_data \
-                = arflux.load_extinction_data(self.spectrograph.telescope['longitude'],
-                                              self.spectrograph.telescope['latitude'])
         # Parameters
         self.sens_file = sens_file
         self.multi_det = multi_det
-        self.std_header = std_header
 
         # Main outputs
         self.sensfunc = None if self.sens_file is None \
@@ -176,8 +192,11 @@ class FluxSpec(masterframe.MasterFrame):
         # MasterFrame
 #        self.setup = setup
 #        self.frametype = frametype
-        directory_path = None if root_path is None \
-                                else root_path+'_'+self.spectrograph.spectrograph
+        directory_path = None
+        if root_path is not None:
+            directory_path = root_path
+            if spectrograph_name is not None:
+                directory_path += '_'+spectrograph_name
         masterframe.MasterFrame.__init__(self, frametype, setup, directory_path=directory_path,
                                          mode=mode)
 
@@ -272,14 +291,12 @@ class FluxSpec(masterframe.MasterFrame):
         -------
 
         """
-        # Get extinction data
-        extinction_data = arflux.load_extinction_data(self.spectrograph.telescope['longitude'],
-                                                      self.spectrograph.telescope['latitude'])
         # Note the unravel here
         for sci_obj in arutils.unravel_specobjs(specobjs):
             if sci_obj is not None:
                 # Do it
-                arflux.apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime, extinction_data)
+                arflux.apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime,
+                                      self.extinction_data)
 
     def flux_science(self):
         """
@@ -436,13 +453,13 @@ class FluxSpec(masterframe.MasterFrame):
                               vel_correction=self.sci_header['VEL'])
         else:
             helio_dict = None
+        telescope=None
         if 'LON-OBS' in self.sci_header.keys():
-            obs_dict = dict(longitude=self.sci_header['LON-OBS'],
-                            latitude=self.sci_header['LAT-OBS'],
-                            elevation=self.sci_header['ALT-OBS'],
-                            )
+            telescope = TelescopePar(longitude=self.sci_header['LON-OBS'],
+                                     latitude=self.sci_header['LAT-OBS'],
+                                     elevation=self.sci_header['ALT-OBS'])
         arsave.save_1d_spectra_fits(self.sci_specobjs, self.sci_header, outfile,
-                                    helio_dict=helio_dict, clobber=True, obs_dict=obs_dict)
+                                    helio_dict=helio_dict, telescope=telescope, clobber=True)
         # Step
         self.steps.append(inspect.stack()[0][3])
 

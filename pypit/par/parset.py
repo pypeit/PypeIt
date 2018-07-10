@@ -345,7 +345,8 @@ class ParSet(object):
         if isinstance(data, basestring):
             return data
         elif hasattr(data, '__len__'):
-            return ', '.join([ ParSet._data_string(d) for d in data ])
+            return '[]' if isinstance(data, list) and len(data) == 0 \
+                        else ', '.join([ ParSet._data_string(d) for d in data ])
         else:
             return data.__repr__()
 
@@ -423,9 +424,10 @@ class ParSet(object):
 
             # If the value is a list, determine if all the elements of
             # the list are also dictionaries or ParSets
-            if isinstance(par[k], list):
+            if isinstance(par[k], list) and len(par[k]) > 0:
                 is_parset_or_dict = [ isinstance(v, (ParSet, dict)) for v in par[k] ]
                 if numpy.all(is_parset_or_dict):
+                    print(par[k])
                     ndig = int(numpy.log10(len(par[k])))+1
                     for i, v in enumerate(par[k]):
                         indx = str(i+1).zfill(ndig)
