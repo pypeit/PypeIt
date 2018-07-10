@@ -16,6 +16,7 @@ from pypit.core import armasters
 from pypit.core import arsort
 from pypit.par import pypitpar
 
+from .spectrographs.spectrograph import Spectrograph
 from .spectrographs.util import load_spectrograph
 
 from pypit import ardebug as debugger
@@ -25,24 +26,6 @@ try:
 except NameError:
     basestring = str
 
-frametype = 'wv_calib'
-
-## Place these here or elsewhere?
-##  Wherever they be, they need to be defined, described, etc.
-#def default_settings():
-#    tmp = dict(calibrate={'nfitpix': 5,
-#                                   'IDpixels': None, # User input pixel values
-#                                   'IDwaves': None,  # User input wavelength values
-#                                   'lamps': None,
-#                                   'method': 'arclines',
-#                                   'detection':  6.,
-#                                   'numsearch': 20,
-#                                   }
-#                        )
-#    return tmp
-##settings_spect[dnum]['saturation']*settings_spect[dnum]['nonlinear'])  -- For satmask (echelle)
-
-#  See save_master() for the data model for output
 
 class WaveCalib(masterframe.MasterFrame):
     """Class to guide slit/order tracing
@@ -86,6 +69,10 @@ class WaveCalib(masterframe.MasterFrame):
     arcparam : dict
       Arc parameter (instrument/disperser specific)
     """
+
+    # Frametype is a class attribute
+    frametype = 'wv_calib'
+
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, root_path=None,
                  mode=None, fitstbl=None, sci_ID=None, arcparam=None):
 
@@ -111,7 +98,6 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Attributes
         # Done by MasterFrame
-#        self.frametype = frametype
         self.steps = []
 
         # Main outputs
@@ -123,8 +109,8 @@ class WaveCalib(masterframe.MasterFrame):
         # MasterFrame
         directory_path = None if root_path is None \
                                 else root_path+'_'+self.spectrograph.spectrograph
-        masterframe.MasterFrame.__init__(self, frametype, setup, directory_path=directory_path,
-                                         mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
 
     def _build_wv_calib(self, method, skip_QA=False):
         """
@@ -219,7 +205,7 @@ class WaveCalib(masterframe.MasterFrame):
                                 * self.spectrograph.detector[self.det-1]['nonlinear']
         self.arccen, self.maskslits, _ \
                     = ararc.get_censpec(lordloc, rordloc, pixlocn, self.msarc, self.det,
-                                        nonlinear_counts=non_linear_counts, gen_satmask=False)
+                                        nonlinear_counts=nonlinear_counts, gen_satmask=False)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return

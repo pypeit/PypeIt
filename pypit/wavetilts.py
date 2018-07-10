@@ -19,29 +19,12 @@ from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 
+from .spectrographs.spectrograph import Spectrograph
+
 try:
     basestring
 except NameError:
     basestring = str
-
-frametype = 'tilts'
-
-## Place these here or elsewhere?
-##  Wherever they be, they need to be defined, described, etc.
-#def default_settings():
-#    default_settings = dict(tilts={'idsonly': False,
-#                               'tracethresh': 1000.,
-#                               'order': 2,
-#                               'function': 'legendre',       # Function for arc line fits
-#                               'yorder': 4,
-#                               'func2D': 'legendre',  # Function for 2D fit
-#                               'method': 'spca',  # defunct
-#                               'params': [1,1,0],  # defunct
-#                               }
-#                        )
-#    return default_settings
-
-#  See save_master() for the data model for output
 
 class WaveTilts(masterframe.MasterFrame):
     """Class to guide slit/order tracing
@@ -76,6 +59,10 @@ class WaveTilts(masterframe.MasterFrame):
       Final tilts image
 
     """
+    
+    # Frametype is a class attribute
+    frametype = 'tilts'
+
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, root_path=None,
                  mode=None, pixlocn=None, tslits_dict=None):
 
@@ -90,6 +77,8 @@ class WaveTilts(masterframe.MasterFrame):
         self.pixlocn = pixlocn
 
         # Instantiate the spectograph
+        # TODO: Do we need this?  It's only used to get the non-linear
+        # counts and the name of the master directory
         if isinstance(spectrograph, basestring):
             self.spectrograph = load_spectrograph(spectrograph=spectrograph)
         elif isinstance(spectrograph, Spectrograph):
@@ -118,14 +107,11 @@ class WaveTilts(masterframe.MasterFrame):
         # Main outputs
         self.final_tilts = None
 
-        # Done by MasterFrame
-#        self.frametype = frametype
-
         # MasterFrame
         directory_path = None if root_path is None \
                                 else root_path+'_'+self.spectrograph.spectrograph
-        masterframe.MasterFrame.__init__(self, frametype, setup, directory_path=directory_path,
-                                         mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
 
     @classmethod
     def from_master_files(cls, setup, mdir='./'):

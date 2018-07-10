@@ -103,6 +103,7 @@ class Calibrations(object):
         # caldir and master_root the same...
         self.master_root = os.path.join(os.getcwd(), self.par['caldir']) \
                                 if master_root is None else master_root
+        self.master_dir = self.master_root+'_'+self.spectrograph.spectrograph
 
         # Attributes
         self.calib_dict = {}
@@ -436,11 +437,10 @@ class Calibrations(object):
             return self.tslits_dict
                 
         # Instantiate (without mstrace)
-        self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, spectrograph=self.spectrograph,
-                                                par=self.par['slits'], det=self.det,
-                                                root_path=self.master_root,
-                                                mode=self.par['masters'], binbpx=self.msbpm,
-                                                setup=self.setup)
+        self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, par=self.par['slits'],
+                                                det=self.det, setup=self.setup,
+                                                directory_path=self.master_dir,
+                                                mode=self.par['masters'], binbpx=self.msbpm)
 
         # Load via master, as desired
         if not self.traceSlits.master():

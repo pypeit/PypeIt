@@ -245,12 +245,12 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, function='legendre', pol
             if np.all(pedges[:, 1]-pedges[:, 0] == 0):
                 # Remaining peaks have no width
                 break
-            if msgs._debug['trace']:
-                plt.clf()
-                plt.plot(arrcen, 'k-', drawstyle='steps')
-                plt.plot(wpk, np.zeros(wpk.size), 'ro')
-                plt.show()
-                debugger.set_trace()
+#            if msgs._debug['trace']:
+#                plt.clf()
+#                plt.plot(arrcen, 'k-', drawstyle='steps')
+#                plt.plot(wpk, np.zeros(wpk.size), 'ro')
+#                plt.show()
+#                debugger.set_trace()
             # Label all edge ids (in the original edgearr) that are located in each peak with the same number
             for ii in range(pks.size):
                 shbad = np.zeros(edgearr.shape)
@@ -283,10 +283,10 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, function='legendre', pol
                 # Find the peaks of this distribution
                 wspk = np.where((smallhist[1:-1] >= smallhist[2:]) & (smallhist[1:-1] > smallhist[:-2]))[0]
                 wspk += 1  # Add one here to account for peak finding
-                if msgs._debug['trace'] and False:
-                    plt.clf()
-                    plt.plot(smallhist, 'k-', drawstyle='steps')
-                    plt.show()
+#                if msgs._debug['trace'] and False:
+#                    plt.clf()
+#                    plt.plot(smallhist, 'k-', drawstyle='steps')
+#                    plt.show()
 
                 for pp in range(wspk.size):  # For all small peaks identified
                     for vv in range(vals.size):
@@ -1984,9 +1984,9 @@ def pca_order_slit_edges(binarr, edgearr, lcent, rcent, gord, lcoeff, rcoeff, pl
     xcen = xv[:, np.newaxis].repeat(ordsnd.size, axis=1)
     fitted, outpar = arpca.basis(xcen, slitcen, coeffs, lnpc, ofit, x0in=ordsnd, mask=maskord,
                                  skipx0=False, function=function)
-    if not msgs._debug['no_qa']:
-        debugger.set_trace()  # NEED TO REMOVE slf
-        # arpca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc)
+#    if not msgs._debug['no_qa']:
+#        debugger.set_trace()  # NEED TO REMOVE slf
+#        # arpca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc)
 
     # Extrapolate the remaining orders requested
     orders = 1 + np.arange(totord)
@@ -2098,10 +2098,10 @@ def pca_pixel_slit_edges(binarr, edgearr, lcoeff, rcoeff, ldiffarr, rdiffarr,
         xcen = xv[:, np.newaxis].repeat(binarr.shape[1], axis=1)
         fitted, outpar = arpca.basis(xcen, trcval, tcoeff, lnpc, ofit, weights=pxwght,
                                      x0in=ordsnd, mask=maskrw, skipx0=False, function=function)
-        if not msgs._debug['no_qa']:
-            # JXP -- NEED TO REMOVE SLF FROM THE NEXT BIT
-            msgs.warn("NEED TO REMOVE SLF FROM THE NEXT BIT")
-            # arpca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc, addOne=False)
+#        if not msgs._debug['no_qa']:
+#            # JXP -- NEED TO REMOVE SLF FROM THE NEXT BIT
+#            msgs.warn("NEED TO REMOVE SLF FROM THE NEXT BIT")
+#            # arpca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc, addOne=False)
         # Now extrapolate to the whole detector
         pixpos = np.arange(binarr.shape[1])
         extrap_trc, outpar = arpca.extrapolate(outpar, pixpos, function=function)

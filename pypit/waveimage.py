@@ -14,9 +14,6 @@ from pypit import ginga
 
 from pypit import ardebug as debugger
 
-# TODO: Just to be consistent.  Will move to be a class attribute later.
-frametype = 'wave'
-
 class WaveImage(masterframe.MasterFrame):
     """Class to generate the Wavelength Image
 
@@ -43,21 +40,16 @@ class WaveImage(masterframe.MasterFrame):
     steps : list
       List of the processing steps performed
     """
-    def __init__(self, slitpix, tilts, wv_calib, spectrograph=None, setup=None, root_path=None,
-                 mode=None, maskslits=None):
+    # Frametype is a class attribute
+    frametype = 'wave'
+
+    def __init__(self, slitpix, tilts, wv_calib, setup=None, directory_path=None, mode=None, 
+                 maskslits=None):
 
         # Required parameters (but can be None)
         self.slitpix = slitpix
         self.tilts = tilts
         self.wv_calib = wv_calib
-
-        # Instantiate the spectograph
-        if isinstance(spectrograph, basestring):
-            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
-        elif isinstance(spectrograph, Spectrograph):
-            self.spectrograph = spectrograph
-        else:
-            raise TypeError('Must provide a name or instance for the Spectrograph.')
 
         # Optional parameters
         self.maskslits = maskslits
@@ -69,10 +61,8 @@ class WaveImage(masterframe.MasterFrame):
         self.wave = None
 
         # MasterFrame
-        directory_path = None if root_path is None \
-                                else root_path+'_'+self.spectrograph.spectrograph
-        masterframe.MasterFrame.__init__(self, frametype, setup, directory_path=directory_path,
-                                         mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
 
     def _build_wave(self):
         """

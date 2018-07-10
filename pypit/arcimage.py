@@ -13,8 +13,6 @@ from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 
-frametype = 'arc'
-
 class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     """
     This class is primarily designed to generate an Arc Image from one or more arc frames
@@ -53,7 +51,10 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     stack : ndarray
       Final output image
     """
-    # Keep order same as processimages (or else!)
+
+    # Frametype is a class attribute
+    frametype = 'arc'
+
     def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, root_path=None,
                  mode=None, fitstbl=None, sci_ID=None, msbias=None):
     
@@ -63,7 +64,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         self.msbias = msbias
 
         # Parameters
-        self.par = pypitpar.FrameGroupPar(frametype) if par is None else par
+        self.par = pypitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
         processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
@@ -75,8 +76,8 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         # spectrograph even though it really only needs the string name
         directory_path = None if root_path is None \
                                 else root_path+'_'+self.spectrograph.spectrograph
-        masterframe.MasterFrame.__init__(self, frametype, setup, directory_path=directory_path,
-                                         mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
 
         # Comments from JFH.  Check if still relevant given changes.
 
