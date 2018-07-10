@@ -6,6 +6,8 @@ import numpy as np
 import os
 from subprocess import Popen
 
+from scipy import ndimage
+
 #from importlib import reload
 
 from astropy.io import fits
@@ -23,9 +25,12 @@ from pypit import ginga
 from pypit import traceimage
 from pypit.par import pypitpar
 
-from scipy import ndimage
+from .spectrographs.spectrograph import Spectrograph
 
-frametype = 'trace'
+try:
+    basestring
+except NameError:
+    basestring = str
 
 class TraceSlits(masterframe.MasterFrame):
     """Class to guide slit/order tracing
@@ -98,6 +103,10 @@ class TraceSlits(masterframe.MasterFrame):
     rcnt : int
       Number of right edges
     """
+
+    # Frametype is a class attribute
+    frametype = 'trace'
+
     def __init__(self, mstrace, pixlocn, spectrograph=None, par=None, det=None, setup=None,
                  root_path=None, mode=None, binbpx=None, ednum=100000):
         # TODO -- Remove pixlocn as a required item
@@ -131,9 +140,6 @@ class TraceSlits(masterframe.MasterFrame):
         else:
             self.binbpx = binbpx
             self.input_binbpx = True
-
-        # Done by MasterFrame
-#        self.frametype = frametype
 
         # Main outputs
         self.lcen = None     # narray
@@ -172,8 +178,8 @@ class TraceSlits(masterframe.MasterFrame):
         # MasterFrame
         directory_path = None if root_path is None \
                                 else root_path+'_'+self.spectrograph.spectrograph
-        masterframe.MasterFrame.__init__(self, frametype, setup, directory_path=directory_path,
-                                         mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
 
     @classmethod
     def from_master_files(cls, root, load_pix_obj=False):

@@ -255,32 +255,31 @@ class FluxSpec(masterframe.MasterFrame):
         # Return
         return self.sensfunc
 
-# Does not seem to be used
-#    def _flux_specobjs(self, specobjs, airmass, exptime):
-#        """
-#        Flux an input list of SpecObj objects
-#          Can be packed in detector, slit, etc. or as a simple list
-#
-#        Wrapper to arflux.apply_sensfunc()
-#
-#        Parameters
-#        ----------
-#        specobjs : list
-#        airmass : float
-#        exptime : float
-#
-#        Returns
-#        -------
-#
-#        """
-#        # Get extinction data (should do this once!)
-#        extinction_data = arflux.load_extinction_data(self.spectrograph.telescope['longitude'],
-#                                                      self.spectrograph.telescope['latitude'])
-#        # Note the unravel here
-#        for sci_obj in arutils.unravel_specobjs(specobjs):
-#            if sci_obj is not None:
-#                # Do it
-#                arflux.apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime, extinction_data)
+    def flux_specobjs(self, specobjs, airmass, exptime):
+        """
+        Flux an input list of SpecObj objects
+          Can be packed in detector, slit, etc. or as a simple list
+
+        Wrapper to arflux.apply_sensfunc()
+
+        Parameters
+        ----------
+        specobjs : list
+        airmass : float
+        exptime : float
+
+        Returns
+        -------
+
+        """
+        # Get extinction data
+        extinction_data = arflux.load_extinction_data(self.spectrograph.telescope['longitude'],
+                                                      self.spectrograph.telescope['latitude'])
+        # Note the unravel here
+        for sci_obj in arutils.unravel_specobjs(specobjs):
+            if sci_obj is not None:
+                # Do it
+                arflux.apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime, extinction_data)
 
     def flux_science(self):
         """
@@ -292,11 +291,9 @@ class FluxSpec(masterframe.MasterFrame):
         -------
 
         """
-        # Get extinction data (should do this once!)
         for sci_obj in self.sci_specobjs:
             arflux.apply_sensfunc(sci_obj, self.sensfunc, self.sci_header['AIRMASS'],
                                   self.sci_header['EXPTIME'], self.extinction_data)
-        # Step
         self.steps.append(inspect.stack()[0][3])
 
     def _set_std_obj(self, obj_id):

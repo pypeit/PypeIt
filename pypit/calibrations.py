@@ -56,8 +56,10 @@ class Calibrations(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, fitstbl, spectrograph=None, par=None, wavelength_frame='pixel',
-                 save_masters=True, write_qa=True):
+    # TODO: Both master_root and wavelength_frame are a bit of a kludge,
+    # both could be included in par.
+    def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None,
+                 wavelength_frame='vacuum', save_masters=True, write_qa=True):
 
         # Check the type of the provided fits table
         if not isinstance(fitstbl, Table):
@@ -70,7 +72,10 @@ class Calibrations(object):
 
         if spectrograph is None:
             # Set spectrograph from FITS table instrument header
-            # keyword.  TODO: Does this work?
+            # keyword.
+            # TODO: This works!  self.fitstbl['instrume'][0] has the
+            # appropriate name, it's not the same as the 'INSTRUME'
+            # keyword from the fits headers.
             self.spectrograph = load_spectrograph(spectrograph=self.fitstbl['instrume'][0])
         elif isinstance(spectrograph, basestring):
             self.spectrograph = load_spectrograph(spectrograph=spectrograph)
@@ -92,8 +97,12 @@ class Calibrations(object):
         if self.wavelength_frame not in valid_media:
             raise ValueError('Wavelength frame not recognized: {0}'.format(wavelength_frame)
                                 + 'Options are: {0}'.format(', '.join(valid_medi)))
-            
-        self.master_root = os.path.join(os.getcwd(), self.par['caldir'])
+
+        # TODO: Kludge for now:  If master_root is provided, it
+        # over-rides the default in CalibrationsPar.  Should just make
+        # caldir and master_root the same...
+        self.master_root = os.path.join(os.getcwd(), self.par['caldir']) \
+                                if master_root is None else master_root
 
         # Attributes
         self.calib_dict = {}
@@ -298,7 +307,8 @@ class Calibrations(object):
         scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
         scifile = os.path.join(self.fitstbl['directory'][scidx], self.fitstbl['filename'][scidx])
         # Generate the spectrograph-specific amplifier ID image
-        return self.spectrograph.get_datasec_img(scifile, self.det)
+        self.datasec_img = self.spectrograph.get_datasec_img(scifile, self.det)
+        return self.datasec_img
 
     def get_pixflatnrm(self):
         """
@@ -426,15 +436,17 @@ class Calibrations(object):
             return self.tslits_dict
                 
         # Instantiate (without mstrace)
-        self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, binbpx=self.msbpm,
-                                                par=self.par['trace'], det=self.det,
+        self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, spectrograph=self.spectrograph,
+                                                par=self.par['slits'], det=self.det,
+                                                root_path=self.master_root,
+                                                mode=self.par['masters'], binbpx=self.msbpm,
                                                 setup=self.setup)
 
         # Load via master, as desired
         if not self.traceSlits.master():
             # Build the trace image first
             trace_image_files = arsort.list_of_files(self.fitstbl, 'trace', self.sci_ID)
-            Timage = traceimage.TraceImage(self.spectrospectrograph,
+            Timage = traceimage.TraceImage(self.spectrograph,
                                            file_list=trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
             # Load up and get ready
@@ -726,10 +738,10 @@ class MultiSlitCalibrations(Calibrations):
 #    def __init__(self, fitstbl, steps=None, **kwargs):
 #        Calibrations.__init__(self, fitstbl, **kwargs)
 #   (KBW) I'd prefer this:
-    def __init__(self, fitstbl, spectrograph=None, par=None, wavelength_frame='pixel',
-                 save_masters=True, write_qa=True, steps=None):
+    def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None,
+                 wavelength_frame='pixel', save_masters=True, write_qa=True, steps=None):
         Calibrations.__init__(self, fitstbl, spectrograph=spectrograph, par=par,
-                              wavelength_frame=wavelength_frame, save_masters=save_masters,
-                              write_qa=write_qa)
+                              master_root=master_root, wavelength_frame=wavelength_frame,
+                              save_masters=save_masters, write_qa=write_qa)
         self.steps = Calibrations.default_steps() if steps is None else steps
 

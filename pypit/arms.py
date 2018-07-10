@@ -140,7 +140,7 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
             # Slit Tracing
             tslits_dict, maskslits = caliBrate.get_slits()
             if tslits_dict is None: # No slits
-                # TODO: Add a warning?
+                msgs.warn('No slits found!')
                 continue
             # Generate the 1D wavelength solution
             wv_calib, maskslits = caliBrate.get_wv_calib()

@@ -17,9 +17,6 @@ try:
 except NameError:
     basestring = str
 
-# Does not need to be global, but I prefer it
-frametype = 'bpm'
-
 class BPMImage(object):
     """
     This class is primarily designed to generate an Bad Pixel Image
@@ -62,8 +59,13 @@ class BPMImage(object):
     bpm : ndarray
 
     """
+
+    # Frametype is a class attribute
+    frametype = 'bpm'
+
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph, shape=None, filename=None, det=None, msbias=None, trim=True):
+    def __init__(self, spectrograph=None, shape=None, filename=None, det=None, msbias=None,
+                 trim=True):
 
         # Spectrograph is required
         if isinstance(spectrograph, basestring):
@@ -71,7 +73,7 @@ class BPMImage(object):
         elif isinstance(spectrograph, Spectrograph):
             self.spectrograph = spectrograph
         else:
-            raise TypeError('Must provide a name or instance for the Spectrograph.')
+            self.spectrograph = None
 
         # Used to construct the BPM using the spectrograph class
         self.shape = shape
@@ -82,13 +84,14 @@ class BPMImage(object):
         self.msbias = msbias
         self.trim = trim
 
-        # Attributes (set after init)
-        self.frametype = frametype
+        # spectrograph or msbias must be defined
+        if self.spectrograph is None and msbias is None:
+            msgs.error('BPMImage instantiation incomplete.  Must provide spectrograph or msbias.')
 
         # Output
         self.bpm_img = None
 
-    def build(self):
+    def build(self, datasec=None):
         """
         Generate the BPM Image
 
@@ -104,16 +107,21 @@ class BPMImage(object):
                                                  det=self.det)
             return self.bpm_img
 
-        # Get the data sections
-        datasec, one_indexed, include_end, transpose \
+        _datasec = datasec
+        if self.spectrograph is None and _datasec is None:
+            _datasec = [[slice(None),slice(None)]]
+            _numamplifiers = 1
+        if _datasec is None:
+            # Get the data sections from the spectrograph definition
+            _datasec, one_indexed, include_end, transpose \
                 = self.spectrograph.get_image_section(self.filename, self.det, section='datasec')
-        datasec = [ arparse.sec2slice(sec, one_indexed=one_indexed, include_end=include_end,
-                                      require_dim=2, transpose=transpose) for sec in datasec ]
+            _datasec = [ arparse.sec2slice(sec, one_indexed=one_indexed, include_end=include_end,
+                                           require_dim=2, transpose=transpose)
+                                for sec in _datasec ]
+            _numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
        
         # Identify the bad pixels
-        self.bpm_img = arprocimg.find_bad_pixels(self.msbias,
-                                    self.spectrograph.detector[self.det-1]['numamplifiers'],
-                                    datasec, trim=self.trim)
+        self.bpm_img = arprocimg.find_bad_pixels(self.msbias, _numamplifiers, _datasec)
         return self.bpm_img
 
 

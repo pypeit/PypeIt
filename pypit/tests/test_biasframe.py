@@ -82,6 +82,8 @@ def test_read_write(kast_blue_bias_files):
     bias_img = bias_frame.build_image()
     # Write
     bias_frame.write_stack_to_fits(data_path('tmp.fits'))
+    # TODO: This is now more complicated.  Will need a whole PR to allow
+    # for the `from_fits` function
 #    # Read
 #    bias_frame2 = biasframe.BiasFrame.from_fits(data_path('tmp.fits'))
 #    assert np.array_equal(bias_frame2.stack, bias_img)
@@ -112,7 +114,8 @@ def test_run_and_master(kast_blue_bias_files):
     assert len(bias_frame2.steps) == 0
 
     # Load (not kept in the Object!)
-    bias3 = biasframe.BiasFrame('shane_kast_blue', setup=setup, root_path=root_path, mode='reuse')
+    bias_frame3 = biasframe.BiasFrame('shane_kast_blue', setup=setup, root_path=root_path,
+                                      mode='reuse')
     bias3, _, _ = bias_frame3.load_master_frame()
     assert bias_frame3.stack is None
     assert np.array_equal(bias2, bias3)

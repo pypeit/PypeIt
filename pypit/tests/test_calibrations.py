@@ -17,8 +17,9 @@ from astropy.table import Table
 
 from pypit.core import arsort
 
-from pypit.spectrographs import spectro_utils
+from pypit.spectrographs.util import load_spectrograph
 from pypit import calibrations
+from pypit.par import pypitpar
 
 from pypit.tests import tstutils
 
@@ -35,11 +36,11 @@ if os.getenv('PYPIT_DEV') is None:
 else:
     skip_test=False
     # MultiSlit
-    fitstbl = arsort.dummy_fitstbl(
-        directory=os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/'))
+    fitstbl = arsort.dummy_fitstbl(directory=os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA',
+                                                          'Shane_Kast_blue', '600_4310_d55'))
     fitstbl['filename'][1] = 'b1.fits.gz'
     for ii in range(2,5):
-        fitstbl['filename'][ii] = 'b{:d}.fits.gz'.format(ii)
+        fitstbl['filename'][ii] = 'b{0}.fits.gz'.format(ii)
     fitstbl['filename'][5] = 'b27.fits.gz'
 
 
@@ -56,39 +57,21 @@ def multi_caliBrate():
     setup = 'A_01_aa'
     det = 1
     sci_ID = 1
-    settings = tstutils.load_kast_blue_masters(get_settings=True)[0]
-    multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl, save_masters=False, write_qa=False)
-    #
-    multi_caliBrate.reset(setup, det, sci_ID, settings)
-    # Extra settings
-    multi_caliBrate.settings['masters']['reuse'] = False
-    multi_caliBrate.settings['bias'] = {}
-    multi_caliBrate.settings['bias']['useframe'] = 'overscan'
-    multi_caliBrate.settings['reduce'] = {}
-    multi_caliBrate.settings['reduce']['badpix'] = False
-    multi_caliBrate.settings['reduce']['trim'] = True
-    multi_caliBrate.settings['reduce']['calibrate'] = {}
-    multi_caliBrate.settings['reduce']['calibrate']['wavelength'] = True
-    # Kludge me
-    from pypit import traceslits
-    multi_caliBrate.settings['trace'] = traceslits.default_settings()['trace']
-    # Kludge me
-    from pypit import wavecalib
-    multi_caliBrate.settings['arc'] = {}
-    multi_caliBrate.settings['arc']['calibrate'] = wavecalib.default_settings()['calibrate']
-    # Yet another
-    from pypit import wavetilts
-    multi_caliBrate.settings['trace']['slits']['tilts'] = wavetilts.default_settings()['tilts'].copy()
-    # Yup
-    from pypit import flatfield
-    from pypit import processimages
-    multi_caliBrate.settings['reduce']['flatfield'] = flatfield.default_settings()['flatfield']
-    multi_caliBrate.settings['reduce']['flatfield']['perform'] = True
-    multi_caliBrate.settings['reduce']['flatfield']['useframe'] = 'pixelflat'
-    multi_caliBrate.settings['reduce']['slitprofile'] = flatfield.default_settings()['slitprofile']
-    multi_caliBrate.settings['pixelflat'] = {}
-    multi_caliBrate.settings['pixelflat']['combine'] = processimages.default_settings()['combine']
-    # Return
+    spectrograph = tstutils.load_kast_blue_masters(get_spectrograph=True)[0]
+
+    # Only changing the defaults
+    # TODO: I agree FrameGroupPar is a bit onerous...
+    calib_par = pypitpar.CalibrationsPar(badpix=False,
+                                         biasframe=pypitpar.FrameGroupPar('bias',
+                                                                          useframe='overscan'))
+
+    master_root = data_path('MF') if os.getenv('PYPIT_DEV') is None \
+                    else os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
+    
+    multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl, spectrograph=spectrograph,
+                                                        par=calib_par, master_root=master_root,
+                                                        save_masters=False, write_qa=False)
+    multi_caliBrate.reset(setup, det, sci_ID, calib_par)
     return multi_caliBrate
 
 
@@ -101,7 +84,8 @@ def test_datasec(multi_caliBrate):
     if skip_test:
         assert True
         return
-    datasec_img, naxis0, naxis1 = multi_caliBrate.get_datasec_img()
+    datasec_img = multi_caliBrate.get_datasec_img()
+    naxis0, naxis1 = datasec_img.shape
     # Test
     assert naxis0 == 2112
     assert naxis1 == 350

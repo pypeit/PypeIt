@@ -390,7 +390,8 @@ class FrameGroupPar(ParSet):
         return [ 'bias', 'pixelflat', 'arc', 'pinhole', 'trace', 'standard', 'science' ]
 
     def validate(self):
-        pass
+        if self.data['useframe'] is None:
+            self.data['useframe'] = self.data['frametype']
 
 
 class CombineFramesPar(ParSet):
@@ -416,7 +417,7 @@ class CombineFramesPar(ParSet):
         descr['match'] = 'Match frames with pixel counts that are within N-sigma of one ' \
                          'another, where match=N below.  If N < 0, nothing is matched.'
 
-        defaults['method'] = 'mean'
+        defaults['method'] = 'weightmean'
         options['method'] = CombineFramesPar.valid_methods()
         dtypes['method'] = basestring
         descr['method'] = 'Method used to combine frames.  Options are: {0}'.format(
@@ -740,7 +741,7 @@ class FlatFieldPar(ParSet):
         descr['method'] = 'Method used to flat field the data; use None to skip flat-fielding.  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
-        defaults['params'] = 20
+        defaults['params'] = [20]
         dtypes['params'] = [int, list]
         descr['params'] = 'Flat-field method parameters.  For \'PolyScan\', set params = order, ' \
                           'numPixels, repeat ; for bspline, set params = spacing '
@@ -1571,6 +1572,7 @@ class TraceSlitsPar(ParSet):
                                  'spatial size of all orders.'
 
         # TODO: Add a check for this?
+        defaults['single'] = []
         dtypes['single'] = list
         descr['single'] = 'Add a single, user-defined slit based on its location on each ' \
                           'detector.  Syntax is a list of values, 2 per detector, that define ' \
@@ -1666,7 +1668,7 @@ class TraceTiltsPar(ParSet):
         dtypes['tracethresh'] = [int, float, list, numpy.ndarray]
         descr['tracethresh'] = 'TODO: X fill in the doc for this'
 
-        defaults['order'] = 1
+        defaults['order'] = 2
         dtypes['order'] = int
         descr['order'] = 'Order of the polynomial function to be used for the tilt of an ' \
                          'individual arc line.  Must be 1 for eschelle data (ARMED pipeline).'
@@ -1676,7 +1678,7 @@ class TraceTiltsPar(ParSet):
         dtypes['function'] = basestring
         descr['function'] = 'Type of function for arc line fits'
 
-        defaults['yorder'] = 1
+        defaults['yorder'] = 4
         dtypes['yorder'] = int
         descr['yorder'] = 'Order of the polynomial function to be used to fit the tilts ' \
                           'along the y direction.  TODO: Only used by ARMED pipeline?'
@@ -1686,7 +1688,7 @@ class TraceTiltsPar(ParSet):
         dtypes['func2D'] = basestring
         descr['func2D'] = 'Type of function for 2D fit'
 
-        defaults['method'] = 'spline'
+        defaults['method'] = 'spca'
         options['method'] = TraceTiltsPar.valid_methods()
         dtypes['method'] = basestring
         descr['method'] = 'Method used to trace the tilt of the slit along an order.  ' \

@@ -21,19 +21,23 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=False,
+def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, tilts=False,
                            datasec=False, wvcalib=False):
 
     spectrograph = load_spectrograph(spectrograph='shane_kast_blue')
+    spectrograph.naxis = (2112,350)     # Image shape with overscan
 
     root_path = data_path('MF') if os.getenv('PYPIT_DEV') is None \
                     else os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
-    directory_path = root_path+'_'+self.spectrograph.spectrograph
+    directory_path = root_path+'_'+spectrograph.spectrograph
                     
     mode = 'reuse'
 
     # Load up the Masters
     ret = []
+
+    if get_spectrograph:
+        ret.append(spectrograph)
 
     setup = 'A_01_aa'
     if aimg:
@@ -55,7 +59,7 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
         ret.append(tilts)
 
     if datasec:
-        datasec_img = self.spectrograph.get_datasec_img(data_path('b1.fits.gz'), 1)
+        datasec_img = spectrograph.get_datasec_img(data_path('b1.fits.gz'), 1)
         ret.append(datasec_img)
 
     if wvcalib:

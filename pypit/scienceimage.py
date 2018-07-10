@@ -485,7 +485,7 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.global_sky, self.modelvarframe
 
-    def process(self, bias_subtract, pixel_flat, apply_gain=True, dnoise=0.):
+    def process(self, bias_subtract, pixel_flat, apply_gain=True, trim=True):
         """ Process the image
 
         Wrapper to ProcessImages.process()
@@ -501,10 +501,10 @@ class ScienceImage(processimages.ProcessImages):
         """
         # Process
         self.sciframe = self.process(bias_subtract=bias_subtract, apply_gain=apply_gain,
-                                     pixel_flat=pixel_flat, bpm=self.bpm)
+                                     pixel_flat=pixel_flat, bpm=self.bpm, trim=trim)
 
         # Construct raw variance image
-        self.rawvarframe = self.build_rawvarframe(dnoise=dnoise)
+        self.rawvarframe = self.build_rawvarframe(trim=trim)
 
         # Build CR mask
         self.crmask = self.build_crmask()

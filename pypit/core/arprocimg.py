@@ -491,12 +491,12 @@ def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
 
     # Get the amplifier indices
     indx = datasec_img.astype(int) == 0
-    amp = numpy.ma.MaskedArray(datasec_img.astype(int) - 1, mask=indx).filled(0)
+    amp = np.ma.MaskedArray(datasec_img.astype(int) - 1, mask=indx).filled(0)
 
     # Return the read-noise image.  Any pixels without an assigned
     # amplifier are given a noise of 0.
-    return numpy.ma.MaskedArray(np.square(_ronoise[amp]) + np.square(0.5*_gain[amp]),
-                                mask=indx).filled(0.0)
+    return np.ma.MaskedArray(np.square(_ronoise[amp]) + np.square(0.5*_gain[amp]),
+                             mask=indx).filled(0.0)
 
 
 def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol', params=[5, 65]):
@@ -555,7 +555,7 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
     testframe = np.zeros_like(rawframe, dtype=int)
     for i in range(numamplifiers):
         testframe[_datasec[i]] += 1
-    if np.any(testfram > 1):
+    if np.any(testframe > 1):
         raise ValueError('Image has overlapping data sections!')
 
     # Copy the data so that the subtraction is not done in place
@@ -568,14 +568,14 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
 
         # Shape along at least one axis must match
         data_shape = rawframe[_datasec[i]].shape
-        if not numpy.any([ dd == do for dd, do in zip(data_shape, overscan.shape)]):
+        if not np.any([ dd == do for dd, do in zip(data_shape, overscan.shape)]):
             msgs.error('Overscan sections do not match amplifier sections for'
                        'amplifier {0}'.format(i+1))
         compress_axis = 1 if data_shape[0] == overscan.shape[0] else 0
         
         # Fit/Model the overscan region
-        osfit = np.median(overscan, axis=compress_axis) if method.lower() == 'median' \
-                        else np.median(overscan)
+        osfit = np.median(overscan) if method.lower() == 'median' \
+                        else np.median(overscan, axis=compress_axis) 
         if method.lower() == 'polynomial':
             # TODO: Use np.polynomial.polynomial.polyfit instead?
             c = np.polyfit(np.arange(osfit.size), osfit, params[0])

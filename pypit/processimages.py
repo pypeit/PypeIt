@@ -243,7 +243,7 @@ class ProcessImages(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def apply_gain(self):
+    def apply_gain(self, trim=True):
         """
         Apply gain (instead of ampsec scale)
 
@@ -259,6 +259,10 @@ class ProcessImages(object):
         # call is made for a few of the steps.  Can we be more
         # efficient?
         datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+        if trim:
+            datasec_img = arprocimg.trim_frame(datasec_img, datasec_img < 1)
+        if self.stack.shape != datasec_img.shape:
+            raise ValueError('Shape mismatch: {0} {1}'.format(self.stack.shape, datasec_img.shape))
         self.stack *= arprocimg.gain_frame(datasec_img,
                                            self.spectrograph.detector[self.det-1]['numamplifiers'],
                                            self.spectrograph.detector[self.det-1]['gain'])
@@ -473,17 +477,22 @@ class ProcessImages(object):
         # Create proc_images from raw_images if need be
         #   Mainly if no bias subtraction was performed
         if self.proc_images is None:
-            self.proc_images = np.zeros((self.raw_images[0].shape[0], self.raw_images[0].shape[1],
-                                         self.nloaded))
+            # Trim even if not bias subtracting
+            temp = self.raw_images[0]
+            if trim:
+                datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+                temp = arprocimg.trim_frame(temp, datasec_img < 1)
+            self.proc_images = np.zeros((temp.shape[0], temp.shape[1], self.nloaded))
             for kk,image in enumerate(self.raw_images):
-                self.proc_images[:,:,kk] = image
+                self.proc_images[:,:,kk] = arprocimg.trim_frame(image, datasec_img < 1) \
+                                                if trim else image
 
         # Combine
         self.stack = self.proc_images[:,:,0] if self.proc_images.shape[2] == 1 else self.combine()
 
         # Apply gain?
         if apply_gain:
-            self.apply_gain()
+            self.apply_gain(trim=trim)
 
         # Flat field?
         if pixel_flat is not None:
@@ -493,7 +502,7 @@ class ProcessImages(object):
         return self.stack.copy()
 
     # TODO: Is this used by anything other than ScienceImage?
-    def build_rawvarframe(self):
+    def build_rawvarframe(self, trim=True):
         """
         Generate the Raw Variance frame
 
@@ -513,6 +522,9 @@ class ProcessImages(object):
                                                     numamplifiers=detector['numamplifiers'],
                                                     darkcurr=detector['darkcurr'],
                                                     exptime=self.exptime)
+        if trim:
+            self.rawvarframe = arprocimg.trim_frame(self.rawvarframe, datasec_img < 1)
+
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
