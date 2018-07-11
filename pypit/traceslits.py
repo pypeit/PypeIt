@@ -186,7 +186,6 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         fits_dict, ts_dict = load_traceslit_files(root)
-        print(ts_dict['settings']['trace']['slits'])
 
         # Deal with the bad pixel image
         if 'BINBPX' in fits_dict.keys():

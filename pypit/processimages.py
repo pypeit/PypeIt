@@ -242,9 +242,14 @@ class ProcessImages(object):
             datasec_img = arprocimg.trim_frame(datasec_img, datasec_img < 1)
         if self.stack.shape != datasec_img.shape:
             raise ValueError('Shape mismatch: {0} {1}'.format(self.stack.shape, datasec_img.shape))
+        
+        gain = self.spectrograph.detector[self.det-1]['gain']
+        if self.spectrograph.detector[self.det-1]['numamplifiers'] == 1 \
+                and not isinstance(gain, list):
+            gain = [gain]
         self.stack *= arprocimg.gain_frame(datasec_img,
                                            self.spectrograph.detector[self.det-1]['numamplifiers'],
-                                           self.spectrograph.detector[self.det-1]['gain'])
+                                           gain)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -407,7 +412,7 @@ class ProcessImages(object):
         # Assign the relevant data to self
         self.pixel_flat = pixel_flat
         self.bpm = bpm
-        self.slitprof = slitprof
+        self.slitprof = slitprofile
 
         # Check that the bad-pixel mask is available
         if self.bpm is None:

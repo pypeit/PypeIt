@@ -206,7 +206,7 @@ class Spectrograph(object):
             transpose = True
         except:
             # Otherwise use the detector definition directly
-            image_sections = self.detector[det-1]['datasec']
+            image_sections = self.detector[det-1][section]
             # and assume the string is python formatted.
             one_indexed = False
             include_last = False

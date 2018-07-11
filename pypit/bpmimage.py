@@ -102,26 +102,36 @@ class BPMImage(object):
         """
         # Will raise an exception if could not construct the BPM
         if self.msbias is None:
-            # TODO: Is this trimmed?
             self.bpm_img = self.spectrograph.bpm(shape=self.shape, filename=self.filename,
                                                  det=self.det)
-            return self.bpm_img
+            if self.trim:
+                mask = self.spectrograph.get_datasec_img(filename=self.filename, det=self.det) < 1
+        else:
+            _datasec = datasec
+            if self.spectrograph is None and _datasec is None:
+                _datasec = [[slice(None),slice(None)]]
+                _numamplifiers = 1
+            if _datasec is None:
+                # Get the data sections from the spectrograph definition
+                _datasec, one_indexed, include_end, transpose \
+                        = self.spectrograph.get_image_section(self.filename, self.det,
+                                                              section='datasec')
+                _datasec = [ arparse.sec2slice(sec, one_indexed=one_indexed,
+                                               include_end=include_end, require_dim=2,
+                                               transpose=transpose)
+                                    for sec in _datasec ]
+                _numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
 
-        _datasec = datasec
-        if self.spectrograph is None and _datasec is None:
-            _datasec = [[slice(None),slice(None)]]
-            _numamplifiers = 1
-        if _datasec is None:
-            # Get the data sections from the spectrograph definition
-            _datasec, one_indexed, include_end, transpose \
-                = self.spectrograph.get_image_section(self.filename, self.det, section='datasec')
-            _datasec = [ arparse.sec2slice(sec, one_indexed=one_indexed, include_end=include_end,
-                                           require_dim=2, transpose=transpose)
-                                for sec in _datasec ]
-            _numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
-       
-        # Identify the bad pixels
-        self.bpm_img = arprocimg.find_bad_pixels(self.msbias, _numamplifiers, _datasec)
+            # Identify the bad pixels
+            self.bpm_img = arprocimg.find_bad_pixels(self.msbias, _numamplifiers, _datasec)
+
+            if self.trim:
+                mask = np.ones_like(self.bpm_img, dtype=bool)
+                for d in _datasec:
+                    mask[d] = False
+        # Trim
+        if self.trim:
+            self.bpm_img = arprocimg.trim_frame(self.bpm_img, mask)
         return self.bpm_img
 
 
