@@ -73,9 +73,6 @@ class Calibrations(object):
         if spectrograph is None:
             # Set spectrograph from FITS table instrument header
             # keyword.
-            # TODO: This works!  self.fitstbl['instrume'][0] has the
-            # appropriate name, it's not the same as the 'INSTRUME'
-            # keyword from the fits headers.
             self.spectrograph = load_spectrograph(spectrograph=self.fitstbl['instrume'][0])
         elif isinstance(spectrograph, basestring):
             self.spectrograph = load_spectrograph(spectrograph=spectrograph)
@@ -266,8 +263,8 @@ class Calibrations(object):
 
         # Generate a bad pixel mask (should not repeat)
         if 'bpm' in self.calib_dict[self.setup].keys():
+            print('here')
             self.msbpm = self.calib_dict[self.setup]['bpm']
-            return self.msbpm
 
         # Make sure shape is defined
         self._check_shape()
@@ -277,8 +274,10 @@ class Calibrations(object):
         scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) \
                             & self.fitstbl['science'])[0][0]
 
-        bpmImage = bpmimage.BPMImage(self.spectrograph, shape=self.shape,
-                                     filename=self.fitstbl['filename'][scidx], det=self.det,
+        example_file = os.path.join(self.fitstbl['directory'][scidx],
+                                    self.fitstbl['filename'][scidx])
+        bpmImage = bpmimage.BPMImage(self.spectrograph, shape=self.shape, filename=example_file,
+                                     det=self.det,
                                      msbias=self.msbias if self.par['badpix'] == 'bias' else None,
                                      trim=self.par['trim'])
         # Build, save, and return
@@ -404,10 +403,14 @@ class Calibrations(object):
         self.calib_dict[self.setup]['slitprof'] = self.slitprof
         return self.mspixflatnrm, self.slitprof
 
-    def get_slits(self):
+    def get_slits(self, arms=True):
         """
         Load or generate a normalized pixel flat
         First, a trace flat image is generated
+
+        .. todo::
+            - arms is a parameter passed to traceSlits.  This may need
+              to change if/when arms.py is replaced.
 
         Requirements:
            pixlocn
@@ -452,9 +455,7 @@ class Calibrations(object):
                                                      trim=self.par['trim'], apply_gain=True)
             _ = self.traceSlits.make_binarr()
             # Now we go forth
-            # TODO: This arms argument should be passed to
-            # get_slits()
-            self.tslits_dict = self.traceSlits.run(arms=True)
+            self.tslits_dict = self.traceSlits.run(arms=arms)
              # No slits?
             if self.tslits_dict is None:
                 self.maskslits = None

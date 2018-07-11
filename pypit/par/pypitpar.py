@@ -1362,8 +1362,8 @@ class ReducePar(ParSet):
         descr['ncpus']    = 'Number of CPUs to use (-1 means all bar one CPU, -2 means all bar ' \
                             'two CPUs)'
 
-        dtypes['detnum'] = int
-        descr['detnum'] = 'Restrict reduction to a single detector with this index'
+        dtypes['detnum'] = [int, list]
+        descr['detnum'] = 'Restrict reduction to a list of detector indices'
 
         defaults['scidir'] = 'Science'
         dtypes['scidir'] = basestring

@@ -25,10 +25,6 @@ except ImportError:
 # Logging
 from pypit import msgs
 
-# TODO: Ever used?
-#from pypit import ardebug
-#debug = ardebug.init()
-
 # Initialize the settings variables
 argflag, spect = None, None
 

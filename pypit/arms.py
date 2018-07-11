@@ -53,7 +53,7 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
       0 = Successful full execution
       1 = Successful processing of setup or calcheck
     """
-    # TODO: This is never changed!
+    # TODO: Provide meaningful status values upon return
     status = 0
 
     # Generate sciexp list, if need be (it will be soon)
@@ -111,9 +111,7 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
                 else:
                     msgs.warn("Restricting the reduction to detector {:d}".format(det))
             # Setup
-#            dnum = settings.get_dnum(det)
             msgs.info("Working on detector {0}".format(det))
-            # TODO: Should this be det or dnum; can we deprecate dnum?
             sci_dict[det] = {}
 
             setup = arsetup.instr_setup(sci_ID, det, fitstbl, setup_dict,
@@ -136,7 +134,7 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
             # Physical pixel locations on the detector
             pixlocn = caliBrate.get_pixlocn()
             # Slit Tracing
-            tslits_dict, maskslits = caliBrate.get_slits()
+            tslits_dict, maskslits = caliBrate.get_slits(arms=True)
             if tslits_dict is None: # No slits
                 msgs.warn('No slits found!')
                 continue

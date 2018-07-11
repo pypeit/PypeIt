@@ -359,7 +359,7 @@ def read_deimos(raw_file, det=None):
     # Check for file; allow for extra .gz, etc. suffix
     fil = glob.glob(raw_file + '*')
     if len(fil) != 1:
-        msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+        msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
     # Read
     try:
         msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))

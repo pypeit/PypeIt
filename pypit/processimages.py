@@ -242,9 +242,14 @@ class ProcessImages(object):
             datasec_img = arprocimg.trim_frame(datasec_img, datasec_img < 1)
         if self.stack.shape != datasec_img.shape:
             raise ValueError('Shape mismatch: {0} {1}'.format(self.stack.shape, datasec_img.shape))
+        
+        gain = self.spectrograph.detector[self.det-1]['gain']
+        if self.spectrograph.detector[self.det-1]['numamplifiers'] == 1 \
+                and not isinstance(gain, list):
+            gain = [gain]
         self.stack *= arprocimg.gain_frame(datasec_img,
                                            self.spectrograph.detector[self.det-1]['numamplifiers'],
-                                           self.spectrograph.detector[self.det-1]['gain'])
+                                           gain)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
