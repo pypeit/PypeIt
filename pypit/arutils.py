@@ -48,7 +48,7 @@ def bspline_inner_knots(all_knots):
     i1=pos[-1]
     return all_knots[i0:i1]
 
-
+# TODO JFH: This is the old bspline_fit which shoul be deprecated. I think some codes still use it though. We should transtion to pydl everywhere
 def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bkspace=None):
     ''' bspline fit to x,y
     Should probably only be called from func_fit
@@ -207,7 +207,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
     else:
         outmask = np.ones(invvar.shape, dtype='bool')
     maskwork = outmask & (invvar > 0)
-    ngood= maskwork.sum()
     if not maskwork.any():
         msgs.error('No valid data points in bspline_profile!.')
     else:
@@ -221,7 +220,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
     # This was checked in detail against IDL for identical inputs
     outer = (np.outer(np.ones(nord, dtype=float), profile_basis.flatten('F'))).T
     action_multiple = outer.reshape((nx, npoly * nord), order='F')
-
     #--------------------
     # Iterate spline fit
     iiter = 0
@@ -231,6 +229,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
     relative_factor = 1.0
     tempin = None
     while (error != 0 or qdone is False) and iiter <= maxiter:
+        ngood = maskwork.sum()
         goodbk = sset.mask.nonzero()[0]
         if ngood <= 1 or not sset.mask.any():
             sset.coeff = 0
@@ -246,7 +245,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
                 bf1, laction, uaction = sset.action(xdata)
                 if(bf1.size !=nx*nord):
                     msgs.error("BSPLINE_ACTION failed!")
-                action = action_multiple
+                action = np.copy(action_multiple)
                 for ipoly in range(npoly):
                     action[:, np.arange(nord)*npoly + ipoly] *= bf1
                 del bf1 # Clear the memory
@@ -276,7 +275,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
                                          inmask=tempin, outmask=maskwork,
                                          upper=upper*relative_factor,
                                          lower=lower*relative_factor, **kwargs_reject)
-            tempin = maskwork
+            tempin = np.copy(maskwork)
             msgs.info("                             {:4d}".format(iiter) + "{:8.3f}".format(reduced_chi) +
                       "  {:7d}".format((maskwork == 0).sum()) + "      {:6.2f}".format(relative_factor))
 
@@ -289,7 +288,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
         "Final fit after " + "{:2d}".format(iiter) + " iterations: reduced_chi = " + "{:8.3f}".format(reduced_chi) +
         ", rejected = " + "{:7d}".format((maskwork == 0).sum()) + ", relative_factor = {:6.2f}".format(relative_factor))
     # Finish
-    outmask = maskwork
+    outmask = np.copy(maskwork)
     # Return
     return sset, outmask, yfit, reduced_chi
 

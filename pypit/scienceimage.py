@@ -102,7 +102,7 @@ class ScienceImage(processimages.ProcessImages):
 
     """
     # Keep order same as processimages (or else!)
-    def __init__(self, file_list=[], spectrograph=None, settings=None,
+    def __init__(self, file_list=[], spectrograph=None, settings=None, user_settings = None,
                  tslits_dict=None, tilts=None, det=None, setup=None, datasec_img=None,
                  bpm=None, maskslits=None, pixlocn=None, objtype='science',
                  fitstbl=None, scidx=0):
@@ -120,7 +120,7 @@ class ScienceImage(processimages.ProcessImages):
 
         # Start us up
         processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph,
-                                             settings=settings, det=det,
+                                             settings=settings, user_settings = user_settings, det=det,
                                              datasec_img=datasec_img,
                                              bpm=bpm)
 
@@ -149,11 +149,14 @@ class ScienceImage(processimages.ProcessImages):
 
         # Settings
         # The copy allows up to update settings with user settings without changing the original
-        if settings is None:
-            # Defaults
-            self.settings = processimages.default_settings()
-        else:
-            self.settings = settings.copy()
+
+        # TODO JFH commenting out this copy, since the settings are already taken care of by processimages. See my comments
+        # in arcimage.py
+#        if settings is None:
+#            # Defaults
+#            self.settings = processimages.default_settings()
+#        else:
+#            self.settings = settings.copy()
 
         # Child-specific Internals
         #    See ProcessImages
