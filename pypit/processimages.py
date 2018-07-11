@@ -447,11 +447,22 @@ class ProcessImages(object):
         if 'load_images' not in self.steps:
             self.load_images()
 
+        from matplotlib import pyplot
+        print('raw')
+        for image in self.raw_images:
+            pyplot.imshow(image.T, interpolation='nearest')
+            pyplot.show()
+
         # Bias subtract
         if bias_subtract is not None:
             self.bias_subtract(bias_subtract, trim=trim)
         elif 'bias_subtract' not in self.steps:
             msgs.warn("Your images have not been bias subtracted!")
+
+        print('bias subtracted')
+        for i in range(self.proc_images.shape[2]):
+            pyplot.imshow(self.proc_images[:,:,i].T, interpolation='nearest')
+            pyplot.show()
 
         # Create proc_images from raw_images if need be
         #   Mainly if no bias subtraction was performed
@@ -466,12 +477,26 @@ class ProcessImages(object):
                 self.proc_images[:,:,kk] = arprocimg.trim_frame(image, datasec_img < 1) \
                                                 if trim else image
 
+        print('trimmed')
+        for i in range(self.proc_images.shape[2]):
+            pyplot.imshow(self.proc_images[:,:,i].T, interpolation='nearest')
+            pyplot.show()
+
         # Combine
         self.stack = self.proc_images[:,:,0] if self.proc_images.shape[2] == 1 else self.combine()
+
+        print('combined')
+        pyplot.imshow(self.stack.T, interpolation='nearest')
+        pyplot.show()
 
         # Apply gain?
         if apply_gain:
             self.apply_gain(trim=trim)
+
+        print('gain applied')
+        pyplot.imshow(self.stack.T, interpolation='nearest')
+        pyplot.show()
+
 
         # Flat field?
         if pixel_flat is not None:
