@@ -35,11 +35,7 @@ class PypitSetup(object):
     ftypes : list
       frame types;  grabbed from arsort.ftype_list
     """
-    def __init__(self, settings_argflag, settings_spect, fitstbl=None):
-
-        # Required parameters
-        self.settings_argflag = settings_argflag
-        self.settings_spect = settings_spect
+    def __init__(self, par, fitstbl=None):
 
         # Other parameters
         self.fitstbl = fitstbl

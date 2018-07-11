@@ -26,7 +26,7 @@ from pypit import arspecobj
 from pypit import ardebug as debugger
 
 
-def load_headers(datlines, settings_spect, settings_argflag):
+def load_headers(datlines, settings_spect):
     """ Load the header information for each fits file
     The cards of interest are specified in the instrument settings file
     A check of specific cards is performed if specified in settings

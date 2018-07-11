@@ -399,3 +399,9 @@ class Spectrograph(object):
         raise FileNotFoundError('Could not find archive sky spectrum: {0} or {1}'.format(
                                     self.sky_file, _sky_file))
 
+
+    def __repr__(self):
+        # Generate sets string
+        txt = '<{:s}: '.format(self.__class__.__name__)
+        txt += '>'
+        return txt

@@ -1331,8 +1331,8 @@ class ReducePar(ParSet):
     """
     Parameters specific to the reduction procedures used by PypIt.
     """
-    def __init__(self, spectrograph=None, pipeline=None, ncpus=None, detnum=None, scidir=None):
-    
+    def __init__(self, spectrograph=None, pipeline=None, ncpus=None, detnum=None, scidir=None, setup=None):
+
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1368,7 +1368,11 @@ class ReducePar(ParSet):
         defaults['scidir'] = 'Science'
         dtypes['scidir'] = basestring
         descr['scidir'] = 'Directory relative to calling directory to write science files.'
-        
+
+        defaults['setup'] = False
+        dtypes['setup'] = bool
+        descr['setup'] = 'Run PYPIT in setup mode?'
+
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -1383,7 +1387,7 @@ class ReducePar(ParSet):
         k = cfg.keys()
 
         # Basic keywords
-        parkeys = [ 'spectrograph', 'pipeline', 'ncpus', 'detnum', 'scidir' ]
+        parkeys = [ 'spectrograph', 'pipeline', 'ncpus', 'detnum', 'scidir', 'setup' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
