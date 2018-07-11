@@ -33,7 +33,7 @@ def test_skysubtraction():
 
 def test_spectrographs():
     s = pypitpar.ReducePar.valid_spectrographs()
-    assert 'KECK_LRISb' in s, 'Expected to find KECK_LRISb as a spectrograph!'
+    assert 'keck_lris_blue' in s, 'Expected to find keck_lris_blue as a spectrograph!'
 
 def test_reduce():
     pypitpar.ReducePar()
@@ -99,7 +99,7 @@ def test_readcfg():
     default_file = 'default.cfg'
     if not os.path.isfile(default_file):
         pypitpar.PypitPar.from_cfg_file().to_config(default_file)
-    pypitpar.PypitPar.from_cfg_file('default.cfg', expand_spectrograph=False)
+    pypitpar.PypitPar.from_cfg_file('default.cfg')
     os.remove(default_file)
 
 def test_mergecfg():
@@ -110,9 +110,9 @@ def test_mergecfg():
     p = pypitpar.PypitPar.from_cfg_file()
 
     # Make some modifications
-    p['rdx']['spectrograph'] = 'KECK_LRISb'
+    p['rdx']['spectrograph'] = 'keck_lris_blue'
     p['rdx']['pipeline'] = 'ARMS'
-    p['biasgroup']['useframe'] = 'overscan'
+    p['calibrations']['biasframe']['useframe'] = 'overscan'
 
     # Write the modified config
     p.to_config(user_file)
@@ -122,9 +122,9 @@ def test_mergecfg():
     p = pypitpar.PypitPar.from_cfg_file(merge_with=user_file)
 
     # Check the values are correctly read in
-    assert p['rdx']['spectrograph'] == 'KECK_LRISb', 'Test spectrograph is incorrect!'
+    assert p['rdx']['spectrograph'] == 'keck_lris_blue', 'Test spectrograph is incorrect!'
     assert p['rdx']['pipeline'] == 'ARMS', 'Test pipeline is incorrect!'
-    assert p['biasgroup']['useframe'] == 'overscan', 'Test biasgroup:useframe is incorrect!'
+    assert p['calibrations']['biasframe']['useframe'] == 'overscan', 'Test biasframe:useframe is incorrect!'
 
     # Clean-up
     os.remove(user_file)

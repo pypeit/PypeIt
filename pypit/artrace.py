@@ -22,6 +22,8 @@ from pypit import arparse as settings
 from pypit.filter import BoxcarFilter
 from pypit import ardebug as debugger
 
+from pypit.par.parset import ParSet
+
 try:
     from pypit import ginga
 except ImportError:
@@ -166,6 +168,7 @@ def trace_object_dict(nobj, traces, object=None, background=None, params=None, t
     return tracelist
 
 
+# TODO: Is this ever called?
 def trace_objects_in_slits(slf, det, sciframe, varframe, crmask, doqa=False, **kwargs):
     """ Wrapper for trace_objects_in_slit
 
@@ -207,10 +210,10 @@ def trace_objects_in_slits(slf, det, sciframe, varframe, crmask, doqa=False, **k
     return tracelist
 
 
-def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe,
-                          varframe, crmask, settings_trace,
-                          trim=2, triml=None, trimr=None, sigmin=2.0, bgreg=None,
-                          maskval=-999999.9, xedge=0.03, standard=False, debug=False):
+def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe, varframe, crmask,
+                          tracefunc, traceorder, tracefind, nsmooth, trim=2, triml=None,
+                          trimr=None, sigmin=2.0, bgreg=None, maskval=-999999.9, xedge=0.03,
+                          standard=False, debug=False, manual=None, maxnumber=None):
     """ Finds objects, and traces their location on the detector
 
     Parameters
@@ -266,8 +269,6 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe,
     skysub = sciframe - skyframe
 
     # Find the trace of each object
-    tracefunc = settings_trace['trace']['object']['function']
-    traceorder = settings_trace['trace']['object']['order']
     if triml is None:
         triml = trim
     if trimr is None:
@@ -275,9 +276,6 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe,
     npix = int(pixwid[slitn] - triml - trimr)
     if bgreg is None:
         bgreg = npix
-    # Setup
-    if 'xedge' in settings_trace['trace']['object'].keys():
-        xedge = settings_trace['trace']['object']['xedge']
     # Store the trace parameters
     tracepar = dict(smthby=7, rejhilo=1, bgreg=bgreg, triml=triml, trimr=trimr,
                     tracefunc=tracefunc, traceorder=traceorder, xedge=xedge)
@@ -347,11 +345,10 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe,
     #from scipy.ndimage.filters import gaussian_filter1d
     #smth_prof = gaussian_filter1d(trcprof, fwhm/2.35)
     # Define all 5 sigma deviations as objects (should make the 5 user-defined)
-    if settings_trace['trace']['object']['find'] == 'nminima':
-        nsmooth = settings_trace['trace']['object']['nsmooth']
+    if tracefind == 'nminima':
         trcprof2 = np.mean(rec_skysub, axis=0)
         objl, objr, bckl, bckr = find_obj_minima(trcprof2, triml=triml, trimr=trimr, nsmooth=nsmooth)
-    elif settings_trace['trace']['object']['find'] == 'standard':
+    elif tracefind == 'standard':
         objl, objr, bckl, bckr = find_objects(trcprof, bgreg, mad)
     else:
         msgs.error("Bad object identification algorithm!!")
@@ -369,18 +366,31 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe,
     #
     nobj = objl.size
 
-    if settings_trace['science']['extraction']['manual01']['params'] is not None and not standard:
-        msgs.info('Manual extraction desired. Rejecting all automatically detected objects for now.')
+    # TODO: 'Manual' should be run in a different function
+    if manual is not None and not standard:
+        msgs.info('Manual extraction desired. Rejecting all automatically detected '
+                  'objects for now.')
         # Work on: Instead of rejecting all objects, prepend the manual extraction object?
 
-        if settings_trace['science']['extraction']['manual01']['params'][0] == det:
+        _manual = manual if isinstance(manual, list) else [manual]
+        nmanual = len(_manual)
+        for i in range(nmanual):
+            if not isinstance(_manual[i], (ParSet,dict)):
+                raise TypeError('Manual extraction must be defined using a dict or ParSet.')
+
+        if _manual[0]['params'][0] == det:
             nobj = 1
-            cent_spatial_manual = settings_trace['science']['extraction']['manual01']['params'][1]
-            # Entered into .pypit file in this format: [det, x_pixel_location, y_pixel_location,[x_range, y_range]]
-            # 1 or x_pixel_location is spatial pixel; 2 or y_pixel_location is dispersion/spectral pixel
-            width_spatial_manual = settings_trace['science']['extraction']['manual01']['params'][3][0]
-            objl = np.array([int(cent_spatial_manual - lordloc[cent_spatial_manual]) - width_spatial_manual])
-            objr = np.array([int(cent_spatial_manual - lordloc[cent_spatial_manual]) + width_spatial_manual])
+            cent_spatial_manual = _manual[0]['params'][1]
+
+            # Entered into .pypit file in this format:
+            #   [det, x_pixel_location, y_pixel_location,[x_range, y_range]]
+            # - 1 or x_pixel_location is spatial pixel;
+            # - 2 or y_pixel_location is dispersion/spectral pixel
+            width_spatial_manual = _manual[0]['params'][3][0]
+            objl = np.array([int(cent_spatial_manual - lordloc[cent_spatial_manual])
+                                - width_spatial_manual])
+            objr = np.array([int(cent_spatial_manual - lordloc[cent_spatial_manual])
+                                + width_spatial_manual])
             bckl = np.zeros((trcprof.shape[0], objl.shape[0]))
             bckr = np.zeros((trcprof.shape[0], objl.shape[0]))
 
@@ -399,8 +409,8 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe,
         msgs.info("Found {0:d} objects".format(objl.size))
         msgs.info("Tracing {0:d} objects".format(objl.size))
     # Max obj
-    if nobj > settings_trace['science']['extraction']['maxnumber']:
-        nobj = settings_trace['science']['extraction']['maxnumber']
+    if maxnumber is not None and nobj > maxnumber:
+        nobj = maxnumber
         msgs.warn("Restricting to the brightest {:d} objects found".format(nobj))
         objl = objl[:nobj]
         objr = objr[:nobj]

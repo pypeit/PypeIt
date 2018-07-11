@@ -14,19 +14,24 @@ from astropy.io import fits
 
 from pypit import msgs
 from pypit import arparse
-from pypit import ardebug as debugger
-from pypit.spectrographs import spectroclass
+from ..par.pypitpar import DetectorPar
+from . import spectrograph
+from .. import telescopes
 
-class KeckLRISSpectrograph(spectroclass.Spectrograph):
+from pypit import ardebug as debugger
+
+class KeckLRISSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/LRIS specific code
     """
 
-    def __init__(self):
+    # TODO: This should be an abstract class!
 
+    def __init__(self):
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(KeckLRISSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris'
+        self.telescope = telescopes.KeckTelescopePar()
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -49,46 +54,149 @@ class KeckLRISSpectrograph(spectroclass.Spectrograph):
 
         return raw_img, head0
 
-    def get_datasec(self, filename, det, settings_det):
+    def get_image_section(self, filename, det, section='datasec'):
         """
-        Load up the datasec and oscansec and also naxis0 and naxis1
+        Return a string representation of a slice defining a section of
+        the detector image.
 
+        Overwrites base class function to use :func:`read_lris` to get
+        the image sections.
+
+        .. todo::
+            - It feels really ineffiecient to just get the image section
+              using the full :func:`read_lris`.  Can we parse that
+              function into something that can give you the image
+              section directly?
+
+        This is done separately for the data section and the overscan
+        section in case one is defined as a header keyword and the other
+        is defined directly.
+        
         Args:
-            filename: str
-              data filename
-            det: int
-              Detector specification
-            settings_det: ParSet
-              numamplifiers
+            filename (str):
+                data filename
+            det (int):
+                Detector number
+            section (:obj:`str`, optional):
+                The section to return.  Should be either datasec or
+                oscansec, according to the :class:`DetectorPar`
+                keywords.
 
         Returns:
-            datasec: list
-            oscansec: list
-            naxis0: int
-            naxis1: int
+            list, bool: A list of string representations for the image
+            sections, one string per amplifier, followed by three
+            booleans: if the slices are one indexed, if the slices
+            should include the last pixel, and if the slice should have
+            their order transposed.
         """
-        datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
+        # Read the file
         temp, head0, secs = read_lris(filename, det)
-        for kk in range(settings_det['numamplifiers']):
-            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
-            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
+        if section == 'datasec':
+            return secs[0], False, False, False
+        elif section == 'oscansec':
+            return secs[1], False, False, False
+        else:
+            raise ValueError('Unrecognized keyword: {0}'.format(section))
 
-        # Need naxis0, naxis1 too
-        naxis0 = temp.shape[0]
-        naxis1 = temp.shape[1]
+#    def get_datasec(self, filename, det):
+#        """
+#        Load up the datasec and oscansec and also naxis0 and naxis1
+#
+#        .. todo::
+#            - To be deprecated in favor of :func:`get_image_sections`
+#
+#        Args:
+#            filename (str):
+#                data filename
+#            det (int):
+#                Detector number
+#
+#        Returns:
+#            datasec: list
+#            oscansec: list
+#            naxis0: int
+#            naxis1: int
+#        """
+##        # Check the detector
+##        if self.detector is None:
+##            raise ValueError('Must first define spectrograph detector parameters!')
+##        for d in self.detector:
+##            if not isinstance(d, DetectorPar):
+##                raise TypeError('Detectors must be specified using a DetectorPar instance.')
+#        
+#        # Read the file
+#        temp, head0, secs = read_lris(filename, det)
+#        return secs[0], False, False, False
+#
+##        # Get the data and overscan regions
+##        datasec, oscansec = [], []
+##        for kk in range(self.detector[det]['numamplifiers']):
+##            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
+##            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
+##
+##        # Return the sections and the shape of the image
+##        return (datasec, oscansec) + temp.shape
 
-        # Return
-        return datasec, oscansec, naxis0, naxis1
+    def get_image_shape(self, filename=None, det=None, **null_kwargs):
+        """
+        Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
+
+        Must always provide a file.
+        """
+        # Cannot be determined without file
+        if filename is None:
+            raise ValueError('Must provide a file to determine the shape of an LRIS image.')
+
+        # Use a file
+        self._check_detector()
+        self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
+        return self.naxis
+
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISb specific code
     """
     def __init__(self):
-
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(KeckLRISBSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris_blue'
+        self.camera = 'LRISb'
+        self.detector = [
+                # Detector 1
+                DetectorPar(dataext         = 1,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.135,
+                            darkcurr        = 0.0,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 2,
+                            gain            = [1.55, 1.56],
+                            ronoise         = [3.9, 4.2],
+                            suffix          = '_01blue'
+                            ),
+                #Detector 2
+                DetectorPar(dataext         = 2,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.135,
+                            darkcurr        = 0.,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 2,
+                            gain            = [1.63, 1.70],
+                            ronoise         = [3.6, 3.6],
+                            suffix          = '_02blue'
+                            )
+            ]
+        # Uses default timeunit
+        # Uses default primary_hdrext
+        self.sky_file = 'sky_LRISb_600.fits'
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
@@ -125,23 +233,63 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
+
+
+
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISr specific code
     """
     def __init__(self):
-
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(KeckLRISRSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris_red'
+        self.camera = 'LRISr'
+        self.detector = [
+                # Detector 1
+                DetectorPar(dataext         =1,
+                            dispaxis        =0,
+                            xgap            =0.,
+                            ygap            =0.,
+                            ysize           =1.,
+                            platescale      =0.135,
+                            darkcurr        =0.0,
+                            saturation      =65535.,
+                            nonlinear       =0.76,
+                            numamplifiers   =2,
+                            gain            =[1.255, 1.18],
+                            ronoise         =[4.64, 4.76],
+                            suffix          ='_01red'
+                            ),
+                #Detector 2
+                DetectorPar(dataext         =2,
+                            dispaxis        =0,
+                            xgap            =0.,
+                            ygap            =0.,
+                            ysize           =1.,
+                            platescale      =0.135,
+                            darkcurr        =0.,
+                            saturation      =65535., 
+                            nonlinear       =0.76,
+                            numamplifiers   =2,
+                            gain            =[1.191, 1.162],
+                            ronoise         =[4.54, 4.62],
+                            suffix          ='_02red'
+                            )
+            ]
+        # Uses default timeunit
+        # Uses default primary_hdrext
+        # self.sky_file ?
 
-    def bpm(self, binning=None, det=None, **null_kwargs):
+    # TODO: Anything that isn't general to the bpm methods for *all*
+    # spectrograph should be held as part of the class (like detector)A
+    # I think this means that bpm should be created when the data is
+    # read using the binning from the fits headers.
+    def bpm(self, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 
         Parameters
         ----------
-        binning : str, REQUIRED
-          Formatted like '1,1'
         det : int, REQUIRED
         **null_kwargs:
            Captured and never used
@@ -151,17 +299,25 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         badpix : ndarray
 
         """
-        xbin, ybin = [int(ii) for ii in binning.split(',')]
-        xshp = 2048 // xbin
-        yshp = 4096 // ybin
-        badpix = np.zeros((yshp, xshp), dtype=np.int)
-        # Do it
+        # Get the empty bpm: force is always True
+        self.empty_bpm(filename=filename, det=det)
+        
+        # Only defined for det=2
         if det == 2:
             msgs.info("Using hard-coded BPM for det=2 on LRISr")
-            badc = 16 // xbin
-            badpix[:, 0:badc] = 1.
-        # Return
-        return badpix
+
+            # Get the binning
+            hdu = fits.open(filename)
+            binning = hdu[0].header['BINNING']
+            hdu.close()
+
+            # Apply the mask
+            # TODO: Does this always give the correct shape?
+            xbin = int(binning.split(',')[0])
+            badc = 16//xbin
+            self.bpm_img[:, 0:badc] = 1
+
+        return self.bpm_img
 
     def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
                        msarc_shape=None, binspectral=None, **null_kwargs):
@@ -202,6 +358,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+
 
 def read_lris(raw_file, det=None, TRIM=False):
     """

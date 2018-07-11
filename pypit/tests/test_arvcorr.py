@@ -15,6 +15,7 @@ from pypit.core import arwave
 from pypit import arspecobj
 from pypit.core import arsort
 from .tstutils import load_kast_blue_masters
+from pypit.spectrographs.util import load_spectrograph
 
 mjd = 57783.269661
 RA = '07:06:23.45'
@@ -51,15 +52,11 @@ def test_geovelocity():
 def test_geocorrect(fitstbl):
     """
     """
-    # Settings
-    settings = load_kast_blue_masters(get_settings=True)[0]
-    settings['mosaic'] = {}
-    settings['mosaic']['latitude'] = lat
-    settings['mosaic']['longitude'] = lon
-    settings['mosaic']['elevation'] = alt
-    settings['reduce'] = {}
-    settings['reduce']['calibrate'] = {}
-    settings['reduce']['calibrate']['refframe'] = 'heliocentric'
+    # Spectrograph
+    # (KBW) Had to change this to keck to match the telecope parameters,
+    # then just changed to use definitions above directly.
+#    spectrograph = load_spectrograph(spectrograph='keck_lris_blue')
+
     # Specobjs (wrap in a list to mimic a slit)
     specobjs = [arspecobj.dummy_specobj(fitstbl, extraction=True)]
     scidx = 5
@@ -67,9 +64,8 @@ def test_geocorrect(fitstbl):
     obstime = Time(tbname, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
     maskslits = np.array([False]*len(specobjs))
 
-    helio, hel_corr = arwave.geomotion_correct(specobjs, maskslits, fitstbl, scidx,
-                                             obstime, settings,
-                                             settings['reduce']['calibrate']['refframe'])
+    helio, hel_corr = arwave.geomotion_correct(specobjs, maskslits, fitstbl, scidx, obstime,
+                                               lon, lat, alt, 'heliocentric')
     assert np.isclose(helio, -9.17461338, rtol=1e-5)  # Checked against x_keckhelio
     #assert np.isclose(helio, -9.3344957, rtol=1e-5)  # Original
     assert np.isclose(specobjs[0][0].boxcar['wave'][0].value, 3999.877589008, rtol=1e-8)

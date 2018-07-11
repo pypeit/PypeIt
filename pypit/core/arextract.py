@@ -1698,6 +1698,7 @@ def boxcar(specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace, mswav
     return bgcorr
 
 # This routine is deprecated
+# TODO: (KBW) But it can still be called...
 def obj_profiles(det, specobjs, sciframe, varframe, crmask,
                  scitrace, tilts, maskslits, slitpix,
                  extraction_profile='gaussian',
@@ -1898,6 +1899,7 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
     plt.rcdefaults()
 
 # This routine is deprecated, replaced by extract_optimal
+# TODO: (KBW) But it can still be called...
 def optimal_extract(specobjs, sciframe, varframe,
                     crmask, scitrace, tilts, mswave,
                     maskslits, slitpix, calib_wavelength='vacuum',

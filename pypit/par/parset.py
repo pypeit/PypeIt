@@ -58,9 +58,7 @@ try:
 except NameError:
     basestring = str
 
-
 import numpy
-from astropy.table import Table
 
 class ParSet(object):
     """
@@ -346,7 +344,8 @@ class ParSet(object):
         if isinstance(data, basestring):
             return data
         elif hasattr(data, '__len__'):
-            return ', '.join([ ParSet._data_string(d) for d in data ])
+            return '[]' if isinstance(data, list) and len(data) == 0 \
+                        else ', '.join([ ParSet._data_string(d) for d in data ])
         else:
             return data.__repr__()
 
@@ -424,9 +423,10 @@ class ParSet(object):
 
             # If the value is a list, determine if all the elements of
             # the list are also dictionaries or ParSets
-            if isinstance(par[k], list):
+            if isinstance(par[k], list) and len(par[k]) > 0:
                 is_parset_or_dict = [ isinstance(v, (ParSet, dict)) for v in par[k] ]
                 if numpy.all(is_parset_or_dict):
+                    print(par[k])
                     ndig = int(numpy.log10(len(par[k])))+1
                     for i, v in enumerate(par[k]):
                         indx = str(i+1).zfill(ndig)
@@ -566,7 +566,6 @@ class ParSet(object):
             # Re-raise the exception
             raise
 
-
     def to_config(self, cfg_file, section_name=None, section_comment=None, section_level=0,
                   append=False, quiet=False, just_lines=False):
         """
@@ -634,6 +633,24 @@ class ParSet(object):
         # Write the file
         with open(cfg_file, 'a' if append else 'w') as f:
             f.write('\n'.join(config_output))
+
+    def validate_keys(self, required=None, can_be_None=None):
+        if required is None and can_be_None is None:
+            # No validation rules, so implicitly valid
+            return
+
+        if required is not None:
+            not_defined = numpy.array([ k not in self.keys() for k in required ])
+            if numpy.any(not_defined):
+                raise ValueError('Required keys were not defined: {0}'.format(
+                                    numpy.asarray(required)[not_defined].tolist()))
+
+        if can_be_None is not None:
+            should_not_be_None = numpy.array([ self.data[k] is None and k not in can_be_None 
+                                                                    for k in self.keys()])
+            if numpy.any(should_not_be_None):
+                raise ValueError('These keys should not be None: {0}'.format(
+                                    numpy.asarray(self.keys())[should_not_be_None].tolist()))
 
 
 class ParDatabase(object):

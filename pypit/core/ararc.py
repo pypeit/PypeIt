@@ -17,7 +17,7 @@ from pypit import arqa
 from pypit import arpixels
 from pypit import ardebug as debugger
 
-
+# TODO: This should not be a core algorithm
 def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                 calibrate_lamps=None):
     """ Setup for arc analysis
@@ -55,8 +55,9 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
     # Instrument/disperser specific
     disperser = fitstbl["dispname"][arc_idx]
     binspatial, binspectral = arparse.parse_binning(fitstbl['binning'][arc_idx])
-    modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl, arc_idx=arc_idx,
-                       binspatial=binspatial, binspectral=binspectral, msarc_shape=msarc_shape)
+    modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl,
+                                               arc_idx=arc_idx, binspatial=binspatial,
+                                               binspectral=binspectral, msarc_shape=msarc_shape)
     # Load linelist
     #if settings.argflag['arc']['calibrate']['lamps'] is not None:
     if calibrate_lamps is not None:
@@ -76,7 +77,7 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
     # Return
     return arcparam
 
-def get_censpec(lordloc, rordloc, pixlocn, frame, det, settings_spect=None, gen_satmask=False):
+def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, gen_satmask=False):
     """ Extract a simple spectrum down the center of each slit
     Parameters
     ----------
@@ -103,9 +104,8 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, settings_spect=None, gen_
     ordcen = 0.5*(lordloc+rordloc)
     ordwid = 0.5*np.abs(lordloc-rordloc)
     satsnd = None
-    if gen_satmask:
+    if gen_satmask and nonlinear_counts is not None:
         msgs.info("Generating a mask of arc line saturation streaks")
-        nonlinear_counts = settings_spect[dnum]['saturation'] * settings_spect[dnum]['nonlinear']
         satmask = saturation_mask(frame, nonlinear_counts)
         satsnd = order_saturation(satmask, (ordcen+0.5).astype(int), (ordwid+0.5).astype(int))
 

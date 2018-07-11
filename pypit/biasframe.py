@@ -8,27 +8,13 @@ import os
 
 
 from pypit import msgs
-from pypit import ardebug as debugger
 from pypit.core import armasters
 from pypit.core import arsort
 from pypit import processimages
 from pypit import masterframe
+from pypit.par import pypitpar
 
-
-# For out of PYPIT running
-if msgs._debug is None:
-    debug = debugger.init()
-    debug['develop'] = True
-    msgs.reset(debug=debug, verbosity=2)
-
-# Does not need to be global, but I prefer it
-frametype = 'bias'
-
-# Place these here or elsewhere?
-#  Wherever they be, they need to be defined, described, etc.
-#  These are settings beyond those in the Parent class (ProcessImages)
-additional_default_settings = {frametype: {'useframe': 'none'}}
-
+from pypit import ardebug as debugger
 
 class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     """
@@ -36,6 +22,10 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
       It also contains I/O methods for the Master frames of PYPIT
       The build_master() method will return a simple command (str) if that is the specified setting
       in settings['bias']['useframe']
+
+    Instead have this comment and more description here:
+        # Child-specific Internals
+        #    See ProcessImages for the rest
 
     Parameters
     ----------
@@ -65,58 +55,33 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     --------------------
     stack : ndarray
     """
+
+    # Frame type is a class attribute
+    frametype = 'bias'
+
     # Keep order same as processimages (or else!)
-    def __init__(self, file_list=[], spectrograph=None, settings=None, det=1, setup=None, fitstbl=None,
-                 sci_ID=None):
+    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, root_path=None,
+                 mode=None, fitstbl=None, sci_ID=None):
 
         # Parameters unique to this Object
         self.fitstbl = fitstbl
         self.sci_ID = sci_ID
 
+        # Parameters
+        self.par = pypitpar.FrameGroupPar(self.frametype) if par is None else par
+
         # Start us up
-        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, det=det)
+        processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
+                                             overscan_par=self.par['overscan'],
+                                             combine_par=self.par['combine'],
+                                             lacosmic_par=self.par['lacosmic'])
 
-        # Attributes  (set after ProcessImages call)
-        self.frametype = frametype
-
-        # Settings
-        # The copy allows up to update settings with user settings without changing the original
-        if settings is None:
-            # Defaults
-            self.settings = processimages.default_settings().update(additional_default_settings)
-        else:
-            self.settings = settings.copy()
-            # The following is somewhat kludgy and the current way we do settings may
-            #   not touch all the options (not sure .update() would help)
-            if 'combine' not in settings.keys():
-                self.settings['combine'] = settings[self.frametype]['combine']
-
-        # MasterFrames
-        masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
-
-        # Child-specific Internals
-        #    See ProcessImages for the rest
-
-    '''
-    def process_bias(self, overwrite=False):
-        """
-        Process the input bias frames with ProcessImages.process()
-          Avoid bias subtraction
-          Avoid trim
-
-        Parameters
-        ----------
-        overwrite : bool, optional
-
-        Returns
-        -------
-        stack : ndarray
-
-        """
-        # Wrapper
-        self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
-        return self.stack.copy()
-    '''
+        # MasterFrames: Specifically pass the ProcessImages-constructed
+        # spectrograph even though it really only needs the string name
+        directory_path = None if root_path is None \
+                                else root_path+'_'+self.spectrograph.spectrograph
+        masterframe.MasterFrame.__init__(self, self.frametype, setup, directory_path=directory_path,
+                                         mode=mode)
 
     def build_image(self, overwrite=False):
         """
@@ -157,63 +122,29 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         msframe : ndarray or str or None
 
         """
+        # (KBW) Not sure this is how it should be treated if loaded is
+        # being deprecated
+
         # Generate a bias or dark image (or load a pre-made Master by PYPIT)?
-        if self.settings[self.frametype]['useframe'] in ['bias', 'dark']:
+        if self.par['useframe'] is None:
+            msgs.info("Will not perform bias/dark subtraction")
+            return None
+
+        # Simple command?
+        if self.par['useframe'] == 'overscan':
+            return self.par['useframe']
+
+        if self.par['useframe'] in ['bias', 'dark']:
             # Load the MasterFrame if it exists and user requested one to load it
             msframe, header, raw_files = self.load_master_frame()
             if msframe is None:
                 return None
-            else:
-                # Prevent over-writing the master frame when it is time to save
-                self.settings['masters']['loaded'].append(self.frametype)
-        # Simple command?
-        elif self.settings[self.frametype]['useframe'] in ['overscan', 'none']:
-            if self.settings[self.frametype]['useframe'] == 'none':
-                msgs.info("Will not perform bias/dark subtraction")
-            return self.settings[self.frametype]['useframe']
-        # It must be a user-specified file the user wishes to load
         else:
-            msframe_name = self.settings['run']['directory']['master']+u'/'+self.settings[self.frametype]['useframe']
+            # It must be a user-specified file the user wishes to load
+            msframe_name = os.path.join(self.directory_path, self.par['useframe'])
             msframe, head, _ = armasters._core_load(msframe_name, frametype=self.frametype)
-            self.settings['masters']['loaded'].append(self.frametype+self.setup)
 
         # Put in
         self.stack = msframe
         return msframe.copy()
 
-
-'''
-def get_msbias(det, setup, sci_ID, fitstbl, tsettings):
-    """
-    Grab/generate an Bias image or the command for bias subtraction (e.g. 'overscan')
-
-    Parameters
-    ----------
-    det : int
-      Required for processing
-    setup : str
-      Required for MasterFrame loading
-    sci_ID : int
-      Required to choose the right bias frames
-    fitstbl : Table
-      Required to choose the right bias frames
-    tsettings : dict
-      Required if processing or loading MasterFrame
-
-    Returns
-    -------
-    msbias : ndarray or str
-    biasFrame : BiasFrame object
-
-    """
-    # Init
-    biasFrame = BiasFrame(settings=tsettings, setup=setup,
-                                    det=det, fitstbl=fitstbl, sci_ID=sci_ID)
-    # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
-    msbias = biasFrame.master()
-    if msbias is None:  # Build it and save it
-        msbias = biasFrame.build_image()
-        biasFrame.save_master(msbias, raw_files=biasFrame.file_list, steps=biasFrame.steps)
-    # Return
-    return msbias, biasFrame
-'''

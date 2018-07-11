@@ -12,29 +12,53 @@ import glob
 import numpy as np
 
 from pypit import msgs
-from pypit import ardebug as debugger
-from pypit.spectrographs import spectroclass
+from ..par.pypitpar import DetectorPar
+from . import spectrograph
+from .. import telescopes
 
-class WhtIsisSpectrograph(spectroclass.Spectrograph):
+from pypit import ardebug as debugger
+
+class WhtIsisSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Shane/Kast specific code
     """
 
     def __init__(self):
-
-        # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(WhtIsisSpectrograph, self).__init__()
         self.spectrograph = 'NULL'
+        self.telescope = telescopes.WHTTelescopePar()
 
 class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
     """
     Child to handle WHT/ISIS blue specific code
     """
     def __init__(self):
-
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(WhtIsisBlueSpectrograph, self).__init__()
         self.spectrograph = 'wht_isis_blue'
+        self.camera = 'ISISb'
+        self.detector = [
+                # Detector 1
+                DetectorPar(dataext         = 1,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.225,
+                            darkcurr        = 0.0,
+                            saturation      = 65535.,
+                            nonlinear       = 0.76,
+                            numamplifiers   = 1,
+                            gain            = 1.2,
+                            ronoise         = 5.0,
+                            datasec         = '[:,2:4030]',
+                            suffix          = '_blue'
+                            )
+            ]
+        # Uses default timeunit
+        # Uses default primary_hdrext
+        # self.sky_file = ?
+        
 
     def setup_arcparam(self, arcparam, disperser=None, fitstbl=None,
                        arc_idx=None, msarc_shape=None, **null_kwargs):

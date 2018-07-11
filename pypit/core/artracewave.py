@@ -24,8 +24,11 @@ try:
 except ImportError:
     pass
 
-
-def analyze_lines(msarc, trcdict, slit, pixcen, tilt_settings, maskval=-999999.9):
+def analyze_lines(msarc, trcdict, slit, pixcen, order=2, function='legendre', maskval=-999999.9):
+    """
+    .. todo::
+        This needs a docstring!
+    """
     # Analyze each spectral line
     aduse = trcdict["aduse"]
     arcdet = trcdict["arcdet"]
@@ -62,13 +65,10 @@ def analyze_lines(msarc, trcdict, slit, pixcen, tilt_settings, maskval=-999999.9
 
         # Perform a scanning polynomial fit to the tilts
         wmfit = np.where(ytfit != maskval)
-        if wmfit[0].size > tilt_settings['tilts']['order'] + 1:
-            cmfit = arutils.func_fit(xtfit[wmfit], ytfit[wmfit],
-                                     tilt_settings['tilts']['function'],
-                                     tilt_settings['tilts']['order'],
-                                     minv=0.0, maxv=msarc.shape[1] - 1.0)
-            model = arutils.func_val(cmfit, xtfit, tilt_settings['tilts']['function'],
-                                     minv=0.0, maxv=msarc.shape[1] - 1.0)
+        if wmfit[0].size > order + 1:
+            cmfit = arutils.func_fit(xtfit[wmfit], ytfit[wmfit], function, order, minv=0.0,
+                                     maxv=msarc.shape[1] - 1.0)
+            model = arutils.func_val(cmfit, xtfit, function, minv=0.0, maxv=msarc.shape[1] - 1.0)
         else:
             aduse[j] = False
             badlines += 1
@@ -82,14 +82,11 @@ def analyze_lines(msarc, trcdict, slit, pixcen, tilt_settings, maskval=-999999.9
             continue
 
         # Perform a robust polynomial fit to the traces
-        wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], ytfit[wmask],
-                                              tilt_settings['tilts']['order'],
-                                              function=tilt_settings['tilts']['function'],
+        wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], ytfit[wmask], order, function=function,
                                               sigma=2.0, minv=0.0, maxv=msarc.shape[1] - 1.0)
 
         # Save model
-        model = arutils.func_val(mcoeff, xtfit, tilt_settings['tilts']['function'],
-                                 minv=0.0, maxv=msarc.shape[1] - 1.0)
+        model = arutils.func_val(mcoeff, xtfit, function, minv=0.0, maxv=msarc.shape[1] - 1.0)
         xmodel.append(xtfit)
         ymodel.append(model)
 
@@ -163,9 +160,8 @@ def tilts_image(tilts, lordloc, rordloc, pad, sz_y):
                 tiltsimg[x,y] = (tilts[x,o]*yv + x)/dszx
     return tiltsimg
 
-
-def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
-               tilt_settings, censpec=None, maskval=-999999.9,
+def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, satval,
+               idsonly=False, censpec=None, maskval=-999999.9,
                tracethresh=1000.0, nsmth=0, method="fweight", wv_calib=None):
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
@@ -190,7 +186,6 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
     trcdict : dict
 
     """
-    #if settings.argflag['trace']['slits']['tilts']['idsonly']:
     def pad_dict(indict):
         """ If an arc line is considered bad, fill the
         dictionary arrays with null values
@@ -205,7 +200,8 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
     tampl, tcent, twid, w, _ = ararc.detect_lines(censpec)
 
-    satval = settings_det['saturation']*settings_det['nonlinear']
+    # TODO: Validate satval value?
+#    satval = settings_det['saturation']*settings_det['nonlinear']
     # Order of the polynomials to be used when fitting the tilts.
     arcdet = (tcent[w]+0.5).astype(np.int)
     ampl = tampl[w]
@@ -231,7 +227,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
     # you are trace_fweighting a blended line?
 
     # Restricted to ID lines? [introduced to avoid LRIS ghosts]
-    if tilt_settings['tilts']['idsonly']:
+    if idsonly:
         ids_pix = np.round(np.array(wv_calib[str(slitnum)]['xfit'])*(msarc.shape[0]-1))
         idxuse = np.arange(arcdet.size)[aduse]
         for s in idxuse:
@@ -771,25 +767,24 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
     return final_tilts, satmask, outpar
 '''
 
-
-def fit_tilts(msarc, slit, all_tilts, tilt_settings, maskval=-999999.9, setup=None, doqa=True, show_QA=False):
+# TODO: Change yorder to "dispaxis_order"?
+def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', maskval=-999999.9,
+              setup=None, doqa=True, show_QA=False):
     # Unpack
     xtilt, ytilt, mtilt, wtilt = all_tilts
     #
-    fitxy = [tilt_settings['tilts']['order']+1, tilt_settings['tilts']['yorder']]
+    fitxy = [order+1, yorder]
 
     # Fit the inverted model with a 2D polynomial
-    msgs.info("Fitting tilts with a low order, 2D {:s}".format(tilt_settings['tilts']['func2D']))
+    msgs.info("Fitting tilts with a low order, 2D {:s}".format(func2D))
     wgd = np.where(xtilt != maskval)
     # Invert
     coeff2 = arutils.polyfit2d_general(xtilt[wgd], mtilt[wgd]/(msarc.shape[0]-1),
                                        mtilt[wgd]-ytilt[wgd], fitxy,
-                                              minx=0., maxx=1., miny=0., maxy=1.,
-                                              function=tilt_settings['tilts']['func2D'])
+                                       minx=0., maxx=1., miny=0., maxy=1., function=func2D)
     polytilts = arutils.polyval2d_general(coeff2, np.linspace(0.0, 1.0, msarc.shape[1]),
                                           np.linspace(0.0, 1.0, msarc.shape[0]),
-                                          minx=0., maxx=1., miny=0., maxy=1.,
-                                          function=tilt_settings['tilts']['func2D'])
+                                          minx=0., maxx=1., miny=0., maxy=1., function=func2D)
 
     # TODO -- Add a rejection iteration (or two)
 

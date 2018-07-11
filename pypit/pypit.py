@@ -28,6 +28,7 @@ from pypit import pypitsetup
 from pypit import arqa
     
 from pypit import arms
+from pypit.par import PypitPar
 
 def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosity=1,
           use_masters=False, devtest=False, logname=None):
@@ -245,14 +246,37 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     else:
         pass
 
+    # To pass to ARMS:
+    # rdx:
+    #       detnum
+    #       scidir
+    # calibrations
+    # scienceframe
+    # standardframe - can be None
+    # objects
+    # extract
+    # wavecalib
+    # skysubtract - can be None
+    # flexure - can be None
+    # fluxcalib - can be None
+
+#    print('ARGFLAG')
+#    print(arparse.argflag)
+#    print(' ')
+#    print('SPECT')
+#    print(arparse.spect)
+#    return arparse.argflag, arparse.spect
+#    return arparse.argflag, arparse.spect, PypitPar.from_settings(arparse.argflag, arparse.spect)
+    par = PypitPar.from_settings(arparse.argflag, arparse.spect)
+
     # Reduce the data!
     if mode == 'run':
         arsort.make_dirs(arparse.argflag)
         # Send the data away to be reduced
-        if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMS':
+        if par['rdx']['pipeline'] == 'ARMS':
             msgs.info('Data reduction will be performed using PYPIT-ARMS')
             #status = arms.ARMS(fitstbl, setup_dict, sciexp=sciexp)
-            status = arms.ARMS(specname, fitstbl, setup_dict)
+            status = arms.ARMS(par['rdx']['spectrograph'], fitstbl, setup_dict, par=par)
         elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
             msgs.info('Data reduction will be performed using PYPIT-ARMED')
             status = armed.ARMED(fitstbl)

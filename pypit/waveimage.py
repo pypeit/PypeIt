@@ -8,19 +8,11 @@ import os
 #from importlib import reload
 
 from pypit import msgs
-from pypit import ardebug as debugger
 from pypit import arutils
 from pypit import masterframe
 from pypit import ginga
 
-# For out of PYPIT running
-if msgs._debug is None:
-    debug = debugger.init()
-    debug['develop'] = True
-    msgs.reset(debug=debug, verbosity=2)
-
-default_settings = dict()
-
+from pypit import ardebug as debugger
 
 class WaveImage(masterframe.MasterFrame):
     """Class to generate the Wavelength Image
@@ -48,8 +40,11 @@ class WaveImage(masterframe.MasterFrame):
     steps : list
       List of the processing steps performed
     """
-    def __init__(self, slitpix, tilts, wv_calib, settings=None,
-                 setup=None, maskslits=None):
+    # Frametype is a class attribute
+    frametype = 'wave'
+
+    def __init__(self, slitpix, tilts, wv_calib, setup=None, directory_path=None, mode=None, 
+                 maskslits=None):
 
         # Required parameters (but can be None)
         self.slitpix = slitpix
@@ -57,19 +52,17 @@ class WaveImage(masterframe.MasterFrame):
         self.wv_calib = wv_calib
 
         # Optional parameters
-        self.settings = settings
-        self.setup = setup
         self.maskslits = maskslits
 
         # Attributes
-        self.frametype = 'wave'
         self.steps = [] # List to hold ouptut from inspect about what module create the image?
 
         # Main output
         self.wave = None
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
 
     def _build_wave(self):
         """
@@ -81,6 +74,7 @@ class WaveImage(masterframe.MasterFrame):
           Wavelength image
 
         """
+        # TODO: self.maskslits cannot be None
         # Loop on slits
         ok_slits = np.where(~self.maskslits)[0]
         self.wave = np.zeros_like(self.tilts)
@@ -119,86 +113,3 @@ class WaveImage(masterframe.MasterFrame):
         return txt
 
 
-'''
-def get_mswave(setup, tslits_dict, wvimg_settings, mstilts, wv_calib, maskslits):
-    """
-    Load/Generate the wavelength image
-
-
-    Parameters
-    ----------
-    setup : str
-      Required for MasterFrame loading
-    tslits_dict : dict
-      Slits dict; required for processing
-    wvimg_settings : dict
-      Settings for wavelength image loading or generation
-    mstilts : ndarray
-      Tilts image; required for processing
-    wv_calib : dict
-      1D wavelength fits
-    maskslits : ndarray (bool)
-      Indicates which slits are masked
-
-    Returns
-    -------
-    mswave : ndarray
-    waveImage : WaveImage object
-
-    """
-    # Instantiate
-    waveImage = WaveImage(tslits_dict['slitpix'], mstilts, wv_calib, settings=wvimg_settings,setup=setup, maskslits=maskslits)
-    # Attempt to load master
-    mswave = waveImage.master()
-    if mswave is None:
-        mswave = waveImage._build_wave()
-    # Save to hard-drive
-    waveImage.save_master(mswave, steps=waveImage.steps)
-    # Return
-    return mswave, waveImage
-
-
-# This is how I think this functinon call should work
-def get_mswave_jfh(slitpix, mstilts, wv_calib, setup = None, wvimg_settings = None, maskslits=None):
-    """
-    Load/Generate the wavelength image
-
-
-    Required Parameters
-    -------------------
-    slitppix =
-
-    Optional Parameters
-    -------------------
-
-    setup : str
-      Required for MasterFrame loading
-    tslits_dict : dict
-      Slits dict; required for processing
-    wvimg_settings : dict
-      Settings for wavelength image loading or generation
-    mstilts : ndarray
-      Tilts image; required for processing
-    wv_calib : dict
-      1D wavelength fits
-    maskslits : ndarray (bool)
-      Indicates which slits are masked
-
-    Returns
-    -------
-    mswave : ndarray
-    waveImage : WaveImage object
-
-    """
-    # Instantiate
-    waveImage = WaveImage(slitpix, tilts, wv_calib, settings=wvimg_settings, setup=setup, maskslits=maskslits)
-
-    # Attempt to load master
-    mswave = waveImage.master()
-    if mswave is None:
-        mswave = waveImage._build_wave()
-    # Save to hard-drive
-    waveImage.save_master(mswave, steps=waveImage.steps)
-    # Return
-    return mswave, waveImage
-'''

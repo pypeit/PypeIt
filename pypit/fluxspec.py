@@ -15,7 +15,6 @@ except NameError:  # For Python 3
 from astropy import units
 
 from pypit import msgs
-from pypit import ardebug as debugger
 from pypit.core import arflux
 from pypit import arload
 from pypit.core import armasters
@@ -23,35 +22,36 @@ from pypit.core import arsave
 from pypit import arutils
 from pypit import masterframe
 
+# Currently no parameters needed!
+#from .par import pypitpar
+from .spectrographs.spectrograph import Spectrograph
+from .spectrographs.util import load_spectrograph
 
-# For out of PYPIT running
-if msgs._debug is None:
-    debug = debugger.init()
-    debug['develop'] = True
-    msgs.reset(debug=debug, verbosity=2)
+from .par.pypitpar import TelescopePar
 
-frametype = 'sensfunc'
+from pypit import ardebug as debugger
+
 
 # Default settings, if any
 
-# TODO - Remove this kludge eventually
-def kludge_settings(instr):
-    from pypit import arparse as settings
-    settings.dummy_settings()
-    settings.argflag['run']['spectrograph'] = instr
-    settings.argflag['run']['directory']['master'] = 'MF'
-    #settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
-    #
-    # Load default spectrograph settings
-    spect = settings.get_spect_class(('ARMS', instr, 'pypit'))  # '.'.join(redname.split('.')[:-1])))
-    lines = spect.load_file(base=True)  # Base spectrograph settings
-    spect.set_paramlist(lines)
-    lines = spect.load_file()  # Instrument specific
-    spect.set_paramlist(lines)
-    # Kludge deeper
-    for key in ['run', 'reduce']:
-        settings.spect[key] = settings.argflag[key].copy()
-    return settings.spect
+## TODO - Remove this kludge eventually
+#def kludge_settings(instr):
+#    from pypit import arparse as settings
+#    settings.dummy_settings()
+#    settings.argflag['run']['spectrograph'] = instr
+#    settings.argflag['run']['directory']['master'] = 'MF'
+#    #settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
+#    #
+#    # Load default spectrograph settings
+#    spect = settings.get_spect_class(('ARMS', instr, 'pypit'))  # '.'.join(redname.split('.')[:-1])))
+#    lines = spect.load_file(base=True)  # Base spectrograph settings
+#    spect.set_paramlist(lines)
+#    lines = spect.load_file()  # Instrument specific
+#    spect.set_paramlist(lines)
+#    # Kludge deeper
+#    for key in ['run', 'reduce']:
+#        settings.spect[key] = settings.argflag[key].copy()
+#    return settings.spect
 
 
 class FluxSpec(masterframe.MasterFrame):
@@ -104,75 +104,102 @@ class FluxSpec(masterframe.MasterFrame):
     sci_header : dict-like
       Used for the airmass, exptime of the science spectra
     """
-    def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, spectrograph=None,
-                 sens_file=None, setup=None, settings=None, std_specobjs=None, std_header=None,
-                 multi_det=None):
 
-        # Parameters
+    # Frametype is a class attribute
+    frametype = 'sensfunc'
+
+    def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
+                 std_specobjs=None, std_header=None, spectrograph=None, multi_det=None,
+                 setup=None, root_path=None, mode=None):
+
+
+        # Load standard files
+        std_spectro = None
         self.std_spec1d_file = std_spec1d_file
-        self.sci_spec1d_file = sci_spec1d_file
-        self.sens_file = sens_file
-        self.setup = setup
-        self.multi_det = multi_det
-        if std_specobjs is not None:
-            # Need to unwrap these (sometimes)..
-            self.std_specobjs = arutils.unravel_specobjs(std_specobjs)
+        # Need to unwrap these (sometimes)..
+        self.std_specobjs = std_specobjs if std_specobjs is None \
+                                            else arutils.unravel_specobjs(std_specobjs)
         self.std_header = std_header
-
-        # Main outputs
-        self.sensfunc = None  # dict
-
-        # Attributes
-        self.frametype = frametype
-        self.steps = []
-
-        # Load science/std early to grab spectrograph from header
         if self.std_spec1d_file is not None:
             self.std_specobjs, self.std_header = arload.load_specobj(self.std_spec1d_file)
-            msgs.info("Loaded {:d} spectra from the spec1d standard star file: {:s}".format(len(self.std_specobjs),
-                                                                                            self.std_spec1d_file))
+            msgs.info('Loaded {0} spectra from the spec1d standard star file: {1}'.format(
+                                len(self.std_specobjs), self.std_spec1d_file))
             std_spectro = self.std_header['INSTRUME']
-        else:
-            std_spectro = None
-        # Science
+
+        # Load the science files
+        sci_spectro = None
+        self.sci_spec1d_file = sci_spec1d_file
+        self.sci_specobjs = []
+        self.sci_header = None
         if self.sci_spec1d_file is not None:
             self.sci_specobjs, self.sci_header = arload.load_specobj(self.sci_spec1d_file)
-            msgs.info("Loaded spectra from the spec1d science file: {:s}".format(self.sci_spec1d_file))
+            msgs.info('Loaded {0} spectra from the spec1d science file: {1}'.format(
+                                len(self.sci_specobjs), self.sci_spec1d_file))
             sci_spectro = self.sci_header['INSTRUME']
-        else:
-            sci_spectro = None
-            self.sci_specobjs = []
-            self.sci_header = None
 
         # Compare instruments if they exist
-        if (std_spectro is not None) and (sci_spectro is not None):
-            if std_spectro != sci_spectro:
-                msgs.error("Standard spectra are not the same instrument as science!!")
+        if std_spectro is not None and sci_spectro is not None and std_spectro != sci_spectro:
+            msgs.error('Standard spectra are not the same instrument as science!!')
 
-        # Settings and spectrograph
-        if spectrograph is None:
-            if std_spectro is not None:
-                spectrograph = std_spectro
-                msgs.info("Spectrograph={:s} from standard file".format(spectrograph))
-            elif sci_spectro is not None:
-                spectrograph = sci_spectro
-                msgs.info("Spectrograph={:s} from science file".format(spectrograph))
+        # Instantiate the spectograph
+        _spectrograph = spectrograph
+        spectrograph_name = None
+        if _spectrograph is None:
+            _spectrograph = std_spectro
+            spectrograph_name = _spectrograph
+            if _spectrograph is not None:
+                msgs.info("Spectrograph set to {0} from standard file".format(_spectrograph))
+        if _spectrograph is None:
+            _spectrograph = sci_spectro
+            spectrograph_name = _spectrograph
+            if _spectrograph is not None:
+                msgs.info("Spectrograph set to {0} from science file".format(_spectrograph))
+        if isinstance(_spectrograph, basestring):
+            spectrograph_name = _spectrograph
+            msgs.info("Spectrograph set to {0}, from argument string".format(_spectrograph))
+        elif isinstance(_spectrograph, Spectrograph):
+            spectrograph_name = _spectrograph.spectrograph
+            msgs.info("Spectrograph set to {0}, from argument object".format(_spectrograph))
+    
+        # Get the extinction data
+        self.extinction_data = None
+        if _spectrograph is not None:
+            telescope = load_spectrograph(spectrograph=_spectrograph).telescope \
+                                    if isinstance(_spectrograph, basestring) \
+                                    else _spectrograph.telescope
+            self.extinction_data \
+                    = arflux.load_extinction_data(telescope['longitude'], telescope['latitude'])
+        elif self.sci_header is not None and 'LON-OBS' in self.sci_header.keys():
+            self.extinction_data \
+                    = arflux.load_extinction_data(self.sci_header['LON-OBS'],
+                                                  self.sci_header['LAT-OBS'])
+       
+        # Once the spectrograph is instantiated, can also set the
+        # extinction data
+        # Parameters
+        self.sens_file = sens_file
+        self.multi_det = multi_det
 
-        if spectrograph is not None:
-            if settings is None:
-                self.settings = kludge_settings(spectrograph)
-        else:
-            self.settings = settings
+        # Main outputs
+        self.sensfunc = None if self.sens_file is None \
+                            else armasters._load(self.sens_file, frametype=self.frametype)[0] 
+
+        # Attributes
+        self.steps = []
 
         # Key Internals
         self.std = None         # Standard star spectrum (SpecObj object)
-        self.std_idx = None     # Nested indices for the std_specobjs list that corresponds to the star!
-
-        if self.sens_file is not None:
-            self.sensfunc, _, _ = armasters._load(self.sens_file, frametype=self.frametype)
+        self.std_idx = None     # Nested indices for the std_specobjs list that corresponds
+                                # to the star!
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, self.setup, self.settings)
+        directory_path = None
+        if root_path is not None:
+            directory_path = root_path
+            if spectrograph_name is not None:
+                directory_path += '_'+spectrograph_name
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
 
     def find_standard(self):
         """
@@ -199,7 +226,7 @@ class FluxSpec(masterframe.MasterFrame):
             # Append
             for ostd in sv_stds[1:]:
                 std_splice.boxcar['wave'] = np.append(std_splice.boxcar['wave'].value,
-                                                  ostd.boxcar['wave'].value) * units.AA
+                                                      ostd.boxcar['wave'].value) * units.AA
                 for key in ['counts', 'var']:
                     std_splice.boxcar[key] = np.append(std_splice.boxcar[key], ostd.boxcar[key])
             self.std = std_splice
@@ -226,22 +253,29 @@ class FluxSpec(masterframe.MasterFrame):
         self.sensfunc : dict
 
         """
+        # Check internals
         if self.std is None:
-            msgs.warn("You need to identify the Star first (with find_standard)") #load in the Standard spectra first")
+            msgs.warn('First identify the star first (with find_standard).')
             return None
         if self.std_header is None:
-            msgs.warn("You need to set the std_header with a dict-like object holding RA, DEC, AIRMASS, EXPTIME")
+            msgs.warn('First set std_header with a dict-like object holding RA, DEC, '
+                      'AIRMASS, EXPTIME.')
             return None
-        # Run
+
+        # Get extinction correction
+        extinction_corr = arflux.extinction_correction(self.std.boxcar['wave'],
+                                                       self.std_header['AIRMASS'],
+                                                       self.extinction_data)
         self.sensfunc = arflux.generate_sensfunc(self.std, self.std_header['RA'],
-                                            self.std_header['DEC'], self.std_header['AIRMASS'],
-                                            self.std_header['EXPTIME'], self.settings)
+                                                 self.std_header['DEC'],
+                                                 self.std_header['EXPTIME'], extinction_corr)
+
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
         return self.sensfunc
 
-    def _flux_specobjs(self, specobjs, airmass, exptime):
+    def flux_specobjs(self, specobjs, airmass, exptime):
         """
         Flux an input list of SpecObj objects
           Can be packed in detector, slit, etc. or as a simple list
@@ -262,8 +296,8 @@ class FluxSpec(masterframe.MasterFrame):
         for sci_obj in arutils.unravel_specobjs(specobjs):
             if sci_obj is not None:
                 # Do it
-                arflux.apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime, self.settings)
-
+                arflux.apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime,
+                                      self.extinction_data)
 
     def flux_science(self):
         """
@@ -275,19 +309,9 @@ class FluxSpec(masterframe.MasterFrame):
         -------
 
         """
-        # Settings kludge if the Class is being used external to PYPIT
-        if 'mosaic' not in self.settings.keys():
-            self.settings['mosaic'] = {}
-            self.settings['mosaic']['longitude'] = self.sci_header['LON-OBS']
-            self.settings['mosaic']['latitude'] = self.sci_header['LAT-OBS']
-            self.settings['mosaic']['elevation'] = self.sci_header['ALT-OBS']
-        # Flux
         for sci_obj in self.sci_specobjs:
-            arflux.apply_sensfunc(sci_obj, self.sensfunc,
-                                  self.sci_header['AIRMASS'],
-                                  self.sci_header['EXPTIME'],
-                                  self.settings)
-        # Step
+            arflux.apply_sensfunc(sci_obj, self.sensfunc, self.sci_header['AIRMASS'],
+                                  self.sci_header['EXPTIME'], self.extinction_data)
         self.steps.append(inspect.stack()[0][3])
 
     def _set_std_obj(self, obj_id):
@@ -410,7 +434,6 @@ class FluxSpec(masterframe.MasterFrame):
         # Plot
         debugger.plot1d(wave, sens, xlbl='Wavelength', ylbl='Sensitivity Function')
 
-
     def write_science(self, outfile):
         """
         Write the flux-calibrated science spectra
@@ -427,19 +450,19 @@ class FluxSpec(masterframe.MasterFrame):
             msgs.warn("No science spectra to write to disk!")
         #
         if 'VEL-TYPE' in self.sci_header.keys():
-            helio_dict = dict(refframe=self.sci_header['VEL-TYPE'], vel_correction=self.sci_header['VEL'])
+            helio_dict = dict(refframe=self.sci_header['VEL-TYPE'],
+                              vel_correction=self.sci_header['VEL'])
         else:
             helio_dict = None
+        telescope=None
         if 'LON-OBS' in self.sci_header.keys():
-            obs_dict = dict(longitude=self.sci_header['LON-OBS'],
-                            latitude=self.sci_header['LAT-OBS'],
-                            elevation=self.sci_header['ALT-OBS'],
-                            )
+            telescope = TelescopePar(longitude=self.sci_header['LON-OBS'],
+                                     latitude=self.sci_header['LAT-OBS'],
+                                     elevation=self.sci_header['ALT-OBS'])
         arsave.save_1d_spectra_fits(self.sci_specobjs, self.sci_header, outfile,
-                             helio_dict=helio_dict, clobber=True, obs_dict=obs_dict)
+                                    helio_dict=helio_dict, telescope=telescope, clobber=True)
         # Step
         self.steps.append(inspect.stack()[0][3])
-
 
     def __repr__(self):
         # Generate sets string
@@ -451,6 +474,4 @@ class FluxSpec(masterframe.MasterFrame):
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
-
-
 

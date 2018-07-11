@@ -12,19 +12,44 @@ import glob
 import numpy as np
 
 from pypit import msgs
-from pypit import ardebug as debugger
-from pypit.spectrographs import spectroclass
+from ..par.pypitpar import DetectorPar
+from . import spectrograph
+from .. import telescopes
 
-class TngDoloresSpectrograph(spectroclass.Spectrograph):
+from pypit import ardebug as debugger
+
+class TngDoloresSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Shane/Kast specific code
     """
 
     def __init__(self):
-
-        # Get it started
-        spectroclass.Spectrograph.__init__(self)
-        self.spectrograph = 'NULL'
+        super(TngDoloresSpectrograph, self).__init__()
+        self.spectrograph = 'tng_dolores'
+        self.telescope = telescopes.TNGTelescopePar()
+        self.camera = 'DOLORES'
+        self.detector = [
+                # Detector 1
+                DetectorPar(dataext         = 0,
+                            dispaxis        = 1,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.252,
+                            darkcurr        = 0.0,
+                            saturation      = 65535.,
+                            nonlinear       = 0.76,
+                            numamplifiers   = 1,
+                            gain            = 0.97,
+                            ronoise         = 9.0,
+                            datasec         = '[51:,1:2045]',
+                            oscansec        = '[51:,2054:]',
+                            suffix          = '_lrr'
+                            )
+            ]
+        # Uses default primary_hdrext
+        self.timeunit = 'isot'
+        # self.sky_file = ?
 
     def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
                        binspectral=None, **null_kwargs):

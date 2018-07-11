@@ -53,3 +53,16 @@ def test_parse_binning():
     bin1, bin2 = arparse.parse_binning((2,2))   # String output required so this returns 1,1 (the default)
     assert bin1 == 1
     assert bin2 == 1
+
+def test_sec2slice():
+    sub = ':10,10:'
+    subslice = arparse.sec2slice(sub, require_dim=2)
+    assert subslice[0].start is None
+
+    subslice = arparse.sec2slice(sub, include_end=True, require_dim=2)
+    assert subslice[0].stop == 11
+
+    subslice = arparse.sec2slice(sub, one_indexed=True, require_dim=2)
+    assert subslice[0].stop == 9
+
+    

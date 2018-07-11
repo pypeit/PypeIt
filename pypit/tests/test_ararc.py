@@ -15,7 +15,7 @@ from pypit.core import arsort
 from pypit.core import ararc
 from pypit import arparse as settings
 
-from pypit.spectrographs import spectro_utils
+from pypit.spectrographs.util import load_spectrograph
 
 
 def test_setup_param():
@@ -24,19 +24,15 @@ def test_setup_param():
     Returns
     -------
     """
-    # Initialize some settings
-    settings.dummy_settings()
-    # Load Dummy self
-    settings.argflag['run']['spectrograph'] = 'shane_kast_blue'
-    spectrograph = 'shane_kast_blue'
-    spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
+    spectrograph = load_spectrograph(spectrograph='shane_kast_blue')
     fitstbl = arsort.dummy_fitstbl()
     # Run
-    arcparm = ararc.setup_param(spectro_class, (2048,2048),fitstbl,0)
+    arcparm = ararc.setup_param(spectrograph, (2048,2048), fitstbl, 0)
     for key in ['llist','disp','wvmnx']:
         assert key in arcparm
 
 
+# TODO: Why is this not run for python 3?
 def test_detect_lines():
     if os.getenv('RUN_ALL_PYPIT_TESTS') is None:  # REMOVE WHEN WORKING WITH Python 3
         assert True

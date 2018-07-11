@@ -51,8 +51,9 @@ def test_run_from_spec1d(kast_blue_files):
         return
     # Instantiate
     std_file, sci_file = kast_blue_files
-    FxSpec = fluxspec.FluxSpec(std_spec1d_file=std_file, spectrograph='shane_kast_blue',
-                               sci_spec1d_file=sci_file, setup='A_01_aa')
+    FxSpec = fluxspec.FluxSpec(std_spec1d_file=std_file, sci_spec1d_file=sci_file,
+                               spectrograph='shane_kast_blue', setup='A_01_aa',
+                               root_path=data_path('MF'))
     assert FxSpec.frametype == 'sensfunc'
     # Find the standard
     std = FxSpec.find_standard()
@@ -68,7 +69,6 @@ def test_run_from_spec1d(kast_blue_files):
     # Write
     FxSpec.write_science(data_path('tmp.fits'))
     # Master
-    FxSpec.settings['masters']['directory'] = data_path('MF_shane_kast_blue')
     FxSpec.save_master()
     # Load from Master
     sensfunc2, _, _ = FxSpec.load_master_frame(force=True)
@@ -81,6 +81,9 @@ def test_from_sens_func():
     if skip_test:
         assert True
         return
+    # TODO: Should change this to a from_sens_file instance.  Most of
+    # the class is uninstantiated and methods will fail if you
+    # instantiate this way...
     FxSpec3 = fluxspec.FluxSpec(sens_file=data_path('MF_shane_kast_blue/MasterSensFunc_A_aa.yaml'))
     assert isinstance(FxSpec3.sensfunc, dict)
 
