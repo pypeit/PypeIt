@@ -439,27 +439,15 @@ class Calibrations(object):
                                                 mode=self.par['masters'], binbpx=self.msbpm)
 
         # Load via master, as desired
-        print('loading master?')
         if not self.traceSlits.master():
-            from matplotlib import pyplot
-            print('yep!')
             # Build the trace image first
             trace_image_files = arsort.list_of_files(self.fitstbl, 'trace', self.sci_ID)
-            print(trace_image_files)
             Timage = traceimage.TraceImage(self.spectrograph,
                                            file_list=trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
-            print('Timage')
-            print(type(Timage.stack))
-            print(type(self.traceSlits.mstrace))
             # Load up and get ready
             self.traceSlits.mstrace = Timage.process(bias_subtract=self.msbias,
                                                      trim=self.par['trim'], apply_gain=True)
-            pyplot.imshow(np.ma.log10(self.traceSlits.mstrace), origin='lower',
-                          interpolation='nearest')
-            pyplot.show()
-            print(type(self.traceSlits.mstrace))
-            print('making binarr')
             _ = self.traceSlits.make_binarr()
             # Now we go forth
             # TODO: This arms argument should be passed to
