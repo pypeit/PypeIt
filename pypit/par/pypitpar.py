@@ -312,6 +312,14 @@ def _get_parset_list(cfg, pk, parsetclass):
     # No such subsets were defined, so return a null result
     return None
 
+def parset_to_dict(par):
+    try:
+        d = dict(ConfigObj(par.to_config(None, section_name='tmp', just_lines=True))['tmp'])
+    except:
+        d = dict(ConfigObj(par.to_config(None, just_lines=True)))
+        
+    return _recursive_dict_evaluate(d)
+
 #-----------------------------------------------------------------------------
 # Reduction ParSets
 

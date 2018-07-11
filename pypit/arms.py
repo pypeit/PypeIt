@@ -175,7 +175,7 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
             msgs.sciexp = sciI  # For QA on crash
 
             # Names and time
-            obstime, basename = sciI.init_time_names(_spectograph.camera,
+            obstime, basename = sciI.init_time_names(_spectrograph.camera,
                                                      timeunit=_spectrograph.timeunit)
             if basenames[sc] is None:
                 basenames[sc] = basename

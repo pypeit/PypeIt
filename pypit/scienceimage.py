@@ -500,8 +500,10 @@ class ScienceImage(processimages.ProcessImages):
 
         """
         # Process
-        self.sciframe = self.process(bias_subtract=bias_subtract, apply_gain=apply_gain,
-                                     pixel_flat=pixel_flat, bpm=self.bpm, trim=trim)
+        self.sciframe = super(ScienceImage, self).process(bias_subtract=bias_subtract,
+                                                          apply_gain=apply_gain,
+                                                          pixel_flat=pixel_flat, bpm=self.bpm,
+                                                          trim=trim)
 
         # Construct raw variance image
         self.rawvarframe = self.build_rawvarframe(trim=trim)

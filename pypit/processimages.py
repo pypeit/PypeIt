@@ -394,16 +394,16 @@ class ProcessImages(object):
         nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
         # (KBW) We can't do this:
 #        self.crmask = arprocimg.lacosmic(self.det, self.stack, saturation, nonlinear,
-#                                         varframe=varframe, **lacosmic_par['maxiter'])
+#                                         varframe=varframe, **self.lacosmic_par['maxiter'])
         # unless I change the key from rmcompact to remove_compact_obj
         # (or change the keyword in arprocimg.lacosmic)
         self.crmask = arprocimg.lacosmic(self.det, self.stack, saturation, nonlinear,
-                                         varframe=varframe, maxiter=lacosmic_par['maxiter'],
-                                         grow=lacosmic_par['grow'],
-                                         remove_compact_obj=lacosmic_par['rmcompact'],
-                                         sigclip=lacosmic_par['sigclip'],
-                                         sigfrac=lacosmic_par['sigfrac'],
-                                         objlim=lacosmic_par['objlim'])
+                                         varframe=varframe, maxiter=self.lacosmic_par['maxiter'],
+                                         grow=self.lacosmic_par['grow'],
+                                         remove_compact_obj=self.lacosmic_par['rmcompact'],
+                                         sigclip=self.lacosmic_par['sigclip'],
+                                         sigfrac=self.lacosmic_par['sigfrac'],
+                                         objlim=self.lacosmic_par['objlim'])
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -516,14 +516,14 @@ class ProcessImages(object):
         msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
         # TODO: This is overkill when self.datasec is loaded...
         datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+        if trim:
+            datasec_img = arprocimg.trim_frame(datasec_img, datasec_img < 1)
         detector = self.spectrograph.detector[self.det-1]
         self.rawvarframe = arprocimg.variance_frame(datasec_img, self.stack,
                                                     detector['gain'], detector['ronoise'],
                                                     numamplifiers=detector['numamplifiers'],
                                                     darkcurr=detector['darkcurr'],
                                                     exptime=self.exptime)
-        if trim:
-            self.rawvarframe = arprocimg.trim_frame(self.rawvarframe, datasec_img < 1)
 
         # Step
         self.steps.append(inspect.stack()[0][3])

@@ -58,7 +58,6 @@ try:
 except NameError:
     basestring = str
 
-
 import numpy
 
 class ParSet(object):
@@ -566,7 +565,6 @@ class ParSet(object):
             del self.descr[key]
             # Re-raise the exception
             raise
-
 
     def to_config(self, cfg_file, section_name=None, section_comment=None, section_level=0,
                   append=False, quiet=False, just_lines=False):

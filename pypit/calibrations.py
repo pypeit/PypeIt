@@ -544,6 +544,7 @@ class Calibrations(object):
 
         # Check for existing data
         if not self._chk_objs(['msarc', 'tslits_dict', 'pixlocn']):
+            msgs.error('dont have all the objects')
             self.wv_calib = None
             self.wv_maskslits = np.zeros_like(self.maskslits, dtype=bool)
             self.maskslits += self.wv_maskslits
@@ -641,6 +642,7 @@ class Calibrations(object):
 
         # Check for existing data
         if not self._chk_objs(['msarc', 'tslits_dict', 'pixlocn', 'wv_calib', 'maskslits']):
+            msgs.error('dont have all the objects')
             self.mstilts = None
             self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
             self.maskslits += self.wt_maskslits

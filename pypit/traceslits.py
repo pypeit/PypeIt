@@ -930,7 +930,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         # dict of steps, settings and more
         out_dict = {}
-        out_dict['settings'] = self.par.data
+        out_dict['settings'] = pypitpar.parset_to_dict(self.par)
         if self.tc_dict is not None:
             out_dict['tc_dict'] = self.tc_dict
         out_dict['steps'] = self.steps
