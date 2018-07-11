@@ -407,7 +407,7 @@ class ProcessImages(object):
         # Assign the relevant data to self
         self.pixel_flat = pixel_flat
         self.bpm = bpm
-        self.slitprof = slitprof
+        self.slitprof = slitprofile
 
         # Check that the bad-pixel mask is available
         if self.bpm is None:

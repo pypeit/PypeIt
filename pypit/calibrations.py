@@ -217,7 +217,7 @@ class Calibrations(object):
         Load or generate the bias frame/command
 
         Requirements:
-           setup, det, sci_ID, settings
+           setup, det, sci_ID, par
 
         Returns:
             self.msbias: ndarray or str
@@ -291,7 +291,7 @@ class Calibrations(object):
         Generate the datasec image
 
         Requirements:
-           det, sci_ID, settings
+           det, sci_ID, par
 
         Returns:
             self.datasec_img: ndarray
@@ -315,7 +315,7 @@ class Calibrations(object):
            tslits_dict
            mstilts
            datasec_img
-           det, sci_ID, settings, setup
+           det, sci_ID, par, setup
 
         Returns:
             self.mspixflatnrm: ndarray
@@ -339,8 +339,8 @@ class Calibrations(object):
         self._chk_set(['setup', 'det', 'sci_ID', 'par'])
 
         # Return already generated data
-        if numpy.all([ k in self.calib_dict[self.setup].keys() 
-                                for k in ['normpixelflat','slitprof']]):
+        if np.all([ k in self.calib_dict[self.setup].keys() 
+                            for k in ['normpixelflat','slitprof']]):
             self.mspixflatnrm = self.calib_dict[self.setup]['normpixelflat']
             self.slitprof = self.calib_dict[self.setup]['slitprof']
             return self.mspixflatnrm, self.slitprof
@@ -393,7 +393,7 @@ class Calibrations(object):
                 self.flatField.save_master(self.slitprof, raw_files=pixflat_image_files,
                                            steps=self.flatField.steps,
                                            outfile=armasters.master_name('slitprof', self.setup,
-                                                        flat_settings['masters']['directory']))
+                                                        self.master_dir))
         elif self.slitprof is None:
             self.slitprof, _, _ = self.flatField.load_master_slitprofile()
 
@@ -410,7 +410,7 @@ class Calibrations(object):
         Requirements:
            pixlocn
            datasec_img
-           det settings setup sci_ID
+           det par setup sci_ID
 
         Returns:
             self.tslits_dict
@@ -479,7 +479,7 @@ class Calibrations(object):
 
         Requirements:
            mstilts, tslits_dict, wv_calib, maskslits
-           det, settings, setup
+           det, par, setup
 
         Returns:
             self.mswave: ndarray
@@ -507,9 +507,8 @@ class Calibrations(object):
         # Instantiate
         self.waveImage = waveimage.WaveImage(self.tslits_dict['slitpix'],
                                              self.mstilts, self.wv_calib,
-                                             spectrograph=self.spectrograph, setup=self.setup,
-                                             root_path=self.master_root, mode=self.par['masters'], 
-                                             maskslits=self.maskslits)
+                                             setup=self.setup, directory_path=self.master_dir,
+                                             mode=self.par['masters'], maskslits=self.maskslits)
         # Attempt to load master
         self.mswave = self.waveImage.master()
         if self.mswave is None:
@@ -528,7 +527,7 @@ class Calibrations(object):
 
         Requirements:
           msarc, tslits_dict, pixlocn
-          det, settings, setup, sci_ID
+          det, par, setup, sci_ID
 
         Returns:
             self.wv_calib: dict
@@ -601,7 +600,7 @@ class Calibrations(object):
         Generate the pixlocn image
 
         Requirements:
-          settings, shape
+          spectrograph, shape
 
         Returns:
             self.pixlocn: ndarray
@@ -626,7 +625,7 @@ class Calibrations(object):
 
         Requirements:
            msarc, tslits_dict, pixlocn, wv_calib, maskslits
-           det, settings, setup, sci_ID
+           det, par, setup, sci_ID, spectrograph
 
         Returns:
             self.mstilts: ndarray (2D)
@@ -655,7 +654,7 @@ class Calibrations(object):
             return self.mstilts, self.maskslits
 
         # Instantiate
-        self.waveTilts = wavetilts.WaveTilts(self.msarc, spectrograph=self.spectrogtraph,
+        self.waveTilts = wavetilts.WaveTilts(self.msarc, spectrograph=self.spectrograph,
                                              par=self.par['tilts'], det=self.det,
                                              setup=self.setup, root_path=self.master_root,
                                              mode=self.par['masters'], pixlocn=self.pixlocn,
@@ -733,7 +732,7 @@ class Calibrations(object):
 
 class MultiSlitCalibrations(Calibrations):
     def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None,
-                 wavelength_frame='pixel', save_masters=True, write_qa=True, steps=None):
+                 wavelength_frame='vacuum', save_masters=True, write_qa=True, steps=None):
         Calibrations.__init__(self, fitstbl, spectrograph=spectrograph, par=par,
                               master_root=master_root, wavelength_frame=wavelength_frame,
                               save_masters=save_masters, write_qa=write_qa)

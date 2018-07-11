@@ -105,7 +105,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.ntcky = None
 
         # FieldFlattening parameters
-        self.flatpar = pypitpar.FlatFieldPar() if par is None else par
+        self.flatpar = pypitpar.FlatFieldPar() if flatpar is None else flatpar
 
 
     @property
