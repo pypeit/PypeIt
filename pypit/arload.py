@@ -26,7 +26,7 @@ from pypit import arspecobj
 from pypit import ardebug as debugger
 
 
-def load_headers(datlines, settings_spect):
+def load_headers(datlines, spectrograph, reduce_par):
     """ Load the header information for each fits file
     The cards of interest are specified in the instrument settings file
     A check of specific cards is performed if specified in settings
@@ -86,7 +86,7 @@ def load_headers(datlines, settings_spect):
                 headarr[k] = fits.getheader(datlines[i], ext=settings_spect['fits']['headext{0:02d}'.format(k+1)])
                 whddict['{0:02d}'.format(settings_spect['fits']['headext{0:02d}'.format(k+1)])] = k
         except:
-            if settings_argflag['run']['setup']:
+            if reduce_par['setup']:
                 msgs.warn("Bad header in extension {0:d} of file:".format(settings_spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
                 msgs.warn("Proceeding on the hopes this was a calibration file, otherwise consider removing.")
             else:
@@ -106,7 +106,8 @@ def load_headers(datlines, settings_spect):
             if ((settings_spect['check'][ch] in str(headarr[frhd][kchk]).strip()) == False):
                 print(ch, frhd, kchk)
                 print(settings_spect['check'][ch], str(headarr[frhd][kchk]).strip())
-                msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(settings_argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
+                msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(
+                    spectrograph.spectrograph)+msgs.newline()+"Remove this file, or specify a different settings file.")
                 msgs.warn("Skipping the file..")
                 skip = True
         if skip:
@@ -133,8 +134,6 @@ def load_headers(datlines, settings_spect):
             fitsdict['utc'].append('None') # Changed from None so it writes to disk
             msgs.warn("UTC is not listed as a header keyword in file:"+msgs.newline()+datlines[i])
         # Read binning-dependent detector properties here? (maybe read speed too)
-        #if settings_argflag['run']['spectrograph'] in ['keck_lris_blue']:
-        #    arlris.set_det(fitsdict, headarr[k])
         # Now get the rest of the keywords
         for kw in keys:
             if settings_spect['keyword'][kw] is None:
@@ -216,15 +215,12 @@ def load_headers(datlines, settings_spect):
     fitstbl.sort('time')
 
     # Add instrument (PYPIT name; mainly for saving late in the game)
-    fitstbl['instrume'] = settings_argflag['run']['spectrograph']
+    fitstbl['instrume'] = spectrograph.spectrograph
 
-    # TODO -- Remove the following (RC has an idea)
     # Instrument specific
-    if settings_argflag['run']['spectrograph'] == 'keck_deimos':
-        # Handle grating position
-        for gval in [3,4]:
-            gmt = fitstbl['gratepos'] == gval
-            fitstbl['dispangle'][gmt] = fitstbl['g3tltwav'][gmt]
+    spectrograph.add_to_fitstbl(fitstbl)
+
+    # Return
     return fitstbl, keylst
 
 

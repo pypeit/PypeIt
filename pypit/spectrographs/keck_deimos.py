@@ -150,6 +150,12 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Uses default primary_hdrext
         # self.sky_file ?
 
+    def add_to_fitstbl(self, fitstbl):
+        for gval in [3,4]:
+            gmt = fitstbl['gratepos'] == gval
+            fitstbl['dispangle'][gmt] = fitstbl['g3tltwav'][gmt]
+        return
+
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
         Wrapper to the raw image reader for DEIMOS

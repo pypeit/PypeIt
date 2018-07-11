@@ -35,9 +35,11 @@ class PypitSetup(object):
     ftypes : list
       frame types;  grabbed from arsort.ftype_list
     """
-    def __init__(self, par, fitstbl=None):
+    def __init__(self, spectrograph, reduce_par, fitstbl=None):
 
         # Other parameters
+        self.spectrograph = spectrograph
+        self.reduce_par = reduce_par
         self.fitstbl = fitstbl
 
         # Outputs
@@ -67,8 +69,7 @@ class PypitSetup(object):
         fitstbl : Table
 
         """
-        self.fitstbl, updates = arload.load_headers(file_list, self.settings_spect,
-                                                    self.settings_argflag)
+        self.fitstbl, updates = arload.load_headers(file_list, self.spectrograph, self.reduce_par)
         self.fitstbl.sort('time')
         # Step
         self.steps.append(inspect.stack()[0][3])

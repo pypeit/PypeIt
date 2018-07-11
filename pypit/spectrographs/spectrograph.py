@@ -80,6 +80,9 @@ class Spectrograph(object):
         """
         return os.path.join(resource_filename('pypit', 'data/sky_spec/'), 'paranal_sky.fits')
 
+    def add_to_fitstbl(self, fitstbl):
+        pass
+
     def _check_telescope(self):
         # Check the detector
         if self.telescope is None:
@@ -403,5 +406,7 @@ class Spectrograph(object):
     def __repr__(self):
         # Generate sets string
         txt = '<{:s}: '.format(self.__class__.__name__)
+        txt += ' spectrograph={:s},'.format(self.spectrograph)
+        txt += ' camera={:s}'.format(self.camera)
         txt += '>'
         return txt
