@@ -11,11 +11,7 @@ from abc import ABCMeta
 from astropy.table import Table
 
 from pypit import msgs
-from pypit import ardebug as debugger
 from pypit import arpixels
-
-from pypit.core import arsort
-from pypit.core import armasters
 
 from pypit import arcimage
 from pypit import biasframe
@@ -27,9 +23,13 @@ from pypit import wavecalib
 from pypit import wavetilts
 from pypit import waveimage
 
-from .par import pypitpar
-from .spectrographs.util import load_spectrograph
-from .spectrographs.spectrograph import Spectrograph
+from pypit.core import arsort
+from pypit.core import armasters
+from pypit.core import arprocimg
+
+from pypit.par import pypitpar
+from pypit.spectrographs.util import load_spectrograph
+from pypit.spectrographs.spectrograph import Spectrograph
 
 from pypit import ardebug as debugger
 
@@ -304,6 +304,8 @@ class Calibrations(object):
         scifile = os.path.join(self.fitstbl['directory'][scidx], self.fitstbl['filename'][scidx])
         # Generate the spectrograph-specific amplifier ID image
         self.datasec_img = self.spectrograph.get_datasec_img(scifile, self.det)
+        if self.par['trim']:
+            self.datasec_img = arprocimg.trim_frame(self.datasec_img, self.datasec_img < 1)
         return self.datasec_img
 
     def get_pixflatnrm(self):
@@ -553,7 +555,7 @@ class Calibrations(object):
             self.wv_calib = self.calib_dict[self.setup]['wavecalib']
             self.wv_maskslits = self.calib_dict[self.setup]['wvmask']
             self.maskslits += self.wv_maskslits
-            return self.wv_calib, self.mask
+            return self.wv_calib, self.maskslits
 
         # No wavelength calibration requested
         if self.wavelength_frame == "pixel":

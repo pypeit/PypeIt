@@ -122,7 +122,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         #
         return self.stack
 
-    # TODO: There is not master() method.  Does this mean useframe is
+    # TODO: There is no master() method.  Does this mean useframe is
     # always 'arc'?
 
 
