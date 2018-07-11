@@ -17,22 +17,12 @@ from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 
-# Does not need to be global, but I prefer it
-frametype = 'pixelflat'
-
-#def default_settings():
-#    default_settings = dict(flatfield={'method': 'bspline',
-#                                   "params": [20],
-#                                   },
-#                        slitprofile={'perform': True,
-#                                     },
-#                        )
-#    return default_settings
-
-# TODO, JFH: I do not understand why ArcImage is its own class whereas there is no class called FlatImage. In principle
-# this is because several codes like tilts, and wv_calib use the msarc so it made sense to make reading the image
-# a separate class. However, that is also true for flats, since the flat fielding code and the tracing code both
-# use the flat image
+# TODO, JFH: I do not understand why ArcImage is its own class whereas
+# there is no class called FlatImage. In principle this is because
+# several codes like tilts, and wv_calib use the msarc so it made sense
+# to make reading the image a separate class. However, that is also true
+# for flats, since the flat fielding code and the tracing code both use
+# the flat image
 class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     """
     This class will generat the pixel-level FlatField
@@ -73,6 +63,9 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
     """
 
+    # Frame type is a class attribute
+    frametype = 'pixelflat'
+
     # TODO user settings need to be added to these codes!!
     # Keep order same as processimages (or else!)
     def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, root_path=None,
@@ -84,7 +77,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.tilts = tilts
 
         # Image processing parameters
-        self.par = pypitpar.FrameGroupPar(frametype) if par is None else par
+        self.par = pypitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
         processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
@@ -92,18 +85,12 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                                              combine_par=self.par['combine'],
                                              lacosmic_par=self.par['lacosmic'])
 
-        # Attributes (set after init)
-        # Done by ProcessImages or MasterFrame
-#        self.frametype = frametype
-#        self.det = det
-#        self.setup = setup
-
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
         directory_path = None if root_path is None \
                                 else root_path+'_'+self.spectrograph.spectrograph
-        masterframe.MasterFrame.__init__(self, frametype, setup, directory_path=directory_path,
-                                         mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
 
         # Key outputs
         self.mspixelflat = None

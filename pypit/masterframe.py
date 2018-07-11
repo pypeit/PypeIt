@@ -13,14 +13,6 @@ from pypit import ardebug as debugger
 
 from abc import ABCMeta
 
-#default_settings = dict(masters={
-#    'directory': 'MF/',  # local to the run directory
-#    'reuse': False,
-#    'force': False,
-#    'loaded': [],
-#    'setup': None,
-#})
-
 try:
     basestring
 except NameError:
@@ -115,18 +107,6 @@ class MasterFrame(object):
             return None
         self.msframe = msframe
         return msframe.copy()
-
-#        # Load the MasterFrame if it exists and user requested one to load it
-#        msframe, header, raw_files = self.load_master_frame()
-#        if msframe is None:
-#            return None
-#        else:
-#            # Prevent over-writing the master frame when it is time to save
-#            self.settings['masters']['loaded'].append(self.frametype+self.setup)
-#            # Hold it
-#            self.msframe = msframe
-#        # Return
-#        return msframe.copy()
 
     def save_master(self, data, outfile=None, raw_files=None, steps=None):
         """

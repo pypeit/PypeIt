@@ -323,6 +323,8 @@ def parset_to_dict(par):
 #-----------------------------------------------------------------------------
 # Reduction ParSets
 
+# TODO: Create child classes for each allowed frame type?
+
 class FrameGroupPar(ParSet):
     def __init__(self, frametype=None, useframe=None, number=None, overscan=None, combine=None,
                  lacosmic=None):

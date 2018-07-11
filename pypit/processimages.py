@@ -26,27 +26,6 @@ try:
 except NameError:
     basestring = str
 
-## Place these here or elsewhere?
-##  Wherever they be, they need to be defined, described, etc.
-#def default_settings():
-#    # Hiding in a def because of the nested dicts
-#    #  I prefer this to deepcopy
-#    default_settings = dict(detector={'numamplifiers': 1,   # This dict is not complete; consider readnoise, binning
-#                                  'saturation': 60000.,  # Spectra aligned with columns
-#                                  'dispaxis': 0,  # Spectra aligned with columns
-#                                  'dataext': None,
-#                                  'gain': [1.],
-#                                      },
-#                        combine={'match': -1.,
-#                                 'satpix': 'reject',
-#                                 'method': 'weightmean',
-#                                 'reject': {'cosmics': 20.,
-#                                            'lowhigh': [0,0],
-#                                            'level': [3.,3.],
-#                                            'replace': 'maxnonsat'}}
-#                        )
-#    return default_settings
-
 class ProcessImages(object):
     """
     Base class to guide image loading and processing.

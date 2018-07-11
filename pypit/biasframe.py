@@ -16,8 +16,6 @@ from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 
-# (KBW): Why isn't this class called BiasImage (like ArcImage, BPMImage,
-# etc...)
 class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     """
     This class is primarily designed to generate a Bias frame for bias subtraction

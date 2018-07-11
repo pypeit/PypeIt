@@ -69,9 +69,16 @@ class Spectrograph(object):
         #   used by arsave.save_2d_images
         self.primary_hdrext = 0
 
-        # Default sky spectrum
-        self.sky_file = os.path.join(resource_filename('pypit', 'data/sky_spec/'),
-                                     'paranal_sky.fits')
+        self.sky_file = None
+
+    @staticmethod
+    def default_sky_spectrum():
+        """
+        Return the path to the default sky spectrum: currently
+        'pypit/data/sky_spec/paranal_sky.fits' in the pypit source
+        distribution.
+        """
+        return os.path.join(resource_filename('pypit', 'data/sky_spec/'), 'paranal_sky.fits')
 
     def _check_telescope(self):
         # Check the detector
@@ -375,8 +382,9 @@ class Spectrograph(object):
         """
         # No file was defined
         if self.sky_file is None:
-            raise ValueError('No archived sky spectrum defined for spectrograph {0}'.format(
-                                        self.spectrograph))
+            self.sky_file = Spectrograph.default_sky_spectrum()
+            msgs.warn('Using default sky spectrum: {0}'.format(self.sky_file))
+
         if os.path.isfile(self.sky_file):
             # Found directly
             return self.sky_file, xspectrum1d.XSpectrum1D.from_file(self.sky_file)

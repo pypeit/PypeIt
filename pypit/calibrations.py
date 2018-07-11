@@ -117,11 +117,6 @@ class Calibrations(object):
         # Internals
         self._reset_internals()
 
-    @staticmethod
-    def default_steps():
-        return ['datasec_img', 'bias', 'arc', 'bpm', 'pixlocn', 'slits', 'wv_calib', 'tilts',
-                'pixflatnrm', 'wave']
-
     def _reset_internals(self):
         """
         Reset all of the key internals to None
@@ -736,14 +731,15 @@ class Calibrations(object):
         return txt
 
 class MultiSlitCalibrations(Calibrations):
-#   (KBW) This could fail because Calibrations does not also accept **kwargs
-#    def __init__(self, fitstbl, steps=None, **kwargs):
-#        Calibrations.__init__(self, fitstbl, **kwargs)
-#   (KBW) I'd prefer this:
     def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None,
                  wavelength_frame='pixel', save_masters=True, write_qa=True, steps=None):
         Calibrations.__init__(self, fitstbl, spectrograph=spectrograph, par=par,
                               master_root=master_root, wavelength_frame=wavelength_frame,
                               save_masters=save_masters, write_qa=write_qa)
-        self.steps = Calibrations.default_steps() if steps is None else steps
+        self.steps = MultiSlitCalibrations.default_steps() if steps is None else steps
+
+    @staticmethod
+    def default_steps():
+        return ['datasec_img', 'bias', 'arc', 'bpm', 'pixlocn', 'slits', 'wv_calib', 'tilts',
+                'pixflatnrm', 'wave']
 

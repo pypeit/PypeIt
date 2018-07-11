@@ -22,8 +22,6 @@ from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 
-frametype = 'science'
-
 class ScienceImage(processimages.ProcessImages):
     """
     This class will organize and run actions related to
@@ -95,6 +93,10 @@ class ScienceImage(processimages.ProcessImages):
 
 
     """
+
+    # Frametype is a class attribute
+    frametype = 'science'
+
     # Keep order same as processimages (or else!)
     def __init__(self, spectrograph, file_list=[], frame_par=None, trace_objects_par=None,
                  extract_objects_par=None, tslits_dict=None, tilts=None, det=None, setup=None,
@@ -134,9 +136,6 @@ class ScienceImage(processimages.ProcessImages):
                                              overscan_par=self.frame_par['overscan'],
                                              combine_par=self.frame_par['combine'],
                                              lacosmic_par=self.frame_par['lacosmic'])
-
-        # Overwrite frametype set by ProcessImages
-        self.frametype = frametype
 
         # Key outputs/internals
         self.sciframe = None

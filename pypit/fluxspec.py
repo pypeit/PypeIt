@@ -31,7 +31,6 @@ from .par.pypitpar import TelescopePar
 
 from pypit import ardebug as debugger
 
-frametype = 'sensfunc'
 
 # Default settings, if any
 
@@ -105,6 +104,10 @@ class FluxSpec(masterframe.MasterFrame):
     sci_header : dict-like
       Used for the airmass, exptime of the science spectra
     """
+
+    # Frametype is a class attribute
+    frametype = 'sensfunc'
+
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
                  std_specobjs=None, std_header=None, spectrograph=None, multi_det=None,
                  setup=None, root_path=None, mode=None):
@@ -179,7 +182,7 @@ class FluxSpec(masterframe.MasterFrame):
 
         # Main outputs
         self.sensfunc = None if self.sens_file is None \
-                                else armasters._load(self.sens_file, frametype=frametype)[0] 
+                            else armasters._load(self.sens_file, frametype=self.frametype)[0] 
 
         # Attributes
         self.steps = []
@@ -190,15 +193,13 @@ class FluxSpec(masterframe.MasterFrame):
                                 # to the star!
 
         # MasterFrame
-#        self.setup = setup
-#        self.frametype = frametype
         directory_path = None
         if root_path is not None:
             directory_path = root_path
             if spectrograph_name is not None:
                 directory_path += '_'+spectrograph_name
-        masterframe.MasterFrame.__init__(self, frametype, setup, directory_path=directory_path,
-                                         mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
 
     def find_standard(self):
         """
