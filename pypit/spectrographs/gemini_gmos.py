@@ -15,18 +15,21 @@ from astropy.io import fits
 from pypit import msgs
 from pypit import arparse
 from pypit import ardebug as debugger
-from pypit.spectrographs import spectroclass
+from pypit.spectrographs import spectrograph
+from ..par.pypitpar import DetectorPar
+from .. import telescopes
 
-class GeminiGMOSSpectrograph(spectroclass.Spectrograph):
+class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Keck/LRIS specific code
+    Child to handle Gemini/GMOS specific code
     """
 
     def __init__(self):
 
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(GeminiGMOSSpectrograph, self).__init__()
         self.spectrograph = 'gemini_gmos'
+        self.telescope = telescopes.GeminiTelescopePar()
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -49,6 +52,7 @@ class GeminiGMOSSpectrograph(spectroclass.Spectrograph):
 
         return raw_img, head0
 
+    '''
     def get_datasec(self, filename, det, settings_det):
         """
         Load up the datasec and oscansec and also naxis0 and naxis1
@@ -79,6 +83,22 @@ class GeminiGMOSSpectrograph(spectroclass.Spectrograph):
 
         # Return
         return datasec, oscansec, naxis0, naxis1
+    '''
+
+    def get_image_shape(self, filename=None, det=None, **null_kwargs):
+        """
+        Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
+
+        Must always provide a file.
+        """
+        # Cannot be determined without file
+        if filename is None:
+            raise ValueError('Must provide a file to determine the shape of an LRIS image.')
+
+        # Use a file
+        self._check_detector()
+        self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
+        return self.naxis
 
 class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
     """
@@ -87,8 +107,56 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
     def __init__(self):
 
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(GeminiGMOSSSpectrograph, self).__init__()
         self.spectrograph = 'gemini_gmos_south'
+        self.camera = 'GMOS-S'
+        self.detector = [
+            # Detector 1
+            DetectorPar(dataext         = 1,  # Not sure this is used
+                        dispaxis        = 1,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.080,
+                        darkcurr        = 0.0,
+                        saturation      = 65535.,
+                        nonlinear       = 0.86,
+                        numamplifiers   = 4,
+                        gain            = [1.83]*4,
+                        ronoise         = [3.98]*4,
+                        suffix          = '_01'
+                        ),
+            # Detector 2
+            DetectorPar(dataext         = 2,  # Not sure this is used
+                        dispaxis        = 1,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.080,
+                        darkcurr        = 0.0,
+                        saturation      = 65535.,
+                        nonlinear       = 0.86,
+                        numamplifiers   = 4,
+                        gain            = [1.83]*4,
+                        ronoise         = [3.98]*4,
+                        suffix          = '_02'
+                        ),
+            # Detector 3
+            DetectorPar(dataext         = 3,  # Not sure this is used
+                        dispaxis        = 1,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.080,
+                        darkcurr        = 0.0,
+                        saturation      = 65535.,
+                        nonlinear       = 0.86,
+                        numamplifiers   = 4,
+                        gain            = [1.83]*4,
+                        ronoise         = [3.98]*4,
+                        suffix          = '_03'
+                        ),
+        ]
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """

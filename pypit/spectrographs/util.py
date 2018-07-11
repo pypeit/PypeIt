@@ -14,7 +14,7 @@ from pypit import ardebug as debugger
 def valid_spectrographs():
     # TODO: Is there a more clever way to do this?
     return ['keck_lris_blue', 'keck_lris_red', 'keck_deimos', 'keck_nirspec', 'shane_kast_blue',
-            'shane_kast_red', 'shane_kast_red_ret', 'wht_isis_blue', 'tng_dolores' ]
+            'shane_kast_red', 'shane_kast_red_ret', 'wht_isis_blue', 'tng_dolores', 'gemini_gmos_south' ]
 
 def load_spectrograph(spectrograph=None): #, data_file=None):
     """
@@ -59,9 +59,14 @@ def load_spectrograph(spectrograph=None): #, data_file=None):
 
     elif 'wht_isis_blue' in spectrograph:
         return spectrographs.wht_isis.WhtIsisBlueSpectrograph()
-    
+
     elif 'tng_dolores' in spectrograph:
         return spectrographs.tng_dolores.TngDoloresSpectrograph()
+
+    elif 'gemini_gmos_south' in spectrograph:
+        from importlib import reload
+        reload(spectrographs)
+        return spectrographs.gemini_gmos.GeminiGMOSSSpectrograph()
     
     msgs.error("Spectrograph not supported")
     # TODO: Should never get here, right?

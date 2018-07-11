@@ -2145,7 +2145,7 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'KECK', 'SHANE', 'WHT', 'APF', 'TNG' ]
+        return [ 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'GEMINI' ]
 
     def validate(self):
         pass
@@ -2235,7 +2235,7 @@ class InstrumentPar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'KECK', 'SHANE', 'WHT', 'APF', 'TNG' ]
+        return [ 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'GEMINI']
 
     @staticmethod
     def valid_cameras():
@@ -2245,7 +2245,7 @@ class InstrumentPar(ParSet):
         TODO: This should probably be telescope dependent...
         """
         return [ 'LEVY', 'DEIMOS', 'HIRES', 'LRISb', 'LRISr', 'NIRSPEC', 'KASTb', 'KASTr',
-                 'DOLORES', 'ISISb' ]
+                 'DOLORES', 'ISISb', 'GMOS-S' ]
 
     def validate(self):
         if self.data['detector'] is None or len(self.data['detector']) < 1:

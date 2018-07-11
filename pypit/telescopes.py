@@ -47,3 +47,9 @@ class TNGTelescopePar(TelescopePar):
                                               latitude=28.754,
                                               elevation=2387.2)
 
+class GeminiTelescopePar(TelescopePar):
+    def __init__(self):
+        super(GeminiTelescopePar, self).__init__(name='GEMINI',
+                                              longitude=70.8062,              # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+                                              latitude=-30.1691,              # Latitude of the telescope
+                                              elevation=2200.0)               # Elevation of the telescope (in m)
