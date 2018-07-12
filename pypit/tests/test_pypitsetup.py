@@ -13,6 +13,8 @@ import pytest
 import glob
 import numpy as np
 
+from astropy.table import Table
+
 
 from pypit import pypitsetup
 from pypit.par import pypitpar
@@ -30,26 +32,14 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 spectrograph = tstutils.load_kast_blue_masters(get_spectrograph=True)[0]
+reduce_par = pypitpar.ReducePar()
 
-def test_fitstbl():
-    if skip_test:
-        assert True
-        return
-    reduce_par = pypitpar.ReducePar()
-    kast_blue_files = glob.glob(os.getenv('PYPIT_DEV')+'RAW_DATA/Shane_Kast_blue/600_4310_d55/b*')
-    setupc = pypitsetup.PypitSetup(spectrograph, reduce_par)
-    #
-    fitstbl = setupc.build_fitstbl(kast_blue_files)
-
-'''
 def test_init():
     if skip_test:
         assert True
         return
-    # Settings
-    settings_argflag, settings_spect = settings_kludge()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
+    setupc = pypitsetup.PypitSetup(spectrograph, reduce_par)
     assert len(setupc.steps) == 0
     assert setupc.nfiles == 0
 
@@ -62,11 +52,9 @@ def test_build_fitstbl():
     file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
     files = glob.glob(file_root+'*')
     assert len(files) > 0
-    # Settings
-    settings_argflag, settings_spect = settings_kludge()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
-    # fitstlb
+    setupc = pypitsetup.PypitSetup(spectrograph, reduce_par)
+    #
     fitstbl = setupc.build_fitstbl(files)
     assert isinstance(fitstbl, Table)
     assert setupc.nfiles == 27
@@ -76,7 +64,7 @@ def test_build_fitstbl():
     tmp = setupc.load_fitstbl(data_path('fitstbl.fits'))
     assert len(tmp) == 27
 
-
+'''
 def test_image_type():
     if skip_test:
         assert True

@@ -69,7 +69,7 @@ class PypitSetup(object):
         fitstbl : Table
 
         """
-        self.fitstbl, updates = arload.load_headers(file_list, self.spectrograph, self.reduce_par)
+        self.fitstbl = arload.load_headers(file_list, self.spectrograph, self.reduce_par)
         self.fitstbl.sort('time')
         # Step
         self.steps.append(inspect.stack()[0][3])

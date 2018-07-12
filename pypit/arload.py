@@ -42,8 +42,8 @@ def load_headers(datlines, spectrograph, reduce_par):
     -------
     fitstbl : Table
       The relevant header information of all fits files
-    keylst : list
     """
+    '''
     def generate_updates(dct, keylst, keys, whddict, headarr):
         """ Generate a list of settings to be updated
         """
@@ -64,6 +64,7 @@ def load_headers(datlines, spectrograph, reduce_par):
                 except (AttributeError, ValueError, KeyError):
                     pass
             del keys[-1]
+    '''
 
     #chks = list(settings_spect['check'].keys())
 
@@ -120,17 +121,16 @@ def load_headers(datlines, spectrograph, reduce_par):
         # Now get the rest of the keywords
 
         for head_idx in head_keys.keys():
-            for kw in head_keys[head_idx].keys():
+            for kw,hkey in head_keys[head_idx].items():
                 try:
-                    value = headarr[head_idx][kw]
+                    value = headarr[head_idx][hkey]
                 except KeyError: # Keyword not found in header
-                    msgs.warn("{:s} keyword not in header. Setting to None".format(kw))
+                    msgs.warn("{:s} keyword not in header. Setting to None".format(hkey))
                     value=str('None')
                 except IndexError:
                     debugger.set_trace()
                 # Convert the input time into hours -- Should we really do this here??
                 if kw == 'time':
-                    debugger.set_trace()
                     if spectrograph.timeunit == 's'  : value = float(value)/3600.0    # Convert seconds to hours
                     elif spectrograph.timeunit == 'm'  : value = float(value)/60.0      # Convert minutes to hours
                     elif spectrograph.timeunit in Time.FORMATS.keys() : # Astropy time format
@@ -163,13 +163,14 @@ def load_headers(datlines, spectrograph, reduce_par):
                     msgs.bug("I didn't expect a useful header ({0:s}) to contain type {1:s}".format(kw, typv).replace('<type ','').replace('>',''))
 
         msgs.info("Successfully loaded headers for file:" + msgs.newline() + datlines[i])
-    debugger.set_trace()
 
     # Check if any other settings require header values to be loaded
     msgs.info("Checking spectrograph settings for required header information")
+    '''  # I HOPE THIS IS NO LONGER NEEDED
     # Just use the header info from the last file
     keylst = []
     generate_updates(settings_spect.copy(), keylst, [], whddict, headarr)
+    '''
 
     # Convert the fitsdict arrays into numpy arrays
     for k in fitsdict.keys():
@@ -196,7 +197,7 @@ def load_headers(datlines, spectrograph, reduce_par):
     spectrograph.add_to_fitstbl(fitstbl)
 
     # Return
-    return fitstbl, keylst
+    return fitstbl
 
 
 def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
