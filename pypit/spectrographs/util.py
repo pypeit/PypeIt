@@ -67,3 +67,14 @@ def load_spectrograph(spectrograph=None): #, data_file=None):
     # TODO: Should never get here, right?
     return None
 
+def checkme(chk_dict, headarr):
+    #
+    skip = False
+    for head_idx in chk_dict.keys():
+        for ch, value in chk_dict[head_idx].items():
+            if (value in str(headarr[head_idx][ch]).strip()) is False:
+                msgs.info(ch, head_idx, value)
+                msgs.warn("Skipping the file..")
+                skip = True
+    # Return
+    return skip

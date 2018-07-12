@@ -65,7 +65,8 @@ def load_headers(datlines, spectrograph, reduce_par):
                     pass
             del keys[-1]
 
-    chks = list(settings_spect['check'].keys())
+    #chks = list(settings_spect['check'].keys())
+
     # FITS dict/table keys
     keys = list(settings_spect['keyword'].keys())
     # Init
@@ -80,37 +81,16 @@ def load_headers(datlines, spectrograph, reduce_par):
     # Loop on files
     for i in range(numfiles):
         # Try to open the fits file
-        headarr = ['None' for k in range(settings_spect['fits']['numhead'])]
-        try:
-            for k in range(settings_spect['fits']['numhead']):
-                headarr[k] = fits.getheader(datlines[i], ext=settings_spect['fits']['headext{0:02d}'.format(k+1)])
-                whddict['{0:02d}'.format(settings_spect['fits']['headext{0:02d}'.format(k+1)])] = k
-        except:
-            if reduce_par['setup']:
-                msgs.warn("Bad header in extension {0:d} of file:".format(settings_spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
-                msgs.warn("Proceeding on the hopes this was a calibration file, otherwise consider removing.")
-            else:
-                msgs.error("Error reading header from extension {0:d} of file:".format(settings_spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
+        headarr = spectrograph.get_headarr()
+        numhead = len(headarr)
         # Save the headers into its dict
-        for k in range(settings_spect['fits']['numhead']):
+        for k in range(numhead):
             headdict[k].append(headarr[k].copy())
-            #tmp = [head.copy() for head in headarr]
-            #allhead.append(tmp)
         # Perform checks on each FITS file, as specified in the settings instrument file.
-        skip = False
-        for ch in chks:
-            tfrhd = int(ch.split('.')[0])-1
-            kchk = '.'.join(ch.split('.')[1:])
-            frhd = whddict['{0:02d}'.format(tfrhd)]
-            # JFH changed to in instead of !=
-            if ((settings_spect['check'][ch] in str(headarr[frhd][kchk]).strip()) == False):
-                print(ch, frhd, kchk)
-                print(settings_spect['check'][ch], str(headarr[frhd][kchk]).strip())
-                msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(
-                    spectrograph.spectrograph)+msgs.newline()+"Remove this file, or specify a different settings file.")
-                msgs.warn("Skipping the file..")
-                skip = True
+        skip = spectrograph.check_headers(headarr)
         if skip:
+            msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(
+                spectrograph.spectrograph)+msgs.newline()+"Remove this file, or specify a different settings file.")
             numfiles -= 1
             continue
         # Now set the key values for each of the required keywords
@@ -119,7 +99,7 @@ def load_headers(datlines, spectrograph, reduce_par):
         fitsdict['filename'].append(dspl[-1])
         # Attempt to load a UTC
         utcfound = False
-        for k in range(settings_spect['fits']['numhead']):
+        for k in range(numhead):
             if 'UTC' in headarr[k].keys():
                 utc = headarr[k]['UTC']
                 utcfound = True

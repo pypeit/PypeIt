@@ -15,6 +15,7 @@ from linetools.spectra import xspectrum1d
 from .. import arparse
 from .. import arpixels
 from ..par.pypitpar import DetectorPar, TelescopePar
+from pypit import msgs
 
 try:
     basestring
@@ -68,6 +69,7 @@ class Spectrograph(object):
         # Default extension with the primary header data
         #   used by arsave.save_2d_images
         self.primary_hdrext = 0
+        self.numhead = 0
 
         self.sky_file = None
 
@@ -359,6 +361,41 @@ class Spectrograph(object):
 
         """
         return self.empty_bpm(shape=shape, filename=filename, det=det, force=force)
+
+    def default_header_keys(self):
+        def_head_keys = {}
+        def_head_keys[1] = {}
+        def_head_keys[1]['target'] = 'OBJECT'     # Header keyword for the name given by the observer to a given frame
+        def_head_keys[1]['idname'] = 'OBSTYPE'    # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+        def_head_keys[1]['time'] = 'MJD-OBS'      # The time stamp of the observation (i.e. decimal MJD)
+        def_head_keys[1]['date'] = 'DATE'         # The UT date of the observation which is used for heliocentric (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+        def_head_keys[1]['ra'] = 'RA'             # Right Ascension of the target
+        def_head_keys[1]['dec'] = 'DEC'           # Declination of the target
+        def_head_keys[1]['airmass'] = 'AIRMASS'   # Airmass at start of observation
+        def_head_keys[1]['binning'] = 'BINNING'   # Binning
+        def_head_keys[1]['exptime'] = 'EXPTIME'   # Exposure time keyword
+        def_head_keys[1]['decker'] = 'SLITNAME'
+        def_head_keys[1]['dichroic'] = 'DICHNAME' # Dichroic name
+        def_head_keys[1]['dispname'] = 'GRISNAME' # Grism name
+        # Return
+        return def_head_keys
+
+    def get_headarr(self, filename, reduce_par):
+        headarr = ['None' for k in range(self.numhead)]
+        # Try to load em up
+        try:
+            for k in range(self.numhead):
+                headarr[k] = fits.getheader(filename, ext=k)
+        except:
+            if reduce_par['setup']:
+                msgs.warn("Bad header in extension {0:d} of file:".format(filename))
+                msgs.warn("Proceeding on the hopes this was a calibration file, otherwise consider removing.")
+            else:
+                msgs.error("Error reading header from extension {0:d} of file:".format(filename))
+        return headarr
+
+    def check_headers(self, headers):
+        pass
 
     def setup_arcparam(self, **null_kwargs):
         return None
