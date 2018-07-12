@@ -35,12 +35,16 @@ class PypitSetup(object):
     ftypes : list
       frame types;  grabbed from arsort.ftype_list
     """
-    def __init__(self, spectrograph, reduce_par, fitstbl=None):
+    def __init__(self, spectrograph, run_par, reduce_par, fitstbl=None, pypit_file=None):
 
         # Other parameters
         self.spectrograph = spectrograph
+        self.run_par = run_par
         self.reduce_par = reduce_par
         self.fitstbl = fitstbl
+        if pypit_file is not None:
+            # Will be used to set file type from the PYPIT file
+            raise NotImplementedError("Need to do this")
 
         # Outputs
         self.setup_dict = {}
@@ -201,19 +205,29 @@ class PypitSetup(object):
         The table (filetypes) returned is horizontally stacked
           onto the fitstbl.
 
+        Parameters
+        ----------
+        flag_unknown: bool, optional
+          Mark a frame as UNKNOWN instead of crashing out
+          Required when doing initial setup
+
         Returns
         -------
         self.filetypes
 
         """
         # Allow for input file types from the PYPIT file
+        '''
         if len(arparse.ftdict) > 0:  # This is ugly!
             ftdict = arparse.ftdict
         else:
             ftdict = None
-        self.filetypes = arsort.type_data(self.fitstbl, self.settings_spect,
-                                     self.settings_argflag,
-                                     ftdict=ftdict, flag_unknown=flag_unknown)
+        '''
+        ftdict = None
+        self.filetypes = arsort.type_data(self.spectrograph,
+                                          self.fitstbl, ftdict=ftdict,
+                                          flag_unknown=flag_unknown,
+                                          useIDname=self.run_par['useIDname'])
         # hstack me -- Might over-write self.fitstbl here
         msgs.info("Adding file type information to the fitstbl")
         self.fitstbl = hstack([self.fitstbl, self.filetypes])

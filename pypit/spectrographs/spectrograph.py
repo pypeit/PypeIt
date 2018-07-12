@@ -72,6 +72,8 @@ class Spectrograph(object):
         self.primary_hdrext = 0
         self.numhead = 0
 
+        self.minexp = 0  # NEED TO TIE TO INSTRUMENT PAR INSTEAD
+
         self.sky_file = None
 
     @staticmethod
@@ -392,6 +394,24 @@ class Spectrograph(object):
             else:
                 msgs.error("Error reading header from extension {0:d} of file:".format(filename))
         return headarr
+
+    def check_ftype(self, ftype, fitstbl):
+        return np.zeros(len(fitstbl), dtype=bool)
+
+    def idname(self, ftype):
+        """
+        Convert a given file type into a string that would
+        occur in the header indicating it.
+
+        Args:
+            ftype: str
+              File type, one of the items in arsort.ftype_list
+
+        Returns:
+            idname: str
+
+        """
+        return None
 
     def check_headers(self, headers):
         pass

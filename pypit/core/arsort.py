@@ -89,16 +89,18 @@ def list_of_files(fitstbl, ftype, sci_ID):
     return file_list
 
 
-def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftdict=None):
+def type_data(spectrograph, fitstbl, flag_unknown=False, ftdict=None, useIDname=False):
     """ Generate a table of filetypes from the input fitsdict object
 
     Parameters
     ----------
-    fitstbl : dict
+    fitstbl : Table
       Contains relevant information from fits header files
     flag_unknown : bool, optional
       Instead of crashing out if there are unidentified files,
       set to 'unknown' and continue
+    useIDname : bool, optional
+      Use ID name in the Header to image type
 
     Returns
     -------
@@ -133,17 +135,16 @@ def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftd
         if ftype == 'unknown':
             continue
         # Self identification (typically from Header; not recommended)
-        if settings_argflag['run']['useIDname']:
-            idx = fitstbl['idname'] == settings_spect[ftype]['idname']
+        if useIDname:
+            idx = fitstbl['idname'] == spectrograph.idname(ftype)
             filetypes[ftype][idx] = True
             #w = np.where(fitsdict['idname'] == settings.spect[ftype]['idname'])[0]
         else: # Set all to True!
             filetypes[ftype] = True
 
         # Perform additional checks in order to make sure this identification is true
-        if 'check' in settings_spect[ftype].keys():
-            gd_chk = chk_all_conditions(ftype, fitstbl, settings_spect)
-            filetypes[ftype] &= gd_chk
+        gd_chk = spectrograph.check_ftype(ftype, fitstbl)
+        filetypes[ftype] &= gd_chk
 
     # Identify the standard stars
     # Find the nearest standard star to each science frame
@@ -163,6 +164,7 @@ def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftd
         else:
             filetypes['standard'][wscistd] = False
 
+    '''
     # Make any forced changes
     skeys = settings_spect['set'].keys()
     if len(skeys) > 0:
@@ -176,6 +178,7 @@ def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftd
                     filetypes[ftype][idx] = False
                 # And set
                 filetypes[sk][idx] = True
+    '''
 
     # Check that all files have an identification
     chklist = []
@@ -191,11 +194,12 @@ def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftd
         if flag_unknown:
             filetypes['unknown'][badfiles] = True
         else:
-            msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings_argflag['run']['spectrograph']))
+            msgs.error("Check these files before continuing")
 
     # Now identify the dark frames
     darks = filetypes['bias'] & (fitstbl['exptime'].data.astype(np.float64) >
-                                   settings_spect['mosaic']['minexp'])
+                                 spectrograph.minexp)
+                                   #settings_spect['mosaic']['minexp'])
     filetypes['dark'] = darks
 
     # Return filesort!
@@ -335,26 +339,26 @@ def sort_data(fitsdict, flag_unknown=False):
 '''
 
 
-def chk_all_conditions(fkey, fitstbl, settings_spect):
+def chk_all_conditions(fitstbl, cond_dict):
     """ Loop on the conditions for this given file type
+
     Parameters
     ----------
-    fkey : str
-      File type
     fitstbl : Table
+    cond_dict : dict
 
     Returns
     -------
-    gd_chk : ndarray
-      Indices of images satisfying the check conditions
+    gd_chk : ndarray (bool)
+      True = Passes all checks
     """
     gd_chk = np.ones(len(fitstbl), dtype=bool)
     # Loop on the items to check
-    chkk = settings_spect[fkey]['check'].keys()
+    chkk = cond_dict.keys()
     for ch in chkk:
         if ch[0:9] == 'condition':
             # Deal with a conditional argument
-            conds = re.split("(\||\&)", settings_spect[fkey]['check'][ch])
+            conds = re.split("(\||\&)", cond_dict[ch])
             ntmp = chk_condition(fitstbl, conds[0])
             # And more
             for cn in range((len(conds)-1)//2):
@@ -366,9 +370,9 @@ def chk_all_conditions(fkey, fitstbl, settings_spect):
         else:
             if fitstbl[ch].dtype.char in ['S','U']:  # Numpy string array
                 # Strip numpy string array of all whitespace
-                gd_chk = gd_chk & (np.char.strip(fitstbl[ch]) == settings_spect[fkey]['check'][ch])
+                gd_chk = gd_chk & (np.char.strip(fitstbl[ch]) == cond_dict[ch])
             else:
-                gd_chk = gd_chk & (fitstbl[ch] == settings_spect[fkey]['check'][ch])
+                gd_chk = gd_chk & (fitstbl[ch] == cond_dict[ch])
     # Return
     return gd_chk
 
@@ -413,7 +417,7 @@ def chk_all_conditions(n, fkey, fitsdict):
 '''
 
 
-def chk_condition(fitsdict, cond):
+def chk_condition(fitstbl, cond):
     """
     Code to perform condition.  A bit messy so a separate definition
     was generated.
@@ -421,7 +425,7 @@ def chk_condition(fitsdict, cond):
 
     Parameters
     ----------
-    fitsdict : dict
+    fitsdict : Table
       Contains relevant information from fits header files
     cond : str
       A user-specified condition that is used to identify filetypes.
@@ -437,32 +441,32 @@ def chk_condition(fitsdict, cond):
     """
     if "<=" in cond:
         tcond = cond.split("<=")
-        ntmp = fitsdict[tcond[0]] <= float(tcond[1])
+        ntmp = fitstbl[tcond[0]] <= float(tcond[1])
     elif ">=" in cond:
         tcond = cond.split(">=")
-        ntmp = fitsdict[tcond[0]] >= float(tcond[1])
+        ntmp = fitstbl[tcond[0]] >= float(tcond[1])
     elif "!=" in cond:
         tcond = cond.split("!=")
-        if 'int' in fitsdict[tcond[0]].dtype.name:
-            ntmp = fitsdict[tcond[0]] != int(tcond[1])
-        elif 'float' in fitsdict[tcond[0]].dtype.name:
-            ntmp = fitsdict[tcond[0]] != float(tcond[1])
+        if 'int' in fitstbl[tcond[0]].dtype.name:
+            ntmp = fitstbl[tcond[0]] != int(tcond[1])
+        elif 'float' in fitstbl[tcond[0]].dtype.name:
+            ntmp = fitstbl[tcond[0]] != float(tcond[1])
         else:
-            ntmp = fitsdict[tcond[0]] != tcond[1]
+            ntmp = fitstbl[tcond[0]] != tcond[1]
     elif "<" in cond:
         tcond = cond.split("<")
-        ntmp = fitsdict[tcond[0]] < float(tcond[1])
+        ntmp = fitstbl[tcond[0]] < float(tcond[1])
     elif ">" in cond:
         tcond = cond.split(">")
-        ntmp = fitsdict[tcond[0]] > float(tcond[1])
+        ntmp = fitstbl[tcond[0]] > float(tcond[1])
     elif "=" in cond:
         tcond = cond.split("=")
-        if 'int' in fitsdict[tcond[0]].dtype.name:
-            ntmp = fitsdict[tcond[0]] == int(tcond[1])
-        elif 'float' in fitsdict[tcond[0]].dtype.name:
-            ntmp = fitsdict[tcond[0]] == float(tcond[1])
+        if 'int' in fitstbl[tcond[0]].dtype.name:
+            ntmp = fitstbl[tcond[0]] == int(tcond[1])
+        elif 'float' in fitstbl[tcond[0]].dtype.name:
+            ntmp = fitstbl[tcond[0]] == float(tcond[1])
         else:
-            ntmp = fitsdict[tcond[0]] == tcond[1]
+            ntmp = fitstbl[tcond[0]] == tcond[1]
     else:
         ntmp = None
     return ntmp

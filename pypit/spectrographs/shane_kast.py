@@ -17,6 +17,7 @@ from pypit import msgs
 from pypit.par.pypitpar import DetectorPar
 from pypit.spectrographs import spectrograph
 from pypit import telescopes
+from pypit.core import arsort
 from pypit.spectrographs import util
 
 from pypit import ardebug as debugger
@@ -130,6 +131,46 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         #
         return head_keys
 
+    def check_ftype(self, ftype, fitstbl):
+        gd_chk = np.ones(len(fitstbl), dtype=bool)
+        cond_dict = {}
+
+        if ftype == 'science':
+            cond_dict['condition1'] = 'lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off'
+            cond_dict['condition2'] = 'exptime>1'
+        elif ftype == 'bias':
+            cond_dict['condition1'] = 'exptime<1'
+        elif ftype == 'pixelflat':
+            cond_dict['condition1'] = 'lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on'
+            cond_dict['condition2'] = 'exptime>0'
+        elif ftype == 'pinhole':
+            gd_chk[:] = False
+            return gd_chk
+        elif ftype == 'trace':
+            cond_dict['condition1'] = 'lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on'
+            cond_dict['condition2'] = 'exptime>0'
+        elif ftype == 'arc':
+            cond_dict['condition1'] = 'lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on'
+            cond_dict['condition2'] = 'exptime<=60'
+        else:
+            pass
+
+        # Do it
+        gd_chk &= arsort.chk_all_conditions(fitstbl, cond_dict)
+
+        return gd_chk
+
+#ftype_list = [     # NOTE:  arc must be listed first!
+#    'arc',         # Exposure of one or more arc calibration lamps for wavelength calibration
+#    'bias',        # Exposure for assessing detector bias (usually 0s)
+#    'dark',        # Exposure for assessing detector dark current
+#    'pinhole',     # Exposure for tracing the orders or slits
+##    'pixelflat',   # Exposure for assessing pixel-to-pixel variations
+##    'science',   # Exposure on one or more science targets
+#    'standard',    # Exposure on a 'standard star' used for flux calibration
+#    'trace',       # Exposure for tracing slits or echelle orders (usually twilight sky or flat lamp)
+#    'unknown',     # Unknown..
+#]
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """

@@ -68,6 +68,7 @@ def load_spectrograph(spectrograph=None):
     
     msgs.error("Spectrograph not supported")
 
+
 def checkme(chk_dict, headarr):
     #
     skip = False

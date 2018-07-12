@@ -31,15 +31,17 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+# INIT
 spectrograph = tstutils.load_kast_blue_masters(get_spectrograph=True)[0]
 reduce_par = pypitpar.ReducePar()
+run_par = pypitpar.RunPar()
 
 def test_init():
     if skip_test:
         assert True
         return
     # Init
-    setupc = pypitsetup.PypitSetup(spectrograph, reduce_par)
+    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
     assert len(setupc.steps) == 0
     assert setupc.nfiles == 0
 
@@ -53,7 +55,7 @@ def test_build_fitstbl():
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Init
-    setupc = pypitsetup.PypitSetup(spectrograph, reduce_par)
+    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
     #
     fitstbl = setupc.build_fitstbl(files)
     assert isinstance(fitstbl, Table)
@@ -64,7 +66,6 @@ def test_build_fitstbl():
     tmp = setupc.load_fitstbl(data_path('fitstbl.fits'))
     assert len(tmp) == 27
 
-'''
 def test_image_type():
     if skip_test:
         assert True
@@ -73,20 +74,18 @@ def test_image_type():
     file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
     files = glob.glob(file_root+'*')
     assert len(files) > 0
-    # Settings
-    settings_argflag, settings_spect = settings_kludge()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
-    # fitstlb
+    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
     fitstbl = setupc.build_fitstbl(files)
-
     # Type
-    filetypes = setupc.type_data()
+    filetypes = setupc.type_data(flag_unknown=True)
     assert np.sum(filetypes['arc']) == 1
+    assert np.sum(filetypes['unknown']) == 0
     assert 'arc' in setupc.fitstbl.keys()
     assert np.sum(filetypes['pixelflat'] & filetypes['trace']) == 12
 
 
+'''
 def test_match():
     if skip_test:
         assert True
