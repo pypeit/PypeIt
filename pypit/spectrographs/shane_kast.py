@@ -75,6 +75,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['lampstat16'] = 'LAMPSTAK' # Number of pixels along the first axis
         #
         def_keys[0]['dichroic'] = 'BSPLIT_N' # Number of pixels along the first axis
+        def_keys[0]['decker'] = 'SLIT_N'  # Which decker is being used
         # Return
         return def_keys
 
@@ -127,7 +128,6 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
         """
         head_keys = self.kast_header_keys()
-        head_keys[0]['decker'] = 'SLIT_N'  # Which decker is being used
         head_keys[0]['dispname'] = 'GRISM_N' # Number of pixels along the first axis
         #
         return head_keys
@@ -257,6 +257,28 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         # Uses timeunit from parent class
         # Uses default primary_hdrext
         # self.sky_file = ?
+
+    def check_header(self, headers):
+        chk_dict = {}
+        chk_dict[1] = {}  # 1,2,3 indexing
+        chk_dict[1]['NAXIS'] = 2                            # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+        chk_dict[1]['DSENSOR'] = '2k x 4k Hamamatsu'        # Check the CCD name (replace any spaces with underscores)
+        #
+
+    def header_keys(self):
+        """
+        Header keys specific to shane_kast_blue
+
+        Returns:
+
+        """
+        head_keys = self.kast_header_keys()
+        head_keys[0]['filter1'] = 'RDFILT_N'
+        head_keys[0]['dispname'] = 'GRATING_N'
+        head_keys[0]['dispangle'] = 'GRTILT_P'
+        #
+        return head_keys
+
 
     def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
                        binspectral=None, **null_kwargs):
