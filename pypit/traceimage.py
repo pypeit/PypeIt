@@ -6,7 +6,7 @@ import numpy as np
 
 from pypit import msgs
 from pypit import processimages
-from .par import pypitpar
+from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 

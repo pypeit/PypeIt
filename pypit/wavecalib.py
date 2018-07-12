@@ -16,8 +16,8 @@ from pypit.core import armasters
 from pypit.core import arsort
 from pypit.par import pypitpar
 
-from .spectrographs.spectrograph import Spectrograph
-from .spectrographs.util import load_spectrograph
+from pypit.spectrographs.spectrograph import Spectrograph
+from pypit.spectrographs.util import load_spectrograph
 
 from pypit import ardebug as debugger
 
@@ -76,9 +76,6 @@ class WaveCalib(masterframe.MasterFrame):
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, root_path=None,
                  mode=None, fitstbl=None, sci_ID=None, arcparam=None):
 
-        # Required parameters (but can be None)
-        self.msarc = msarc
-
         # Instantiate the spectograph
         if isinstance(spectrograph, basestring):
             self.spectrograph = load_spectrograph(spectrograph=spectrograph)
@@ -86,6 +83,15 @@ class WaveCalib(masterframe.MasterFrame):
             self.spectrograph = spectrograph
         else:
             raise TypeError('Must provide a name or instance for the Spectrograph.')
+
+        # MasterFrame
+        directory_path = None if root_path is None \
+                                else root_path+'_'+self.spectrograph.spectrograph
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
+
+        # Required parameters (but can be None)
+        self.msarc = msarc
 
         self.par = pypitpar.WavelengthSolutionPar() if par is None else par
 
@@ -106,11 +112,6 @@ class WaveCalib(masterframe.MasterFrame):
         # Key Internals
         self.arccen = None
 
-        # MasterFrame
-        directory_path = None if root_path is None \
-                                else root_path+'_'+self.spectrograph.spectrograph
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         directory_path=directory_path, mode=mode)
 
     def _build_wv_calib(self, method, skip_QA=False):
         """

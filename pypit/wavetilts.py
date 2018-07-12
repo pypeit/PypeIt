@@ -19,7 +19,7 @@ from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 
-from .spectrographs.spectrograph import Spectrograph
+from pypit.spectrographs.spectrograph import Spectrograph
 
 try:
     basestring
@@ -66,19 +66,14 @@ class WaveTilts(masterframe.MasterFrame):
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, root_path=None,
                  mode=None, pixlocn=None, tslits_dict=None):
 
-        # TODO: Why was setup='' in this argument list and setup=None in
-        # all the others?  Is it because of the from_master_files()
-        # classmethod below?  Changed it to match the rest of the
-        # MasterFrame children.
-
-        # Parameters (but can be None)
-        self.msarc = msarc
-        self.tslits_dict = tslits_dict
-        self.pixlocn = pixlocn
+        # TODO: (KBW) Why was setup='' in this argument list and
+        # setup=None in all the others?  Is it because of the
+        # from_master_files() classmethod below?  Changed it to match
+        # the rest of the MasterFrame children.
 
         # Instantiate the spectograph
-        # TODO: Do we need this?  It's only used to get the non-linear
-        # counts and the name of the master directory
+        # TODO: (KBW) Do we need this?  It's only used to get the
+        # non-linear counts and the name of the master directory
         if isinstance(spectrograph, basestring):
             self.spectrograph = load_spectrograph(spectrograph=spectrograph)
         elif isinstance(spectrograph, Spectrograph):
@@ -86,7 +81,18 @@ class WaveTilts(masterframe.MasterFrame):
         else:
             raise TypeError('Must provide a name or instance for the Spectrograph.')
 
+        # MasterFrame
+        directory_path = None if root_path is None \
+                                else root_path+'_'+self.spectrograph.spectrograph
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
+
         self.par = pypitpar.TraceTiltsPar() if par is None else par
+
+        # Parameters (but can be None)
+        self.msarc = msarc
+        self.tslits_dict = tslits_dict
+        self.pixlocn = pixlocn
 
         # Optional parameters
         self.det = det
@@ -106,12 +112,6 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Main outputs
         self.final_tilts = None
-
-        # MasterFrame
-        directory_path = None if root_path is None \
-                                else root_path+'_'+self.spectrograph.spectrograph
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         directory_path=directory_path, mode=mode)
 
     @classmethod
     def from_master_files(cls, setup, mdir='./'):
@@ -133,7 +133,6 @@ class WaveTilts(masterframe.MasterFrame):
         msarc, _, _ = armasters._load(msarc_file)
 
         # Instantiate
-        # TODO: Is this right for setup?
         slf = cls(msarc, setup=setup)
 
         # Tilts

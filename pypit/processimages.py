@@ -14,10 +14,10 @@ from pypit.core import arflat
 from pypit import ginga
 from pypit import arparse
 
-from .par.pypitpar import OverscanPar, CombineFramesPar, LACosmicPar
+from pypit.par import pypitpar
 
-from .spectrographs.spectrograph import Spectrograph
-from .spectrographs.util import load_spectrograph
+from pypit.spectrographs.spectrograph import Spectrograph
+from pypit.spectrographs.util import load_spectrograph
 
 from pypit import ardebug as debugger
 
@@ -40,13 +40,13 @@ class ProcessImages(object):
             preconstructed instance of :class:`Spectrograph`.
         det (:obj:`int`, optional):
             The 1-indexed number of the detector.  Default is 1.
-        overscan_par (:obj:`OverscanPar`, optional):
+        overscan_par (:obj:`pypitpar.OverscanPar`, optional):
             Parameters that dictate the treatment of the overscan
             region.
-        combine_par (:obj:`CombineFramesPar`, optional):
+        combine_par (:obj:`pypitpar.CombineFramesPar`, optional):
             Parameters used when combining frames.  See
             `pypit.par.pypitpar.CombineFramesPar` for the defaults.
-        lacosmic_par (:obj:`LACosmicPar`, optional):
+        lacosmic_par (:obj:`pypitpar.LACosmicPar`, optional):
             Parameters used for cosmic-ray detection.  See
             `pypit.par.pypitpar.LACosmicPar` for the defaults.
 
@@ -95,17 +95,17 @@ class ProcessImages(object):
         # Optional
         self.det = det
 
-        if overscan_par is not None and not isinstance(overscan_par, OverscanPar):
+        if overscan_par is not None and not isinstance(overscan_par, pypitpar.OverscanPar):
             raise TypeError('Provided ParSet for combining frames must be type CombineFramesPar.')
-        self.overscan_par = OverscanPar() if overscan_par is None else overscan_par
+        self.overscan_par = pypitpar.OverscanPar() if overscan_par is None else overscan_par
 
-        if combine_par is not None and not isinstance(combine_par, CombineFramesPar):
+        if combine_par is not None and not isinstance(combine_par, pypitpar.CombineFramesPar):
             raise TypeError('Provided ParSet for combining frames must be type CombineFramesPar.')
-        self.combine_par = CombineFramesPar() if combine_par is None else combine_par
+        self.combine_par = pypitpar.CombineFramesPar() if combine_par is None else combine_par
 
-        if lacosmic_par is not None and not isinstance(lacosmic_par, LACosmicPar):
+        if lacosmic_par is not None and not isinstance(lacosmic_par, pypitpar.LACosmicPar):
             raise TypeError('Provided ParSet for LACosmic must be type LACosmicPar.')
-        self.lacosmic_par = LACosmicPar() if lacosmic_par is None else lacosmic_par
+        self.lacosmic_par = pypitpar.LACosmicPar() if lacosmic_par is None else lacosmic_par
 
         # Main (possible) outputs
         self.stack = None
@@ -117,7 +117,11 @@ class ProcessImages(object):
         self.proc_images = None  # Will be an ndarray
         self.datasec = []
         self.oscansec = []
-        self.exptime = None     # TODO: This needs to be defined.
+
+        # WARNING: Exposure time None by default here in the base class.
+        # The exposure time is currently only defined by ScienceImage
+        # and only used by build_rawvarframe
+        self.exptime = None
 
         # Constructed by process:
         self.crmask = None          # build_crmask
@@ -278,7 +282,7 @@ class ProcessImages(object):
             return
 
         # Set the overscan parameters
-        if overscan_par is not None and not isinstance(overscan_par, OverscanPar):
+        if overscan_par is not None and not isinstance(overscan_par, pypitpar.OverscanPar):
             raise TypeError('Provided ParSet for overscan subtraction must be type OverscanPar.')
         if overscan_par is not None:
             self.overscan_par = overscan_par
@@ -328,7 +332,7 @@ class ProcessImages(object):
 
         """
         # Set the parameters
-        if combine_par is not None and not isinstance(combine_par, CombineFramesPar):
+        if combine_par is not None and not isinstance(combine_par, pypitpar.CombineFramesPar):
             raise TypeError('Provided ParSet for combining frames must be type CombineFramesPar.')
         if combine_par is not None:
             self.combine_par = combine_par
@@ -338,7 +342,8 @@ class ProcessImages(object):
         # (KBW) We could shorten this call to, if we want to:
 #        self.stack = arcomb.core_comb_frames(self.proc_images, frametype=self.frametype,
 #                                             saturation=saturation, **self.combine_par)
-        # TODO: frametype does not seem to be required here.  
+        # TODO: frametype is only used in printing.  Can it be excluded
+        # from core_comb_frames?
         self.stack = arcomb.core_comb_frames(self.proc_images, frametype=self.frametype,
                                              saturation=saturation,
                                              method=self.combine_par['method'],
@@ -368,7 +373,7 @@ class ProcessImages(object):
 
         """
         # Set the parameters
-        if lacosmic_par is not None and not isinstance(lacosmic_par, LACosmicPar):
+        if lacosmic_par is not None and not isinstance(lacosmic_par, pypitpar.LACosmicPar):
             raise TypeError('Provided ParSet for LACosmic must be type LACosmicPar.')
         if lacosmic_par is not None:
             self.lacosmic_par = lacosmic_par
@@ -485,10 +490,11 @@ class ProcessImages(object):
         # Done
         return self.stack.copy()
 
-    # TODO: Is this used by anything other than ScienceImage?
     def build_rawvarframe(self, trim=True):
         """
         Generate the Raw Variance frame
+
+        Currently only used by ScienceImage.
 
         Wrapper to arprocimg.variance_frame
 
@@ -498,7 +504,6 @@ class ProcessImages(object):
 
         """
         msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
-        # TODO: This is overkill when self.datasec is loaded...
         datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
         if trim:
             datasec_img = arprocimg.trim_frame(datasec_img, datasec_img < 1)

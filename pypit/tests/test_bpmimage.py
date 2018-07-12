@@ -46,22 +46,23 @@ def test_instantiate():
 #        _ = bpmimage.BPMImage('keck_lris_red', binning='1,1')
 #    with pytest.raises(PypitError):
 #        _ = bpmimage.BPMImage('keck_deimos')
-#   TODO: reduce_badpix is no longer an argument.  This functionality is
+
+#   reduce_badpix is no longer an argument.  This functionality is
 #   performed when calling `build` when msbias is not None
+
 #    with pytest.raises(PypitError):
 #        _ = bpmimage.BPMImage(reduce_badpix='bias')
 
 def test_dummy_image():
     # Simple
     shape=(2048,2048)
-    bpmImage = bpmimage.BPMImage(spectrograph='shane_kast_blue', shape=shape)
+    bpmImage = bpmimage.BPMImage(spectrograph='shane_kast_blue', shape=shape, trim=False)
     bpm = bpmImage.build()
     assert isinstance(bpm, np.ndarray)
     assert bpm.shape == shape
     assert np.sum(bpm) == 0
 
 def test_keck_lris_red():
-    # TODO: Now requires a file:
     if skip_test:
         return
     example_file = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA', 'Keck_LRIS_red',

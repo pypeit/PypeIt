@@ -561,7 +561,8 @@ def save_1d_spectra_fits(slf, fitsdict, clobber=True, outfile=None):
     #with io.open(sensfunc_name, 'w', encoding='utf-8') as f:
     #    f.write(unicode(json.dumps(slf._sensfunc, sort_keys=True, indent=4, separators=(',', ': '))))
 
-# TODO: Should this accept spectrograph?
+# TODO: (KBW) I don't think core algorithms should take class
+# arguments...
 def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
     """
 

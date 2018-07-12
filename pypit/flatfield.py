@@ -66,15 +66,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     # Frame type is a class attribute
     frametype = 'pixelflat'
 
-    # TODO user settings need to be added to these codes!!
-    # Keep order same as processimages (or else!)
     def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, root_path=None,
                  mode=None, flatpar=None, msbias=None, tslits_dict=None, tilts=None):
-
-        # Parameters unique to this Object
-        self.msbias = msbias
-        self.tslits_dict = tslits_dict
-        self.tilts = tilts
 
         # Image processing parameters
         self.par = pypitpar.FrameGroupPar(self.frametype) if par is None else par
@@ -91,6 +84,11 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                                 else root_path+'_'+self.spectrograph.spectrograph
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
                                          directory_path=directory_path, mode=mode)
+
+        # Parameters unique to this Object
+        self.msbias = msbias
+        self.tslits_dict = tslits_dict
+        self.tilts = tilts
 
         # Key outputs
         self.mspixelflat = None
