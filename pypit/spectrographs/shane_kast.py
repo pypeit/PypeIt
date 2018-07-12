@@ -36,43 +36,45 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
     def kast_header_keys(self):
         def_keys = self.default_header_keys()
         # Update
-        def_keys[1]['time'] = 'TSEC'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[1]['naxis0'] = 'NAXIS2' # Number of pixels along the zeroth axis
-        def_keys[1]['naxis1'] = 'NAXIS1' # Number of pixels along the first axis
-        def_keys[1]['lampname01'] = 'LAMPNAM1' # Number of pixels along the first axis
-        def_keys[1]['lampstat01'] = 'LAMPSTA1' # Number of pixels along the first axis
-        def_keys[1]['lampname02'] = 'LAMPNAM2' # Number of pixels along the first axis
-        def_keys[1]['lampstat02'] = 'LAMPSTA2' # Number of pixels along the first axis
-        def_keys[1]['lampname03'] = 'LAMPNAM3' # Number of pixels along the first axis
-        def_keys[1]['lampstat03'] = 'LAMPSTA3' # Number of pixels along the first axis
-        def_keys[1]['lampname04'] = 'LAMPNAM4' # Number of pixels along the first axis
-        def_keys[1]['lampstat04'] = 'LAMPSTA4' # Number of pixels along the first axis
-        def_keys[1]['lampname05'] = 'LAMPNAM5' # Number of pixels along the first axis
-        def_keys[1]['lampstat05'] = 'LAMPSTA5' # Number of pixels along the first axis
-        def_keys[1]['lampname06'] = 'LAMPNAMA' # Number of pixels along the first axis
-        def_keys[1]['lampstat06'] = 'LAMPSTAA' # Number of pixels along the first axis
-        def_keys[1]['lampname07'] = 'LAMPNAMB' # Number of pixels along the first axis
-        def_keys[1]['lampstat07'] = 'LAMPSTAB' # Number of pixels along the first axis
-        def_keys[1]['lampname08'] = 'LAMPNAMC' # Number of pixels along the first axis
-        def_keys[1]['lampstat08'] = 'LAMPSTAC' # Number of pixels along the first axis
-        def_keys[1]['lampname09'] = 'LAMPNAMD' # Number of pixels along the first axis
-        def_keys[1]['lampstat09'] = 'LAMPSTAD' # Number of pixels along the first axis
-        def_keys[1]['lampname10'] = 'LAMPNAME' # Number of pixels along the first axis
-        def_keys[1]['lampstat10'] = 'LAMPSTAE' # Number of pixels along the first axis
-        def_keys[1]['lampname11'] = 'LAMPNAMF' # Number of pixels along the first axis
-        def_keys[1]['lampstat11'] = 'LAMPSTAF' # Number of pixels along the first axis
-        def_keys[1]['lampname12'] = 'LAMPNAMG' # Number of pixels along the first axis
-        def_keys[1]['lampstat12'] = 'LAMPSTAG' # Number of pixels along the first axis
-        def_keys[1]['lampname13'] = 'LAMPNAMH' # Number of pixels along the first axis
-        def_keys[1]['lampstat13'] = 'LAMPSTAH' # Number of pixels along the first axis
-        def_keys[1]['lampname14'] = 'LAMPNAMI' # Number of pixels along the first axis
-        def_keys[1]['lampstat14'] = 'LAMPSTAI' # Number of pixels along the first axis
-        def_keys[1]['lampname15'] = 'LAMPNAMJ' # Number of pixels along the first axis
-        def_keys[1]['lampstat15'] = 'LAMPSTAJ' # Number of pixels along the first axis
-        def_keys[1]['lampname16'] = 'LAMPNAMK' # Number of pixels along the first axis
-        def_keys[1]['lampstat16'] = 'LAMPSTAK' # Number of pixels along the first axis
+        def_keys[0]['time'] = 'TSEC'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
+        def_keys[0]['naxis0'] = 'NAXIS2' # Number of pixels along the zeroth axis
+        def_keys[0]['naxis1'] = 'NAXIS1' # Number of pixels along the first axis
+        def_keys[0]['lampname01'] = 'LAMPNAM1' # Number of pixels along the first axis
+        def_keys[0]['lampstat01'] = 'LAMPSTA1' # Number of pixels along the first axis
+        def_keys[0]['lampname02'] = 'LAMPNAM2' # Number of pixels along the first axis
+        def_keys[0]['lampstat02'] = 'LAMPSTA2' # Number of pixels along the first axis
+        def_keys[0]['lampname03'] = 'LAMPNAM3' # Number of pixels along the first axis
+        def_keys[0]['lampstat03'] = 'LAMPSTA3' # Number of pixels along the first axis
+        def_keys[0]['lampname04'] = 'LAMPNAM4' # Number of pixels along the first axis
+        def_keys[0]['lampstat04'] = 'LAMPSTA4' # Number of pixels along the first axis
+        def_keys[0]['lampname05'] = 'LAMPNAM5' # Number of pixels along the first axis
+        def_keys[0]['lampstat05'] = 'LAMPSTA5' # Number of pixels along the first axis
+        def_keys[0]['lampname06'] = 'LAMPNAMA' # Number of pixels along the first axis
+        def_keys[0]['lampstat06'] = 'LAMPSTAA' # Number of pixels along the first axis
+        def_keys[0]['lampname07'] = 'LAMPNAMB' # Number of pixels along the first axis
+        def_keys[0]['lampstat07'] = 'LAMPSTAB' # Number of pixels along the first axis
+        def_keys[0]['lampname08'] = 'LAMPNAMC' # Number of pixels along the first axis
+        def_keys[0]['lampstat08'] = 'LAMPSTAC' # Number of pixels along the first axis
+        def_keys[0]['lampname09'] = 'LAMPNAMD' # Number of pixels along the first axis
+        def_keys[0]['lampstat09'] = 'LAMPSTAD' # Number of pixels along the first axis
+        def_keys[0]['lampname10'] = 'LAMPNAME' # Number of pixels along the first axis
+        def_keys[0]['lampstat10'] = 'LAMPSTAE' # Number of pixels along the first axis
+        def_keys[0]['lampname11'] = 'LAMPNAMF' # Number of pixels along the first axis
+        def_keys[0]['lampstat11'] = 'LAMPSTAF' # Number of pixels along the first axis
+        def_keys[0]['lampname12'] = 'LAMPNAMG' # Number of pixels along the first axis
+        def_keys[0]['lampstat12'] = 'LAMPSTAG' # Number of pixels along the first axis
+        def_keys[0]['lampname13'] = 'LAMPNAMH' # Number of pixels along the first axis
+        def_keys[0]['lampstat13'] = 'LAMPSTAH' # Number of pixels along the first axis
+        def_keys[0]['lampname14'] = 'LAMPNAMI' # Number of pixels along the first axis
+        def_keys[0]['lampstat14'] = 'LAMPSTAI' # Number of pixels along the first axis
+        def_keys[0]['lampname15'] = 'LAMPNAMJ' # Number of pixels along the first axis
+        def_keys[0]['lampstat15'] = 'LAMPSTAJ' # Number of pixels along the first axis
+        def_keys[0]['lampname16'] = 'LAMPNAMK' # Number of pixels along the first axis
+        def_keys[0]['lampstat16'] = 'LAMPSTAK' # Number of pixels along the first axis
         #
-        def_keys[1]['dichroic'] = 'BSPLIT_N' # Number of pixels along the first axis
+        def_keys[0]['dichroic'] = 'BSPLIT_N' # Number of pixels along the first axis
+        # Return
+        return def_keys
 
 
 class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
@@ -123,8 +125,8 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
         """
         head_keys = self.kast_header_keys()
-        head_keys[1]['decker'] = 'SLIT_N'  # Which decker is being used
-        head_keys[1]['dispname'] = 'GRISM_N' # Number of pixels along the first axis
+        head_keys[0]['decker'] = 'SLIT_N'  # Which decker is being used
+        head_keys[0]['dispname'] = 'GRISM_N' # Number of pixels along the first axis
         #
         return head_keys
 

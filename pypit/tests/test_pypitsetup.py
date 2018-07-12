@@ -13,9 +13,11 @@ import pytest
 import glob
 import numpy as np
 
-from astropy.table import Table
 
 from pypit import pypitsetup
+from pypit.par import pypitpar
+
+from pypit.tests import tstutils
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:
@@ -27,15 +29,19 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+spectrograph = tstutils.load_kast_blue_masters(get_spectrograph=True)[0]
 
-def settings_kludge(instr='shane_kast_blue'):
-    # We be replaced with the settings Refactor
-    from pypit import arparse as settings
-    settings.dummy_settings(spectrograph=instr)
-    settings.argflag['run']['spectrograph'] = instr
-    settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
-    return settings.argflag, settings.spect
+def test_fitstbl():
+    if skip_test:
+        assert True
+        return
+    reduce_par = pypitpar.ReducePar()
+    kast_blue_files = glob.glob(os.getenv('PYPIT_DEV')+'RAW_DATA/Shane_Kast_blue/600_4310_d55/b*')
+    setupc = pypitsetup.PypitSetup(spectrograph, reduce_par)
+    #
+    fitstbl = setupc.build_fitstbl(kast_blue_files)
 
+'''
 def test_init():
     if skip_test:
         assert True
@@ -199,3 +205,4 @@ def test_run_setup():
     code, fitstbl, setup_dict = setupc.run(files)
     # Test
     assert code == 'setup'
+'''
