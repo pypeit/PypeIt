@@ -48,6 +48,7 @@ class PypitSetup(object):
         if pypit_file is not None:
             # Will be used to set file type from the PYPIT file
             raise NotImplementedError("Need to do this")
+        self.pypit_file = pypit_file
         self.fluxcalib_par = fluxcalib_par
 
         # Outputs
@@ -126,20 +127,20 @@ class PypitSetup(object):
         """
 
         # Setup?
-        if self.settings_argflag['run']['setup']:
+        if self.run_par['setup']:
             skip_cset = True
         else:
             skip_cset = False
 
 
         # Run with masters?
-        if self.settings_argflag['reduce']['masters']['force']:
+        if self.spectrograph.calib_par['masters'] == 'force':
             # Check that setup was input
-            if len(self.settings_argflag['reduce']['masters']['setup']) == 0:
+            if len(self.spectrograph.calib_par['setup']) == 0:
                 msgs.error("You need to specify the following parameter in your PYPIT file:"+msgs.newline()+"reduce masters setup")
             # Generate a dummy setup_dict
             self.setup_dict = arsetup.dummy_setup_dict(self.fitstbl,
-                    self.settings_argflag['reduce']['masters']['setup'])
+                    self.spectrograph.calib_par['setup'])
             # Step
             self.steps.append(inspect.stack()[0][3])
             # Return
@@ -149,18 +150,20 @@ class PypitSetup(object):
         self.setupIDs = []
         all_sci_ID = self.fitstbl['sci_ID'].data[self.fitstbl['science']]
         for sc in all_sci_ID:
-            for kk in range(self.settings_spect['mosaic']['ndet']):
+            for kk in range(len(self.spectrograph.detector)):
                 det = kk+1
                 try:
-                    cname = self.settings_argflag['setup']['name']
-                except KeyError:
+                    cname = self.spectrograph.calib_par['setup'][0]
+                except (KeyError, TypeError):
                     cname = None
                 # Amplifiers
                 dnum = arparse.get_dnum(det)
-                namp = self.settings_spect[dnum]["numamplifiers"]
+                namp = self.spectrograph.detector[kk]["numamplifiers"]
                 # Run
-                setupID = arsetup.instr_setup(sc, det, self.fitstbl, self.setup_dict, namp,
-                                                  skip_cset=skip_cset, config_name=cname)
+                setupID = arsetup.instr_setup(sc, det, self.fitstbl,
+                                              self.setup_dict, namp,
+                                              skip_cset=skip_cset,
+                                              config_name=cname)
                 # Only save the first detector for run setup
                 if kk == 0:
                     self.setupIDs.append(setupID)
@@ -295,20 +298,28 @@ class PypitSetup(object):
         fitstbl : Table
         setup_dict : Table
         """
+        # Kludge
+        if self.pypit_file is None:
+            pypit_file = ''
+        else:
+            pypit_file = self.pypit_file
         # Build fitstbl
         if self.fitstbl is None:
             _ = self.build_fitstbl(file_list)
 
         # File typing
-        if self.settings_argflag['run']['calcheck'] or self.settings_argflag['run']['setup']:
+        if self.run_par['calcheck'] or self.run_par['setup']:
             bad_to_unknown = True
         else:
             bad_to_unknown = False
         _ = self.type_data(flag_unknown=bad_to_unknown)
 
         # Write?
-        if self.settings_argflag['output']['sorted'] is not None:
-            _ = arsort.write_lst(self.fitstbl, self.settings_spect, self.settings_argflag)
+        if self.run_par['sortdir'] is not None:
+            skeys = self.spectrograph.header_keys()
+            _ = arsort.write_lst(self.fitstbl, skeys, pypit_file,
+                                 setup=self.run_par['setup'],
+                                 sort_dir=self.run_par['sortdir'])
 
         # Match calibs to science
         _ = self.match_to_science()
@@ -317,36 +328,36 @@ class PypitSetup(object):
         _ = self.build_setup_dict()
 
         # .sorted Table (on pypit_setup only)
-        if self.settings_argflag['run']['setup']:  # Collate all matching files
+        if self.run_par['setup']:  # Collate all matching files
             _ = self.build_group_dict()
 
         # Write calib file (not in setup mode) or setup file (in setup mode)
-        if not self.settings_argflag['run']['setup']:
-            if len(self.settings_argflag['run']['redname']) == 0: # Stop gap
+        if not self.run_par['setup']:
+            if len(pypit_file) == 0: # Stop gap
                 calib_file = 'tmp.calib'
             else:
-                calib_file = self.settings_argflag['run']['redname'].replace('.pypit', '.calib')
+                calib_file = pypit_file.replace('.pypit', '.calib')
             arsetup.write_calib(calib_file, self.setup_dict)
         else:
-            if len(self.settings_argflag['run']['redname']) == 0: # Stop gap
+            if len(pypit_file) == 0: # Stop gap
                 setup_file = 'tmp.setups'
             else:
-                setup_file = self.settings_argflag['run']['redname'].replace('.pypit', '.setups')
+                setup_file = pypit_file.replace('.pypit', '.setups')
             arsetup.write_setup(self.setup_dict, setup_file=setup_file)
 
         # Finish (depends on PYPIT run mode)
-        if self.settings_argflag['run']['calcheck']:
+        if self.run_par['calcheck']:
             msgs.info("Inspect the .calib file: {:s}".format(calib_file))
             msgs.info("*********************************************************")
             msgs.info("Calibration check complete and successful!")
             msgs.info("Set 'run calcheck False' to continue with data reduction")
             msgs.info("*********************************************************")
             # Instrument specific (might push into a separate file)
-            if self.settings_argflag['run']['spectrograph'] in ['keck_lris_blue']:
-                if self.settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat']:
+            if self.spectrograph.spectrograph in ['keck_lris_blue']:
+                if self.spectrograph.calib_par['flatfield']['useframe'] in ['pixelflat']:
                     msgs.warn("We recommend a slitless flat for your instrument.")
             return 'calcheck', None, None
-        elif self.settings_argflag['run']['setup']:
+        elif self.run_par['setup']:
             for idx in np.where(self.fitstbl['failures'])[0]:
                 msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(
                     self.fitstbl['target'][idx],self.fitstbl['filename'][idx]))

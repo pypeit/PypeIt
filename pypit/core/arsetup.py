@@ -305,12 +305,21 @@ def instr_setup(sci_ID, det, fitstbl, setup_dict, numamplifiers,
         disp_name = fitstbl["dispname"][idx[0]]
     except:
         debugger.set_trace()
-    disp_angle = fitstbl["dispangle"][idx[0]]
+    try:
+        disp_angle = fitstbl["dispangle"][idx[0]]
+    except KeyError:
+        disp_angle = 'none'
     # Common
     dichroic = fitstbl["dichroic"][idx[0]]
     decker = fitstbl["decker"][idx[0]]
-    slitwid = fitstbl["slitwid"][idx[0]]
-    slitlen = fitstbl["slitlen"][idx[0]]
+    try:
+        slitwid = fitstbl["slitwid"][idx[0]]
+    except:
+        slitwid = 'none'
+    try:
+        slitlen = fitstbl["slitlen"][idx[0]]
+    except:
+        slitlen = 'none'
 
     # Detector -- These may not be set properly from the header alone, e.g. LRIS
     binning = fitstbl["binning"][idx[0]]

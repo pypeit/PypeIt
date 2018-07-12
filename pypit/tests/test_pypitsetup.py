@@ -127,6 +127,7 @@ def test_match_ABBA():
     fitstbl = setupc.match_ABBA()
 
     assert fitstbl['AB_frame'][-1] == 'NS.20160414.55235.fits.gz'
+'''
 
 def test_run():
     if skip_test:
@@ -137,9 +138,8 @@ def test_run():
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Settings
-    settings_argflag, settings_spect = settings_kludge()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
+    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
     # Run
     code, fitstbl, setup_dict = setupc.run(files)
     # Test
@@ -148,6 +148,7 @@ def test_run():
     assert isinstance(setup_dict, dict)
 
 
+'''
 def test_run_calcheck():
     if skip_test:
         assert True

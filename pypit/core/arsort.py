@@ -472,7 +472,8 @@ def chk_condition(fitstbl, cond):
     return ntmp
 
 
-def write_lst(fitstbl, settings_spect, settings_argflag):
+def write_lst(fitstbl, skeys, pypit_filename, setup=False,
+              sort_dir=None):
     """
     Write out an ascii file that contains the details of the file sorting.
     By default, the filename is printed first, followed by the frametype.
@@ -490,8 +491,7 @@ def write_lst(fitstbl, settings_spect, settings_argflag):
     prord = ['filename', 'frametype', 'target', 'exptime', 'naxis0', 'naxis1', 'filter1', 'filter2']
     prdtp = ["char",     "char",      "char",   "double",  "int",    "int",    "char",     "char"]
     # Now insert the remaining keywords:
-    fkey = settings_spect['keyword'].keys()
-    for i in fkey:
+    for i in skeys:
         if i not in prord:
             prord.append(i)
             # Append the type of value this keyword holds
@@ -523,10 +523,10 @@ def write_lst(fitstbl, settings_spect, settings_argflag):
     # Frametype
     ascii_tbl['frametype'] = build_frametype_list(fitstbl)
     # Write
-    if settings_argflag['run']['setup']:
-        ascii_name = settings_argflag['run']['redname'].replace('.pypit', '.lst')
+    if setup:
+        ascii_name = pypit_filename.replace('.pypit', '.lst')
     else:
-        ascii_name = settings_argflag['output']['sorted']+'.lst'
+        ascii_name = sort_dir+'.lst'
     ascii_tbl[asciiord].write(ascii_name, format='ascii.fixed_width')
     return ascii_tbl
 
