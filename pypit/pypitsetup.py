@@ -84,7 +84,7 @@ class PypitSetup(object):
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
 
-    def build_group_dict(self):
+    def build_group_dict(self, pypit_file):
         """
         Builds a group dict and writes to disk
           This may be Deprecated (if the .sorted files are deemed too unintersting)
@@ -101,10 +101,10 @@ class PypitSetup(object):
 
         # Write .sorted file
         if len(self.group_dict) > 0:
-            if len(self.settings_argflag['run']['redname']) == 0: # Stop gap
+            if len(pypit_file) == 0: # Stop gap
                 group_file = 'tmp.sorted'
             else:
-                group_file = self.settings_argflag['run']['redname'].replace('.pypit', '.sorted')
+                group_file = pypit_file.replace('.pypit', '.sorted')
             arsetup.write_sorted(group_file, self.fitstbl, self.group_dict, self.setup_dict)
             msgs.info("Wrote group dict to {:s}".format(group_file))
         else:
@@ -329,7 +329,7 @@ class PypitSetup(object):
 
         # .sorted Table (on pypit_setup only)
         if self.run_par['setup']:  # Collate all matching files
-            _ = self.build_group_dict()
+            _ = self.build_group_dict(pypit_file)
 
         # Write calib file (not in setup mode) or setup file (in setup mode)
         if not self.run_par['setup']:

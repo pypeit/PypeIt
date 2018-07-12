@@ -31,16 +31,27 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+def set_pars():
+    reduce_par = pypitpar.ReducePar()
+    run_par = pypitpar.RunPar()
+    return run_par, reduce_par
+
+def get_files():
+    # Check for files
+    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
+    files = glob.glob(file_root+'*')
+    assert len(files) > 0
+    return files
+
 # INIT
 spectrograph = tstutils.load_kast_blue_masters(get_spectrograph=True)[0]
-reduce_par = pypitpar.ReducePar()
-run_par = pypitpar.RunPar()
 
 def test_init():
     if skip_test:
         assert True
         return
     # Init
+    run_par, reduce_par = set_pars()
     setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
     assert len(setupc.steps) == 0
     assert setupc.nfiles == 0
@@ -55,6 +66,7 @@ def test_build_fitstbl():
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Init
+    run_par, reduce_par = set_pars()
     setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
     #
     fitstbl = setupc.build_fitstbl(files)
@@ -71,10 +83,9 @@ def test_image_type():
         assert True
         return
     # Check for files
-    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
-    files = glob.glob(file_root+'*')
-    assert len(files) > 0
+    files = get_files()
     # Init
+    run_par, reduce_par = set_pars()
     setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
     fitstbl = setupc.build_fitstbl(files)
     # Type
@@ -89,10 +100,9 @@ def test_match():
         assert True
         return
     # Check for files
-    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
-    files = glob.glob(file_root+'*')
-    assert len(files) > 0
+    files = get_files()
     # Init
+    run_par, reduce_par = set_pars()
     setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
     _ = setupc.build_fitstbl(files)
     _ = setupc.type_data(flag_unknown=True)
@@ -134,11 +144,9 @@ def test_run():
         assert True
         return
     # Check for files
-    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
-    files = glob.glob(file_root+'*')
-    assert len(files) > 0
-    # Settings
+    files = get_files()
     # Init
+    run_par, reduce_par = set_pars()
     setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
     # Run
     code, fitstbl, setup_dict = setupc.run(files)
@@ -148,21 +156,16 @@ def test_run():
     assert isinstance(setup_dict, dict)
 
 
-'''
 def test_run_calcheck():
     if skip_test:
         assert True
         return
     # Check for files
-    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
-    files = glob.glob(file_root+'*')
-    assert len(files) > 0
-    # Settings
-    settings_argflag, settings_spect = settings_kludge()
-    settings_argflag['run']['calcheck'] = True
-
+    files = get_files()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
+    run_par, reduce_par = set_pars()
+    run_par['calcheck'] = True
+    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
     # Run
     code, fitstbl, setup_dict = setupc.run(files)
     # Test
@@ -173,18 +176,13 @@ def test_run_setup():
     if skip_test:
         assert True
         return
-    # Check for files
-    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
-    files = glob.glob(file_root+'*')
-    assert len(files) > 0
-    # Settings
-    settings_argflag, settings_spect = settings_kludge()
-    settings_argflag['run']['setup'] = True
-
+    files = get_files()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
+    run_par, reduce_par = set_pars()
+    run_par['setup'] = True
+    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
+
     # Run
     code, fitstbl, setup_dict = setupc.run(files)
     # Test
     assert code == 'setup'
-'''
