@@ -84,8 +84,6 @@ def test_image_type():
     assert 'arc' in setupc.fitstbl.keys()
     assert np.sum(filetypes['pixelflat'] & filetypes['trace']) == 12
 
-
-'''
 def test_match():
     if skip_test:
         assert True
@@ -94,20 +92,16 @@ def test_match():
     file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
     files = glob.glob(file_root+'*')
     assert len(files) > 0
-    # Settings
-    settings_argflag, settings_spect = settings_kludge()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
-    # fitstlb
+    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
     _ = setupc.build_fitstbl(files)
-
-    # Type
-    _ = setupc.type_data()
+    _ = setupc.type_data(flag_unknown=True)
 
     # Match to science
     fitstbl = setupc.match_to_science()
     assert fitstbl['sci_ID'][fitstbl['science']].tolist() == [1,2,4]
 
+'''
 def test_match_ABBA():
     if skip_test:
         assert True

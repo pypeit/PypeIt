@@ -15,6 +15,7 @@ from astropy.io import fits
 
 from pypit import msgs
 from pypit.par.pypitpar import DetectorPar
+from pypit.par.pypitpar import CalibrationsPar
 from pypit.spectrographs import spectrograph
 from pypit import telescopes
 from pypit.core import arsort
@@ -160,17 +161,45 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
         return gd_chk
 
-#ftype_list = [     # NOTE:  arc must be listed first!
-#    'arc',         # Exposure of one or more arc calibration lamps for wavelength calibration
-#    'bias',        # Exposure for assessing detector bias (usually 0s)
-#    'dark',        # Exposure for assessing detector dark current
-#    'pinhole',     # Exposure for tracing the orders or slits
-##    'pixelflat',   # Exposure for assessing pixel-to-pixel variations
-##    'science',   # Exposure on one or more science targets
-#    'standard',    # Exposure on a 'standard star' used for flux calibration
-#    'trace',       # Exposure for tracing slits or echelle orders (usually twilight sky or flat lamp)
-#    'unknown',     # Unknown..
-#]
+    def _set_calib_par(self, user_supplied=None):
+        self.calib_par = CalibrationsPar()
+
+    def get_match_criteria(self):
+        match_criteria = {}
+        for key in arsort.ftype_list:
+            match_criteria[key] = {}
+        # Science
+        match_criteria['science']['number'] = 1
+        # Standard
+        match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
+        match_criteria['standard']['match'] = {}
+        match_criteria['standard']['match']['naxis0'] = '=0'
+        match_criteria['standard']['match']['naxis1'] = '=0'
+        # Bias
+        match_criteria['bias']['number'] = 5  # Can be over-ruled by flux calibrate = False
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['naxis0'] = '=0'
+        match_criteria['bias']['match']['naxis1'] = '=0'
+        # Pixelflat
+        match_criteria['pixelflat']['number'] = 5  # Can be over-ruled by flux calibrate = False
+        match_criteria['pixelflat']['match'] = {}
+        match_criteria['pixelflat']['match']['naxis0'] = '=0'
+        match_criteria['pixelflat']['match']['naxis1'] = '=0'
+        match_criteria['pixelflat']['match']['decker'] = ''
+        # Traceflat
+        match_criteria['trace']['number'] = 5  # Can be over-ruled by flux calibrate = False
+        match_criteria['trace']['match'] = {}
+        match_criteria['trace']['match']['naxis0'] = '=0'
+        match_criteria['trace']['match']['naxis1'] = '=0'
+        match_criteria['trace']['match']['decker'] = ''
+        # Arc
+        match_criteria['arc']['number'] = 1
+        match_criteria['arc']['match'] = {}
+        match_criteria['arc']['match']['naxis0'] = '=0'
+        match_criteria['arc']['match']['naxis1'] = '=0'
+
+        # Return
+        return match_criteria
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """

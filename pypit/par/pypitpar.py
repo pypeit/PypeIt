@@ -1410,7 +1410,7 @@ class ReducePar(ParSet):
 
     
 class WavelengthSolutionPar(ParSet):
-    def __init__(self, method=None, lamps=None, detection=None, numsearch=None, nfitpix=None,
+    def __init__(self, perform=None, method=None, lamps=None, detection=None, numsearch=None, nfitpix=None,
                  IDpixels=None, IDwaves=None):
 
         # Grab the parameter names and values from the function
@@ -1427,6 +1427,11 @@ class WavelengthSolutionPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+        defaults['perform'] = 'arc'
+        options['perform'] = WavelengthSolutionPar.valid_perform()
+        dtypes['perform'] = basestring
+        descr['perform'] = 'Perform wavelength calibration with an arc, sky frame or not at all (pixel)'
+
         defaults['method'] = 'arclines'
         options['method'] = WavelengthSolutionPar.valid_methods()
         dtypes['method'] = basestring
@@ -1482,6 +1487,13 @@ class WavelengthSolutionPar(ParSet):
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
+
+    @staticmethod
+    def valid_perform():
+        """
+        Return the valid wavelength solution methods.
+        """
+        return [ 'arc', 'sky', 'pixel' ]
 
     @staticmethod
     def valid_methods():
@@ -2456,7 +2468,8 @@ class CalibrationsPar(ParSet):
     """
     def __init__(self, caldir=None, masters=None, setup=None, trim=None, badpix=None,
                  biasframe=None, arcframe=None, pixelflatframe=None, traceframe=None,
-                 flatfield=None, wavelengths=None, slits=None, tilts=None):
+                 flatfield=None, wavelengths=None, slits=None, tilts=None,
+                 wavecalib=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2528,6 +2541,10 @@ class CalibrationsPar(ParSet):
         dtypes['tilts'] = [ ParSet, dict ]
         descr['tilts'] = 'Define how to tract the slit tilts using the trace frames'
 
+        defaults['wavecalib'] = WavelengthCalibrationPar()
+        dtypes['wavecalib'] = [ ParSet, dict ]
+        descr['wavecalib'] = 'Define how to tract the slit tilts using the trace frames'
+
         # Instantiate the parameter set
         super(CalibrationsPar, self).__init__(list(pars.keys()),
                                               values=list(pars.values()),
@@ -2564,6 +2581,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = TraceSlitsPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'tilts'
         kwargs[pk] = TraceTiltsPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'wavecalib'
+        kwargs[pk] = WavelengthCalibrationPar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
 

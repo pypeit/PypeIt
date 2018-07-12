@@ -15,6 +15,8 @@ from pypit import arparse
 from pypit.core import arsort
 from pypit.core import arsetup
 
+from pypit.par import pypitpar
+
 class PypitSetup(object):
     """Class to handle setup
 
@@ -35,7 +37,8 @@ class PypitSetup(object):
     ftypes : list
       frame types;  grabbed from arsort.ftype_list
     """
-    def __init__(self, spectrograph, run_par, reduce_par, fitstbl=None, pypit_file=None):
+    def __init__(self, spectrograph, run_par, reduce_par, fluxcalib_par=None,
+                 fitstbl=None, pypit_file=None):
 
         # Other parameters
         self.spectrograph = spectrograph
@@ -45,6 +48,7 @@ class PypitSetup(object):
         if pypit_file is not None:
             # Will be used to set file type from the PYPIT file
             raise NotImplementedError("Need to do this")
+        self.fluxcalib_par = fluxcalib_par
 
         # Outputs
         self.setup_dict = {}
@@ -190,9 +194,12 @@ class PypitSetup(object):
         self.fitstbl -- Updated with 'sci_ID' and 'failures' columns
 
         """
-        self.fitstbl = arsort.match_to_science(self.fitstbl,
-                                         self.settings_spect,
-                                         self.settings_argflag)
+        self.fitstbl = arsort.match_to_science(self.spectrograph,
+                                               self.fitstbl,
+                                               self.spectrograph.calib_par['wavelengths']['perform'],
+                                               self.run_par['calwin'],
+                                               setup=self.run_par['setup'],
+                                               flux_calibrate=(self.fluxcalib_par is not None))
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl

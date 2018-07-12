@@ -76,6 +76,9 @@ class Spectrograph(object):
 
         self.sky_file = None
 
+        # Init Calibrations Par
+        self._set_calib_par()
+
     @staticmethod
     def default_sky_spectrum():
         """
@@ -103,6 +106,9 @@ class Spectrograph(object):
         for d in self.detector:
             if not isinstance(d, DetectorPar):
                 raise TypeError('Detector parameters must be specified using DetectorPar.')
+
+    def _set_calib_par(self, user_supplied=None):
+        pass
 
     def load_raw_frame(self, raw_file, det=None):
         """
@@ -394,6 +400,9 @@ class Spectrograph(object):
             else:
                 msgs.error("Error reading header from extension {0:d} of file:".format(filename))
         return headarr
+
+    def get_match_criteria(self):
+        pass
 
     def check_ftype(self, ftype, fitstbl):
         return np.zeros(len(fitstbl), dtype=bool)
