@@ -12,9 +12,9 @@ import glob
 import numpy as np
 
 from pypit import msgs
-from ..par.pypitpar import DetectorPar
-from . import spectrograph
-from .. import telescopes
+from pypit.par.pypitpar import DetectorPar
+from pypit.spectrographs import spectrograph
+from pypit import telescopes
 
 from pypit import ardebug as debugger
 
@@ -112,8 +112,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.9, 1.9],
                             ronoise         = [3.8, 3.8],
-                            datasec         = ['[2:511,:]', '[513:525,:]'],
-                            oscansec        = ['[527:625,:]', '[627:725,:]'],
+                            datasec         = ['[1:511,:]', '[512:525,:]'],
+                            oscansec        = ['[526:625,:]', '[626:725,:]'],
                             suffix          = '_red'
                             )
             ]
@@ -175,7 +175,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 1,
                             gain            = 3.0,
                             ronoise         = 12.5,
-                            oscansec        = '[1203:1232,:]',
+                            oscansec        = '[1202:1232,:]',
                             suffix          = '_red'
                             )
             ]

@@ -13,9 +13,9 @@ import numpy as np
 from astropy.io import fits
 
 from pypit import msgs
-from ..par.pypitpar import DetectorPar
-from . import spectrograph
-from .. import telescopes
+from pypit.par.pypitpar import DetectorPar
+from pypit.spectrographs import spectrograph
+from pypit import telescopes
 
 from pypit import ardebug as debugger
 

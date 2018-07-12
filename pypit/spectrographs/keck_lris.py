@@ -14,9 +14,9 @@ from astropy.io import fits
 
 from pypit import msgs
 from pypit import arparse
-from ..par.pypitpar import DetectorPar
-from . import spectrograph
-from .. import telescopes
+from pypit.par.pypitpar import DetectorPar
+from pypit.spectrographs import spectrograph
+from pypit import telescopes
 
 from pypit import ardebug as debugger
 
@@ -24,9 +24,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/LRIS specific code
     """
-
-    # TODO: This should be an abstract class!
-
     def __init__(self):
         # Get it started
         super(KeckLRISSpectrograph, self).__init__()
@@ -281,10 +278,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Uses default primary_hdrext
         # self.sky_file ?
 
-    # TODO: Anything that isn't general to the bpm methods for *all*
-    # spectrograph should be held as part of the class (like detector)A
-    # I think this means that bpm should be created when the data is
-    # read using the binning from the fits headers.
     def bpm(self, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 
@@ -312,7 +305,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             hdu.close()
 
             # Apply the mask
-            # TODO: Does this always give the correct shape?
             xbin = int(binning.split(',')[0])
             badc = 16//xbin
             self.bpm_img[:, 0:badc] = 1

@@ -117,7 +117,7 @@ import numpy
 from configobj import ConfigObj
 from astropy.time import Time
 
-from .parset import ParSet
+from pypit.par.parset import ParSet
 
 # Needs this to determine the valid spectrographs TODO: This causes a
 # circular import.  Spectrograph specific parameter sets and where they
@@ -150,11 +150,6 @@ def _pypit_root_directory():
         raise OSError('Could not find PYPIT package!')
     # Root directory is one level up from source code
     return os.path.split(code_dir)[0]
-#    for p in sys.path:
-#        if 'PYPIT'.lower() in p.lower() \
-#                and len(glob.glob(os.path.join(p, 'pypit', 'pypit.py'))) == 1:
-#            return p
-#    raise OSError('Could not find PYPIT in system path.')
 
 
 def _eval_ignore():
@@ -443,7 +438,6 @@ class CombineFramesPar(ParSet):
         dtypes['cosmics'] = [int, float]
         descr['cosmics'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
 
-        # TODO: Test the list length...
         defaults['n_lohi'] = [0, 0]
         dtypes['n_lohi'] = list
         descr['n_lohi'] = 'Number of pixels to reject at the lowest and highest ends of the ' \
@@ -501,7 +495,10 @@ class CombineFramesPar(ParSet):
         return [ 'min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat' ]
 
     def validate(self):
-        pass
+        if self.data['n_lohi'] is not None and len(self.data['n_lohi']) != 2:
+            raise ValueError('n_lohi must be a list of two numbers.')
+        if self.data['sig_lohi'] is not None and len(self.data['sig_lohi']) != 2:
+            raise ValueError('n_lohi must be a list of two numbers.')
 
     def to_header(self, hdr):
         """
@@ -851,6 +848,7 @@ class FlexurePar(ParSet):
         dtypes['maxshift'] = [int, float]
         descr['maxshift'] = 'Maximum allowed flexure shift in pixels.'
 
+        # TODO: THIS IS NOT USED!
         dtypes['spectrum'] = basestring
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
@@ -1102,9 +1100,6 @@ class PCAPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-
-        # TODO: Change pcatype to spacing='irregular' or
-        # spacing='smooth'?
         defaults['pcatype'] = 'pixel'
         options['pcatype'] = PCAPar.valid_types()
         dtypes['pcatype'] = basestring
@@ -1395,11 +1390,16 @@ class ReducePar(ParSet):
 
     @staticmethod
     def valid_spectrographs():
-        # TODO: Do something clever here based on the spectrographs
-        # directory
-        return ['keck_lris_blue', 'keck_lris_red', 'keck_deimos', 'keck_nirspec',
-                'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'wht_isis_blue',
-                'tng_dolores' ]
+        # WARNING: Needs this to determine the valid spectrographs.
+        # Should use pypit.spectrographs.util.valid_spectrographs
+        # instead, but it causes a circular import.  Spectrographs have
+        # to be redefined here.   To fix this, spectrograph specific
+        # parameter sets (like DetectorPar) and where they go needs to
+        # be rethought.
+        return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
+                'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
+                'wht_isis_blue']
+
     @staticmethod
     def valid_pipelines():
         """Return the list of allowed pipelines within pypit."""
@@ -1585,7 +1585,6 @@ class TraceSlitsPar(ParSet):
         descr['diffpolyorder'] = 'Order of the 2D function used to fit the 2d solution for the ' \
                                  'spatial size of all orders.'
 
-        # TODO: Add a check for this?
         defaults['single'] = []
         dtypes['single'] = list
         descr['single'] = 'Add a single, user-defined slit based on its location on each ' \

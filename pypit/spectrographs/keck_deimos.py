@@ -9,9 +9,9 @@ from astropy.io import fits
 
 from pypit import msgs
 from pypit import arparse
-from ..par.pypitpar import DetectorPar, InstrumentPar
-from . import spectrograph
-from .. import telescopes
+from pypit.par.pypitpar import DetectorPar
+from pypit.spectrographs import spectrograph
+from pypit import telescopes
 
 from pypit import ardebug as debugger
 
@@ -281,7 +281,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
           0 = ok; 1 = Mask
 
         """
-        # TODO: Does this work if the file image is binned?
         self.empty_bpm(filename=filename, det=det)
         if det == 1:
             self.bpm_img[:,1052:1054] = 1

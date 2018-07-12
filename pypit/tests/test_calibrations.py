@@ -60,7 +60,7 @@ def multi_caliBrate():
     spectrograph = tstutils.load_kast_blue_masters(get_spectrograph=True)[0]
 
     # Only changing the defaults
-    # TODO: I agree FrameGroupPar is a bit onerous...
+    # TODO: (KBW) I agree FrameGroupPar is a bit onerous...
     calib_par = pypitpar.CalibrationsPar(badpix=False,
                                          biasframe=pypitpar.FrameGroupPar('bias',
                                                                           useframe='overscan'))
@@ -84,6 +84,7 @@ def test_datasec(multi_caliBrate):
     if skip_test:
         assert True
         return
+    multi_caliBrate.par['trim'] = False
     datasec_img = multi_caliBrate.get_datasec_img()
     naxis0, naxis1 = datasec_img.shape
     # Test

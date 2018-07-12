@@ -12,9 +12,9 @@ import glob
 import numpy as np
 
 from pypit import msgs
-from ..par.pypitpar import DetectorPar
-from . import spectrograph
-from .. import telescopes
+from pypit.par.pypitpar import DetectorPar
+from pypit.spectrographs import spectrograph
+from pypit import telescopes
 
 from pypit import ardebug as debugger
 
@@ -42,8 +42,8 @@ class TngDoloresSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 0.97,
                             ronoise         = 9.0,
-                            datasec         = '[51:,1:2045]',
-                            oscansec        = '[51:,2054:]',
+                            datasec         = '[50:,0:2045]',
+                            oscansec        = '[50:,2054:]',
                             suffix          = '_lrr'
                             )
             ]

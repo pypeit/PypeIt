@@ -38,12 +38,15 @@ try:
 except NameError:
     basestring = str
 
-# TODO: Make sure the attributes checked with chk_set make sense
-
 class Calibrations(object):
     """
     This class is primarily designed to guide the generation of calibration images
     and objects in PYPIT
+
+    Must be able to instantiate spectrograph.
+
+    .. todo::
+        Improve docstring...
 
     Parameters
     ----------
@@ -276,8 +279,8 @@ class Calibrations(object):
 
         example_file = os.path.join(self.fitstbl['directory'][scidx],
                                     self.fitstbl['filename'][scidx])
-        bpmImage = bpmimage.BPMImage(self.spectrograph, shape=self.shape, filename=example_file,
-                                     det=self.det,
+        # Always use the example file
+        bpmImage = bpmimage.BPMImage(self.spectrograph, filename=example_file, det=self.det,
                                      msbias=self.msbias if self.par['badpix'] == 'bias' else None,
                                      trim=self.par['trim'])
         # Build, save, and return
@@ -363,9 +366,9 @@ class Calibrations(object):
         if self.par['flatfield']['frame'] not in ['pixelflat', 'trace']:
             # First try to find directly, then try to find it in the
             # masters directory, then fail
-            if os.isfile(self.par['flatfield']['frame']):
+            if os.path.isfile(self.par['flatfield']['frame']):
                 mspixelflat_name = self.par['flatfield']['frame']
-            elif os.isfile(os.path.join(self.flatField.directory_path,
+            elif os.path.isfile(os.path.join(self.flatField.directory_path,
                                         self.par['flatfield']['frame'])):
                 mspixelflat_name = os.path.join(self.flatField.directory_path,
                                                 self.par['flatfield']['frame'])
@@ -536,10 +539,6 @@ class Calibrations(object):
             self.wv_calib: dict
             self.maskslits -- Updated
         """
-
-        # TODO: Should keep "maskslits" and "wv_maskslits" separate
-        # always
-
         # Check for existing data
         if not self._chk_objs(['msarc', 'tslits_dict', 'pixlocn']):
             msgs.error('dont have all the objects')
@@ -611,7 +610,7 @@ class Calibrations(object):
         # Make sure shape is defined
         self._check_shape()
         # Check internals
-        self._chk_set(['spectrograph', 'shape'])
+        self._chk_set(['shape'])
 
         # Get the pixel locations
         xgap=self.spectrograph.detector[self.det-1]['xgap']
@@ -635,9 +634,6 @@ class Calibrations(object):
             self.maskslits: ndarray
 
         """
-
-        # TODO: Should keep all the maskslits separate!
-
         # Check for existing data
         if not self._chk_objs(['msarc', 'tslits_dict', 'pixlocn', 'wv_calib', 'maskslits']):
             msgs.error('dont have all the objects')
@@ -647,7 +643,7 @@ class Calibrations(object):
             return self.mstilts, self.maskslits
 
         # Check internals
-        self._chk_set(['setup', 'det', 'sci_ID', 'par', 'spectrograph'])
+        self._chk_set(['setup', 'det', 'sci_ID', 'par'])
 
         # Return existing data
         if 'tilts' in self.calib_dict[self.setup].keys():
@@ -707,14 +703,18 @@ class Calibrations(object):
         return True
 
     def _check_shape(self):
+        """
+        Check that the shape attribute is not None.  If it is use,
+        define it using the shape of msarc
+
+        .. warning::
+            - This shape depends on if the images are trimmed or not!
+        """
         # Check the shape is declared
         if self.shape is None and self.msarc is None:
             raise ValueError('Before calling BPM, must run get_arc to get image shape, or '
                              'provide shape directly.')
         if self.shape is None:
-            # TODO: I pulled this from get_arc.  It was the only place
-            # shape was defined.  Why is shape defined by the msarc
-            # image?
             self.shape = self.msarc.shape
 
     def show(self, obj):

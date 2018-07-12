@@ -3,6 +3,7 @@
 from __future__ import absolute_import, division, print_function
 
 import os
+import warnings
 
 from abc import ABCMeta
 from pkg_resources import resource_filename
@@ -12,9 +13,9 @@ from astropy.io import fits
 
 from linetools.spectra import xspectrum1d
 
-from .. import arparse
-from .. import arpixels
-from ..par.pypitpar import DetectorPar, TelescopePar
+from pypit import arparse
+from pypit import arpixels
+from pypit.par.pypitpar import DetectorPar, TelescopePar
 
 try:
     basestring
@@ -189,8 +190,6 @@ class Spectrograph(object):
             their order transposed.
         """
         # Check the section is one of the detector keywords
-        # TODO: Is this too broad?  I didn't want to specify 'datasec'
-        # and 'oscansec' in case those change.
         if section not in self.detector[det-1].keys():
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 
@@ -210,6 +209,8 @@ class Spectrograph(object):
         except:
             # Otherwise use the detector definition directly
             image_sections = self.detector[det-1][section]
+            if not isinstance(image_sections, list):
+                image_sections = [image_sections]
             # and assume the string is python formatted.
             one_indexed = False
             include_last = False
@@ -232,7 +233,6 @@ class Spectrograph(object):
         Args:
             filename (str):
                 Name of the file from which to read the image size.
-                TODO: Can this be obtained from the fitstbl?
             det (int):
                 Detector number (1-indexed)
             force (:obj:`bool`, optional):
@@ -255,15 +255,11 @@ class Spectrograph(object):
             self.datasec_img = np.zeros(self.naxis, dtype=int)
             for i in range(self.detector[det-1]['numamplifiers']):
                 # Convert the data section from a string to a slice
-                # TODO: Should consider doing this in DetectorPar
                 datasec = arparse.sec2slice(data_sections[i], one_indexed=one_indexed,
                                             include_end=include_end, require_dim=2,
                                             transpose=transpose)
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
-#            self.datasec_img = arpixels.pix_to_amp(self.naxis[0], self.naxis[1], 
-#                                                   self.detector[det-1]['datasec'],
-#                                                   self.detector[det-1]['numamplifiers'])
         return self.datasec_img
 
     def get_image_shape(self, filename=None, det=None, force=True):
@@ -386,7 +382,7 @@ class Spectrograph(object):
         # No file was defined
         if self.sky_file is None:
             self.sky_file = Spectrograph.default_sky_spectrum()
-            msgs.warn('Using default sky spectrum: {0}'.format(self.sky_file))
+            warnings.warn('Using default sky spectrum: {0}'.format(self.sky_file))
 
         if os.path.isfile(self.sky_file):
             # Found directly

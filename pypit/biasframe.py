@@ -63,10 +63,6 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, root_path=None,
                  mode=None, fitstbl=None, sci_ID=None):
 
-        # Parameters unique to this Object
-        self.fitstbl = fitstbl
-        self.sci_ID = sci_ID
-
         # Parameters
         self.par = pypitpar.FrameGroupPar(self.frametype) if par is None else par
 
@@ -82,6 +78,10 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
                                 else root_path+'_'+self.spectrograph.spectrograph
         masterframe.MasterFrame.__init__(self, self.frametype, setup, directory_path=directory_path,
                                          mode=mode)
+
+        # Parameters unique to this Object
+        self.fitstbl = fitstbl
+        self.sci_ID = sci_ID
 
     def build_image(self, overwrite=False):
         """

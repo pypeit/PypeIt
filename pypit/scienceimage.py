@@ -104,8 +104,6 @@ class ScienceImage(processimages.ProcessImages):
                  datasec_img=None, bpm=None, maskslits=None, pixlocn=None, fitstbl=None, scidx=0,
                  objtype='science'):
 
-        # Define this out the outset
-
         # Parameters
         # NOTE: This uses objtype, not frametype!
         self.frame_par = pypitpar.FrameGroupPar(objtype) if frame_par is None else frame_par
@@ -133,10 +131,7 @@ class ScienceImage(processimages.ProcessImages):
         self.bpm = bpm
 
         self.exptime = self.fitstbl['exptime'][self.scidx]
-        self.binning = self.fitstbl['binning'][self.scidx]      # TODO: Check this!
-
-        # Also done in ProcessImages
-#        self.det = det
+        self.binning = self.fitstbl['binning'][self.scidx]
 
         # Key outputs/internals
         self.sciframe = None

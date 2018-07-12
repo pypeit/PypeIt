@@ -21,7 +21,7 @@ from pypit.par import pypitpar
 
 #from pypit import arparse as settings
 
-from .spectrographs.util import load_spectrograph
+from pypit.spectrographs.util import load_spectrograph
 
 from pypit import ardebug as debugger
 

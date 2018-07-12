@@ -14,9 +14,12 @@ from astropy.io import fits
 
 from pypit import msgs
 from pypit import ardebug as debugger
-from. import spectroclass
+from pypit.par.pypitpar import DetectorPar
+from pypit.spectrographs import spectrograph
+from pypit import telescopes
 
-class KeckNIRESpectrograph(spectroclass.Spectrograph):
+# TODO: KeckNIRESSPectrograph instead (i.e. two SS) ?
+class KeckNIRESpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/NIRES specific code
     """
