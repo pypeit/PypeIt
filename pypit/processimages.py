@@ -1,9 +1,12 @@
 # Module for Processing Images, e.g. bias frames, arc frames
+
 from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
 import os
+
+from importlib import reload
 
 from astropy.io import fits
 
@@ -275,6 +278,7 @@ class ProcessImages(object):
         -------
 
         """
+        reload(arprocimg)
         # Check if the bias has already been subtracted
         if (inspect.stack()[0][3] in self.steps) & (not force):
             msgs.warn("Images already bias subtracted.  Use force=True to reset proc_images "

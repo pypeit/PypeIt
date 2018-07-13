@@ -68,8 +68,11 @@ def load_spectrograph(spectrograph=None):
 
     if 'gemini_gmos_south' in spectrograph:
         from importlib import reload
-        reload(spectrographs)
-        return spectrographs.gemini_gmos.GeminiGMOSSSpectrograph()
+        #reload(spectrographs)
+        #return spectrographs.gemini_gmos.GeminiGMOSSSpectrograph()
+        from pypit.spectrographs import gemini_gmos
+        reload(gemini_gmos)
+        return gemini_gmos.GeminiGMOSSSpectrograph()
 
     msgs.error("Spectrograph not supported")
 

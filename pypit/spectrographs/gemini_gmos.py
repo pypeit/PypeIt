@@ -111,6 +111,51 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
         return self.naxis
 
+    def get_image_section(self, filename, det, section='datasec'):
+        """
+        Return a string representation of a slice defining a section of
+        the detector image.
+
+        Overwrites base class function to use :func:`read_deimos` to get
+        the image sections.
+
+        .. todo::
+            - It feels really ineffiecient to just get the image section
+              using the full :func:`read_deimos`.  Can we parse that
+              function into something that can give you the image
+              section directly?
+
+        This is done separately for the data section and the overscan
+        section in case one is defined as a header keyword and the other
+        is defined directly.
+
+        Args:
+            filename (str):
+                data filename
+            det (int):
+                Detector number
+            section (:obj:`str`, optional):
+                The section to return.  Should be either datasec or
+                oscansec, according to the :class:`DetectorPar`
+                keywords.
+
+        Returns:
+            list, bool: A list of string representations for the image
+            sections, one string per amplifier, followed by three
+            booleans: if the slices are one indexed, if the slices
+            should include the last pixel, and if the slice should have
+            their order transposed.
+        """
+        # Read the file
+        temp, head0, secs = read_gmos(filename, det)
+        if section == 'datasec':
+            return secs[0], False, False, False
+        elif section == 'oscansec':
+            # Need to flip these
+            return secs[1], False, False, False
+        else:
+            raise ValueError('Unrecognized keyword: {0}'.format(section))
+
     def gemini_get_match_criteria(self):
         match_criteria = {}
         for key in arsort.ftype_list:
@@ -154,7 +199,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         self.detector = [
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        dispaxis        = 1,
+                        dispaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -169,7 +214,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        dispaxis        = 1,
+                        dispaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -184,7 +229,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        dispaxis        = 1,
+                        dispaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -258,7 +303,7 @@ def read_gmos(raw_file, det=1):
         msgs.error("Found {:d} files matching {:s}".format(len(fil)))
 
     # Read
-    msgs.info("Reading LRIS file: {:s}".format(fil[0]))
+    msgs.info("Reading GMOS file: {:s}".format(fil[0]))
     hdu = fits.open(fil[0])
     head0 = hdu[0].header
     head1 = hdu[1].header
@@ -314,14 +359,16 @@ def read_gmos(raw_file, det=1):
 
         # insert data...
         # Data section
-        section = '[:,{:d}:{:d}]'.format(xs, xe)  # Eliminate lines
+        #section = '[:,{:d}:{:d}]'.format(xs, xe)  # Eliminate lines
+        section = '[{:d}:{:d},:]'.format(xs, xe)  # Eliminate lines
         dsec.append(section)
         array[xs:xe, :] = data
 
         #; insert postdata...
         xs = nx - n_ext*nxb + kk*nxb
         xe = xs + nxb
-        section = '[:,{:d}:{:d}]'.format(xs, xe)
+        #section = '[:,{:d}:{:d}]'.format(xs, xe)
+        section = '[{:d}:{:d},:]'.format(xs, xe)  # TRANSPOSED FOR WHAT COMES
         osec.append(section)
         array[xs:xe, :] = overscan
 
