@@ -37,6 +37,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     def gemini_header_keys(self):
         def_keys = self.default_header_keys()
         def_keys[0]['time'] = 'OBSEPOCH'      # The time stamp of the observation (i.e. decimal MJD)
+        def_keys[0]['dispname'] = 'GRATING'      # The time stamp of the observation (i.e. decimal MJD)
         return def_keys
 
     def _set_calib_par(self, user_supplied=None):
@@ -273,6 +274,14 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
             arcparam['b1']= 4.54698031e-04
             arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 6000.
+            arcparam['wv_cen'] = 4000.
+        elif 'B600' in disperser:
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.63 # Ang per pixel (unbinned)
+            arcparam['b1']= 4.54698031e-04
+            arcparam['b2']= -6.86414978e-09
+            arcparam['wvmnx'][0] = 3800.
+            arcparam['wvmnx'][1] = 8000.
             arcparam['wv_cen'] = 4000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))

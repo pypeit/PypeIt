@@ -406,7 +406,7 @@ class Calibrations(object):
         self.calib_dict[self.setup]['slitprof'] = self.slitprof
         return self.mspixflatnrm, self.slitprof
 
-    def get_slits(self, arms=True):
+    def get_slits(self, arms=True, redo=False):
         """
         Load or generate a normalized pixel flat
         First, a trace flat image is generated
@@ -435,7 +435,7 @@ class Calibrations(object):
         self._chk_set(['setup', 'det', 'sci_ID', 'par'])
 
         # Return already generated data
-        if 'trace' in self.calib_dict[self.setup].keys():
+        if ('trace' in self.calib_dict[self.setup].keys()) and (not redo):
             self.tslits_dict = self.calib_dict[self.setup]['trace']
             self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
             return self.tslits_dict, self.maskslits
