@@ -118,6 +118,7 @@ from configobj import ConfigObj
 from astropy.time import Time
 
 from pypit.par.parset import ParSet
+from pypit.par import util
 
 # Needs this to determine the valid spectrographs TODO: This causes a
 # circular import.  Spectrograph specific parameter sets and where they
@@ -125,200 +126,16 @@ from pypit.par.parset import ParSet
 #from ..spectrographs.util import valid_spectrographs
 
 #-----------------------------------------------------------------------------
-# Helper functions
-
-# TODO: This should go in a different module, or in __init__
-def _pypit_root_directory():
-    """
-    Get the root directory for the PYPIT source distribution.
-
-    .. todo::
-        - Set this in __init__.py
-
-    Returns:
-        str: Root directory to PYPIT
-
-    Raises:
-        OSError: Raised if `pkg_resources.resource_filename` fails.
-    """
-    try:
-        # Get the directory with the pypit source code
-        code_dir = resource_filename('pypit', '')
-    except:
-        # TODO: pypit should always be installed as a package, so is
-        # this try/except block necessary?
-        raise OSError('Could not find PYPIT package!')
-    # Root directory is one level up from source code
-    return os.path.split(code_dir)[0]
-
-
-def _eval_ignore():
-    """Provides a list of strings that should not be evaluated."""
-    return [ 'open', 'file', 'dict' ]
-
-
-def _recursive_dict_evaluate(d):
-    """
-    Recursively run :func:`eval` on each element of the provided
-    dictionary.
-
-    A raw read of a configuration file with `ConfigObj` results in a
-    dictionary that contains strings or lists of strings.  However, when
-    assigning the values for the various ParSets, the `from_dict`
-    methods expect the dictionary values to have the appropriate type.
-    E.g., the ConfigObj will have something like d['foo'] = '1', when
-    the `from_dict` method expects the value to be an integer (d['foo']
-    = 1).
-
-    This function tries to evaluate *all* dictionary values, except for
-    those listed above in the :func:`_eval_ignore` function.  Any value
-    in this list or where::
-
-        eval(d[k]) for k in d.keys()
-
-    raises an exception is returned as the original string.
-
-    This is currently only used in :func:`PypitPar.from_cfg_file`; see
-    further comments there.
-
-    Args:
-        d (dict):
-            Dictionary of values to evaluate
-
-    Returns:
-        dict: Identical to input dictionary, but with all string values
-        replaced with the result of `eval(d[k])` for all `k` in
-        `d.keys()`.
-    """
-    ignore = _eval_ignore()
-    for k in d.keys():
-        if isinstance(d[k], dict):
-           d[k] = _recursive_dict_evaluate(d[k])
-        elif isinstance(d[k], list):
-            replacement = []
-            for v in d[k]:
-                if v in ignore:
-                    replacement += [ v ]
-                else:
-                    try:
-                        replacement += [ eval(v) ]
-                    except:
-                        replacement += [ v ]
-            d[k] = replacement
-        else:
-            try:
-                d[k] = eval(d[k]) if d[k] not in ignore else d[k]
-            except:
-                pass
-
-    return d
-
-
-#def _recursive_dict_unicode2str(d):
-#    """
-#    Recursively convert any unicode to a string.
-#    """
-#    for k in d.keys():
-#        if isinstance(d[k], dict):
-#           d[k] = _recursive_dict_unicode2str(d[k])
-#        elif isinstance(d[k], list):
-#            replacement = []
-#            for v in d[k]:
-#                if isinstance(v, unicode):
-#                    replacement += [ str(v) ]
-#                    continue
-#                replacement += [ v ]
-#            d[k] = replacement
-#        else:
-#            if isinstance(d[k], unicode):
-#                d[k] = str(d[k])
-#    return d
-
-
-def _get_parset_list(cfg, pk, parsetclass):
-    """
-    Create a list of ParSets based on a root keyword for a set of
-    defined groups in the configuration file.
-    
-    For example, the :class:`InstrumentPar` group allows for a list of
-    detectors (:class:`DetectorPar`) with keywords like `detector1`,
-    `detector2`, etc.  This function parses the provided configuration
-    object (`cfg`) to find any sections with `detector` (`pk`) as its
-    root.  The remainder of the section name must be able to be
-    converted to an integer and the section itself must be able to setup
-    an instance of `parsetclass`.  The sections must be number
-    sequentially from 1..N.  E.g., the :class:`InstrumentPar`
-    configuration file cannot have `dectector1` and `detector3`, but no
-    `detector2`.  The call to setup the detectors in the
-    :class:`InstrumentPar` is::
-
-        kwargs['detector'] = _get_parset_list(cfg, 'detector', DetectorPar)
-
-    Args:
-        cfg (:class:`ConfigObj`, :obj:`dict`):
-            The top-level configuration that defines a list of
-            sub-ParSets.
-        pk (str):
-            The root of the keywords used to set a list of sub-ParSets.
-        parsetclass (:class:`pypit.par.parset.ParSet`):
-            The class used to construct each element in the list of
-            parameter subsets.  The class **must** have a `from_dict`
-            method that instantiates the
-            :class:`pypit.par.parset.ParSet` based on the provide
-            subsection/subdict from cfg.
-
-    Returns:
-        list: A list of instances of `parsetclass` parsed from the
-        provided configuration data.
-
-    Raises:
-        ValueError:
-            Raised if the indices of the subsections are not sequential
-            and 1-indexed.
-    """
-    # Get the full list of keys
-    k = cfg.keys()
-
-    # Iterate through the list of keys to find the appropriate sub
-    # parameter sets and their order.
-    par = []
-    order = []
-    for _k in k:
-        if _k == pk and cfg[_k] is None:
-            continue
-        if pk in _k:
-            try:
-                # Get the order for this subgroup (e.g., 2 for
-                # 'detector2'
-                order += [ int(_k.replace(pk,'')) ]
-                # And instantiate the parameter set
-                par += [ parsetclass.from_dict(cfg[_k]) ]
-            except:
-                continue
-
-    if len(par) > 0:
-        # Make sure the instances are correctly sorted and sequential
-        srt = numpy.argsort(order)
-        if numpy.any(numpy.array(order)[srt]-1 != numpy.arange(order[srt[-1]])):
-            raise ValueError('Parameter set series must be sequential and 1-indexed.')
-        # Return the sorted instances
-        return [par[i] for i in srt]
-
-    # No such subsets were defined, so return a null result
-    return None
-
-def parset_to_dict(par):
-    try:
-        d = dict(ConfigObj(par.to_config(None, section_name='tmp', just_lines=True))['tmp'])
-    except:
-        d = dict(ConfigObj(par.to_config(None, just_lines=True)))
-        
-    return _recursive_dict_evaluate(d)
-
-#-----------------------------------------------------------------------------
 # Reduction ParSets
 
-# TODO: Create child classes for each allowed frame type?
+# TODO: Create child classes for each allowed frame type?  E.g.:
+#
+# class BiasPar(FrameGroupPar):
+#    def __init__(self, useframe=None, number=None, overscan=None, combine=None, lacosmic=None):
+#        # Set frame-specific defaults
+#        _number = 5 if number is None else number
+#        super(BiasPar, self).__init(frametype='bias', useframe=useframe, number=_number,
+#                                    overscan=overscan, combine=combine, lacosmic=lacosmic)
 
 class FrameGroupPar(ParSet):
     def __init__(self, frametype=None, useframe=None, number=None, overscan=None, combine=None,
@@ -919,7 +736,8 @@ class WavelengthCalibrationPar(ParSet):
         descr['medium'] = 'Medium used when wavelength calibrating the data.  ' \
                           'Options are: {0}'.format(', '.join(options['medium']))
 
-#        defaults['refframe'] = 'heliocentric'
+        # TODO: What should the default be?  None or 'heliocentric'?
+        defaults['refframe'] = 'heliocentric'
         options['refframe'] = WavelengthCalibrationPar.valid_reference_frames()
         dtypes['refframe'] = basestring
         descr['refframe'] = 'Frame of reference for the wavelength calibration.  ' \
@@ -1326,7 +1144,8 @@ class ReducePar(ParSet):
     """
     Parameters specific to the reduction procedures used by PypIt.
     """
-    def __init__(self, spectrograph=None, pipeline=None, ncpus=None, detnum=None, scidir=None):
+    def __init__(self, spectrograph=None, pipeline=None, detnum=None, sortroot=None, calwin=None,
+                 scidir=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1352,13 +1171,18 @@ class ReducePar(ParSet):
         descr['pipeline'] = 'Pipeline options that pypit can use for reductions.  ' \
                             'Options are: {0}'.format(', '.join(options['pipeline']))
 
-        defaults['ncpus'] = 1
-        dtypes['ncpus']   = int
-        descr['ncpus']    = 'Number of CPUs to use (-1 means all bar one CPU, -2 means all bar ' \
-                            'two CPUs)'
-
         dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices'
+
+        dtypes['sortroot'] = basestring
+        descr['sortroot'] = 'A filename given to output the details of the sorted files.  If ' \
+                            'None, the default is the root name of the pypit file.  If off, ' \
+                            'no output is produced.'
+
+        defaults['calwin'] = 0
+        dtypes['calwin']   = [int, float]
+        descr['calwin'] = 'The window of time in hours to search for calibration frames for a ' \
+                          'science frame'
 
         defaults['scidir'] = 'Science'
         dtypes['scidir'] = basestring
@@ -1378,7 +1202,7 @@ class ReducePar(ParSet):
         k = cfg.keys()
 
         # Basic keywords
-        parkeys = [ 'spectrograph', 'pipeline', 'ncpus', 'detnum', 'scidir' ]
+        parkeys = [ 'spectrograph', 'pipeline', 'detnum', 'sortroot', 'calwin', 'scidir' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1932,7 +1756,7 @@ class ExtractObjectsPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
-        kwargs['manual'] = _get_parset_list(cfg, 'manual', ManualExtractionPar)
+        kwargs['manual'] = util.get_parset_list(cfg, 'manual', ManualExtractionPar)
         return cls(**kwargs)
 
     @staticmethod
@@ -2238,7 +2062,7 @@ class InstrumentPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
-        kwargs['detector'] = _get_parset_list(cfg, 'detector', DetectorPar)
+        kwargs['detector'] = util.get_parset_list(cfg, 'detector', DetectorPar)
         return cls(**kwargs)
 
     @staticmethod
@@ -2461,6 +2285,10 @@ class FrameIDPar(ParSet):
 class CalibrationsPar(ParSet):
     """
     The superset of parameters needed by the Calibrations class.
+
+    Note there are specific defaults for each frame group that are
+    different from the defaults of the abstracted class.
+
     """
     def __init__(self, caldir=None, masters=None, setup=None, trim=None, badpix=None,
                  biasframe=None, arcframe=None, pixelflatframe=None, traceframe=None,
@@ -2505,19 +2333,20 @@ class CalibrationsPar(ParSet):
         dtypes['badpix'] = bool
         descr['badpix'] = 'Make a bad pixel mask? Bias frames must be provided.'
 
-        defaults['biasframe'] = FrameGroupPar(frametype='bias')
+        defaults['biasframe'] = FrameGroupPar(frametype='bias', number=5)
         dtypes['biasframe'] = [ ParSet, dict ]
         descr['biasframe'] = 'The frames and combination rules for the bias correction'
 
-        defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat')
+        defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat', number=5)
         dtypes['pixelflatframe'] = [ ParSet, dict ]
         descr['pixelflatframe'] = 'The frames and combination rules for the field flattening'
 
-        defaults['arcframe'] = FrameGroupPar(frametype='arc')
+        defaults['arcframe'] = FrameGroupPar(frametype='arc', number=1,
+                                             combine=CombineFramesPar(cosmics=-1))
         dtypes['arcframe'] = [ ParSet, dict ]
         descr['arcframe'] = 'The frames and combination rules for the wavelength calibration'
 
-        defaults['traceframe'] = FrameGroupPar(frametype='trace')
+        defaults['traceframe'] = FrameGroupPar(frametype='trace', number=3)
         dtypes['traceframe'] = [ ParSet, dict ]
         descr['traceframe'] = 'The frames and combination rules for images used for slit tracing'
 
@@ -2597,6 +2426,20 @@ class CalibrationsPar(ParSet):
 #-----------------------------------------------------------------------------
 # Parameters superset
 
+    # To pass to ARMS:
+    # rdx:
+    #       detnum
+    #       scidir
+    # calibrations
+    # scienceframe
+    # standardframe - can be None
+    # objects
+    # extract
+    # wavecalib
+    # skysubtract - can be None
+    # flexure - can be None
+    # fluxcalib - can be None
+
 class PypitPar(ParSet):
     """
     The superset of all parameters used by PypIt.
@@ -2653,7 +2496,7 @@ class PypitPar(ParSet):
         dtypes['calibrations'] = [ ParSet, dict ]
         descr['calibrations'] = 'Parameters for the calibration algorithms'
 
-        defaults['standardframe'] = FrameGroupPar(frametype='standard')
+        defaults['standardframe'] = FrameGroupPar(frametype='standard', number=1)
         dtypes['standardframe'] = [ ParSet, dict ]
         descr['standardframe'] = 'The frames and combination rules for the spectrophotometric ' \
                                  'standard observations'
@@ -2670,22 +2513,35 @@ class PypitPar(ParSet):
         dtypes['extract'] = [ ParSet, dict ]
         descr['extract'] = 'Define how to extract 1D object spectra'
 
-        defaults['skysubtract'] = SkySubtractionPar()
+        # Sky subtraction is turned OFF by default
         dtypes['skysubtract'] = [ ParSet, dict ]
-        descr['skysubtract'] = 'Parameters used to set the sky-subtraction procedure'
+        descr['skysubtract'] = 'Parameters used by the sky-subtraction procedure.  Sky ' \
+                               'subtraction is not performed by default.  To turn on, either' \
+                               'set the parameters in the \'skysubtract\' parameter group or ' \
+                               'set \'skysubtract = True\' in the \'rdx\' parameter group ' \
+                               'to use the default sky-subtraction parameters.'
 
-        defaults['flexure'] = FlexurePar()
+
+        # Flexure is turned OFF by default
         dtypes['flexure'] = [ ParSet, dict ]
-        descr['flexure'] = 'Parameters used to set the flexure-correction procedure'
+        descr['flexure'] = 'Parameters used by the flexure-correction procedure.  Flexure ' \
+                           'corrections are not performed by default.  To turn on, either ' \
+                           'set the parameters in the \'flexure\' parameter group or set ' \
+                           '\'flexure = True\' in the \'rdx\' parameter group to use the ' \
+                           'default flexure-correction parameters.'
 
         defaults['wavecalib'] = WavelengthCalibrationPar()
         dtypes['wavecalib'] = [ ParSet, dict ]
-        descr['wavecalib'] = 'Parameters used to set the wavelength calibration to provide for ' \
-                             'the output spectra'
+        descr['wavecalib'] = 'Parameters used to set the wavelength calibration for the ' \
+                             'output spectra'
 
-        defaults['fluxcalib'] = FluxCalibrationPar()
+        # Flux calibration is turned OFF by default
         dtypes['fluxcalib'] = [ ParSet, dict ]
-        descr['fluxcalib'] = 'Parameters used to set the flux-calibration procedure'
+        descr['fluxcalib'] = 'Parameters used by the flux-calibration procedure.  Flux ' \
+                             'calibration is not performed by default.  To turn on, either ' \
+                             'set the parameters in the \'fluxcalib\' parameter group or set ' \
+                             '\'fluxcalib = True\' in the \'rdx\' parameter group to use the ' \
+                             'default flux-calibration parameters.'
         
         # Instantiate the parameter set
         super(PypitPar, self).__init__(list(pars.keys()),
@@ -2695,6 +2551,14 @@ class PypitPar(ParSet):
                                        descr=list(descr.values()))
 
         self.validate()
+
+    def update(self, par):
+        """
+        Update the current parameters.
+        """
+        if not isinstance(par, PypitPar):
+            raise TypeError('Parameters can only be updated using another instance of PypitPar.')
+        self.data.update(par.data)
 
     @classmethod
     def from_cfg_file(cls, cfg_file=None, merge_with=None, evaluate=True):
@@ -2767,10 +2631,121 @@ class PypitPar(ParSet):
 
         # Evaluate the strings if requested
         if evaluate:
-            cfg = _recursive_dict_evaluate(cfg)
+            cfg = util.recursive_dict_evaluate(cfg)
         
         # Instantiate the object based on the configuration dictionary
         return cls.from_dict(cfg)
+
+    @classmethod
+    def from_cfg_lines(cls, cfg_lines=None, merge_with=None, evaluate=True):
+        """
+        Construct the parameter set using the list of string lines read
+        from a config file.
+
+        Note that::
+
+            default = PypitPar()
+            nofile = PypitPar.from_cfg_lines()
+            assert default.data == nofile.data, 'This should always pass.'
+
+        Args:
+            cfg_lines (:obj:`list`, optional):
+                A list of strings with lines read, or made to look like
+                they are, from a configuration file.  This can be used
+                to load lines from a previous run of pypit that was
+                constructed and output by pypit.  This has to contain
+                the full set of parameters, not just the subset to
+                change.  For the latter, leave this as the default value
+                (None) and use :arg:`merge_with` to provide a set of
+                lines to merge with the defaults to construct the full
+                parameter set.
+            merge_with (:obj:`list`, optional):
+                A list of strings with lines read, or made to look like
+                they are, from a configuration file that should be
+                merged with the lines provided by `cfg_lines`, or the
+                default parameters.
+            evaluate (:obj:`bool`, optional):
+                Evaluate the values in the config object before
+                assigning them in the subsequent parameter sets.  The
+                parameters in the config file are *always* read as
+                strings, so this should almost always be true; however,
+                see the warning below.
+                
+        .. warning::
+
+            When :arg:`evaluate` is true, the function runs `eval()` on
+            all the entries in the `ConfigObj` dictionary, done using
+            :func:`_recursive_dict_evaluate`.  This has the potential to
+            go haywire if the name of a parameter unintentionally
+            happens to be identical to an imported or system-level
+            function.  Of course, this can be useful by allowing one to
+            define the function to use as a parameter, but it also means
+            one has to be careful with the values that the parameters
+            should be allowed to have.  The current way around this is
+            to provide a list of strings that should be ignored during
+            the evaluation, done using :func:`_eval_ignore`.
+
+        .. todo::
+            Allow the user to add to the ignored strings.
+
+        Returns:
+            :class:`pypit.par.core.PypitPar`: The instance of the
+            parameter set.
+        """
+        # Get the base parameters in a ConfigObj instance
+        cfg = ConfigObj(PypitPar().to_config(None, just_lines=True)
+                            if cfg_lines is None else cfg_lines)
+        
+        # Merge in additional parameters
+        if merge_with is not None:
+            cfg.merge(ConfigObj(merge_with))
+
+        # Evaluate the strings if requested
+        if evaluate:
+            cfg = util.recursive_dict_evaluate(cfg)
+        
+        # Instantiate the object based on the configuration dictionary
+        return cls.from_dict(cfg)
+
+    @classmethod
+    def from_pypit_file(cls, ifile, evaluate=True):
+        """
+        Construct the parameter set using a pypit file.
+        
+        Args:
+            ifile (str):
+                Name of the pypit file to read.  Expects to find setup
+                and data blocks in the file.  See docs.
+            evaluate (:obj:`bool`, optional):
+                Evaluate the values in the config object before
+                assigning them in the subsequent parameter sets.  The
+                parameters in the config file are *always* read as
+                strings, so this should almost always be true; however,
+                see the warning below.
+                
+        .. warning::
+
+            When :arg:`evaluate` is true, the function runs `eval()` on
+            all the entries in the `ConfigObj` dictionary, done using
+            :func:`_recursive_dict_evaluate`.  This has the potential to
+            go haywire if the name of a parameter unintentionally
+            happens to be identical to an imported or system-level
+            function.  Of course, this can be useful by allowing one to
+            define the function to use as a parameter, but it also means
+            one has to be careful with the values that the parameters
+            should be allowed to have.  The current way around this is
+            to provide a list of strings that should be ignored during
+            the evaluation, done using :func:`_eval_ignore`.
+
+        .. todo::
+            Allow the user to add to the ignored strings.
+
+        Returns:
+            :class:`pypit.par.core.PypitPar`: The instance of the
+            parameter set.
+        """
+        # TODO: Need to include instrument-specific defaults somewhere...
+        return cls.from_cfg_lines(merge_with=util.pypit_config_lines(ifile), evaluate=evaluate)
 
     @classmethod
     def from_dict(cls, cfg):
@@ -2795,17 +2770,25 @@ class PypitPar(ParSet):
         pk = 'extract'
         kwargs[pk] = ExtractObjectsPar.from_dict(cfg[pk]) if pk in k else None
 
+        # Allow sky subtraction to be turned on using cfg['rdx']
         pk = 'skysubtract'
-        kwargs[pk] = SkySubtractionPar.from_dict(cfg[pk]) if pk in k else None
+        default = SkySubtractionPar() \
+                        if pk in cfg['rdx'].keys() and cfg['rdx']['skysubtract'] else None
+        kwargs[pk] = SkySubtractionPar.from_dict(cfg[pk]) if pk in k else default
 
+        # Allow flexure to be turned on using cfg['rdx']
         pk = 'flexure'
-        kwargs[pk] = FlexurePar.from_dict(cfg[pk]) if pk in k else None
+        default = FlexurePar() if pk in cfg['rdx'].keys() and cfg['rdx']['flexure'] else None
+        kwargs[pk] = FlexurePar.from_dict(cfg[pk]) if pk in k else default
 
         pk = 'wavecalib'
         kwargs[pk] = WavelengthCalibrationPar.from_dict(cfg[pk]) if pk in k else None
 
+        # Allow flux calibration to be turned on using cfg['rdx']
         pk = 'fluxcalib'
-        kwargs[pk] = FluxCalibrationPar.from_dict(cfg[pk]) if pk in k else None
+        default = FluxCalibrationPar() \
+                        if pk in cfg['rdx'].keys() and cfg['rdx']['fluxcalib'] else None
+        kwargs[pk] = FluxCalibrationPar.from_dict(cfg[pk]) if pk in k else default
 
         return cls(**kwargs)
 
@@ -2820,8 +2803,9 @@ class PypitPar(ParSet):
                                params=argflag['reduce']['overscan']['params'])
         return cls(rdx=ReducePar(spectrograph=argflag['run']['spectrograph'],
                                  pipeline=spect['mosaic']['reduction'],
-                                 ncpus=argflag['run']['ncpus'],
                                  detnum=argflag['reduce']['detnum'],
+                                 sortroot=argflag['output']['sorted'],
+                                 calwin=spect['fits']['calwin'],
                                  scidir=argflag['run']['directory']['science']),
                     calibrations=CalibrationsPar(caldir=argflag['run']['directory']['master'],
                                                  masters=masters,

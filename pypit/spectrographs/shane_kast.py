@@ -14,8 +14,7 @@ import numpy as np
 from astropy.io import fits
 
 from pypit import msgs
-from pypit.par.pypitpar import DetectorPar
-from pypit.par.pypitpar import CalibrationsPar
+from pypit.par import pypitpar
 from pypit.spectrographs import spectrograph
 from pypit import telescopes
 from pypit.core import arsort
@@ -113,7 +112,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         return gd_chk
 
     def _set_calib_par(self, user_supplied=None):
-        self.calib_par = CalibrationsPar()
+        self.calib_par = pypitpar.CalibrationsPar()
 
     def kast_get_match_criteria(self):
         match_criteria = {}
@@ -185,6 +184,26 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # Uses default primary_hdrext
         self.sky_file = 'sky_kastb_600.fits'
 
+    @staticmethod
+    def default_pypit_par():
+        """
+        Set default parameters for Shane Kast Blue reductions.
+        """
+        par = pypitpar.PypitPar()
+        # TODO: Make self.spectrograph a class attribute?
+        par['rdx']['spectrograph'] = 'shane_kast_blue'
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+        # Set wave tilts order
+        par['calibrations']['tilts']['order'] = 2
+        # Always sky subtract, starting with default parameters
+        par['skysubtract'] = pypitpar.SkySubtractionPar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypitpar.FlexurePar()
+        return par
+
     def check_header(self, headers):
         chk_dict = {}
         chk_dict[1] = {}  # 1,2,3 indexing
@@ -243,23 +262,22 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         self.camera = 'KASTr'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 0,
-                            dispaxis        = 0,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.43,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
-                            numamplifiers   = 2,
-                            gain            = [1.9, 1.9],
-                            ronoise         = [3.8, 3.8],
-                            datasec         = ['[1:511,:]', '[512:525,:]'],
-                            oscansec        = ['[526:625,:]', '[626:725,:]'],
-                            suffix          = '_red'
-                            )
-            ]
+                pypitpar.DetectorPar(dataext         = 0,
+                                     dispaxis        = 0,
+                                     xgap            = 0.,
+                                     ygap            = 0.,
+                                     ysize           = 1.,
+                                     platescale      = 0.43,
+                                     darkcurr        = 0.0,
+                                     saturation      = 65535.,
+                                     nonlinear       = 0.76,
+                                     numamplifiers   = 2,
+                                     gain            = [1.9, 1.9],
+                                     ronoise         = [3.8, 3.8],
+                                     datasec         = ['[1:511,:]', '[512:525,:]'],
+                                     oscansec        = ['[526:625,:]', '[626:725,:]'],
+                                     suffix          = '_red'
+                                     )]
         self.numhead = 1
         # Uses timeunit from parent class
         # Uses default primary_hdrext
@@ -329,22 +347,21 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         self.camera = 'KASTr'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 0,
-                            dispaxis        = 1,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.774,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
-                            numamplifiers   = 1,
-                            gain            = 3.0,
-                            ronoise         = 12.5,
-                            oscansec        = '[1202:1232,:]',
-                            suffix          = '_red'
-                            )
-            ]
+                pypitpar.DetectorPar(dataext         = 0,
+                                     dispaxis        = 1,
+                                     xgap            = 0.,
+                                     ygap            = 0.,
+                                     ysize           = 1.,
+                                     platescale      = 0.774,
+                                     darkcurr        = 0.0,
+                                     saturation      = 65535.,
+                                     nonlinear       = 0.76,
+                                     numamplifiers   = 1,
+                                     gain            = 3.0,
+                                     ronoise         = 12.5,
+                                     oscansec        = '[1202:1232,:]',
+                                     suffix          = '_red'
+                                     )]
         self.numhead = 1
         # Uses timeunit from parent class
         # Uses default primary_hdrext

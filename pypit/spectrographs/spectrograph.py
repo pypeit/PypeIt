@@ -16,7 +16,7 @@ from linetools.spectra import xspectrum1d
 from pypit import msgs
 from pypit import arparse
 from pypit import arpixels
-from pypit.par.pypitpar import DetectorPar, TelescopePar
+from pypit.par import pypitpar
 
 try:
     basestring
@@ -88,6 +88,10 @@ class Spectrograph(object):
         """
         return os.path.join(resource_filename('pypit', 'data/sky_spec/'), 'paranal_sky.fits')
 
+    @staticmethod
+    def default_pypit_par():
+        return pypitpar.PypitPar()
+
     def add_to_fitstbl(self, fitstbl):
         pass
 
@@ -104,7 +108,7 @@ class Spectrograph(object):
         if self.detector is None:
             raise ValueError('Must first define spectrograph detector parameters!')
         for d in self.detector:
-            if not isinstance(d, DetectorPar):
+            if not isinstance(d, pypitpar.DetectorPar):
                 raise TypeError('Detector parameters must be specified using DetectorPar.')
 
     def _set_calib_par(self, user_supplied=None):
@@ -189,7 +193,7 @@ class Spectrograph(object):
                 Detector number
             section (:obj:`str`, optional):
                 The section to return.  Should be either datasec or
-                oscansec, according to the :class:`DetectorPar`
+                oscansec, according to the :class:`pypitpar.DetectorPar`
                 keywords.
 
         Returns:
@@ -387,18 +391,18 @@ class Spectrograph(object):
     def header_keys(self):
         return self.default_header_keys()
 
-    def get_headarr(self, filename, reduce_par):
+    def get_headarr(self, filename, strict=True):
         headarr = ['None' for k in range(self.numhead)]
         # Try to load em up
         try:
             for k in range(self.numhead):
                 headarr[k] = fits.getheader(filename, ext=k)
         except:
-            if reduce_par['setup']:
+            if strict:
+                msgs.error("Error reading header from extension {0} of file:".format(filename))
+            else:
                 msgs.warn("Bad header in extension {0:d} of file:".format(filename))
                 msgs.warn("Proceeding on the hopes this was a calibration file, otherwise consider removing.")
-            else:
-                msgs.error("Error reading header from extension {0:d} of file:".format(filename))
         return headarr
 
     def get_match_criteria(self):

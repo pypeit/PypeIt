@@ -66,6 +66,9 @@ class ParSet(object):
     parameters.  A glorified dictionary that constrains and types its
     components.
 
+    .. todo::
+        - Write a test for equality?
+
     Args:
         pars (list):
             A list of keywords for a list of parameter values.
@@ -604,10 +607,12 @@ class ParSet(object):
             warnings.warn('Selected configuration file already exists and will be overwritten!')
 
         config_output = []
-        if numpy.all([ isinstance(d, ParSet) for d in self.data.values() ]):
+        if numpy.all([ isinstance(d, ParSet) or d is None for d in self.data.values() ]):
             # All the elements are ParSets themselves, so just iterate
             # through each one
             for k in self.keys():
+                if self.data[k] is None:
+                    continue
                 config_output += ParSet.config_lines(self.data[k], section_name=k,
                                                      section_comment=self.descr[k],
                                                      section_level=section_level)

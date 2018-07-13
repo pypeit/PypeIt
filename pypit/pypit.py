@@ -17,9 +17,10 @@ except ImportError:
 from astropy.table import Table
 
 from pypit import msgs
-from pypit import ardebug
+# TODO: (KBW) Can this be part of pypit/__init__.py ?
 from pypit import archeck  # THIS IMPORT DOES THE CHECKING.  KEEP IT
 #from pypit import arparse
+from pypit import ardebug
 from pypit import ardevtest
 from pypit.core import arsort
 from pypit import arload
@@ -84,8 +85,11 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # Record the starting time
     tstart = time.time()
 
+    # Read the pypit file
+#    cfg_lines, setup_lines, data_lines = pypit_file_line_groups(redname)
+
     # Load the input file
-    pyp_dict = load_input(redname, msgs)
+    pyp_dict = load_input(redname)
     parlines, datlines, spclines = [pyp_dict[ii] for ii in ['par','dat','spc']]
 
     # Initialize the arguments and flags
@@ -197,6 +201,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     arparse.init(argf, spect)
     '''
 
+    return PypitPar.from_settings(arparse.argflag, arparse.spect)
+
     """
     # Test that a maximum of one .setup files is present
     from pypit import arsort
@@ -239,6 +245,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
                 arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)] \
                         = arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)][::-1]
     '''
+
+    return PypitPar.from_settings(arparse.argflag, arparse.spect)
 
     # Set me up here
     spectrograph = load_spectrograph(specname)
@@ -296,11 +304,13 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
             msgs.info('Data reduction will be performed using PYPIT-ARMS')
             #status = arms.ARMS(fitstbl, setup_dict, sciexp=sciexp)
             status = arms.ARMS(par['rdx']['spectrograph'], fitstbl, setup_dict, par=par)
-        else:
+        elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
             import pdb; pdb.set_trace()
-            #spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
-            #msgs.info('Data reduction will be performed using PYPIT-ARMED')
-            #status = armed.ARMED(fitstbl)
+            msgs.error('ARMED is currently broken.')
+            msgs.info('Data reduction will be performed using PYPIT-ARMED')
+            status = armed.ARMED(fitstbl)
+        else:
+            msgs.error('Unrecognized pipeline!')
 
     # Check for successful reduction
     if status == 0:
@@ -333,7 +343,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     return
 
 
-def load_input(redname, msgs):
+def load_input(redname):
     """
     Load user defined input .pypit reduction file. Updates are
     made to the argflag dictionary.
@@ -342,8 +352,6 @@ def load_input(redname, msgs):
     ----------
     redname : string
       Name of reduction script
-    msgs : Messages
-      logger for PYPIT
 
     Returns
     -------

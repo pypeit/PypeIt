@@ -9,13 +9,14 @@ import numpy as np
 from astropy.table import hstack, Table
 
 from pypit import msgs
-from pypit import ardebug as debugger
 from pypit import arload
 from pypit import arparse
 from pypit.core import arsort
 from pypit.core import arsetup
 
 from pypit.par import pypitpar
+
+from pypit import ardebug as debugger
 
 class PypitSetup(object):
     """Class to handle setup
@@ -37,13 +38,12 @@ class PypitSetup(object):
     ftypes : list
       frame types;  grabbed from arsort.ftype_list
     """
-    def __init__(self, spectrograph, run_par, reduce_par, fluxcalib_par=None,
-                 fitstbl=None, pypit_file=None):
+    def __init__(self, spectrograph, run_par, fluxcalib_par=None,
+                 fitstbl=None, pypit_file=None, strict=False):
 
         # Other parameters
         self.spectrograph = spectrograph
         self.run_par = run_par
-        self.reduce_par = reduce_par
         self.fitstbl = fitstbl
         if pypit_file is not None:
             # Will be used to set file type from the PYPIT file
@@ -78,7 +78,7 @@ class PypitSetup(object):
         fitstbl : Table
 
         """
-        self.fitstbl = arload.load_headers(file_list, self.spectrograph, self.reduce_par)
+        self.fitstbl = arload.load_headers(file_list, self.spectrograph, strict=strict)
         self.fitstbl.sort('time')
         # Step
         self.steps.append(inspect.stack()[0][3])
