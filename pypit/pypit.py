@@ -19,11 +19,14 @@ from astropy.table import Table
 from pypit import msgs
 from pypit import ardebug
 from pypit import archeck  # THIS IMPORT DOES THE CHECKING.  KEEP IT
-from pypit import arparse
+#from pypit import arparse
 from pypit import ardevtest
 from pypit.core import arsort
 from pypit import arload
+
+from pypit.spectrographs.util import load_spectrograph
 from pypit import pypitsetup
+from pypit.par import pypitpar
 
 from pypit import arqa
     
@@ -131,6 +134,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         msgs.error('Please specify the reduction type with the command' + msgs.newline() +
                    'mosaic reduction <type>')
 
+    '''
     # Load default reduction arguments/flags, and set any command line arguments
     argf = arparse.get_argflag_class((redtype.upper(), '.'.join(redname.split('.')[:-1])))
     argf.init_param()
@@ -191,6 +195,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
 
     # Now that all of the relevant settings are loaded, globalize the settings
     arparse.init(argf, spect)
+    '''
 
     """
     # Test that a maximum of one .setup files is present
@@ -201,6 +206,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         msgs.info('Will use this to guide the data reduction.')
     """
 
+
+    '''
     # Load the important information from the fits headers
     fitstbl, updates = arload.load_headers(datlines, arparse.spect, arparse.argflag)
 
@@ -231,11 +238,22 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
                         = arparse.spect[ddnum]['datasec{0:02d}'.format(i + 1)][::-1]
                 arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)] \
                         = arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)][::-1]
+    '''
 
     # Set me up here
+    spectrograph = load_spectrograph(specname)
+
+    par = pypitpar.PypitPar()
+    reduce_par = pypitpar.ReducePar()
+    run_par = pypitpar.RunPar()
+
+    # Parse pyp_dict
+    file_list = pyp_dict['dat']
+    import pdb; pdb.set_trace()
+
     # Instantiate
-    psetup = pypitsetup.PypitSetup(arparse.argflag, arparse.spect, fitstbl=fitstbl)
-    mode, fitstbl, setup_dict = psetup.run()
+    psetup = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
+    mode, fitstbl, setup_dict = psetup.run(file_list=file_list)
     psetup.write_fitstbl()
     if mode == 'setup':
         status = 1
@@ -267,19 +285,22 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
 #    print(arparse.spect)
 #    return arparse.argflag, arparse.spect
 #    return arparse.argflag, arparse.spect, PypitPar.from_settings(arparse.argflag, arparse.spect)
-    par = PypitPar.from_settings(arparse.argflag, arparse.spect)
+
+    #par = PypitPar.from_settings(arparse.argflag, arparse.spect)
 
     # Reduce the data!
     if mode == 'run':
-        arsort.make_dirs(arparse.argflag)
+        arsort.make_dirs(spectrograph, run_par)
         # Send the data away to be reduced
         if par['rdx']['pipeline'] == 'ARMS':
             msgs.info('Data reduction will be performed using PYPIT-ARMS')
             #status = arms.ARMS(fitstbl, setup_dict, sciexp=sciexp)
             status = arms.ARMS(par['rdx']['spectrograph'], fitstbl, setup_dict, par=par)
-        elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
-            msgs.info('Data reduction will be performed using PYPIT-ARMED')
-            status = armed.ARMED(fitstbl)
+        else:
+            import pdb; pdb.set_trace()
+            #spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
+            #msgs.info('Data reduction will be performed using PYPIT-ARMED')
+            #status = armed.ARMED(fitstbl)
 
     # Check for successful reduction
     if status == 0:

@@ -79,6 +79,78 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         # Return
         return def_keys
 
+    def kast_cond_dict(self, ftype):
+        cond_dict = {}
+
+        if ftype == 'science':
+            cond_dict['condition1'] = 'lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off'
+            cond_dict['condition2'] = 'exptime>1'
+        elif ftype == 'bias':
+            cond_dict['condition1'] = 'exptime<1'
+        elif ftype == 'pixelflat':
+            cond_dict['condition1'] = 'lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on'
+            cond_dict['condition2'] = 'exptime>0'
+        elif ftype == 'pinhole':
+            cond_dict['condition1'] = 'exptime>99999999'
+        elif ftype == 'trace':
+            cond_dict['condition1'] = 'lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on'
+            cond_dict['condition2'] = 'exptime>0'
+        elif ftype == 'arc':
+            cond_dict['condition1'] = 'lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on'
+            cond_dict['condition2'] = 'exptime<=60'
+        else:
+            pass
+
+        return cond_dict
+
+    def check_ftype(self, ftype, fitstbl):
+        # Load up
+        cond_dict = self.kast_cond_dict(ftype)
+
+        # Do it
+        gd_chk = arsort.chk_all_conditions(fitstbl, cond_dict)
+
+        return gd_chk
+
+    def _set_calib_par(self, user_supplied=None):
+        self.calib_par = CalibrationsPar()
+
+    def kast_get_match_criteria(self):
+        match_criteria = {}
+        for key in arsort.ftype_list:
+            match_criteria[key] = {}
+        # Science
+        match_criteria['science']['number'] = 1
+        # Standard
+        match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
+        match_criteria['standard']['match'] = {}
+        match_criteria['standard']['match']['naxis0'] = '=0'
+        match_criteria['standard']['match']['naxis1'] = '=0'
+        # Bias
+        match_criteria['bias']['number'] = 5  # Can be over-ruled by flux calibrate = False
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['naxis0'] = '=0'
+        match_criteria['bias']['match']['naxis1'] = '=0'
+        # Pixelflat
+        match_criteria['pixelflat']['number'] = 5  # Can be over-ruled by flux calibrate = False
+        match_criteria['pixelflat']['match'] = {}
+        match_criteria['pixelflat']['match']['naxis0'] = '=0'
+        match_criteria['pixelflat']['match']['naxis1'] = '=0'
+        match_criteria['pixelflat']['match']['decker'] = ''
+        # Traceflat
+        match_criteria['trace']['number'] = 5  # Can be over-ruled by flux calibrate = False
+        match_criteria['trace']['match'] = {}
+        match_criteria['trace']['match']['naxis0'] = '=0'
+        match_criteria['trace']['match']['naxis1'] = '=0'
+        match_criteria['trace']['match']['decker'] = ''
+        # Arc
+        match_criteria['arc']['number'] = 1
+        match_criteria['arc']['match'] = {}
+        match_criteria['arc']['match']['naxis0'] = '=0'
+        match_criteria['arc']['match']['naxis1'] = '=0'
+
+        # Return
+        return match_criteria
 
 class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
     """
@@ -132,74 +204,8 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         #
         return head_keys
 
-    def check_ftype(self, ftype, fitstbl):
-        gd_chk = np.ones(len(fitstbl), dtype=bool)
-        cond_dict = {}
-
-        if ftype == 'science':
-            cond_dict['condition1'] = 'lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off'
-            cond_dict['condition2'] = 'exptime>1'
-        elif ftype == 'bias':
-            cond_dict['condition1'] = 'exptime<1'
-        elif ftype == 'pixelflat':
-            cond_dict['condition1'] = 'lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on'
-            cond_dict['condition2'] = 'exptime>0'
-        elif ftype == 'pinhole':
-            gd_chk[:] = False
-            return gd_chk
-        elif ftype == 'trace':
-            cond_dict['condition1'] = 'lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on'
-            cond_dict['condition2'] = 'exptime>0'
-        elif ftype == 'arc':
-            cond_dict['condition1'] = 'lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on'
-            cond_dict['condition2'] = 'exptime<=60'
-        else:
-            pass
-
-        # Do it
-        gd_chk &= arsort.chk_all_conditions(fitstbl, cond_dict)
-
-        return gd_chk
-
-    def _set_calib_par(self, user_supplied=None):
-        self.calib_par = CalibrationsPar()
-
     def get_match_criteria(self):
-        match_criteria = {}
-        for key in arsort.ftype_list:
-            match_criteria[key] = {}
-        # Science
-        match_criteria['science']['number'] = 1
-        # Standard
-        match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['naxis0'] = '=0'
-        match_criteria['standard']['match']['naxis1'] = '=0'
-        # Bias
-        match_criteria['bias']['number'] = 5  # Can be over-ruled by flux calibrate = False
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['naxis0'] = '=0'
-        match_criteria['bias']['match']['naxis1'] = '=0'
-        # Pixelflat
-        match_criteria['pixelflat']['number'] = 5  # Can be over-ruled by flux calibrate = False
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-        match_criteria['pixelflat']['match']['decker'] = ''
-        # Traceflat
-        match_criteria['trace']['number'] = 5  # Can be over-ruled by flux calibrate = False
-        match_criteria['trace']['match'] = {}
-        match_criteria['trace']['match']['naxis0'] = '=0'
-        match_criteria['trace']['match']['naxis1'] = '=0'
-        match_criteria['trace']['match']['decker'] = ''
-        # Arc
-        match_criteria['arc']['number'] = 1
-        match_criteria['arc']['match'] = {}
-        match_criteria['arc']['match']['naxis0'] = '=0'
-        match_criteria['arc']['match']['naxis1'] = '=0'
-
-        # Return
-        return match_criteria
+        return self.kast_get_match_criteria()
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
@@ -254,6 +260,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                             suffix          = '_red'
                             )
             ]
+        self.numhead = 1
         # Uses timeunit from parent class
         # Uses default primary_hdrext
         # self.sky_file = ?
@@ -338,9 +345,39 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
                             suffix          = '_red'
                             )
             ]
+        self.numhead = 1
         # Uses timeunit from parent class
         # Uses default primary_hdrext
         # self.sky_file = ?
+
+    def header_keys(self):
+        """
+        Header keys specific to shane_kast_blue
+
+        Returns:
+
+        """
+        head_keys = self.kast_header_keys()
+        head_keys[0]['filter1'] = 'RDFILT_N'
+        head_keys[0]['dispname'] = 'GRATING_N'
+        head_keys[0]['dispangle'] = 'GRTILT_P'
+        #
+        return head_keys
+
+    def check_header(self, headers):
+        chk_dict = {}
+        chk_dict[1] = {}  # 1,2,3 indexing
+        chk_dict[1]['NAXIS'] = 2                            # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+        chk_dict[1]['DSENSOR'] = 'Ret 400x1200'        # Check the CCD name (replace any spaces with underscores)
+        #
+
+    def get_match_criteria(self):
+        match_criteria =  self.kast_get_match_criteria()
+        # Add more
+        match_criteria['standard']['match']['dispangle'] = '|<=20'
+        match_criteria['pixelflat']['match']['dispangle'] = '|<=20'
+        match_criteria['arc']['match']['dispangle'] = '|<=10'
+        return match_criteria
 
     def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
                        binspectral=None, **null_kwargs):

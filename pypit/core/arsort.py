@@ -1140,30 +1140,26 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     return srtframes
 
 
-def make_dirs(settings_argflag):
+def make_dirs(spectrograph, run_par):
     """
     For a given set of identified data, match calibration frames to science frames
 
     Parameters
     ----------
-    fitsdict : dict
-      Contains relevant information from fits header files
-    filesort : dict
-      Details of the sorted files
+    spectrograph : Spectrograph
+    run_par : ParSet
 
     Returns
     -------
-    sci_targs : str array
-      Names of the science targets
     """
 
     # First, get the current working directory
     currDIR = os.getcwd()
     msgs.info("Creating Science directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, settings_argflag['run']['directory']['science'])
+    newdir = "{0:s}/{1:s}".format(currDIR, run_par['scidir'])
     if os.path.exists(newdir):
         msgs.info("The following directory already exists:"+msgs.newline()+newdir)
-        if not settings_argflag['output']['overwrite']:
+        if not run_par['overwrite']:
             rmdir = ''
             while os.path.exists(newdir):
                 while rmdir != 'n' and rmdir != 'y' and rmdir != 'r':
@@ -1218,10 +1214,9 @@ def make_dirs(settings_argflag):
     '''
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Master Calibrations directory")
-    newdir = "{:s}/{:s}_{:s}".format(currDIR, settings_argflag['run']['directory']['master'],
-                                     settings_argflag['run']['spectrograph'])
+    newdir = "{:s}/{:s}_{:s}".format(currDIR, run_par['caldir'], spectrograph.spectrograph)
     if os.path.exists(newdir):
-        if not settings_argflag['output']['overwrite']:
+        if not run_par['overwrite']:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
             rmdir = ''
             while rmdir != 'n' and rmdir != 'y':
@@ -1237,7 +1232,7 @@ def make_dirs(settings_argflag):
     else: os.mkdir(newdir)
     # Create a directory where all of the QA is stored
     msgs.info("Creating QA directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, settings_argflag['run']['directory']['qa'])
+    newdir = "{0:s}/{1:s}".format(currDIR, run_par['qadir'])
     if os.path.exists(newdir):
         msgs.warn("Pre-existing QA plots will be overwritten")
         '''
