@@ -13,10 +13,12 @@ import numpy as np
 from astropy.io import fits
 
 from pypit import msgs
+from pypit.core import arsort
 from pypit import arparse
 from pypit import ardebug as debugger
 from pypit.spectrographs import spectrograph
 from ..par.pypitpar import DetectorPar
+from pypit.par.pypitpar import CalibrationsPar
 from .. import telescopes
 
 class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
@@ -30,6 +32,15 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         super(GeminiGMOSSpectrograph, self).__init__()
         self.spectrograph = 'gemini_gmos'
         self.telescope = telescopes.GeminiTelescopePar()
+        self.timeunit = 'decimalyear'
+
+    def gemini_header_keys(self):
+        def_keys = self.default_header_keys()
+        def_keys[0]['time'] = 'OBSEPOCH'      # The time stamp of the observation (i.e. decimal MJD)
+        return def_keys
+
+    def _set_calib_par(self, user_supplied=None):
+        self.calib_par = CalibrationsPar()
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -100,6 +111,36 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
         return self.naxis
 
+    def gemini_get_match_criteria(self):
+        match_criteria = {}
+        for key in arsort.ftype_list:
+            match_criteria[key] = {}
+        # Science
+        match_criteria['science']['number'] = 1
+        # Standard
+        match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
+        match_criteria['standard']['match'] = {}
+        match_criteria['standard']['match']['decker'] = ''
+        # Bias
+        match_criteria['bias']['number'] = 5
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['decker'] = ''
+        # Pixelflat
+        match_criteria['pixelflat']['number'] = 1
+        match_criteria['pixelflat']['match'] = {}
+        match_criteria['pixelflat']['match']['decker'] = ''
+        # Traceflat
+        match_criteria['trace']['number'] = 1
+        match_criteria['trace']['match'] = {}
+        match_criteria['trace']['match']['decker'] = ''
+        # Arc
+        match_criteria['arc']['number'] = 1
+        match_criteria['arc']['match'] = {}
+        match_criteria['arc']['match']['decker'] = ''
+
+        # Return
+        return match_criteria
+
 class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
     """
     Child to handle Keck/LRISb specific code
@@ -157,6 +198,14 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         suffix          = '_03'
                         ),
         ]
+        self.numhead = 13
+
+    def header_keys(self):
+        head_keys = self.gemini_header_keys()
+        return head_keys
+
+    def get_match_criteria(self):
+        return self.gemini_get_match_criteria()
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """

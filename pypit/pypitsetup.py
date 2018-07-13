@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 import inspect
 import numpy as np
 
-#from importlib import reload
+from importlib import reload
 
 from astropy.table import hstack, Table
 
@@ -78,6 +78,7 @@ class PypitSetup(object):
         fitstbl : Table
 
         """
+        reload(arload)
         self.fitstbl = arload.load_headers(file_list, self.spectrograph, self.reduce_par)
         self.fitstbl.sort('time')
         # Step

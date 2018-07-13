@@ -135,7 +135,10 @@ def load_headers(datlines, spectrograph, reduce_par):
                     elif spectrograph.timeunit == 'm'  : value = float(value)/60.0      # Convert minutes to hours
                     elif spectrograph.timeunit in Time.FORMATS.keys() : # Astropy time format
                         if spectrograph.timeunit in ['mjd']:
-                            ival = float(value)
+                            try:
+                                ival = float(value)
+                            except:
+                                debugger.set_trace()
                         else:
                             ival = value
                         tval = Time(ival, scale='tt', format=spectrograph.timeunit)
