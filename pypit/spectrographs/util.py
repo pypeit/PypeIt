@@ -13,10 +13,11 @@ from pypit import ardebug as debugger
 
 def valid_spectrographs():
     # TODO: Is there a more clever way to do this?
-    return ['keck_lris_blue', 'keck_lris_red', 'keck_deimos', 'keck_nirspec', 'shane_kast_blue',
-            'shane_kast_red', 'shane_kast_red_ret', 'wht_isis_blue', 'tng_dolores', 'gemini_gmos_south' ]
+    return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
+            'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
+            'wht_isis_blue', 'gemini_gmos_south']
 
-def load_spectrograph(spectrograph=None): #, data_file=None):
+def load_spectrograph(spectrograph=None):
     """
     Instantiate a Spectrograph class based on the given input
 
@@ -35,40 +36,52 @@ def load_spectrograph(spectrograph=None): #, data_file=None):
     if spectrograph is None:
         return None
 
-    # TODO: Do we want "in" here, or "=="
-    if 'keck_lris_blue' in spectrograph:
-        return spectrographs.keck_lris.KeckLRISBSpectrograph()
-
-    elif 'keck_lris_red' in spectrograph:
-        return spectrographs.keck_lris.KeckLRISRSpectrograph()
-
-    elif 'keck_deimos' in spectrograph:
+    if spectrograph == 'keck_deimos':
         return spectrographs.keck_deimos.KeckDEIMOSSpectrograph()
 
-    elif 'keck_nirspec' in spectrograph:
+    if spectrograph == 'keck_lris_blue':
+        return spectrographs.keck_lris.KeckLRISBSpectrograph()
+
+    if spectrograph == 'keck_lris_red':
+        return spectrographs.keck_lris.KeckLRISRSpectrograph()
+
+    if spectrograph == 'keck_nires':
+        return spectrographs.keck_nires.KeckNIRESpectrograph()
+
+    if spectrograph == 'keck_nirspec':
         return spectrographs.keck_nirspec.KeckNIRSPECSpectrograph()
 
-    elif 'shane_kast_blue' in spectrograph:
+    if spectrograph == 'shane_kast_blue':
         return spectrographs.shane_kast.ShaneKastBlueSpectrograph()
 
-    elif 'shane_kast_red' in spectrograph:
+    if spectrograph == 'shane_kast_red':
         return spectrographs.shane_kast.ShaneKastRedSpectrograph()
 
-    elif 'shane_kast_red_ret' in spectrograph:
+    if spectrograph == 'shane_kast_red_ret':
         return spectrographs.shane_kast.ShaneKastRedRetSpectrograph()
 
-    elif 'wht_isis_blue' in spectrograph:
+    if spectrograph == 'wht_isis_blue':
         return spectrographs.wht_isis.WhtIsisBlueSpectrograph()
-
-    elif 'tng_dolores' in spectrograph:
+    
+    if spectrograph == 'tng_dolores':
         return spectrographs.tng_dolores.TngDoloresSpectrograph()
 
-    elif 'gemini_gmos_south' in spectrograph:
+    if 'gemini_gmos_south' in spectrograph:
         from importlib import reload
         reload(spectrographs)
         return spectrographs.gemini_gmos.GeminiGMOSSSpectrograph()
-    
-    msgs.error("Spectrograph not supported")
-    # TODO: Should never get here, right?
-    return None
 
+    msgs.error("Spectrograph not supported")
+
+
+def checkme(chk_dict, headarr):
+    #
+    skip = False
+    for head_idx in chk_dict.keys():
+        for ch, value in chk_dict[head_idx].items():
+            if (value in str(headarr[head_idx][ch]).strip()) is False:
+                msgs.info(ch, head_idx, value)
+                msgs.warn("Skipping the file..")
+                skip = True
+    # Return
+    return skip

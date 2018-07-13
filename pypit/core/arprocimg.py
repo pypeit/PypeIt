@@ -21,7 +21,8 @@ try:
 except NameError:
     basestring = str
 
-# TODO: Add sigdev to a parameter list
+# TODO: Add sigdev to the high-level parameter set so that it can be
+# changed by the user?
 def find_bad_pixels(bias, numamplifiers, datasec, sigdev=10.0, trim=True):
     """
     Identify bad pixels in the datasection of the bias frame based on
@@ -871,6 +872,6 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
     # with sciframe and not objframe?
 
     _objframe = np.zeros_like(skyframe) if objframe is None else objframe
-    return np.abs(skyframe + objframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise
+    return np.abs(skyframe + _objframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise
 
 

@@ -60,7 +60,7 @@ def multi_caliBrate():
     spectrograph = tstutils.load_kast_blue_masters(get_spectrograph=True)[0]
 
     # Only changing the defaults
-    # TODO: I agree FrameGroupPar is a bit onerous...
+    # TODO: (KBW) I agree FrameGroupPar is a bit onerous...
     calib_par = pypitpar.CalibrationsPar(badpix=False,
                                          biasframe=pypitpar.FrameGroupPar('bias',
                                                                           useframe='overscan'))
@@ -74,24 +74,7 @@ def multi_caliBrate():
     multi_caliBrate.reset(setup, det, sci_ID, calib_par)
     return multi_caliBrate
 
-def test_wv_calib(multi_caliBrate):
-    if skip_test:
-        assert True
-        return
-    # Setup
-    multi_caliBrate.shape = (2048,350)
-    _ = multi_caliBrate.get_pixlocn()
-    _ = multi_caliBrate.get_datasec_img()
-    _ = multi_caliBrate.get_bpm()
-    multi_caliBrate.msbias = 'overscan'
-    _ = multi_caliBrate.get_slits()
-    _ = multi_caliBrate.get_arc()
-    # Run
-    wv_calib, maskslits = multi_caliBrate.get_wv_calib()
-    assert isinstance(wv_calib, dict)
-    assert isinstance(maskslits, np.ndarray)
 
-'''
 def test_instantiate():
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
     print(caliBrate)
@@ -101,6 +84,7 @@ def test_datasec(multi_caliBrate):
     if skip_test:
         assert True
         return
+    multi_caliBrate.par['trim'] = False
     datasec_img = multi_caliBrate.get_datasec_img()
     naxis0, naxis1 = datasec_img.shape
     # Test
@@ -152,6 +136,22 @@ def test_slits(multi_caliBrate):
     assert isinstance(maskslits, np.ndarray)
 
 
+def test_wv_calib(multi_caliBrate):
+    if skip_test:
+        assert True
+        return
+    # Setup
+    multi_caliBrate.shape = (2048,350)
+    _ = multi_caliBrate.get_pixlocn()
+    _ = multi_caliBrate.get_datasec_img()
+    _ = multi_caliBrate.get_bpm()
+    multi_caliBrate.msbias = 'overscan'
+    _ = multi_caliBrate.get_slits()
+    _ = multi_caliBrate.get_arc()
+    # Run
+    wv_calib, maskslits = multi_caliBrate.get_wv_calib()
+    assert isinstance(wv_calib, dict)
+    assert isinstance(maskslits, np.ndarray)
 
 
 def test_tilts(multi_caliBrate):
@@ -212,4 +212,4 @@ def test_waveimg(multi_caliBrate):
     # Run
     mswave = multi_caliBrate.get_wave()
     assert mswave.shape == (2048,350)
-'''
+

@@ -11,11 +11,7 @@ from abc import ABCMeta
 from astropy.table import Table
 
 from pypit import msgs
-from pypit import ardebug as debugger
 from pypit import arpixels
-
-from pypit.core import arsort
-from pypit.core import armasters
 
 from pypit import arcimage
 from pypit import biasframe
@@ -27,9 +23,13 @@ from pypit import wavecalib
 from pypit import wavetilts
 from pypit import waveimage
 
-from .par import pypitpar
-from .spectrographs.util import load_spectrograph
-from .spectrographs.spectrograph import Spectrograph
+from pypit.core import arsort
+from pypit.core import armasters
+from pypit.core import arprocimg
+
+from pypit.par import pypitpar
+from pypit.spectrographs.util import load_spectrograph
+from pypit.spectrographs.spectrograph import Spectrograph
 
 from pypit import ardebug as debugger
 
@@ -38,12 +38,15 @@ try:
 except NameError:
     basestring = str
 
-# TODO: Make sure the attributes checked with chk_set make sense
-
 class Calibrations(object):
     """
     This class is primarily designed to guide the generation of calibration images
     and objects in PYPIT
+
+    Must be able to instantiate spectrograph.
+
+    .. todo::
+        Improve docstring...
 
     Parameters
     ----------
@@ -73,9 +76,6 @@ class Calibrations(object):
         if spectrograph is None:
             # Set spectrograph from FITS table instrument header
             # keyword.
-            # TODO: This works!  self.fitstbl['instrume'][0] has the
-            # appropriate name, it's not the same as the 'INSTRUME'
-            # keyword from the fits headers.
             self.spectrograph = load_spectrograph(spectrograph=self.fitstbl['instrume'][0])
         elif isinstance(spectrograph, basestring):
             self.spectrograph = load_spectrograph(spectrograph=spectrograph)
@@ -217,7 +217,7 @@ class Calibrations(object):
         Load or generate the bias frame/command
 
         Requirements:
-           setup, det, sci_ID, settings
+           setup, det, sci_ID, par
 
         Returns:
             self.msbias: ndarray or str
@@ -266,8 +266,8 @@ class Calibrations(object):
 
         # Generate a bad pixel mask (should not repeat)
         if 'bpm' in self.calib_dict[self.setup].keys():
+            print('here')
             self.msbpm = self.calib_dict[self.setup]['bpm']
-            return self.msbpm
 
         # Make sure shape is defined
         self._check_shape()
@@ -277,8 +277,10 @@ class Calibrations(object):
         scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) \
                             & self.fitstbl['science'])[0][0]
 
-        bpmImage = bpmimage.BPMImage(self.spectrograph, shape=self.shape,
-                                     filename=self.fitstbl['filename'][scidx], det=self.det,
+        example_file = os.path.join(self.fitstbl['directory'][scidx],
+                                    self.fitstbl['filename'][scidx])
+        # Always use the example file
+        bpmImage = bpmimage.BPMImage(self.spectrograph, filename=example_file, det=self.det,
                                      msbias=self.msbias if self.par['badpix'] == 'bias' else None,
                                      trim=self.par['trim'])
         # Build, save, and return
@@ -291,7 +293,7 @@ class Calibrations(object):
         Generate the datasec image
 
         Requirements:
-           det, sci_ID, settings
+           det, sci_ID, par
 
         Returns:
             self.datasec_img: ndarray
@@ -304,6 +306,8 @@ class Calibrations(object):
         scifile = os.path.join(self.fitstbl['directory'][scidx], self.fitstbl['filename'][scidx])
         # Generate the spectrograph-specific amplifier ID image
         self.datasec_img = self.spectrograph.get_datasec_img(scifile, self.det)
+        if self.par['trim']:
+            self.datasec_img = arprocimg.trim_frame(self.datasec_img, self.datasec_img < 1)
         return self.datasec_img
 
     def get_pixflatnrm(self):
@@ -315,7 +319,7 @@ class Calibrations(object):
            tslits_dict
            mstilts
            datasec_img
-           det, sci_ID, settings, setup
+           det, sci_ID, par, setup
 
         Returns:
             self.mspixflatnrm: ndarray
@@ -339,8 +343,8 @@ class Calibrations(object):
         self._chk_set(['setup', 'det', 'sci_ID', 'par'])
 
         # Return already generated data
-        if numpy.all([ k in self.calib_dict[self.setup].keys() 
-                                for k in ['normpixelflat','slitprof']]):
+        if np.all([ k in self.calib_dict[self.setup].keys() 
+                            for k in ['normpixelflat','slitprof']]):
             self.mspixflatnrm = self.calib_dict[self.setup]['normpixelflat']
             self.slitprof = self.calib_dict[self.setup]['slitprof']
             return self.mspixflatnrm, self.slitprof
@@ -362,9 +366,9 @@ class Calibrations(object):
         if self.par['flatfield']['frame'] not in ['pixelflat', 'trace']:
             # First try to find directly, then try to find it in the
             # masters directory, then fail
-            if os.isfile(self.par['flatfield']['frame']):
+            if os.path.isfile(self.par['flatfield']['frame']):
                 mspixelflat_name = self.par['flatfield']['frame']
-            elif os.isfile(os.path.join(self.flatField.directory_path,
+            elif os.path.isfile(os.path.join(self.flatField.directory_path,
                                         self.par['flatfield']['frame'])):
                 mspixelflat_name = os.path.join(self.flatField.directory_path,
                                                 self.par['flatfield']['frame'])
@@ -393,7 +397,7 @@ class Calibrations(object):
                 self.flatField.save_master(self.slitprof, raw_files=pixflat_image_files,
                                            steps=self.flatField.steps,
                                            outfile=armasters.master_name('slitprof', self.setup,
-                                                        flat_settings['masters']['directory']))
+                                                        self.master_dir))
         elif self.slitprof is None:
             self.slitprof, _, _ = self.flatField.load_master_slitprofile()
 
@@ -402,15 +406,19 @@ class Calibrations(object):
         self.calib_dict[self.setup]['slitprof'] = self.slitprof
         return self.mspixflatnrm, self.slitprof
 
-    def get_slits(self):
+    def get_slits(self, arms=True):
         """
         Load or generate a normalized pixel flat
         First, a trace flat image is generated
 
+        .. todo::
+            - arms is a parameter passed to traceSlits.  This may need
+              to change if/when arms.py is replaced.
+
         Requirements:
            pixlocn
            datasec_img
-           det settings setup sci_ID
+           det par setup sci_ID
 
         Returns:
             self.tslits_dict
@@ -429,7 +437,8 @@ class Calibrations(object):
         # Return already generated data
         if 'trace' in self.calib_dict[self.setup].keys():
             self.tslits_dict = self.calib_dict[self.setup]['trace']
-            return self.tslits_dict
+            self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
+            return self.tslits_dict, self.maskslits
                 
         # Instantiate (without mstrace)
         self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, par=self.par['slits'],
@@ -449,9 +458,7 @@ class Calibrations(object):
                                                      trim=self.par['trim'], apply_gain=True)
             _ = self.traceSlits.make_binarr()
             # Now we go forth
-            # TODO: This arms argument should be passed to
-            # get_slits()
-            self.tslits_dict = self.traceSlits.run(arms=True)
+            self.tslits_dict = self.traceSlits.run(arms=arms)
              # No slits?
             if self.tslits_dict is None:
                 self.maskslits = None
@@ -478,7 +485,7 @@ class Calibrations(object):
 
         Requirements:
            mstilts, tslits_dict, wv_calib, maskslits
-           det, settings, setup
+           det, par, setup
 
         Returns:
             self.mswave: ndarray
@@ -506,9 +513,8 @@ class Calibrations(object):
         # Instantiate
         self.waveImage = waveimage.WaveImage(self.tslits_dict['slitpix'],
                                              self.mstilts, self.wv_calib,
-                                             spectrograph=self.spectrograph, setup=self.setup,
-                                             root_path=self.master_root, mode=self.par['masters'], 
-                                             maskslits=self.maskslits)
+                                             setup=self.setup, directory_path=self.master_dir,
+                                             mode=self.par['masters'], maskslits=self.maskslits)
         # Attempt to load master
         self.mswave = self.waveImage.master()
         if self.mswave is None:
@@ -527,16 +533,12 @@ class Calibrations(object):
 
         Requirements:
           msarc, tslits_dict, pixlocn
-          det, settings, setup, sci_ID
+          det, par, setup, sci_ID
 
         Returns:
             self.wv_calib: dict
             self.maskslits -- Updated
         """
-
-        # TODO: Should keep "maskslits" and "wv_maskslits" separate
-        # always
-
         # Check for existing data
         if not self._chk_objs(['msarc', 'tslits_dict', 'pixlocn']):
             msgs.error('dont have all the objects')
@@ -553,7 +555,7 @@ class Calibrations(object):
             self.wv_calib = self.calib_dict[self.setup]['wavecalib']
             self.wv_maskslits = self.calib_dict[self.setup]['wvmask']
             self.maskslits += self.wv_maskslits
-            return self.wv_calib, self.mask
+            return self.wv_calib, self.maskslits
 
         # No wavelength calibration requested
         if self.wavelength_frame == "pixel":
@@ -600,7 +602,7 @@ class Calibrations(object):
         Generate the pixlocn image
 
         Requirements:
-          settings, shape
+          spectrograph, shape
 
         Returns:
             self.pixlocn: ndarray
@@ -608,7 +610,7 @@ class Calibrations(object):
         # Make sure shape is defined
         self._check_shape()
         # Check internals
-        self._chk_set(['spectrograph', 'shape'])
+        self._chk_set(['shape'])
 
         # Get the pixel locations
         xgap=self.spectrograph.detector[self.det-1]['xgap']
@@ -625,16 +627,13 @@ class Calibrations(object):
 
         Requirements:
            msarc, tslits_dict, pixlocn, wv_calib, maskslits
-           det, settings, setup, sci_ID
+           det, par, setup, sci_ID, spectrograph
 
         Returns:
             self.mstilts: ndarray (2D)
             self.maskslits: ndarray
 
         """
-
-        # TODO: Should keep all the maskslits separate!
-
         # Check for existing data
         if not self._chk_objs(['msarc', 'tslits_dict', 'pixlocn', 'wv_calib', 'maskslits']):
             msgs.error('dont have all the objects')
@@ -644,7 +643,7 @@ class Calibrations(object):
             return self.mstilts, self.maskslits
 
         # Check internals
-        self._chk_set(['setup', 'det', 'sci_ID', 'par', 'spectrograph'])
+        self._chk_set(['setup', 'det', 'sci_ID', 'par'])
 
         # Return existing data
         if 'tilts' in self.calib_dict[self.setup].keys():
@@ -654,7 +653,7 @@ class Calibrations(object):
             return self.mstilts, self.maskslits
 
         # Instantiate
-        self.waveTilts = wavetilts.WaveTilts(self.msarc, spectrograph=self.spectrogtraph,
+        self.waveTilts = wavetilts.WaveTilts(self.msarc, spectrograph=self.spectrograph,
                                              par=self.par['tilts'], det=self.det,
                                              setup=self.setup, root_path=self.master_root,
                                              mode=self.par['masters'], pixlocn=self.pixlocn,
@@ -704,14 +703,18 @@ class Calibrations(object):
         return True
 
     def _check_shape(self):
+        """
+        Check that the shape attribute is not None.  If it is use,
+        define it using the shape of msarc
+
+        .. warning::
+            - This shape depends on if the images are trimmed or not!
+        """
         # Check the shape is declared
         if self.shape is None and self.msarc is None:
             raise ValueError('Before calling BPM, must run get_arc to get image shape, or '
                              'provide shape directly.')
         if self.shape is None:
-            # TODO: I pulled this from get_arc.  It was the only place
-            # shape was defined.  Why is shape defined by the msarc
-            # image?
             self.shape = self.msarc.shape
 
     def show(self, obj):
@@ -732,7 +735,7 @@ class Calibrations(object):
 
 class MultiSlitCalibrations(Calibrations):
     def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None,
-                 wavelength_frame='pixel', save_masters=True, write_qa=True, steps=None):
+                 wavelength_frame='vacuum', save_masters=True, write_qa=True, steps=None):
         Calibrations.__init__(self, fitstbl, spectrograph=spectrograph, par=par,
                               master_root=master_root, wavelength_frame=wavelength_frame,
                               save_masters=save_masters, write_qa=write_qa)

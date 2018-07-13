@@ -97,31 +97,12 @@ class ScienceImage(processimages.ProcessImages):
     # Frametype is a class attribute
     frametype = 'science'
 
-    # Keep order same as processimages (or else!)
+    # TODO: Consider removing bpm and datasec_img from this argument
+    # list.  Can be obtained from Spectrograph class directly
     def __init__(self, spectrograph, file_list=[], frame_par=None, trace_objects_par=None,
                  extract_objects_par=None, tslits_dict=None, tilts=None, det=None, setup=None,
                  datasec_img=None, bpm=None, maskslits=None, pixlocn=None, fitstbl=None, scidx=0,
                  objtype='science'):
-
-        # TODO: Consider removing bpm and datasec_img from this argument list.  Can be
-        # obtained from Spectrograph class directly
-
-        # Parameters unique to this Object
-        self.setup = setup
-        self.tslits_dict = tslits_dict
-        self.tilts = tilts
-        self.maskslits = maskslits
-        self.pixlocn = pixlocn
-        self.objtype = objtype
-        self.fitstbl = fitstbl
-        self.scidx = scidx
-        self.datasec_img = datasec_img
-        self.bpm = bpm
-        self.exptime = self.fitstbl['exptime'][self.scidx]
-        self.binning = self.fitstbl['binning'][self.scidx]      # TODO: Check this!
-
-        # Also done in ProcessImages
-#        self.det = det
 
         # Parameters
         # NOTE: This uses objtype, not frametype!
@@ -136,6 +117,21 @@ class ScienceImage(processimages.ProcessImages):
                                              overscan_par=self.frame_par['overscan'],
                                              combine_par=self.frame_par['combine'],
                                              lacosmic_par=self.frame_par['lacosmic'])
+
+        # Parameters unique to this Object
+        self.setup = setup
+        self.tslits_dict = tslits_dict
+        self.tilts = tilts
+        self.maskslits = maskslits
+        self.pixlocn = pixlocn
+        self.objtype = objtype
+        self.fitstbl = fitstbl
+        self.scidx = scidx
+        self.datasec_img = datasec_img
+        self.bpm = bpm
+
+        self.exptime = self.fitstbl['exptime'][self.scidx]
+        self.binning = self.fitstbl['binning'][self.scidx]
 
         # Key outputs/internals
         self.sciframe = None
@@ -411,13 +407,13 @@ class ScienceImage(processimages.ProcessImages):
 
             tlist = artrace.trace_objects_in_slit(self.det, slit, self.tslits_dict, self.sciframe,
                                                   self.global_sky, varframe, self.crmask,
-                                                  trace_objects_par['function'],
-                                                  trace_objects_par['order'],
-                                                  trace_objects_par['find'],
-                                                  trace_objects_par['nsmooth'],
-                                                  xedge=trace_objects_par['xedge'],
-                                                  manual=extract_objects_par['manual'],
-                                                  maxnumber=extract_objects_par['maxnumber'])
+                                                  self.trace_objects_par['function'],
+                                                  self.trace_objects_par['order'],
+                                                  self.trace_objects_par['find'],
+                                                  self.trace_objects_par['nsmooth'],
+                                                  xedge=self.trace_objects_par['xedge'],
+                                                  manual=self.extract_objects_par['manual'],
+                                                  maxnumber=self.extract_objects_par['maxnumber'])
             # Append
             self.tracelist += tlist
 

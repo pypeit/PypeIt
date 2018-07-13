@@ -9,9 +9,9 @@ from astropy.io import fits
 
 from pypit import msgs
 from pypit import arparse
-from ..par.pypitpar import DetectorPar, InstrumentPar
-from . import spectrograph
-from .. import telescopes
+from pypit.par.pypitpar import DetectorPar
+from pypit.spectrographs import spectrograph
+from pypit import telescopes
 
 from pypit import ardebug as debugger
 
@@ -150,6 +150,12 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Uses default primary_hdrext
         # self.sky_file ?
 
+    def add_to_fitstbl(self, fitstbl):
+        for gval in [3,4]:
+            gmt = fitstbl['gratepos'] == gval
+            fitstbl['dispangle'][gmt] = fitstbl['g3tltwav'][gmt]
+        return
+
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
         Wrapper to the raw image reader for DEIMOS
@@ -275,7 +281,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
           0 = ok; 1 = Mask
 
         """
-        # TODO: Does this work if the file image is binned?
         self.empty_bpm(filename=filename, det=det)
         if det == 1:
             self.bpm_img[:,1052:1054] = 1
@@ -359,7 +364,7 @@ def read_deimos(raw_file, det=None):
     # Check for file; allow for extra .gz, etc. suffix
     fil = glob.glob(raw_file + '*')
     if len(fil) != 1:
-        msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+        msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
     # Read
     try:
         msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))

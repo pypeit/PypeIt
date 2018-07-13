@@ -26,7 +26,7 @@ from pypit import arspecobj
 from pypit import ardebug as debugger
 
 
-def load_headers(datlines, settings_spect, settings_argflag):
+def load_headers(datlines, spectrograph, reduce_par):
     """ Load the header information for each fits file
     The cards of interest are specified in the instrument settings file
     A check of specific cards is performed if specified in settings
@@ -42,8 +42,8 @@ def load_headers(datlines, settings_spect, settings_argflag):
     -------
     fitstbl : Table
       The relevant header information of all fits files
-    keylst : list
     """
+    '''
     def generate_updates(dct, keylst, keys, whddict, headarr):
         """ Generate a list of settings to be updated
         """
@@ -64,58 +64,37 @@ def load_headers(datlines, settings_spect, settings_argflag):
                 except (AttributeError, ValueError, KeyError):
                     pass
             del keys[-1]
+    '''
 
-    chks = list(settings_spect['check'].keys())
+    #chks = list(settings_spect['check'].keys())
+
     # FITS dict/table keys
-    keys = list(settings_spect['keyword'].keys())
+    head_keys = spectrograph.header_keys()
+    all_keys = []
+    for key in head_keys.keys():
+        all_keys += list(head_keys[key].keys())
     # Init
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
     headdict = {}
-    for k in range(settings_spect['fits']['numhead']):
+    for k in range(spectrograph.numhead):
         headdict[k] = []
     whddict = dict({})
-    for k in keys:
+    for k in all_keys:
         fitsdict[k]=[]
     numfiles = len(datlines)
     # Loop on files
     for i in range(numfiles):
         # Try to open the fits file
-        headarr = ['None' for k in range(settings_spect['fits']['numhead'])]
-        try:
-            for k in range(settings_spect['fits']['numhead']):
-                try:
-                    headarr[k] = fits.getheader(datlines[i], ext=settings_spect['fits']['headext{0:02d}'.format(k+1)])
-                except:
-                    debugger.set_trace()
-                whddict['{0:02d}'.format(settings_spect['fits']['headext{0:02d}'.format(k+1)])] = k
-        except:
-            if settings_argflag['run']['setup']:
-                msgs.warn("Bad header in extension {0:d} of file:".format(settings_spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
-                msgs.warn("Proceeding on the hopes this was a calibration file, otherwise consider removing.")
-            else:
-                msgs.error("Error reading header from extension {0:d} of file:".format(settings_spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
+        headarr = spectrograph.get_headarr(datlines[i], reduce_par)
+        numhead = len(headarr)
         # Save the headers into its dict
-        for k in range(settings_spect['fits']['numhead']):
+        for k in range(numhead):
             headdict[k].append(headarr[k].copy())
-            #tmp = [head.copy() for head in headarr]
-            #allhead.append(tmp)
         # Perform checks on each FITS file, as specified in the settings instrument file.
-        skip = False
-        for ch in chks:
-            tfrhd = int(ch.split('.')[0])-1
-            kchk = '.'.join(ch.split('.')[1:])
-            try:
-                frhd = whddict['{0:02d}'.format(tfrhd)]
-            except KeyError:
-                debugger.set_trace()
-            # JFH changed to in instead of !=
-            if ((settings_spect['check'][ch] in str(headarr[frhd][kchk]).strip()) == False):
-                print(ch, frhd, kchk)
-                print(settings_spect['check'][ch], str(headarr[frhd][kchk]).strip())
-                msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(settings_argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
-                msgs.warn("Skipping the file..")
-                skip = True
+        skip = spectrograph.check_headers(headarr)
         if skip:
+            msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(
+                spectrograph.spectrograph)+msgs.newline()+"Remove this file, or specify a different settings file.")
             numfiles -= 1
             continue
         # Now set the key values for each of the required keywords
@@ -124,7 +103,7 @@ def load_headers(datlines, settings_spect, settings_argflag):
         fitsdict['filename'].append(dspl[-1])
         # Attempt to load a UTC
         utcfound = False
-        for k in range(settings_spect['fits']['numhead']):
+        for k in range(numhead):
             if 'UTC' in headarr[k].keys():
                 utc = headarr[k]['UTC']
                 utcfound = True
@@ -139,69 +118,59 @@ def load_headers(datlines, settings_spect, settings_argflag):
             fitsdict['utc'].append('None') # Changed from None so it writes to disk
             msgs.warn("UTC is not listed as a header keyword in file:"+msgs.newline()+datlines[i])
         # Read binning-dependent detector properties here? (maybe read speed too)
-        #if settings_argflag['run']['spectrograph'] in ['keck_lris_blue']:
-        #    arlris.set_det(fitsdict, headarr[k])
         # Now get the rest of the keywords
-        for kw in keys:
-            if settings_spect['keyword'][kw] is None:
-                value = str('None')  # This instrument doesn't have/need this keyword
-            else:
-                ch = settings_spect['keyword'][kw]
-                # Parse the header extension holding the key
+
+        for head_idx in head_keys.keys():
+            for kw,hkey in head_keys[head_idx].items():
                 try:
-                    tfrhd = int(ch.split('.')[0])-1
-                except ValueError:
-                    # Keyword given a value. Only a string allowed for now
-                    value = ch
-                else:
-                    # Load up the header
-                    frhd = whddict['{0:02d}'.format(tfrhd)]
-                    kchk = '.'.join(ch.split('.')[1:])
-                    try:
-                        value = headarr[frhd][kchk]
-                    except KeyError: # Keyword not found in header
-                        msgs.warn("{:s} keyword not in header. Setting to None".format(kchk))
-                        value=str('None')
-            # Convert the input time into hours -- Should we really do this here??
-            if kw == 'time':
-                if settings_spect['fits']['timeunit']   == 's'  : value = float(value)/3600.0    # Convert seconds to hours
-                elif settings_spect['fits']['timeunit'] == 'm'  : value = float(value)/60.0      # Convert minutes to hours
-                elif settings_spect['fits']['timeunit'] in Time.FORMATS.keys() : # Astropy time format
-                    if settings_spect['fits']['timeunit'] in ['mjd']:
-                        ival = float(value)
+                    value = headarr[head_idx][hkey]
+                except KeyError: # Keyword not found in header
+                    msgs.warn("{:s} keyword not in header. Setting to None".format(hkey))
+                    value=str('None')
+                except IndexError:
+                    debugger.set_trace()
+                # Convert the input time into hours -- Should we really do this here??
+                if kw == 'time':
+                    if spectrograph.timeunit == 's'  : value = float(value)/3600.0    # Convert seconds to hours
+                    elif spectrograph.timeunit == 'm'  : value = float(value)/60.0      # Convert minutes to hours
+                    elif spectrograph.timeunit in Time.FORMATS.keys() : # Astropy time format
+                        if spectrograph.timeunit in ['mjd']:
+                            ival = float(value)
+                        else:
+                            ival = value
+                        tval = Time(ival, scale='tt', format=spectrograph.timeunit)
+                        # dspT = value.split('T')
+                        # dy,dm,dd = np.array(dspT[0].split('-')).astype(np.int)
+                        # th,tm,ts = np.array(dspT[1].split(':')).astype(np.float64)
+                        # r=(14-dm)/12
+                        # s,t=dy+4800-r,dm+12*r-3
+                        # jdn = dd + (153*t+2)/5 + 365*s + s/4 - 32083
+                        # value = jdn + (12.-th)/24 + tm/1440 + ts/86400 - 2400000.5  # THIS IS THE MJD
+                        value = tval.mjd * 24.0 # Put MJD in hours
                     else:
-                        ival = value
-                    tval = Time(ival, scale='tt', format=settings_spect['fits']['timeunit'])
-                    # dspT = value.split('T')
-                    # dy,dm,dd = np.array(dspT[0].split('-')).astype(np.int)
-                    # th,tm,ts = np.array(dspT[1].split(':')).astype(np.float64)
-                    # r=(14-dm)/12
-                    # s,t=dy+4800-r,dm+12*r-3
-                    # jdn = dd + (153*t+2)/5 + 365*s + s/4 - 32083
-                    # value = jdn + (12.-th)/24 + tm/1440 + ts/86400 - 2400000.5  # THIS IS THE MJD
-                    value = tval.mjd * 24.0 # Put MJD in hours
+                        msgs.error('Bad time unit')
+                # Put the value in the keyword
+                typv = type(value)
+                if typv is int or typv is np.int_:
+                    fitsdict[kw].append(value)
+                elif typv is float or typv is np.float_:
+                    fitsdict[kw].append(value)
+                elif isinstance(value, basestring) or typv is np.string_:
+                    fitsdict[kw].append(value.strip())
+                elif typv is bool or typv is np.bool_:
+                    fitsdict[kw].append(value)
                 else:
-                    msgs.error('Bad time unit')
-            # Put the value in the keyword
-            typv = type(value)
-            if typv is int or typv is np.int_:
-                fitsdict[kw].append(value)
-            elif typv is float or typv is np.float_:
-                fitsdict[kw].append(value)
-            elif isinstance(value, basestring) or typv is np.string_:
-                fitsdict[kw].append(value.strip())
-            elif typv is bool or typv is np.bool_:
-                fitsdict[kw].append(value)
-            else:
-                msgs.bug("I didn't expect a useful header ({0:s}) to contain type {1:s}".format(kw, typv).replace('<type ','').replace('>',''))
+                    msgs.bug("I didn't expect a useful header ({0:s}) to contain type {1:s}".format(kw, typv).replace('<type ','').replace('>',''))
 
         msgs.info("Successfully loaded headers for file:" + msgs.newline() + datlines[i])
 
     # Check if any other settings require header values to be loaded
     msgs.info("Checking spectrograph settings for required header information")
+    '''  # I HOPE THIS IS NO LONGER NEEDED
     # Just use the header info from the last file
     keylst = []
     generate_updates(settings_spect.copy(), keylst, [], whddict, headarr)
+    '''
 
     # Convert the fitsdict arrays into numpy arrays
     for k in fitsdict.keys():
@@ -222,16 +191,13 @@ def load_headers(datlines, settings_spect, settings_argflag):
     fitstbl.sort('time')
 
     # Add instrument (PYPIT name; mainly for saving late in the game)
-    fitstbl['instrume'] = settings_argflag['run']['spectrograph']
+    fitstbl['instrume'] = spectrograph.spectrograph
 
-    # TODO -- Remove the following (RC has an idea)
     # Instrument specific
-    if settings_argflag['run']['spectrograph'] == 'keck_deimos':
-        # Handle grating position
-        for gval in [3,4]:
-            gmt = fitstbl['gratepos'] == gval
-            fitstbl['dispangle'][gmt] = fitstbl['g3tltwav'][gmt]
-    return fitstbl, keylst
+    spectrograph.add_to_fitstbl(fitstbl)
+
+    # Return
+    return fitstbl
 
 
 def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):

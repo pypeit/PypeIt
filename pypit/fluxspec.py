@@ -22,37 +22,11 @@ from pypit.core import arsave
 from pypit import arutils
 from pypit import masterframe
 
-# Currently no parameters needed!
-#from .par import pypitpar
-from .spectrographs.spectrograph import Spectrograph
-from .spectrographs.util import load_spectrograph
-
-from .par.pypitpar import TelescopePar
+from pypit.spectrographs.spectrograph import Spectrograph
+from pypit.spectrographs.util import load_spectrograph
+from pypit.par.pypitpar import TelescopePar
 
 from pypit import ardebug as debugger
-
-
-# Default settings, if any
-
-## TODO - Remove this kludge eventually
-#def kludge_settings(instr):
-#    from pypit import arparse as settings
-#    settings.dummy_settings()
-#    settings.argflag['run']['spectrograph'] = instr
-#    settings.argflag['run']['directory']['master'] = 'MF'
-#    #settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
-#    #
-#    # Load default spectrograph settings
-#    spect = settings.get_spect_class(('ARMS', instr, 'pypit'))  # '.'.join(redname.split('.')[:-1])))
-#    lines = spect.load_file(base=True)  # Base spectrograph settings
-#    spect.set_paramlist(lines)
-#    lines = spect.load_file()  # Instrument specific
-#    spect.set_paramlist(lines)
-#    # Kludge deeper
-#    for key in ['run', 'reduce']:
-#        settings.spect[key] = settings.argflag[key].copy()
-#    return settings.spect
-
 
 class FluxSpec(masterframe.MasterFrame):
     """Class to guide fluxing
@@ -112,7 +86,6 @@ class FluxSpec(masterframe.MasterFrame):
                  std_specobjs=None, std_header=None, spectrograph=None, multi_det=None,
                  setup=None, root_path=None, mode=None):
 
-
         # Load standard files
         std_spectro = None
         self.std_spec1d_file = std_spec1d_file
@@ -161,6 +134,14 @@ class FluxSpec(masterframe.MasterFrame):
             spectrograph_name = _spectrograph.spectrograph
             msgs.info("Spectrograph set to {0}, from argument object".format(_spectrograph))
     
+        # MasterFrame
+        directory_path = None
+        if root_path is not None:
+            directory_path = root_path
+            if spectrograph_name is not None:
+                directory_path += '_'+spectrograph_name
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
         # Get the extinction data
         self.extinction_data = None
         if _spectrograph is not None:
@@ -192,14 +173,6 @@ class FluxSpec(masterframe.MasterFrame):
         self.std_idx = None     # Nested indices for the std_specobjs list that corresponds
                                 # to the star!
 
-        # MasterFrame
-        directory_path = None
-        if root_path is not None:
-            directory_path = root_path
-            if spectrograph_name is not None:
-                directory_path += '_'+spectrograph_name
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         directory_path=directory_path, mode=mode)
 
     def find_standard(self):
         """

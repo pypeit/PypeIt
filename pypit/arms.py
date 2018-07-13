@@ -21,7 +21,7 @@ from pypit.par import pypitpar
 
 #from pypit import arparse as settings
 
-from .spectrographs.util import load_spectrograph
+from pypit.spectrographs.util import load_spectrograph
 
 from pypit import ardebug as debugger
 
@@ -53,7 +53,7 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
       0 = Successful full execution
       1 = Successful processing of setup or calcheck
     """
-    # TODO: This is never changed!
+    # TODO: Provide meaningful status values upon return
     status = 0
 
     # Generate sciexp list, if need be (it will be soon)
@@ -67,7 +67,7 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
     # Spectrometer class
     if spectrograph is None:
         # Set spectrograph from FITS table instrument header
-        # keyword.  TODO: Does this work?
+        # keyword.
         _spectrograph = load_spectrograph(spectrograph=fitstbl['instrume'][0])
     elif isinstance(spectrograph, basestring):
         _spectrograph = load_spectrograph(spectrograph=spectrograph)
@@ -75,8 +75,6 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
         _spectrograph = spectrograph
     else:
         raise TypeError('Could not instantiate Spectrograph!')
-
-    # TODO: This needs to parse settings...
 
     # Parameter Setups
     _par = pypitpar.PypitPar() if par is None else par
@@ -113,9 +111,7 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
                 else:
                     msgs.warn("Restricting the reduction to detector {:d}".format(det))
             # Setup
-#            dnum = settings.get_dnum(det)
             msgs.info("Working on detector {0}".format(det))
-            # TODO: Should this be det or dnum; can we deprecate dnum?
             sci_dict[det] = {}
 
             setup = arsetup.instr_setup(sci_ID, det, fitstbl, setup_dict,
@@ -138,7 +134,7 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
             # Physical pixel locations on the detector
             pixlocn = caliBrate.get_pixlocn()
             # Slit Tracing
-            tslits_dict, maskslits = caliBrate.get_slits()
+            tslits_dict, maskslits = caliBrate.get_slits(arms=True)
             if tslits_dict is None: # No slits
                 msgs.warn('No slits found!')
                 continue
@@ -181,7 +177,8 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
                 basenames[sc] = basename
 
             # Process (includes Variance image and CRs)
-            sciframe, rawvarframe, crmask = sciI.process(msbias, mspixflatnrm, apply_gain=True)
+            sciframe, rawvarframe, crmask = sciI.process(msbias, mspixflatnrm, apply_gain=True,
+                                                         trim=caliBrate.par['trim'])
 
             # Global skysub
             if _par['skysubtract'] is None:
@@ -303,10 +300,11 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
                                              fitstbl=fitstbl, scidx=std_idx, objtype='standard')
 
             # Names and time
-            std_basename = stdI.init_time_names(_spectograph.camera,
+            std_basename = stdI.init_time_names(_spectrograph.camera,
                                                 timeunit=_spectrograph.timeunit)[1]
             # Process (includes Variance image and CRs)
-            stdframe = stdI.process(msbias, mspixflatnrm, apply_gain=True)[0]
+            stdframe = stdI.process(msbias, mspixflatnrm, apply_gain=True,
+                                    trim=caliBrate.par['trim'])[0]
             # Sky
             stdI.global_skysub(bspline_spacing=_par['skysubtract']['bspline_spacing'])
             # Find objects
@@ -360,9 +358,8 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
         # Obj info
         arsave.save_obj_info(all_specobjs, fitstbl, _spectrograph, basename, _par['rdx']['scidir'])
         # Write 2D images for the Science Frame
-        arsave.save_2d_images(sci_dict, fitstbl, scidx, _spectrograph.spectrograph.primary_hdrext,
-                              setup, caliBrate.master_root+'_'+_spectrograph.spectrograph,
-                              _par['rdx']['scidir'], basename)
+        arsave.save_2d_images(sci_dict, fitstbl, scidx, _spectrograph.primary_hdrext,
+                              setup, caliBrate.master_dir, _par['rdx']['scidir'], basename)
         #---------------------------------------------------------------
 
     #-------------------------------------------------------------------
@@ -403,12 +400,14 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
         for det in std_dict[std_idx].keys():
             all_std_objs += std_dict[std_idx][det]['specobjs']
         FxSpec = fluxspec.FluxSpec(std_specobjs=all_std_objs, spectrograph=_spectrograph,
-                                   setup=setup)
+                                   setup=setup, root_path=caliBrate.master_root,
+                                   mode=_par['calibrations']['masters'])
         sensfunc = FxSpec.master(fitstbl[std_idx])
     else:
         # User provided it
         FxSpec = fluxspec.FluxSpec(sens_file=_par['fluxcalib']['sensfunc'],
-                                   spectrograph=_spectrograph)
+                                   spectrograph=_spectrograph, root_path=caliBrate.master_root,
+                                   mode=_par['calibrations']['masters'])
         sensfunc = FxSpec.sensfunc
 
     # Apply the flux calibration

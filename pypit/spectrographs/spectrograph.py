@@ -3,6 +3,7 @@
 from __future__ import absolute_import, division, print_function
 
 import os
+import warnings
 
 from abc import ABCMeta
 from pkg_resources import resource_filename
@@ -12,9 +13,10 @@ from astropy.io import fits
 
 from linetools.spectra import xspectrum1d
 
-from .. import arparse
-from .. import arpixels
-from ..par.pypitpar import DetectorPar, TelescopePar
+from pypit import msgs
+from pypit import arparse
+from pypit import arpixels
+from pypit.par.pypitpar import DetectorPar, TelescopePar
 
 try:
     basestring
@@ -68,8 +70,14 @@ class Spectrograph(object):
         # Default extension with the primary header data
         #   used by arsave.save_2d_images
         self.primary_hdrext = 0
+        self.numhead = 0
+
+        self.minexp = 0  # NEED TO TIE TO INSTRUMENT PAR INSTEAD
 
         self.sky_file = None
+
+        # Init Calibrations Par
+        self._set_calib_par()
 
     @staticmethod
     def default_sky_spectrum():
@@ -79,6 +87,9 @@ class Spectrograph(object):
         distribution.
         """
         return os.path.join(resource_filename('pypit', 'data/sky_spec/'), 'paranal_sky.fits')
+
+    def add_to_fitstbl(self, fitstbl):
+        pass
 
     def _check_telescope(self):
         # Check the detector
@@ -95,6 +106,9 @@ class Spectrograph(object):
         for d in self.detector:
             if not isinstance(d, DetectorPar):
                 raise TypeError('Detector parameters must be specified using DetectorPar.')
+
+    def _set_calib_par(self, user_supplied=None):
+        pass
 
     def load_raw_frame(self, raw_file, det=None):
         """
@@ -186,8 +200,6 @@ class Spectrograph(object):
             their order transposed.
         """
         # Check the section is one of the detector keywords
-        # TODO: Is this too broad?  I didn't want to specify 'datasec'
-        # and 'oscansec' in case those change.
         if section not in self.detector[det-1].keys():
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 
@@ -206,7 +218,9 @@ class Spectrograph(object):
             transpose = True
         except:
             # Otherwise use the detector definition directly
-            image_sections = self.detector[det-1]['datasec']
+            image_sections = self.detector[det-1][section]
+            if not isinstance(image_sections, list):
+                image_sections = [image_sections]
             # and assume the string is python formatted.
             one_indexed = False
             include_last = False
@@ -229,7 +243,6 @@ class Spectrograph(object):
         Args:
             filename (str):
                 Name of the file from which to read the image size.
-                TODO: Can this be obtained from the fitstbl?
             det (int):
                 Detector number (1-indexed)
             force (:obj:`bool`, optional):
@@ -252,15 +265,11 @@ class Spectrograph(object):
             self.datasec_img = np.zeros(self.naxis, dtype=int)
             for i in range(self.detector[det-1]['numamplifiers']):
                 # Convert the data section from a string to a slice
-                # TODO: Should consider doing this in DetectorPar
                 datasec = arparse.sec2slice(data_sections[i], one_indexed=one_indexed,
                                             include_end=include_end, require_dim=2,
                                             transpose=transpose)
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
-#            self.datasec_img = arpixels.pix_to_amp(self.naxis[0], self.naxis[1], 
-#                                                   self.detector[det-1]['datasec'],
-#                                                   self.detector[det-1]['numamplifiers'])
         return self.datasec_img
 
     def get_image_shape(self, filename=None, det=None, force=True):
@@ -357,6 +366,65 @@ class Spectrograph(object):
         """
         return self.empty_bpm(shape=shape, filename=filename, det=det, force=force)
 
+    def default_header_keys(self):
+        def_head_keys = {}
+        def_head_keys[0] = {}
+        def_head_keys[0]['target'] = 'OBJECT'     # Header keyword for the name given by the observer to a given frame
+        def_head_keys[0]['idname'] = 'OBSTYPE'    # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+        def_head_keys[0]['time'] = 'MJD-OBS'      # The time stamp of the observation (i.e. decimal MJD)
+        def_head_keys[0]['date'] = 'DATE'         # The UT date of the observation which is used for heliocentric (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+        def_head_keys[0]['ra'] = 'RA'             # Right Ascension of the target
+        def_head_keys[0]['dec'] = 'DEC'           # Declination of the target
+        def_head_keys[0]['airmass'] = 'AIRMASS'   # Airmass at start of observation
+        def_head_keys[0]['binning'] = 'BINNING'   # Binning
+        def_head_keys[0]['exptime'] = 'EXPTIME'   # Exposure time keyword
+        def_head_keys[0]['decker'] = 'SLITNAME'
+        def_head_keys[0]['dichroic'] = 'DICHNAME' # Dichroic name
+        def_head_keys[0]['dispname'] = 'GRISNAME' # Grism name
+        # Return
+        return def_head_keys
+
+    def header_keys(self):
+        return self.default_header_keys()
+
+    def get_headarr(self, filename, reduce_par):
+        headarr = ['None' for k in range(self.numhead)]
+        # Try to load em up
+        try:
+            for k in range(self.numhead):
+                headarr[k] = fits.getheader(filename, ext=k)
+        except:
+            if reduce_par['setup']:
+                msgs.warn("Bad header in extension {0:d} of file:".format(filename))
+                msgs.warn("Proceeding on the hopes this was a calibration file, otherwise consider removing.")
+            else:
+                msgs.error("Error reading header from extension {0:d} of file:".format(filename))
+        return headarr
+
+    def get_match_criteria(self):
+        pass
+
+    def check_ftype(self, ftype, fitstbl):
+        return np.zeros(len(fitstbl), dtype=bool)
+
+    def idname(self, ftype):
+        """
+        Convert a given file type into a string that would
+        occur in the header indicating it.
+
+        Args:
+            ftype: str
+              File type, one of the items in arsort.ftype_list
+
+        Returns:
+            idname: str
+
+        """
+        return None
+
+    def check_headers(self, headers):
+        pass
+
     def setup_arcparam(self, **null_kwargs):
         return None
 
@@ -383,7 +451,7 @@ class Spectrograph(object):
         # No file was defined
         if self.sky_file is None:
             self.sky_file = Spectrograph.default_sky_spectrum()
-            msgs.warn('Using default sky spectrum: {0}'.format(self.sky_file))
+            warnings.warn('Using default sky spectrum: {0}'.format(self.sky_file))
 
         if os.path.isfile(self.sky_file):
             # Found directly
@@ -399,3 +467,11 @@ class Spectrograph(object):
         raise FileNotFoundError('Could not find archive sky spectrum: {0} or {1}'.format(
                                     self.sky_file, _sky_file))
 
+
+    def __repr__(self):
+        # Generate sets string
+        txt = '<{:s}: '.format(self.__class__.__name__)
+        txt += ' spectrograph={:s},'.format(self.spectrograph)
+        txt += ' camera={:s}'.format(self.camera)
+        txt += '>'
+        return txt

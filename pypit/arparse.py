@@ -25,10 +25,6 @@ except ImportError:
 # Logging
 from pypit import msgs
 
-# TODO: Ever used?
-#from pypit import ardebug
-#debug = ardebug.init()
-
 # Initialize the settings variables
 argflag, spect = None, None
 
@@ -4654,7 +4650,7 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
     # Check the dimensionality
     ndim = len(sections)
     if require_dim is not None and ndim != require_dim:
-        raise ValueError('Number of slices ({0}) does not match '.format(ndim) + 
+        raise ValueError('Number of slices ({0}) in {1} does not match '.format(ndim, subarray) + 
                          'required dimensions ({0}).'.format(require_dim))
     # Convert the slice of each dimension from a string to a slice
     # object

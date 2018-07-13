@@ -12,9 +12,9 @@ import glob
 import numpy as np
 
 from pypit import msgs
-from ..par.pypitpar import DetectorPar
-from . import spectrograph
-from .. import telescopes
+from pypit.par.pypitpar import DetectorPar
+from pypit.spectrographs import spectrograph
+from pypit import telescopes
 
 from pypit import ardebug as debugger
 
@@ -51,7 +51,7 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
                             numamplifiers   = 1,
                             gain            = 1.2,
                             ronoise         = 5.0,
-                            datasec         = '[:,2:4030]',
+                            datasec         = '[:,1:4030]',
                             suffix          = '_blue'
                             )
             ]
