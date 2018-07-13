@@ -30,6 +30,7 @@ from pypit import arutils
 from pypit.core.arflux import find_standard_file
 from pypit import ardebug as debugger
 
+# TODO: (KBW) You know my comment about this...
 ftype_list = [     # NOTE:  arc must be listed first!
     'arc',         # Exposure of one or more arc calibration lamps for wavelength calibration
     'bias',        # Exposure for assessing detector bias (usually 0s)
@@ -1140,30 +1141,41 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     return srtframes
 
 
-def make_dirs(spectrograph, run_par):
+def make_dirs(spectrograph, caldir, scidir, qadir, overwrite=False):
     """
-    For a given set of identified data, match calibration frames to science frames
+    Make the directories for the pypit output.
 
-    Parameters
-    ----------
-    spectrograph : Spectrograph
-    run_par : ParSet
+    .. todo::
+        I think this should just fault if the directories exist and
+        `overwrite` is False.
 
-    Returns
-    -------
+    Args:
+        spectrograph (str):
+            The name of the spectrograph that provided the data to be
+            reduced.
+        caldir (str):
+            The directory to use for saving the master calibration
+            frames.
+        scidir (str):
+            The directory to use for the main reduction output files.
+        qadir (str):
+            The directory to use for the quality assessment output.
+        overwrite(:obj:`bool`, optional):
+            Flag to overwrite any existing files/directories.
     """
 
     # First, get the current working directory
     currDIR = os.getcwd()
     msgs.info("Creating Science directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, run_par['scidir'])
+    newdir = "{0:s}/{1:s}".format(currDIR, scidir)
     if os.path.exists(newdir):
         msgs.info("The following directory already exists:"+msgs.newline()+newdir)
-        if not run_par['overwrite']:
+        if not overwrite:
             rmdir = ''
             while os.path.exists(newdir):
                 while rmdir != 'n' and rmdir != 'y' and rmdir != 'r':
-                    rmdir = input(msgs.input()+"Remove this directory and it's contents? ([y]es, [n]o, [r]ename) - ")
+                    rmdir = input(msgs.input() + 'Remove this directory and its contents?'
+                                  + '([y]es, [n]o, [r]ename) - ')
                 if rmdir == 'n':
                     msgs.warn("Any previous calibration files may be overwritten")
                     break
@@ -1175,6 +1187,7 @@ def make_dirs(spectrograph, run_par):
                     break
             if rmdir == 'r': os.mkdir(newdir)
     else: os.mkdir(newdir)
+
     # Create a directory for each object in the Science directory
     msgs.info("Creating Object directories")
     #Go through objects creating directory tree structure
@@ -1212,15 +1225,17 @@ def make_dirs(spectrograph, run_par):
         sci_targs = np.delete(sci_targs, nored[0])
         nored = np.delete(nored, 0)
     '''
+
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Master Calibrations directory")
-    newdir = "{:s}/{:s}_{:s}".format(currDIR, run_par['caldir'], spectrograph.spectrograph)
+    newdir = "{:s}/{:s}_{:s}".format(currDIR, caldir, spectrograph)
     if os.path.exists(newdir):
-        if not run_par['overwrite']:
+        if not overwrite:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
             rmdir = ''
             while rmdir != 'n' and rmdir != 'y':
-                rmdir = input(msgs.input()+"Remove this directory and it's contents? ([y]es, [n]o) - ")
+                rmdir = input(msgs.input() + 'Remove this directory and its contents?'
+                              '([y]es, [n]o) - ')
             if rmdir == 'n':
                 msgs.warn("Any previous calibration files will be overwritten")
             else:
@@ -1230,9 +1245,12 @@ def make_dirs(spectrograph, run_par):
 #			shutil.rmtree(newdir)
 #			os.mkdir(newdir)
     else: os.mkdir(newdir)
+
     # Create a directory where all of the QA is stored
+    # TODO: I'd rather that this still consider overwrite and fault
+    # instead of just proceeding
     msgs.info("Creating QA directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, run_par['qadir'])
+    newdir = "{0:s}/{1:s}".format(currDIR, qadir)
     if os.path.exists(newdir):
         msgs.warn("Pre-existing QA plots will be overwritten")
         '''
@@ -1256,8 +1274,6 @@ def make_dirs(spectrograph, run_par):
     else:
         os.mkdir(newdir)
         os.mkdir(newdir+'/PNGs')
-    # Return the name of the science targets
-    return
 
 
 def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='./', notype=False):

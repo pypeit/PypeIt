@@ -2,9 +2,8 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import numpy as np
 import os
-
+import numpy as np
 
 from abc import ABCMeta
 
@@ -59,10 +58,10 @@ class Calibrations(object):
     """
     __metaclass__ = ABCMeta
 
-    # TODO: Both master_root and wavelength_frame are a bit of a kludge,
-    # both could be included in par.
-    def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None,
-                 wavelength_frame='vacuum', save_masters=True, write_qa=True):
+    # TODO: master_root is a bit of a kludge.  It could be defined
+    # earlier and/or in par.
+    def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None, save_masters=True,
+                 write_qa=True):
 
         # Check the type of the provided fits table
         if not isinstance(fitstbl, Table):
@@ -73,10 +72,13 @@ class Calibrations(object):
         self.save_masters = save_masters
         self.write_qa = write_qa
 
+        # Spectrometer class
         if spectrograph is None:
             # Set spectrograph from FITS table instrument header
             # keyword.
-            self.spectrograph = load_spectrograph(spectrograph=self.fitstbl['instrume'][0])
+            if par is not None and par['rdx']['spectrograph'] != fitstbl['instrume'][0]:
+                msgs.error('Specified spectrograph does not match instrument in the fits table!')
+            self.spectrograph = load_spectrograph(spectrograph=fitstbl['instrume'][0])
         elif isinstance(spectrograph, basestring):
             self.spectrograph = load_spectrograph(spectrograph=spectrograph)
         elif isinstance(spectrograph, Spectrograph):
@@ -84,19 +86,12 @@ class Calibrations(object):
         else:
             raise TypeError('Could not instantiate Spectrograph!')
 
-        # Set the parameters to use
-        self.par = pypitpar.CalibrationsPar() if par is None else par
-
-        # Is the wavelength solution to be determined
-        # TODO: This would be equivalently done by checking if
-        # self.par['wavelengths'] is None.  If it is, we skip the
-        # wavelength calibration, but if it's a WavelengthSolutionPar
-        # object, we go ahead...
-        self.wavelength_frame = wavelength_frame
-        valid_media = pypitpar.WavelengthCalibrationPar.valid_media()
-        if self.wavelength_frame not in valid_media:
-            raise ValueError('Wavelength frame not recognized: {0}'.format(wavelength_frame)
-                                + 'Options are: {0}'.format(', '.join(valid_medi)))
+        # Instantiate the parameters
+        # TODO: How far down through the other classes to we propagate
+        # the spectrograph defaults as is done here...
+        self.par = self.spectrograph.default_pypit_par()['calibrations'] if par is None else par
+        if not isinstance(self.par, pypitpar.CalibrationsPar):
+            raise TypeError('Input parameters must be a CalibrationsPar instance.')
 
         # TODO: Kludge for now:  If master_root is provided, it
         # over-rides the default in CalibrationsPar.  Should just make
@@ -505,7 +500,7 @@ class Calibrations(object):
             return self.mswave
 
         # No wavelength calibration requested
-        if self.wavelength_frame == 'pixel':
+        if self.par['wavelengths']['reference'] == 'pixel':
             self.mswave = self.mstilts * (self.mstilts.shape[0]-1.0)
             self.calib_dict[self.setup]['wave'] = self.mswave
             return self.mswave
@@ -558,7 +553,7 @@ class Calibrations(object):
             return self.wv_calib, self.maskslits
 
         # No wavelength calibration requested
-        if self.wavelength_frame == "pixel":
+        if self.par['wavelengths']['reference'] == 'pixel':
             msgs.info("A wavelength calibration will not be performed")
             self.wv_calib = None
             self.wv_maskslits = np.zeros_like(self.maskslits, dtype=bool)
@@ -734,11 +729,11 @@ class Calibrations(object):
         return txt
 
 class MultiSlitCalibrations(Calibrations):
-    def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None,
-                 wavelength_frame='vacuum', save_masters=True, write_qa=True, steps=None):
+    def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None, save_masters=True,
+                 write_qa=True, steps=None):
         Calibrations.__init__(self, fitstbl, spectrograph=spectrograph, par=par,
-                              master_root=master_root, wavelength_frame=wavelength_frame,
-                              save_masters=save_masters, write_qa=write_qa)
+                              master_root=master_root, save_masters=save_masters,
+                              write_qa=write_qa)
         self.steps = MultiSlitCalibrations.default_steps() if steps is None else steps
 
     @staticmethod

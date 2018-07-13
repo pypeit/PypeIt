@@ -23,6 +23,8 @@ except NameError:
 
 import numpy as np
 
+from configobj import ConfigObj
+
 from pypit import msgs
 
 #-----------------------------------------------------------------------

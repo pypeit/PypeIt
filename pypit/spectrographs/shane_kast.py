@@ -162,23 +162,22 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         self.camera = 'KASTb'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 0,
-                            dispaxis        = 1,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.43,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
-                            numamplifiers   = 2,
-                            gain            = [1.2, 1.2],
-                            ronoise         = [3.7, 3.7],
-                            datasec         = [ '[0:1024,:]', '[1024:2048,:]'],
-                            oscansec        = [ '[2049:2080,:]', '[2080:2111,:]'],
-                            suffix          = '_blue'
-                            )
-            ]
+                pypitpar.DetectorPar(dataext         = 0,
+                                     dispaxis        = 1,
+                                     xgap            = 0.,
+                                     ygap            = 0.,
+                                     ysize           = 1.,
+                                     platescale      = 0.43,
+                                     darkcurr        = 0.0,
+                                     saturation      = 65535.,
+                                     nonlinear       = 0.76,
+                                     numamplifiers   = 2,
+                                     gain            = [1.2, 1.2],
+                                     ronoise         = [3.7, 3.7],
+                                     datasec         = [ '[0:1024,:]', '[1024:2048,:]'],
+                                     oscansec        = [ '[2049:2080,:]', '[2080:2111,:]'],
+                                     suffix          = '_blue'
+                                     )]
         self.numhead = 1
         # Uses timeunit from parent class
         # Uses default primary_hdrext
