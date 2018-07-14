@@ -73,8 +73,9 @@ class WaveCalib(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'wv_calib'
 
-    def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, root_path=None,
-                 mode=None, fitstbl=None, sci_ID=None, arcparam=None):
+    def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None,
+                 root_path=None, mode=None, fitstbl=None, sci_ID=None, arcparam=None,
+                 maskslits=None):
 
         # Instantiate the spectograph
         if isinstance(spectrograph, basestring):
@@ -101,6 +102,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.det = det
         self.setup = setup
         self.arcparam = arcparam
+        self.maskslits = maskslits
 
         # Attributes
         # Done by MasterFrame
@@ -133,7 +135,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         # Loop
         self.wv_calib = {}
-        ok_mask = np.where(self.maskslits == 0)[0]
+        ok_mask = np.where(~self.maskslits)[0]
         for slit in ok_mask:
             ###############
             # Extract arc and identify lines
@@ -143,7 +145,10 @@ class WaveCalib(masterframe.MasterFrame):
                                                IDpixels=self.par['IDpixels'],
                                                IDwaves=self.par['IDwaves'])
             elif method == 'arclines':
-                iwv_calib = ararc.calib_with_arclines(self.arcparam, self.arccen[:, slit])
+                try:
+                    iwv_calib = ararc.calib_with_arclines(self.arcparam, self.arccen[:, slit])
+                except:
+                    debugger.set_trace()
             self.wv_calib[str(slit)] = iwv_calib.copy()
             # QA
             if not skip_QA:
@@ -204,9 +209,13 @@ class WaveCalib(masterframe.MasterFrame):
         """
         nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation'] \
                                 * self.spectrograph.detector[self.det-1]['nonlinear']
-        self.arccen, self.maskslits, _ \
+        self.arccen, wv_maskslits, _ \
                     = ararc.get_censpec(lordloc, rordloc, pixlocn, self.msarc, self.det,
                                         nonlinear_counts=nonlinear_counts, gen_satmask=False)
+        # Integrate the masks
+        if self.maskslits is None:
+            self.maskslits = np.zeros(lordloc.shape[1], dtype=bool)
+        self.maskslits += wv_maskslits
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -325,14 +334,6 @@ class WaveCalib(masterframe.MasterFrame):
         # Load the arcparam, if one was not passed in.
         if self.arcparam is None:
             _ = self._load_arcparam()
-        # This call is unfortunate since it requires the fitstable in
-        # the true PYPIT style of bloated overloaded and uncenessary
-        # argument lists.  It is mainly here for backwards compatibility
-        # with old methods for wavelength calibration that have been
-        # superceded by holy grail. Holy grail only requires a linelist
-        # in the arcparam dict, so if the user passes in an arcparam, no
-        # need to run this.
-        # KBW - What's stopping us from fixing this?
 
         # Fill up the calibrations and generate QA
         self.wv_calib = self._build_wv_calib(self.par['method'], skip_QA=skip_QA)
@@ -380,6 +381,10 @@ class WaveCalib(masterframe.MasterFrame):
             plt.show()
         elif item == 'fit':
             ararc.arc_fit_qa(None, self.wv_calib[str(slit)], slit, outfile='show')
+        elif item == 'msarc':
+            debugger.show_image(self.msarc)
+        else:
+            print("Not prepared to show: {}".format(item))
 
     def __repr__(self):
         # Generate sets string

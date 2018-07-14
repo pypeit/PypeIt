@@ -67,7 +67,9 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
         slmps=slmps+','+lamp
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
 
-    arcparam['llist'] = ararclines.load_arcline_list(arcparam['lamps'], disperser,
+    # This step is nearly defunct
+    if False:
+        arcparam['llist'] = ararclines.load_arcline_list(arcparam['lamps'], disperser,
                                                      spectro_class.spectrograph,
                                                      wvmnx=arcparam['wvmnx'],
                                                      modify_parse_dict=modify_dict)
@@ -112,7 +114,7 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, ge
     # Extract a rough spectrum of the arc in each slit
     msgs.info("Extracting an approximate arc spectrum at the centre of each slit")
     tordcen = None
-    maskslit = np.zeros(ordcen.shape[1], dtype=np.int)
+    maskslit = np.zeros(ordcen.shape[1], dtype=bool)
     for i in range(ordcen.shape[1]):
         wl = np.size(np.where(ordcen[:, i] <= pixlocn[0,0,1])[0])
         wh = np.size(np.where(ordcen[:, i] >= pixlocn[0,-1,1])[0])
@@ -129,8 +131,8 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, ge
                 tordcen = np.zeros((ordcen.shape[0], 1), dtype=np.float)
             else:
                 tordcen = np.append(tordcen, ordcen[:, i].reshape((ordcen.shape[0], 1)), axis=1)
-            maskslit[i] = 1
-    w = np.where(maskslit == 0)[0]
+            maskslit[i] = True
+    w = np.where(~maskslit)[0]
     if tordcen is None:
         msgs.warn("Could not determine which slits are fully on the detector")
         msgs.info("Assuming all slits are fully on the detector")
@@ -162,9 +164,9 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, ge
                              frame[temparr, op1] + frame[temparr, op2] +
                              frame[temparr, om1] + frame[temparr, om2])
     # Pad masked ones with zeros
-    if np.sum(maskslit) > 0:
+    if np.any(maskslit):
         arccen = np.zeros((gd_arccen.shape[0], maskslit.size))
-        gd = maskslit == 0
+        gd = np.where(~maskslit)[0]
         arccen[:,gd] = gd_arccen
     else:
         arccen = gd_arccen
