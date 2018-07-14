@@ -267,7 +267,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
             arcparam is modified in place
 
         """
-        arcparam['lamps'] = ['CuI', 'ArI']
+        arcparam['lamps'] = ['CuAr']
         if 'R150' in disperser:
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.63 # Ang per pixel (unbinned)
