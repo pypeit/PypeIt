@@ -25,6 +25,7 @@ from pypit import ginga
 from pypit import traceimage
 
 from pypit.par import pypitpar
+from pypit.par.util import parset_to_dict
 
 try:
     basestring
@@ -930,7 +931,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         # dict of steps, settings and more
         out_dict = {}
-        out_dict['settings'] = pypitpar.parset_to_dict(self.par)
+        out_dict['settings'] = parset_to_dict(self.par)
         if self.tc_dict is not None:
             out_dict['tc_dict'] = self.tc_dict
         out_dict['steps'] = self.steps
@@ -986,7 +987,6 @@ class TraceSlits(masterframe.MasterFrame):
             loaded = self.load_master()
         # Return
         return loaded
-
 
     def run(self, arms=True, ignore_orders=False, add_user_slits=None):
         """ Main driver for tracing slits.

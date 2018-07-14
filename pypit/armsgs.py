@@ -190,6 +190,7 @@ class Messages:
         """
         Print pypit usage data.
         """
+        # TODO: This is outdated
         stgs_arm = glob.glob(os.path.dirname(__file__)+'/data/settings/settings.arm*')
         stgs_all = glob.glob(os.path.dirname(__file__)+'/data/settings/settings.*')
         stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
@@ -206,10 +207,10 @@ class Messages:
         spcl = textwrap.wrap(spclist, width=60)
         descs = self.pypitheader(prognm)
 
-        descs += '\n##  Available pipelines include:'
+        descs += '\n##  Available pipelines include (OUTDATED):'
         descs += '\n##   ' + armlist
 
-        descs += '\n##  Available spectrographs include:'
+        descs += '\n##  Available spectrographs include (OUTDATED):'
         for ispcl in spcl:
             descs += '\n##   ' + ispcl
 

@@ -1,5 +1,4 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
-from future.utils import iteritems
 
 try:
     basestring
@@ -20,13 +19,13 @@ import linetools.utils
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
 from pypit import msgs
-from pypit import arparse as settings
+#from pypit import arparse as settings
 from pypit.core import arprocimg
 from pypit import arspecobj
 from pypit import ardebug as debugger
 
 
-def load_headers(datlines, spectrograph, reduce_par):
+def load_headers(datlines, spectrograph, strict=True):
     """ Load the header information for each fits file
     The cards of interest are specified in the instrument settings file
     A check of specific cards is performed if specified in settings
@@ -43,31 +42,6 @@ def load_headers(datlines, spectrograph, reduce_par):
     fitstbl : Table
       The relevant header information of all fits files
     """
-    '''
-    def generate_updates(dct, keylst, keys, whddict, headarr):
-        """ Generate a list of settings to be updated
-        """
-        for (key, value) in iteritems(dct):
-            keys += [str(key)]
-            if isinstance(value, dict):
-                generate_updates(value, keylst, keys, whddict, headarr)
-            else:
-                try:
-                    tfrhd = int(value.split('.')[0]) - 1
-                    kchk = '.'.join(value.split('.')[1:])
-                    frhd = whddict['{0:02d}'.format(tfrhd)]
-                    hdrval = headarr[frhd][kchk]
-                    if keys[0] not in ["check", "keyword"]:
-                        keylst += [str(' ').join(keys) + str(" ") +
-                                   str("{0}\n".format(hdrval).replace(" ", ""))]
-                        keylst[-1] = keylst[-1].split()
-                except (AttributeError, ValueError, KeyError):
-                    pass
-            del keys[-1]
-    '''
-
-    #chks = list(settings_spect['check'].keys())
-
     # FITS dict/table keys
     head_keys = spectrograph.header_keys()
     all_keys = []
@@ -85,7 +59,7 @@ def load_headers(datlines, spectrograph, reduce_par):
     # Loop on files
     for i in range(numfiles):
         # Try to open the fits file
-        headarr = spectrograph.get_headarr(datlines[i], reduce_par)
+        headarr = spectrograph.get_headarr(datlines[i], strict=strict)
         numhead = len(headarr)
         # Save the headers into its dict
         for k in range(numhead):
@@ -203,77 +177,77 @@ def load_headers(datlines, spectrograph, reduce_par):
     return fitstbl
 
 
-def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
-    """  Now a wrapper on several core methods.  This might well get broken
-    down further in a future Refactor.
-
-    Load data frames, usually raw.
-    Bias subtract (if not msbias!=None) and trim (if True)
-
-    Parameters
-    ----------
-
-    fitsdict : dict
-        Contains relevant information from fits header files
-    ind : list or array
-        integers of indices
-    det : int
-    msbias : ndarray, str (optional)
-    trim : bool (optional)
-
-    Returns
-    -------
-
-    frames : ndarray
-      3D with the 3rd index corresponding to the frames returned
-    """
-    # Wrap me
-    dnum = settings.get_dnum(det)
-    spectrograph = settings.argflag['run']['spectrograph']
-    if 'dataext01' in settings.spect[dnum].keys():
-        dataext01 = settings.spect[dnum]['dataext01']
-    else:
-        dataext01 = None
-    disp_dir = settings.argflag['trace']['dispersion']['direction']
-    numamplifiers = settings.spect[dnum]['numamplifiers']
-    # Build datasecs, oscansec
-    datasecs, oscansecs = [], []
-    for jj in range(numamplifiers):
-        datasec = "datasec{0:02d}".format(jj+1)
-        datasecs.append(settings.spect[dnum][datasec])
-        oscansec = "oscansec{0:02d}".format(jj+1)
-        oscansecs.append(settings.spect[dnum][oscansec])
-
-    # Now run
-    for i in range(len(ind)):
-        raw_file = fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]]
-        temp, head0 = load_raw_frame(spectrograph, raw_file, det,
-                              dataext=dataext01, disp_dir=disp_dir)
-
-        # TODO -- Take these next two steps out and put in a arproc.proc_image() method
-        # Bias subtract?
-        if msbias is not None:
-            temp = arprocimg.bias_subtract(temp, msbias, numamplifiers=numamplifiers,
-                                        datasec=datasecs, oscansec=oscansecs)
-
-        if trim:
-            # Trim
-            temp = arprocimg.trim(temp, numamplifiers, datasecs)
-
-        # Save
-        if i == 0:
-            frames = np.zeros((temp.shape[0], temp.shape[1], len(ind)))
-            frames[:,:,i] = temp.copy()
-        else:
-            frames[:,:,i] = temp.copy()
-        del temp
-
-    # Finish
-    if len(ind) == 1:
-        msgs.info("Loaded {0:d} {1:s} frame successfully".format(len(ind), frametype))
-    else:
-        msgs.info("Loaded {0:d} {1:s} frames successfully".format(len(ind), frametype))
-    return frames
+#def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
+#    """  Now a wrapper on several core methods.  This might well get broken
+#    down further in a future Refactor.
+#
+#    Load data frames, usually raw.
+#    Bias subtract (if not msbias!=None) and trim (if True)
+#
+#    Parameters
+#    ----------
+#
+#    fitsdict : dict
+#        Contains relevant information from fits header files
+#    ind : list or array
+#        integers of indices
+#    det : int
+#    msbias : ndarray, str (optional)
+#    trim : bool (optional)
+#
+#    Returns
+#    -------
+#
+#    frames : ndarray
+#      3D with the 3rd index corresponding to the frames returned
+#    """
+#    # Wrap me
+#    dnum = settings.get_dnum(det)
+#    spectrograph = settings.argflag['run']['spectrograph']
+#    if 'dataext01' in settings.spect[dnum].keys():
+#        dataext01 = settings.spect[dnum]['dataext01']
+#    else:
+#        dataext01 = None
+#    disp_dir = settings.argflag['trace']['dispersion']['direction']
+#    numamplifiers = settings.spect[dnum]['numamplifiers']
+#    # Build datasecs, oscansec
+#    datasecs, oscansecs = [], []
+#    for jj in range(numamplifiers):
+#        datasec = "datasec{0:02d}".format(jj+1)
+#        datasecs.append(settings.spect[dnum][datasec])
+#        oscansec = "oscansec{0:02d}".format(jj+1)
+#        oscansecs.append(settings.spect[dnum][oscansec])
+#
+#    # Now run
+#    for i in range(len(ind)):
+#        raw_file = fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]]
+#        temp, head0 = load_raw_frame(spectrograph, raw_file, det,
+#                              dataext=dataext01, disp_dir=disp_dir)
+#
+#        # TODO -- Take these next two steps out and put in a arproc.proc_image() method
+#        # Bias subtract?
+#        if msbias is not None:
+#            temp = arprocimg.bias_subtract(temp, msbias, numamplifiers=numamplifiers,
+#                                        datasec=datasecs, oscansec=oscansecs)
+#
+#        if trim:
+#            # Trim
+#            temp = arprocimg.trim(temp, numamplifiers, datasecs)
+#
+#        # Save
+#        if i == 0:
+#            frames = np.zeros((temp.shape[0], temp.shape[1], len(ind)))
+#            frames[:,:,i] = temp.copy()
+#        else:
+#            frames[:,:,i] = temp.copy()
+#        del temp
+#
+#    # Finish
+#    if len(ind) == 1:
+#        msgs.info("Loaded {0:d} {1:s} frame successfully".format(len(ind), frametype))
+#    else:
+#        msgs.info("Loaded {0:d} {1:s} frames successfully".format(len(ind), frametype))
+#    return frames
 
 
 def load_extraction(name, frametype='<None>', wave=True):
@@ -318,49 +292,49 @@ def load_extraction(name, frametype='<None>', wave=True):
         return sciext, props
 
 
-def load_master(name, exten=0, frametype='<None>'):
-    """
-    Load a pre-existing master calibration frame
-
-    Parameters
-    ----------
-    name : str
-      Name of the master calibration file to be loaded
-    exten : int, optional
-    frametype : str, optional
-      The type of master calibration frame being loaded.
-      This keyword is only used for terminal print out.
-
-    Ret        # HAS NOT BEEN DEVELOPED SINCE THE SetupClass refactor;  no test case..urns
-    -------
-    frame : ndarray or dict
-      The data from the master calibration frame
-    head : str (or None)
-    """
-    if frametype == 'wv_calib':
-        msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
-        ldict = linetools.utils.loadjson(name)
-        return ldict, None
-    elif frametype == 'sensfunc':
-        with open(name, 'r') as f:
-            sensfunc = yaml.load(f)
-        sensfunc['wave_max'] = sensfunc['wave_max']*units.AA
-        sensfunc['wave_min'] = sensfunc['wave_min']*units.AA
-        return sensfunc, None
-    else:
-        msgs.info("Loading a pre-existing master calibration frame")
-        try:
-            hdu = fits.open(name)
-        except IOError:
-            if settings.argflag['reduce']['masters']['force']:
-                msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
-            else:
-                msgs.warn("Could not read Master calibration file:"+msgs.newline()+name)
-                raise IOError
-        msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
-        head = hdu[0].header
-        data = hdu[exten].data.astype(np.float)
-        return data, head
+#def load_master(name, exten=0, frametype='<None>'):
+#    """
+#    Load a pre-existing master calibration frame
+#
+#    Parameters
+#    ----------
+#    name : str
+#      Name of the master calibration file to be loaded
+#    exten : int, optional
+#    frametype : str, optional
+#      The type of master calibration frame being loaded.
+#      This keyword is only used for terminal print out.
+#
+#    Ret        # HAS NOT BEEN DEVELOPED SINCE THE SetupClass refactor;  no test case..urns
+#    -------
+#    frame : ndarray or dict
+#      The data from the master calibration frame
+#    head : str (or None)
+#    """
+#    if frametype == 'wv_calib':
+#        msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
+#        ldict = linetools.utils.loadjson(name)
+#        return ldict, None
+#    elif frametype == 'sensfunc':
+#        with open(name, 'r') as f:
+#            sensfunc = yaml.load(f)
+#        sensfunc['wave_max'] = sensfunc['wave_max']*units.AA
+#        sensfunc['wave_min'] = sensfunc['wave_min']*units.AA
+#        return sensfunc, None
+#    else:
+#        msgs.info("Loading a pre-existing master calibration frame")
+#        try:
+#            hdu = fits.open(name)
+#        except IOError:
+#            if settings.argflag['reduce']['masters']['force']:
+#                msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
+#            else:
+#                msgs.warn("Could not read Master calibration file:"+msgs.newline()+name)
+#                raise IOError
+#        msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
+#        head = hdu[0].header
+#        data = hdu[exten].data.astype(np.float)
+#        return data, head
 
 
 def load_ordloc(fname):

@@ -21,6 +21,7 @@ from pypit.par import pypitpar
 
 #from pypit import arparse as settings
 
+from pypit.spectrographs.spectrograph import Spectrograph
 from pypit.spectrographs.util import load_spectrograph
 
 from pypit import ardebug as debugger
@@ -30,7 +31,7 @@ try:
 except NameError:
     basestring = str
 
-def ARMS(spectrograph, fitstbl, setup_dict, par=None):
+def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
     """
     Automatic Reduction of Multislit Data
 
@@ -68,6 +69,8 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
     if spectrograph is None:
         # Set spectrograph from FITS table instrument header
         # keyword.
+        if par is not None and par['rdx']['spectrograph'] != fitstbl['instrume'][0]:
+            msgs.error('Specified spectrograph does not match instrument in the fits table!')
         _spectrograph = load_spectrograph(spectrograph=fitstbl['instrume'][0])
     elif isinstance(spectrograph, basestring):
         _spectrograph = load_spectrograph(spectrograph=spectrograph)
@@ -76,18 +79,19 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
     else:
         raise TypeError('Could not instantiate Spectrograph!')
 
-    # Parameter Setups
-    _par = pypitpar.PypitPar() if par is None else par
+    # Instantiate the parameters
+    _par = _spectrograph.default_pypit_par() if par is None else par
     if not isinstance(_par, pypitpar.PypitPar):
         raise TypeError('Input parameters must be a PypitPar instance.')
     required = [ 'rdx', 'calibrations', 'scienceframe', 'standardframe', 'objects', 'extract',
-                 'wavecalib', 'skysubtract', 'flexure', 'fluxcalib' ]
+                 'skysubtract', 'flexure', 'fluxcalib' ]
     can_be_None = [ 'standardframe', 'skysubtract', 'flexure', 'fluxcalib' ]
     _par.validate_keys(required=required, can_be_None=can_be_None)
 
     # Init calib dict
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl, spectrograph=_spectrograph,
-                                                   par=_par['calibrations'], save_masters=True)
+                                                   par=_par['calibrations'],
+                                                   save_masters=True, write_qa=True)
 
     # Loop on science exposure first
     #  calib frames, e.g. arcs)
@@ -230,24 +234,25 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
             # Helio
             # Correct Earth's motion
             vel_corr = -999999.9
-            if (_par['wavecalib']['refframe'] in ['heliocentric', 'barycentric']) and \
-                        (_par['wavecalib']['medium'] != 'pixel') and flg_objs:
+            if (caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) and \
+                        (caliBrate.par['wavelengths']['reference'] != 'pixel') and flg_objs:
                 if _par['extract']['reuse']:
-                    msgs.warn('{0} correction'.format(_par['wavecalib']['refframe'])
+                    msgs.warn('{0} correction'.format(caliBrate.par['wavelengths']['frame'])
                               + 'will not be applied if an extracted science frame exists, '
                               + 'and is used')
                 if specobjs is not None:
-                    msgs.info("Performing a {0} correction".format(_par['wavecalib']['refframe']))
+                    msgs.info("Performing a {0} correction".format(
+                                            caliBrate.par['wavelengths']['frame']))
 
                     vel, vel_corr = arwave.geomotion_correct(specobjs, maskslits, fitstbl, scidx,
                                                              obstime,
                                                              _spectrograph.telescope['longitude'],
                                                              _spectrograph.telescope['latitude'],
                                                              _spectrograph.telescope['elevation'],
-                                                             _par['wavecalib']['refframe'])
+                                                             caliBrate.par['wavelengths']['frame'])
                 else:
                     msgs.info('There are no objects on detector {0} to perform a '.format(det)
-                              + '{1} correction'.format(_par['wavecalib']['refframe']))
+                              + '{1} correction'.format(caliBrate.par['wavelengths']['frame']))
             else:
                 msgs.info('A wavelength reference-frame correction will not be performed.')
 
@@ -345,8 +350,9 @@ def ARMS(spectrograph, fitstbl, setup_dict, par=None):
         save_format = 'fits'
         if save_format == 'fits':
             outfile = os.path.join(_par['rdx']['scidir'], 'spec1d_{:s}.fits'.format(basename))
-            helio_dict = dict(refframe='pixel' if _par['wavecalib']['refframe'] is None
-                                                else _par['wavecalib']['refframe'],
+            helio_dict = dict(refframe='pixel'
+                              if caliBrate.par['wavelengths']['reference'] == 'pixel' 
+                              else caliBrate.par['wavelengths']['frame'],
                               vel_correction=sci_dict['meta']['vel_corr'])
             arsave.save_1d_spectra_fits(all_specobjs, fitstbl[scidx], outfile,
                                         helio_dict=helio_dict, telescope=_spectrograph.telescope)
