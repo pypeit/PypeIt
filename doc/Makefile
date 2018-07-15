@@ -8,6 +8,8 @@ SPHINXOPTS    = -aE -w ./sphinx_warnings.out
 SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = _build
+LOCALFILES    = $(BUILDDIR)/* api module.rst pypit.rst pypit.*.rst sphinx_warnings.out pypit_par.rst
+
 
 # User-friendly check for sphinx-build
 ifeq ($(shell which $(SPHINXBUILD) >/dev/null 2>&1; echo $$?), 1)
@@ -51,13 +53,12 @@ help:
 	@echo "  coverage   to run coverage check of the documentation (if enabled)"
 
 clean:
-	rm -rf $(BUILDDIR)/*
-	rm -rf api
-	rm -rf module.rst pypit.rst pypit.*.rst sphinx_warnings.out
+	rm -rf $(LOCALFILES)
 
 html:
 	export SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT)
 	$(SPHINXAPI) -o . ../pypit --separate
+	python3 ./scripts/build_par_rst.py
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."

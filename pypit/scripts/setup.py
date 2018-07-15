@@ -42,13 +42,14 @@ def main(args):
     import datetime
     import pdb as debugger
 
-    from pypit import pyputils
+    from pypit import msgs
     from pypit import armeta
     from pypit.core import arsetup
+    from pypit.par.util import make_pypit_file, parse_pypit_file
     from pypit.scripts import run_pypit
-    from pypit.pypit import load_input
 
     # Check that input spectrograph is supported
+    # TODO: This is outdated!
     if args.spectrograph not in armeta.instr_list():
         print("-------------------------------------------------------------")
         print("Input instrument {:s} is not supported by PYPIT".format(args.spectrograph))
@@ -64,24 +65,22 @@ def main(args):
     # Generate a dummy .pypit file
     date = str(datetime.date.today().strftime('%Y-%b-%d'))
     root = args.spectrograph+'_'+date
-    pyp_file = outdir+'/'+root+'.pypit'
+    pypit_file = outdir+'/'+root+'.pypit'
     # Generate
     dfname = "{:s}*{:s}*".format(args.files_root, args.extension)
-    # parlines
-    parlines = ['run ncpus 1\n',
-                'output overwrite True\n']
-    parlines += ["run spectrograph {:s}\n".format(args.spectrograph)]
-    parlines += ["output sorted {:s}\n".format(root)]
-    pyputils.make_pypit_file(pyp_file, args.spectrograph,
-                          [dfname], setup_script=True, parlines=parlines)
-    print("Wrote {:s}".format(pyp_file))
+    # configuration lines
+    cfg_lines = ['[rdx]']
+    cfg_lines += ['    spectrograph = {0}'.format(args.spectrograph)]
+    cfg_lines += ['    sortroot = {0}'.format(root)]
+    make_pypit_file(pypit_file, args.spectrograph, [dfname], cfg_lines=cfg_lines, setup_mode=True)
+    print("Wrote {:s}".format(pypit_file))
 
     # Parser
-    pinp = [pyp_file]
+    pinp = [pypit_file]
     if args.develop:
         pinp += ['-d']
     pargs = run_pypit.parser(pinp)
-    sorted_file = pyp_file.replace('.pypit', '.sorted')
+    sorted_file = pypit_file.replace('.pypit', '.sorted')
 
     # Run
     run_pypit.main(pargs)
@@ -91,47 +90,38 @@ def main(args):
     if not args.custom:
         return
 
+    msgs.reset(verbosity=0)
+
     # Read master file
-    msgs = pyputils.get_dummy_logger()
-    pyp_dict = load_input(pyp_file, msgs)
+    cfg_lines, data_files, frametype, setups = parse_pypit_file(filename)
+    
+    pyp_dict = load_input(pypit_file, msgs)
     parlines, datlines, spclines, dfnames = [pyp_dict[ii] for ii in ['par','dat','spc','dfn']]
 
     # Get paths
     paths = []
-    for datline in datlines:
+    for datafile in data_files:
         islsh = datline.rfind('/')
         path = datline[:islsh+1]
         if path not in paths:
             paths.append(path)
 
-    # Remove run setup from parlines
-    for jj,parline in enumerate(parlines):
-        if 'run setup' in parline:
-            #parlines[jj] = 'run setup False\n'
-            parlines[jj] = '\n'
-
     # Generate .pypit files and sub-folders
     all_setups, all_setuplines, all_setupfiles = arsetup.load_sorted(sorted_file)
-    for setup, setuplines,setupfiles in zip(all_setups, all_setuplines,all_setupfiles):
+    for setup, setup_lines, sorted_files in zip(all_setups, all_setuplines, all_setupfiles):
         root = args.spectrograph+'_setup_'
         # Make the dir
         newdir = args.redux_path+root+setup
         if not os.path.exists(newdir):
             os.mkdir(newdir)
         # Now the file
-        pyp_file = newdir+'/'+root+setup+'.pypit'
+        pypit_file = newdir+'/'+root+setup+'.pypit'
         # Modify parlines
-        for kk,pline in enumerate(parlines):
-            if 'output sorted' in pline:
-                parlines.pop(kk)
-        parlines += ["output sorted {:s}\n".format(root+setup)]
+        for kk in range(len(cfg_lines)):
+            if 'sortroot' in cfg_lines[kk]:
+                cfg_lines[kk] = ['    sortroot = {0}'.format(root+setup)]
 
-        pyputils.make_pypit_file(pyp_file, args.spectrograph, [],
-                                 parlines=parlines,
-                                 spclines=None,
-                                 setuplines=setuplines,
-                                 setupfiles=setupfiles,
-                                 paths=paths,
-                                 calcheck=False)
-        print("Wrote {:s}".format(pyp_file))
+        make_pypit_file(pypit_file, args.spectrograph, [], cfg_lines=cfg_lines,
+                        setup_lines=setup_lines, sorted_files=sorted_files, paths=None)
+        print("Wrote {:s}".format(pypit_file))
 

@@ -1,5 +1,7 @@
 .. highlight:: rest
 
+.. _pypit_file:
+
 ====================
 PYPIT Reduction File
 ====================

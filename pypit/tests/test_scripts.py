@@ -15,11 +15,9 @@ import pytest
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
-from pypit import pyputils
+from pypit import msgs
 from pypit.scripts import coadd_1dspec
 from pypit.scripts import view_fits
-
-msgs = pyputils.get_dummy_logger()
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')

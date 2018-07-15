@@ -306,10 +306,10 @@ class ParSet(object):
 
 
     @staticmethod
-    def _data_table_string(data_table):
+    def _data_table_string(data_table, delimeter='print'):
         """
         Provided the array of data, format it with equally spaced
-        columns and add a header (first row) and contents delimiter.
+        columns and add a header (first row) and contents delimeter.
 
         Args:
             data_table (:obj:`numpy.ndarray`):
@@ -320,19 +320,28 @@ class ParSet(object):
         """
         nrows, ncols = data_table.shape
         col_width = [ numpy.amax([ len(dij) for dij in dj]) for dj in data_table.T ]
-        row_string = ['']*(nrows+1)
-        # Heading row
-        row_string[0] = '  '.join([ data_table[0,j].rjust(col_width[j]) for j in range(ncols)])
-        # Delimiter
-        row_string[1] = '-'*len(row_string[0])
-        for i in range(2,nrows+1):
-            row_string[i] = '  '.join([ data_table[i-1,j].rjust(col_width[j]) 
+        row_string = ['']*(nrows+1) if delimeter == 'print' else ['']*(nrows+3)
+        start = 2 if delimeter == 'print' else 3
+        for i in range(start,nrows+start-1):
+            row_string[i] = '  '.join([ data_table[1+i-start,j].ljust(col_width[j]) 
                                                                         for j in range(ncols)])
+        if delimeter == 'print':
+            # Heading row
+            row_string[0] = '  '.join([ data_table[0,j].ljust(col_width[j]) for j in range(ncols)])
+            # Delimiter
+            row_string[1] = '-'*len(row_string[0])
+            return '\n'.join(row_string)+'\n'
+
+        # For an rst table
+        row_string[0] = '  '.join([ '='*col_width[j] for j in range(ncols)])
+        row_string[1] = '  '.join([ data_table[0,j].ljust(col_width[j]) for j in range(ncols)])
+        row_string[2] = row_string[0]
+        row_string[-1] = row_string[0]
         return '\n'.join(row_string)+'\n'
 
 
     @staticmethod
-    def _data_string(data):
+    def _data_string(data, use_repr=True, verbatum=False):
         """
         Convert a single datum into a string
         
@@ -345,13 +354,14 @@ class ParSet(object):
                 The object to stringify.
         """
         if isinstance(data, basestring):
-            return data
-        elif hasattr(data, '__len__'):
+            return data if not verbatum else '``' + data + '``'
+        if hasattr(data, '__len__'):
             return '[]' if isinstance(data, list) and len(data) == 0 \
-                        else ', '.join([ ParSet._data_string(d) for d in data ])
-        else:
+                        else ', '.join([ ParSet._data_string(d, use_repr=use_repr,
+                                                             verbatum=verbatum) for d in data ])
+        if use_repr:
             return data.__repr__()
-
+        return str(data)
 
     def _wrap_print(self, head, output, tcols):
         """
@@ -429,7 +439,6 @@ class ParSet(object):
             if isinstance(par[k], list) and len(par[k]) > 0:
                 is_parset_or_dict = [ isinstance(v, (ParSet, dict)) for v in par[k] ]
                 if numpy.all(is_parset_or_dict):
-                    print(par[k])
                     ndig = int(numpy.log10(len(par[k])))+1
                     for i, v in enumerate(par[k]):
                         indx = str(i+1).zfill(ndig)
@@ -569,15 +578,18 @@ class ParSet(object):
             # Re-raise the exception
             raise
 
-    def to_config(self, cfg_file, section_name=None, section_comment=None, section_level=0,
-                  append=False, quiet=False, just_lines=False):
+    def to_config(self, cfg_file=None, section_name=None, section_comment=None, section_level=0,
+                  append=False, quiet=False):
         """
         Write/Append the parameter set to a configuration file.
 
         Args:
-            cfg_file (str):
-                The name of the file to write/append to.  Can be None if
-                :arg:`just_lines` is true.
+            cfg_file (:obj:`str`, optional):
+                The name of the file to write/append to.  If None
+                (default), the function will just return the list of
+                strings that would have been written to the file.  These
+                lines can be used to construct a :class:`ConfigObj`
+                instance.
             section_name (:obj:`str`, optional):
                 The top-level name for the config section.  This must be
                 provided if :attr:`cfg_section` is None or any of the
@@ -594,8 +606,6 @@ class ParSet(object):
                 exists, the file is automatically overwritten.
             quiet (:obj:`bool`, optional):
                 Suppress all standard output from the function.
-            just_lines (:obj:`bool`, optional):
-                Do not write the file.  Just construct the file lines.
 
         Raises:
             ValueError:
@@ -603,7 +613,7 @@ class ParSet(object):
                 parameter list, :attr:`cfg_section` is None, and no
                 section_name argument was provided.
         """
-        if not just_lines and os.path.isfile(cfg_file) and not append and not quiet:
+        if cfg_file is not None and os.path.isfile(cfg_file) and not append and not quiet:
             warnings.warn('Selected configuration file already exists and will be overwritten!')
 
         config_output = []
@@ -629,7 +639,7 @@ class ParSet(object):
                                                  section_comment=_section_comment,
                                                  section_level=section_level)
 
-        if just_lines:
+        if cfg_file is None:
             # Only return the list of lines for the output file.  Useful
             # if you want to use instantly create a new ConfigObj
             # instance without having to write a file
@@ -638,6 +648,48 @@ class ParSet(object):
         # Write the file
         with open(cfg_file, 'a' if append else 'w') as f:
             f.write('\n'.join(config_output))
+
+    @staticmethod
+    def _rst_class_name(p):
+        return ':class:`' +  type(p).__module__ + '.' + type(p).__name__ + '`'
+
+    def to_rst_table(self, parsets_listed=[]):
+        new_parsets = []
+        data_table = numpy.empty((self.npar+1, 5), dtype=object)
+        data_table[0,:] = ['Key', 'Type', 'Options', 'Default', 'Description']
+        for i,k in enumerate(self.keys()):
+            data_table[i+1,0] = ParSet._data_string(k, use_repr=False, verbatum=True)
+            if isinstance(self.data[k], ParSet):
+                if type(self.data[k]).__name__ not in parsets_listed:
+                    new_parsets += [k]
+                parsets_listed += [ type(self.data[k]).__name__ ]
+                data_table[i+1,1] = ParSet._rst_class_name(self.data[k])
+                data_table[i+1,3] = '`{0} Keywords`_'.format(type(self.data[k]).__name__)
+            else: 
+                data_table[i+1,1] = ', '.join([t.__name__ for t in self.dtype[k]])
+                data_table[i+1,3] = '..' if self.default[k] is None \
+                                    else ParSet._data_string(self.default[k], use_repr=False,
+                                                             verbatum=True)
+
+            data_table[i+1,2] = '..' if self.options[k] is None \
+                                    else ParSet._data_string(self.options[k], use_repr=False,
+                                                             verbatum=True)
+            data_table[i+1,4] = '..' if self.descr[k] is None \
+                                    else ParSet._data_string(self.descr[k])
+
+        output = [ '{0} Keywords'.format(type(self).__name__) ]
+        output += [ '-'*len(output[0]) ]
+        output += [ '' ]
+        output += ['Class Instantiation: ' + ParSet._rst_class_name(self)]
+        output += ['']
+        output += [ParSet._data_table_string(data_table, delimeter='rst')]
+        output += ['']
+        for k in new_parsets:
+            output += ['----']
+            output += ['']
+            output += self.data[k].to_rst_table(parsets_listed=parsets_listed)
+
+        return output
 
     def validate_keys(self, required=None, can_be_None=None):
         if required is None and can_be_None is None:

@@ -91,14 +91,14 @@ def test_writecfg():
     default_file = 'default.cfg'
     if os.path.isfile(default_file):
         os.remove(default_file)
-    pypitpar.PypitPar.from_cfg_file().to_config(default_file)
+    pypitpar.PypitPar.from_cfg_file().to_config(cfg_file=default_file)
     assert os.path.isfile(default_file), 'No file written!'
     os.remove(default_file)
 
 def test_readcfg():
     default_file = 'default.cfg'
     if not os.path.isfile(default_file):
-        pypitpar.PypitPar.from_cfg_file().to_config(default_file)
+        pypitpar.PypitPar.from_cfg_file().to_config(cfg_file=default_file)
     pypitpar.PypitPar.from_cfg_file('default.cfg')
     os.remove(default_file)
 
@@ -115,7 +115,7 @@ def test_mergecfg():
     p['calibrations']['biasframe']['useframe'] = 'overscan'
 
     # Write the modified config
-    p.to_config(user_file)
+    p.to_config(cfg_file=user_file)
     assert os.path.isfile(user_file), 'User file was not written!'
 
     # Read it in as a config to merge with the defaults

@@ -6,7 +6,7 @@ import glob
 
 
 
-
+# TODO: This is outdated!
 def instr_list():
     """ List of allowed Instruments in PYPIT
 

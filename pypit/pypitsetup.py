@@ -15,7 +15,7 @@ from pypit.core import arsort
 from pypit.core import arsetup
 
 from pypit.par import PypitPar
-from pypit.par.util import parse_pypit_reduction_file
+from pypit.par.util import parse_pypit_file
 from pypit.spectrographs.util import load_spectrograph
 
 from pypit import ardebug as debugger
@@ -127,8 +127,7 @@ class PypitSetup(object):
 
         # Get the spectrograph specific configuration to be merged with
         # the user modifications.
-        spectrograph_cfg_lines = self.spectrograph.default_pypit_par().to_config(None,
-                                                                                 just_lines=True)
+        spectrograph_cfg_lines = self.spectrograph.default_pypit_par().to_config()
 
         # Instantiate the pypit parameters.  The user input
         # configuration (cfg_lines) can be None.
@@ -154,7 +153,7 @@ class PypitSetup(object):
         Returns:
             :class:`PypitSetup`: The instance of the class.
         """
-        cfg_lines, data_files, frametype, setups = parse_pypit_reduction_file(filename)
+        cfg_lines, data_files, frametype, setups = parse_pypit_file(filename)
         return cls(data_files, frametype=frametype, setups=setups, cfg_lines=cfg_lines,
                    pypit_file=filename)
 
@@ -287,10 +286,11 @@ class PypitSetup(object):
         self.fitstbl -- Updated with 'sci_ID' and 'failures' columns
 
         """
-        self.fitstbl = arsort.match_to_science(self.spectrograph, self.fitstbl,
-                                               self.par['calibrations']['wavelengths']['medium'],
-                                               self.par['rdx']['calwin'], setup=setup_only,
-                                               flux_calibrate=self.par['fluxcalib'] is not None)
+        self.fitstbl = arsort.match_to_science(self.par['calibrations'],
+                                               self.spectrograph.get_match_criteria(),
+                                               self.fitstbl, self.par['rdx']['calwin'],
+                                               setup=setup_only,
+                                               match_nods=self.par['skysubtract']['nodding'])
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl

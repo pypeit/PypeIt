@@ -32,6 +32,7 @@ Running PYPIT
 .. toctree::
    :maxdepth: 2
 
+   pypit_par
    cookbook
    setups
    pypit_file

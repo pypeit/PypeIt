@@ -13,10 +13,7 @@ import sys, os
 import pytest
 import glob
 
-from pypit import pyputils
-
-msgs = pyputils.get_dummy_logger()
-
+from pypit import msgs
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')

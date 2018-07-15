@@ -6,10 +6,8 @@ from __future__ import unicode_literals
 
 import pytest
 
-from pypit import pyputils
+from pypit import msgs
 from pypit import arparse
-
-msgs = pyputils.get_dummy_logger()
 
 #def data_path(filename):
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')

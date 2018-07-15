@@ -16,9 +16,7 @@ from linetools.spectra.utils import collate
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
 from pypit import arcoadd
-from pypit import pyputils
-
-msgs = pyputils.get_dummy_logger()
+from pypit import msgs
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')

@@ -77,7 +77,7 @@ class Spectrograph(object):
         self.sky_file = None
 
         # Init Calibrations Par
-        self._set_calib_par()
+#        self._set_calib_par()
 
     @staticmethod
     def default_sky_spectrum():
@@ -111,8 +111,8 @@ class Spectrograph(object):
             if not isinstance(d, pypitpar.DetectorPar):
                 raise TypeError('Detector parameters must be specified using DetectorPar.')
 
-    def _set_calib_par(self, user_supplied=None):
-        pass
+#    def _set_calib_par(self, user_supplied=None):
+#        pass
 
     def load_raw_frame(self, raw_file, det=None):
         """
