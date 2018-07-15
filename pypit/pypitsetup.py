@@ -201,7 +201,7 @@ class PypitSetup(object):
         # TODO: Move this to a method that writes the sorted file
         # Write .sorted file
         if len(self.group_dict) > 0:
-            group_file = 'tmp.sorted' if pypit_file is None \
+            group_file = 'tmp.sorted' if pypit_file is None or len(pypit_file) == 0 \
                                 else pypit_file.replace('.pypit', '.sorted')
             arsetup.write_sorted(group_file, self.fitstbl, self.group_dict, self.setup_dict)
             msgs.info("Wrote group dict to {:s}".format(group_file))
@@ -436,12 +436,12 @@ class PypitSetup(object):
             self.build_group_dict(pypit_file=pypit_file)
 
             # Write the setup file
-            setup_file = 'tmp.setups' if len(pypit_file) == 0 \
+            setup_file = 'tmp.setups' if pypit_file is None or len(pypit_file) == 0 \
                                 else pypit_file.replace('.pypit', '.setups')
             arsetup.write_setup(self.setup_dict, setup_file=setup_file)
         else:
             # Write the calib file
-            calib_file = 'tmp.calib' if len(pypit_file) == 0 \
+            calib_file = 'tmp.calib' if pypit_file is None or len(pypit_file) == 0 \
                                 else pypit_file.replace('.pypit', '.calib')
             arsetup.write_calib(calib_file, self.setup_dict)
 
@@ -453,9 +453,10 @@ class PypitSetup(object):
             msgs.info("Set 'run calcheck False' to continue with data reduction")
             msgs.info("*********************************************************")
             # Instrument specific (might push into a separate file)
-            if self.spectrograph.spectrograph in ['keck_lris_blue']:
-                if self.spectrograph.calib_par['flatfield']['useframe'] in ['pixelflat']:
-                    msgs.warn("We recommend a slitless flat for your instrument.")
+            # TODO: Move to spectrograph class
+#            if self.spectrograph.spectrograph in ['keck_lris_blue']:
+#                if self.spectrograph.calib_par['flatfield']['useframe'] in ['pixelflat']:
+#                    msgs.warn("We recommend a slitless flat for your instrument.")
             return None, None, None, None
 
         if setup_only:

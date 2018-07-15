@@ -31,10 +31,10 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-def set_pars():
-    reduce_par = pypitpar.ReducePar()
-    run_par = pypitpar.RunPar()
-    return run_par, reduce_par
+#def set_pars():
+#    reduce_par = pypitpar.ReducePar()
+#    run_par = pypitpar.RunPar()
+#    return run_par, reduce_par
 
 def get_files():
     # Check for files
@@ -51,11 +51,10 @@ def test_init():
         assert True
         return
     # Init
-    run_par, reduce_par = set_pars()
-    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
+    files = get_files()
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     assert len(setupc.steps) == 0
     assert setupc.nfiles == 0
-
 
 def test_build_fitstbl():
     if skip_test:
@@ -66,8 +65,7 @@ def test_build_fitstbl():
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Init
-    run_par, reduce_par = set_pars()
-    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     #
     fitstbl = setupc.build_fitstbl(files)
     assert isinstance(fitstbl, Table)
@@ -85,8 +83,7 @@ def test_image_type():
     # Check for files
     files = get_files()
     # Init
-    run_par, reduce_par = set_pars()
-    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     fitstbl = setupc.build_fitstbl(files)
     # Type
     filetypes = setupc.type_data(flag_unknown=True)
@@ -102,8 +99,7 @@ def test_match():
     # Check for files
     files = get_files()
     # Init
-    run_par, reduce_par = set_pars()
-    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     _ = setupc.build_fitstbl(files)
     _ = setupc.type_data(flag_unknown=True)
 
@@ -146,15 +142,13 @@ def test_run():
     # Check for files
     files = get_files()
     # Init
-    run_par, reduce_par = set_pars()
-    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     # Run
-    code, fitstbl, setup_dict = setupc.run(files)
+    par, spectrograph, fitstbl, setup_dict = setupc.run()
     # Test
-    assert code == 'run'
+    assert isinstance(par, pypitpar.PypitPar)
     assert isinstance(fitstbl, Table)
     assert isinstance(setup_dict, dict)
-
 
 def test_run_calcheck():
     if skip_test:
@@ -163,14 +157,11 @@ def test_run_calcheck():
     # Check for files
     files = get_files()
     # Init
-    run_par, reduce_par = set_pars()
-    run_par['calcheck'] = True
-    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     # Run
-    code, fitstbl, setup_dict = setupc.run(files)
+    par, spectrograph, fitstbl, setup_dict = setupc.run(calibration_check=True)
     # Test
-    assert code == 'calcheck'
-
+    assert par == None
 
 def test_run_setup():
     if skip_test:
@@ -178,11 +169,9 @@ def test_run_setup():
         return
     files = get_files()
     # Init
-    run_par, reduce_par = set_pars()
-    run_par['setup'] = True
-    setupc = pypitsetup.PypitSetup(spectrograph, run_par, reduce_par)
-
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     # Run
-    code, fitstbl, setup_dict = setupc.run(files)
+    par, spectrograph, fitstbl, setup_dict = setupc.run(setup_only=True)
     # Test
-    assert code == 'setup'
+    assert par == None
+
