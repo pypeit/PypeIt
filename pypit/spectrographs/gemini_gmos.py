@@ -289,6 +289,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
 
 def read_gmos(raw_file, det=1):
     """
+    Read the GMOS data file
 
     Parameters
     ----------
