@@ -12,6 +12,8 @@ from pypit import arparse
 from pypit.par.pypitpar import DetectorPar
 from pypit.spectrographs import spectrograph
 from pypit import telescopes
+from pypit.core import arsort
+from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 
@@ -146,9 +148,54 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             suffix          = '_08'
                             )
             ]
+        self.numhead = 9
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file ?
+
+    @staticmethod
+    def default_pypit_par():
+        """
+        Set default parameters for Keck LRISb reductions.
+        """
+        par = pypitpar.PypitPar()
+        par['rdx']['spectrograph'] = 'keck_deimos'
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+        # Set wave tilts order
+        par['calibrations']['slits']['sigdetect'] = 50.
+        par['calibrations']['slits']['polyorder'] = 3
+        par['calibrations']['slits']['fracignore'] = 0.02
+        par['calibrations']['slits']['pca']['params'] = [3,2,1,0]
+        #
+        par['calibrations']['biasframe']['useframe'] = 'overscan'
+        par['calibrations']['pixelflatframe']['combine']['method'] = 'median'
+        par['calibrations']['pixelflatframe']['combine']['sig_lohi'] = [10.,10.]
+        # Always sky subtract, starting with default parameters
+        par['skysubtract'] = pypitpar.SkySubtractionPar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = None  #  pypitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypitpar.FlexurePar()
+        return par
+
+    def header_keys(self):
+        def_keys = self.default_header_keys()
+        #
+        def_keys[0]['target'] = 'TARGNAME'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
+        def_keys[0]['exptime'] = 'ELAPTIME'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
+        def_keys[0]['hatch'] = 'HATCHPOS'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
+        def_keys[0]['lamps'] = 'LAMPS'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
+        def_keys[0]['detrot'] = 'ROTATVAL'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
+        def_keys[0]['decker'] = 'SLMSKNAM'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
+        def_keys[0]['filter1'] = 'DWFILNAM'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
+        def_keys[0]['dispname'] = 'GRATENAM'
+
+        def_keys[0]['gratepos'] = 'GRATEPOS'
+        def_keys[0]['g3tltwav'] = 'G3TLTWAV'
+        def_keys[0]['g4tltwav'] = 'G4TLTWAV'
+        def_keys[0]['dispangle'] = 'G3TLTWAV'
+        return def_keys
 
     def add_to_fitstbl(self, fitstbl):
         for gval in [3,4]:
@@ -156,6 +203,34 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             fitstbl['dispangle'][gmt] = fitstbl['g3tltwav'][gmt]
         return
 
+    def cond_dict(self, ftype):
+        cond_dict = {}
+
+        if ftype == 'science':
+            cond_dict['condition1'] = 'lamps=Off'
+            cond_dict['condition2'] = 'hatch=open'
+            cond_dict['condition3'] = 'exptime>30'
+        elif ftype == 'bias':
+            cond_dict['condition1'] = 'exptime<2'
+            cond_dict['condition2'] = 'lamps=Off'
+            cond_dict['condition3'] = 'hatch=closed'
+        elif ftype == 'pixelflat':
+            cond_dict['condition1'] = 'lamps=Qz'
+            cond_dict['condition2'] = 'exptime<30'
+            cond_dict['condition3'] = 'hatch=closed'
+        elif ftype == 'pinhole':
+            cond_dict['condition1'] = 'exptime>99999999'
+        elif ftype == 'trace':
+            cond_dict['condition1'] = 'lamps=Qz'
+            cond_dict['condition2'] = 'exptime<30'
+            cond_dict['condition3'] = 'hatch=closed'
+        elif ftype == 'arc':
+            cond_dict['condition1'] = 'lamps=Kr_Xe_Ar_Ne'
+            cond_dict['condition2'] = 'hatch=closed'
+        else:
+            pass
+
+        return cond_dict
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
         Wrapper to the raw image reader for DEIMOS
@@ -176,6 +251,31 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         raw_img, head0, _ = read_deimos(raw_file, det=det)
 
         return raw_img, head0
+
+    def get_match_criteria(self):
+        match_criteria = {}
+        for key in arsort.ftype_list:
+            match_criteria[key] = {}
+        #        # Science
+        #        match_criteria['science']['number'] = 1
+        # Standard
+        #        match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
+        match_criteria['standard']['match'] = {}
+        match_criteria['standard']['match']['decker'] = ''
+        match_criteria['standard']['match']['binning'] = ''
+        match_criteria['standard']['match']['filter1'] = ''
+        # Bias
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['binning'] = ''
+        # Pixelflat
+        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
+        # Traceflat
+        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
+        # Arc
+        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
+
+        # Return
+        return match_criteria
 
     def get_image_section(self, filename, det, section='datasec'):
         """

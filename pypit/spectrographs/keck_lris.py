@@ -165,10 +165,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         match_criteria = {}
         for key in arsort.ftype_list:
             match_criteria[key] = {}
-        #        # Science
-        #        match_criteria['science']['number'] = 1
-        # Standard
-        #        match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
+        #
         match_criteria['standard']['match'] = {}
         match_criteria['standard']['match']['dispname'] = ''
         match_criteria['standard']['match']['dichroic'] = ''
