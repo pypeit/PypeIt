@@ -1050,7 +1050,7 @@ class ReducePar(ParSet):
         descr['pipeline'] = 'Pipeline options that pypit can use for reductions.  ' \
                             'Options are: {0}'.format(', '.join(options['pipeline']))
 
-        dtypes['detnum'] = [int, list]
+        dtypes['detnum'] = [list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices'
 
         dtypes['sortroot'] = basestring
