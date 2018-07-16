@@ -115,6 +115,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
 #        self.calib_par = pypitpar.CalibrationsPar()
 
     def get_match_criteria(self):
+        print('calling super class')
         match_criteria = {}
         for key in arsort.ftype_list:
             match_criteria[key] = {}
@@ -148,6 +149,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         match_criteria['arc']['match']['naxis0'] = '=0'
         match_criteria['arc']['match']['naxis1'] = '=0'
 
+        print(match_criteria['standard']['match'])
         # Return
         return match_criteria
 
@@ -392,8 +394,9 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         #
 
     def get_match_criteria(self):
-        match_criteria = super(ShaneKastBlueSpectrograph, self).get_match_criteria()
+        match_criteria = super(ShaneKastRedRetSpectrograph, self).get_match_criteria()
         # Add more
+        print(match_criteria['standard']['match'])
         match_criteria['standard']['match']['dispangle'] = '|<=20'
         match_criteria['pixelflat']['match']['dispangle'] = '|<=20'
         match_criteria['arc']['match']['dispangle'] = '|<=10'
