@@ -286,7 +286,6 @@ def _read_data_file_names(lines):
             continue
 
         if len(_l) > 1:
-            print(_l)
             msgs.error('There must be no spaces when specifying the datafile:'+msgs.newline()+l)
 
         read_inp += _parse_data_file_name(_l[0], current_path)
@@ -520,39 +519,44 @@ def make_pypit_file(pypit_file, spectrograph, data_files, cfg_lines=None, setup_
 
     # Defaults
     if cfg_lines is None:
-        cfg_lines = ['[rdx]']
-        cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
-    if setup_mode:
-        cfg_lines += ['[calibrations]']
-        cfg_lines += ['    [[biasframe]]']
-        cfg_lines += ['        number = 0']
-        cfg_lines += ['    [[pixelflatframe]]']
-        cfg_lines += ['        number = 0']
-        cfg_lines += ['    [[arcframe]]']
-        cfg_lines += ['        number = 1']
-        cfg_lines += ['    [[pinholeframe]]']
-        cfg_lines += ['        number = 0']
-        cfg_lines += ['    [[traceframe]]']
-        cfg_lines += ['        number = 0']
-        cfg_lines += ['    [[standardframe]]']
-        cfg_lines += ['        number = 0']
+        _cfg_lines = ['[rdx]']
+        _cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
     else:
-        cfg_lines += ['[calibrations]']
-        cfg_lines += ['    [[arcframe]]']
-        cfg_lines += ['        number = 1']
+        _cfg_lines = cfg_lines.copy()
+    if setup_mode:
+        _cfg_lines += ['[calibrations]']
+        _cfg_lines += ['    [[biasframe]]']
+        _cfg_lines += ['        number = 0']
+        _cfg_lines += ['    [[pixelflatframe]]']
+        _cfg_lines += ['        number = 0']
+        _cfg_lines += ['    [[arcframe]]']
+        _cfg_lines += ['        number = 1']
+        _cfg_lines += ['    [[pinholeframe]]']
+        _cfg_lines += ['        number = 0']
+        _cfg_lines += ['    [[traceframe]]']
+        _cfg_lines += ['        number = 0']
+        _cfg_lines += ['    [[standardframe]]']
+        _cfg_lines += ['        number = 0']
+    else:
+        _cfg_lines += ['[calibrations]']
+        _cfg_lines += ['    [[arcframe]]']
+        _cfg_lines += ['        number = 1']
+
+    # TODO: Clean up and check validity of _cfg_lines by reading it into
+    # a ConfigObj?
 
     # Here we go
     with open(pypit_file, 'w') as f:
         f.write("# This is a comment line\n")
         f.write("\n")
         f.write("# User-defined execution parameters\n")
-        f.write('\n'.join(cfg_lines))
+        f.write('\n'.join(_cfg_lines))
         f.write('\n')
         f.write('\n')
         if setup_lines is not None:
             f.write("# Setup\n")
             f.write("setup read\n")
-            for sline in setuplines:
+            for sline in setup_lines:
                 f.write(' '+sline)
             f.write("setup end\n")
             f.write("\n")

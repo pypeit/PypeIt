@@ -25,8 +25,8 @@ def parser(options=None):
                         help='File extension; compression indicators (e.g. .gz) not required.')
     parser.add_argument("--pypit_file", default=False, action='store_true',
                         help='Input is the .pypit file')
-    parser.add_argument("--redux_path", default='.',
-                        help='Path to reduction folder (Mainly for tests)')
+    parser.add_argument("--redux_path", default=None,
+                        help='Path to reduction folder.  Default is current working directory.')
     parser.add_argument("-c", "--custom", default=False, action='store_true',
                         help='Generate custom folders and pypit files?')
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
@@ -61,7 +61,8 @@ def main(args):
                          + 'on how to add a new instrument.')
 
     # setup_files dir
-    outdir = os.path.join(args.redux_path, 'setup_files')
+    redux_path = os.getcwd() if args.redux_path is None else args.redux_path
+    outdir = os.path.join(redux_path, 'setup_files')
     msgs.info('Setup files will be written to: {0}'.format(outdir))
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
@@ -100,7 +101,7 @@ def main(args):
     msgs.reset(verbosity=0)
 
     # Read master file
-    cfg_lines, data_files, frametype, setups = parse_pypit_file(pypit_file)
+    _, data_files, frametype, setups = parse_pypit_file(pypit_file)
 
     # Get paths
     paths = []
@@ -110,26 +111,22 @@ def main(args):
         if path not in paths:
             paths.append(path)
 
-    print(sorted_file)
-    print(os.path.isfile(sorted_file))
-    exit()
-
     # Generate .pypit files and sub-folders
     all_setups, all_setuplines, all_setupfiles = arsetup.load_sorted(sorted_file)
     for setup, setup_lines, sorted_files in zip(all_setups, all_setuplines, all_setupfiles):
         root = args.spectrograph+'_setup_'
         # Make the dir
-        newdir = args.redux_path+root+setup
+        newdir = os.path.join(redux_path, root+setup)
         if not os.path.exists(newdir):
             os.mkdir(newdir)
         # Now the file
-        pypit_file = newdir+'/'+root+setup+'.pypit'
+        pypit_file = os.path.join(newdir, root+setup+'.pypit')
         # Modify parlines
         for kk in range(len(cfg_lines)):
             if 'sortroot' in cfg_lines[kk]:
-                cfg_lines[kk] = ['    sortroot = {0}'.format(root+setup)]
+                cfg_lines[kk] = '    sortroot = {0}'.format(root+setup)
 
         make_pypit_file(pypit_file, args.spectrograph, [], cfg_lines=cfg_lines,
-                        setup_lines=setup_lines, sorted_files=sorted_files, paths=None)
+                        setup_lines=setup_lines, sorted_files=sorted_files, paths=paths)
         print("Wrote {:s}".format(pypit_file))
 
