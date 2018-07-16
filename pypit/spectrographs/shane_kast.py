@@ -215,6 +215,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         chk_dict[1]['NAXIS'] = 2                            # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
         chk_dict[1]['DSENSOR'] = 'Fairchild CCD 3041 2Kx2K' # Check the CCD name (replace any spaces with underscores)
         #
+        return chk_dict
 
     def header_keys(self):
         """

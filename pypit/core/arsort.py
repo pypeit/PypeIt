@@ -1000,6 +1000,7 @@ def match_warnings(calib_par, ftag, nmatch, numfr, target, setup=False):
 
     # Errors for insufficient BIAS frames
     if calib_par['biasframe']['useframe'].lower() == ftag:
+        debugger.set_trace()
         insufficient_frame_error(ftag)
 
     # Errors for insufficient PIXELFLAT frames

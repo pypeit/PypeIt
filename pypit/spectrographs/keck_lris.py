@@ -18,6 +18,7 @@ from pypit.par.pypitpar import DetectorPar
 from pypit.par import pypitpar
 from pypit.spectrographs import spectrograph
 from pypit import telescopes
+from pypit.core import arsort
 
 from pypit import ardebug as debugger
 
@@ -160,6 +161,31 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
         return self.naxis
 
+    def get_match_criteria(self):
+        match_criteria = {}
+        for key in arsort.ftype_list:
+            match_criteria[key] = {}
+        #        # Science
+        #        match_criteria['science']['number'] = 1
+        # Standard
+        #        match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
+        match_criteria['standard']['match'] = {}
+        match_criteria['standard']['match']['dispname'] = ''
+        match_criteria['standard']['match']['dichroic'] = ''
+        match_criteria['standard']['match']['binning'] = ''
+        match_criteria['standard']['match']['decker'] = ''
+        # Bias
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['binning'] = ''
+        # Pixelflat
+        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
+        # Traceflat
+        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
+        # Arc
+        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
+
+        # Return
+        return match_criteria
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     """
@@ -202,6 +228,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                             suffix          = '_02blue'
                             )
             ]
+        self.numhead = 5
         # Uses default timeunit
         # Uses default primary_hdrext
         self.sky_file = 'sky_LRISb_600.fits'
@@ -225,6 +252,15 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypitpar.FlexurePar()
         return par
+
+    def check_header(self, headers):
+        chk_dict = {}
+        chk_dict[2] = {}  # 1,2,3 indexing
+        chk_dict[2]['NAXIS'] = 2                          # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+        chk_dict[2]['CCDGEOM'] = 'e2v (Marconi) CCD44-82' # Check the CCD name (replace any spaces with underscores)
+        chk_dict[2]['CCDNAME'] = '00151-14-1'             # Check the CCD name (replace any spaces with underscores)
+        #
+        return chk_dict
 
     def header_keys(self):
         head_keys = self.lris_header_keys()
