@@ -33,6 +33,7 @@ def test_run_setup():
     droot = data_path('b')
     pargs = setup.parser([droot, 'shane_kast_blue', '-d', '-c',
                           '--extension=fits.gz', '--redux_path={:s}'.format(data_path(''))])
+    print(pargs)
     setup.main(pargs)
     setup_file = glob.glob(data_path('setup_files/shane_kast_blue*.setups'))[0]
     # Load
@@ -47,7 +48,7 @@ def test_run_setup():
     with pytest.raises(IOError):
         setup.main(pargs2)
 
-
+'''
 def test_setup_made_pypit_file():
     """ Test the .pypit file(s) made by pypit_setup
     """
@@ -58,6 +59,7 @@ def test_setup_made_pypit_file():
     assert len(pyp_dict['dat']) == 2
     assert pyp_dict['ftype']['b1.fits.gz'] == 'arc'
     assert pyp_dict['setup']['name'][0] == 'A'
+'''
 
 '''
 def test_setup_pfile():

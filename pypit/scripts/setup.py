@@ -78,7 +78,7 @@ def main(args):
     # Parser
     pinp = [pypit_file]
     if args.develop:
-        pinp += ['-d']
+        pinp += ['-d', '-o']
     pargs = run_pypit.parser(pinp)
     sorted_file = pypit_file.replace('.pypit', '.sorted')
 
