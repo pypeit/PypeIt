@@ -422,6 +422,7 @@ class PypitSetup(object):
 
         # Write?
         if sort_dir is not None:
+            print('WRITING: {0}'.format(sort_dir))
             arsort.write_lst(self.fitstbl, self.spectrograph.header_keys(), pypit_file,
                              setup=setup_only, sort_dir=sort_dir)
 

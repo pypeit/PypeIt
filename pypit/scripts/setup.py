@@ -17,23 +17,27 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description="Script to setup a PYPIT run [v2]")
     parser.add_argument("files_root", type=str, help="File path+root, e.g. /data/Kast/b ")
     parser.add_argument("spectrograph", type=str, help="Name of spectrograph")
-    parser.add_argument("-v", "--verbosity", type=int, default=2, help="(2) Level of verbosity (0-2)")
-    parser.add_argument("-d", "--develop", default=False, action='store_true', help="Turn develop debugging on")
+    parser.add_argument("-v", "--verbosity", type=int, default=2,
+                        help="(2) Level of verbosity (0-2)")
+    parser.add_argument("-d", "--develop", default=False, action='store_true',
+                        help="Turn develop debugging on")
     parser.add_argument("--extension", default='.fits',
-                        help="Extension for data files.  Note any extension for compression (e.g. .gz) is not required.")
-    parser.add_argument("--pypit_file", default=False, action='store_true', help='Input is the .pypit file')
-    parser.add_argument("--redux_path", default='./', help='Path to reduction folder (Mainly for tests)')
-    parser.add_argument("-c", "--custom", default=False, action='store_true', help='Generate custom folders and pypit files?')
-    #parser.add_argument("-q", "--quick", default=False, help="Quick reduction", action="store_true")
-    #parser.add_argument("-c", "--cpus", default=False, help="Number of CPUs for parallel processing", action="store_true")
-    #parser.print_help()
+                        help='File extension; compression indicators (e.g. .gz) not required.')
+    parser.add_argument("--pypit_file", default=False, action='store_true',
+                        help='Input is the .pypit file')
+    parser.add_argument("--redux_path", default='.',
+                        help='Path to reduction folder (Mainly for tests)')
+    parser.add_argument("-c", "--custom", default=False, action='store_true',
+                        help='Generate custom folders and pypit files?')
+    parser.add_argument('-o', '--overwrite', default=False, action='store_true',
+                        help='Overwrite any existing files/directories')
+#    parser.add_argument("-q", "--quick", default=False, help="Quick reduction",
+#                        action="store_true")
+#    parser.add_argument("-c", "--cpus", default=False,
+#                        help="Number of CPUs for parallel processing", action="store_true")
+#    parser.print_help()
 
-    if options is None:
-        pargs = parser.parse_args()
-    else:
-        pargs = parser.parse_args(options)
-    #
-    return pargs
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):
@@ -43,22 +47,22 @@ def main(args):
     import pdb as debugger
 
     from pypit import msgs
-    from pypit import armeta
+    from pypit.spectrographs.util import valid_spectrographs
     from pypit.core import arsetup
     from pypit.par.util import make_pypit_file, parse_pypit_file
     from pypit.scripts import run_pypit
 
     # Check that input spectrograph is supported
-    # TODO: This is outdated!
-    if args.spectrograph not in armeta.instr_list():
-        print("-------------------------------------------------------------")
-        print("Input instrument {:s} is not supported by PYPIT".format(args.spectrograph))
-        print("Here is the list of options: ")
-        print(armeta.instr_list())
-        raise IOError("Consult the documentation for further info.")
+    instruments_served = valid_spectrographs()
+    if args.spectrograph not in instruments_served:
+        raise ValueError('Instrument \'{0}\' unknown to PYPIT.\n'.format(args.spectrograph)
+                         + '\tAvailable options are: {0}\n'.format(', '.join(instruments_served))
+                         + '\tSelect an available instrument or consult the documentation '
+                         + 'on how to add a new instrument.')
 
     # setup_files dir
-    outdir = args.redux_path+'/setup_files'
+    outdir = os.path.join(args.redux_path, 'setup_files')
+    msgs.info('Setup files will be written to: {0}'.format(outdir))
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
 
@@ -66,6 +70,7 @@ def main(args):
     date = str(datetime.date.today().strftime('%Y-%b-%d'))
     root = args.spectrograph+'_'+date
     pypit_file = outdir+'/'+root+'.pypit'
+
     # Generate
     dfname = "{:s}*{:s}*".format(args.files_root, args.extension)
     # configuration lines
@@ -73,12 +78,14 @@ def main(args):
     cfg_lines += ['    spectrograph = {0}'.format(args.spectrograph)]
     cfg_lines += ['    sortroot = {0}'.format(root)]
     make_pypit_file(pypit_file, args.spectrograph, [dfname], cfg_lines=cfg_lines, setup_mode=True)
-    print("Wrote {:s}".format(pypit_file))
+    msgs.info('Wrote template pypit file: {0}'.format(pypit_file))
 
     # Parser
-    pinp = [pypit_file]
+    pinp = [pypit_file, '-p', '-s {0}'.format(root) ]
+    if args.overwrite:
+        pinp += ['-o']
     if args.develop:
-        pinp += ['-d', '-o']
+        pinp += ['-d']
     pargs = run_pypit.parser(pinp)
     sorted_file = pypit_file.replace('.pypit', '.sorted')
 
@@ -93,18 +100,19 @@ def main(args):
     msgs.reset(verbosity=0)
 
     # Read master file
-    cfg_lines, data_files, frametype, setups = parse_pypit_file(filename)
-    
-    pyp_dict = load_input(pypit_file, msgs)
-    parlines, datlines, spclines, dfnames = [pyp_dict[ii] for ii in ['par','dat','spc','dfn']]
+    cfg_lines, data_files, frametype, setups = parse_pypit_file(pypit_file)
 
     # Get paths
     paths = []
-    for datafile in data_files:
-        islsh = datline.rfind('/')
-        path = datline[:islsh+1]
+    for data_file in data_files:
+        islsh = data_file.rfind('/')
+        path = data_file[:islsh+1]
         if path not in paths:
             paths.append(path)
+
+    print(sorted_file)
+    print(os.path.isfile(sorted_file))
+    exit()
 
     # Generate .pypit files and sub-folders
     all_setups, all_setuplines, all_setupfiles = arsetup.load_sorted(sorted_file)
