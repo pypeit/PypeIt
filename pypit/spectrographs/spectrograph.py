@@ -316,7 +316,7 @@ class Spectrograph(object):
                              'provide a file to read.')
 
         # Return the predefined value
-        if filename is None:
+        if self.naxis is not None:
             return self.naxis
 
         # Use a file
