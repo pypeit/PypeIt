@@ -34,12 +34,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
     def lris_header_keys(self):
         def_keys = self.default_header_keys()
-        #
-        def_keys[0]['target'] = 'TARGNAME'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['exptime'] = 'ELAPTIME'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['hatch'] = 'TRAPDOOR'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        # Should do something with the lamps
-        #
+
+        def_keys[0]['target'] = 'TARGNAME'
+        def_keys[0]['exptime'] = 'ELAPTIME'
+        def_keys[0]['hatch'] = 'TRAPDOOR'
+
+        # TODO: Should do something with the lamps
+
         return def_keys
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
@@ -106,45 +107,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             return secs[1], False, False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
-
-#    def get_datasec(self, filename, det):
-#        """
-#        Load up the datasec and oscansec and also naxis0 and naxis1
-#
-#        .. todo::
-#            - To be deprecated in favor of :func:`get_image_sections`
-#
-#        Args:
-#            filename (str):
-#                data filename
-#            det (int):
-#                Detector number
-#
-#        Returns:
-#            datasec: list
-#            oscansec: list
-#            naxis0: int
-#            naxis1: int
-#        """
-##        # Check the detector
-##        if self.detector is None:
-##            raise ValueError('Must first define spectrograph detector parameters!')
-##        for d in self.detector:
-##            if not isinstance(d, DetectorPar):
-##                raise TypeError('Detectors must be specified using a DetectorPar instance.')
-#        
-#        # Read the file
-#        temp, head0, secs = read_lris(filename, det)
-#        return secs[0], False, False, False
-#
-##        # Get the data and overscan regions
-##        datasec, oscansec = [], []
-##        for kk in range(self.detector[det]['numamplifiers']):
-##            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
-##            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
-##
-##        # Return the sections and the shape of the image
-##        return (datasec, oscansec) + temp.shape
 
     def get_image_shape(self, filename=None, det=None, **null_kwargs):
         """
@@ -251,19 +213,20 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         return par
 
     def check_header(self, headers):
+        """Validate elements of the header."""
         chk_dict = {}
-        chk_dict[2] = {}  # 1,2,3 indexing
-        chk_dict[2]['NAXIS'] = 2                          # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[2]['CCDGEOM'] = 'e2v (Marconi) CCD44-82' # Check the CCD name (replace any spaces with underscores)
-        chk_dict[2]['CCDNAME'] = '00151-14-1'             # Check the CCD name (replace any spaces with underscores)
-        #
+        # chk_dict is 1-indexed!
+        chk_dict[2] = {}
+        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
+        chk_dict[2]['NAXIS'] = 2
+        # Check the CCD name
+        chk_dict[2]['CCDGEOM'] = 'e2v (Marconi) CCD44-82'
+        chk_dict[2]['CCDNAME'] = '00151-14-1'
         return chk_dict
 
     def header_keys(self):
         head_keys = self.lris_header_keys()
-        #
         head_keys[0]['filter1'] = 'BLUFILT'
-        #
         return head_keys
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
@@ -396,7 +359,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         """
         arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
-        arcparam['lamps'] = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
+        # Should set according to the lamps that were on
+        arcparam['lamps'] = ['ArI','NeI','HgI','KrI','XeI']
         if disperser == '600/7500':
             arcparam['n_first']=3 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)

@@ -71,10 +71,10 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
         par['rdx']['spectrograph'] = 'wht_isis_blue'
         # Use the ARMS pipeline
         par['rdx']['pipeline'] = 'ARMS'
-        # Set wave tilts order
-        #
+        # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['combine']['method'] = 'median'
         par['calibrations']['pixelflatframe']['combine']['sig_lohi'] = [10.,10.]
+        # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'simple'
         # Always sky subtract, starting with default parameters
         par['skysubtract'] = pypitpar.SkySubtractionPar()
@@ -86,14 +86,14 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
 
     def header_keys(self):
         def_keys = self.default_header_keys()
-        #
-        def_keys[0]['idname'] = 'IMAGETYP'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['lamps'] = 'CAGLAMPS'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['dichroic'] = 'ISIDICHR'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['decker'] = 'ISISLITU'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['slitwid'] = 'ISISLITW'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['filter1'] = 'ISIFILTA'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['filter2'] = 'ISIFILTB'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
+
+        def_keys[0]['idname'] = 'IMAGETYP'
+        def_keys[0]['lamps'] = 'CAGLAMPS'
+        def_keys[0]['dichroic'] = 'ISIDICHR'
+        def_keys[0]['decker'] = 'ISISLITU'
+        def_keys[0]['slitwid'] = 'ISISLITW'
+        def_keys[0]['filter1'] = 'ISIFILTA'
+        def_keys[0]['filter2'] = 'ISIFILTB'
         def_keys[0]['dispname'] = 'ISIGRAT'
         def_keys[0]['dispangle'] = 'CENWAVE'
 
@@ -129,15 +129,16 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
         match_criteria = {}
         for key in arsort.ftype_list:
             match_criteria[key] = {}
-        #        # Science
-        #        match_criteria['science']['number'] = 1
+
         # Standard
-        #        match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
+        # TODO: Can be over-ruled by flux calibrate = False
+        #        match_criteria['standard']['number'] = 1
         match_criteria['standard']['match'] = {}
         match_criteria['standard']['match']['naxis0'] = '=0'
         match_criteria['standard']['match']['naxis1'] = '=0'
         match_criteria['standard']['match']['decker'] = ''
         match_criteria['standard']['match']['dispangle'] = '|<=1'
+
         # Bias
         match_criteria['bias']['match'] = {}
         match_criteria['bias']['match']['naxis0'] = '=0'
@@ -149,7 +150,6 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
         # Arc
         match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
 
-        # Return
         return match_criteria
 
     def setup_arcparam(self, arcparam, disperser=None, fitstbl=None,

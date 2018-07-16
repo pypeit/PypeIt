@@ -35,67 +35,88 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         self.timeunit = 's'
 
     def kast_header_keys(self):
+        """
+        Provide the relevant header keywords
+        """
         def_keys = self.default_header_keys()
-        # Update
-        def_keys[0]['time'] = 'TSEC'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['naxis0'] = 'NAXIS2' # Number of pixels along the zeroth axis
-        def_keys[0]['naxis1'] = 'NAXIS1' # Number of pixels along the first axis
-        def_keys[0]['lampname01'] = 'LAMPNAM1' # Number of pixels along the first axis
-        def_keys[0]['lampstat01'] = 'LAMPSTA1' # Number of pixels along the first axis
-        def_keys[0]['lampname02'] = 'LAMPNAM2' # Number of pixels along the first axis
-        def_keys[0]['lampstat02'] = 'LAMPSTA2' # Number of pixels along the first axis
-        def_keys[0]['lampname03'] = 'LAMPNAM3' # Number of pixels along the first axis
-        def_keys[0]['lampstat03'] = 'LAMPSTA3' # Number of pixels along the first axis
-        def_keys[0]['lampname04'] = 'LAMPNAM4' # Number of pixels along the first axis
-        def_keys[0]['lampstat04'] = 'LAMPSTA4' # Number of pixels along the first axis
-        def_keys[0]['lampname05'] = 'LAMPNAM5' # Number of pixels along the first axis
-        def_keys[0]['lampstat05'] = 'LAMPSTA5' # Number of pixels along the first axis
-        def_keys[0]['lampname06'] = 'LAMPNAMA' # Number of pixels along the first axis
-        def_keys[0]['lampstat06'] = 'LAMPSTAA' # Number of pixels along the first axis
-        def_keys[0]['lampname07'] = 'LAMPNAMB' # Number of pixels along the first axis
-        def_keys[0]['lampstat07'] = 'LAMPSTAB' # Number of pixels along the first axis
-        def_keys[0]['lampname08'] = 'LAMPNAMC' # Number of pixels along the first axis
-        def_keys[0]['lampstat08'] = 'LAMPSTAC' # Number of pixels along the first axis
-        def_keys[0]['lampname09'] = 'LAMPNAMD' # Number of pixels along the first axis
-        def_keys[0]['lampstat09'] = 'LAMPSTAD' # Number of pixels along the first axis
-        def_keys[0]['lampname10'] = 'LAMPNAME' # Number of pixels along the first axis
-        def_keys[0]['lampstat10'] = 'LAMPSTAE' # Number of pixels along the first axis
-        def_keys[0]['lampname11'] = 'LAMPNAMF' # Number of pixels along the first axis
-        def_keys[0]['lampstat11'] = 'LAMPSTAF' # Number of pixels along the first axis
-        def_keys[0]['lampname12'] = 'LAMPNAMG' # Number of pixels along the first axis
-        def_keys[0]['lampstat12'] = 'LAMPSTAG' # Number of pixels along the first axis
-        def_keys[0]['lampname13'] = 'LAMPNAMH' # Number of pixels along the first axis
-        def_keys[0]['lampstat13'] = 'LAMPSTAH' # Number of pixels along the first axis
-        def_keys[0]['lampname14'] = 'LAMPNAMI' # Number of pixels along the first axis
-        def_keys[0]['lampstat14'] = 'LAMPSTAI' # Number of pixels along the first axis
-        def_keys[0]['lampname15'] = 'LAMPNAMJ' # Number of pixels along the first axis
-        def_keys[0]['lampstat15'] = 'LAMPSTAJ' # Number of pixels along the first axis
-        def_keys[0]['lampname16'] = 'LAMPNAMK' # Number of pixels along the first axis
-        def_keys[0]['lampstat16'] = 'LAMPSTAK' # Number of pixels along the first axis
-        #
-        def_keys[0]['dichroic'] = 'BSPLIT_N' # Number of pixels along the first axis
-        def_keys[0]['decker'] = 'SLIT_N'  # Which decker is being used
-        # Return
+
+        # A time stamp of the observation; used to find calibrations
+        # proximate to science frames. The units of this value are
+        # specified by fits+timeunit below
+        def_keys[0]['time'] = 'TSEC'
+
+        # Image size
+        # TODO: Check ordering
+        def_keys[0]['naxis0'] = 'NAXIS2'
+        def_keys[0]['naxis1'] = 'NAXIS1'
+
+        # Lamp names and statuses
+        def_keys[0]['lampname01'] = 'LAMPNAM1'
+        def_keys[0]['lampstat01'] = 'LAMPSTA1'
+        def_keys[0]['lampname02'] = 'LAMPNAM2'
+        def_keys[0]['lampstat02'] = 'LAMPSTA2'
+        def_keys[0]['lampname03'] = 'LAMPNAM3'
+        def_keys[0]['lampstat03'] = 'LAMPSTA3'
+        def_keys[0]['lampname04'] = 'LAMPNAM4'
+        def_keys[0]['lampstat04'] = 'LAMPSTA4'
+        def_keys[0]['lampname05'] = 'LAMPNAM5'
+        def_keys[0]['lampstat05'] = 'LAMPSTA5'
+        def_keys[0]['lampname06'] = 'LAMPNAMA'
+        def_keys[0]['lampstat06'] = 'LAMPSTAA'
+        def_keys[0]['lampname07'] = 'LAMPNAMB'
+        def_keys[0]['lampstat07'] = 'LAMPSTAB'
+        def_keys[0]['lampname08'] = 'LAMPNAMC'
+        def_keys[0]['lampstat08'] = 'LAMPSTAC'
+        def_keys[0]['lampname09'] = 'LAMPNAMD'
+        def_keys[0]['lampstat09'] = 'LAMPSTAD'
+        def_keys[0]['lampname10'] = 'LAMPNAME'
+        def_keys[0]['lampstat10'] = 'LAMPSTAE'
+        def_keys[0]['lampname11'] = 'LAMPNAMF'
+        def_keys[0]['lampstat11'] = 'LAMPSTAF'
+        def_keys[0]['lampname12'] = 'LAMPNAMG'
+        def_keys[0]['lampstat12'] = 'LAMPSTAG'
+        def_keys[0]['lampname13'] = 'LAMPNAMH'
+        def_keys[0]['lampstat13'] = 'LAMPSTAH'
+        def_keys[0]['lampname14'] = 'LAMPNAMI'
+        def_keys[0]['lampstat14'] = 'LAMPSTAI'
+        def_keys[0]['lampname15'] = 'LAMPNAMJ'
+        def_keys[0]['lampstat15'] = 'LAMPSTAJ'
+        def_keys[0]['lampname16'] = 'LAMPNAMK'
+        def_keys[0]['lampstat16'] = 'LAMPSTAK'
+
+        # Dichroic and decker
+        def_keys[0]['dichroic'] = 'BSPLIT_N'
+        def_keys[0]['decker'] = 'SLIT_N'
+
         return def_keys
 
     def kast_cond_dict(self, ftype):
         cond_dict = {}
 
         if ftype == 'science':
-            cond_dict['condition1'] = 'lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off'
+            cond_dict['condition1'] = 'lampstat01=off&lampstat02=off&lampstat03=off' \
+                                      '&lampstat04=off&lampstat05=off&lampstat06=off' \
+                                      '&lampstat07=off&lampstat08=off&lampstat09=off' \
+                                      '&lampstat10=off&lampstat11=off&lampstat12=off' \
+                                      '&lampstat13=off&lampstat14=off&lampstat15=off' \
+                                      '&lampstat16=off'
             cond_dict['condition2'] = 'exptime>1'
         elif ftype == 'bias':
             cond_dict['condition1'] = 'exptime<1'
         elif ftype == 'pixelflat':
-            cond_dict['condition1'] = 'lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on'
+            cond_dict['condition1'] = 'lampstat01=on|lampstat02=on|lampstat03=on' \
+                                      '|lampstat04=on|lampstat05=on'
             cond_dict['condition2'] = 'exptime>0'
         elif ftype == 'pinhole':
             cond_dict['condition1'] = 'exptime>99999999'
         elif ftype == 'trace':
-            cond_dict['condition1'] = 'lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on'
+            cond_dict['condition1'] = 'lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on' \
+                                      '|lampstat05=on'
             cond_dict['condition2'] = 'exptime>0'
         elif ftype == 'arc':
-            cond_dict['condition1'] = 'lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on'
+            cond_dict['condition1'] = 'lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on' \
+                                      '|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on' \
+                                      '|lampstat14=on|lampstat15=on|lampstat16=on'
             cond_dict['condition2'] = 'exptime<=60'
         else:
             pass
@@ -111,46 +132,34 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
 
         return gd_chk
 
-#    def _set_calib_par(self, user_supplied=None):
-#        self.calib_par = pypitpar.CalibrationsPar()
-
     def get_match_criteria(self):
-        print('calling super class')
+        """Set the general matching criteria for Shane Kast."""
         match_criteria = {}
         for key in arsort.ftype_list:
             match_criteria[key] = {}
-#        # Science
-#        match_criteria['science']['number'] = 1
-        # Standard
-#        match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
+
         match_criteria['standard']['match'] = {}
         match_criteria['standard']['match']['naxis0'] = '=0'
         match_criteria['standard']['match']['naxis1'] = '=0'
-        # Bias
-#        match_criteria['bias']['number'] = 5  # Can be over-ruled by flux calibrate = False
+
         match_criteria['bias']['match'] = {}
         match_criteria['bias']['match']['naxis0'] = '=0'
         match_criteria['bias']['match']['naxis1'] = '=0'
-        # Pixelflat
-#        match_criteria['pixelflat']['number'] = 5  # Can be over-ruled by flux calibrate = False
+
         match_criteria['pixelflat']['match'] = {}
         match_criteria['pixelflat']['match']['naxis0'] = '=0'
         match_criteria['pixelflat']['match']['naxis1'] = '=0'
         match_criteria['pixelflat']['match']['decker'] = ''
-        # Traceflat
-#        match_criteria['trace']['number'] = 5  # Can be over-ruled by flux calibrate = False
+
         match_criteria['trace']['match'] = {}
         match_criteria['trace']['match']['naxis0'] = '=0'
         match_criteria['trace']['match']['naxis1'] = '=0'
         match_criteria['trace']['match']['decker'] = ''
-        # Arc
-#        match_criteria['arc']['number'] = 1
+
         match_criteria['arc']['match'] = {}
         match_criteria['arc']['match']['naxis0'] = '=0'
         match_criteria['arc']['match']['naxis1'] = '=0'
 
-        print(match_criteria['standard']['match'])
-        # Return
         return match_criteria
 
 class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
@@ -212,11 +221,14 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         return par
 
     def check_header(self, headers):
+        """Validate elements of the header."""
         chk_dict = {}
-        chk_dict[1] = {}  # 1,2,3 indexing
-        chk_dict[1]['NAXIS'] = 2                            # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[1]['DSENSOR'] = 'Fairchild CCD 3041 2Kx2K' # Check the CCD name (replace any spaces with underscores)
-        #
+        # chk_dict is 1-indexed!
+        chk_dict[1] = {}
+        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
+        chk_dict[1]['NAXIS'] = 2
+        # Check the CCD name (replace any spaces with underscores)
+        chk_dict[1]['DSENSOR'] = 'Fairchild CCD 3041 2Kx2K'
         return chk_dict
 
     def header_keys(self):
@@ -227,8 +239,8 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
         """
         head_keys = self.kast_header_keys()
-        head_keys[0]['dispname'] = 'GRISM_N' # Number of pixels along the first axis
-        #
+        # Add the name of the dispersing element
+        head_keys[0]['dispname'] = 'GRISM_N'
         return head_keys
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
@@ -289,15 +301,19 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         # self.sky_file = ?
 
     def check_header(self, headers):
+        """Validate elements of the header."""
         chk_dict = {}
-        chk_dict[1] = {}  # 1,2,3 indexing
-        chk_dict[1]['NAXIS'] = 2                            # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[1]['DSENSOR'] = '2k x 4k Hamamatsu'        # Check the CCD name (replace any spaces with underscores)
-        #
+        # chk_dict is 1-indexed!
+        chk_dict[1] = {}
+        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
+        chk_dict[1]['NAXIS'] = 2
+        # Check the CCD name
+        chk_dict[1]['DSENSOR'] = '2k x 4k Hamamatsu'
+        return chk_dict
 
     def header_keys(self):
         """
-        Header keys specific to shane_kast_blue
+        Header keys specific to shane_kast_red
 
         Returns:
 
@@ -306,9 +322,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         head_keys[0]['filter1'] = 'RDFILT_N'
         head_keys[0]['dispname'] = 'GRATING_N'
         head_keys[0]['dispangle'] = 'GRTILT_P'
-        #
         return head_keys
-
 
     def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
                        binspectral=None, **null_kwargs):
@@ -339,6 +353,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             arcparam['wv_cen'] = 6600.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+
 
 class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
     """
@@ -387,16 +402,19 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         return head_keys
 
     def check_header(self, headers):
+        """Validate elements of the header."""
         chk_dict = {}
-        chk_dict[1] = {}  # 1,2,3 indexing
-        chk_dict[1]['NAXIS'] = 2                            # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[1]['DSENSOR'] = 'Ret 400x1200'        # Check the CCD name (replace any spaces with underscores)
-        #
+        # chk_dict is 1-indexed!
+        chk_dict[1] = {}
+        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
+        chk_dict[1]['NAXIS'] = 2
+        # Check the CCD name
+        chk_dict[1]['DSENSOR'] = 'Ret 400x1200'
+        return chk_dict
 
     def get_match_criteria(self):
         match_criteria = super(ShaneKastRedRetSpectrograph, self).get_match_criteria()
         # Add more
-        print(match_criteria['standard']['match'])
         match_criteria['standard']['match']['dispangle'] = '|<=20'
         match_criteria['pixelflat']['match']['dispangle'] = '|<=20'
         match_criteria['arc']['match']['dispangle'] = '|<=10'

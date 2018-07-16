@@ -261,7 +261,6 @@ class Calibrations(object):
 
         # Generate a bad pixel mask (should not repeat)
         if 'bpm' in self.calib_dict[self.setup].keys():
-            print('here')
             self.msbpm = self.calib_dict[self.setup]['bpm']
 
         # Make sure shape is defined

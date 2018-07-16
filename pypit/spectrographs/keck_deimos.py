@@ -160,17 +160,23 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         par = pypitpar.PypitPar()
         par['rdx']['spectrograph'] = 'keck_deimos'
+
         # Use the ARMS pipeline
         par['rdx']['pipeline'] = 'ARMS'
+
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['polyorder'] = 3
         par['calibrations']['slits']['fracignore'] = 0.02
         par['calibrations']['slits']['pca']['params'] = [3,2,1,0]
-        #
+
+        # Overscan subtract the images
         par['calibrations']['biasframe']['useframe'] = 'overscan'
+
+        # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['combine']['method'] = 'median'
         par['calibrations']['pixelflatframe']['combine']['sig_lohi'] = [10.,10.]
+
         # Always sky subtract, starting with default parameters
         par['skysubtract'] = pypitpar.SkySubtractionPar()
         # Always flux calibrate, starting with default parameters
@@ -181,14 +187,14 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def header_keys(self):
         def_keys = self.default_header_keys()
-        #
-        def_keys[0]['target'] = 'TARGNAME'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['exptime'] = 'ELAPTIME'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['hatch'] = 'HATCHPOS'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['lamps'] = 'LAMPS'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['detrot'] = 'ROTATVAL'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['decker'] = 'SLMSKNAM'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
-        def_keys[0]['filter1'] = 'DWFILNAM'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
+
+        def_keys[0]['target'] = 'TARGNAME'
+        def_keys[0]['exptime'] = 'ELAPTIME'
+        def_keys[0]['hatch'] = 'HATCHPOS'
+        def_keys[0]['lamps'] = 'LAMPS'
+        def_keys[0]['detrot'] = 'ROTATVAL'
+        def_keys[0]['decker'] = 'SLMSKNAM'
+        def_keys[0]['filter1'] = 'DWFILNAM'
         def_keys[0]['dispname'] = 'GRATENAM'
 
         def_keys[0]['gratepos'] = 'GRATEPOS'
@@ -257,10 +263,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         match_criteria = {}
         for key in arsort.ftype_list:
             match_criteria[key] = {}
-        #        # Science
-        #        match_criteria['science']['number'] = 1
+
         # Standard
-        #        match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
+        # Can be over-ruled by flux calibrate = False
+        # match_criteria['standard']['number'] = 1
         match_criteria['standard']['match'] = {}
         match_criteria['standard']['match']['decker'] = ''
         match_criteria['standard']['match']['binning'] = ''
@@ -321,43 +327,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             return secs[1], False, False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
-
-
-#    def get_datasec(self, filename, det):
-#        """
-#        Load up the datasec and oscansec and also naxis0 and naxis1
-#
-#        Args:
-#            filename: str
-#              data filename
-#            det: int
-#              Detector specification
-#
-#        Returns:
-#            datasec: list
-#            oscansec: list
-#            naxis0: int
-#            naxis1: int
-#        """
-##        # Check the detector
-##        if self.detector is None:
-##            raise ValueError('Must first define spectrograph detector parameters!')
-##        for d in self.detector:
-##            if not isinstance(d, DetectorPar):
-##                raise TypeError('Detectors must be specified using a DetectorPar instance.')
-#
-#        # Read the file
-#        temp, head0, secs = read_deimos(filename, det)
-#        return secs[0], False, False, False
-#
-##        # Get the data and overscan regions
-##        datasec, oscansec = [], []
-##        for kk in range(self.detector[det]['numamplifiers']):
-##            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
-##            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
-##
-##        # Return the sections and the shape of the image
-##        return (datasec, oscansec) + temp.shape
 
     # WARNING: Uses Spectrograph default get_image_shape.  If no file
     # provided it will fail.  Provide a function like in keck_lris.py
