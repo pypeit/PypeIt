@@ -23,7 +23,7 @@ def test_initialization():
     """
     # Generate a PYPIT file
     pypit_file = data_path('test.pypit')
-    make_pypit_file(pypit_file, 'shane_kast_blue', [data_path('b*fits.gz')])
+    make_pypit_file(pypit_file, 'shane_kast_blue', [data_path('b*fits.gz')], setup_mode=True)
     # Perform the setup
     setup = pypitsetup.PypitSetup.from_pypit_file(pypit_file)
     par, spectrograph, fitstbl, setup_dict = setup.run()
