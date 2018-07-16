@@ -291,7 +291,8 @@ class PypitSetup(object):
                                                self.spectrograph.get_match_criteria(),
                                                self.fitstbl, self.par['rdx']['calwin'],
                                                setup=setup_only,
-                                               match_nods=self.par['skysubtract']['nodding'])
+                                               match_nods=self.par['skysubtract'] is not None \
+                                                            and self.par['skysubtract']['nodding'])
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
