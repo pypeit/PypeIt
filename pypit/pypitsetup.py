@@ -226,6 +226,7 @@ class PypitSetup(object):
         """
         # Run with masters?
         if self.par['calibrations']['masters'] == 'force':
+            print(self.par['calibrations']['masters'])
             # TODO: This is now checked when validating the parameter
             # set.  See CalibrationsPar.validate()
 #            # Check that setup was input
@@ -295,6 +296,8 @@ class PypitSetup(object):
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
 
+    # TODO: This appends the data to fitstbl meaning that it should not
+    # be run multiple times.  Make it a "private" function?
     def type_data(self, flag_unknown=False, use_header_frametype=False):
         """
           Perform image typing on the full set of input files
@@ -342,6 +345,11 @@ class PypitSetup(object):
 
         """
         self.fitstbl = Table.read(fits_file)
+        # Need to convert bytestrings back to unicode
+        try:
+            self.fitstbl.convert_bytestring_to_unicode()
+        except:
+            pass
         msgs.info("Loaded fitstbl from {:s}".format(fits_file))
         return self.fitstbl
 
@@ -427,10 +435,10 @@ class PypitSetup(object):
                              setup=setup_only, sort_dir=sort_dir)
 
         # Match calibs to science
-        self.match_to_science()
+        self.match_to_science(setup_only=setup_only)
 
         # Setup dict
-        self.build_setup_dict()
+        self.build_setup_dict(setup_only=setup_only)
 
         if setup_only:
             # Collate all matching files and write .sorted Table (on pypit_setup only)

@@ -519,7 +519,7 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
     return setup
 '''
 
-
+# TODO: This is out of date!
 def get_setup_file(settings_argflag, spectrograph=None):
     """ Passes back name of setup file
     Also checks for existing setup files

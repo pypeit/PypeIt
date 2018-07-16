@@ -411,7 +411,7 @@ def parse_pypit_file(ifile):
         msgs.error("You haven't specified any data!")
     data_format = _determine_data_format(lines[s:e])
     if data_format == 'raw':
-        frametype = {}
+        frametype = None
         data_files = _read_data_file_names(lines[s:e])
     elif data_format == 'table':
         data_files, frametype = _read_data_file_table(lines[s:e])
