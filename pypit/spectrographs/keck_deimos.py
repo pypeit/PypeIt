@@ -231,6 +231,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             pass
 
         return cond_dict
+
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
         Wrapper to the raw image reader for DEIMOS
