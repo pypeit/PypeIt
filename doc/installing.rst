@@ -33,9 +33,12 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `h5py <https://www.h5py.org/>`_ version 2.6 (for data I/O)
 *  yaml -- On Python 3 (at least), you may need to install pyyaml
 * `future <https://pypi.python.org/pypi/future/0.6.0>`_ version 0.6
+*  configobj -- version 5.0.6 or later
+
+These packages need to be installed by cloning from GitHub:
+
 * `arclines <https://github.com/PYPIT/arclines>`_
 * `ginga <https://github.com/profxj/ginga>`_ JXP's fork of Ginga
-*  configobj -- version 5.0.6 or later
 
 If you are using Anaconda, you can check the presence of these packages with::
 
