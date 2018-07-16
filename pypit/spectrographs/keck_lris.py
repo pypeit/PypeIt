@@ -15,6 +15,7 @@ from astropy.io import fits
 from pypit import msgs
 from pypit import arparse
 from pypit.par.pypitpar import DetectorPar
+from pypit.par import pypitpar
 from pypit.spectrographs import spectrograph
 from pypit import telescopes
 
@@ -29,6 +30,16 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         super(KeckLRISSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris'
         self.telescope = telescopes.KeckTelescopePar()
+
+    def lris_header_keys(self):
+        def_keys = self.default_header_keys()
+        #
+        def_keys[0]['target'] = 'TARGNAME'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
+        def_keys[0]['exptime'] = 'ELAPTIME'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
+        def_keys[0]['hatch'] = 'TRAPDOOR'   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
+        # Should do something with the lamps
+        #
+        return def_keys
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -194,6 +205,33 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Uses default timeunit
         # Uses default primary_hdrext
         self.sky_file = 'sky_LRISb_600.fits'
+
+    @staticmethod
+    def default_pypit_par():
+        """
+        Set default parameters for Keck LRISb reductions.
+        """
+        par = pypitpar.PypitPar()
+        par['rdx']['spectrograph'] = 'keck_lris_blue'
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+        # Set wave tilts order
+        par['calibrations']['slits']['sigdetect'] = 30.
+        par['calibrations']['slits']['pca']['params'] = [3,2,1,0]
+        # Always sky subtract, starting with default parameters
+        par['skysubtract'] = pypitpar.SkySubtractionPar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypitpar.FlexurePar()
+        return par
+
+    def header_keys(self):
+        head_keys = self.lris_header_keys()
+        #
+        head_keys[0]['filter1'] = 'BLUFILT'
+        #
+        return head_keys
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """

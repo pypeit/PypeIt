@@ -345,7 +345,10 @@ def _determine_data_format(lines):
 
 def _read_data_file_table(lines):
     """Read the file table format."""
-    path = lines[0].split(' ')[1]
+    try:
+        path = lines[0].split(' ')[1]
+    except:
+        import pdb; pdb.set_trace()
     header = np.array([ l.strip() for l in lines[1].split('|') ])
 
     file_col = np.where(header == 'filename')[0]
@@ -369,6 +372,7 @@ def _read_data_file_table(lines):
         if os.path.isfile(filename):
             data_files.append(filename)
         else:
+            import pdb; pdb.set_trace()
             msgs.error('File does not exist: {0}'.format(filename))
     return data_files, frametype
 
