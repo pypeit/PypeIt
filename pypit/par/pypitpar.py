@@ -2103,7 +2103,7 @@ class PypitPar(ParSet):
             
         # Science frames
         frame_same = [ k for k in proc_par.keys() 
-                            if self['scienceframe']['process'].data == default[k] ]
+                            if self['scienceframe']['process'].data[k] == default[k] ]
         to_change = list(set(base_diff) & set(frame_same))
         for k in to_change:
             self['scienceframe']['process'].data[k] = proc_par[k]

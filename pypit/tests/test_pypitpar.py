@@ -109,6 +109,19 @@ def test_mergecfg():
     # Clean-up
     os.remove(user_file)
 
+def test_sync():
+    p = pypitpar.PypitPar()
+    proc = pypitpar.ProcessImagesPar()
+    proc['combine'] = 'mean'
+    proc['sigrej'] = 20.5
+    p.sync_processing(proc)
+    assert p['scienceframe']['process']['combine'] == 'mean'
+    assert p['calibrations']['biasframe']['process']['combine'] == 'mean'
+    # Sigma rejection of cosmic rays for arc frames is already turned
+    # off by default
+    assert p['calibrations']['arcframe']['process']['sigrej'] < 0
+    assert p['calibrations']['traceframe']['process']['sigrej'] == 20.5
+
 def test_detector():
     pypitpar.DetectorPar()
 
