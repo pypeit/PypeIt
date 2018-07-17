@@ -9,6 +9,8 @@ import os
 import pytest
 
 from pypit.par import pypitpar
+from pypit.par.util import parse_pypit_file
+from pypit.spectrographs.util import load_spectrograph
 
 def test_framegroup():
     pypitpar.FrameGroupPar()
@@ -121,6 +123,23 @@ def test_sync():
     # off by default
     assert p['calibrations']['arcframe']['process']['sigrej'] < 0
     assert p['calibrations']['traceframe']['process']['sigrej'] == 20.5
+
+def test_pypit_file():
+    cfg, data, frametype, setups = parse_pypit_file('files/test_pypit_file.pypit')
+    name = pypitpar.PypitPar.from_cfg_lines(merge_with=cfg)['rdx']['spectrograph']
+    spectrograph = load_spectrograph(name)
+    spec_cfg = spectrograph.default_pypit_par().to_config()
+    p = pypitpar.PypitPar.from_cfg_lines(cfg_lines=spec_cfg, merge_with=cfg)
+    # Default
+    assert p['calibrations']['pinholeframe']['number'] == 0
+    # Spectrograph default
+    assert p['rdx']['pipeline'] == 'ARMS'
+    assert p['fluxcalib'] is not None
+    # Changes
+    assert p['calibrations']['arcframe']['number'] == 1
+    assert p['calibrations']['biasframe']['process']['sig_lohi'] == [10, 10]
+    assert p['calibrations']['traceframe']['process']['combine'] == 'mean'
+    assert p['scienceframe']['process']['n_lohi'] == [8, 8]
 
 def test_detector():
     pypitpar.DetectorPar()
