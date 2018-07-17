@@ -12,6 +12,10 @@ from pypit.par import pypitpar
 from pypit.par.util import parse_pypit_file
 from pypit.spectrographs.util import load_spectrograph
 
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files')
+    return os.path.join(data_dir, filename)
+
 def test_framegroup():
     pypitpar.FrameGroupPar()
 
@@ -125,7 +129,7 @@ def test_sync():
     assert p['calibrations']['traceframe']['process']['sigrej'] == 20.5
 
 def test_pypit_file():
-    cfg, data, frametype, setups = parse_pypit_file('files/test_pypit_file.pypit')
+    cfg, data, frametype, setups = parse_pypit_file(data_path('test_pypit_file.pypit'))
     name = pypitpar.PypitPar.from_cfg_lines(merge_with=cfg)['rdx']['spectrograph']
     spectrograph = load_spectrograph(name)
     spec_cfg = spectrograph.default_pypit_par().to_config()
