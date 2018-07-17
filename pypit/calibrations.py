@@ -90,6 +90,7 @@ class Calibrations(object):
         # TODO: How far down through the other classes to we propagate
         # the spectrograph defaults as is done here...
         self.par = self.spectrograph.default_pypit_par()['calibrations'] if par is None else par
+
         if not isinstance(self.par, pypitpar.CalibrationsPar):
             raise TypeError('Input parameters must be a CalibrationsPar instance.')
 
@@ -133,7 +134,7 @@ class Calibrations(object):
         self.mswave = None
         self.datasec_img = None
 
-    def reset(self, setup, det, sci_ID, par):
+    def reset(self, setup, det, sci_ID, par=None):
         """
         Specify the parameters of the Calibrations class and reset all
         the internals to None. The internal dict is left unmodified.
@@ -150,7 +151,8 @@ class Calibrations(object):
         self.setup = setup
         self.det = det
         self.sci_ID = sci_ID
-        self.par = par
+        if par is not None:
+            self.par = par
 
         # Setup the calib_dict
         if self.setup not in self.calib_dict.keys():

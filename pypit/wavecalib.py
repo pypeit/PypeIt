@@ -158,6 +158,9 @@ class WaveCalib(masterframe.MasterFrame):
         # Return
         return self.wv_calib
 
+        from astropy.io import fits
+        fits.H
+
     def calibrate_spec(self, slit, method='arclines'):
         """
         User method to calibrate a given spectrum from a chosen slit

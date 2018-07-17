@@ -102,7 +102,7 @@ class PypitSetup(object):
     .. _configobj: http://configobj.readthedocs.io/en/latest/
     """
     def __init__(self, file_list, frametype=None, setups=None, cfg_lines=None,
-                 spectrograph_name=None, pypit_file=None):
+                 spectrograph_name=None, pypit_file=None, par=None):
 
         # The provided list of files cannot be None
         if file_list is None or len(file_list) == 0:
@@ -131,7 +131,10 @@ class PypitSetup(object):
 
         # Instantiate the pypit parameters.  The user input
         # configuration (cfg_lines) can be None.
-        self.par = PypitPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        if par is None:
+            self.par = PypitPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        else:
+            self.par = par
 
         # Prepare internals for execution
         self.fitstbl = None
