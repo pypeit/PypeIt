@@ -51,6 +51,7 @@ def test_run_setup():
 
 def test_setup_made_pypit_file():
     """ Test the .pypit file(s) made by pypit_setup
+    This test depends on the one above
     """
     pypit_file = data_path('shane_kast_blue_setup_A/shane_kast_blue_setup_A.pypit')
     cfg_lines, data_files, frametype, setups = parse_pypit_file(pypit_file)

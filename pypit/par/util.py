@@ -522,7 +522,7 @@ def make_pypit_file(pypit_file, spectrograph, data_files, cfg_lines=None, setup_
         _cfg_lines = ['[rdx]']
         _cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
     else:
-        _cfg_lines = cfg_lines.copy()
+        _cfg_lines = list(cfg_lines)
     if setup_mode:
         _cfg_lines += ['[calibrations]']
         _cfg_lines += ['    [[biasframe]]']
