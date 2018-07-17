@@ -117,6 +117,31 @@ def recursive_dict_evaluate(d):
 
     return d
 
+def merge_two_dicts(a, b):
+    """
+    Merge two dictionaries.
+
+    Values in the second dictionary take precedence over the values in
+    the first.
+
+    Args:
+        a (:obj:`dict`):
+            Dictionary with values to be updated.
+        b (:obj:`dict`):
+            Dictionary to use to replace values in ``a``.
+
+    Returns:
+        :obj:`dict`: Dictionary with the merged values.
+    """
+    try:
+        # This is a python > 3.5 thing...
+        return {**a, **b}
+    except:
+        # Assume we have to take the longer route
+        c = a.copy()
+        c.update(b)
+        return c
+
 
 def get_parset_list(cfg, pk, parsetclass):
     """

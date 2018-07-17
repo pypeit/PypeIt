@@ -1739,8 +1739,8 @@ class PypitPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypitpar`.
     """
-    def __init__(self, rdx=None, baseprocess=None, calibrations=None, scienceframe=None,
-                 objects=None, extract=None, skysubtract=None, flexure=None, fluxcalib=None):
+    def __init__(self, rdx=None, calibrations=None, scienceframe=None, objects=None, extract=None,
+                 skysubtract=None, flexure=None, fluxcalib=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1759,9 +1759,9 @@ class PypitPar(ParSet):
         dtypes['rdx'] = [ ParSet, dict ]
         descr['rdx'] = 'PypIt reduction rules.'
 
-        defaults['baseprocess'] = ProcessImagesPar()
-        dtypes['baseprocess'] = [ ParSet, dict ]
-        descr['baseprocess'] = 'Default-level parameters used when processing all images'
+#        defaults['baseprocess'] = ProcessImagesPar()
+#        dtypes['baseprocess'] = [ ParSet, dict ]
+#        descr['baseprocess'] = 'Default-level parameters used when processing all images'
 
         defaults['calibrations'] = CalibrationsPar()
         dtypes['calibrations'] = [ ParSet, dict ]
@@ -2045,7 +2045,68 @@ class PypitPar(ParSet):
                         if pk in cfg['rdx'].keys() and cfg['rdx']['fluxcalib'] else None
         kwargs[pk] = FluxCalibrationPar.from_dict(cfg[pk]) if pk in k else default
 
-        return cls(**kwargs)
+        if 'baseprocess' not in k:
+            return cls(**kwargs)
+
+        # Include any alterations to the basic processing of *all*
+        # images
+        self = cls(**kwargs)
+        baseproc = ProcessImagesPar.from_dict(cfg['baseprocess'])
+        self.sync_processing(baseproc)
+        return self
+
+    def sync_processing(self, proc_par):
+        """
+        Sync the processing of all the frame types based on the input
+        ProcessImagesPar parameters.
+
+        The parameters are merged in sequence starting from the
+        parameter defaults, then including global adjustments provided
+        by ``process``, and ending with the parameters that may have
+        already been changed for each frame.
+
+        This function can be used at anytime, but is most useful with
+        the from_dict method where a ``baseprocess`` group can be
+        supplied to change the processing parameters for all frames away
+        from the defaults.
+
+        Args:
+            proc_par (:class:`ProcessImagesPar`):
+                Effectively a new set of default image processing
+                parameters for all frames.
+
+        Raises:
+            TypeError:
+                Raised if the provided parameter set is not an instance
+                of :class:`ProcessImagesPar`.
+        """
+        # Checks
+        if not isinstance(proc_par, ProcessImagesPar):
+            raise TypeError('Must provide an instance of ProcessImagesPar')
+        
+        # All the relevant ParSets are already ProcessImagesPar objects,
+        # so we can work directly with the internal dictionaries.
+
+        # Find the keys in the input that are different from the default
+        default = ProcessImagesPar()
+        base_diff = [ k for k in proc_par.keys() if default[k] != proc_par[k] ]
+
+        # Calibration frames
+        frames = [ f for f in self['calibrations'].keys() if 'frame' in f ]
+        for f in frames:
+            # Find the keys in self that are the same as the default
+            frame_same = [ k for k in proc_par.keys() 
+                            if self['calibrations'][f]['process'].data[k] == default[k] ]
+            to_change = list(set(base_diff) & set(frame_same))
+            for k in to_change:
+                self['calibrations'][f]['process'].data[k] = proc_par[k]
+            
+        # Science frames
+        frame_same = [ k for k in proc_par.keys() 
+                            if self['scienceframe']['process'].data == default[k] ]
+        to_change = list(set(base_diff) & set(frame_same))
+        for k in to_change:
+            self['scienceframe']['process'].data[k] = proc_par[k]
 
     # TODO: Perform extensive checking that the parameters are valid for
     # a full run of PYPIT.  May not be necessary because validate will
