@@ -53,7 +53,7 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
                             numamplifiers   = 1,
                             gain            = 1.2,
                             ronoise         = 5.0,
-                            datasec         = '[:,2:4030]',
+                            datasec         = '[:,1:4030]',
                             suffix          = '_blue'
                             )
             ]

@@ -18,7 +18,6 @@ from pypit.par import pypitpar
 from pypit.spectrographs import spectrograph
 from pypit import telescopes
 from pypit.core import arsort
-from pypit.spectrographs import util
 
 from pypit import ardebug as debugger
 

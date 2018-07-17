@@ -312,6 +312,11 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Uses default primary_hdrext
         # self.sky_file ?
 
+    def header_keys(self):
+        head_keys = self.lris_header_keys()
+#        head_keys[0]['filter1'] = 'BLUFILT'
+        return head_keys
+
     def bpm(self, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 
