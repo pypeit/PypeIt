@@ -83,9 +83,9 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
     _par = _spectrograph.default_pypit_par() if par is None else par
     if not isinstance(_par, pypitpar.PypitPar):
         raise TypeError('Input parameters must be a PypitPar instance.')
-    required = [ 'rdx', 'calibrations', 'scienceframe', 'standardframe', 'objects', 'extract',
-                 'skysubtract', 'flexure', 'fluxcalib' ]
-    can_be_None = [ 'standardframe', 'skysubtract', 'flexure', 'fluxcalib' ]
+    required = [ 'rdx', 'calibrations', 'scienceframe', 'objects', 'extract', 'skysubtract',
+                 'flexure', 'fluxcalib' ]
+    can_be_None = [ 'skysubtract', 'flexure', 'fluxcalib' ]
     _par.validate_keys(required=required, can_be_None=can_be_None)
 
     # Init calib dict
@@ -289,14 +289,14 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             else:
                 std_dict[std_idx] = {}
 
-            if _par['standardframe'] is None:
+            if _par['calibrations']['standardframe'] is None:
                 msgs.warn('No standard frame parameters provided.  Using default parameters.')
 
             # Instantiate for the Standard
             # TODO: Uses the same trace and extraction parameter sets used for the science
             # frames.  Should these be different for the standards?
             stdI = scienceimage.ScienceImage(_spectrograph, file_list=std_image_files,
-                                             frame_par=_par['standardframe'],
+                                             frame_par=_par['calibrations']['standardframe'],
                                              trace_objects_par=_par['objects'],
                                              extract_objects_par=_par['extract'],
                                              tslits_dict=tslits_dict, tilts=mstilts, det=det,

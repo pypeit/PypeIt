@@ -9,6 +9,7 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import os
+import glob
 import warnings
 import textwrap
 import sys
@@ -195,9 +196,9 @@ def parset_to_dict(par):
     Convert the provided parset into a dictionary.
     """
     try:
-        d = dict(ConfigObj(par.to_config(None, section_name='tmp', just_lines=True))['tmp'])
+        d = dict(ConfigObj(par.to_config(section_name='tmp'))['tmp'])
     except:
-        d = dict(ConfigObj(par.to_config(None, just_lines=True)))
+        d = dict(ConfigObj(par.to_config()))
     return recursive_dict_evaluate(d)
 
 
@@ -285,7 +286,6 @@ def _read_data_file_names(lines):
             continue
 
         if len(_l) > 1:
-            print(_l)
             msgs.error('There must be no spaces when specifying the datafile:'+msgs.newline()+l)
 
         read_inp += _parse_data_file_name(_l[0], current_path)
@@ -344,7 +344,10 @@ def _determine_data_format(lines):
 
 def _read_data_file_table(lines):
     """Read the file table format."""
-    path = lines[0].split(' ')[1]
+    try:
+        path = lines[0].split(' ')[1]
+    except:
+        import pdb; pdb.set_trace()
     header = np.array([ l.strip() for l in lines[1].split('|') ])
 
     file_col = np.where(header == 'filename')[0]
@@ -368,6 +371,7 @@ def _read_data_file_table(lines):
         if os.path.isfile(filename):
             data_files.append(filename)
         else:
+            import pdb; pdb.set_trace()
             msgs.error('File does not exist: {0}'.format(filename))
     return data_files, frametype
 
@@ -377,7 +381,7 @@ def _parse_setup_lines(lines):
     return [ l.split()[1].strip() for l in lines if 'Setup' in l ]
 
 
-def parse_pypit_reduction_file(ifile):
+def parse_pypit_file(ifile):
     """
     Parse the user-provided .pypit reduction file.
 
@@ -406,7 +410,7 @@ def parse_pypit_reduction_file(ifile):
         msgs.error("You haven't specified any data!")
     data_format = _determine_data_format(lines[s:e])
     if data_format == 'raw':
-        frametype = {}
+        frametype = None
         data_files = _read_data_file_names(lines[s:e])
     elif data_format == 'table':
         data_files, frametype = _read_data_file_table(lines[s:e])
@@ -482,5 +486,94 @@ def pypit_config_lines(ifile):
 #
 #    return list(lines[is_config]), list(setup_lines), list(data_lines)
     
+
+def make_pypit_file(pypit_file, spectrograph, data_files, cfg_lines=None, setup_mode=False,
+                    setup_lines=None, sorted_files=None, paths=None):
+    """ Generate a default PYPIT file
+
+    Parameters
+    ----------
+    pyp_file : str
+      Name of PYPIT file to be generated
+    spectrograph : str
+    dfnames : list
+      Path + file root of datafiles
+      Includes skip files
+    parlines : list, optional
+      Standard parameter calls
+    spclines : list, optional
+      Lines related to filetype and calibrations
+    setup_script : bool, optional
+      Running setup script?
+    calcheck : bool, optional
+      Run calcheck?
+
+    Returns
+    -------
+    Creates a PYPIT File
+
+    """
+    # Error checking
+    if not isinstance(data_files, list):
+        raise IOError("files_root needs to be a list")
+
+    # Defaults
+    if cfg_lines is None:
+        _cfg_lines = ['[rdx]']
+        _cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
+    else:
+        _cfg_lines = list(cfg_lines)
+    if setup_mode:
+        _cfg_lines += ['[calibrations]']
+        _cfg_lines += ['    [[biasframe]]']
+        _cfg_lines += ['        number = 0']
+        _cfg_lines += ['    [[pixelflatframe]]']
+        _cfg_lines += ['        number = 0']
+        _cfg_lines += ['    [[arcframe]]']
+        _cfg_lines += ['        number = 1']
+        _cfg_lines += ['    [[pinholeframe]]']
+        _cfg_lines += ['        number = 0']
+        _cfg_lines += ['    [[traceframe]]']
+        _cfg_lines += ['        number = 0']
+        _cfg_lines += ['    [[standardframe]]']
+        _cfg_lines += ['        number = 0']
+    else:
+        _cfg_lines += ['[calibrations]']
+        _cfg_lines += ['    [[arcframe]]']
+        _cfg_lines += ['        number = 1']
+
+    # TODO: Clean up and check validity of _cfg_lines by reading it into
+    # a ConfigObj?
+
+    # Here we go
+    with open(pypit_file, 'w') as f:
+        f.write("# This is a comment line\n")
+        f.write("\n")
+        f.write("# User-defined execution parameters\n")
+        f.write('\n'.join(_cfg_lines))
+        f.write('\n')
+        f.write('\n')
+        if setup_lines is not None:
+            f.write("# Setup\n")
+            f.write("setup read\n")
+            for sline in setup_lines:
+                f.write(' '+sline)
+            f.write("setup end\n")
+            f.write("\n")
+        # Data
+        f.write("# Read in the data\n")
+        f.write("data read\n")
+        # Old school
+        for datafile in data_files:
+            f.write(' '+datafile+'\n')
+        # paths and Setupfiles
+        if paths is not None:
+            for path in paths:
+                f.write(' path '+path+'\n')
+        if sorted_files is not None:
+            for sfile in sorted_files:
+                f.write(sfile)
+        f.write("data end\n")
+        f.write("\n")
 
 

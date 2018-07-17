@@ -15,8 +15,10 @@ from astropy.io import fits
 from pypit import msgs
 from pypit import arparse
 from pypit.par.pypitpar import DetectorPar
+from pypit.par import pypitpar
 from pypit.spectrographs import spectrograph
 from pypit import telescopes
+from pypit.core import arsort
 
 from pypit import ardebug as debugger
 
@@ -29,6 +31,17 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         super(KeckLRISSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris'
         self.telescope = telescopes.KeckTelescopePar()
+
+    def lris_header_keys(self):
+        def_keys = self.default_header_keys()
+
+        def_keys[0]['target'] = 'TARGNAME'
+        def_keys[0]['exptime'] = 'ELAPTIME'
+        def_keys[0]['hatch'] = 'TRAPDOOR'
+
+        # TODO: Should do something with the lamps
+
+        return def_keys
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -95,45 +108,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 
-#    def get_datasec(self, filename, det):
-#        """
-#        Load up the datasec and oscansec and also naxis0 and naxis1
-#
-#        .. todo::
-#            - To be deprecated in favor of :func:`get_image_sections`
-#
-#        Args:
-#            filename (str):
-#                data filename
-#            det (int):
-#                Detector number
-#
-#        Returns:
-#            datasec: list
-#            oscansec: list
-#            naxis0: int
-#            naxis1: int
-#        """
-##        # Check the detector
-##        if self.detector is None:
-##            raise ValueError('Must first define spectrograph detector parameters!')
-##        for d in self.detector:
-##            if not isinstance(d, DetectorPar):
-##                raise TypeError('Detectors must be specified using a DetectorPar instance.')
-#        
-#        # Read the file
-#        temp, head0, secs = read_lris(filename, det)
-#        return secs[0], False, False, False
-#
-##        # Get the data and overscan regions
-##        datasec, oscansec = [], []
-##        for kk in range(self.detector[det]['numamplifiers']):
-##            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
-##            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
-##
-##        # Return the sections and the shape of the image
-##        return (datasec, oscansec) + temp.shape
-
     def get_image_shape(self, filename=None, det=None, **null_kwargs):
         """
         Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
@@ -149,6 +123,28 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
         return self.naxis
 
+    def get_match_criteria(self):
+        match_criteria = {}
+        for key in arsort.ftype_list:
+            match_criteria[key] = {}
+        #
+        match_criteria['standard']['match'] = {}
+        match_criteria['standard']['match']['dispname'] = ''
+        match_criteria['standard']['match']['dichroic'] = ''
+        match_criteria['standard']['match']['binning'] = ''
+        match_criteria['standard']['match']['decker'] = ''
+        # Bias
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['binning'] = ''
+        # Pixelflat
+        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
+        # Traceflat
+        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
+        # Arc
+        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
+
+        # Return
+        return match_criteria
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     """
@@ -191,9 +187,47 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                             suffix          = '_02blue'
                             )
             ]
+        self.numhead = 5
         # Uses default timeunit
         # Uses default primary_hdrext
         self.sky_file = 'sky_LRISb_600.fits'
+
+    @staticmethod
+    def default_pypit_par():
+        """
+        Set default parameters for Keck LRISb reductions.
+        """
+        par = pypitpar.PypitPar()
+        par['rdx']['spectrograph'] = 'keck_lris_blue'
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+        # Set wave tilts order
+        par['calibrations']['slits']['sigdetect'] = 30.
+        par['calibrations']['slits']['pca']['params'] = [3,2,1,0]
+        # Always sky subtract, starting with default parameters
+        par['skysubtract'] = pypitpar.SkySubtractionPar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypitpar.FlexurePar()
+        return par
+
+    def check_header(self, headers):
+        """Validate elements of the header."""
+        chk_dict = {}
+        # chk_dict is 1-indexed!
+        chk_dict[2] = {}
+        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
+        chk_dict[2]['NAXIS'] = 2
+        # Check the CCD name
+        chk_dict[2]['CCDGEOM'] = 'e2v (Marconi) CCD44-82'
+        chk_dict[2]['CCDNAME'] = '00151-14-1'
+        return chk_dict
+
+    def header_keys(self):
+        head_keys = self.lris_header_keys()
+        head_keys[0]['filter1'] = 'BLUFILT'
+        return head_keys
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
@@ -278,6 +312,11 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Uses default primary_hdrext
         # self.sky_file ?
 
+    def header_keys(self):
+        head_keys = self.lris_header_keys()
+#        head_keys[0]['filter1'] = 'BLUFILT'
+        return head_keys
+
     def bpm(self, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 
@@ -325,7 +364,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         """
         arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
-        arcparam['lamps'] = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
+        # Should set according to the lamps that were on
+        arcparam['lamps'] = ['ArI','NeI','HgI','KrI','XeI']
         if disperser == '600/7500':
             arcparam['n_first']=3 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)

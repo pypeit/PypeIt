@@ -1084,6 +1084,8 @@ def yamlify(obj, debug=False):
         obj = int(obj)
     elif isinstance(obj, np.bool_):
         obj = bool(obj)
+#    elif isinstance(obj, bytes):
+#        obj = obj.decode('utf-8')
     elif isinstance(obj, (np.string_, basestring)):
         obj = str(obj)
     elif isinstance(obj, units.Quantity):

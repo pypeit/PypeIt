@@ -101,8 +101,8 @@ def load_headers(datlines, spectrograph, strict=True):
                 except KeyError: # Keyword not found in header
                     msgs.warn("{:s} keyword not in header. Setting to None".format(hkey))
                     value=str('None')
-                except IndexError:
-                    debugger.set_trace()
+#                except IndexError:
+#                    debugger.set_trace()
                 # Convert the input time into hours -- Should we really do this here??
                 if kw == 'time':
                     if spectrograph.timeunit == 's'  : value = float(value)/3600.0    # Convert seconds to hours

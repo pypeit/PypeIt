@@ -10,8 +10,18 @@ import pytest
 
 from pypit.par import pypitpar
 
-def test_run():
-    pypitpar.RunPar()
+def test_framegroup():
+    pypitpar.FrameGroupPar()
+
+def test_framegroup_types():
+    t = pypitpar.FrameGroupPar.valid_frame_types()
+    assert 'bias' in t, 'Expected to find \'bias\' in list of valid frame types'
+
+def test_combine():
+    pypitpar.CombineFramesPar()
+
+def test_lacosmic():
+    pypitpar.LACosmicPar()
 
 def test_overscan():
     pypitpar.OverscanPar()
@@ -22,14 +32,17 @@ def test_flatfield():
 def test_flexure():
     pypitpar.FlexurePar()
 
-def test_wavelengthcalibration():
-    pypitpar.WavelengthCalibrationPar()
-
 def test_fluxcalibration():
     pypitpar.FluxCalibrationPar()
 
 def test_skysubtraction():
     pypitpar.SkySubtractionPar()
+
+def test_pca():
+    pypitpar.PCAPar()
+
+def test_manualextraction():
+    pypitpar.ManualExtractionPar()
 
 def test_spectrographs():
     s = pypitpar.ReducePar.valid_spectrographs()
@@ -38,21 +51,8 @@ def test_spectrographs():
 def test_reduce():
     pypitpar.ReducePar()
 
-def test_combine():
-    pypitpar.CombineFramesPar()
-
-def test_framegroup_types():
-    t = pypitpar.FrameGroupPar.valid_frame_types()
-    assert 'bias' in t, 'Expected to find \'bias\' in list of valid frame types'
-
-def test_framegroup():
-    pypitpar.FrameGroupPar()
-
 def test_wavelengthsolution():
     pypitpar.WavelengthSolutionPar()
-
-def test_pca():
-    pypitpar.PCAPar()
 
 def test_traceslits():
     pypitpar.TraceSlitsPar()
@@ -63,23 +63,11 @@ def test_tracetilts():
 def test_traceobjects():
     pypitpar.TraceObjectsPar()
 
-def test_manualextraction():
-    pypitpar.ManualExtractionPar()
-
 def test_extractobjects():
     pypitpar.ExtractObjectsPar()
 
-def test_detector():
-    pypitpar.DetectorPar()
-
-def test_instrument():
-    pypitpar.InstrumentPar()
-
-def test_framefits():
-    pypitpar.FrameFitsPar()
-
-def test_frameid():
-    pypitpar.FrameIDPar()
+def test_calibrations():
+    pypitpar.CalibrationsPar()
 
 def test_pypit():
     pypitpar.PypitPar()
@@ -91,14 +79,14 @@ def test_writecfg():
     default_file = 'default.cfg'
     if os.path.isfile(default_file):
         os.remove(default_file)
-    pypitpar.PypitPar.from_cfg_file().to_config(default_file)
+    pypitpar.PypitPar.from_cfg_file().to_config(cfg_file=default_file)
     assert os.path.isfile(default_file), 'No file written!'
     os.remove(default_file)
 
 def test_readcfg():
     default_file = 'default.cfg'
     if not os.path.isfile(default_file):
-        pypitpar.PypitPar.from_cfg_file().to_config(default_file)
+        pypitpar.PypitPar.from_cfg_file().to_config(cfg_file=default_file)
     pypitpar.PypitPar.from_cfg_file('default.cfg')
     os.remove(default_file)
 
@@ -115,7 +103,7 @@ def test_mergecfg():
     p['calibrations']['biasframe']['useframe'] = 'overscan'
 
     # Write the modified config
-    p.to_config(user_file)
+    p.to_config(cfg_file=user_file)
     assert os.path.isfile(user_file), 'User file was not written!'
 
     # Read it in as a config to merge with the defaults
@@ -128,4 +116,10 @@ def test_mergecfg():
 
     # Clean-up
     os.remove(user_file)
+
+def test_detector():
+    pypitpar.DetectorPar()
+
+def test_telescope():
+    pypitpar.TelescopePar()
 

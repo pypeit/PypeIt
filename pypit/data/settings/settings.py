@@ -5,6 +5,9 @@ This cannot be located in the pypit/ folder (import issues)
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+
+# TODO: Will this module be used anymore?
+
 try:
     basestring
 except NameError:
@@ -26,9 +29,7 @@ from astropy.time import Time
 
 import pypit
 from pypit import arparse
-from pypit import pyputils
-
-msgs = pyputils.get_dummy_logger()
+from pypit import msgs
 
 def compare_dicts(top_key, dict1, dict2, skip_keys=()):
     for key in dict1.keys():

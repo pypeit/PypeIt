@@ -12,6 +12,8 @@ from pypit import arparse
 from pypit.par.pypitpar import DetectorPar
 from pypit.spectrographs import spectrograph
 from pypit import telescopes
+from pypit.core import arsort
+from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 
@@ -146,15 +148,95 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             suffix          = '_08'
                             )
             ]
+        self.numhead = 9
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file ?
+
+    @staticmethod
+    def default_pypit_par():
+        """
+        Set default parameters for Keck LRISb reductions.
+        """
+        par = pypitpar.PypitPar()
+        par['rdx']['spectrograph'] = 'keck_deimos'
+
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+
+        # Set wave tilts order
+        par['calibrations']['slits']['sigdetect'] = 50.
+        par['calibrations']['slits']['polyorder'] = 3
+        par['calibrations']['slits']['fracignore'] = 0.02
+        par['calibrations']['slits']['pca']['params'] = [3,2,1,0]
+
+        # Overscan subtract the images
+        par['calibrations']['biasframe']['useframe'] = 'overscan'
+
+        # Alter the method used to combine pixel flats
+        par['calibrations']['pixelflatframe']['combine']['method'] = 'median'
+        par['calibrations']['pixelflatframe']['combine']['sig_lohi'] = [10.,10.]
+
+        # Always sky subtract, starting with default parameters
+        par['skysubtract'] = pypitpar.SkySubtractionPar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = None  #  pypitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypitpar.FlexurePar()
+        return par
+
+    def header_keys(self):
+        def_keys = self.default_header_keys()
+
+        def_keys[0]['target'] = 'TARGNAME'
+        def_keys[0]['exptime'] = 'ELAPTIME'
+        def_keys[0]['hatch'] = 'HATCHPOS'
+        def_keys[0]['lamps'] = 'LAMPS'
+        def_keys[0]['detrot'] = 'ROTATVAL'
+        def_keys[0]['decker'] = 'SLMSKNAM'
+        def_keys[0]['filter1'] = 'DWFILNAM'
+        def_keys[0]['dispname'] = 'GRATENAM'
+
+        def_keys[0]['gratepos'] = 'GRATEPOS'
+        def_keys[0]['g3tltwav'] = 'G3TLTWAV'
+        def_keys[0]['g4tltwav'] = 'G4TLTWAV'
+        def_keys[0]['dispangle'] = 'G3TLTWAV'
+        return def_keys
 
     def add_to_fitstbl(self, fitstbl):
         for gval in [3,4]:
             gmt = fitstbl['gratepos'] == gval
             fitstbl['dispangle'][gmt] = fitstbl['g3tltwav'][gmt]
         return
+
+    def cond_dict(self, ftype):
+        cond_dict = {}
+
+        if ftype == 'science':
+            cond_dict['condition1'] = 'lamps=Off'
+            cond_dict['condition2'] = 'hatch=open'
+            cond_dict['condition3'] = 'exptime>30'
+        elif ftype == 'bias':
+            cond_dict['condition1'] = 'exptime<2'
+            cond_dict['condition2'] = 'lamps=Off'
+            cond_dict['condition3'] = 'hatch=closed'
+        elif ftype == 'pixelflat':
+            cond_dict['condition1'] = 'lamps=Qz'
+            cond_dict['condition2'] = 'exptime<30'
+            cond_dict['condition3'] = 'hatch=closed'
+        elif ftype == 'pinhole':
+            cond_dict['condition1'] = 'exptime>99999999'
+        elif ftype == 'trace':
+            cond_dict['condition1'] = 'lamps=Qz'
+            cond_dict['condition2'] = 'exptime<30'
+            cond_dict['condition3'] = 'hatch=closed'
+        elif ftype == 'arc':
+            cond_dict['condition1'] = 'lamps=Kr_Xe_Ar_Ne'
+            cond_dict['condition2'] = 'hatch=closed'
+        else:
+            pass
+
+        return cond_dict
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -176,6 +258,31 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         raw_img, head0, _ = read_deimos(raw_file, det=det)
 
         return raw_img, head0
+
+    def get_match_criteria(self):
+        match_criteria = {}
+        for key in arsort.ftype_list:
+            match_criteria[key] = {}
+
+        # Standard
+        # Can be over-ruled by flux calibrate = False
+        # match_criteria['standard']['number'] = 1
+        match_criteria['standard']['match'] = {}
+        match_criteria['standard']['match']['decker'] = ''
+        match_criteria['standard']['match']['binning'] = ''
+        match_criteria['standard']['match']['filter1'] = ''
+        # Bias
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['binning'] = ''
+        # Pixelflat
+        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
+        # Traceflat
+        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
+        # Arc
+        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
+
+        # Return
+        return match_criteria
 
     def get_image_section(self, filename, det, section='datasec'):
         """
@@ -220,43 +327,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             return secs[1], False, False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
-
-
-#    def get_datasec(self, filename, det):
-#        """
-#        Load up the datasec and oscansec and also naxis0 and naxis1
-#
-#        Args:
-#            filename: str
-#              data filename
-#            det: int
-#              Detector specification
-#
-#        Returns:
-#            datasec: list
-#            oscansec: list
-#            naxis0: int
-#            naxis1: int
-#        """
-##        # Check the detector
-##        if self.detector is None:
-##            raise ValueError('Must first define spectrograph detector parameters!')
-##        for d in self.detector:
-##            if not isinstance(d, DetectorPar):
-##                raise TypeError('Detectors must be specified using a DetectorPar instance.')
-#
-#        # Read the file
-#        temp, head0, secs = read_deimos(filename, det)
-#        return secs[0], False, False, False
-#
-##        # Get the data and overscan regions
-##        datasec, oscansec = [], []
-##        for kk in range(self.detector[det]['numamplifiers']):
-##            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
-##            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
-##
-##        # Return the sections and the shape of the image
-##        return (datasec, oscansec) + temp.shape
 
     # WARNING: Uses Spectrograph default get_image_shape.  If no file
     # provided it will fail.  Provide a function like in keck_lris.py

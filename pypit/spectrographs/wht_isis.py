@@ -15,6 +15,8 @@ from pypit import msgs
 from pypit.par.pypitpar import DetectorPar
 from pypit.spectrographs import spectrograph
 from pypit import telescopes
+from pypit.par import pypitpar
+from pypit.core import arsort
 
 from pypit import ardebug as debugger
 
@@ -55,10 +57,100 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
                             suffix          = '_blue'
                             )
             ]
+        self.numhead = 2
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
-        
+
+    @staticmethod
+    def default_pypit_par():
+        """
+        Set default parameters for Keck LRISb reductions.
+        """
+        par = pypitpar.PypitPar()
+        par['rdx']['spectrograph'] = 'wht_isis_blue'
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+        # Set pixel flat combination method
+        par['calibrations']['pixelflatframe']['combine']['method'] = 'median'
+        par['calibrations']['pixelflatframe']['combine']['sig_lohi'] = [10.,10.]
+        # Change the wavelength calibration method
+        par['calibrations']['wavelengths']['method'] = 'simple'
+        # Always sky subtract, starting with default parameters
+        par['skysubtract'] = pypitpar.SkySubtractionPar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = None  #  pypitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypitpar.FlexurePar()
+        return par
+
+    def header_keys(self):
+        def_keys = self.default_header_keys()
+
+        def_keys[0]['idname'] = 'IMAGETYP'
+        def_keys[0]['lamps'] = 'CAGLAMPS'
+        def_keys[0]['dichroic'] = 'ISIDICHR'
+        def_keys[0]['decker'] = 'ISISLITU'
+        def_keys[0]['slitwid'] = 'ISISLITW'
+        def_keys[0]['filter1'] = 'ISIFILTA'
+        def_keys[0]['filter2'] = 'ISIFILTB'
+        def_keys[0]['dispname'] = 'ISIGRAT'
+        def_keys[0]['dispangle'] = 'CENWAVE'
+
+        def_keys[1] = {}
+        def_keys[1]['naxis1'] = 'NAXIS1'
+        def_keys[1]['naxis0'] = 'NAXIS2'
+
+        return def_keys
+
+    def cond_dict(self, ftype):
+        cond_dict = {}
+
+        if ftype == 'science':
+            cond_dict['condition1'] = 'lamps=Off'
+            cond_dict['condition2'] = 'exptime>1'
+        elif ftype == 'bias':
+            cond_dict['condition1'] = 'exptime<1'
+        elif ftype == 'pixelflat':
+            cond_dict['condition1'] = 'lamps=W'
+        elif ftype == 'pinhole':
+            cond_dict['condition1'] = 'exptime>99999999'
+        elif ftype == 'trace':
+            cond_dict['condition1'] = 'lamps=W'
+        elif ftype == 'arc':
+            cond_dict['condition1'] = 'lamps=CuNe+CuAr'
+            cond_dict['condition2'] = 'exptime<120'
+        else:
+            pass
+
+        return cond_dict
+
+    def get_match_criteria(self):
+        match_criteria = {}
+        for key in arsort.ftype_list:
+            match_criteria[key] = {}
+
+        # Standard
+        # TODO: Can be over-ruled by flux calibrate = False
+        #        match_criteria['standard']['number'] = 1
+        match_criteria['standard']['match'] = {}
+        match_criteria['standard']['match']['naxis0'] = '=0'
+        match_criteria['standard']['match']['naxis1'] = '=0'
+        match_criteria['standard']['match']['decker'] = ''
+        match_criteria['standard']['match']['dispangle'] = '|<=1'
+
+        # Bias
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['naxis0'] = '=0'
+        match_criteria['bias']['match']['naxis1'] = '=0'
+        # Pixelflat
+        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
+        # Traceflat
+        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
+        # Arc
+        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
+
+        return match_criteria
 
     def setup_arcparam(self, arcparam, disperser=None, fitstbl=None,
                        arc_idx=None, msarc_shape=None, **null_kwargs):

@@ -841,8 +841,8 @@ def match_logic(ch, tmtch, fitstbl, idx):
     return w
 
 
-def match_to_science(spectrograph, fitstbl, wave_calib, calwin,
-                     setup=False, verbose=True, flux_calibrate=False):
+def match_to_science(calib_par, match_dict, fitstbl, calwin, setup=False, verbose=True,
+                     match_nods=False):
     """
     For a given set of identified data, match calibration frames to science frames
 
@@ -869,10 +869,7 @@ def match_to_science(spectrograph, fitstbl, wave_calib, calwin,
     fitstbl['failures'] = False
     fitstbl['sci_ID'] = 0
 
-    match_dict = spectrograph.get_match_criteria()
-
     # Loop on science frames
-    #while i < nSCI:
     for ss, sci_idx in enumerate(np.where(fitstbl['science'])[0]):
         msgs.info("=================================================")
         msgs.info("Matching calibrations to {:s}: {:s}".format(
@@ -888,24 +885,25 @@ def match_to_science(spectrograph, fitstbl, wave_calib, calwin,
                 continue
 
             # bias/dark check to make sure we need to find matching frames
-            if ftag == 'dark' and spectrograph.calib_par['biasframe']['useframe'] != 'dark':
+            if ftag == 'dark' and calib_par['biasframe']['useframe'] != 'dark':
                 msgs.info("  Dark frames not required.  Not matching..")
                 continue
-            if ftag == 'bias' and spectrograph.calib_par['biasframe']['useframe'] != 'bias' and not spectrograph.calib_par['badpix']:
+            if ftag == 'bias' and calib_par['biasframe']['useframe'] != 'bias' \
+                        and not calib_par['badpix']:
                 msgs.info("  Bias frames not required.  Not matching..")
                 continue
 
             # How many matching frames are required?  This is instrument specific
-            if setup:
-                numfr = 1 if ftag == 'arc' else 0
-            else:
-                if 'number' in match_dict[ftag].keys():
-                    numfr = match_dict[ftag]['number']
-                else:
-                    numfr = 0
+            numfr = (1 if ftag == 'arc' else 0) if setup \
+                        else calib_par['{0}frame'.format(ftag)]['number']
+
+#                if 'number' in match_dict[ftag].keys():
+#                    numfr = match_dict[ftag]['number']
+#                else:
+#                    numfr = 0
 
             # If not required and not doing setup, continue
-            if (numfr == 0) and (not setup):
+            if numfr == 0 and not setup:
                 msgs.info("   No {0:s} frames are required.  Not matching..".format(ftag))
                 continue
 
@@ -933,8 +931,7 @@ def match_to_science(spectrograph, fitstbl, wave_calib, calwin,
 
             # Have we identified enough of these calibration frames to continue?
             if nmatch < np.abs(numfr):
-                code = match_warnings(spectrograph, ftag, nmatch, numfr, fitstbl['target'][sci_idx],
-                                      wave_calib, flux_calibrate=flux_calibrate)
+                code = match_warnings(calib_par, ftag, nmatch, numfr, fitstbl['target'][sci_idx])
                 if code == 'break':
                     fitstbl['failure'][sci_idx] = True
                     fitstbl['sci_ID'][sci_idx] = -1  # This might break things but who knows..
@@ -953,28 +950,40 @@ def match_to_science(spectrograph, fitstbl, wave_calib, calwin,
 
     msgs.info("Science frames successfully matched to calibration frames")
 
-    # How to do this if statement only if '--custom' is on?
-    if spectrograph.spectrograph == 'keck_nirspec':
-        fitstbl = match_ABBA(fitstbl)
+    # Return with nods matched if requested
+    return match_ABBA(fitstbl) if match_nods else fitstbl
 
-    return fitstbl
+#    # How to do this if statement only if '--custom' is on?
+#    if spectrograph.spectrograph == 'keck_nirspec':
+#        fitstbl = match_ABBA(fitstbl)
 
 
-def match_warnings(spectrograph, ftag, nmatch, numfr, target, wave_calib,
-                   setup=False, flux_calibrate=False):
+def insufficient_frame_error(frametype):
+    msgs.error('Insufficient {0} frames found. Include more frames, '.format(frametype)
+                + 'reduce the required amount by setting'
+                + msgs.newline() + '[calibrations]'
+                + msgs.newline() + '    [[{0}frame]]'.format(frametype)
+                + msgs.newline() + '        number = XX'
+                + msgs.newline() + 'in the pypit file, or specify a specific'
+                + 'pixelflat file by setting'
+                + msgs.newline() + '[calibrations]'
+                + msgs.newline() + '    [[{0}frame]]'.format(frametype)
+                + msgs.newline() + '        useframe = XX'
+                + msgs.newline() + 'in the pypit file')
+
+
+def match_warnings(calib_par, ftag, nmatch, numfr, target, setup=False):
     """
     Provide match warnings
 
     Parameters
     ----------
-    spectrograph : Spectrograph
     ftag : str
       frametype, e.g. bias
     nmatch : int
     numfr : int
     target : str
       Name of the target
-    wave_calib : str
     settings_argflag : dict
 
     Returns
@@ -984,110 +993,58 @@ def match_warnings(spectrograph, ftag, nmatch, numfr, target, wave_calib,
     """
     code = 'None'
     msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(nmatch, numfr, ftag, target))
+
+    # TODO: Why does number of pixelflat, trace, and standard not matter
+    # if you're not flat-fielding the data?  Particularly for trace...
+    flatfield = calib_par['flatfield']['method'] is not None
+
     # Errors for insufficient BIAS frames
-    if spectrograph.calib_par['biasframe']['useframe'].lower() == ftag:
-        msgs.warn("Expecting to use bias frames for bias subtraction. But insufficient frames found.")
-        msgs.warn("Either include more frames or modify bias method" + msgs.newline() +
-                  "  e.g.:   bias useframe overscan")
-        msgs.error("Unable to continue")
+    if calib_par['biasframe']['useframe'].lower() == ftag:
+        insufficient_frame_error(ftag)
+
     # Errors for insufficient PIXELFLAT frames
-    if ftag == 'pixelflat' and (spectrograph.calib_par['flatfield']['method'] is not None) and (
-                spectrograph.calib_par['flatfield']['useframe'] == 'pixelflat'):
-        if spectrograph.calib_par['masters'] == 'force':
-            msgs.warn("Fewer pixelflat frames than expected for {0:s}, but will use MasterFrames".format(target))
+    if ftag == 'pixelflat' and flatfield and calib_par['flatfield']['frame'] == 'pixelflat':
+        if calib_par['masters'] == 'force':
+            msgs.warn('Fewer {0} frames than expected for {1}'.format(ftag, target)
+                      +', but will use MasterFrames.')
         else:
-            msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
-                      "pixelflat number XX" + msgs.newline() +
-                      "in the spect read/end block")
-            msgs.warn("Or specify a pixelflat file with --  reduce flatfield useframe file_name")
-            msgs.error("Unable to continue")
+            insufficient_frame_error(ftag)
+
     # Errors for insufficient PINHOLE frames
     if ftag == 'pinhole':
-        msgs.error("Unable to continue without more {0:s} frames".format(ftag))
+        insufficient_frame_error(ftag)
+
     # Errors for insufficient TRACE frames
-    if ftag == 'trace' and (spectrograph.calib_par['flatfield']['method'] is not None):
-        if spectrograph.calib_par['masters'] == 'force':
-            msgs.warn("Fewer traceflat frames than expected for {0:s}, but will use MasterFrames".format(target))
+    if ftag == 'trace' and flatfield:
+        if calib_par['masters'] == 'force':
+            msgs.warn('Fewer {0} frames than expected for {1}'.format(ftag, target)
+                      +', but will use MasterFrames.')
         else:
-            msgs.error("Unable to continue without more {0:s} frames".format(ftag))
+            insufficient_frame_error(ftag)
+
     # Errors for insufficient standard frames
-    if ftag == 'standard' and flux_calibrate: #settings_argflag['reduce']['calibrate']['flux']:
-        if spectrograph.calib_par['masters'] == 'force':
-            msgs.warn("No standard star frames for {0:s}, but will use MasterFrames".format(target))
+    if ftag == 'standard' and flatfield:
+        if calib_par['masters'] == 'force':
+            msgs.warn('No {0} frames for {1}'.format(ftag, target)
+                      + ', but will use MasterFrames.')
         else:
-            msgs.error("Unable to continue without more {0:s} frames".format(ftag))
+            insufficient_frame_error(ftag)
+
     # Errors for insufficient ARC frames
-    if ftag == 'arc' and (wave_calib not in ['pixel', 'sky']):
+    if ftag == 'arc' and (calib_par['wavelengths']['reference'] not in ['pixel', 'sky']):
         if setup:
-            msgs.warn("No arc frame for {0:s}. Removing it from list of science frames".format(target))
-            msgs.warn("Add an arc and rerun one if you wish to reduce this with PYPIT!!")
+            msgs.warn('No {0} frame for {1}. '.format(ftag, target)
+                      + 'Removing it from list of science frames.  Add an arc and rerun if '
+                      + 'you wish to reduce this with PYPIT!!')
             return 'break'
-        elif spectrograph.calib_par['masters'] == 'force':
-            msgs.warn("No arc frame for {0:s}, but will use MasterFrames".format(target))
+        elif calib_par['masters'] == 'force':
+            msgs.warn('No {0} frames for {1}'.format(ftag, target)
+                      + ', but will use MasterFrames.')
         else:
-            msgs.error("Unable to continue without more {0:s} frames".format(ftag))
+            insufficient_frame_error(ftag)
+
     return code
 
-'''
-def match_warnings(ftag, nmatch, numfr, fitsdict, idx, filesort, cindex):
-    """ Give warnings related to matching calibration files to science
-    Returns
-    -------
-    code : str or None
-      None = no further action required
-    """
-    msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(nmatch, numfr, ftag,
-                                                                 fitsdict['target'][idx]))
-    # Errors for insufficient BIAS frames
-    if settings.argflag['bias']['useframe'].lower() == ftag:
-        msgs.warn("Expecting to use bias frames for bias subtraction. But insufficient frames found.")
-        msgs.warn("Either include more frames or modify bias method" + msgs.newline() +
-                  "  e.g.:   bias useframe overscan")
-        msgs.error("Unable to continue")
-    # Errors for insufficient PIXELFLAT frames
-    if ftag == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform'] and (
-                settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat'):
-        if settings.argflag['reduce']['masters']['force']:
-            msgs.warn("Fewer pixelflat frames than expected for {0:s}, but will use MasterFrames".format(fitsdict['target'][idx]))
-        else:
-            msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
-                      "pixelflat number XX" + msgs.newline() +
-                      "in the spect read/end block")
-            msgs.warn("Or specify a pixelflat file with --  reduce flatfield useframe file_name")
-            msgs.error("Unable to continue")
-    # Errors for insufficient PINHOLE frames
-    if ftag == 'pinhole':
-        msgs.error("Unable to continue without more {0:s} frames".format(ftag))
-    # Errors for insufficient TRACE frames
-    if ftag == 'trace' and settings.argflag['reduce']['flatfield']['perform']:
-        if settings.argflag['reduce']['masters']['force']:
-            msgs.warn("Fewer traceflat frames than expected for {0:s}, but will use MasterFrames".format(fitsdict['target'][idx]))
-        else:
-            msgs.error("Unable to continue without more {0:s} frames".format(ftag))
-    # Errors for insufficient standard frames
-    if ftag == 'standard' and settings.argflag['reduce']['calibrate']['flux']:
-        if settings.argflag['reduce']['masters']['force']:
-            msgs.warn("No standard star frames for {0:s}, but will use MasterFrames".format(fitsdict['target'][idx]))
-        else:
-            msgs.error("Unable to continue without more {0:s} frames".format(ftag))
-    # Errors for insufficient ARC frames
-    if ftag == 'arc' and settings.argflag['reduce']['calibrate']:
-        if settings.argflag['run']['setup']:
-            msgs.warn("No arc frame for {0:s}. Removing it from list of science frames".format(fitsdict['target'][idx]))
-            msgs.warn("Add an arc and rerun one if you wish to reduce this with PYPIT!!")
-            # Remove
-            #tmp = list(filesort['science'])
-            #tmp.pop(tmp.index(idx))
-            #filesort['science'] = np.array(tmp)
-            filesort['failures'].append(idx)
-            settings.spect['science']['index'].pop(-1)
-            cindex['science'].pop(-1)
-            return 'break'
-        elif settings.argflag['reduce']['masters']['force']:
-            msgs.warn("No arc frame for {0:s}, but will use MasterFrames".format(fitsdict['target'][idx]))
-        else:
-            msgs.error("Unable to continue without more {0:s} frames".format(ftag))
-'''
 
 def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     """

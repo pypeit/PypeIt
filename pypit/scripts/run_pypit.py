@@ -50,9 +50,9 @@ def parser(options=None):
 #                        help='Running development tests')
     parser.add_argument('--debug_arc', default=False, action='store_true',
                         help='Turn wavelength/arc debugging on')
+    parser.add_argument('-o', '--overwrite', default=False, action='store_true',
+                        help='Overwrite any existing files/directories')
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('-o', '--overwrite', default=False, action='store_true',
-                       help='Overwrite any existing files/directories')
     group.add_argument('-p', '--prep_setup', default=False, action='store_true',
                        help='Run pypit to prepare the setup only')
     group.add_argument('-c', '--calcheck', default=False, action='store_true',

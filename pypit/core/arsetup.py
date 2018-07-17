@@ -323,8 +323,6 @@ def instr_setup(sci_ID, det, fitstbl, setup_dict, numamplifiers,
 
     # Detector -- These may not be set properly from the header alone, e.g. LRIS
     binning = fitstbl["binning"][idx[0]]
-    #naxis0 = fitstbl["naxis0"][idx[0]]
-    #naxis1 = fitstbl["naxis1"][idx[0]]
     namp = numamplifiers
 
     # Generate
@@ -521,7 +519,7 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
     return setup
 '''
 
-
+# TODO: This is out of date!
 def get_setup_file(settings_argflag, spectrograph=None):
     """ Passes back name of setup file
     Also checks for existing setup files

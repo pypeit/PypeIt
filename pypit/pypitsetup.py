@@ -15,7 +15,7 @@ from pypit.core import arsort
 from pypit.core import arsetup
 
 from pypit.par import PypitPar
-from pypit.par.util import parse_pypit_reduction_file
+from pypit.par.util import parse_pypit_file
 from pypit.spectrographs.util import load_spectrograph
 
 from pypit import ardebug as debugger
@@ -127,8 +127,7 @@ class PypitSetup(object):
 
         # Get the spectrograph specific configuration to be merged with
         # the user modifications.
-        spectrograph_cfg_lines = self.spectrograph.default_pypit_par().to_config(None,
-                                                                                 just_lines=True)
+        spectrograph_cfg_lines = self.spectrograph.default_pypit_par().to_config()
 
         # Instantiate the pypit parameters.  The user input
         # configuration (cfg_lines) can be None.
@@ -154,7 +153,7 @@ class PypitSetup(object):
         Returns:
             :class:`PypitSetup`: The instance of the class.
         """
-        cfg_lines, data_files, frametype, setups = parse_pypit_reduction_file(filename)
+        cfg_lines, data_files, frametype, setups = parse_pypit_file(filename)
         return cls(data_files, frametype=frametype, setups=setups, cfg_lines=cfg_lines,
                    pypit_file=filename)
 
@@ -202,7 +201,7 @@ class PypitSetup(object):
         # TODO: Move this to a method that writes the sorted file
         # Write .sorted file
         if len(self.group_dict) > 0:
-            group_file = 'tmp.sorted' if pypit_file is None \
+            group_file = 'tmp.sorted' if pypit_file is None or len(pypit_file) == 0 \
                                 else pypit_file.replace('.pypit', '.sorted')
             arsetup.write_sorted(group_file, self.fitstbl, self.group_dict, self.setup_dict)
             msgs.info("Wrote group dict to {:s}".format(group_file))
@@ -227,6 +226,7 @@ class PypitSetup(object):
         """
         # Run with masters?
         if self.par['calibrations']['masters'] == 'force':
+            print(self.par['calibrations']['masters'])
             # TODO: This is now checked when validating the parameter
             # set.  See CalibrationsPar.validate()
 #            # Check that setup was input
@@ -287,14 +287,18 @@ class PypitSetup(object):
         self.fitstbl -- Updated with 'sci_ID' and 'failures' columns
 
         """
-        self.fitstbl = arsort.match_to_science(self.spectrograph, self.fitstbl,
-                                               self.par['calibrations']['wavelengths']['medium'],
-                                               self.par['rdx']['calwin'], setup=setup_only,
-                                               flux_calibrate=self.par['fluxcalib'] is not None)
+        self.fitstbl = arsort.match_to_science(self.par['calibrations'],
+                                               self.spectrograph.get_match_criteria(),
+                                               self.fitstbl, self.par['rdx']['calwin'],
+                                               setup=setup_only,
+                                               match_nods=self.par['skysubtract'] is not None \
+                                                            and self.par['skysubtract']['nodding'])
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
 
+    # TODO: This appends the data to fitstbl meaning that it should not
+    # be run multiple times.  Make it a "private" function?
     def type_data(self, flag_unknown=False, use_header_frametype=False):
         """
           Perform image typing on the full set of input files
@@ -342,6 +346,11 @@ class PypitSetup(object):
 
         """
         self.fitstbl = Table.read(fits_file)
+        # Need to convert bytestrings back to unicode
+        try:
+            self.fitstbl.convert_bytestring_to_unicode()
+        except:
+            pass
         msgs.info("Loaded fitstbl from {:s}".format(fits_file))
         return self.fitstbl
 
@@ -422,26 +431,27 @@ class PypitSetup(object):
 
         # Write?
         if sort_dir is not None:
+            print('WRITING: {0}'.format(sort_dir))
             arsort.write_lst(self.fitstbl, self.spectrograph.header_keys(), pypit_file,
                              setup=setup_only, sort_dir=sort_dir)
 
         # Match calibs to science
-        self.match_to_science()
+        self.match_to_science(setup_only=setup_only)
 
         # Setup dict
-        self.build_setup_dict()
+        self.build_setup_dict(setup_only=setup_only)
 
         if setup_only:
             # Collate all matching files and write .sorted Table (on pypit_setup only)
             self.build_group_dict(pypit_file=pypit_file)
 
             # Write the setup file
-            setup_file = 'tmp.setups' if len(pypit_file) == 0 \
+            setup_file = 'tmp.setups' if pypit_file is None or len(pypit_file) == 0 \
                                 else pypit_file.replace('.pypit', '.setups')
             arsetup.write_setup(self.setup_dict, setup_file=setup_file)
         else:
             # Write the calib file
-            calib_file = 'tmp.calib' if len(pypit_file) == 0 \
+            calib_file = 'tmp.calib' if pypit_file is None or len(pypit_file) == 0 \
                                 else pypit_file.replace('.pypit', '.calib')
             arsetup.write_calib(calib_file, self.setup_dict)
 
@@ -453,9 +463,10 @@ class PypitSetup(object):
             msgs.info("Set 'run calcheck False' to continue with data reduction")
             msgs.info("*********************************************************")
             # Instrument specific (might push into a separate file)
-            if self.spectrograph.spectrograph in ['keck_lris_blue']:
-                if self.spectrograph.calib_par['flatfield']['useframe'] in ['pixelflat']:
-                    msgs.warn("We recommend a slitless flat for your instrument.")
+            # TODO: Move to spectrograph class
+#            if self.spectrograph.spectrograph in ['keck_lris_blue']:
+#                if self.spectrograph.calib_par['flatfield']['useframe'] in ['pixelflat']:
+#                    msgs.warn("We recommend a slitless flat for your instrument.")
             return None, None, None, None
 
         if setup_only:

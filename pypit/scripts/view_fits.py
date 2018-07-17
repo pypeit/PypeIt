@@ -39,7 +39,7 @@ def main(args):
 
     from astropy.io import fits
 
-    from pypit import pyputils
+    from pypit import msgs
     from pypit.spectrographs import keck_lris
     from pypit.spectrographs import keck_deimos
     from pypit.spectrographs import gemini_gmos
@@ -53,7 +53,7 @@ def main(args):
     kludge_fil = 'tmp_ginga.fits'
 
     # Setup for PYPIT imports
-    msgs = pyputils.get_dummy_logger()
+    msgs.reset(verbosity=0)
 
     # Extension
     if args.exten is not None:
