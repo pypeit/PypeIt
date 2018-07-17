@@ -172,17 +172,60 @@ class SpecObj(object):
 
 
 class SpecObjs(object):
+    """
+    Object to hold a set of SpecObj objects
+
+    Parameters:
+        specobjs : list
+        summary : Table
+    """
 
     def __init__(self, specobjs=None):
+        """
+
+        Args:
+            specobjs: list, optional
+        """
 
         if specobjs is None:
             self.specobjs = []
         else:
             self.specobjs = specobjs
-        # Internal Table
-        self.summary = Table()
+
+        # Internal summary Table
+        self.build_summary()
+
+    def add_sobj(self, sobj):
+        """
+        Add one or more SpecObj
+
+        The summary table is rebuilt
+
+        Args:
+            sobj: SpecObj or list
+
+        Returns:
+
+
+        """
+        if isinstance(sobj, SpecObj):
+            self.specobjs += [sobj]
+        elif isinstance(sobj, list):
+            self.specobjs += sobj
+        # Rebuild summary table
+        self.build_summary()
 
     def build_summary(self):
+        """
+
+        Returns:
+            Builds self.summary Table internally
+
+        """
+        if len(self.specobjs) == 0:
+            self.summary = Table()
+            return
+        #
         atts = self.specobjs[0].__dict__.keys()
         uber_dict = {}
         for key in atts:
@@ -192,9 +235,22 @@ class SpecObjs(object):
         # Build it
         self.summary = Table(uber_dict)
 
+    def remove_sobj(self, index):
+        """
+        Remove an object
+
+        Args:
+            index: int
+
+        Returns:
+
+        """
+        self.specobjs.pop(index)
+        self.build_summary()
 
     def __getitem__(self, key):
-        """ Access the DB groups
+        """ Overload to allow one to pull an attribute
+        or a portion of the SpecObjs list
 
         Parameters
         ----------
@@ -204,22 +260,16 @@ class SpecObjs(object):
         -------
 
         """
-        # Check
+        # TODO -- Add slicing
         if isinstance(key, basestring):
             return self.__getattr__(key)
         elif isinstance(key, int):
             return self.specobjs[key]
 
     def __getattr__(self, k):
-        """ Generate an array of attribute 'k' from the IGMSystems
-        NOTE: We only get here if the Class doesn't have this attribute set already
+        """ Generate an array of attribute 'k' from the specobjs
 
-        The Mask will be applied
-
-        Order of search is:
-          _data
-          _dict
-          _abs_sys
+        First attempts to grab data from the Summary table, then the list
 
         Parameters
         ----------
@@ -231,14 +281,11 @@ class SpecObjs(object):
         numpy array
         """
         # Special case(s)
-        if k == 'coord':
-            lst = self.coords
-            return lst
-        elif k in self.summary.keys():  # _data
+        if k in self.summary.keys():  # _data
             lst = self.summary[k]
         else:
             lst = None
-        # AbsSystem last!
+        # specobjs last!
         if lst is None:
             if len(self.specobjs) == 0:
                 raise ValueError("Attribute not available!")
@@ -251,8 +298,8 @@ class SpecObjs(object):
 
     # Printing
     def __repr__(self):
-        # Generate sets string
         return self.summary.__repr__()
+
 
 def init_exp(lordloc, rordloc, shape, maskslits,
              det, scidx, fitstbl, tracelist, settings, ypos=0.5, **kwargs):
