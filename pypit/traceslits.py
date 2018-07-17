@@ -215,7 +215,7 @@ class TraceSlits(masterframe.MasterFrame):
                                              pcatype=slit_settings['pca']['type'],
                                              pcapar=slit_settings['pca']['params'],
                                             pcaextrap=[slit_settings['pca']['extrapolate']['neg'],
-                                                slit_settings['pca']['extrapolate']['pos']])))
+                                                slit_settings['pca']['extrapolate']['pos']]))
 
         # Fill in a bit more (Attributes)
         slf.steps = ts_dict['steps']

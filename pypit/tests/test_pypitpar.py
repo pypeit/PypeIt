@@ -17,14 +17,8 @@ def test_framegroup_types():
     t = pypitpar.FrameGroupPar.valid_frame_types()
     assert 'bias' in t, 'Expected to find \'bias\' in list of valid frame types'
 
-def test_combine():
-    pypitpar.CombineFramesPar()
-
-def test_lacosmic():
-    pypitpar.LACosmicPar()
-
-def test_overscan():
-    pypitpar.OverscanPar()
+def test_processimages():
+    pypitpar.ProcessImagesPar()
 
 def test_flatfield():
     pypitpar.FlatFieldPar()
@@ -37,9 +31,6 @@ def test_fluxcalibration():
 
 def test_skysubtraction():
     pypitpar.SkySubtractionPar()
-
-def test_pca():
-    pypitpar.PCAPar()
 
 def test_manualextraction():
     pypitpar.ManualExtractionPar()
@@ -112,7 +103,8 @@ def test_mergecfg():
     # Check the values are correctly read in
     assert p['rdx']['spectrograph'] == 'keck_lris_blue', 'Test spectrograph is incorrect!'
     assert p['rdx']['pipeline'] == 'ARMS', 'Test pipeline is incorrect!'
-    assert p['calibrations']['biasframe']['useframe'] == 'overscan', 'Test biasframe:useframe is incorrect!'
+    assert p['calibrations']['biasframe']['useframe'] == 'overscan', \
+                'Test biasframe:useframe is incorrect!'
 
     # Clean-up
     os.remove(user_file)

@@ -90,7 +90,11 @@ class ProcessImages(object):
 
         if par is not None and not isinstance(par, pypitpar.ProcessImagesPar):
             raise TypeError('Provided ParSet for processing images must be type ProcessImagesPar.')
-        self.par = pypitpar.ProcessImagesPar() if par is None else par
+
+        # TODO: This can't be called self.par because it may overwrite
+        # the self.par of the derived classes (e.g. BiasFrame).  The may
+        # be a better way to do this, but I'm punting for now.
+        self.proc_par = pypitpar.ProcessImagesPar() if par is None else par
 
         # Main (possible) outputs
         self.stack = None
@@ -270,7 +274,7 @@ class ProcessImages(object):
         if par is not None and not isinstance(par, pypitpar.ProcessImagesPar):
             raise TypeError('Provided ParSet for must be type ProcessImagesPar.')
         if par is not None:
-            self.par = par
+            self.proc_par = par
 
         # If trimming, get the image identifying amplifier used for the
         # data section
@@ -288,8 +292,9 @@ class ProcessImages(object):
             elif isinstance(msbias, basestring) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
                 temp = arprocimg.subtract_overscan(image, numamplifiers, self.datasec,
-                                                   self.oscansec, method=self.par['overscan'],
-                                                   params=self.par['overscan_par'])
+                                                   self.oscansec,
+                                                   method=self.proc_par['overscan'],
+                                                   params=self.proc_par['overscan_par'])
             else:
                 msgs.error('Could not subtract bias level with the input bias approach.')
 
@@ -319,17 +324,18 @@ class ProcessImages(object):
         if par is not None and not isinstance(par, pypitpar.ProcessImagesPar):
             raise TypeError('Provided ParSet for must be type ProcessImagesPar.')
         if par is not None:
-            self.par = par
+            self.proc_par = par
 
         # Now we can combine
         saturation = self.spectrograph.detector[self.det-1]['saturation']
         self.stack = arcomb.core_comb_frames(self.proc_images, frametype=self.frametype,
-                                             saturation=saturation, method=self.par['combine'],
-                                             satpix=self.par['satpix'],
-                                             cosmics=self.par['sigrej'],
-                                             n_lohi=self.par['n_lohi'],
-                                             sig_lohi=self.par['sig_lohi'],
-                                             replace=self.par['replace'])
+                                             saturation=saturation,
+                                             method=self.proc_par['combine'],
+                                             satpix=self.proc_par['satpix'],
+                                             cosmics=self.proc_par['sigrej'],
+                                             n_lohi=self.proc_par['n_lohi'],
+                                             sig_lohi=self.proc_par['sig_lohi'],
+                                             replace=self.proc_par['replace'])
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.stack
@@ -354,18 +360,18 @@ class ProcessImages(object):
         if par is not None and not isinstance(par, pypitpar.ProcessImagesPar):
             raise TypeError('Provided ParSet for must be type ProcessImagesPar.')
         if par is not None:
-            self.par = par
+            self.proc_par = par
 
         # Run LA Cosmic to get the cosmic ray mask
         saturation = self.spectrograph.detector[self.det-1]['saturation']
         nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
         self.crmask = arprocimg.lacosmic(self.det, self.stack, saturation, nonlinear,
-                                         varframe=varframe, maxiter=self.par['lamaxiter'],
-                                         grow=self.par['grow'],
-                                         remove_compact_obj=self.par['rmcompact'],
-                                         sigclip=self.par['sigclip'],
-                                         sigfrac=self.par['sigfrac'],
-                                         objlim=self.par['objlim'])
+                                         varframe=varframe, maxiter=self.proc_par['lamaxiter'],
+                                         grow=self.proc_par['grow'],
+                                         remove_compact_obj=self.proc_par['rmcompact'],
+                                         sigclip=self.proc_par['sigclip'],
+                                         sigfrac=self.proc_par['sigfrac'],
+                                         objlim=self.proc_par['objlim'])
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -547,7 +553,7 @@ class ProcessImages(object):
         # Spectrograph
         hdu.header['INSTRUME'] = self.spectrograph.spectrograph
         # Parameters
-        self.par.to_header(hdu.header)
+        self.proc_par.to_header(hdu.header)
         # Steps
         steps = ','
         hdu.header['STEPS'] = steps.join(self.steps)
