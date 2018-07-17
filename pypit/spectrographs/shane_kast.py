@@ -279,7 +279,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         self.detector = [
                 # Detector 1
                 pypitpar.DetectorPar(dataext         = 0,
-                                     dispaxis        = 1,
+                                     dispaxis        = 0,
                                      xgap            = 0.,
                                      ygap            = 0.,
                                      ysize           = 1.,

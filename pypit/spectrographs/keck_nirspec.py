@@ -42,7 +42,9 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
                             nonlinear       = 0.76,
                             numamplifiers   = 1,
                             gain            = 5.8,
-                            ronoise         = 23
+                            ronoise         = 23,
+                            datasec         = '[:,:]',
+                            oscansec        = '[:,:]'
                             )
             ]
         # Uses default timeunit

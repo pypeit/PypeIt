@@ -289,7 +289,7 @@ def _parse_data_file_name(inp, current_path):
     return glob.glob(out)
     
 
-def _read_data_file_names(lines):
+def _read_data_file_names(lines, file_check=True):
     """Read the raw data file format."""
     # Pass through all the lines and:
     #   - Determine if a path is set
@@ -330,6 +330,12 @@ def _read_data_file_names(lines):
         if _skip in read_inp:
             read_inp.remove(_skip)
 
+    # Check that the files exist
+    if file_check:
+        for f in read_inp:
+            if not os.path.isfile(f):
+                raise FileNotFoundError('{0} does not exist!'.format(f))
+
     return read_inp
 
 
@@ -369,12 +375,9 @@ def _determine_data_format(lines):
     return 'table' if len(lines) > 1 and lines[1][0] == '|' else 'raw'
 
 
-def _read_data_file_table(lines):
+def _read_data_file_table(lines, file_check=True):
     """Read the file table format."""
-    try:
-        path = lines[0].split(' ')[1]
-    except:
-        import pdb; pdb.set_trace()
+    path = lines[0].split(' ')[1]
     header = np.array([ l.strip() for l in lines[1].split('|') ])
 
     file_col = np.where(header == 'filename')[0]
@@ -397,8 +400,7 @@ def _read_data_file_table(lines):
         filename = os.path.join(path, filename)
         if os.path.isfile(filename):
             data_files.append(filename)
-        else:
-            import pdb; pdb.set_trace()
+        elif file_check:
             msgs.error('File does not exist: {0}'.format(filename))
     return data_files, frametype
 
@@ -408,17 +410,22 @@ def _parse_setup_lines(lines):
     return [ l.split()[1].strip() for l in lines if 'Setup' in l ]
 
 
-def parse_pypit_file(ifile):
+def parse_pypit_file(ifile, file_check=True):
     """
     Parse the user-provided .pypit reduction file.
 
     Args:
-        ifile (str): Name of pypit file
+        ifile (:obj:`str`):
+            Name of pypit file
+        file_check (:obj:`bool`, optional):
+            Check that the files in the pypit configuration data file
+            exist, and fault if they do not.
 
     Returns:
-        Four lists are returned: The list of datafiles to read, adjusted
-        parameters for the spectrograph, adjusted parameters for setup,
-        all remaining parameters.
+        :obj:`lists`: Four lists are provided: (1) the list of
+        configuration lines, (2) the list of datafiles to read, (3) the
+        list of frametypes for each file, and (4) the list of setup
+        lines.
     """
     # Read in the pypit reduction file
     msgs.info('Loading the reduction file')
@@ -438,11 +445,11 @@ def parse_pypit_file(ifile):
     data_format = _determine_data_format(lines[s:e])
     if data_format == 'raw':
         frametype = None
-        data_files = _read_data_file_names(lines[s:e])
+        data_files = _read_data_file_names(lines[s:e], file_check=file_check)
     elif data_format == 'table':
-        data_files, frametype = _read_data_file_table(lines[s:e])
+        data_files, frametype = _read_data_file_table(lines[s:e], file_check=file_check)
     is_config[s-1:e+1] = False
-    if len(data_files) == 0:
+    if len(data_files) == 0 and file_check:
         msgs.error('There are no raw data frames' + msgs.newline() +
                    'Perhaps the path to the data is incorrect?')
     else:
