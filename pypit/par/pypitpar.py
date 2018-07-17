@@ -42,7 +42,7 @@ parameter sets:
 
         - If the parameter is another ParSet or requires instantiation,
           provide the instantiation.  For example, see how the
-          :class:`CombineFramesPar` parameter set is defined in the
+          :class:`ProcessImagesPar` parameter set is defined in the
           :class:`FrameGroupPar` class.  E.g.::
 
             pk = 'foo'
@@ -108,8 +108,7 @@ class FrameGroupPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypitpar`.
     """
-    def __init__(self, frametype=None, useframe=None, number=None, overscan=None, combine=None,
-                 lacosmic=None):
+    def __init__(self, frametype=None, useframe=None, number=None, process=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -137,17 +136,9 @@ class FrameGroupPar(ParSet):
         dtypes['number'] = int
         descr['number'] = 'Number of frames to use of this type'
 
-        defaults['overscan'] = OverscanPar()
-        dtypes['overscan'] = [ ParSet, dict ]
-        descr['overscan'] = 'Parameters used to set the overscan procedure'
-
-        defaults['combine'] = CombineFramesPar()
-        dtypes['combine'] = [ParSet, dict]
-        descr['combine'] = 'Parameters used when combining frames of this type'
-
-        defaults['lacosmic'] = LACosmicPar()
-        dtypes['lacosmic'] = [ParSet, dict]
-        descr['lacosmic'] = 'Parameters used for cosmic ray detection for frames of this type'
+        defaults['process'] = ProcessImagesPar()
+        dtypes['process'] = [ ParSet, dict ]
+        descr['process'] = 'Parameters used for basic image processing'
 
         # Instantiate the parameter set
         super(FrameGroupPar, self).__init__(list(pars.keys()),
@@ -166,12 +157,8 @@ class FrameGroupPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
-        pk = 'overscan'
-        kwargs[pk] = OverscanPar.from_dict(cfg[pk]) if pk in k else None
-        pk = 'combine'
-        kwargs[pk] = CombineFramesPar.from_dict(cfg[pk]) if pk in k else None
-        pk = 'lacosmic'
-        kwargs[pk] = LACosmicPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'process'
+        kwargs[pk] = ProcessImagesPar.from_dict(cfg[pk]) if pk in k else None
         return cls(frametype=frametype, **kwargs)
 
     @staticmethod
@@ -179,23 +166,27 @@ class FrameGroupPar(ParSet):
         """
         Return the list of valid frame types.
         """
-        return [ 'bias', 'pixelflat', 'arc', 'pinhole', 'trace', 'standard', 'science' ]
+        return [ 'bias', 'pixelflat', 'arc', 'pinhole', 'trace', 'standard', 'science', 'all' ]
 
     def validate(self):
         if self.data['useframe'] is None:
             self.data['useframe'] = self.data['frametype']
 
 
-class CombineFramesPar(ParSet):
+class ProcessImagesPar(ParSet):
     """
-    A parameter set holding the arguments for how a group of frames
-    should be combined.
+    The parameters needed to perform basic image processing.
+
+    These parameters are primarily used by
+    :class:`pypit.processimages.ProcessImages`, the base class of many
+    of the pypit objects.
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypitpar`.
     """
-    def __init__(self, match=None, method=None, satpix=None, cosmics=None, n_lohi=None,
-                 sig_lohi=None, replace=None):
+    def __init__(self, overscan=None, overscan_par=None, match=None, combine=None, satpix=None,
+                 sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
+                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -211,26 +202,40 @@ class CombineFramesPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+        defaults['overscan'] = 'savgol'
+        options['overscan'] = ProcessImagesPar.valid_overscan()
+        dtypes['overscan'] = basestring
+        descr['overscan'] = 'Method used to fit the overscan.  ' \
+                            'Options are: {0}'.format(', '.join(options['overscan']))
+        
+        defaults['overscan_par'] = [5, 65]
+        dtypes['overscan_par'] = [int, list]
+        descr['overscan_par'] = 'Parameters for the overscan subtraction.  For ' \
+                                '\'polynomial\', set overcan_par = order, number of pixels, ' \
+                                'number of repeats ; for \'savgol\', set overscan_par = ' \
+                                'order, window size ; for \'median\', set overscan_par = ' \
+                                'None or omit the keyword.'
+
         defaults['match'] = -1
         dtypes['match'] = [int, float]
-        descr['match'] = 'Match frames with pixel counts that are within N-sigma of one ' \
-                         'another, where match=N below.  If N < 0, nothing is matched.'
+        descr['match'] = '(Deprecate?) Match frames with pixel counts that are within N-sigma ' \
+                         'of one another, where match=N below.  If N < 0, nothing is matched.'
 
-        defaults['method'] = 'weightmean'
-        options['method'] = CombineFramesPar.valid_methods()
-        dtypes['method'] = basestring
-        descr['method'] = 'Method used to combine frames.  Options are: {0}'.format(
-                                       ', '.join(options['method']))
+        defaults['combine'] = 'weightmean'
+        options['combine'] = ProcessImagesPar.valid_combine_methods()
+        dtypes['combine'] = basestring
+        descr['combine'] = 'Method used to combine frames.  Options are: {0}'.format(
+                                       ', '.join(options['combine']))
 
         defaults['satpix'] = 'reject'
-        options['satpix'] = CombineFramesPar.valid_saturation_handling()
+        options['satpix'] = ProcessImagesPar.valid_saturation_handling()
         dtypes['satpix'] = basestring
         descr['satpix'] = 'Handling of saturated pixels.  Options are: {0}'.format(
                                        ', '.join(options['satpix']))
 
-        defaults['cosmics'] = 20.0
-        dtypes['cosmics'] = [int, float]
-        descr['cosmics'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
+        defaults['sigrej'] = 20.0
+        dtypes['sigrej'] = [int, float]
+        descr['sigrej'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
 
         defaults['n_lohi'] = [0, 0]
         dtypes['n_lohi'] = list
@@ -243,32 +248,67 @@ class CombineFramesPar(ParSet):
                             'i.e., sig_lohi = low, high.  Use None for no limit.'
 
         defaults['replace'] = 'maxnonsat'
-        options['replace'] = CombineFramesPar.valid_rejection_replacements()
+        options['replace'] = ProcessImagesPar.valid_rejection_replacements()
         dtypes['replace'] = basestring
         descr['replace'] = 'If all pixels are rejected, replace them using this method.  ' \
                            'Options are: {0}'.format(', '.join(options['replace']))
 
+        defaults['lamaxiter'] = 1
+        dtypes['lamaxiter'] = int
+        descr['lamaxiter'] = 'Maximum number of iterations for LA cosmics routine.'
+
+        defaults['grow'] = 1.5
+        dtypes['grow'] = [int, float]
+        descr['grow'] = 'Factor by which to expand regions with cosmic rays detected by the ' \
+                        'LA cosmics routine.'
+
+        defaults['rmcompact'] = True
+        dtypes['rmcompact'] = bool
+        descr['rmcompact'] = 'Remove compact detections in LA cosmics routine'
+
+        defaults['sigclip'] = 5.0
+        dtypes['sigclip'] = [int, float]
+        descr['sigclip'] = 'Sigma level for rejection in LA cosmics routine'
+
+        defaults['sigfrac'] = 0.3
+        dtypes['sigfrac'] = [int, float]
+        descr['sigfrac'] = 'Fraction for the lower clipping threshold in LA cosmics routine.'
+
+        defaults['objlim'] = 5.0
+        dtypes['objlim'] = [int, float]
+        descr['objlim'] = 'Object detection limit in LA cosmics routine'
+
         # Instantiate the parameter set
-        super(CombineFramesPar, self).__init__(list(pars.keys()),
+        super(ProcessImagesPar, self).__init__(list(pars.keys()),
                                                values=list(pars.values()),
                                                defaults=list(defaults.values()),
                                                options=list(options.values()),
                                                dtypes=list(dtypes.values()),
                                                descr=list(descr.values()))
-        
+
+        # Check the parameters match the method requirements
         self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'match', 'method', 'satpix', 'cosmics', 'n_lohi', 'sig_lohi', 'replace' ]
+        parkeys = [ 'overscan', 'overscan_par', 'match', 'combine', 'satpix', 'sigrej', 'n_lohi',
+                    'sig_lohi', 'replace', 'lamaxiter', 'grow', 'rmcompact', 'sigclip', 'sigfrac',
+                    'objlim' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
 
     @staticmethod
-    def valid_methods():
+    def valid_overscan():
+        """
+        Return the valid overscan methods.
+        """
+        return [ 'polynomial', 'savgol', 'median' ]
+
+    @staticmethod
+    def valid_combine_methods():
         """
         Return the valid methods for combining frames.
         """
@@ -289,115 +329,52 @@ class CombineFramesPar(ParSet):
         return [ 'min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat' ]
 
     def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+
         if self.data['n_lohi'] is not None and len(self.data['n_lohi']) != 2:
             raise ValueError('n_lohi must be a list of two numbers.')
         if self.data['sig_lohi'] is not None and len(self.data['sig_lohi']) != 2:
             raise ValueError('n_lohi must be a list of two numbers.')
 
+        if self.data['overscan'] is None:
+            return
+        if self.data['overscan_par'] is None:
+            raise ValueError('No overscan method parameters defined!')
+
+        # Convert param to list
+        if isinstance(self.data['overscan_par'], int):
+            self.data['overscan_par'] = [self.data['overscan_par']]
+        
+        if self.data['overscan'] == 'polynomial' and len(self.data['overscan_par']) != 3:
+            raise ValueError('For polynomial overscan method, set overscan_par = order, '
+                             'number of pixels, number of repeats')
+
+        if self.data['overscan'] == 'savgol' and len(self.data['overscan_par']) != 2:
+            raise ValueError('For savgol overscan method, set overscan_par = order, window size')
+            
+        if self.data['overscan'] == 'median' and self.data['overscan_par'] is not None:
+            warnings.warn('No parameters necessary for median overscan method.  Ignoring input.')
+
     def to_header(self, hdr):
         """
         Write the parameters to a header object.
         """
-        # 'match' isn't used!
+        hdr['OSCANMET'] = (self.data['overscan'], 'Method used for overscan subtraction')
+        hdr['OSCANPAR'] = (','.join([ '{0:d}'.format(p) for p in self.data['overscan_par'] ]),
+                                'Overscan method parameters')
         hdr['COMBMAT'] = ('{0}'.format(self.data['match']), 'Frame combination matching')
-        hdr['COMBMETH'] = (self.data['method'], 'Method used to combine frames')
+        hdr['COMBMETH'] = (self.data['combine'], 'Method used to combine frames')
         hdr['COMBSATP'] = (self.data['satpix'], 'Saturated pixel handling when combining frames')
-        hdr['COMBCOS'] = ('{0}'.format(self.data['cosmics']),
-                                'Cosmic ray rejection when combining')
+        hdr['COMBSIGR'] = ('{0}'.format(self.data['sigrej']),
+                                'Cosmic-ray sigma rejection when combining')
         hdr['COMBNLH'] = (','.join([ '{0}'.format(n) for n in self.data['n_lohi']]),
                                 'N low and high pixels rejected when combining')
         hdr['COMBSLH'] = (','.join([ '{0:.1f}'.format(s) for s in self.data['sig_lohi']]),
                                 'Low and high sigma rejection when combining')
         hdr['COMBREPL'] = (self.data['replace'], 'Method used to replace pixels when combining')
-
-    @classmethod
-    def from_header(cls, hdr):
-        """
-        Instantiate the object from parameters read from a fits header.
-        """
-        return cls(match=eval(hdr['COMBMAT']), method=hdr['COMBMETH'], satpix=hdr['COMBSATP'],
-                   cosmics=eval(hdr['COMBCOS']),
-                   n_lohi=[int(p) for p in hdr['COMBNLH'].split(',')],
-                   sig_lohi=[float(p) for p in hdr['COMBSLH'].split(',')],
-                   replace=hdr['COMBREPL'])
-
-
-class LACosmicPar(ParSet):
-    """
-    A parameter set holding the arguments for how to identify cosmic
-    rays using the LA Cosmic algorithm in a group of frames.
-
-    For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
-    """
-    def __init__(self, maxiter=None, grow=None, rmcompact=None, sigclip=None, sigfrac=None,
-                 objlim=None):
-
-        # Grab the parameter names and values from the function
-        # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = OrderedDict([(k,values[k]) for k in args[1:]])
-
-        # Initialize the other used specifications for this parameter
-        # set
-        defaults = OrderedDict.fromkeys(pars.keys())
-        dtypes = OrderedDict.fromkeys(pars.keys())
-        descr = OrderedDict.fromkeys(pars.keys())
-
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-        # TODO: Improve description of all of these (I'm not sure
-        # they're even right as is)
-        defaults['maxiter'] = 1
-        dtypes['maxiter'] = int
-        descr['maxiter'] = 'Maximum number of iterations.'
-
-        defaults['grow'] = 1.5
-        dtypes['grow'] = [int, float]
-        descr['grow'] = 'Factor by which to expand regions with detected cosmic rays.'
-
-        defaults['rmcompact'] = True
-        dtypes['rmcompact'] = bool
-        descr['rmcompact'] = 'Remove compact detections'
-
-        defaults['sigclip'] = 5.0
-        dtypes['sigclip'] = [int, float]
-        descr['sigclip'] = 'Sigma level for rejection'
-
-        defaults['sigfrac'] = 0.3
-        dtypes['sigfrac'] = [int, float]
-        descr['sigfrac'] = 'Fraction for the lower clipping threshold.'
-
-        defaults['objlim'] = 5.0
-        dtypes['objlim'] = [int, float]
-        descr['objlim'] = 'Object detection limit'
-
-        # Instantiate the parameter set
-        super(LACosmicPar, self).__init__(list(pars.keys()), values=list(pars.values()),
-                                          defaults=list(defaults.values()),
-                                          dtypes=list(dtypes.values()),
-                                          descr=list(descr.values()))
-        
-        self.validate()
-
-    @classmethod
-    def from_dict(cls, cfg):
-        k = cfg.keys()
-        parkeys = [ 'maxiter', 'grow', 'rmcompact', 'sigclip', 'sigfrac', 'objlim' ]
-        kwargs = {}
-        for pk in parkeys:
-            kwargs[pk] = cfg[pk] if pk in k else None
-        return cls(**kwargs)
-
-    def validate(self):
-        pass
-
-    def to_header(self, hdr):
-        """
-        Write the parameters to a header object.
-        """
-        # 'match' isn't used!
-        hdr['LACMAXI'] = ('{0}'.format(self.data['maxiter']), 'Max iterations for LA cosmic')
+        hdr['LACMAXI'] = ('{0}'.format(self.data['lamaxiter']), 'Max iterations for LA cosmic')
         hdr['LACGRW'] = ('{0:.1f}'.format(self.data['grow']), 'Growth radius for LA cosmic')
         hdr['LACRMC'] = (str(self.data['rmcompact']), 'Compact objects removed by LA cosmic')
         hdr['LACSIGC'] = ('{0:.1f}'.format(self.data['sigclip']), 'Sigma clip for LA cosmic')
@@ -411,112 +388,17 @@ class LACosmicPar(ParSet):
         """
         Instantiate the object from parameters read from a fits header.
         """
-        return cls(maxiter=int(hdr['LACMAXI']), grow=float(hdr['LACGRW']),
+        return cls(overscan=hdr['OSCANMET'],
+                   overscan_par=[int(p) for p in hdr['OSCANPAR'].split(',')],
+                   match=eval(hdr['COMBMAT']),
+                   combine=hdr['COMBMETH'], satpix=hdr['COMBSATP'],
+                   sigrej=eval(hdr['COMBSIGR']),
+                   n_lohi=[int(p) for p in hdr['COMBNLH'].split(',')],
+                   sig_lohi=[float(p) for p in hdr['COMBSLH'].split(',')],
+                   replace=hdr['COMBREPL'],
+                   lamaxiter=int(hdr['LACMAXI']), grow=float(hdr['LACGRW']),
                    rmcompact=eval(hdr['LACRMC']), sigclip=float(hdr['LACSIGC']),
                    sigfrac=float(hdr['LACSIGF']), objlim=float(hdr['LACOBJL']))
-
-
-class OverscanPar(ParSet):
-    """
-    A parameter set holding the arguments for how to treat the overscan
-    in a group of frames.
-
-    For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
-    """
-    def __init__(self, method=None, params=None):
-
-        # Grab the parameter names and values from the function
-        # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = OrderedDict([(k,values[k]) for k in args[1:]])
-
-        # Initialize the other used specifications for this parameter
-        # set
-        defaults = OrderedDict.fromkeys(pars.keys())
-        options = OrderedDict.fromkeys(pars.keys())
-        dtypes = OrderedDict.fromkeys(pars.keys())
-        descr = OrderedDict.fromkeys(pars.keys())
-
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-        defaults['method'] = 'savgol'
-        options['method'] = OverscanPar.valid_methods()
-        dtypes['method'] = basestring
-        descr['method'] = 'Method used to fit the overscan.  ' \
-                          'Options are: {0}'.format(', '.join(options['method']))
-        
-        defaults['params'] = [5, 65]
-        dtypes['params'] = [int, list]
-        descr['params'] = 'Parameters for the overscan subtraction.  For \'polynomial\', set ' \
-                          'params = order, number of pixels, number of repeats ; for ' \
-                          '\'savgol\', set params = order, window size ; for \'median\', set ' \
-                          'params = None or omit the keyword.'
-
-        # Instantiate the parameter set
-        super(OverscanPar, self).__init__(list(pars.keys()),
-                                          values=list(pars.values()),
-                                          defaults=list(defaults.values()),
-                                          options=list(options.values()),
-                                          dtypes=list(dtypes.values()),
-                                          descr=list(descr.values()))
-
-        # Check the parameters match the method requirements
-        self.validate()
-
-    @classmethod
-    def from_dict(cls, cfg):
-        k = cfg.keys()
-        parkeys = [ 'method', 'params' ]
-        kwargs = {}
-        for pk in parkeys:
-            kwargs[pk] = cfg[pk] if pk in k else None
-        return cls(**kwargs)
-
-    @staticmethod
-    def valid_methods():
-        """
-        Return the valid overscan methods.
-        """
-        return [ 'polynomial', 'savgol', 'median' ]
-
-    def validate(self):
-        """
-        Check the parameters are valid for the provided method.
-        """
-        if self.data['method'] is None:
-            return
-        if self.data['params'] is None:
-            raise ValueError('No overscan method parameters defined!')
-
-        # Convert param to list
-        if isinstance(self.data['params'], int):
-            self.data['params'] = [self.data['params']]
-        
-        if self.data['method'] == 'polynomial' and len(self.data['params']) != 3:
-            raise ValueError('For polynomial overscan method, set params = order, number of '
-                             'pixels, number of repeats')
-
-        if self.data['method'] == 'savgol' and len(self.data['params']) != 2:
-            raise ValueError('For savgol overscan method, set params = order, window size')
-            
-        if self.data['method'] == 'median' and self.data['params'] is not None:
-            warnings.warn('No parameters necessary for median overscan method.  Ignoring input.')
-
-    def to_header(self, hdr):
-        """
-        Write the parameters to a header object.
-        """
-        hdr['OSCANMET'] = (self.data['method'], 'Method used for overscan subtraction')
-        hdr['OSCANPAR'] = (','.join([ '{0:d}'.format(p) for p in self.data['params'] ]),
-                                'Overscan method parameters')
-
-    @classmethod
-    def from_header(cls, hdr):
-        """
-        Instantiate the object from parameters read from a fits header.
-        """
-        return cls(method=hdr['OSCANMET'],  params=[int(p) for p in hdr['OSCANPAR'].split(',')])
 
 
 class FlatFieldPar(ParSet):
@@ -852,86 +734,6 @@ class SkySubtractionPar(ParSet):
 #        """
 #        if self.data['method'] == 'bspline' and not isinstance(self.data['params'], int):
 #            raise ValueError('For bspline sky-subtraction method, set params = spacing (integer).')
-
-
-class PCAPar(ParSet):
-    """
-    A parameter set holding the arguments for how to perform the
-    principle component analysis used with slit tracing.
-
-    For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
-    """
-    def __init__(self, pcatype=None, params=None, extrapolate=None):
-
-        # Grab the parameter names and values from the function
-        # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = OrderedDict([(k,values[k]) for k in args[1:]])
-
-        # Initialize the other used specifications for this parameter
-        # set
-        defaults = OrderedDict.fromkeys(pars.keys())
-        options = OrderedDict.fromkeys(pars.keys())
-        dtypes = OrderedDict.fromkeys(pars.keys())
-        descr = OrderedDict.fromkeys(pars.keys())
-
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-        defaults['pcatype'] = 'pixel'
-        options['pcatype'] = PCAPar.valid_types()
-        dtypes['pcatype'] = basestring
-        descr['pcatype'] = 'Select to perform the PCA using the pixel position (pcatype=pixel) ' \
-                           'or by spectral order (pcatype=order).  Pixel positions can be used ' \
-                           'for multi-object spectroscopy where the gap between slits is ' \
-                           'irregular.  Order is used for echelle spectroscopy or for slits ' \
-                           'with separations that are a smooth function of the slit number.'
-
-        defaults['params'] = [ 3, 2, 1, 0, 0, 0 ]
-        dtypes['params'] = list
-        descr['params'] = 'Order of the polynomials to be used to fit the principle ' \
-                          'components.  TODO: Provide more explanation'
-
-        defaults['extrapolate'] = [0, 0]
-        dtypes['extrapolate'] = list
-        descr['extrapolate'] = 'The number of extra orders to predict in the negative (first ' \
-                               'number) and positive (second number) direction.  Must be two ' \
-                               'numbers in the list and they must be integers.'
-
-        # Instantiate the parameter set
-        super(PCAPar, self).__init__(list(pars.keys()),
-                                     values=list(pars.values()),
-                                     defaults=list(defaults.values()),
-                                     options=list(options.values()),
-                                     dtypes=list(dtypes.values()),
-                                     descr=list(descr.values()))
-        self.validate()
-
-    @classmethod
-    def from_dict(cls, cfg):
-        k = cfg.keys()
-        parkeys = [ 'pcatype', 'params', 'extrapolate' ]
-        kwargs = {}
-        for pk in parkeys:
-            kwargs[pk] = cfg[pk] if pk in k else None
-        return cls(**kwargs)
-
-    @staticmethod
-    def valid_types():
-        """
-        Return the valid PCA types.
-        """
-        return ['pixel', 'order']
-
-    def validate(self):
-        """
-        Check the parameters are valid for the provided method.
-        """
-        if len(self.data['extrapolate']) != 2:
-            raise ValueError('Extrapolate must be a list with two values.')
-        for e in self.data['extrapolate']:
-            if not isinstance(e, int):
-                raise ValueError('Extrapolate values must be integers.')
 
 
 class ManualExtractionPar(ParSet):
@@ -1270,7 +1072,8 @@ class TraceSlitsPar(ParSet):
     """
     def __init__(self, function=None, polyorder=None, medrep=None, number=None, trim=None,
                  maxgap=None, maxshift=None, pad=None, sigdetect=None, fracignore=None,
-                 diffpolyorder=None, single=None, sobel_mode=None, pca=None):
+                 diffpolyorder=None, single=None, sobel_mode=None, pcatype=None, pcapar=None,
+                 pcaextrap=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1364,9 +1167,25 @@ class TraceSlitsPar(ParSet):
         descr['sobel_mode'] = 'Mode for Sobel filtering.  Default is \'nearest\' but the ' \
                               'developers find \'constant\' works best for DEIMOS.'
 
-        defaults['pca'] = PCAPar()
-        dtypes['pca'] = [ ParSet, dict ]
-        descr['pca'] = 'Parameters used for the PCA parameters in slit tracing'
+        defaults['pcatype'] = 'pixel'
+        options['pcatype'] = TraceSlitsPar.valid_pca_types()
+        dtypes['pcatype'] = basestring
+        descr['pcatype'] = 'Select to perform the PCA using the pixel position (pcatype=pixel) ' \
+                           'or by spectral order (pcatype=order).  Pixel positions can be used ' \
+                           'for multi-object spectroscopy where the gap between slits is ' \
+                           'irregular.  Order is used for echelle spectroscopy or for slits ' \
+                           'with separations that are a smooth function of the slit number.'
+
+        defaults['pcapar'] = [ 3, 2, 1, 0, 0, 0 ]
+        dtypes['pcapar'] = list
+        descr['pcapar'] = 'Order of the polynomials to be used to fit the principle ' \
+                          'components.  TODO: Provide more explanation'
+
+        defaults['pcaextrap'] = [0, 0]
+        dtypes['pcaextrap'] = list
+        descr['pcaextrap'] = 'The number of extra orders to predict in the negative (first ' \
+                             'number) and positive (second number) direction.  Must be two ' \
+                             'numbers in the list and they must be integers.'
 
         # Instantiate the parameter set
         super(TraceSlitsPar, self).__init__(list(pars.keys()),
@@ -1381,14 +1200,11 @@ class TraceSlitsPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
-                    'pad', 'sigdetect', 'fracignore', 'diffpolyorder', 'single', 'sobel_mode' ]
+                    'pad', 'sigdetect', 'fracignore', 'diffpolyorder', 'single', 'sobel_mode',
+                    'pcatype', 'pcapar', 'pcaextrap' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
-
-        pk = 'pca'
-        kwargs[pk] = PCAPar.from_dict(cfg[pk]) if pk in k else None
-
         return cls(**kwargs)
 
     @staticmethod
@@ -1403,13 +1219,24 @@ class TraceSlitsPar(ParSet):
         """Return the valid sobel modes."""
         return [ 'nearest', 'constant' ]
 
+    @staticmethod
+    def valid_pca_types():
+        """
+        Return the valid PCA types.
+        """
+        return ['pixel', 'order']
+
     def validate(self):
         if self.data['number'] == 0:
             raise ValueError('Number of slits must be -1 for automatic identification or '
                              'greater than 0')
+        if len(self.data['pcaextrap']) != 2:
+            raise ValueError('PCA extrapolation parameters must be a list with two values.')
+        for e in self.data['pcaextrap']:
+            if not isinstance(e, int):
+                raise ValueError('PCA extrapolation values must be integers.')
 
-# TODO: Change name to WaveTiltsPar?
-class TraceTiltsPar(ParSet):
+class WaveTiltsPar(ParSet):
     """
     The parameter set used to hold arguments for tracing the
     monochromatic tilt along the slit.
@@ -1471,7 +1298,7 @@ class TraceTiltsPar(ParSet):
         descr['func2D'] = 'Type of function for 2D fit'
 
         defaults['method'] = 'spca'
-        options['method'] = TraceTiltsPar.valid_methods()
+        options['method'] = WaveTiltsPar.valid_methods()
         dtypes['method'] = basestring
         descr['method'] = 'Method used to trace the tilt of the slit along an order.  ' \
                           'Options are: {0}'.format(', '.join(options['method']))
@@ -1482,7 +1309,7 @@ class TraceTiltsPar(ParSet):
         descr['params'] = 'Parameters to use for the provided method.  TODO: Need more explanation'
 
         # Instantiate the parameter set
-        super(TraceTiltsPar, self).__init__(list(pars.keys()),
+        super(WaveTiltsPar, self).__init__(list(pars.keys()),
                                             values=list(pars.values()),
                                             defaults=list(defaults.values()),
                                             options=list(options.values()),
@@ -1788,7 +1615,7 @@ class CalibrationsPar(ParSet):
         descr['pinholeframe'] = 'The frames and combination rules for the pinholes'
 
         defaults['arcframe'] = FrameGroupPar(frametype='arc', number=1,
-                                             combine=CombineFramesPar(cosmics=-1))
+                                             process=ProcessImagesPar(sigrej=-1))
         dtypes['arcframe'] = [ ParSet, dict ]
         descr['arcframe'] = 'The frames and combination rules for the wavelength calibration'
 
@@ -1813,7 +1640,7 @@ class CalibrationsPar(ParSet):
         dtypes['slits'] = [ ParSet, dict ]
         descr['slits'] = 'Define how the slits should be traced using the trace ?PINHOLE? frames'
 
-        defaults['tilts'] = TraceTiltsPar()
+        defaults['tilts'] = WaveTiltsPar()
         dtypes['tilts'] = [ ParSet, dict ]
         descr['tilts'] = 'Define how to tract the slit tilts using the trace frames'
 
@@ -1856,7 +1683,7 @@ class CalibrationsPar(ParSet):
         pk = 'slits'
         kwargs[pk] = TraceSlitsPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'tilts'
-        kwargs[pk] = TraceTiltsPar.from_dict(cfg[pk]) if pk in k else None
+        kwargs[pk] = WaveTiltsPar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
 
@@ -1912,8 +1739,8 @@ class PypitPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypitpar`.
     """
-    def __init__(self, rdx=None, calibrations=None, scienceframe=None, objects=None,
-                 extract=None, skysubtract=None, flexure=None, fluxcalib=None):
+    def __init__(self, rdx=None, baseprocess=None, calibrations=None, scienceframe=None,
+                 objects=None, extract=None, skysubtract=None, flexure=None, fluxcalib=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1931,6 +1758,10 @@ class PypitPar(ParSet):
         defaults['rdx'] = ReducePar()
         dtypes['rdx'] = [ ParSet, dict ]
         descr['rdx'] = 'PypIt reduction rules.'
+
+        defaults['baseprocess'] = ProcessImagesPar()
+        dtypes['baseprocess'] = [ ParSet, dict ]
+        descr['baseprocess'] = 'Default-level parameters used when processing all images'
 
         defaults['calibrations'] = CalibrationsPar()
         dtypes['calibrations'] = [ ParSet, dict ]

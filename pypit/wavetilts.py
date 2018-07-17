@@ -87,7 +87,7 @@ class WaveTilts(masterframe.MasterFrame):
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
                                          directory_path=directory_path, mode=mode)
 
-        self.par = pypitpar.TraceTiltsPar() if par is None else par
+        self.par = pypitpar.WaveTiltsPar() if par is None else par
 
         # Parameters (but can be None)
         self.msarc = msarc

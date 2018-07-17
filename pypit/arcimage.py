@@ -68,9 +68,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Start us up
         processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
-                                             overscan_par=self.par['overscan'],
-                                             combine_par=self.par['combine'],
-                                             lacosmic_par=self.par['lacosmic'])
+                                             par=self.par['process'])
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name

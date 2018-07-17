@@ -40,15 +40,9 @@ class ProcessImages(object):
             preconstructed instance of :class:`Spectrograph`.
         det (:obj:`int`, optional):
             The 1-indexed number of the detector.  Default is 1.
-        overscan_par (:obj:`pypitpar.OverscanPar`, optional):
-            Parameters that dictate the treatment of the overscan
-            region.
-        combine_par (:obj:`pypitpar.CombineFramesPar`, optional):
-            Parameters used when combining frames.  See
-            `pypit.par.pypitpar.CombineFramesPar` for the defaults.
-        lacosmic_par (:obj:`pypitpar.LACosmicPar`, optional):
-            Parameters used for cosmic-ray detection.  See
-            `pypit.par.pypitpar.LACosmicPar` for the defaults.
+        par (:obj:`pypitpar.ProcessImagesPar`, optional):
+            Parameters that dictate the processing of the images.  See
+            `pypit.par.pypitpar.ProcessImagesPar` for the defaults. 
 
     Attributes:
         file_list (list):
@@ -77,8 +71,7 @@ class ProcessImages(object):
     # Class attribute is unknown.  Will be overwritten by children
     frametype='Unknown'
 
-    def __init__(self, spectrograph, file_list=[], det=1, overscan_par=None, combine_par=None,
-                 lacosmic_par=None):
+    def __init__(self, spectrograph, file_list=[], det=1, par=None):
 
         # Required parameters
         if not isinstance(file_list, list):
@@ -95,17 +88,9 @@ class ProcessImages(object):
         # Optional
         self.det = det
 
-        if overscan_par is not None and not isinstance(overscan_par, pypitpar.OverscanPar):
-            raise TypeError('Provided ParSet for combining frames must be type CombineFramesPar.')
-        self.overscan_par = pypitpar.OverscanPar() if overscan_par is None else overscan_par
-
-        if combine_par is not None and not isinstance(combine_par, pypitpar.CombineFramesPar):
-            raise TypeError('Provided ParSet for combining frames must be type CombineFramesPar.')
-        self.combine_par = pypitpar.CombineFramesPar() if combine_par is None else combine_par
-
-        if lacosmic_par is not None and not isinstance(lacosmic_par, pypitpar.LACosmicPar):
-            raise TypeError('Provided ParSet for LACosmic must be type LACosmicPar.')
-        self.lacosmic_par = pypitpar.LACosmicPar() if lacosmic_par is None else lacosmic_par
+        if par is not None and not isinstance(par, pypitpar.ProcessImagesPar):
+            raise TypeError('Provided ParSet for processing images must be type ProcessImagesPar.')
+        self.par = pypitpar.ProcessImagesPar() if par is None else par
 
         # Main (possible) outputs
         self.stack = None
@@ -260,7 +245,7 @@ class ProcessImages(object):
         # Return
         return self.stack
 
-    def bias_subtract(self, msbias, trim=True, force=False, overscan_par=None):
+    def bias_subtract(self, msbias, trim=True, force=False, par=None):
         """
         Subtract the bias.
 
@@ -281,11 +266,11 @@ class ProcessImages(object):
                       "and do it again. Returning...")
             return
 
-        # Set the overscan parameters
-        if overscan_par is not None and not isinstance(overscan_par, pypitpar.OverscanPar):
-            raise TypeError('Provided ParSet for overscan subtraction must be type OverscanPar.')
-        if overscan_par is not None:
-            self.overscan_par = overscan_par
+        # Set the parameters
+        if par is not None and not isinstance(par, pypitpar.ProcessImagesPar):
+            raise TypeError('Provided ParSet for must be type ProcessImagesPar.')
+        if par is not None:
+            self.par = par
 
         # If trimming, get the image identifying amplifier used for the
         # data section
@@ -303,9 +288,8 @@ class ProcessImages(object):
             elif isinstance(msbias, basestring) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
                 temp = arprocimg.subtract_overscan(image, numamplifiers, self.datasec,
-                                                   self.oscansec,
-                                                   method=self.overscan_par['method'],
-                                                   params=self.overscan_par['params'])
+                                                   self.oscansec, method=self.par['overscan'],
+                                                   params=self.par['overscan_par'])
             else:
                 msgs.error('Could not subtract bias level with the input bias approach.')
 
@@ -322,7 +306,7 @@ class ProcessImages(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def combine(self, combine_par=None):
+    def combine(self, par=None):
         """
         Combine the processed images
 
@@ -332,31 +316,25 @@ class ProcessImages(object):
 
         """
         # Set the parameters
-        if combine_par is not None and not isinstance(combine_par, pypitpar.CombineFramesPar):
-            raise TypeError('Provided ParSet for combining frames must be type CombineFramesPar.')
-        if combine_par is not None:
-            self.combine_par = combine_par
+        if par is not None and not isinstance(par, pypitpar.ProcessImagesPar):
+            raise TypeError('Provided ParSet for must be type ProcessImagesPar.')
+        if par is not None:
+            self.par = par
 
         # Now we can combine
         saturation = self.spectrograph.detector[self.det-1]['saturation']
-        # (KBW) We could shorten this call to, if we want to:
-#        self.stack = arcomb.core_comb_frames(self.proc_images, frametype=self.frametype,
-#                                             saturation=saturation, **self.combine_par)
-        # TODO: frametype is only used in printing.  Can it be excluded
-        # from core_comb_frames?
         self.stack = arcomb.core_comb_frames(self.proc_images, frametype=self.frametype,
-                                             saturation=saturation,
-                                             method=self.combine_par['method'],
-                                             satpix=self.combine_par['satpix'],
-                                             cosmics=self.combine_par['cosmics'],
-                                             n_lohi=self.combine_par['n_lohi'],
-                                             sig_lohi=self.combine_par['sig_lohi'],
-                                             replace=self.combine_par['replace'])
+                                             saturation=saturation, method=self.par['combine'],
+                                             satpix=self.par['satpix'],
+                                             cosmics=self.par['sigrej'],
+                                             n_lohi=self.par['n_lohi'],
+                                             sig_lohi=self.par['sig_lohi'],
+                                             replace=self.par['replace'])
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.stack
 
-    def build_crmask(self, varframe=None, lacosmic_par=None):
+    def build_crmask(self, varframe=None, par=None):
         """
         Generate the CR mask frame
 
@@ -373,26 +351,21 @@ class ProcessImages(object):
 
         """
         # Set the parameters
-        if lacosmic_par is not None and not isinstance(lacosmic_par, pypitpar.LACosmicPar):
-            raise TypeError('Provided ParSet for LACosmic must be type LACosmicPar.')
-        if lacosmic_par is not None:
-            self.lacosmic_par = lacosmic_par
+        if par is not None and not isinstance(par, pypitpar.ProcessImagesPar):
+            raise TypeError('Provided ParSet for must be type ProcessImagesPar.')
+        if par is not None:
+            self.par = par
 
         # Run LA Cosmic to get the cosmic ray mask
         saturation = self.spectrograph.detector[self.det-1]['saturation']
         nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
-        # (KBW) We can't do this:
-#        self.crmask = arprocimg.lacosmic(self.det, self.stack, saturation, nonlinear,
-#                                         varframe=varframe, **self.lacosmic_par['maxiter'])
-        # unless I change the key from rmcompact to remove_compact_obj
-        # (or change the keyword in arprocimg.lacosmic)
         self.crmask = arprocimg.lacosmic(self.det, self.stack, saturation, nonlinear,
-                                         varframe=varframe, maxiter=self.lacosmic_par['maxiter'],
-                                         grow=self.lacosmic_par['grow'],
-                                         remove_compact_obj=self.lacosmic_par['rmcompact'],
-                                         sigclip=self.lacosmic_par['sigclip'],
-                                         sigfrac=self.lacosmic_par['sigfrac'],
-                                         objlim=self.lacosmic_par['objlim'])
+                                         varframe=varframe, maxiter=self.par['lamaxiter'],
+                                         grow=self.par['grow'],
+                                         remove_compact_obj=self.par['rmcompact'],
+                                         sigclip=self.par['sigclip'],
+                                         sigfrac=self.par['sigfrac'],
+                                         objlim=self.par['objlim'])
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -574,9 +547,7 @@ class ProcessImages(object):
         # Spectrograph
         hdu.header['INSTRUME'] = self.spectrograph.spectrograph
         # Parameters
-        self.overscan_par.to_header(hdu.header)
-        self.combine_par.to_header(hdu.header)
-        self.lacosmic_par.to_header(hdu.header)
+        self.par.to_header(hdu.header)
         # Steps
         steps = ','
         hdu.header['STEPS'] = steps.join(self.steps)

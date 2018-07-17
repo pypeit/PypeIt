@@ -57,8 +57,8 @@ def test_wavelengthsolution():
 def test_traceslits():
     pypitpar.TraceSlitsPar()
 
-def test_tracetilts():
-    pypitpar.TraceTiltsPar()
+def test_wavetilts():
+    pypitpar.WaveTiltsPar()
 
 def test_traceobjects():
     pypitpar.TraceObjectsPar()

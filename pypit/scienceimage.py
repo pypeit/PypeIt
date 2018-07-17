@@ -114,9 +114,7 @@ class ScienceImage(processimages.ProcessImages):
 
         # Start us up
         processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
-                                             overscan_par=self.frame_par['overscan'],
-                                             combine_par=self.frame_par['combine'],
-                                             lacosmic_par=self.frame_par['lacosmic'])
+                                             par=self.frame_par['process'])
 
         # Parameters unique to this Object
         self.setup = setup

@@ -168,14 +168,14 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['polyorder'] = 3
         par['calibrations']['slits']['fracignore'] = 0.02
-        par['calibrations']['slits']['pca']['params'] = [3,2,1,0]
+        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
 
         # Overscan subtract the images
         par['calibrations']['biasframe']['useframe'] = 'overscan'
 
         # Alter the method used to combine pixel flats
-        par['calibrations']['pixelflatframe']['combine']['method'] = 'median'
-        par['calibrations']['pixelflatframe']['combine']['sig_lohi'] = [10.,10.]
+        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
+        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
         # Always sky subtract, starting with default parameters
         par['skysubtract'] = pypitpar.SkySubtractionPar()

@@ -203,7 +203,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['rdx']['pipeline'] = 'ARMS'
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 30.
-        par['calibrations']['slits']['pca']['params'] = [3,2,1,0]
+        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
         par['skysubtract'] = pypitpar.SkySubtractionPar()
         # Always flux calibrate, starting with default parameters

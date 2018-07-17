@@ -72,8 +72,8 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
         # Use the ARMS pipeline
         par['rdx']['pipeline'] = 'ARMS'
         # Set pixel flat combination method
-        par['calibrations']['pixelflatframe']['combine']['method'] = 'median'
-        par['calibrations']['pixelflatframe']['combine']['sig_lohi'] = [10.,10.]
+        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
+        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'simple'
         # Always sky subtract, starting with default parameters

@@ -74,9 +74,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Start us up
         processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
-                                             overscan_par=self.par['overscan'],
-                                             combine_par=self.par['combine'],
-                                             lacosmic_par=self.par['lacosmic'])
+                                             par=self.par['process'])
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
@@ -335,76 +333,4 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             if self.mspixelflatnrm is not None:
                 ginga.show_image(self.mspixelflatnrm)
 
-
-#def get_msflat(det, setup, spectrograph, sci_ID, fitstbl, tslits_dict, datasec_img,
-#               flat_settings, msbias, mstilts):
-#    """
-#    Load/Generate the normalized flat field image
-#
-#    Parameters
-#    ----------
-#    det : int
-#      Required for processing
-#    setup : str
-#      Required for MasterFrame loading
-#    spectrograph : str
-#      Required for processing
-#    sci_ID : int
-#      Required to choose the right flats for processing
-#    fitstbl : Table
-#      Required to choose the right flats for processing
-#    tslits_dict : dict
-#      Slits dict; required for processing
-#    datasec_img : ndarray
-#      Required for processing
-#    flat_settings : dict
-#    msbias : ndarray or str
-#      Required for processing
-#    mstilts : ndarray
-#      Tilts image; required for processing
-#
-#    Returns
-#    -------
-#    mspixflatnrm : ndarray
-#      Normalized pixel flat
-#    slitprof : ndarray
-#      Slit profile image
-#    flatField : FlatField object
-#    """
-#    # Instantiate
-#    pixflat_image_files = arsort.list_of_files(fitstbl, 'pixelflat', sci_ID)
-#    flatField = FlatField(file_list=pixflat_image_files, msbias=msbias,
-#                                    spectrograph=spectrograph,
-#                                    settings=flat_settings,
-#                                    tslits_dict=tslits_dict,
-#                                    tilts=mstilts, det=det, setup=setup,
-#                                    datasec_img=datasec_img)
-#
-#    # Load from disk (MasterFrame)?
-#    mspixflatnrm = flatField.master()
-#    slitprof = None
-#    # Load user supplied flat (e.g. LRISb with pixel flat)?
-#    if flat_settings['flatfield']['useframe'] not in ['pixelflat', 'trace']:
-#        mspixelflat_name = armasters.user_master_name(flat_settings['masters']['directory'],
-#                                                  flat_settings['flatfield']['useframe'])
-#        mspixflatnrm, head, _ = armasters._load(mspixelflat_name, exten=det, frametype=None, force=True)
-#        # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
-#        slitprof = np.ones_like(mspixflatnrm)
-#    if mspixflatnrm is None:
-#        # TODO -- Consider turning the following back on.  I'm regenerating the flat for now
-#        # Use mstrace if the indices are identical
-#        #if np.all(arsort.ftype_indices(fitstbl,'trace',1) ==
-#        #                  arsort.ftype_indices(fitstbl, 'pixelflat', 1)) and (traceSlits.mstrace is not None):
-#        #    flatField.mspixelflat = traceSlits.mstrace.copy()
-#        # Run
-#        mspixflatnrm, slitprof = flatField.run(armed=False)
-#        # Save to Masters
-#        flatField.save_master(mspixflatnrm, raw_files=pixflat_image_files, steps=flatField.steps)
-#        flatField.save_master(slitprof, raw_files=pixflat_image_files, steps=flatField.steps,
-#                              outfile=armasters.master_name('slitprof', setup, flat_settings['masters']['directory']))
-#    else:
-#        if slitprof is None:
-#            slitprof, _, _ = flatField.load_master_slitprofile()
-#    # Return
-#    return mspixflatnrm, slitprof, flatField
 

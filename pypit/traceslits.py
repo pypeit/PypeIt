@@ -212,9 +212,9 @@ class TraceSlits(masterframe.MasterFrame):
                                              diffpolyorder=slit_settings['diffpolyorder'],
                                              single=slit_settings['single'],
                                              sobel_mode=slit_settings['sobel']['mode'],
-                            pca=pypitpar.PCAPar(pcatype=slit_settings['pca']['type'],
-                                                params=slit_settings['pca']['params'],
-                                extrapolate=[slit_settings['pca']['extrapolate']['neg'],
+                                             pcatype=slit_settings['pca']['type'],
+                                             pcapar=slit_settings['pca']['params'],
+                                            pcaextrap=[slit_settings['pca']['extrapolate']['neg'],
                                                 slit_settings['pca']['extrapolate']['pos']])))
 
         # Fill in a bit more (Attributes)
@@ -653,9 +653,9 @@ class TraceSlits(masterframe.MasterFrame):
         self.extrapord  : ndarray (internal)
 
         """
-        if self.par['pca']['pcatype'] == 'order':
+        if self.par['pcatype'] == 'order':
             self._pca_order_slit_edges()
-        elif self.par['pca']['pcatype'] == 'pixel':
+        elif self.par['pcatype'] == 'pixel':
             self._pca_pixel_slit_edges()
         else: # No PCA
             allord = np.arange(self.lcent.shape[0])
@@ -690,8 +690,8 @@ class TraceSlits(masterframe.MasterFrame):
                                                     function=self.par['function'],
                                                     polyorder=self.par['polyorder'],
                                                     diffpolyorder=self.par['diffpolyorder'],
-                                                    ofit=self.par['pca']['params'],
-                                                    extrapolate=self.par['pca']['extrapolate'])
+                                                    ofit=self.par['pcapar'],
+                                                    extrapolate=self.par['pcaextrap'])
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -717,7 +717,7 @@ class TraceSlits(masterframe.MasterFrame):
                                                     self.rwghtarr, self.lcent, self.rcent, plxbin,
                                                     function=self.par['function'],
                                                     polyorder=self.par['polyorder'],
-                                                    ofit=self.par['pca']['params'])
+                                                    ofit=self.par['pcapar'])
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -807,7 +807,7 @@ class TraceSlits(masterframe.MasterFrame):
                                                  self.rnmbrarr, self.rdiffarr, self.rwghtarr,
                                                  function=self.par['function'],
                                                  polyorder=self.par['polyorder'],
-                                                 extrapolate=self.par['pca']['extrapolate'])
+                                                 extrapolate=self.par['pcaextrap'])
         self.slitcen = 0.5*(self.lcent+self.rcent).T
         # Step
         self.steps.append(inspect.stack()[0][3])
