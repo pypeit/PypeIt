@@ -51,7 +51,7 @@ def main(args):
 
     from pypit import arqa
     from pypit import msgs
-    msgs.reset(verbosity=0)
+    msgs.reset(verbosity=2)
 
     # Read JSON
     fdict = loadjson(args.wave_soln)

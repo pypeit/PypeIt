@@ -46,8 +46,8 @@ class Messages:
     verbosity : int (0,1,2)
       Level of verbosity:
         0 = No output
-        1 = Minimal output (default - suitable for the average user)
-        2 = All output
+        1 = Minimal output
+        2 = All output (default)
     colors : bool
       If true, the screen output will have colors, otherwise
       normal screen output will be displayed
@@ -57,7 +57,7 @@ class Messages:
         # Initialize other variables
         # TODO: debug could just be develop=True or False
         self._debug = debug
-        self._verbosity = 1 if verbosity is None else verbosity
+        self._verbosity = 2 if verbosity is None else verbosity
 #        self._last_updated = __last_updated__
         self._version = __version__
 

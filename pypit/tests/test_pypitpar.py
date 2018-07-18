@@ -130,7 +130,7 @@ def test_sync():
 
 def test_pypit_file():
     # Read the PypeIt file
-    cfg, data, frametype, setups = parse_pypit_file(data_path('test_pypit_file.pypit'),
+    cfg, data, frametype, setups = parse_pypit_file(data_path('example_pypit_file.pypit'),
                                                     file_check=False)
     # Long-winded way of getting the spectrograph name
     name = pypitpar.PypitPar.from_cfg_lines(merge_with=cfg)['rdx']['spectrograph']

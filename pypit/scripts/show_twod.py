@@ -55,7 +55,7 @@ def main(args):
         return
 
     # Setup for PYPIT imports
-    msgs.reset(verbosity=0)
+    msgs.reset(verbosity=2)
 
     # Init
     sdet = get_dnum(args.det, prefix=False)

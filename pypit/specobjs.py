@@ -1,5 +1,5 @@
-
-# JFH my re-definition of the specobj class. I started from arspecobj and am making changes that I need
+""" Module for the SpecObjs and SpecObj classes
+"""
 from __future__ import absolute_import, division, print_function
 
 import copy
@@ -9,11 +9,17 @@ import numpy as np
 
 from astropy import units
 from astropy.table import Table
+from astropy.units import Quantity
 
 from pypit import msgs
 from pypit import arparse
 from pypit.core import artraceslits
 from pypit import ardebug as debugger
+
+try:
+    basestring
+except NameError:
+    basestring = str
 
 class SpecObj(object):
     """Class to handle object spectra from a single exposure
@@ -137,18 +143,162 @@ class SpecObj(object):
             return False
 
     def copy(self):
-        slf = SpecObjExp(self.shape, self.config, self.scidx, self.det, self.xslit, self.ypos, self.xobj,
+        slf = SpecObj(self.shape, self.config, self.scidx, self.det, self.xslit, self.ypos, self.xobj,
                        objtype=self.objtype)
         slf.boxcar = self.boxcar.copy()
         slf.optimal = self.optimal.copy()
         return slf
 
+    def __getitem__(self, key):
+        """ Access the DB groups
+
+        Parameters
+        ----------
+        key : str or int (or slice)
+
+        Returns
+        -------
+
+        """
+        # Check
+        return getattr(self, key)
+
     # Printing
     def __repr__(self):
         # Generate sets string
         sdet = arparse.get_dnum(self.det, prefix=False)
-        return ('<SpecObjExp: Setup = {:}, Slit = {:} at spec = {:7.2f} & spat = ({:7.2f},{:7.2f}) on det={:s}, scidx={:}, objid = {:} and objtype={:s}>'.format(
+        return ('<SpecObj: Setup = {:}, Slit = {:} at spec = {:7.2f} & spat = ({:7.2f},{:7.2f}) on det={:s}, scidx={:}, objid = {:} and objtype={:s}>'.format(
             self.config, self.slitid, self.slit_spec_pos, self.slit_spat_pos[0], self.slit_spat_pos[1], sdet, self.scidx, self.objid, self.objtype))
+
+
+class SpecObjs(object):
+    """
+    Object to hold a set of SpecObj objects
+
+    Parameters:
+        specobjs : list
+        summary : Table
+    """
+
+    def __init__(self, specobjs=None):
+        """
+
+        Args:
+            specobjs: list, optional
+        """
+
+        if specobjs is None:
+            self.specobjs = []
+        else:
+            self.specobjs = specobjs
+
+        # Internal summary Table
+        self.build_summary()
+
+    def add_sobj(self, sobj):
+        """
+        Add one or more SpecObj
+
+        The summary table is rebuilt
+
+        Args:
+            sobj: SpecObj or list
+
+        Returns:
+
+
+        """
+        if isinstance(sobj, SpecObj):
+            self.specobjs += [sobj]
+        elif isinstance(sobj, list):
+            self.specobjs += sobj
+        # Rebuild summary table
+        self.build_summary()
+
+    def build_summary(self):
+        """
+
+        Returns:
+            Builds self.summary Table internally
+
+        """
+        if len(self.specobjs) == 0:
+            self.summary = Table()
+            return
+        #
+        atts = self.specobjs[0].__dict__.keys()
+        uber_dict = {}
+        for key in atts:
+            uber_dict[key] = []
+            for sobj in self.specobjs:
+                uber_dict[key] += [getattr(sobj, key)]
+        # Build it
+        self.summary = Table(uber_dict)
+
+    def remove_sobj(self, index):
+        """
+        Remove an object
+
+        Args:
+            index: int
+
+        Returns:
+
+        """
+        self.specobjs.pop(index)
+        self.build_summary()
+
+    def __getitem__(self, key):
+        """ Overload to allow one to pull an attribute
+        or a portion of the SpecObjs list
+
+        Parameters
+        ----------
+        key : str or int (or slice)
+
+        Returns
+        -------
+
+        """
+        # TODO -- Add slicing
+        if isinstance(key, basestring):
+            return self.__getattr__(key)
+        elif isinstance(key, int):
+            return self.specobjs[key]
+
+    def __getattr__(self, k):
+        """ Generate an array of attribute 'k' from the specobjs
+
+        First attempts to grab data from the Summary table, then the list
+
+        Parameters
+        ----------
+        k : str
+          Attribute
+
+        Returns
+        -------
+        numpy array
+        """
+        # Special case(s)
+        if k in self.summary.keys():  # _data
+            lst = self.summary[k]
+        else:
+            lst = None
+        # specobjs last!
+        if lst is None:
+            if len(self.specobjs) == 0:
+                raise ValueError("Attribute not available!")
+            try:
+                lst = [getattr(specobj, k) for specobj in self.specobjs]
+            except ValueError:
+                raise ValueError("Attribute does not exist")
+        # Recast as an array
+        return lst_to_array(lst)
+
+    # Printing
+    def __repr__(self):
+        return self.summary.__repr__()
 
 
 def init_exp(lordloc, rordloc, shape, maskslits,
@@ -202,9 +352,9 @@ def init_exp(lordloc, rordloc, shape, maskslits,
                 _, xobj = get_objid(lordloc, rordloc, sl, qq, tracelist, ypos=ypos)
                 # Generate
                 if tracelist[sl]['object'] is None:
-                    specobj = SpecObjExp((tracelist[0]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj, **kwargs)
+                    specobj = SpecObj((tracelist[0]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj, **kwargs)
                 else:
-                    specobj = SpecObjExp((tracelist[sl]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj,
+                    specobj = SpecObj((tracelist[sl]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj,
                                          **kwargs)
                 # Add traces
                 specobj.trace = tracelist[sl]['traces'][:, qq]
@@ -372,7 +522,7 @@ def dummy_specobj(fitstbl, det=1, extraction=True):
     xobjs = [0.4, 0.6]
     specobjs = []
     for xobj in xobjs:
-        specobj = SpecObjExp(shape, config, scidx, det, xslit, ypos, xobj)
+        specobj = SpecObj(shape, config, scidx, det, xslit, ypos, xobj)
         # Dummy extraction?
         if extraction:
             npix = 2001
@@ -385,3 +535,30 @@ def dummy_specobj(fitstbl, det=1, extraction=True):
     return specobjs
 
 #TODO We need a method to write these objects to a fits file
+
+def lst_to_array(lst, mask=None):
+    """ Simple method to convert a list to an array
+
+    Allows for a list of Quantity objects
+
+    Parameters
+    ----------
+    lst : list
+      Should be number or Quantities
+    mask : boolean array, optional
+
+    Returns
+    -------
+    array or Quantity array
+
+    """
+    if mask is None:
+        mask = np.array([True]*len(lst))
+    if isinstance(lst[0], Quantity):
+        return Quantity(lst)[mask]
+    else:
+        return np.array(lst)[mask]
+        # Generate the Table
+        tbl = Table(clms, names=attrib)
+        # Return
+        return tbl

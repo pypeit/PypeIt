@@ -98,7 +98,7 @@ def main(args):
     if not args.custom:
         return
 
-    msgs.reset(verbosity=0)
+    msgs.reset(verbosity=2)
 
     # Read master file
     _, data_files, frametype, setups = parse_pypit_file(pypit_file)

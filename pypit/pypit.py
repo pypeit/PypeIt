@@ -17,7 +17,7 @@ from pypit import pypitsetup
 from pypit import ardebug
 
 def PYPIT(pypit_file, setup_only=False, calibration_check=False, use_header_frametype=False,
-          sort_dir=None, debug=None, quick=False, ncpus=1, overwrite=False, verbosity=1,
+          sort_dir=None, debug=None, quick=False, ncpus=1, overwrite=False, verbosity=2,
           use_masters=False, logname=None):
     """
     Execute PYPIT.

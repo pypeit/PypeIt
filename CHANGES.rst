@@ -236,7 +236,7 @@
   running make html in doc/ directory
 - Checked orientation of array correct for DATASEC and OSCANSEC in
   DetectorPar for each Spectrograph
-- Removed pypit/config directory
+- Add SpecObjs class
 
 0.7 (2017-02-07)
 ----------------

@@ -50,7 +50,7 @@ def main(args):
     kludge_fil = 'tmp_ginga.fits'
 
     # Setup for PYPIT imports
-    msgs.reset(verbosity=0)
+    msgs.reset(verbosity=2)
 
     # Extension
     if args.exten is not None:
