@@ -42,8 +42,8 @@ class TngDoloresSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 0.97,
                             ronoise         = 9.0,
-                            datasec         = '[50:,0:2045]',
-                            oscansec        = '[50:,2054:]',
+                            datasec         = '[51:,1:2045]',
+                            oscansec        = '[51:,2054:]',
                             suffix          = '_lrr'
                             )
             ]

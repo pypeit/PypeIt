@@ -216,19 +216,16 @@ class Spectrograph(object):
             hdu = fits.open(filename)
             image_sections = [ hdu[self.detector[det-1]['dataext']].header[key] \
                                     for key in self.detector[det-1][section] ]
-            # If this is successful, assume normal FITS header formatting
-            one_indexed = True
-            include_last = True
-            transpose = True
         except:
             # Otherwise use the detector definition directly
             image_sections = self.detector[det-1][section]
             if not isinstance(image_sections, list):
                 image_sections = [image_sections]
-            # and assume the string is python formatted.
-            one_indexed = False
-            include_last = False
-            transpose = False
+
+        # Always assume normal FITS header formatting
+        one_indexed = True
+        include_last = True
+        transpose = self.detector[det-1]['dispaxis'] == 0
 
         return image_sections, one_indexed, include_last, transpose
 

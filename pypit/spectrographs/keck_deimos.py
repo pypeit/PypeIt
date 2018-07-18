@@ -41,7 +41,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 1.226,
                             ronoise         = 2.570,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
                             suffix          = '_01'
+
                             ),
                 # Detector 2
                 DetectorPar(dataext         = 2,
@@ -56,6 +59,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 1.188,
                             ronoise         = 2.491,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
                             suffix          = '_02'
                             ),
                 # Detector 3
@@ -71,6 +76,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 1.248,
                             ronoise         = 2.618,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
                             suffix          = '_03'
                             ),
                 # Detector 4
@@ -86,6 +93,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 1.220,
                             ronoise         = 2.557,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
                             suffix          = '_04'
                             ),
                 # Detector 5
@@ -101,6 +110,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 1.184,
                             ronoise         = 2.482,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
                             suffix          = '_05'
                             ),
                 # Detector 6
@@ -116,6 +127,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 1.177,
                             ronoise         = 2.469,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
                             suffix          = '_06'
                             ),
                 # Detector 7
@@ -131,6 +144,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 1.201,
                             ronoise         = 2.518,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
                             suffix          = '_07'),
                 # Detector 8
                 DetectorPar(dataext         = 8,
@@ -145,6 +160,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 1.230,
                             ronoise         = 2.580,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
                             suffix          = '_08'
                             )
             ]

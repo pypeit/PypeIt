@@ -184,8 +184,8 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
                                      numamplifiers   = 2,
                                      gain            = [1.2, 1.2],
                                      ronoise         = [3.7, 3.7],
-                                     datasec         = [ '[0:1024,:]', '[1024:2048,:]'],
-                                     oscansec        = [ '[2049:2080,:]', '[2080:2111,:]'],
+                                     datasec         = [ '[1:1024,:]', '[1025:2048,:]'],
+                                     oscansec        = [ '[2050:2080,:]', '[2081:2111,:]'],
                                      suffix          = '_blue'
                                      )]
         self.numhead = 1
@@ -272,6 +272,10 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
     Child to handle Shane/Kast red specific code
     """
     def __init__(self):
+
+        # TODO: NEED TO CHECK ORIENTATION OF DATASEC AND OSCANSEC ARE
+        # CORRECT!!!!
+
         # Get it started
         super(ShaneKastRedSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast_red'
@@ -290,8 +294,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                                      numamplifiers   = 2,
                                      gain            = [1.9, 1.9],
                                      ronoise         = [3.8, 3.8],
-                                     datasec         = ['[1:511,:]', '[512:525,:]'],
-                                     oscansec        = ['[526:625,:]', '[626:725,:]'],
+                                     datasec         = ['[:,2:511]', '[:,513:525]'],
+                                     oscansec        = ['[:,527:625]', '[:,627:725]'],
                                      suffix          = '_red'
                                      )]
         self.numhead = 1
@@ -378,7 +382,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
                                      numamplifiers   = 1,
                                      gain            = 3.0,
                                      ronoise         = 12.5,
-                                     oscansec        = '[1202:1232,:]',
+                                     oscansec        = '[1203:1232,:]',
                                      suffix          = '_red'
                                      )]
         self.numhead = 1

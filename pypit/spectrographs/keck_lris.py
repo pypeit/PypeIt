@@ -169,6 +169,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.55, 1.56],
                             ronoise         = [3.9, 4.2],
+                            datasec         = ['',''],      # These are provided by read_lris
+                            oscansec        = ['',''],
                             suffix          = '_01blue'
                             ),
                 #Detector 2
@@ -184,6 +186,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.63, 1.70],
                             ronoise         = [3.6, 3.6],
+                            datasec         = ['',''],      # These are provided by read_lris
+                            oscansec        = ['',''],
                             suffix          = '_02blue'
                             )
             ]
@@ -290,6 +294,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                             numamplifiers   =2,
                             gain            =[1.255, 1.18],
                             ronoise         =[4.64, 4.76],
+                            datasec         = ['',''],      # These are provided by read_lris
+                            oscansec        = ['',''],
                             suffix          ='_01red'
                             ),
                 #Detector 2
@@ -305,6 +311,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                             numamplifiers   =2,
                             gain            =[1.191, 1.162],
                             ronoise         =[4.54, 4.62],
+                            datasec         = ['',''],      # These are provided by read_lris
+                            oscansec        = ['',''],
                             suffix          ='_02red'
                             )
             ]
