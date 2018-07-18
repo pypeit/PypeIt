@@ -4,11 +4,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from pypit import pyputils
+from pypit import msgs
 from pypit import arqa
-
-msgs = pyputils.get_dummy_logger()
-
 
 def test_get_dimen():
     """ Get the plotting dimensions

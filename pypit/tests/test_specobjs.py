@@ -9,10 +9,9 @@ import os
 import numpy as np
 import pytest
 
-from pypit import pyputils
+from pypit import msgs
 from pypit import specobjs
-
-msgs = pyputils.get_dummy_logger()
+msgs.reset(verbosity=2)
 
 #def data_path(filename):
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')

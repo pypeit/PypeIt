@@ -14,18 +14,42 @@ from astropy.io import fits
 
 from pypit import msgs
 from pypit import ardebug as debugger
-from. import spectroclass
+from pypit.par.pypitpar import DetectorPar
+from pypit.spectrographs import spectrograph
+from pypit import telescopes
 
-class KeckNIRESpectrograph(spectroclass.Spectrograph):
+# TODO: KeckNIRESSPectrograph instead (i.e. two SS) ?
+class KeckNIRESpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/NIRES specific code
     """
-
     def __init__(self):
-
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(KeckNIRESpectrograph, self).__init__()
         self.spectrograph = 'keck_nires'
+        self.telescope = telescopes.KeckTelescopePar()
+        self.camera = 'NIRES'
+        self.detector = [
+                # Detector 1
+                DetectorPar(dataext         = 0,
+                            dispaxis        = 1,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.123,
+                            darkcurr        = 0.01,
+                            saturation      = 65535.,
+                            nonlinear       = 0.76,
+                            numamplifiers   = 1,
+                            gain            = 3.8,
+                            ronoise         = 2,
+                            datasec         = '[:,:]',
+                            oscansec        = '[:,:]'
+                            )
+            ]
+        # Uses default timeunit
+        # Uses default primary_hdrext
+        # self.sky_file = ?
 
     def bpm(self, shape=None, **null_kwargs):
         """ Generate a BPM
@@ -41,7 +65,10 @@ class KeckNIRESpectrograph(spectroclass.Spectrograph):
         """
         # Edges of the detector are junk
         msgs.info("Custom bad pixel mask for NIRES")
-        self.bpm = np.zeros((self.shape[0], self.shape[1]))
+        if shape is None and self.naxis is None:
+            raise ValueError('Must define shape!')
+        _shape = self.naxis if shape is None else shape
+        self.bpm = np.zeros(_shape)
         #self.bpm[:, :20] = 1.
         #self.bpm[:, 1000:] = 1.
 

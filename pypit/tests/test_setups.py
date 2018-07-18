@@ -13,10 +13,11 @@ import sys, os
 import pytest
 import glob
 
-from pypit import pyputils
+import yaml
 
-msgs = pyputils.get_dummy_logger()
-
+from pypit import msgs
+from pypit.par.util import parse_pypit_file
+from pypit.scripts import setup
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -26,8 +27,6 @@ def data_path(filename):
 def test_run_setup():
     """ Test the setup script
     """
-    from pypit.scripts import setup
-    import yaml
     # Remove .setup if needed
     sfiles = glob.glob('*.setups')
     for sfile in sfiles:
@@ -47,20 +46,20 @@ def test_run_setup():
     # Failures
     pargs2 = setup.parser([droot, 'shane_kast_blu', '-d', '-c',
                               '--extension=fits.gz', '--redux_path={:s}'.format(data_path(''))])
-    with pytest.raises(IOError):
+    with pytest.raises(ValueError):
         setup.main(pargs2)
-
 
 def test_setup_made_pypit_file():
     """ Test the .pypit file(s) made by pypit_setup
+    This test depends on the one above
     """
-    from pypit.pypit import load_input
-    pyp_file = data_path('shane_kast_blue_setup_A/shane_kast_blue_setup_A.pypit')
-    pyp_dict = load_input(pyp_file, msgs)
+    pypit_file = data_path('shane_kast_blue_setup_A/shane_kast_blue_setup_A.pypit')
+    cfg_lines, data_files, frametype, setups = parse_pypit_file(pypit_file)
+    print(setups)
     # Test
-    assert len(pyp_dict['dat']) == 2
-    assert pyp_dict['ftype']['b1.fits.gz'] == 'arc'
-    assert pyp_dict['setup']['name'][0] == 'A'
+    assert len(data_files) == 2
+    assert frametype['b1.fits.gz'] == 'arc'
+    assert setups[0] == 'A'
 
 '''
 def test_setup_pfile():

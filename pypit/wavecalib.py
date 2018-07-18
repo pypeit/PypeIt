@@ -1,50 +1,37 @@
 # Module for guiding 1D Wavelength Calibration
 from __future__ import absolute_import, division, print_function
 
+import os
 import inspect
 import numpy as np
-import os
 
 #from importlib import reload
 
 from matplotlib import pyplot as plt
 
 from pypit import msgs
-from pypit import ardebug as debugger
 from pypit import masterframe
 from pypit.core import ararc
 from pypit.core import armasters
 from pypit.core import arsort
-from pypit.spectrographs import spectro_utils
+from pypit.par import pypitpar
 
-# For out of PYPIT running
-if msgs._debug is None:
-    debug = debugger.init()
-    debug['develop'] = True
-    msgs.reset(debug=debug, verbosity=2)
+from pypit.spectrographs.spectrograph import Spectrograph
+from pypit.spectrographs.util import load_spectrograph
 
-frametype = 'wv_calib'
+from pypit import ardebug as debugger
 
-# Place these here or elsewhere?
-#  Wherever they be, they need to be defined, described, etc.
-def default_settings():
-    tmp = dict(calibrate={'nfitpix': 5,
-                                   'IDpixels': None, # User input pixel values
-                                   'IDwaves': None,  # User input wavelength values
-                                   'lamps': None,
-                                   'method': 'arclines',
-                                   'detection':  6.,
-                                   'numsearch': 20,
-                                   }
-                        )
-    return tmp
-#settings_spect[dnum]['saturation']*settings_spect[dnum]['nonlinear'])  -- For satmask (echelle)
-
-#  See save_master() for the data model for output
+try:
+    basestring
+except NameError:
+    basestring = str
 
 
 class WaveCalib(masterframe.MasterFrame):
     """Class to guide slit/order tracing
+
+    .. todo::
+        - Need to clean up these docs.
 
     Parameters
     ----------
@@ -82,35 +69,42 @@ class WaveCalib(masterframe.MasterFrame):
     arcparam : dict
       Arc parameter (instrument/disperser specific)
     """
-    def __init__(self, msarc, spectrograph=None, settings=None, det=None,
-                 setup=None, fitstbl=None, sci_ID=None, spectro_class=None,
-                 arcparam=None):
+
+    # Frametype is a class attribute
+    frametype = 'wv_calib'
+
+    def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, root_path=None,
+                 mode=None, fitstbl=None, sci_ID=None, arcparam=None):
+
+        # Instantiate the spectograph
+        if isinstance(spectrograph, basestring):
+            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
+        elif isinstance(spectrograph, Spectrograph):
+            self.spectrograph = spectrograph
+        else:
+            raise TypeError('Must provide a name or instance for the Spectrograph.')
+
+        # MasterFrame
+        directory_path = None if root_path is None \
+                                else root_path+'_'+self.spectrograph.spectrograph
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
 
         # Required parameters (but can be None)
         self.msarc = msarc
 
+        self.par = pypitpar.WavelengthSolutionPar() if par is None else par
+
         # Optional parameters
-        self.det = det
         self.fitstbl = fitstbl
-        self.setup = setup
         self.sci_ID = sci_ID
-        self.spectro_class = spectro_class
-        if settings is None:
-            self.settings = default_settings.copy()
-        else:
-            self.settings = settings.copy()
-            if 'calibrate' not in self.settings.keys():
-                self.settings.update(default_settings)
-        self.spectrograph = spectrograph
+        self.det = det
+        self.setup = setup
         self.arcparam = arcparam
 
         # Attributes
-        self.frametype = frametype
+        # Done by MasterFrame
         self.steps = []
-
-        # Spectrograph class
-        if self.spectro_class is None:
-            self.spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
 
         # Main outputs
         self.wv_calib = {}
@@ -118,8 +112,6 @@ class WaveCalib(masterframe.MasterFrame):
         # Key Internals
         self.arccen = None
 
-        # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
 
     def _build_wv_calib(self, method, skip_QA=False):
         """
@@ -146,11 +138,10 @@ class WaveCalib(masterframe.MasterFrame):
             ###############
             # Extract arc and identify lines
             if method == 'simple':
-                iwv_calib = ararc.simple_calib(self.msarc, self.arcparam,
-                                               self.arccen[:, slit],
-                                               nfitpix=self.settings['calibrate']['nfitpix'],
-                                               IDpixels=self.settings['calibrate']['IDpixels'],
-                                               IDwaves=self.settings['calibrate']['IDwaves'])
+                iwv_calib = ararc.simple_calib(self.msarc, self.arcparam, self.arccen[:, slit],
+                                               nfitpix=self.par['nfitpix'],
+                                               IDpixels=self.par['IDpixels'],
+                                               IDwaves=self.par['IDwaves'])
             elif method == 'arclines':
                 iwv_calib = ararc.calib_with_arclines(self.arcparam, self.arccen[:, slit])
             self.wv_calib[str(slit)] = iwv_calib.copy()
@@ -183,8 +174,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         spec = self.wv_calib[str(slit)]['spec']
         if method == 'simple':
-            iwv_calib = ararc.simple_calib(self.msarc, self.arcparam,
-                                           self.arccen[:, slit])
+            iwv_calib = ararc.simple_calib(self.msarc, self.arcparam, self.arccen[:, slit])
         elif method == 'arclines':
             iwv_calib = ararc.calib_with_arclines(self.arcparam, spec)
         else:
@@ -212,9 +202,11 @@ class WaveCalib(masterframe.MasterFrame):
         self.maskslits
 
         """
-        self.arccen, self.maskslits, _ = ararc.get_censpec(lordloc, rordloc, pixlocn,
-                                                          self.msarc, self.det, self.settings,
-                                                          gen_satmask=False)
+        nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation'] \
+                                * self.spectrograph.detector[self.det-1]['nonlinear']
+        self.arccen, self.maskslits, _ \
+                    = ararc.get_censpec(lordloc, rordloc, pixlocn, self.msarc, self.det,
+                                        nonlinear_counts=nonlinear_counts, gen_satmask=False)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -267,9 +259,8 @@ class WaveCalib(masterframe.MasterFrame):
         """
         # Setup arc parameters (e.g. linelist)
         arc_idx = arsort.ftype_indices(self.fitstbl, 'arc', self.sci_ID)
-        self.arcparam = ararc.setup_param(self.spectro_class, self.msarc.shape,
-                                          self.fitstbl, arc_idx[0],
-                                          calibrate_lamps=calibrate_lamps)
+        self.arcparam = ararc.setup_param(self.spectrograph, self.msarc.shape, self.fitstbl,
+                                          arc_idx[0], calibrate_lamps=calibrate_lamps)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -329,18 +320,22 @@ class WaveCalib(masterframe.MasterFrame):
         """
         ###############
         # Extract an arc down each slit
-        #   The settings here are settings.spect (saturation and nonlinear)
         _, _ = self._extract_arcs(lordloc, rordloc, pixlocn)
 
         # Load the arcparam, if one was not passed in.
         if self.arcparam is None:
             _ = self._load_arcparam()
-        # This call is unfortunate since it requires the fitstable in the true PYPIT style of bloated overloaded and uncenessary argument lists.
-        # It is mainly here for backwards compatibility with old methods for wavelength calibration that have been superceded by holy grail. Holy grail only
-        # requires a linelist in the arcparam dict, so if the user passes in an arcparam, no need to run this.
+        # This call is unfortunate since it requires the fitstable in
+        # the true PYPIT style of bloated overloaded and uncenessary
+        # argument lists.  It is mainly here for backwards compatibility
+        # with old methods for wavelength calibration that have been
+        # superceded by holy grail. Holy grail only requires a linelist
+        # in the arcparam dict, so if the user passes in an arcparam, no
+        # need to run this.
+        # KBW - What's stopping us from fixing this?
 
         # Fill up the calibrations and generate QA
-        self.wv_calib = self._build_wv_calib(self.settings['calibrate']['method'], skip_QA=skip_QA)
+        self.wv_calib = self._build_wv_calib(self.par['method'], skip_QA=skip_QA)
         self.wv_calib['steps'] = self.steps
         sv_aparam = self.arcparam.copy()
         sv_aparam.pop('llist')
@@ -396,63 +391,5 @@ class WaveCalib(masterframe.MasterFrame):
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
-
-
-
-def get_wv_calib(det, setup, spectrograph, sci_ID, wvc_settings, fitstbl,
-                 tslits_dict, pixlocn, msarc, nonlinear=None):
-    """
-    Load/Generate the wavelength calibration dict
-
-    Parameters
-    ----------
-    det : int
-      Required for processing
-    setup : str
-      Required for MasterFrame loading
-    spectrograph : str
-      Required for processing
-    sci_ID : int
-      Required to choose the instr configuration
-    wvc_settings : dict
-    fitstbl : Table
-      Required to choose the right flats for processing
-    tslits_dict : dict
-      Slits dict; required for processing
-    pixlocn : ndarray
-      Required for processing
-    msarc : ndarray
-      Required for processing
-    nonlinear : float, optional
-
-    Returns
-    -------
-    wv_calib : dict
-      1D wavelength calibration fits
-    wv_maskslits : ndarray (bool)
-      Indicates slits that were masked (skipped)
-    waveCalib : WaveCalib object
-
-    """
-
-    # Instantiate
-    waveCalib = WaveCalib(msarc, spectrograph=spectrograph,
-                                    settings=wvc_settings, det=det,
-                                    setup=setup, fitstbl=fitstbl, sci_ID=sci_ID)
-    # Load from disk (MasterFrame)?
-    wv_calib = waveCalib.master()
-    # Build?
-    if wv_calib is None:
-        wv_calib, _ = waveCalib.run(tslits_dict['lcen'], tslits_dict['rcen'],
-                                    pixlocn, nonlinear=nonlinear)
-        # Save to Masters
-        waveCalib.save_master(waveCalib.wv_calib)
-    else:
-        waveCalib.wv_calib = wv_calib
-    # Mask
-    wv_maskslits = waveCalib._make_maskslits(tslits_dict['lcen'].shape[1])
-
-    # Return
-    return wv_calib, wv_maskslits, waveCalib
 
 

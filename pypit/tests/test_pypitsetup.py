@@ -15,7 +15,11 @@ import numpy as np
 
 from astropy.table import Table
 
+
 from pypit import pypitsetup
+from pypit.par import pypitpar
+
+from pypit.tests import tstutils
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:
@@ -27,26 +31,30 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+#def set_pars():
+#    reduce_par = pypitpar.ReducePar()
+#    run_par = pypitpar.RunPar()
+#    return run_par, reduce_par
 
-def settings_kludge(instr='shane_kast_blue'):
-    # We be replaced with the settings Refactor
-    from pypit import arparse as settings
-    settings.dummy_settings(spectrograph=instr)
-    settings.argflag['run']['spectrograph'] = instr
-    settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
-    return settings.argflag, settings.spect
+def get_files():
+    # Check for files
+    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
+    files = glob.glob(file_root+'*')
+    assert len(files) > 0
+    return files
+
+# INIT
+spectrograph = tstutils.load_kast_blue_masters(get_spectrograph=True)[0]
 
 def test_init():
     if skip_test:
         assert True
         return
-    # Settings
-    settings_argflag, settings_spect = settings_kludge()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
+    files = get_files()
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     assert len(setupc.steps) == 0
     assert setupc.nfiles == 0
-
 
 def test_build_fitstbl():
     if skip_test:
@@ -56,11 +64,9 @@ def test_build_fitstbl():
     file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
     files = glob.glob(file_root+'*')
     assert len(files) > 0
-    # Settings
-    settings_argflag, settings_spect = settings_kludge()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
-    # fitstlb
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
+    #
     fitstbl = setupc.build_fitstbl(files)
     assert isinstance(fitstbl, Table)
     assert setupc.nfiles == 27
@@ -70,51 +76,38 @@ def test_build_fitstbl():
     tmp = setupc.load_fitstbl(data_path('fitstbl.fits'))
     assert len(tmp) == 27
 
-
 def test_image_type():
     if skip_test:
         assert True
         return
     # Check for files
-    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
-    files = glob.glob(file_root+'*')
-    assert len(files) > 0
-    # Settings
-    settings_argflag, settings_spect = settings_kludge()
+    files = get_files()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
-    # fitstlb
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     fitstbl = setupc.build_fitstbl(files)
-
     # Type
-    filetypes = setupc.type_data()
+    filetypes = setupc.type_data(flag_unknown=True)
     assert np.sum(filetypes['arc']) == 1
+    assert np.sum(filetypes['unknown']) == 0
     assert 'arc' in setupc.fitstbl.keys()
     assert np.sum(filetypes['pixelflat'] & filetypes['trace']) == 12
-
 
 def test_match():
     if skip_test:
         assert True
         return
     # Check for files
-    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
-    files = glob.glob(file_root+'*')
-    assert len(files) > 0
-    # Settings
-    settings_argflag, settings_spect = settings_kludge()
+    files = get_files()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
-    # fitstlb
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     _ = setupc.build_fitstbl(files)
-
-    # Type
-    _ = setupc.type_data()
+    _ = setupc.type_data(flag_unknown=True)
 
     # Match to science
     fitstbl = setupc.match_to_science()
     assert fitstbl['sci_ID'][fitstbl['science']].tolist() == [1,2,4]
 
+'''
 def test_match_ABBA():
     if skip_test:
         assert True
@@ -140,62 +133,45 @@ def test_match_ABBA():
     fitstbl = setupc.match_ABBA()
 
     assert fitstbl['AB_frame'][-1] == 'NS.20160414.55235.fits.gz'
+'''
 
 def test_run():
     if skip_test:
         assert True
         return
     # Check for files
-    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
-    files = glob.glob(file_root+'*')
-    assert len(files) > 0
-    # Settings
-    settings_argflag, settings_spect = settings_kludge()
+    files = get_files()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     # Run
-    code, fitstbl, setup_dict = setupc.run(files)
+    par, spectrograph, fitstbl, setup_dict = setupc.run()
     # Test
-    assert code == 'run'
+    assert isinstance(par, pypitpar.PypitPar)
     assert isinstance(fitstbl, Table)
     assert isinstance(setup_dict, dict)
-
 
 def test_run_calcheck():
     if skip_test:
         assert True
         return
     # Check for files
-    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
-    files = glob.glob(file_root+'*')
-    assert len(files) > 0
-    # Settings
-    settings_argflag, settings_spect = settings_kludge()
-    settings_argflag['run']['calcheck'] = True
-
+    files = get_files()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     # Run
-    code, fitstbl, setup_dict = setupc.run(files)
+    par, spectrograph, fitstbl, setup_dict = setupc.run(calibration_check=True)
     # Test
-    assert code == 'calcheck'
-
+    assert par == None
 
 def test_run_setup():
     if skip_test:
         assert True
         return
-    # Check for files
-    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
-    files = glob.glob(file_root+'*')
-    assert len(files) > 0
-    # Settings
-    settings_argflag, settings_spect = settings_kludge()
-    settings_argflag['run']['setup'] = True
-
+    files = get_files()
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
+    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     # Run
-    code, fitstbl, setup_dict = setupc.run(files)
+    par, spectrograph, fitstbl, setup_dict = setupc.run(setup_only=True)
     # Test
-    assert code == 'setup'
+    assert par == None
+

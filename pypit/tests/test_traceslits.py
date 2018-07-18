@@ -34,11 +34,11 @@ def test_load_from_master_and_run():
         assert True
         return
     # Check for files
-    mstrace_root = os.path.join(os.getenv('PYPIT_DEV'),
-                                'Cooked/Trace/MasterTrace_KeckLRISr_150420_402')
+    mstrace_root = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'Trace',
+                                'MasterTrace_KeckLRISr_150420_402')
     assert chk_for_files(mstrace_root)
     # Load
-    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)#, load_pix_obj=True)
+    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
     assert isinstance(traceSlits.mstrace, np.ndarray)
 
 
@@ -47,8 +47,8 @@ def test_add_slit():
         assert True
         return
     # Check for files
-    mstrace_root = os.path.join(os.getenv('PYPIT_DEV'),
-                                'Cooked/Trace/MasterTrace_KeckLRISr_150420_402')
+    mstrace_root = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'Trace',
+                                'MasterTrace_KeckLRISr_150420_402')
     assert chk_for_files(mstrace_root)
     # Load
     traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
@@ -59,13 +59,14 @@ def test_add_slit():
     traceSlits.add_user_slits(add_user_slits, run_to_finish=True)
     assert traceSlits.nslit == (norig+1)
 
+
 def test_remove_slit():
     if skip_test:
         assert True
         return
     # Check for files
-    mstrace_root = os.path.join(os.getenv('PYPIT_DEV'),
-                                'Cooked/Trace/MasterTrace_KeckLRISr_20160110_A')
+    mstrace_root = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'Trace',
+                                'MasterTrace_KeckLRISr_20160110_A')
     assert chk_for_files(mstrace_root)
     # Load
     traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)

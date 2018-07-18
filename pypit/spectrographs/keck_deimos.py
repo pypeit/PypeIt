@@ -9,24 +9,251 @@ from astropy.io import fits
 
 from pypit import msgs
 from pypit import arparse
-from pypit.spectrographs import spectroclass
+from pypit.par.pypitpar import DetectorPar
+from pypit.spectrographs import spectrograph
+from pypit import telescopes
+from pypit.core import arsort
+from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 
-
-# Logging
-#msgs = armsgs.get_logger()
-
-class KeckDEIMOSSpectrograph(spectroclass.Spectrograph):
+class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/DEIMOS specific code
     """
-
     def __init__(self):
-
         # Get it started
-        spectroclass.Spectrograph.__init__(self)
+        super(KeckDEIMOSSpectrograph, self).__init__()
         self.spectrograph = 'keck_deimos'
+        self.telescope = telescopes.KeckTelescopePar()
+        self.camera = 'DEIMOS'
+        self.detector = [
+                # Detector 1
+                DetectorPar(dataext         = 1,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.1185,
+                            darkcurr        = 4.19,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 1,
+                            gain            = 1.226,
+                            ronoise         = 2.570,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
+                            suffix          = '_01'
+
+                            ),
+                # Detector 2
+                DetectorPar(dataext         = 2,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.1185,
+                            darkcurr        = 3.46,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 1,
+                            gain            = 1.188,
+                            ronoise         = 2.491,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
+                            suffix          = '_02'
+                            ),
+                # Detector 3
+                DetectorPar(dataext         = 3,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.1185,
+                            darkcurr        = 4.03,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 1,
+                            gain            = 1.248,
+                            ronoise         = 2.618,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
+                            suffix          = '_03'
+                            ),
+                # Detector 4
+                DetectorPar(dataext         = 4,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.1185,
+                            darkcurr        = 3.80,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 1,
+                            gain            = 1.220,
+                            ronoise         = 2.557,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
+                            suffix          = '_04'
+                            ),
+                # Detector 5
+                DetectorPar(dataext         = 5,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.1185,
+                            darkcurr        = 4.71,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 1,
+                            gain            = 1.184,
+                            ronoise         = 2.482,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
+                            suffix          = '_05'
+                            ),
+                # Detector 6
+                DetectorPar(dataext         = 6,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.1185,
+                            darkcurr        = 4.28,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 1,
+                            gain            = 1.177,
+                            ronoise         = 2.469,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
+                            suffix          = '_06'
+                            ),
+                # Detector 7
+                DetectorPar(dataext         = 7,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.1185,
+                            darkcurr        = 3.33,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 1,
+                            gain            = 1.201,
+                            ronoise         = 2.518,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
+                            suffix          = '_07'),
+                # Detector 8
+                DetectorPar(dataext         = 8,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1., 
+                            platescale      = 0.1185,
+                            darkcurr        = 3.69,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 1,
+                            gain            = 1.230,
+                            ronoise         = 2.580,
+                            datasec         = '',       # These are provided by read_deimos
+                            oscansec        = '',
+                            suffix          = '_08'
+                            )
+            ]
+        self.numhead = 9
+        # Uses default timeunit
+        # Uses default primary_hdrext
+        # self.sky_file ?
+
+    @staticmethod
+    def default_pypit_par():
+        """
+        Set default parameters for Keck LRISb reductions.
+        """
+        par = pypitpar.PypitPar()
+        par['rdx']['spectrograph'] = 'keck_deimos'
+
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+
+        # Set wave tilts order
+        par['calibrations']['slits']['sigdetect'] = 50.
+        par['calibrations']['slits']['polyorder'] = 3
+        par['calibrations']['slits']['fracignore'] = 0.02
+        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+
+        # Overscan subtract the images
+        par['calibrations']['biasframe']['useframe'] = 'overscan'
+
+        # Alter the method used to combine pixel flats
+        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
+        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
+
+        # Always sky subtract, starting with default parameters
+        par['skysubtract'] = pypitpar.SkySubtractionPar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = None  #  pypitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypitpar.FlexurePar()
+        return par
+
+    def header_keys(self):
+        def_keys = self.default_header_keys()
+
+        def_keys[0]['target'] = 'TARGNAME'
+        def_keys[0]['exptime'] = 'ELAPTIME'
+        def_keys[0]['hatch'] = 'HATCHPOS'
+        def_keys[0]['lamps'] = 'LAMPS'
+        def_keys[0]['detrot'] = 'ROTATVAL'
+        def_keys[0]['decker'] = 'SLMSKNAM'
+        def_keys[0]['filter1'] = 'DWFILNAM'
+        def_keys[0]['dispname'] = 'GRATENAM'
+
+        def_keys[0]['gratepos'] = 'GRATEPOS'
+        def_keys[0]['g3tltwav'] = 'G3TLTWAV'
+        def_keys[0]['g4tltwav'] = 'G4TLTWAV'
+        def_keys[0]['dispangle'] = 'G3TLTWAV'
+        return def_keys
+
+    def add_to_fitstbl(self, fitstbl):
+        for gval in [3,4]:
+            gmt = fitstbl['gratepos'] == gval
+            fitstbl['dispangle'][gmt] = fitstbl['g3tltwav'][gmt]
+        return
+
+    def cond_dict(self, ftype):
+        cond_dict = {}
+
+        if ftype == 'science':
+            cond_dict['condition1'] = 'lamps=Off'
+            cond_dict['condition2'] = 'hatch=open'
+            cond_dict['condition3'] = 'exptime>30'
+        elif ftype == 'bias':
+            cond_dict['condition1'] = 'exptime<2'
+            cond_dict['condition2'] = 'lamps=Off'
+            cond_dict['condition3'] = 'hatch=closed'
+        elif ftype == 'pixelflat':
+            cond_dict['condition1'] = 'lamps=Qz'
+            cond_dict['condition2'] = 'exptime<30'
+            cond_dict['condition3'] = 'hatch=closed'
+        elif ftype == 'pinhole':
+            cond_dict['condition1'] = 'exptime>99999999'
+        elif ftype == 'trace':
+            cond_dict['condition1'] = 'lamps=Qz'
+            cond_dict['condition2'] = 'exptime<30'
+            cond_dict['condition3'] = 'hatch=closed'
+        elif ftype == 'arc':
+            cond_dict['condition1'] = 'lamps=Kr_Xe_Ar_Ne'
+            cond_dict['condition2'] = 'hatch=closed'
+        else:
+            pass
+
+        return cond_dict
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -49,41 +276,85 @@ class KeckDEIMOSSpectrograph(spectroclass.Spectrograph):
 
         return raw_img, head0
 
-    def get_datasec(self, filename, det, settings_det):
-        """
-        Load up the datasec and oscansec and also naxis0 and naxis1
+    def get_match_criteria(self):
+        match_criteria = {}
+        for key in arsort.ftype_list:
+            match_criteria[key] = {}
 
-        Args:
-            filename: str
-              data filename
-            det: int
-              Detector specification
-            settings_det: ParSet
-              numamplifiers
-
-        Returns:
-            datasec: list
-            oscansec: list
-            naxis0: int
-            naxis1: int
-        """
-
-        datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
-        temp, head0, secs = read_deimos(filename, det)
-        for kk in range(settings_det['numamplifiers']):
-            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
-            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
-
-        # Need naxis0, naxis1 too
-        naxis0 = temp.shape[0]
-        naxis1 = temp.shape[1]
+        # Standard
+        # Can be over-ruled by flux calibrate = False
+        # match_criteria['standard']['number'] = 1
+        match_criteria['standard']['match'] = {}
+        match_criteria['standard']['match']['decker'] = ''
+        match_criteria['standard']['match']['binning'] = ''
+        match_criteria['standard']['match']['filter1'] = ''
+        # Bias
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['binning'] = ''
+        # Pixelflat
+        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
+        # Traceflat
+        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
+        # Arc
+        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
 
         # Return
-        return datasec, oscansec, naxis0, naxis1
+        return match_criteria
 
-    def bpm(self, det=None, **null_kwargs):
-        """ Generate a BPM for DEIMOS
-        Currently assumes 1x1 binning
+    def get_image_section(self, filename, det, section='datasec'):
+        """
+        Return a string representation of a slice defining a section of
+        the detector image.
+
+        Overwrites base class function to use :func:`read_deimos` to get
+        the image sections.
+
+        .. todo::
+            - It feels really ineffiecient to just get the image section
+              using the full :func:`read_deimos`.  Can we parse that
+              function into something that can give you the image
+              section directly?
+
+        This is done separately for the data section and the overscan
+        section in case one is defined as a header keyword and the other
+        is defined directly.
+        
+        Args:
+            filename (str):
+                data filename
+            det (int):
+                Detector number
+            section (:obj:`str`, optional):
+                The section to return.  Should be either datasec or
+                oscansec, according to the :class:`DetectorPar`
+                keywords.
+
+        Returns:
+            list, bool: A list of string representations for the image
+            sections, one string per amplifier, followed by three
+            booleans: if the slices are one indexed, if the slices
+            should include the last pixel, and if the slice should have
+            their order transposed.
+        """
+        # Read the file
+        temp, head0, secs = read_deimos(filename, det)
+        if section == 'datasec':
+            return secs[0], False, False, False
+        elif section == 'oscansec':
+            return secs[1], False, False, False
+        else:
+            raise ValueError('Unrecognized keyword: {0}'.format(section))
+
+    # WARNING: Uses Spectrograph default get_image_shape.  If no file
+    # provided it will fail.  Provide a function like in keck_lris.py
+    # that forces a file to be provided?
+
+    def bpm(self, filename=None, det=None, **null_kwargs):
+        """
+        Override parent bpm function with BPM specific to DEIMOS.
+
+        .. todo::
+            Allow for binning changes.
 
         Parameters
         ----------
@@ -97,27 +368,27 @@ class KeckDEIMOSSpectrograph(spectroclass.Spectrograph):
           0 = ok; 1 = Mask
 
         """
-        bpix = np.zeros((4096, 2048), dtype=int)
+        self.empty_bpm(filename=filename, det=det)
         if det == 1:
-            bpix[:,1052:1054] = 1.
+            self.bpm_img[:,1052:1054] = 1
         elif det == 2:
-            bpix[:,0:4] = 1.
-            bpix[:,376:380] = 1.
-            bpix[:,2047] = 1.
+            self.bpm_img[:,0:4] = 1
+            self.bpm_img[:,376:380] = 1
+            self.bpm_img[:,2047] = 1
         elif det == 3:
-            bpix[:,851] = 1.
+            self.bpm_img[:,851] = 1
         elif det == 4:
-            bpix[:,0:4] = 1.
-            bpix[:,997:998] = 1.
+            self.bpm_img[:,0:4] = 1
+            self.bpm_img[:,997:998] = 1
         elif det == 5:
-            bpix[:,129] = 1.
+            self.bpm_img[:,129] = 1
         elif det == 7:
-            bpix[:,426:428] = 1.
+            self.bpm_img[:,426:428] = 1
         elif det == 8:
-            bpix[:,931] = 1.
-            bpix[:,933] = 1.
+            self.bpm_img[:,931] = 1
+            self.bpm_img[:,933] = 1
 
-        return bpix
+        return self.bpm_img
 
     def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
                        msarc_shape=None, **null_kwargs):
@@ -155,6 +426,7 @@ class KeckDEIMOSSpectrograph(spectroclass.Spectrograph):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
+
 def read_deimos(raw_file, det=None):
     """
     Read a raw DEIMOS data frame (one or more detectors)
@@ -179,7 +451,7 @@ def read_deimos(raw_file, det=None):
     # Check for file; allow for extra .gz, etc. suffix
     fil = glob.glob(raw_file + '*')
     if len(fil) != 1:
-        msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+        msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
     # Read
     try:
         msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))

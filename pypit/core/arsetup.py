@@ -303,17 +303,24 @@ def instr_setup(sci_ID, det, fitstbl, setup_dict, numamplifiers,
         disp_name = fitstbl["dispname"][idx[0]]
     except:
         debugger.set_trace()
-    disp_angle = fitstbl["dispangle"][idx[0]]
+    try:
+        disp_angle = fitstbl["dispangle"][idx[0]]
+    except KeyError:
+        disp_angle = 'none'
     # Common
     dichroic = fitstbl["dichroic"][idx[0]]
     decker = fitstbl["decker"][idx[0]]
-    slitwid = fitstbl["slitwid"][idx[0]]
-    slitlen = fitstbl["slitlen"][idx[0]]
+    try:
+        slitwid = fitstbl["slitwid"][idx[0]]
+    except:
+        slitwid = 'none'
+    try:
+        slitlen = fitstbl["slitlen"][idx[0]]
+    except:
+        slitlen = 'none'
 
     # Detector -- These may not be set properly from the header alone, e.g. LRIS
     binning = fitstbl["binning"][idx[0]]
-    naxis0 = fitstbl["naxis0"][idx[0]]
-    naxis1 = fitstbl["naxis1"][idx[0]]
     namp = numamplifiers
 
     # Generate
@@ -510,7 +517,7 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
     return setup
 '''
 
-
+# TODO: This is out of date!
 def get_setup_file(settings_argflag, spectrograph=None):
     """ Passes back name of setup file
     Also checks for existing setup files

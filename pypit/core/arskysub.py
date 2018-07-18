@@ -14,7 +14,8 @@ from pypit import ardebug as debugger
 
 # ToDO Fix masking logic. This code should also take an ivar for consistency with rest of extraction
 def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
-                        bpm=None, crmask=None, tracemask=None, bsp=0.6, sigrej=3., POS_MASK=True, PLOT_FIT=False):
+                        bpm=None, crmask=None, tracemask=None, bsp=0.6, sigrej=3., POS_MASK=True,
+                        PLOT_FIT=False):
     """
     Perform sky subtraction on an input slit
 

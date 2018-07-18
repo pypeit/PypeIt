@@ -9,25 +9,26 @@ import os
 import pytest
 
 from pypit import pypit
-from pypit import pyputils
-
-msgs = pyputils.get_dummy_logger()
+from pypit import msgs
+from pypit.par.util import make_pypit_file
+from pypit import pypitsetup
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
 
-def test_load_input():
+def test_initialization():
     """ Load input PYPIT file
     """
     # Generate a PYPIT file
-    pyp_file = data_path('test.pypit')
-    pyputils.make_pypit_file(pyp_file, 'shane_kast_blue', [data_path('b*fits.gz')])
-    pyp_dict = pypit.load_input(pyp_file, msgs)
-    parlines, datlines, spclines, dfnames = [pyp_dict[ii] for ii in ['par','dat','spc','dfn']]
+    pypit_file = data_path('test.pypit')
+    make_pypit_file(pypit_file, 'shane_kast_blue', [data_path('b*fits.gz')], setup_mode=True)
+    # Perform the setup
+    setup = pypitsetup.PypitSetup.from_pypit_file(pypit_file)
+    par, spectrograph, fitstbl, setup_dict = setup.run()
     # Test
-    assert len(parlines) == 3
-    assert len(datlines) == 2
-    assert 'arc number 1' in spclines[0]
+    assert spectrograph.spectrograph == 'shane_kast_blue'
+    assert len(fitstbl) == 2
+    assert par['calibrations']['arcframe']['number'] == 1
 

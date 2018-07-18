@@ -353,8 +353,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
 
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
-def save_1d_spectra_fits(specobjs, header, outfile,
-                             helio_dict=None, obs_dict=None, clobber=True):
+def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=None, clobber=True):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
@@ -386,10 +385,10 @@ def save_1d_spectra_fits(specobjs, header, outfile,
         prihdu.header['MJD-OBS'] = header['time']  # recorded as 'time' in fitstbl
 
     # Observatory
-    if obs_dict is not None:
-        prihdu.header['LON-OBS'] = obs_dict['longitude']
-        prihdu.header['LAT-OBS'] = obs_dict['latitude']
-        prihdu.header['ALT-OBS'] = obs_dict['elevation']
+    if telescope is not None:
+        prihdu.header['LON-OBS'] = telescope['longitude']
+        prihdu.header['LAT-OBS'] = telescope['latitude']
+        prihdu.header['ALT-OBS'] = telescope['elevation']
     # Helio
     if helio_dict is not None:
         prihdu.header['VEL-TYPE'] = helio_dict['refframe'] # settings.argflag['reduce']['calibrate']['refframe']
@@ -562,8 +561,9 @@ def save_1d_spectra_fits(slf, fitsdict, clobber=True, outfile=None):
     #with io.open(sensfunc_name, 'w', encoding='utf-8') as f:
     #    f.write(unicode(json.dumps(slf._sensfunc, sort_keys=True, indent=4, separators=(',', ': '))))
 
-
-def save_obj_info(all_specobjs, fitstbl, settings_spect, basename, science_dir):
+# TODO: (KBW) I don't think core algorithms should take class
+# arguments...
+def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
     """
 
     Parameters
@@ -591,20 +591,21 @@ def save_obj_info(all_specobjs, fitstbl, settings_spect, basename, science_dir):
             continue
         # Append
         names.append(specobj.idx)
-        dnum = arparse.get_dnum(specobj.det)
+#        dnum = arparse.get_dnum(specobj.det)
         slits.append(specobj.slitid)
         # Boxcar width
         if 'size' in specobj.boxcar.keys():
             slit_pix = specobj.boxcar['size']
             # Convert to arcsec
             binspatial, binspectral = arparse.parse_binning(fitstbl['binning'][specobj.scidx])
-            boxsize.append(slit_pix*binspatial*settings_spect[dnum]['platescale'])
+            boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.det-1]['platescale'])
         else:
             boxsize.append(0.)
         # Optimal profile (FWHM)
         if 'fwhm' in specobj.optimal.keys():
             binspatial, binspectral = arparse.parse_binning(fitstbl['binning'][specobj.scidx])
-            opt_fwhm.append(specobj.optimal['fwhm']*binspatial*settings_spect[dnum]['platescale'])
+            opt_fwhm.append(specobj.optimal['fwhm'] * binspatial
+                                * spectrograph.detector[specobj.det-1]['platescale'])
         else:
             opt_fwhm.append(0.)
         # S2N -- default to boxcar

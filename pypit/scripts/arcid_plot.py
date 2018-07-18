@@ -49,10 +49,9 @@ def main(args):
 
     from linetools.utils import loadjson
 
-    from pypit import pyputils
     from pypit import arqa
-
-    msgs = pyputils.get_dummy_logger()
+    from pypit import msgs
+    msgs.reset(verbosity=2)
 
     # Read JSON
     fdict = loadjson(args.wave_soln)
