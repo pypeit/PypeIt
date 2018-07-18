@@ -16,9 +16,7 @@ import pytest
 from astropy.table import Table
 
 from pypit import arspecobj
-from pypit import pyputils
-
-msgs = pyputils.get_dummy_logger()
+from pypit import msgs
 
 #def data_path(filename):
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')

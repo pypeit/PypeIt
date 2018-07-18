@@ -120,8 +120,8 @@ class SpecObjExp(object):
                 self.idx, self.config, self.xobj, self.slitcen, sdet, self.scidx, self.objtype))
 
 
-def init_exp(lordloc, rordloc, shape, maskslits,
-             det, scidx, fitstbl, tracelist, settings, ypos=0.5, **kwargs):
+def init_exp(lordloc, rordloc, shape, maskslits, det, scidx, fitstbl, tracelist, binning=None,
+             ypos=0.5, objtype='unknown'): #**kwargs):
     """ Generate a list of SpecObjExp objects for a given exposure
 
     Parameters
@@ -149,7 +149,7 @@ def init_exp(lordloc, rordloc, shape, maskslits,
         fitsrow = None
     else:
         fitsrow = fitstbl[scidx]
-    config = instconfig(fitsrow=fitsrow, binning=settings['detector']['binning'])
+    config = instconfig(fitsrow=fitsrow, binning=binning)
     slits = range(len(tracelist))
     gdslits = np.where(~maskslits)[0]
 
@@ -170,11 +170,11 @@ def init_exp(lordloc, rordloc, shape, maskslits,
                 # xobj
                 _, xobj = get_objid(lordloc, rordloc, sl, qq, tracelist, ypos=ypos)
                 # Generate
-                if tracelist[sl]['object'] is None:
-                    specobj = SpecObjExp((tracelist[0]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj, **kwargs)
-                else:
-                    specobj = SpecObjExp((tracelist[sl]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj,
-                                         **kwargs)
+                spec_obj_shape = (tracelist[0]['object'].shape[:2]) \
+                                        if tracelist[sl]['object'] is None \
+                                        else (tracelist[sl]['object'].shape[:2])
+                specobj = SpecObjExp(spec_obj_shape, config, scidx, det, xslit, ypos, xobj,
+                                     objtype=objtype) #**kwargs)
                 # Add traces
                 specobj.trace = tracelist[sl]['traces'][:, qq]
                 # Append

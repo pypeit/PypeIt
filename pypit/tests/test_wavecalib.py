@@ -41,7 +41,8 @@ def test_user_redo():
         assert True
         return
     # Check for files
-    wvcalib_file = os.getenv('PYPIT_DEV') + '/Cooked/WaveCalib/MasterWaveCalib_ShaneKastBlue_A.json'
+    wvcalib_file = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'WaveCalib',
+                                'MasterWaveCalib_ShaneKastBlue_A.json')
     assert chk_for_files(wvcalib_file)
     # Instantiate
     waveCalib = wavecalib.WaveCalib(None, spectrograph='shane_kast_blue')
@@ -56,20 +57,22 @@ def test_step_by_step():
     if skip_test:
         assert True
         return
-    settings = dict(masters={})
-    settings['masters']['directory'] = os.getenv('PYPIT_DEV') + '/Cooked/MF_shane_kast_blue'
-    settings['masters']['reuse'] = True
+
+    root_path = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
     setup = 'A_01_aa'
+
     # Load up the Masters
-    AImg = arcimage.ArcImage(setup=setup, settings=settings)
+    AImg = arcimage.ArcImage('shane_kast_blue', setup=setup, root_path=root_path, mode='reuse')
     msarc, header, _ = AImg.load_master_frame()
-    TSlits = traceslits.TraceSlits.from_master_files(settings['masters']['directory'] + '/MasterTrace_A_01_aa')
+    TSlits = traceslits.TraceSlits.from_master_files(os.path.join(AImg.directory_path,
+                                                                  'MasterTrace_A_01_aa'))
     TSlits._make_pixel_arrays()
-    fitstbl = Table.read(settings['masters']['directory']+'/shane_kast_blue_setup_A.fits')
+    fitstbl = Table.read(os.path.join(AImg.directory_path, 'shane_kast_blue_setup_A.fits'))
 
     # Instantiate
-    waveCalib = wavecalib.WaveCalib(msarc, spectrograph='shane_kast_blue', settings=settings, setup=setup,
-                                    fitstbl=fitstbl, sci_ID=1, det=1)
+    waveCalib = wavecalib.WaveCalib(msarc, spectrograph='shane_kast_blue', setup=setup,
+                                    root_path=root_path, mode='reuse', fitstbl=fitstbl,
+                                    sci_ID=1, det=1)
     # Extract arcs
     arccen, maskslits = waveCalib._extract_arcs(TSlits.lcen, TSlits.rcen, TSlits.pixlocn)
     assert arccen.shape == (2048,1)
@@ -80,28 +83,30 @@ def test_step_by_step():
     wv_calib = waveCalib._build_wv_calib('arclines', skip_QA=True)
     assert isinstance(wv_calib, dict)
     # Master
-    waveCalib.save_master(wv_calib, outfile=data_path('tmp.json'))  # This doesn't save steps nor arcparam which *is* done in the master() call
+    # This doesn't save steps nor arcparam which *is* done in the master() call
+    waveCalib.save_master(wv_calib, outfile=data_path('tmp.json'))
 
 
 def test_one_shot():
     if skip_test:
         assert True
         return
-    settings = dict(masters={})
-    settings['masters']['directory'] = os.getenv('PYPIT_DEV') + '/Cooked/MF_shane_kast_blue'
-    settings['masters']['reuse'] = True
+
+    root_path = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
     setup = 'A_01_aa'
+
     # Load up the Masters
-    AImg = arcimage.ArcImage(setup=setup, settings=settings)
+    AImg = arcimage.ArcImage('shane_kast_blue', setup=setup, root_path=root_path, mode='reuse')
     msarc, header, _ = AImg.load_master_frame()
-    TSlits = traceslits.TraceSlits.from_master_files(settings['masters']['directory'] + '/MasterTrace_A_01_aa')
+    TSlits = traceslits.TraceSlits.from_master_files(os.path.join(AImg.directory_path,
+                                                                  'MasterTrace_A_01_aa'))
     TSlits._make_pixel_arrays()
-    fitstbl = Table.read(settings['masters']['directory']+'/shane_kast_blue_setup_A.fits')
+    fitstbl = Table.read(os.path.join(AImg.directory_path, 'shane_kast_blue_setup_A.fits'))
     # Do it
-    settings['masters']['reuse'] = False
-    settings['masters']['force'] = False
-    waveCalib = wavecalib.WaveCalib(msarc, spectrograph='shane_kast_blue', settings=settings, setup=setup,
-                                    fitstbl=fitstbl, sci_ID=1, det=1)
+    waveCalib = wavecalib.WaveCalib(msarc, spectrograph='shane_kast_blue', setup=setup,
+                                    root_path=root_path, fitstbl=fitstbl, sci_ID=1, det=1)
     wv_calib2, _ = waveCalib.run(TSlits.lcen, TSlits.rcen, TSlits.pixlocn, skip_QA=True)
     #
     assert 'arcparam' in wv_calib2.keys()
+
+

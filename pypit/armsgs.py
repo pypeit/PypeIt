@@ -21,7 +21,7 @@ import scipy
 import numpy
 import astropy
 
-from pypit import __version__, __last_updated__
+from pypit import __version__ #, __last_updated__
 from pypit.arqa import close_qa
 
 #pypit_logger = None
@@ -46,8 +46,8 @@ class Messages:
     verbosity : int (0,1,2)
       Level of verbosity:
         0 = No output
-        1 = Minimal output (default - suitable for the average user)
-        2 = All output
+        1 = Minimal output
+        2 = All output (default)
     colors : bool
       If true, the screen output will have colors, otherwise
       normal screen output will be displayed
@@ -57,8 +57,8 @@ class Messages:
         # Initialize other variables
         # TODO: debug could just be develop=True or False
         self._debug = debug
-        self._verbosity = 1 if verbosity is None else verbosity
-        self._last_updated = __last_updated__
+        self._verbosity = 2 if verbosity is None else verbosity
+#        self._last_updated = __last_updated__
         self._version = __version__
 
         # TODO: Why are these two necessary?  It would seem better to
@@ -131,7 +131,7 @@ class Messages:
         self._log = open(log, 'w')
 
         self._log.write("------------------------------------------------------\n\n")
-        self._log.write("PYPIT was last updated {0:s}\n".format(self._last_updated))
+#        self._log.write("PYPIT was last updated {0:s}\n".format(self._last_updated))
         self._log.write("This log was generated with version {0:s} of PYPIT\n\n".format(
                                                                                     self._version))
         self._log.write("You are using scipy version={:s}\n".format(scipy.__version__))
@@ -190,6 +190,7 @@ class Messages:
         """
         Print pypit usage data.
         """
+        # TODO: This is outdated
         stgs_arm = glob.glob(os.path.dirname(__file__)+'/data/settings/settings.arm*')
         stgs_all = glob.glob(os.path.dirname(__file__)+'/data/settings/settings.*')
         stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
@@ -206,14 +207,14 @@ class Messages:
         spcl = textwrap.wrap(spclist, width=60)
         descs = self.pypitheader(prognm)
 
-        descs += '\n##  Available pipelines include:'
+        descs += '\n##  Available pipelines include (OUTDATED):'
         descs += '\n##   ' + armlist
 
-        descs += '\n##  Available spectrographs include:'
+        descs += '\n##  Available spectrographs include (OUTDATED):'
         for ispcl in spcl:
             descs += '\n##   ' + ispcl
 
-        descs += '\n##  Last updated: {0:s}'.format(self._last_updated)
+#        descs += '\n##  Last updated: {0:s}'.format(self._last_updated)
 
         return descs
 

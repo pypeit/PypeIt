@@ -26,7 +26,6 @@ from pypit.core import pydl
 
 from pypit import msgs
 from pypit import ardebug as debugger
-from pypit import arcyarc
 
 def quicksave(data,fname):
     """
@@ -49,7 +48,7 @@ def bspline_inner_knots(all_knots):
     i1=pos[-1]
     return all_knots[i0:i1]
 
-
+# TODO JFH: This is the old bspline_fit which shoul be deprecated. I think some codes still use it though. We should transtion to pydl everywhere
 def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bkspace=None):
     ''' bspline fit to x,y
     Should probably only be called from func_fit
@@ -166,7 +165,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
             sset: object
                bspline object
             outmask: : :class:`numpy.ndarray`
-               output mask which the same size as xdata
+               output mask which the same size as xdata, such that rejected points have outmask set to False
             yfit  : :class:`numpy.ndarray`
                result of the bspline fit (same size as xdata)
             reduced_chi: float
@@ -208,7 +207,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
     else:
         outmask = np.ones(invvar.shape, dtype='bool')
     maskwork = outmask & (invvar > 0)
-    ngood= maskwork.sum()
     if not maskwork.any():
         msgs.error('No valid data points in bspline_profile!.')
     else:
@@ -222,42 +220,43 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
     # This was checked in detail against IDL for identical inputs
     outer = (np.outer(np.ones(nord, dtype=float), profile_basis.flatten('F'))).T
     action_multiple = outer.reshape((nx, npoly * nord), order='F')
-
     #--------------------
     # Iterate spline fit
     iiter = 0
-    success = False
+    error = -1
     qdone = False
 
     relative_factor = 1.0
     tempin = None
-    while (success == False or qdone is False) and iiter <= maxiter:
+    while (error != 0 or qdone is False) and iiter <= maxiter:
+        ngood = maskwork.sum()
         goodbk = sset.mask.nonzero()[0]
         if ngood <= 1 or not sset.mask.any():
             sset.coeff = 0
             iiter = maxiter + 1 # End iterations
         else:
-            # Do the fit. Return values from workit for success are as follows:
-            #    True: if fit is good
-            #    False: if everything is screwed
+            # Do the fit. Return values from workit for error are as follows:
+            #    0 if fit is good
+            #   -1 if some breakpoints are masked, so try the fit again
+            #   -2 if everything is screwed
 
             # we'll do the fit right here..............
-            if success == False:
+            if error != 0:
                 bf1, laction, uaction = sset.action(xdata)
                 if(bf1.size !=nx*nord):
                     msgs.error("BSPLINE_ACTION failed!")
-                action = action_multiple
+                action = np.copy(action_multiple)
                 for ipoly in range(npoly):
                     action[:, np.arange(nord)*npoly + ipoly] *= bf1
                 del bf1 # Clear the memory
             if np.sum(np.isfinite(action) is False) > 0:
                 msgs.error("Infinities in action matrix, wavelengths may be very messed up!!!")
-            success, yfit = sset.workit(xdata, ydata, invvar*maskwork,action, laction, uaction)
+            error, yfit = sset.workit(xdata, ydata, invvar*maskwork,action, laction, uaction)
         iiter += 1
-        if success == False:
+        if error == -2:
             msgs.warn(" All break points have been dropped!!")
             return (sset, outmask, yfit, reduced_chi)
-        elif success == True:
+        elif error == 0:
             # Iterate the fit -- next rejection iteration
             chi_array = (ydata - yfit)*np.sqrt(invvar * maskwork)
             reduced_chi = np.sum(chi_array**2)/(ngood - npoly*(len(goodbk) + nord)-1)
@@ -276,24 +275,22 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
                                          inmask=tempin, outmask=maskwork,
                                          upper=upper*relative_factor,
                                          lower=lower*relative_factor, **kwargs_reject)
-            tempin = maskwork
+            tempin = np.copy(maskwork)
             msgs.info("                             {:4d}".format(iiter) + "{:8.3f}".format(reduced_chi) +
                       "  {:7d}".format((maskwork == 0).sum()) + "      {:6.2f}".format(relative_factor))
 
         else:
-            pass
+            msgs.info("                             {:4d}".format(iiter) + "    ---    ---    ---    ---")
+
 
     msgs.info("***********************************************************************************************")
     msgs.info(
         "Final fit after " + "{:2d}".format(iiter) + " iterations: reduced_chi = " + "{:8.3f}".format(reduced_chi) +
         ", rejected = " + "{:7d}".format((maskwork == 0).sum()) + ", relative_factor = {:6.2f}".format(relative_factor))
     # Finish
-    outmask = maskwork
+    outmask = np.copy(maskwork)
     # Return
     return sset, outmask, yfit, reduced_chi
-
-
-
 
 
 
@@ -733,61 +730,6 @@ def guess_gauss(x,y):
     return mx, cent, sigma
 
 
-def gauss_lsqfit(x,y,pcen):
-    """
-
-    :param x:
-    :param y:
-    :param pcen: An estimate of the Gaussian mean
-    :return:
-    """
-    def gfunc(x,ampl,cent,sigm,cons,tilt):
-        df = (x[1:]-x[:-1])/2.0
-        df = np.append(df,df[-1])
-        dff = (x[1:]**2 - x[:-1]**2)/2.0
-        dff = np.append(dff,dff[-1])
-        sqt = sigm*np.sqrt(2.0)
-        return cons*df*2.0 + tilt*dff + ampl*0.5*np.sqrt(np.pi)*sqt*(erf((x+df-cent)/sqt) - erf((x-df-cent)/sqt))
-        #return cons + ampl*np.exp(-0.5*((x-cent)/sigm)**2)
-
-    if np.any(y<0.0):
-        return [0.0, 0.0, 0.0], True
-    # Obtain a quick first guess at the parameters
-    ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
-    if good == 0:
-        return [0.0, 0.0, 0.0], True
-    elif np.any(np.isnan([ampl, cent, sigm])):
-        return [0.0, 0.0, 0.0], True
-    else:
-        # Perform a least squares fit
-        try:
-            popt, pcov = curve_fit(gfunc, x, y, p0=[ampl, cent, sigm, 0.0, 0.0], maxfev=100)
-            #popt, pcov = curve_fit(gfunc, x, y, p0=[0.0,ampl, cent, sigm], maxfev=100)
-        except:
-            return [0.0, 0.0, 0.0], True
-        return [popt[0], popt[1], popt[2]], False
-
-
-def gauss_fit(x, y, pcen):
-    # dx = np.ones(x.size)*np.mean(x[1:]-x[:-1])
-    # coeffs = polyfit_integral(x, y, dx, 2)
-    # return poly_to_gauss(coeffs)
-    try:
-        if np.any(y<0.0):
-            return [0.0, 0.0, 0.0], True
-        if x.size <= 3:
-            return [0.0, 0.0, 0.0], True
-        ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
-        if good == 0:
-            return [0.0, 0.0, 0.0], True
-        elif np.any(np.isnan([ampl, cent, sigm])):
-            return [0.0, 0.0, 0.0], True
-        else:
-            return [ampl, cent, sigm], False
-    except:
-        return [0.0, 0.0, 0.0], True
-
-
 def poly_to_gauss(coeffs):
     try:
         sigm = np.sqrt(-0.5/coeffs[2])
@@ -1142,6 +1084,8 @@ def yamlify(obj, debug=False):
         obj = int(obj)
     elif isinstance(obj, np.bool_):
         obj = bool(obj)
+#    elif isinstance(obj, bytes):
+#        obj = obj.decode('utf-8')
     elif isinstance(obj, (np.string_, basestring)):
         obj = str(obj)
     elif isinstance(obj, units.Quantity):

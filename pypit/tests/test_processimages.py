@@ -24,8 +24,10 @@ else:
 @pytest.fixture
 def deimos_flat_files():
     if not skip_test:
-        deimos_flat_files = [os.getenv('PYPIT_DEV') + '/RAW_DATA/Keck_DEIMOS/830G_L/' + ifile for ifile in [  # Longslit in dets 3,7
-            'd0914_0014.fits', 'd0914_0015.fits']]
+        # Longslit in dets 3,7
+        deimos_flat_files = [os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS',
+                                          '830G_L', ifile) 
+                                            for ifile in ['d0914_0014.fits', 'd0914_0015.fits']]
         assert len(deimos_flat_files) == 2
     else:
         deimos_flat_files = None
@@ -34,35 +36,25 @@ def deimos_flat_files():
 @pytest.fixture
 def kast_blue_bias_files():
     if not skip_test:
-        kast_blue_bias_files = glob.glob(os.getenv('PYPIT_DEV') + 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b1?.fits*')
+        kast_blue_bias_files = glob.glob(os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA',
+                                                      'Shane_Kast_blue', '600_4310_d55',
+                                                      'b1?.fits*'))
     else:
         kast_blue_bias_files = None
     return kast_blue_bias_files
 
 
-@pytest.fixture
-def kast_settings():
-    # Instantiate
-    kast_settings = processimages.default_settings()
-    kast_settings['detector']['dataext'] = 0
-    kast_settings['detector']['datasec01'] = [[0, 1024], [0, 0]]
-    kast_settings['detector']['datasec02'] = [[1024, 2048], [0, 0]]
-    kast_settings['detector']['oscansec01'] = [[2049, 2080], [0, 0]]
-    kast_settings['detector']['oscansec02'] = [[2080, 2111], [0, 0]]
-    return kast_settings
-
-
 def test_instantiate():
-    proc_img = processimages.ProcessImages([])
+    proc_img = processimages.ProcessImages('shane_kast_blue')
     assert proc_img.nfiles == 0
 
 
-def test_load(deimos_flat_files, kast_blue_bias_files, kast_settings):
+def test_load(deimos_flat_files, kast_blue_bias_files):
     if skip_test:
         assert True
         return
     # DEIMOS
-    deimos_flats = processimages.ProcessImages(deimos_flat_files, spectrograph='keck_deimos')
+    deimos_flats = processimages.ProcessImages('keck_deimos', file_list=deimos_flat_files)
     # Load
     deimos_flats.load_images()
     # Test
@@ -70,11 +62,11 @@ def test_load(deimos_flat_files, kast_blue_bias_files, kast_settings):
     assert deimos_flats.steps == ['load_images']
 
     # Kast blue
-    kastb_bias = processimages.ProcessImages(kast_blue_bias_files, spectrograph='shane_kast_blue', settings=kast_settings)
+    kastb_bias = processimages.ProcessImages('shane_kast_blue', file_list=kast_blue_bias_files)
     # Load
     kastb_bias.load_images()
     # Check datasec
-    assert kastb_bias.datasec[0][0] == [0,1024]
+    assert kastb_bias.datasec[0][0] == slice(0,1024,None)
 
 
 def test_bias_subtract(deimos_flat_files):
@@ -82,7 +74,7 @@ def test_bias_subtract(deimos_flat_files):
         assert True
         return
     # DEIMOS
-    deimos_flats = processimages.ProcessImages(deimos_flat_files, spectrograph='keck_deimos')
+    deimos_flats = processimages.ProcessImages('keck_deimos', file_list=deimos_flat_files)
     # Load
     deimos_flats.load_images()
     # Bias subtract (and trim)
@@ -97,7 +89,7 @@ def test_combine(deimos_flat_files):
         assert True
         return
     # DEIMOS
-    deimos_flats = processimages.ProcessImages(deimos_flat_files, spectrograph='keck_deimos')
+    deimos_flats = processimages.ProcessImages('keck_deimos', file_list=deimos_flat_files)
     # Load
     deimos_flats.load_images()
     # Bias subtracgt

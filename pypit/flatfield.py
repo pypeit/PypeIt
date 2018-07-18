@@ -13,27 +13,16 @@ from pypit import masterframe
 from pypit.core import arsort
 from pypit.core import arflat
 from pypit import ginga
+from pypit.par import pypitpar
 
 from pypit import ardebug as debugger
 
-# For out of PYPIT running
-if msgs._debug is None:
-    debug = debugger.init()
-    debug['develop'] = True
-    msgs.reset(debug=debug, verbosity=2)
-
-# Does not need to be global, but I prefer it
-frametype = 'pixelflat'
-
-def default_settings():
-    default_settings = dict(flatfield={'method': 'bspline',
-                                   "params": [20],
-                                   },
-                        slitprofile={'perform': True,
-                                     },
-                        )
-    return default_settings
-
+# TODO, JFH: I do not understand why ArcImage is its own class whereas
+# there is no class called FlatImage. In principle this is because
+# several codes like tilts, and wv_calib use the msarc so it made sense
+# to make reading the image a separate class. However, that is also true
+# for flats, since the flat fielding code and the tracing code both use
+# the flat image
 class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     """
     This class will generat the pixel-level FlatField
@@ -73,45 +62,37 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
       Number of knots in the spectral dimension
 
     """
-    # Keep order same as processimages (or else!)
-    def __init__(self, file_list=[], spectrograph=None, settings=None, msbias=None,
-                 tslits_dict=None, tilts=None, det=None, setup=None, datasec_img=None):
+
+    # Frame type is a class attribute
+    frametype = 'pixelflat'
+
+    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, root_path=None,
+                 mode=None, flatpar=None, msbias=None, tslits_dict=None, tilts=None):
+
+        # Image processing parameters
+        self.par = pypitpar.FrameGroupPar(self.frametype) if par is None else par
+
+        # Start us up
+        processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
+                                             par=self.par['process'])
+
+        # MasterFrames: Specifically pass the ProcessImages-constructed
+        # spectrograph even though it really only needs the string name
+        directory_path = None if root_path is None \
+                                else root_path+'_'+self.spectrograph.spectrograph
+        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+                                         directory_path=directory_path, mode=mode)
 
         # Parameters unique to this Object
         self.msbias = msbias
-        self.det = det
-        self.setup = setup
         self.tslits_dict = tslits_dict
         self.tilts = tilts
-
-        # Start us up
-        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph,
-                                             settings=settings, det=det, datasec_img=datasec_img)
-
-        # Attributes (set after init)
-        self.frametype = frametype
 
         # Key outputs
         self.mspixelflat = None
         self.mspixelflatnrm = None
 
-        # Settings
-        # The copy allows up to update settings with user settings without changing the original
-        if settings is None:
-            # Defaults
-            self.settings = processimages.default_settings()
-        else:
-            self.settings = settings.copy()
-            # The following is somewhat kludgy and the current way we do settings may
-            #   not touch all the options (not sure .update() would help)
-            if 'combine' not in settings.keys():
-                if self.frametype in settings.keys():
-                    self.settings['combine'] = settings[self.frametype]['combine']
-        if 'flatfield' not in settings.keys():
-            self.settings.update(default_settings())
-
         # Child-specific Internals
-        #    See ProcessImages and MasterFrame for others
         self.extrap_slit = None
         self.msblaze = None
         self.blazeext = None
@@ -119,8 +100,9 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.ntckx = None
         self.ntcky = None
 
-        # MasterFrames
-        masterframe.MasterFrame.__init__(self, self.frametype, self.setup, self.settings)
+        # FieldFlattening parameters
+        self.flatpar = pypitpar.FlatFieldPar() if flatpar is None else flatpar
+
 
     @property
     def nslits(self):
@@ -171,7 +153,10 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         """
         # Step
         self.steps.append(inspect.stack()[0][3])
-        self.ntckx, self.ntcky = arflat.prep_ntck(self.tslits_dict['pixwid'], self.settings)
+        self.ntckx, self.ntcky = arflat.prep_ntck(self.tslits_dict['pixwid'],
+                                                  method=self.flatpar['method'],
+                                                  params=self.flatpar['params'],
+                                                  get_slitprofile=self.flatpar['slitprofile'])
 
     def load_master_slitprofile(self):
         """
@@ -214,10 +199,10 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Wrap me
         slordloc = self.tslits_dict['lcen'][:,slit]
         srordloc = self.tslits_dict['rcen'][:,slit]
-        modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit = arflat.slit_profile(
-            slit, self.mspixelflat, self.tilts, slordloc, srordloc,
-            self.tslits_dict['slitpix'], self.tslits_dict['pixwid'],
-            ntckx=self.ntckx, ntcky=self.ntcky)
+        modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit \
+                = arflat.slit_profile(slit, self.mspixelflat, self.tilts, slordloc, srordloc,
+                                      self.tslits_dict['slitpix'], self.tslits_dict['pixwid'],
+                                      ntckx=self.ntckx, ntcky=self.ntcky)
         # Step
         step = inspect.stack()[0][3]
         if step not in self.steps:  # Only do it once
@@ -273,8 +258,9 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             if modvals is None:
                 continue
             # Fill
-            if self.settings["slitprofile"]["perform"]:
-                # Leave slit_profiles as ones if the slitprofile is not being determined, otherwise, set the model.
+            if self.flatpar['slitprofile']:
+                # Leave slit_profiles as ones if the slitprofile is not
+                # being determined, otherwise, set the model.
                 self.slit_profiles[word] = modvals/nrmvals
             self.mspixelflatnrm[word] /= nrmvals
             # Fill
@@ -284,10 +270,13 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # If some slit profiles/blaze functions need to be extrapolated, do that now
         if armed:
             if np.sum(self.extrap_slit) != 0.0:
-                slit_profiles, mstracenrm, msblaze = arflat.slit_profile_pca(
-                    self.mspixelflat, self.tilts, self.msblaze, self.extrap_slit, self.slit_profiles,
-                    self.tslits_dict['lcen'], self.tslits_dict['rcen'], self.tslits_dict['pixwid'],
-                    self.tslits_dict['slitpix'])
+                slit_profiles, mstracenrm, msblaze \
+                            = arflat.slit_profile_pca(self.mspixelflat, self.tilts, self.msblaze,
+                                                      self.extrap_slit, self.slit_profiles,
+                                                      self.tslits_dict['lcen'],
+                                                      self.tslits_dict['rcen'],
+                                                      self.tslits_dict['pixwid'],
+                                                      self.tslits_dict['slitpix'])
 
         # Apply slit profile
         winpp = np.where(self.slit_profiles != 0.0)
@@ -345,74 +334,3 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                 ginga.show_image(self.mspixelflatnrm)
 
 
-def get_msflat(det, setup, spectrograph, sci_ID, fitstbl, tslits_dict, datasec_img,
-               flat_settings, msbias, mstilts):
-    """
-    Load/Generate the normalized flat field image
-
-    Parameters
-    ----------
-    det : int
-      Required for processing
-    setup : str
-      Required for MasterFrame loading
-    spectrograph : str
-      Required for processing
-    sci_ID : int
-      Required to choose the right flats for processing
-    fitstbl : Table
-      Required to choose the right flats for processing
-    tslits_dict : dict
-      Slits dict; required for processing
-    datasec_img : ndarray
-      Required for processing
-    flat_settings : dict
-    msbias : ndarray or str
-      Required for processing
-    mstilts : ndarray
-      Tilts image; required for processing
-
-    Returns
-    -------
-    mspixflatnrm : ndarray
-      Normalized pixel flat
-    slitprof : ndarray
-      Slit profile image
-    flatField : FlatField object
-    """
-    # Instantiate
-    pixflat_image_files = arsort.list_of_files(fitstbl, 'pixelflat', sci_ID)
-    flatField = FlatField(file_list=pixflat_image_files, msbias=msbias,
-                                    spectrograph=spectrograph,
-                                    settings=flat_settings,
-                                    tslits_dict=tslits_dict,
-                                    tilts=mstilts, det=det, setup=setup,
-                                    datasec_img=datasec_img)
-
-    # Load from disk (MasterFrame)?
-    mspixflatnrm = flatField.master()
-    slitprof = None
-    # Load user supplied flat (e.g. LRISb with pixel flat)?
-    if flat_settings['flatfield']['useframe'] not in ['pixelflat', 'trace']:
-        mspixelflat_name = armasters.user_master_name(flat_settings['masters']['directory'],
-                                                  flat_settings['flatfield']['useframe'])
-        mspixflatnrm, head, _ = armasters._load(mspixelflat_name, exten=det, frametype=None, force=True)
-        # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
-        slitprof = np.ones_like(mspixflatnrm)
-    if mspixflatnrm is None:
-        # TODO -- Consider turning the following back on.  I'm regenerating the flat for now
-        # Use mstrace if the indices are identical
-        #if np.all(arsort.ftype_indices(fitstbl,'trace',1) ==
-        #                  arsort.ftype_indices(fitstbl, 'pixelflat', 1)) and (traceSlits.mstrace is not None):
-        #    flatField.mspixelflat = traceSlits.mstrace.copy()
-        # Run
-        mspixflatnrm, slitprof = flatField.run(armed=False)
-        # Save to Masters
-        flatField.save_master(mspixflatnrm, raw_files=pixflat_image_files, steps=flatField.steps)
-        flatField.save_master(slitprof, raw_files=pixflat_image_files, steps=flatField.steps,
-                              outfile=armasters.master_name('slitprof', setup, flat_settings['masters']['directory']))
-    else:
-        if slitprof is None:
-            slitprof, _, _ = flatField.load_master_slitprofile()
-    # Return
-    return mspixflatnrm, slitprof, flatField

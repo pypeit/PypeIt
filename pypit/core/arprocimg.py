@@ -11,11 +11,8 @@ from scipy import signal, ndimage
 
 from pypit import msgs
 
-from pypit.core import arlris
-from pypit.core import ardeimos
 from pypit import arutils
 from pypit import arparse
-from pypit import arpixels
 
 from pypit import ardebug as debugger
 
@@ -24,64 +21,119 @@ try:
 except NameError:
     basestring = str
 
-def badpix(frame, numamplifiers, datasec, sigdev=10.0):
+# TODO: Add sigdev to the high-level parameter set so that it can be
+# changed by the user?
+def find_bad_pixels(bias, numamplifiers, datasec, sigdev=10.0, trim=True):
     """
-    frame is a master bias frame
-    numamplifiers : int
-    datasec : list
-    sigdev is the number of standard deviations away from the median that a pixel needs to be in order to be classified as a bad pixel
+    Identify bad pixels in the datasection of the bias frame based on
+    their robust deviation from the median.
+
+    Args:
+        bias (:obj:`numpy.ndarray`):
+            Bias frame
+        numamplifiers (int):
+            Number of amplifiers
+        datasec (list):
+            List of slices, one per amplifier, that contain the data in
+            the raw frame.  The slices and be lists of slice ojects or
+            strings.  If they are strings, :func:`arparse.sec2slice` is
+            used to convert them for use in the function.
+        sigdev (:obj:`float`, optional):
+            Number of robust standard deviations beyond which to flag
+            pixels as bad.
+        trim (:obj:`bool`, optional):
+            Flag to trim image to the data section.
+
+    Returns:
+        :obj:`numpy.ndarray`: An integer array with bad pixels set to 1.
+
+    Raises:
+        ValueError:
+            Raised if the number of data sections does not match the
+            number of amplifiers.
     """
-    bpix = np.zeros_like(frame, dtype=np.int)
-    subfr, tframe, temp = None, None, None
-    #for i in range(settings.spect[dnum]['numamplifiers']):
+    # Check input
+    if len(datasec) != numamplifiers:
+        raise ValueError('Number of amplifiers does not match provided data sections.')
+
+    # If the input image sections are strings, convert them
+    if isinstance(datasec[0], str):
+        _datasec = datasec.copy()
+        for i in range(numamplifiers):
+            _datasec[i] = arparse.sec2slice(datasec[i], require_dim=2)
+    else:
+        _datasec = datasec
+
+    # Find the bad pixels and mask them
+    mask = np.zeros_like(bias, dtype=np.int8)
+    is_data = np.zeros_like(bias, dtype=bool)
     for i in range(numamplifiers):
-        #datasec = "datasec{0:02d}".format(i+1)
-        x0, x1 = datasec[i][0][0], datasec[i][0][1]
-        y0, y1 = datasec[i][1][0], datasec[i][1][1]
-        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
-        xv = np.arange(x0, x1)
-        yv = np.arange(y0, y1)
-        # Construct an array with the rows and columns to be extracted
-        w = np.ix_(xv,yv)
-        tframe = frame[w]
-        temp = np.abs(np.median(tframe)-tframe)
-        sigval = max(np.median(temp)*1.4826, 1.4826)
-        ws = np.where(temp > sigdev*sigval)
-        subfr = np.zeros(tframe.shape, dtype=np.int)
-        subfr[ws] = 1
-        bpix[w] = subfr
-    del subfr, tframe, temp
-    # Finally, trim the bad pixel frame
-    bpix = trim(bpix, numamplifiers, datasec)
-    msgs.info("Identified {0:d} bad pixels".format(int(np.sum(bpix))))
-    return bpix
+        is_data[datasec[i]] = True
+        temp = np.abs(np.median(bias[datasec[i]])-bias[datasec[i]])
+        sigval = 1.4826*max(np.median(temp), 1)
+        mask[datasec[i]][temp > sigdev*sigval] = 1
+
+    msgs.info("Identified {0:d} bad pixels".format(int(np.sum(mask))))
+    return trim_frame(mask, np.invert(is_data)) if trim else mask
 
 
-def bias_subtract(rawframe, msbias, numamplifiers=None, datasec=None, oscansec=None):
-    """ Core routine for bias subtraction
-    Calls sub_overscan if msbias == 'overscan'
+#def badpix(frame, numamplifiers, datasec, sigdev=10.0):
+#    """
+#    frame is a master bias frame
+#    numamplifiers : int
+#    datasec : list
+#    sigdev is the number of standard deviations away from the median that a pixel needs to be in order to be classified as a bad pixel
+#    """
+#    bpix = np.zeros_like(frame, dtype=np.int)
+#    subfr, tframe, temp = None, None, None
+#    #for i in range(settings.spect[dnum]['numamplifiers']):
+#    for i in range(numamplifiers):
+#        #datasec = "datasec{0:02d}".format(i+1)
+#        x0, x1 = datasec[i][0][0], datasec[i][0][1]
+#        y0, y1 = datasec[i][1][0], datasec[i][1][1]
+#        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
+#        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+#        xv = np.arange(x0, x1)
+#        yv = np.arange(y0, y1)
+#        # Construct an array with the rows and columns to be extracted
+#        w = np.ix_(xv,yv)
+#        tframe = frame[w]
+#        temp = np.abs(np.median(tframe)-tframe)
+#        sigval = max(np.median(temp)*1.4826, 1.4826)
+#        ws = np.where(temp > sigdev*sigval)
+#        subfr = np.zeros(tframe.shape, dtype=np.int)
+#        subfr[ws] = 1
+#        bpix[w] = subfr
+#    del subfr, tframe, temp
+#    # Finally, trim the bad pixel frame
+#    bpix = trim(bpix, numamplifiers, datasec)
+#    msgs.info("Identified {0:d} bad pixels".format(int(np.sum(bpix))))
+#    return bpix
 
-    Parameters
-    ----------
-    rawframe : ndarray
-    msbias : ndarray or str
 
-    Returns
-    -------
-    newframe : ndarray
-      Bias subtracted frame
-
-    """
-    if type(msbias) is np.ndarray:
-        msgs.info("Subtracting bias image from raw frame")
-        newframe = rawframe-msbias  # Subtract the master bias frame
-    elif isinstance(msbias, basestring):
-        if msbias == "overscan":
-            newframe = sub_overscan(rawframe, numamplifiers, datasec, oscansec, settings=None)
-        else:
-            msgs.error("Could not subtract bias level with the input bias approach") #when loading {0:s} frames".format(frametype))
-    return newframe
+#def bias_subtract(rawframe, msbias, numamplifiers=None, datasec=None, oscansec=None):
+#    """ Core routine for bias subtraction
+#    Calls sub_overscan if msbias == 'overscan'
+#
+#    Parameters
+#    ----------
+#    rawframe : ndarray
+#    msbias : ndarray or str
+#
+#    Returns
+#    -------
+#    newframe : ndarray
+#      Bias subtracted frame
+#
+#    """
+#    if isinstance(msbias, np.ndarray):
+#        msgs.info("Subtracting bias image from raw frame")
+#        # Subtract the master bias frame
+#        return rawframe-msbias
+#    elif isinstance(msbias, basestring) and msbias == 'overscan':
+#        return subtract_overscan(rawframe, numamplifiers, datasec, oscansec, settings=None)
+#    
+#    msgs.error('Could not subtract bias level with the input bias approach.')
 
 
 '''
@@ -98,7 +150,7 @@ def error_frame_postext(sciframe, idx, fitsdict, settings_spect):
     return errframe
 '''
 
-
+'''
 def get_datasec_trimmed(spectrograph, scifile, det, settings_det,
                         naxis0=None, naxis1=None):
     """
@@ -144,56 +196,7 @@ def get_datasec_trimmed(spectrograph, scifile, det, settings_det,
     #naxis0, naxis1 = int(fitstbl['naxis0'][scidx]), int(fitstbl['naxis1'][scidx])
     datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, settings_det['numamplifiers'])
     return datasec_img, naxis0, naxis1
-
-
-def get_datasec(spectrograph, scifile, numamplifiers=None, det=None):
-    """  Determine the data and overscan sections of an image
-
-    Currently only used for LRIS and DEIMOS (with their multiple detectors
-    packed in funny ways).  Should consider another approach.
-
-    Parameters
-    ----------
-    spectrograph : str
-    scifile : str
-    numamplifiers : int (optional)
-    det : int (optional)
-      Detector number, starts at 1
-
-    Returns
-    -------
-    datasec : list
-    oscansec : list
-    naxis0 : int
-    naxis1 : int
-    """
-    # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
-    datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
-    # TODO -- Remove instrument specific items in a method like this
-    if spectrograph in ['keck_lris_blue', 'keck_lris_red']:
-        msgs.info("Parsing datasec and oscansec from headers")
-        temp, head0, secs = arlris.read_lris(scifile, det)
-        for kk in range(numamplifiers):
-            #datasec = "datasec{0:02d}".format(kk+1)
-            #settings.spect[dnum][datasec] = settings.load_sections(secs[0][kk], fmt_iraf=False)
-            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
-            #oscansec = "oscansec{0:02d}".format(kk+1)
-            #settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk], fmt_iraf=False)
-            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
-    elif spectrograph in ['keck_deimos']:
-        msgs.info("Parsing datasec and oscansec from headers")
-        temp, head0, secs = ardeimos.read_deimos(scifile, det=det)
-        datasec.append(arparse.load_sections(secs[0][0], fmt_iraf=False))
-        oscansec.append(arparse.load_sections(secs[1][0], fmt_iraf=False))
-    else:  # Other instruments are set in their settings file
-        msgs.warn("Should not have called get_datasec!")
-        return datasec, oscansec, naxis0, naxis1
-
-    naxis0 = temp.shape[0]
-    naxis1 = temp.shape[1]
-    # Return
-    return datasec, oscansec, naxis0, naxis1
-
+'''
 
 
 '''
@@ -217,8 +220,8 @@ def sn_frame(slf, sciframe, idx):
 '''
 
 
-def lacosmic(det, sciframe, settings_det, maxiter=1, grow=1.5,
-             varframe=None, remove_compact_obj=True):
+def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
+             remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
     """
     settings_det : settings.spect[dnum]
       Detector info
@@ -234,10 +237,10 @@ def lacosmic(det, sciframe, settings_det, maxiter=1, grow=1.5,
     dnum = arparse.get_dnum(det)
 
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
-    msgs.work("Include these parameters in the settings files to be adjusted by the user")
-    sigclip = 5.0
-    sigfrac = 0.3
-    objlim  = 5.0
+#    msgs.work("Include these parameters in the settings files to be adjusted by the user")
+#    sigclip = 5.0
+#    sigfrac = 0.3
+#    objlim  = 5.0
     # Set the settings
     scicopy = sciframe.copy()
     crmask = np.cast['bool'](np.zeros(sciframe.shape))
@@ -245,7 +248,8 @@ def lacosmic(det, sciframe, settings_det, maxiter=1, grow=1.5,
 
     # Determine if there are saturated pixels
     satpix = np.zeros_like(sciframe)
-    satlev = settings_det['saturation']*settings_det['nonlinear']
+#    satlev = settings_det['saturation']*settings_det['nonlinear']
+    satlev = saturation*nonlinear
     wsat = np.where(sciframe >= satlev)
     if wsat[0].size == 0: satpix = None
     else:
@@ -355,50 +359,7 @@ def lacosmic(det, sciframe, settings_det, maxiter=1, grow=1.5,
     filty = ndimage.sobel(filt/np.sqrt(np.abs(sciframe)), axis=0, mode='constant')
     filty[np.where(np.isnan(filty))]=0.0
 
-    # Old cr_screen can yield nan pixels, new one does not, meaning that
-    # there are differences between the returned arrays.  For all
-    # non-nan pixels, the two algorithms are identical.
-#    print('calling cr_screen')
-#    t = time.clock()
-#    _sigimg  = arcyproc.cr_screen(filty,0.0)
-#    print('Old cr_screen: {0} seconds'.format(time.clock() - t))
-#    print(np.sum(np.invert(np.isfinite(_sigimg))))
-#    t = time.clock()
-    sigimg  = new_cr_screen(filty)
-#    print('New cr_screen: {0} seconds'.format(time.clock() - t))
-#    print(np.sum(np.invert(np.isfinite(sigimg))))
-#    if np.sum(_sigimg != sigimg) != 0:
-#        plt.imshow(_sigimg, origin='lower', interpolation='nearest', aspect='auto')
-#        plt.show()
-#        plt.imshow(sigimg, origin='lower', interpolation='nearest', aspect='auto')
-#        plt.show()
-#        plt.imshow(_sigimg-sigimg, origin='lower', interpolation='nearest', aspect='auto')
-#        plt.colorbar()
-#        plt.show()
-#        r = np.ma.divide(_sigimg,sigimg)-1
-#        print(np.ma.sum(r))
-#        plt.imshow(np.ma.divide(_sigimg,sigimg)-1, origin='lower', interpolation='nearest', aspect='auto')
-#        plt.colorbar()
-#        plt.show()
-#    assert np.sum(_sigimg != sigimg) == 0, 'Difference between old and new cr_screen'
-
-#    print(sigimg.shape)
-#    print(new_sigimg.shape)
-#    print(np.ma.mean(np.ma.log10(sigimg)))
-#    print(np.ma.mean(np.ma.log10(new_sigimg)))
-#    print(np.ma.mean(np.ma.log10(sigimg)-np.ma.log10(new_sigimg)))
-#
-#    plt.imshow(np.ma.log10(sigimg), origin='lower', interpolation='nearest', aspect='auto')
-#    plt.colorbar()
-#    plt.show()
-#
-#    plt.imshow(np.ma.log10(new_sigimg), origin='lower', interpolation='nearest', aspect='auto')
-#    plt.colorbar()
-#    plt.show()
-#
-#    plt.imshow(np.ma.log10(new_sigimg)-np.ma.log10(sigimg), origin='lower', interpolation='nearest', aspect='auto')
-#    plt.colorbar()
-#    plt.show()
+    sigimg = cr_screen(filty)
 
     sigsmth = ndimage.filters.gaussian_filter(sigimg,1.5)
     sigsmth[np.where(np.isnan(sigsmth))]=0.0
@@ -406,19 +367,12 @@ def lacosmic(det, sciframe, settings_det, maxiter=1, grow=1.5,
     sigmask[np.where(sigsmth>sigclip)] = True
     crmask = np.logical_and(crmask, sigmask)
     msgs.info("Growing cosmic ray mask by 1 pixel")
-#    print('calling grow_masked')
-#    t = time.clock()
-#    _crmask = arcyutils.grow_masked(crmask.astype(np.float), grow, 1.0)
-#    print('Old grow_masked: {0} seconds'.format(time.clock() - t))
-#    t = time.clock()
-    crmask = new_grow_masked(crmask.astype(np.float), grow, 1.0)
-#    print('New grow_masked: {0} seconds'.format(time.clock() - t))
-#    assert np.sum(_crmask != crmask) == 0, 'Difference between old and new grow_masked'
+    crmask = grow_masked(crmask.astype(np.float), grow, 1.0)
 
     return crmask
 
 
-def new_cr_screen(a, mask_value=0.0, spatial_axis=1):
+def cr_screen(a, mask_value=0.0, spatial_axis=1):
     r"""
     Calculate the significance of pixel deviations from the median along
     the spatial direction.
@@ -458,7 +412,7 @@ def new_cr_screen(a, mask_value=0.0, spatial_axis=1):
     return np.ma.divide(d, mada[:,None]).filled(mask_value)
 
 
-def new_grow_masked(img, grow, growval):
+def grow_masked(img, grow, growval):
 
     if not np.any(img == growval):
         return img
@@ -494,6 +448,7 @@ def gain_frame(datasec_img, namp, gain_list):
     datasec_img : ndarray
     namp : int
     gain_list : list
+    # TODO need to beef up the docs here
 
     Returns
     -------
@@ -514,126 +469,227 @@ def gain_frame(datasec_img, namp, gain_list):
     return gain_img
 
 
-def rn_frame(det, datasec_img, settings_det):
+def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
     """ Generate a RN image
 
     Parameters
     ----------
-    det
-    settings_det : settings.spect[dnum]
 
     Returns
     -------
     rn_img : ndarray
       Read noise *variance* image (i.e. RN**2)
     """
-    dnum = arparse.get_dnum(det)
+    _gain = np.asarray(gain) if isinstance(gain, (list, np.ndarray)) else np.array([gain])
+    _ronoise = np.asarray(ronoise) if isinstance(ronoise, (list, np.ndarray)) \
+                        else np.array([ronoise])
+    if len(_gain) != numamplifiers:
+        raise ValueError('Must provide a gain for each amplifier.')
+    if len(_ronoise) != numamplifiers:
+        raise ValueError('Must provide a read-noise for each amplifier.')
+    if np.any(datasec_img > numamplifiers):
+        raise ValueError('Pixel amplifier IDs do not match number of amplifiers.')
 
-    # Loop on amplifiers
-    rnimg = np.zeros_like(datasec_img)
-    for ii in range(settings_det['numamplifiers']):
-        amp = ii+1
-        amppix = datasec_img == amp
-        rnimg[amppix] = (settings_det['ronoise'][ii]**2 +
-                         (0.5*settings_det['gain'][ii])**2)
-    # Return
-    return rnimg
+    # Get the amplifier indices
+    indx = datasec_img.astype(int) == 0
+    amp = np.ma.MaskedArray(datasec_img.astype(int) - 1, mask=indx).filled(0)
+
+    # Return the read-noise image.  Any pixels without an assigned
+    # amplifier are given a noise of 0.
+    return np.ma.MaskedArray(np.square(_ronoise[amp]) + np.square(0.5*_gain[amp]),
+                             mask=indx).filled(0.0)
 
 
-def sub_overscan(rawframe, numamplifiers, datasec, oscansec, settings=None):
+def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol', params=[5, 65]):
     """
     Subtract overscan
 
-    Parameters
-    ----------
-    frame : ndarray
-      frame which should have the overscan region subtracted
-    numamplifiers : int
-    datasec : list
-      Specifies the data sections, one sub-list per amplifier
-    oscansec : list
-      Specifies the overscan sections, one sub-list per amplifier
-    settings : dict, optional
-      Describes the internal options for the overscan subtraction
-      Perhaps we would prefer all of these be on the method call eventually??
+    Args:
+        frame (:obj:`numpy.ndarray`):
+            Frame from which to subtract overscan
+        numamplifiers (int):
+            Number of amplifiers for this detector.
+        datasec (list):
+            List of slices, one per amplifier, that contain the data in
+            the raw frame.  The slices and be lists of slice ojects or
+            strings.  If they are strings, :func:`arparse.sec2slice` is
+            used to convert them for use in the function.
+        oscansec (list):
+            List of slices, one per amplifier, that contain the
+            overscane regions in the raw frame.  The slices and be lists
+            of slice ojects or strings.  If they are strings,
+            :func:`arparse.sec2slice` is used to convert them for use in
+            the function.
+        method (:obj:`str`, optional):
+            The method used to fit the overscan region.  Options are
+            polynomial, savgol, median.
+        params (:obj:`list`, optional):
+            Parameters for the overscan subtraction.  For
+            method=polynomial, set params = order, number of pixels,
+            number of repeats ; for method=savgol, set params = order,
+            window size ; for method=median, params are ignored.
 
-    Returns
-    -------
-    frame : ndarray
-      The input frame with the overscan region subtracted
+    Returns:
+        :obj:`numpy.ndarray`: The input frame with the overscan region
+        subtracted
     """
-    #dnum = settings.get_dnum(det)
-    if settings is None:
-        settings = dict(reduce={'overscan': {'method': 'savgol', 'params': [5,65]}})
+    # Check input
+    if len(datasec) != numamplifiers or len(oscansec) != numamplifiers:
+        raise ValueError('Number of amplifiers does not match provided image sections.')
 
-
+    # If the input image sections are strings, convert them
+    if isinstance(datasec[0], str):
+        _datasec = datasec.copy()
+        for i in range(numamplifiers):
+            _datasec[i] = arparse.sec2slice(datasec[i], require_dim=2)
+    else:
+        _datasec = datasec
+            
+    if isinstance(oscansec[0], str):
+        _oscansec = oscansec.copy()
+        for i in range(numamplifiers):
+            _oscansec[i] = arparse.sec2slice(oscansec[i], require_dim=2)
+    else:
+        _oscansec = oscansec
+    
+    # Check that there are no overlapping data sections
+    testframe = np.zeros_like(rawframe, dtype=int)
     for i in range(numamplifiers):
-        # Determine the section of the chip that contains data
-        #datasec = "datasec{0:02d}".format(i+1)
-        #dx0, dx1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-        #dy0, dy1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
-        dx0, dx1 = datasec[i][0][0], datasec[i][0][1]
-        dy0, dy1 = datasec[i][1][0], datasec[i][1][1]
-        if dx0 < 0: dx0 += rawframe.shape[0]
-        if dx1 <= 0: dx1 += rawframe.shape[0]
-        if dy0 < 0: dy0 += rawframe.shape[1]
-        if dy1 <= 0: dy1 += rawframe.shape[1]
-        xds = np.arange(dx0, dx1)
-        yds = np.arange(dy0, dy1)
-        # Determine the section of the chip that contains the overscan region
-        #oscansec = "oscansec{0:02d}".format(i+1)
-        #ox0, ox1 = settings.spect[dnum][oscansec][0][0], settings.spect[dnum][oscansec][0][1]
-        #oy0, oy1 = settings.spect[dnum][oscansec][1][0], settings.spect[dnum][oscansec][1][1]
-        ox0, ox1 = oscansec[i][0][0], oscansec[i][0][1]
-        oy0, oy1 = oscansec[i][1][0], oscansec[i][1][1]
-        if ox0 < 0: ox0 += rawframe.shape[0]
-        if ox1 <= 0: ox1 += min(rawframe.shape[0], dx1)  # Truncate to datasec
-        if oy0 < 0: oy0 += rawframe.shape[1]
-        if oy1 <= 0: oy1 += min(rawframe.shape[1], dy1)  # Truncate to datasec
-        xos = np.arange(ox0, ox1)
-        yos = np.arange(oy0, oy1)
-        w = np.ix_(xos, yos)
-        oscan = rawframe[w]
-        # Make sure the overscan section has at least one side consistent with datasec
-        if dx1-dx0 == ox1-ox0:
-            osfit = np.median(oscan, axis=1)  # Mean was hit by CRs
-        elif dy1-dy0 == oy1-oy0:
-            osfit = np.median(oscan, axis=0)
-        elif settings['reduce']['overscan']['method'].lower() == "median":
-            osfit = np.median(oscan)
-        else:
-            msgs.error("Overscan sections do not match amplifier sections for amplifier {0:d}".format(i+1))
+        testframe[_datasec[i]] += 1
+    if np.any(testframe > 1):
+        raise ValueError('Image has overlapping data sections!')
+
+    # Copy the data so that the subtraction is not done in place
+    nobias = rawframe.copy()
+
+    # Perform the bias subtraction for each amplifier
+    for i in range(numamplifiers):
+        # Pull out the overscan data
+        overscan = rawframe[_oscansec[i]]
+
+        # Shape along at least one axis must match
+        data_shape = rawframe[_datasec[i]].shape
+        if not np.any([ dd == do for dd, do in zip(data_shape, overscan.shape)]):
+            msgs.error('Overscan sections do not match amplifier sections for'
+                       'amplifier {0}'.format(i+1))
+        compress_axis = 1 if data_shape[0] == overscan.shape[0] else 0
+        
         # Fit/Model the overscan region
-        if settings['reduce']['overscan']['method'].lower() == "polynomial":
-            c = np.polyfit(np.arange(osfit.size), osfit, settings['reduce']['overscan']['params'][0])
-            ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
-        elif settings['reduce']['overscan']['method'].lower() == "savgol":
-            ossub = signal.savgol_filter(osfit,
-                                         settings['reduce']['overscan']['params'][1],
-                                         settings['reduce']['overscan']['params'][0])
-        elif settings['reduce']['overscan']['method'].lower() == "median":  # One simple value
-            ossub = osfit * np.ones(1)
+        osfit = np.median(overscan) if method.lower() == 'median' \
+                        else np.median(overscan, axis=compress_axis) 
+        if method.lower() == 'polynomial':
+            # TODO: Use np.polynomial.polynomial.polyfit instead?
+            c = np.polyfit(np.arange(osfit.size), osfit, params[0])
+            ossub = np.polyval(c, np.arange(osfit.size))
+        elif method.lower() == 'savgol':
+            ossub = signal.savgol_filter(osfit, params[1], params[0])
+        elif method.lower() == 'median':
+            # Subtract scalar and continue
+            nobias[_datasec[i]] -= osfit
+            continue
         else:
-            msgs.warn("Overscan subtraction method {0:s} is not implemented".format(settings['reduce']['overscan']['method']))
-            msgs.info("Using a linear fit to the overscan region")
-            c = np.polyfit(np.arange(osfit.size), osfit, 1)
-            ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
-        # Determine the section of the chip that contains data for this amplifier
-        if i==0:
-            frame = rawframe.copy()
-        wd = np.ix_(xds, yds)
-        ossub = ossub.reshape(osfit.size, 1)
-        if wd[0].shape[0] == ossub.shape[0]:
-            frame[wd] -= ossub
-        elif wd[1].shape[1] == ossub.shape[0]:
-            frame[wd] -= ossub.T
-        elif settings['reduce']['overscan']['method'].lower() == "median":
-            frame[wd] -= osfit
-        else:
-            msgs.error("Could not subtract bias from overscan region --"+msgs.newline()+"size of extracted regions does not match")
-    # Return
-    del xds, yds, xos, yos, oscan
-    return frame
+            raise ValueError('Unrecognized overscan subtraction method: {0}'.format(method))
+
+        # Subtract along the appropriate axis
+        nobias[_datasec[i]] -= (ossub[:,None] if compress_axis == 1 else ossub[None,:])
+
+    return nobias
+
+
+
+#def sub_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol', params=[5, 65]):
+#    """
+#    Subtract overscan
+#
+#    Args:
+#        frame (:obj:`numpy.ndarray`):
+#            Frame from which to subtract overscan
+#        numamplifiers (int):
+#            Number of amplifiers for this detector.
+#        datasec (list):
+#            Specifies the data sections, one sub-list per amplifier
+#        oscansec (list):
+#            Specifies the overscan sections, one sub-list per amplifier
+#        method (:obj:`str`, optional):
+#            The method used to fit the overscan region.  Options are
+#            polynomial, savgol, median.
+#        params (:obj:`list`, optional):
+#            Parameters for the overscan subtraction.  For
+#            method=polynomial, set params = order, number of pixels,
+#            number of repeats ; for method=savgol, set params = order,
+#            window size ; for method=median, params are ignored.
+#    Returns:
+#        :obj:`numpy.ndarray`: The input frame with the overscan region
+#        subtracted
+#    """
+#    for i in range(numamplifiers):
+#        # Determine the section of the chip that contains data
+#        dx0, dx1 = datasec[i][0][0], datasec[i][0][1]
+#        dy0, dy1 = datasec[i][1][0], datasec[i][1][1]
+#        if dx0 < 0: dx0 += rawframe.shape[0]
+#        if dx1 <= 0: dx1 += rawframe.shape[0]
+#        if dy0 < 0: dy0 += rawframe.shape[1]
+#        if dy1 <= 0: dy1 += rawframe.shape[1]
+#        xds = np.arange(dx0, dx1)
+#        yds = np.arange(dy0, dy1)
+#
+#        # Determine the section of the chip that contains the overscan
+#        # region
+#        ox0, ox1 = oscansec[i][0][0], oscansec[i][0][1]
+#        oy0, oy1 = oscansec[i][1][0], oscansec[i][1][1]
+#        if ox0 < 0: ox0 += rawframe.shape[0]
+#        if ox1 <= 0: ox1 += min(rawframe.shape[0], dx1)  # Truncate to datasec
+#        if oy0 < 0: oy0 += rawframe.shape[1]
+#        if oy1 <= 0: oy1 += min(rawframe.shape[1], dy1)  # Truncate to datasec
+#        xos = np.arange(ox0, ox1)
+#        yos = np.arange(oy0, oy1)
+#        w = np.ix_(xos, yos)
+#        oscan = rawframe[w]
+#
+#        # Make sure the overscan section has at least one side consistent with datasec
+#        if dx1-dx0 == ox1-ox0:
+#            osfit = np.median(oscan, axis=1)  # Mean was hit by CRs
+#        elif dy1-dy0 == oy1-oy0:
+#            osfit = np.median(oscan, axis=0)
+#        elif method.lower() == 'median':
+#            osfit = np.median(oscan)
+#        else:
+#            msgs.error('Overscan sections do not match amplifier sections for'
+#                       'amplifier {0}'.format(i+1))
+#
+#        # Fit/Model the overscan region
+#        if method.lower() == 'polynomial':
+#            c = np.polyfit(np.arange(osfit.size), osfit, params[0])
+#            ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
+#        elif method.lower() == 'savgol':
+#            ossub = signal.savgol_filter(osfit, params[1], params[0])
+#        elif method.lower() == 'median':  # One simple value
+#            ossub = osfit * np.ones(1)
+#        else:
+#            # TODO: Should we raise an exception instead?
+#            msgs.warn('Unknown overscan subtraction method: {0}'.format(method))
+#            msgs.info('Using a linear fit to the overscan region')
+#            c = np.polyfit(np.arange(osfit.size), osfit, 1)
+#            ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
+#
+#        # Determine the section of the chip that contains data for this amplifier
+#        if i==0:
+#            frame = rawframe.copy()
+#        wd = np.ix_(xds, yds)
+#        ossub = ossub.reshape(osfit.size, 1)
+#        if wd[0].shape[0] == ossub.shape[0]:
+#            frame[wd] -= ossub
+#        elif wd[1].shape[1] == ossub.shape[0]:
+#            frame[wd] -= ossub.T
+#        elif method.lower() == 'median':
+#            frame[wd] -= osfit
+#        else:
+#            msgs.error("Could not subtract bias from overscan region --" 
+#                       + msgs.newline() + "size of extracted regions does not match")
+#
+#    # Return
+#    del xds, yds, xos, yos, oscan
+#    return frame
 
 
 def replace_columns(img, bad_cols, replace_with='mean'):
@@ -686,74 +742,114 @@ def replace_columns(img, bad_cols, replace_with='mean'):
     return img2
 
 
-def trim(frame, numamplifiers, datasec):
-    """ Core method to trim an input image
-
-    Parameters
-    ----------
-    frame : ndarray
-    numamplifiers : int
-    datasec : list of datasecs
-      One per amplifier
-
-    Returns
-    -------
-    frame : ndarray
-      Trimmed
+def trim_frame(frame, mask):
     """
-    for i in range(numamplifiers):
-        #datasec = "datasec{0:02d}".format(i+1)
-        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
-        x0, x1 = datasec[i][0][0], datasec[i][0][1]
-        y0, y1 = datasec[i][1][0], datasec[i][1][1]
-        # Fuss with edges
-        if x0 < 0:
-            x0 += frame.shape[0]
-        if x1 <= 0:
-            x1 += frame.shape[0]
-        if y0 < 0:
-            y0 += frame.shape[1]
-        if y1 <= 0:
-            y1 += frame.shape[1]
-        if i == 0:
-            xv = np.arange(x0, x1)
-            yv = np.arange(y0, y1)
-        else:
-            xv = np.unique(np.append(xv, np.arange(x0, x1)))
-            yv = np.unique(np.append(yv, np.arange(y0, y1)))
-    # Construct and array with the rows and columns to be extracted
-    w = np.ix_(xv, yv)
-#	if len(file.shape) == 2:
-#		trimfile = file[w]
-#	elif len(file.shape) == 3:
-#		trimfile = np.zeros((w[0].shape[0],w[1].shape[1],file.shape[2]))
-#		for f in range(file.shape[2]):
-#			trimfile[:,:,f] = file[:,:,f][w]
-#	else:
-#		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))
-    try:
-        return frame[w]
-    except:
-        msgs.bug("Odds are datasec is set wrong. Maybe due to transpose")
-        debugger.set_trace()
-        msgs.error("Cannot trim file")
+    Trim the masked regions from a frame.
+
+    Args:
+        frame (:obj:`numpy.ndarray`):
+            Image to be trimmed
+        mask (:obj:`numpy.ndarray`):
+            Boolean image set to True for values that should be trimmed
+            and False for values to be returned in the output trimmed
+            image.
+
+    Return:
+        :obj:`numpy.ndarray`:
+            Trimmed image
+
+    Raises:
+        PypitError:
+            Error raised if the trimmed image includes masked values
+            because the shape of the valid region is odd.
+    """
+    # TODO: Should check for this failure mode earlier
+    if np.any(mask[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]):
+        msgs.error('Data section is oddly shaped.  Trimming does not exclude all '
+                   'pixels outside the data sections.')
+    return frame[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]
+
+#def trim(frame, numamplifiers, datasec):
+#    """ Core method to trim an input image
+#
+#    Parameters
+#    ----------
+#    frame : ndarray
+#    numamplifiers : int
+#    datasec : list of datasecs
+#      One per amplifier
+#
+#    Returns
+#    -------
+#    frame : ndarray
+#      Trimmed
+#    """
+#    for i in range(numamplifiers):
+#        #datasec = "datasec{0:02d}".format(i+1)
+#        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
+#        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+#        x0, x1 = datasec[i][0][0], datasec[i][0][1]
+#        y0, y1 = datasec[i][1][0], datasec[i][1][1]
+#        # Fuss with edges
+#        if x0 < 0:
+#            x0 += frame.shape[0]
+#        if x1 <= 0:
+#            x1 += frame.shape[0]
+#        if y0 < 0:
+#            y0 += frame.shape[1]
+#        if y1 <= 0:
+#            y1 += frame.shape[1]
+#        if i == 0:
+#            xv = np.arange(x0, x1)
+#            yv = np.arange(y0, y1)
+#        else:
+#            xv = np.unique(np.append(xv, np.arange(x0, x1)))
+#            yv = np.unique(np.append(yv, np.arange(y0, y1)))
+#    # Construct and array with the rows and columns to be extracted
+#    w = np.ix_(xv, yv)
+##	if len(file.shape) == 2:
+##		trimfile = file[w]
+##	elif len(file.shape) == 3:
+##		trimfile = np.zeros((w[0].shape[0],w[1].shape[1],file.shape[2]))
+##		for f in range(file.shape[2]):
+##			trimfile[:,:,f] = file[:,:,f][w]
+##	else:
+##		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))
+#    try:
+#        return frame[w]
+#    except:
+#        msgs.bug("Odds are datasec is set wrong. Maybe due to transpose")
+#        debugger.set_trace()
+#        msgs.error("Cannot trim file")
 
 
-def variance_frame(datasec_img, det, sciframe, settings_det=None,
-                   fitsdict=None, skyframe=None, objframe=None,
-                   idx=None, dnoise=None):
-    """ Calculate the variance image including detector noise
-    Parameters
-    ----------
-    datasec_img : ndarray
-    det
-    sciframe
-    settings_det : settings.spect[dnum]
-      Detector info
-    fitsdict : dict, optional
-      Contains relevant information from fits header files
-    idx : int, optional
+def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
+                   exptime=None, skyframe=None, objframe=None):
+    """
+    Calculate the variance image including detector noise.
+
+    .. todo::
+        This needs particular attention because exptime and darkcurr;
+        used to be dnoise
+
+    Args:
+        datasec_img (:obj:`numpy.ndarray`):
+            Image that identifies which amplifier (1-indexed) was used
+            to read each pixel.  Anything less than 1 is ignored.
+        sciframe (:obj:`numpy.ndarray`):
+            Science frame with counts in ?
+        gain (:obj:`float`, array-like):
+            Gain for each amplifier
+        ronoise (:obj:`float`, array-like):
+            Read-noise for each amplifier
+        numamplifiers (:obj:`int`, optional):
+            Number of amplifiers.  Default is 1.  (TODO: This is
+            superfluous.  Could get the number of amplifiers from the
+            maximum value in datasec_img or the length of the
+            gain/ronoise lists.)
+        ronoise (:obj:`float`, array-like):
+
+        darkcurrent (:noise (:
     objframe : ndarray, optional
       Model of object counts
     Returns
@@ -761,19 +857,21 @@ def variance_frame(datasec_img, det, sciframe, settings_det=None,
     variance image : ndarray
     """
     # The effective read noise (variance image)
-    rnoise = rn_frame(det, datasec_img, settings_det)
-    if skyframe is not None:
-        if objframe is None:
-            objframe = np.zeros_like(skyframe)
-        varframe = np.abs(skyframe + objframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise
-        return varframe
-    else:
-        # Dark Current noise
-        if dnoise is None:
-            dnoise = (settings_det['darkcurr'] * float(fitsdict["exptime"][idx])/3600.0)
-        # Return
-        #varframe = np.abs(sciframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise + dnoise
-        #return varframe
-        return np.abs(sciframe.copy()) + rnoise + dnoise
+    rnoise = rn_frame(datasec_img, gain, ronoise, numamplifiers=numamplifiers)
+
+    # No sky frame provided
+    if skyframe is None:
+        _darkcurr = 0 if darkcurr is None else darkcurr
+        if exptime is not None:
+            _darkcurr *= exptime/3600.
+        return np.abs(sciframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise + _darkcurr
+
+    # TODO: There's some complicated logic here.  Why is objframe
+    # needed?  Can't a users just use objframe in place of sciframe and
+    # get the same behavior?  Why is darkcurr (what was dnoise) used
+    # with sciframe and not objframe?
+
+    _objframe = np.zeros_like(skyframe) if objframe is None else objframe
+    return np.abs(skyframe + _objframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise
 
 

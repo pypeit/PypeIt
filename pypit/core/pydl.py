@@ -10,6 +10,7 @@ from warnings import warn
 from pypit import msgs
 from pypit import ardebug as debugger
 
+
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """This module corresponds to the image directory in idlutils.
@@ -416,15 +417,15 @@ class bspline(object):
         n = nbkpt - self.nord
         gb = self.breakpoints[self.mask]
         bw = self.npoly*self.nord
-        lower = np.zeros((n - self.nord + 1,), dtype='i4')
-        upper = np.zeros((n - self.nord + 1,), dtype='i4') - 1
+        lower = np.zeros((n - self.nord + 1,), dtype=int)
+        upper = np.zeros((n - self.nord + 1,), dtype=int) - 1
         indx = self.intrv(x)
         bf1 = self.bsplvn(x, indx)
         action = bf1
-        aa = uniq(indx, np.arange(indx.size, dtype='i4'))
+        aa = uniq(indx, np.arange(indx.size, dtype=int))
         upper[indx[aa]-self.nord+1] = aa
         rindx = indx[::-1]
-        bb = uniq(rindx, np.arange(rindx.size, dtype='i4'))
+        bb = uniq(rindx, np.arange(rindx.size, dtype=int))
         lower[rindx[bb]-self.nord+1] = nx - bb - 1
         if x2 is not None:
             if x2.size != nx:
@@ -471,7 +472,7 @@ class bspline(object):
         """
         gb = self.breakpoints[self.mask]
         n = gb.size - self.nord
-        indx = np.zeros((x.size,), dtype='i4')
+        indx = np.zeros((x.size,), dtype=int)
         ileft = self.nord - 1
         for i in range(x.size):
             while x[i] > gb[ileft+1] and ileft < n - 1:
@@ -899,7 +900,7 @@ def iterfit(xdata, ydata, invvar=None, upper=5, lower=5, x2=None,
     error = -1
     # JFH fixed major bug here. Codes were not iterating
     qdone = False
-    while (error != 0 or qdone == False) and iiter <= maxiter:
+    while (error != 0 or qdone is False) and iiter <= maxiter:
         goodbk = sset.mask.nonzero()[0]
         if maskwork.sum() <= 1 or not sset.mask.any():
             sset.coeff = 0
@@ -1314,7 +1315,8 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     #
     # Set qdone if the input outmask is identical to the output outmask.
     #
-    qdone = np.all(newmask == outmask)
+    qdone = bool(np.all(newmask == outmask)) # This needs to be a python (rather than a numpy) boolean to avoid painful problems with comparing
+                                             # to python True and False cause problems
     outmask = newmask
     return (outmask, qdone)
 

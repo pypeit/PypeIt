@@ -32,6 +32,7 @@ Running PYPIT
 .. toctree::
    :maxdepth: 2
 
+   pypit_par
    cookbook
    setups
    pypit_file
@@ -103,7 +104,12 @@ Other
    flow
    api
 
+Contents
+++++++++
+.. toctree::
+   :maxdepth: 4
 
+   pypit
 
 Indices and tables
 ++++++++++++++++++

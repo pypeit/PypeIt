@@ -41,8 +41,8 @@ def main(args):
     from astropy.io import fits
     from astropy.table import Table
 
+    from pypit import msgs
     import pypit.ginga
-    from pypit import pyputils
     from pypit.core import armasters
     from pypit.arparse import get_dnum
     from pypit.core.artraceslits import get_slitid
@@ -55,7 +55,7 @@ def main(args):
         return
 
     # Setup for PYPIT imports
-    msgs = pyputils.get_dummy_logger()
+    msgs.reset(verbosity=2)
 
     # Init
     sdet = get_dnum(args.det, prefix=False)

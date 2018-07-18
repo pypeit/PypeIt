@@ -6,25 +6,24 @@ import os
 
 from pypit import msgs
 from pypit.core import arprocimg
-from pypit.core import arlris
-from pypit.core import ardeimos
+
+from pypit.spectrographs.spectrograph import Spectrograph
+from pypit.spectrographs.util import load_spectrograph
 
 from pypit import ardebug as debugger
 
-# For out of PYPIT running
-if msgs._debug is None:
-    debug = debugger.init()
-    debug['develop'] = True
-    msgs.reset(debug=debug, verbosity=2)
-
-# Does not need to be global, but I prefer it
-frametype = 'bpm'
-
+try:
+    basestring
+except NameError:
+    basestring = str
 
 class BPMImage(object):
     """
     This class is primarily designed to generate an Bad Pixel Image
       The master() method will return the image
+
+    Should provide both shape and filename to ensure that the
+    spectograph can construct the bpm, if reduce_badpix is False.
 
     There are several ways to build a BPM:
        1. keck_lris_red
@@ -50,6 +49,9 @@ class BPMImage(object):
         Could remove if we put binning in settings['detector']
     shape : tuple
       Image shape;  used to construct a dummy BPM if all else fails
+
+        This is the UNTRIMMED size of the raw images.
+
     msbias : ndarray, optional
       Used to construct the BPM if reduce_badpix=='bias'
     reduce_badpix : str, optional
@@ -60,39 +62,39 @@ class BPMImage(object):
     bpm : ndarray
 
     """
-    # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph=None, settings=None, det=None,
-                 binning=None, reduce_badpix=None, msbias=None, shape=None):
 
-        # Parameters unique to this Object
-        self.spectrograph = spectrograph
-        self.binning = binning
+    # Frametype is a class attribute
+    frametype = 'bpm'
+
+    # Keep order same as processimages (or else!)
+    def __init__(self, spectrograph=None, shape=None, filename=None, det=None, msbias=None,
+                 trim=True):
+
+        # Spectrograph is required
+        if isinstance(spectrograph, basestring):
+            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
+        elif isinstance(spectrograph, Spectrograph):
+            self.spectrograph = spectrograph
+        else:
+            self.spectrograph = None
+
+        # Used to construct the BPM using the spectrograph class
+        self.shape = shape
+        self.filename = filename
         self.det = det
 
-        self.reduce_badpix = reduce_badpix
+        # Used to construct the BPM from the bias
         self.msbias = msbias
+        self.trim = trim
 
-        self.shape = shape
-        self.settings = settings
-
-        # Checks
-        if (self.reduce_badpix == 'bias') and (self.msbias is None):
-            msgs.error("Need to supply msbias image with this option")
-        if (self.spectrograph == 'keck_deimos') and (self.det is None):
-            msgs.error("Need to supply det with this option")
-        if (self.spectrograph == 'keck_lris_red') and (self.det is None):
-            msgs.error("Need to supply det with this option")
-        if (self.spectrograph == 'keck_lris_red') and (self.binning is None):
-            msgs.error("Need to supply binning with this option")
-
-        # Attributes (set after init)
-        self.frametype = frametype
+        # spectrograph or msbias must be defined
+        if self.spectrograph is None and msbias is None:
+            msgs.error('BPMImage instantiation incomplete.  Must provide spectrograph or msbias.')
 
         # Output
-        self.bpm = None
+        self.bpm_img = None
 
-
-    def build(self):
+    def build(self, datasec=None):
         """
         Generate the BPM Image
 
@@ -101,74 +103,43 @@ class BPMImage(object):
         self.bpm
 
         """
-        if self.reduce_badpix == 'bias':
-            # Get all of the bias frames for this science frame
-            if self.msbias is None:
-                msgs.warn("No bias frame provided!")
-                msgs.info("Not preparing a bad pixel mask")
-                return False
-            # TODO -- Deal better with this datasec kludge
-            datasec = []
-            for i in range(self.settings['detector']['numamplifiers']):
-                sdatasec = "datasec{0:02d}".format(i+1)
-                datasec.append(self.settings['detector'][sdatasec])
-            # Construct
-            self.bpm = arprocimg.badpix(self.msbias, self.settings['detector']['numamplifiers'], datasec)
+        # Will raise an exception if could not construct the BPM
+        if self.msbias is None:
+            # WARNING: This assumes shape is the untrimmed size of the
+            # image!
+            self.bpm_img = self.spectrograph.bpm(shape=self.shape, filename=self.filename,
+                                                 det=self.det)
+            if self.trim:
+                mask = self.spectrograph.get_datasec_img(filename=self.filename, det=self.det) < 1
+
         else:
-            # Instrument dependent
-            if self.spectrograph in ['keck_lris_red']:
-                # Index in fitstbl for binning
-                xbin, ybin = [int(ii) for ii in self.binning.split(',')]
-                self.bpm = arlris.bpm(xbin, ybin, 'red', self.det)
-            elif self.spectrograph in ['keck_deimos']:
-                self.bpm = ardeimos.bpm(self.det)
-            elif self.spectrograph in ['keck_nirspec']:
-                # Edges of the detector are junk
-                msgs.info("Custom bad pixel mask for NIRSPEC")
-                self.bpm = np.zeros((self.shape[0], self.shape[1]))
-                self.bpm[:, :20] = 1.
-                self.bpm[:, 1000:] = 1.
-            else:
-                ###############
-                # Set the number of spectral and spatial pixels, and the bad pixel mask is it does not exist
-                self.bpm = np.zeros((self.shape[0], self.shape[1]))
-        # Return
-        return self.bpm
+            _datasec = datasec
+            if self.spectrograph is None and _datasec is None:
+                _datasec = [[slice(None),slice(None)]]
+                _numamplifiers = 1
+            if _datasec is None:
+                # Get the data sections from the spectrograph definition
+                _datasec, one_indexed, include_end, transpose \
+                        = self.spectrograph.get_image_section(self.filename, self.det,
+                                                              section='datasec')
+                _datasec = [ arparse.sec2slice(sec, one_indexed=one_indexed,
+                                               include_end=include_end, require_dim=2,
+                                               transpose=transpose)
+                                    for sec in _datasec ]
+                _numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
+
+            # Identify the bad pixels.  WARNING: When self.trim is True,
+            # this assumes that msbias is not trimmed.
+            self.bpm_img = arprocimg.find_bad_pixels(self.msbias, _numamplifiers, _datasec)
+
+            if self.trim:
+                mask = np.ones_like(self.bpm_img, dtype=bool)
+                for d in _datasec:
+                    mask[d] = False
+
+        # Trim
+        if self.trim:
+            self.bpm_img = arprocimg.trim_frame(self.bpm_img, mask)
+        return self.bpm_img
 
 
-def get_mspbm(det, spectrograph, tsettings, shape, binning=None, reduce_badpix=None, msbias=None):
-    """
-    Load/Generate the bad pixel image
-
-    Parameters
-    ----------
-    det : int
-      Required for processing
-    spectrograph : str
-      Required if processing
-    tsettings : dict
-      Required if processing or loading MasterFrame
-    shape : tuple
-      Required if processing
-    binning : str, optional
-      Required if processing
-    reduce_badpix : str, optional
-      'bias' -- Build from bias images
-    msbias : ndarray or str, optional
-      Required if processing with reduce_badpix
-
-    Returns
-    -------
-    msbpm : ndarray
-    bpmImage : BPMImage object
-
-    """
-    bpmImage = BPMImage(spectrograph=spectrograph,
-                                 settings=tsettings, det=det,
-                                 shape=shape,
-                                 binning=binning,
-                                 reduce_badpix=reduce_badpix,
-                                 msbias=msbias)
-    msbpm = bpmImage.build()
-    # Return
-    return msbpm, bpmImage

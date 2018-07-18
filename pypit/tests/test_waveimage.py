@@ -39,14 +39,18 @@ def test_build_me():
         assert True
         return
     # Masters
-    settings, TSlits, tilts, wv_calib = tstutils.load_kast_blue_masters(
-        get_settings=True, tslits=True, tilts=True, wvcalib=True)
+    spectrograph, TSlits, tilts, wv_calib \
+            = tstutils.load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True,
+                                              wvcalib=True)
     # Instantiate
     setup = 'A_01_aa'
+    root_path = data_path('MF') if os.getenv('PYPIT_DEV') is None \
+                    else os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
+    directory_path = root_path+'_'+spectrograph.spectrograph
+    mode = 'reuse'
     maskslits = np.zeros(TSlits.nslit, dtype=bool)
-    wvImg = waveimage.WaveImage(tilts, wv_calib, settings=settings,
-                                setup=setup, maskslits=maskslits,
-                                slitpix=TSlits.slitpix)
+    wvImg = waveimage.WaveImage(TSlits.slitpix, tilts, wv_calib, setup=setup, maskslits=maskslits,
+                                directory_path=directory_path, mode=mode)
     # Build
     wave = wvImg._build_wave()
     assert int(np.max(wave)) == 5516

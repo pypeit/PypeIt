@@ -26,14 +26,18 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 
 * `python <http://www.python.org/>`_ versions 2.7, or 3.5 or later (2.7 will be deprecated)
 * `numpy <http://www.numpy.org/>`_ version 1.13 or later
-* `astropy <http://www.astropy.org/>`_ version 1.3 or later
-* `scipy <http://www.scipy.org/>`_ version 0.18 or later
-* `matplotlib <http://matplotlib.org/>`_  version 1.4 or later
+* `astropy <http://www.astropy.org/>`_ version 2.0.5 or later
+* `scipy <http://www.scipy.org/>`_ version 0.18.1 or later
+* `matplotlib <http://matplotlib.org/>`_  version 1.5.3 or later
 * `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)
 * `h5py <https://www.h5py.org/>`_ version 2.6 (for data I/O)
 *  yaml -- On Python 3 (at least), you may need to install pyyaml
-* `future <https://pypi.python.org/pypi/future/0.6.0>`_ version 0.6
-* `arclines <https://github.com/PYPIT/arclines>`_
+* `future <https://pypi.python.org/pypi/future/0.6.0>`_ version 0.16 or later
+*  configobj -- version 5.0.6 or later
+
+These packages need to be installed by cloning from GitHub:
+
+* `arclines <https://github.com/PYPIT/arclines>`_  (this also requires numba)
 * `ginga <https://github.com/profxj/ginga>`_ JXP's fork of Ginga
 
 If you are using Anaconda, you can check the presence of these packages with::

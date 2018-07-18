@@ -66,7 +66,8 @@
 - Introduce maskslits array
 - Enable multi-slit reduction
 - Bug fixes in trace_slits
-- Fixes what appears to be a gross error in slit bg_subtraction (masking)
+- Fixes what appears to be a gross error in slit bg_subtraction
+  (masking)
 - Turns off PCA tilt QA for now [very slow for each slit]
 - Several improvements for coadding
 - Modify lacosmic to identify tiny CR's
@@ -77,8 +78,10 @@
 - Refactored get_datasec_trimmed, get_datasec, pix_to_amp
 - Refactored slit_pixels
 - Refactored sub_overscan
-- Refactored trace_slits (currently named driver_trace_slits) and many of its dependencies
-- Added parameter trace_slits_medrep for optional smoothing of the trace slits image
+- Refactored trace_slits (currently named driver_trace_slits) and many
+  of its dependencies
+- Added parameter trace_slits_medrep for optional smoothing of the trace
+  slits image
 - Updated a few settings for DEIMOS and LRIS related to tracing slits
 - Added a replace_columns() method to arproc.py
 - Fixed a bug in new_match_edges()
@@ -86,8 +89,10 @@
 - Updated docs on DEIMOS, LRIS
 - Added the pypit_chk_edges script
 - Added BPM for DEIMOS
-- Added the code for users to add slits [edgearr_from_users()] but have not documented nor made it accessible from the PYPIT file
-- Generated tcrude_edgearr() method for using trace crude on the slit edges
+- Added the code for users to add slits [edgearr_from_users()] but have
+  not documented nor made it accessible from the PYPIT file
+- Generated tcrude_edgearr() method for using trace crude on the slit
+  edges
 - Added trace_crude() method that I ported previously for DESI
 - Added multi_sync() method for ARMLSD slit synchronization
 - Have somewhat deprecated the maxgap method
@@ -117,7 +122,8 @@
 - Substantial refactoring of armasters
 - Moved arlris, ardeimos to core/
 - Moved image processing methods to arprocimg in core/
-- Introduced calib_dict to hold calibration frames in armlsd (instead of slf)
+- Introduced calib_dict to hold calibration frames in armlsd (instead of
+  slf)
 - Modified ardeimos to load only a single image (if desired)
 - Turned off fluxing in this branch;  is 'fixed' in the one that follows
 - Moved get_slitid() to artraceslits
@@ -129,16 +135,19 @@
 - Introduced FluxSpec class
 - Introduce pypit_flux_spec script (and docs)
 - Added FluxSpec Notebook
-- armlsd has reappeared (momentarily) but is not being used;  it goes away again in a future branch
+- armlsd has reappeared (momentarily) but is not being used;  it goes
+  away again in a future branch
 - Added a dict (std_dict) in arms.py to hold standard star extractions
 - Reducing standard stars in the main arms loop
-- Modified save_1d_spectra to handle loaded SpecObj in addition to internally generated ones
+- Modified save_1d_spectra to handle loaded SpecObj in addition to
+  internally generated ones
 - Moved arflux to core and stripped out slf, settings
 - Really restricting to nobj when user requests it
 - New tests
 - Introduces WaveCalib class
 - Push ararc.py to core/ after removing slf and settings dependencies
-- Further refactor masters including MasterFrame; includes addressing previous comment from RC
+- Further refactor masters including MasterFrame; includes addressing
+  previous comment from RC
 - Removed armlsd.py again
 - Strips wv_calib from ScienceExposure
 - Push get_censpec() to ararc.py
@@ -146,7 +155,8 @@
 - TraceSlits load method pushed outside the class
 - Introduces WaveTilts class
 - Significant modification to tilt recipe including deprecation of PCA
-- Moved tilt tracing algorithms from artrace.py to artracewave.py in core/
+- Moved tilt tracing algorithms from artrace.py to artracewave.py in
+  core/
 - Added 2D Legendre fitting to polyfit2d_general
 - New trace slits tilts  settings (for 2D fitting)
 - New QA plot
@@ -182,20 +192,51 @@
 - Many test updates
 - Doc strings improved but no new main docs
 - Completed armasters refactor and moved to core/
-- Adds bspline_profile() method;  Used here for skysub but will also show up in extraction
+- Adds bspline_profile() method;  Used here for skysub but will also
+  show up in extraction
 - Introduces new skysub method;  still a bspline but now the new one
-- Adds several methods from the PYDL repository into a pydl.py module including bspline Class
+- Adds several methods from the PYDL repository into a pydl.py module
+  including bspline Class
 - Adds method to generate ximg and edgemask frames
 - Adds new trace_slits_trim settings
 - Small install edits
 - Fixes Travis failure that crept into the previous PR
 - Fix bug in bspline
-
 - Adds a demo Notebook for LRISr redux
 - Other odds and ends including code flow doc
-
 - Introduce pypit/par and pypit/config directories
 - Introduce PypitPar as an initial step toward refactoring the front end
+- Final nail in the coffin for cython
+- Add API docs
+- Add bumpversion
+- Adds a demo Notebook for LRISr redux
+- Other odds and ends including code flow doc
+- Introduce pypit/par and pypit/config directories
+- Introduce PypitPar as an initial step toward refactoring the front end
+- Move spectrograph specific code into spectographs/ folder
+- Introduces the Spectrographs class
+- Introduces the Calibrations class with Notebook
+- Bug fix in view_fits script
+- Handle no-slits-found condition
+- Added NIRES to spectrographs folder
+- Fixed logic in ArcImage class related to settings and user settings
+- Added user settings to some of the other classes.
+- Enabled load_raw_frame to take a negative dispersion axis indicating
+  flips.
+- Major bug fixed in bspline_profile where it was producing gargabe
+  results when breakpoints were being rejected.
+- Edits to Spectrograph class
+- Removed all use of settings in ARMS and its subsequent calls.  ARMS
+  now uses PypitPar and its sub parameter sets
+- propagated ParSet changes into run_pypit and pypit_setup
+- settings/parameters for pypit now set in the pypit file using a
+  configuration parameter set
+- rewrote pypit file parser
+- Included automatically generated documentation of PypitPar when
+  running make html in doc/ directory
+- Checked orientation of array correct for DATASEC and OSCANSEC in
+  DetectorPar for each Spectrograph
+- Add SpecObjs class
 
 0.7 (2017-02-07)
 ----------------

@@ -6,7 +6,6 @@ import numpy as np
 
 from pypit import msgs
 from pypit import arparse as settings
-
 from pypit import ardebug as debugger
 
 try:
@@ -15,7 +14,7 @@ except ImportError:
     pass
 
 
-def gen_pixloc(frame_shape, det, settings_argflag):
+def gen_pixloc(frame_shape, det, settings_argflag, settings_spect):
     """ Now a simple wrapper to core_gen_pixloc
 
     Parameters
@@ -35,9 +34,9 @@ def gen_pixloc(frame_shape, det, settings_argflag):
     else:
         msgs.error("NOT READY FOR THIS")
     dnum = settings.get_dnum(det)
-    xgap = settings.spect[dnum]['xgap']
-    ygap = settings.spect[dnum]['ygap']
-    ysize = settings.spect[dnum]['ysize']
+    xgap = settings_spect[dnum]['xgap']
+    ygap = settings_spect[dnum]['ygap']
+    ysize = settings_spect[dnum]['ysize']
     # Do it
     return core_gen_pixloc(frame_shape, xgap=xgap, ygap=ygap, ysize=ysize, gen=gen)
 
@@ -104,30 +103,32 @@ def phys_to_pix(array, pixlocn, axis):
     pixarr : ndarray
       The pixel locations of the input array (as seen on a computer screen)
     """
-    diff = pixlocn[:,0,0] if axis == 0 else pixlocn[0,:,1]
-
-#    print('calling phys_to_pix')
-#    t = time.clock()
-#    _pixarr = arcytrace.phys_to_pix(np.array([array]).T, diff).flatten() \
-#                if len(np.shape(array)) == 1 else arcytrace.phys_to_pix(array, diff)
-#    print('Old phys_to_pix: {0} seconds'.format(time.clock() - t))
-#    t = time.clock()
-    pixarr = new_phys_to_pix(array, diff)
-#    print('New phys_to_pix: {0} seconds'.format(time.clock() - t))
-#    assert np.sum(_pixarr != pixarr) == 0, 'Difference between old and new phys_to_pix, pixarr'
-
-    return pixarr
-
-
-def new_phys_to_pix(array, diff):
     if len(array.shape) > 2:
         msgs.error('Input array must have two dimensions or less!')
-    if len(diff.shape) != 1:
-        msgs.error('Input difference array must be 1D!')
     _array = np.atleast_2d(array)
     doravel = len(array.shape) != 2
+
+    diff = pixlocn[:,0,0] if axis == 0 else pixlocn[0,:,1]
+
     pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2).astype(int)
     return pix.ravel() if doravel else pix
+
+#    return phys_to_pix(array, diff)
+#
+#
+#def phys_to_pix(array, diff):
+#    """
+#    .. todo::
+#        Document this!
+#    """
+#    if len(array.shape) > 2:
+#        msgs.error('Input array must have two dimensions or less!')
+#    if len(diff.shape) != 1:
+#        msgs.error('Input difference array must be 1D!')
+#    _array = np.atleast_2d(array)
+#    doravel = len(array.shape) != 2
+#    pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2).astype(int)
+#    return pix.ravel() if doravel else pix
 
 
 def slit_pixels(slf, frameshape, det):
@@ -192,16 +193,7 @@ def core_slit_pixels(all_lordloc_in, all_rordloc_in, frameshape, pad):
     for o in range(nslits):
         lordloc = all_lordloc[:, o]
         rordloc = all_rordloc[:, o]
-#        print('calling locate_order')
-#        t = time.clock()
-#        _ordloc = arcytrace.locate_order(lordloc, rordloc, frameshape[0], frameshape[1],
-#                                         settings.argflag['trace']['slits']['pad'])
-#        print('Old locate_order: {0} seconds'.format(time.clock() - t))
-#        t = time.clock()
-        ordloc = new_locate_order(lordloc, rordloc, frameshape[0], frameshape[1], int(pad))
-#        print('New locate_order: {0} seconds'.format(time.clock() - t))
-#        assert np.sum(_ordloc != ordloc) == 0, \
-#                    'Difference between old and new locate_order'
+        ordloc = locate_order(lordloc, rordloc, frameshape[0], frameshape[1], int(pad))
         word = np.where(ordloc != 0)
         if word[0].size == 0:
             msgs.warn("There are no pixels in slit {0:d}".format(o + 1))
@@ -210,10 +202,10 @@ def core_slit_pixels(all_lordloc_in, all_rordloc_in, frameshape, pad):
     return msordloc
 
 
-def new_locate_order(lordloc, rordloc, sz_x, sz_y, pad):
-    """ Generate a boolean image that identifies which pixels
-    belong to the slit associated with the supplied left and
-    right slit edges.
+def locate_order(lordloc, rordloc, sz_x, sz_y, pad):
+    """
+    Generate a boolean image that identifies which pixels belong to the
+    slit associated with the supplied left and right slit edges.
 
     Parameters
     ----------
@@ -253,7 +245,8 @@ def new_locate_order(lordloc, rordloc, sz_x, sz_y, pad):
 def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
     """ Generate a frame that identifies each pixel to an amplifier,
     and then trim it to the data sections.
-    This frame can be used to later identify which trimmed pixels correspond to which amplifier
+    This frame can be used to later identify which trimmed pixels
+    correspond to which amplifier
 
     Parameters
     ----------
@@ -300,29 +293,6 @@ def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
     w = np.ix_(xfin, yfin)
     return retarr[w]
 
-
-def new_order_pixels(pixlocn, lord, rord):
-    """
-    Based on physical pixel locations, determine which pixels are within the orders
-    """
-
-    sz_x, sz_y, _ = pixlocn.shape
-    sz_o = lord.shape[1]
-
-    outfr = np.zeros((sz_x, sz_y), dtype=int)
-
-    for y in range(sz_y):
-        for o in range(sz_o):
-            indx = (lord[:,o] < rord[:,o]) & (pixlocn[:,y,1] > lord[:,o]) \
-                   & (pixlocn[:,y,1] < rord[:,o])
-            indx |= ( (lord[:,o] > rord[:,o]) & (pixlocn[:,y,1] < lord[:,o])
-                      & (pixlocn[:,y,1] > rord[:,o]) )
-            if np.any(indx):
-                # Only assign a single order to a given pixel
-                outfr[indx,y] = o+1
-                break
-
-    return outfr
 
 def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
     """

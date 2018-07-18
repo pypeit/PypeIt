@@ -8,32 +8,35 @@ import os
 from collections import OrderedDict
 
 from pypit import msgs
-from pypit import arparse as settings
 from pypit import arload
 from pypit import arutils
-from pypit.core import arprocimg
 from pypit.core import arsave
 from pypit.core import arwave
 from pypit.core import arsetup
-from pypit import arpixels
 from pypit.core import arsort
-from pypit import arcimage
-from pypit import biasframe
-from pypit import bpmimage
-from pypit import flatfield
+from pypit import calibrations
 from pypit import fluxspec
-from pypit import traceslits
-from pypit import wavecalib
-from pypit import waveimage
-from pypit import wavetilts
 from pypit import scienceimage
+from pypit.par import pypitpar
+
+#from pypit import arparse as settings
+
+from pypit.spectrographs.spectrograph import Spectrograph
+from pypit.spectrographs.util import load_spectrograph
 
 from pypit import ardebug as debugger
 
+try:
+    basestring
+except NameError:
+    basestring = str
 
-def ARMS(spectrograph, fitstbl, setup_dict):
+def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
     """
     Automatic Reduction of Multislit Data
+
+    .. todo::
+        - improve docstring
 
     Parameters
     ----------
@@ -42,6 +45,8 @@ def ARMS(spectrograph, fitstbl, setup_dict):
       Contains relevant information from fits header files
     setup_dict : dict
 
+    par (`pypit.par.pypitpar.PypitPar`): Uber top-level parameter set
+
     Returns
     -------
     status : int
@@ -49,6 +54,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
       0 = Successful full execution
       1 = Successful processing of setup or calcheck
     """
+    # TODO: Provide meaningful status values upon return
     status = 0
 
     # Generate sciexp list, if need be (it will be soon)
@@ -59,9 +65,33 @@ def ARMS(spectrograph, fitstbl, setup_dict):
     numsci = len(all_sci_ID)
     basenames = [None]*numsci  # For fluxing at the very end
 
-    # Init calib dict
-    calib_dict = {}
+    # Spectrometer class
+    if spectrograph is None:
+        # Set spectrograph from FITS table instrument header
+        # keyword.
+        if par is not None and par['rdx']['spectrograph'] != fitstbl['instrume'][0]:
+            msgs.error('Specified spectrograph does not match instrument in the fits table!')
+        _spectrograph = load_spectrograph(spectrograph=fitstbl['instrume'][0])
+    elif isinstance(spectrograph, basestring):
+        _spectrograph = load_spectrograph(spectrograph=spectrograph)
+    elif isinstance(spectrograph, Spectrograph):
+        _spectrograph = spectrograph
+    else:
+        raise TypeError('Could not instantiate Spectrograph!')
 
+    # Instantiate the parameters
+    _par = _spectrograph.default_pypit_par() if par is None else par
+    if not isinstance(_par, pypitpar.PypitPar):
+        raise TypeError('Input parameters must be a PypitPar instance.')
+    required = [ 'rdx', 'calibrations', 'scienceframe', 'objects', 'extract', 'skysubtract',
+                 'flexure', 'fluxcalib' ]
+    can_be_None = [ 'skysubtract', 'flexure', 'fluxcalib' ]
+    _par.validate_keys(required=required, can_be_None=can_be_None)
+
+    # Init calib dict
+    caliBrate = calibrations.MultiSlitCalibrations(fitstbl, spectrograph=_spectrograph,
+                                                   par=_par['calibrations'],
+                                                   save_masters=True, write_qa=True)
 
     # Loop on science exposure first
     #  calib frames, e.g. arcs)
@@ -73,254 +103,119 @@ def ARMS(spectrograph, fitstbl, setup_dict):
         sci_ID = all_sci_ID[sc]
         scidx = np.where((fitstbl['sci_ID'] == sci_ID) & fitstbl['science'])[0][0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitstbl['filename'][scidx],
-                                                             fitstbl['target'][scidx])) #slf._target_name))
+                                                             fitstbl['target'][scidx]))
+                                                             #slf._target_name))
         # Loop on Detectors
-        for kk in range(settings.spect['mosaic']['ndet']):
+        for kk in range(_spectrograph.ndet):
             det = kk + 1  # Detectors indexed from 1
-            if settings.argflag['reduce']['detnum'] is not None:
-                if det not in map(int, settings.argflag['reduce']['detnum']):
+            if _par['rdx']['detnum'] is not None:
+                if det not in map(int, _par['rdx']['detnum']):
                     msgs.warn("Skipping detector {:d}".format(det))
                     continue
                 else:
                     msgs.warn("Restricting the reduction to detector {:d}".format(det))
             # Setup
-            dnum = settings.get_dnum(det)
-            msgs.info("Working on detector {:s}".format(dnum))
+            msgs.info("Working on detector {0}".format(det))
             sci_dict[det] = {}
 
-            namp = settings.spect[dnum]["numamplifiers"]
-            setup = arsetup.instr_setup(sci_ID, det, fitstbl, setup_dict, namp, must_exist=True)
-            settings.argflag['reduce']['masters']['setup'] = setup
+            setup = arsetup.instr_setup(sci_ID, det, fitstbl, setup_dict,
+                                        _spectrograph.detector[det-1]['numamplifiers'],
+                                        must_exist=True)
 
-            ###############
-            # Get data sections (Could avoid doing this for every sciexp, but it is quick)
-            # TODO -_ Clean this up!
-            scifile = os.path.join(fitstbl['directory'][scidx],fitstbl['filename'][scidx])
-            settings_det = settings.spect[dnum].copy()  # Should include naxis0, naxis1 in this
-            datasec_img, naxis0, naxis1 = arprocimg.get_datasec_trimmed(
-                settings.argflag['run']['spectrograph'], scifile, det, settings_det,
-                naxis0=fitstbl['naxis0'][scidx],
-                naxis1=fitstbl['naxis1'][scidx])
-            # Binning
-            settings_det['binning'] = fitstbl['binning'][0]
-            # Yes, this looks goofy.  Is needed for LRIS and DEIMOS for now
-            settings.spect[dnum] = settings_det.copy()  # Used internally..
-            fitstbl['naxis0'][scidx] = naxis0
-            fitstbl['naxis1'][scidx] = naxis1
-
-            # Calib dict
-            if setup not in calib_dict.keys():
-                calib_dict[setup] = {}
-
-            # TODO -- Update/avoid the following with new settings
-            tsettings = settings.argflag.copy()
-            tsettings['detector'] = settings.spect[settings.get_dnum(det)]
-            try:
-                tsettings['detector']['dataext'] = tsettings['detector']['dataext01']  # Kludge; goofy named key
-            except KeyError: # LRIS, DEIMOS
-                tsettings['detector']['dataext'] = None
-            tsettings['detector']['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
-
-            ###############################################################################
-            # Prepare for Bias subtraction
-            if 'bias' in calib_dict[setup].keys():
-                msbias = calib_dict[setup]['bias']
-            else:
-                # Grab it
-                #   Bias will either be an image (ndarray) or a command (str, e.g. 'overscan') or none
-                msbias, _ = biasframe.get_msbias(det, setup, sci_ID, fitstbl, tsettings)
-                # Save
-                calib_dict[setup]['bias'] = msbias
-
-            ###############################################################################
-            # Generate a master arc frame
-            if 'arc' in calib_dict[setup].keys():
-                msarc = calib_dict[setup]['arc']
-            else:
-                # Grab it -- msarc will be a 2D image
-                msarc, _ = arcimage.get_msarc(det, setup, sci_ID, spectrograph, fitstbl, tsettings, msbias)
-                # Save
-                calib_dict[setup]['arc'] = msarc
-
-            ###############################################################################
-            # Generate a bad pixel mask (should not repeat)
-            if 'bpm' in calib_dict[setup].keys():
-                msbpm = calib_dict[setup]['bpm']
-            else:
-                # Grab it -- msbpm is a 2D image
-                msbpm, _ = bpmimage.get_mspbm(det, spectrograph, tsettings, msarc.shape,
-                                      binning=fitstbl['binning'][scidx],
-                                      reduce_badpix=settings.argflag['reduce']['badpix'],
-                                      msbias=msbias)
-                # Save
-                calib_dict[setup]['bpm'] = msbpm
-
-            ###############################################################################
-            # Generate an array that provides the physical pixel locations on the detector
-            pixlocn = arpixels.gen_pixloc(msarc.shape, det, settings.argflag)
-
-            ###############################################################################
+            #-----------------------------------------------------------
+            # Calibrations
+            #-----------------------------------------------------------
+            caliBrate.reset(setup, det, sci_ID, _par['calibrations'])
+            # This also instantiates the datasec_img in
+            # caliBrate.spectrograph
+            datasec_img = caliBrate.get_datasec_img()
+            # Bias frame or command
+            msbias = caliBrate.get_bias()
+            # Arc Image
+            msarc = caliBrate.get_arc()
+            # Bad pixel mask
+            msbpm = caliBrate.get_bpm()
+            # Physical pixel locations on the detector
+            pixlocn = caliBrate.get_pixlocn()
             # Slit Tracing
-            if 'trace' in calib_dict[setup].keys():  # Internal
-                tslits_dict = calib_dict[setup]['trace']
-            else:
-                # Setup up the settings (will be Refactored with settings)
-                ts_settings = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
-                ts_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                # Get it -- Key arrays are in the tslits_dict
-                tslits_dict, _ = traceslits.get_tslits_dict(
-                    det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn,
-                    msbias, msbpm, datasec_img, trim=settings.argflag['reduce']['trim'])
-                # Save in calib
-                calib_dict[setup]['trace'] = tslits_dict
-
-            ###############################################################################
-            # Initialize maskslits
-            nslits = tslits_dict['lcen'].shape[1]
-            maskslits = np.zeros(nslits, dtype=bool)
-
-            ###############################################################################
+            tslits_dict, maskslits = caliBrate.get_slits(arms=True)
+            if tslits_dict is None: # No slits
+                msgs.warn('No slits found!')
+                continue
             # Generate the 1D wavelength solution
-            if 'wavecalib' in calib_dict[setup].keys():
-                wv_calib = calib_dict[setup]['wavecalib']
-                wv_maskslits = calib_dict[setup]['wvmask']
-            elif settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
-                msgs.info("A wavelength calibration will not be performed")
-                wv_calib = None
-                wv_maskslits = np.zeros_like(maskslits, dtype=bool)
-            else:
-                # Setup up the settings (will be Refactored with settings)
-                wvc_settings = dict(calibrate=settings.argflag['arc']['calibrate'], masters=settings.argflag['reduce']['masters'])
-                wvc_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                nonlinear = settings.spect[settings.get_dnum(det)]['saturation'] * settings.spect[settings.get_dnum(det)]['nonlinear']
-                # Get it
-                wv_calib, wv_maskslits, _ = wavecalib.get_wv_calib(
-                    det, setup, spectrograph, sci_ID, wvc_settings, fitstbl, tslits_dict, pixlocn,
-                    msarc, nonlinear=nonlinear)
-                # Save in calib
-                calib_dict[setup]['wavecalib'] = wv_calib
-                calib_dict[setup]['wvmask'] = wv_maskslits
-            # Mask me
-            maskslits += wv_maskslits
-
-            ###############################################################################
+            wv_calib, maskslits = caliBrate.get_wv_calib()
             # Derive the spectral tilt
-            if 'tilts' in calib_dict[setup].keys():
-                mstilts = calib_dict[setup]['tilts']
-                wt_maskslits = calib_dict[setup]['wtmask']
-            else:
-                # Settings kludges
-                tilt_settings = dict(tilts=settings.argflag['trace']['slits']['tilts'].copy(),
-                                     masters=settings.argflag['reduce']['masters'])
-                tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
-                tilt_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                # Get it
-                mstilts, wt_maskslits, _ = wavetilts.get_wv_tilts(
-                    det, setup, tilt_settings, settings_det, tslits_dict, pixlocn,
-                    msarc, wv_calib, maskslits)
-                # Save
-                calib_dict[setup]['tilts'] = mstilts
-                calib_dict[setup]['wtmask'] = wt_maskslits
-
-            # Mask me
-            maskslits += wt_maskslits
-
-            ###############################################################################
+            mstilts, maskslits = caliBrate.get_tilts()
             # Prepare the pixel flat field frame
-            if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
-                if 'normpixelflat' in calib_dict[setup].keys():
-                    mspixflatnrm = calib_dict[setup]['normpixelflat']
-                    slitprof = calib_dict[setup]['slitprof']
-                else:
-                    # Settings
-                    flat_settings = dict(flatfield=settings.argflag['reduce']['flatfield'].copy(),
-                                         slitprofile=settings.argflag['reduce']['slitprofile'].copy(),
-                                         combine=settings.argflag['pixelflat']['combine'].copy(),
-                                         masters=settings.argflag['reduce']['masters'].copy(),
-                                         detector=settings.spect[dnum])
-                    flat_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                    # Get it
-                    mspixflatnrm, slitprof, _ = flatfield.get_msflat(
-                        det, setup, spectrograph, sci_ID, fitstbl, tslits_dict, datasec_img,
-                        flat_settings, msbias, mstilts)
-                    # Save internallly
-                    calib_dict[setup]['normpixelflat'] = mspixflatnrm
-                    calib_dict[setup]['slitprof'] = slitprof
-            else:
-                mspixflatnrm = None
-                slitprof = None
-
-
-            ###############################################################################
+            mspixflatnrm, slitprof = caliBrate.get_pixflatnrm()
             # Generate/load a master wave frame
-            if 'wave' in calib_dict[setup].keys():
-                mswave = calib_dict[setup]['wave']
-            else:
-                if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
-                    mswave = mstilts * (mstilts.shape[0]-1.0)
-                else:
-                    # Settings
-                    wvimg_settings = dict(masters=settings.argflag['reduce']['masters'].copy())
-                    wvimg_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                    # Get it
-                    mswave, _ = waveimage.get_mswave(
-                        setup, tslits_dict, wvimg_settings, mstilts, wv_calib, maskslits)
-                # Save internally
-                calib_dict[setup]['wave'] = mswave
+            mswave = caliBrate.get_wave()
 
-            # CALIBS END HERE
-            ###############################################################################
+            # Above could also be run with::
+            #   caliBrate.run_the_steps()
+            # And we could pull the items we need out of it or just use the attributes
+            #-----------------------------------------------------------
 
-
-            ###############
-            #  Process and extract the science frame
+            #-----------------------------------------------------------
+            # Science frames
+            #-----------------------------------------------------------
             msgs.info("Working on the science frame")
             sci_image_files = arsort.list_of_files(fitstbl, 'science', sci_ID)
-            # Settings
-            sci_settings = tsettings.copy()
+
             # Instantiate
-            sciI = scienceimage.ScienceImage(file_list=sci_image_files, datasec_img=datasec_img,
-                                             bpm=msbpm, det=det, setup=setup, settings=sci_settings,
-                                             maskslits=maskslits, pixlocn=pixlocn, tslits_dict=tslits_dict,
-                                             tilts=mstilts, fitstbl=fitstbl, scidx=scidx)
+            sciI = scienceimage.ScienceImage(_spectrograph, file_list=sci_image_files,
+                                             frame_par=_par['scienceframe'],
+                                             trace_objects_par=_par['objects'],
+                                             extract_objects_par=_par['extract'],
+                                             tslits_dict=tslits_dict, tilts=mstilts, det=det,
+                                             setup=setup, datasec_img=datasec_img, bpm=msbpm,
+                                             maskslits=maskslits, pixlocn=pixlocn,
+                                             fitstbl=fitstbl, scidx=scidx)
+
             msgs.sciexp = sciI  # For QA on crash
+
             # Names and time
-            obstime, basename = sciI.init_time_names(settings.spect['mosaic']['camera'],
-                            timeunit=settings.spect["fits"]["timeunit"])
+            obstime, basename = sciI.init_time_names(_spectrograph.camera,
+                                                     timeunit=_spectrograph.timeunit)
             if basenames[sc] is None:
                 basenames[sc] = basename
 
             # Process (includes Variance image and CRs)
-            dnoise = (settings_det['darkcurr'] * float(fitstbl["exptime"][scidx])/3600.0)
-            sciframe, rawvarframe, crmask = sciI._process(
-                msbias, mspixflatnrm, apply_gain=True, dnoise=dnoise)
+            sciframe, rawvarframe, crmask = sciI.process(msbias, mspixflatnrm, apply_gain=True,
+                                                         trim=caliBrate.par['trim'])
 
             # Global skysub
-            settings_skysub = {}
-            settings_skysub['skysub'] = settings.argflag['reduce']['skysub'].copy()
-            if settings.argflag['reduce']['skysub']['perform']:
-                global_sky, modelvarframe = sciI.global_skysub(settings_skysub)
-            else:
+            if _par['skysubtract'] is None:
+                # These are set as attributes of sciI
                 sciI.global_sky = np.zeros_like(sciframe)
                 sciI.modelvarframe = np.zeros_like(sciframe)
+            else:
+                # The call to global_skysub initializes the attributes
+                # of sciI directly
+                global_sky, modelvarframe = sciI.global_skysub(
+                                        bspline_spacing=_par['skysubtract']['bspline_spacing'])
 
             # Find objects
-            _, nobj = sciI.find_objects()
+            nobj = sciI.find_objects()[1]
             if nobj == 0:
-                msgs.warn("No objects to extract for science frame" + msgs.newline() + fitstbl['filename'][scidx])
+                msgs.warn('No objects to extract for science frame' + msgs.newline()
+                          + fitstbl['filename'][scidx])
                 specobjs, flg_objs = [], None
             else:
                 flg_objs = True  # Objects were found
 
             # Another round of sky sub
-            if settings.argflag['reduce']['skysub']['perform'] and flg_objs:
-                global_sky, modelvarframe = sciI.global_skysub(settings_skysub,
+            if _par['skysubtract'] is not None and flg_objs:
+                global_sky, modelvarframe = sciI.global_skysub(
+                                        bspline_spacing=_par['skysubtract']['bspline_spacing'],
                                                                use_tracemask=True)
+
             # Another round of finding objects
             if flg_objs:
-                _, nobj = sciI.find_objects()
+                nobj = sciI.find_objects()[1]
                 if nobj == 0:
-                    msgs.warn("No objects to extract for science frame" + msgs.newline() + fitstbl['filename'][scidx])
+                    msgs.warn('No objects to extract for science frame' + msgs.newline()
+                              + fitstbl['filename'][scidx])
                     specobjs, flg_objs = [], None
 
             # Extraction
@@ -328,35 +223,38 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 specobjs, finalvar, finalsky = sciI.extraction(mswave)
 
             # Flexure correction?
-            if settings.argflag['reduce']['flexure']['perform'] and flg_objs:
-                if settings.argflag['reduce']['flexure']['method'] is not None:
-                    flex_list = arwave.flexure_obj(
-                        specobjs, maskslits, settings.argflag['reduce']['flexure']['method'],
-                        spectrograph,
-                        skyspec_fil = settings.argflag['reduce']['flexure']['spectrum'],
-                        mxshft = settings.argflag['reduce']['flexure']['maxshift'])
-                    # QA
-                    arwave.flexure_qa(specobjs, maskslits, basename, det, flex_list)
+            if _par['flexure'] is not None and flg_objs and _par['flexure']['method'] is not None:
+                sky_file, sky_spectrum = _spectrograph.archive_sky_spectrum()
+                flex_list = arwave.flexure_obj(specobjs, maskslits, _par['flexure']['method'],
+                                               sky_spectrum, sky_file=sky_file,
+                                               mxshft=_par['flexure']['maxshift'])
+                # QA
+                arwave.flexure_qa(specobjs, maskslits, basename, det, flex_list)
 
             # Helio
             # Correct Earth's motion
             vel_corr = -999999.9
-            if (settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']) and \
-                    (settings.argflag['reduce']['calibrate']['wavelength'] != "pixel") and flg_objs:
-                if settings.argflag['science']['extraction']['reuse']:
-                    msgs.warn("{0:s} correction will not be applied if an extracted science frame exists, and is used".format(settings.argflag['reduce']['calibrate']['refframe']))
+            if (caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) and \
+                        (caliBrate.par['wavelengths']['reference'] != 'pixel') and flg_objs:
+                if _par['extract']['reuse']:
+                    msgs.warn('{0} correction'.format(caliBrate.par['wavelengths']['frame'])
+                              + 'will not be applied if an extracted science frame exists, '
+                              + 'and is used')
                 if specobjs is not None:
-                    msgs.info("Performing a {0:s} correction".format(settings.argflag['reduce']['calibrate']['refframe']))
-                    settings_mosaic = {}  # For long, lat of observatory
-                    settings_mosaic['mosaic'] = settings.spect['mosaic'].copy()
+                    msgs.info("Performing a {0} correction".format(
+                                            caliBrate.par['wavelengths']['frame']))
+
                     vel, vel_corr = arwave.geomotion_correct(specobjs, maskslits, fitstbl, scidx,
-                                                             obstime, settings_mosaic,
-                                                             settings.argflag['reduce']['calibrate']['refframe'])
+                                                             obstime,
+                                                             _spectrograph.telescope['longitude'],
+                                                             _spectrograph.telescope['latitude'],
+                                                             _spectrograph.telescope['elevation'],
+                                                             caliBrate.par['wavelengths']['frame'])
                 else:
-                    msgs.info("There are no objects on detector {0:d} to perform a {1:s} correction".format(
-                        det, settings.argflag['reduce']['calibrate']['refframe']))
+                    msgs.info('There are no objects on detector {0} to perform a '.format(det)
+                              + '{1} correction'.format(caliBrate.par['wavelengths']['frame']))
             else:
-                msgs.info("A heliocentric correction will not be performed")
+                msgs.info('A wavelength reference-frame correction will not be performed.')
 
             # Save for outputing (after all detectors are done)
             sci_dict[det]['sciframe'] = sciframe
@@ -370,10 +268,12 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 sci_dict[det]['specobjs'] = []
                 sci_dict[det]['finalvar'] = sciI.modelvarframe
                 sci_dict[det]['finalsky'] = sciI.global_sky
+            #-----------------------------------------------------------
 
-
-            ######################################################
-            # Reduce standard here; only legit if the mask is the same
+            #-----------------------------------------------------------
+            # Standard star frames
+            #-----------------------------------------------------------
+            # Can only reduce these frames if the mask is the same
             std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
             if len(std_idx) > 0:
                 std_idx = std_idx[0]
@@ -389,116 +289,154 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             else:
                 std_dict[std_idx] = {}
 
+            if _par['calibrations']['standardframe'] is None:
+                msgs.warn('No standard frame parameters provided.  Using default parameters.')
+
             # Instantiate for the Standard
-            stdI = scienceimage.ScienceImage(file_list=std_image_files, datasec_img=datasec_img,
-                                             bpm=msbpm, det=det, setup=setup, settings=sci_settings,
-                                             maskslits=maskslits, pixlocn=pixlocn, tslits_dict=tslits_dict,
-                                             tilts=mstilts, fitstbl=fitstbl, scidx=std_idx,
-                                             objtype='standard')
+            # TODO: Uses the same trace and extraction parameter sets used for the science
+            # frames.  Should these be different for the standards?
+            stdI = scienceimage.ScienceImage(_spectrograph, file_list=std_image_files,
+                                             frame_par=_par['calibrations']['standardframe'],
+                                             trace_objects_par=_par['objects'],
+                                             extract_objects_par=_par['extract'],
+                                             tslits_dict=tslits_dict, tilts=mstilts, det=det,
+                                             setup=setup, datasec_img=datasec_img, bpm=msbpm,
+                                             maskslits=maskslits, pixlocn=pixlocn,
+                                             fitstbl=fitstbl, scidx=std_idx, objtype='standard')
+
             # Names and time
-            _, std_basename = stdI.init_time_names(settings.spect['mosaic']['camera'],
-                                                     timeunit=settings.spect["fits"]["timeunit"])
+            std_basename = stdI.init_time_names(_spectrograph.camera,
+                                                timeunit=_spectrograph.timeunit)[1]
             # Process (includes Variance image and CRs)
-            stdframe, _, _ = stdI._process(msbias, mspixflatnrm, apply_gain=True, dnoise=dnoise)
+            stdframe = stdI.process(msbias, mspixflatnrm, apply_gain=True,
+                                    trim=caliBrate.par['trim'])[0]
             # Sky
-            _ = stdI.global_skysub(settings_skysub)
+            stdI.global_skysub(bspline_spacing=_par['skysubtract']['bspline_spacing'])
             # Find objects
-            _, nobj = stdI.find_objects()
+            nobj = stdI.find_objects()[1]
             if nobj == 0:
-                msgs.warn("No objects to extract for standard frame" + msgs.newline() + fitstbl['filename'][scidx])
+                msgs.warn('No objects to extract for standard frame' + msgs.newline()
+                          + fitstbl['filename'][scidx])
                 continue
-            _ = stdI.global_skysub(settings_skysub, use_tracemask=True)
+            stdI.global_skysub(bspline_spacing=_par['skysubtract']['bspline_spacing'],
+                               use_tracemask=True)
             # Extract
-            stdobjs, _, _ = stdI.extraction(mswave)
+            stdobjs = stdI.extraction(mswave)[0]
             # Save for fluxing and output later
             std_dict[std_idx][det] = {}
             std_dict[std_idx][det]['basename'] = std_basename
             std_dict[std_idx][det]['specobjs'] = arutils.unravel_specobjs([stdobjs])
+            #-----------------------------------------------------------
 
-        ###########################
-        # Write
+        #---------------------------------------------------------------
+        # Write the output for this exposure
+        #---------------------------------------------------------------
         # Build the final list of specobjs and vel_corr
         all_specobjs = []
         for key in sci_dict:
             if key in ['meta']:
                 continue
             #
-            all_specobjs += sci_dict[key]['specobjs']
+            try:
+                all_specobjs += sci_dict[key]['specobjs']
+            except KeyError:  # No object extracted
+                continue
+
+        if len(all_specobjs) == 0:
+            msgs.warn('No objects!')
+            continue
 
         # Write 1D spectra
         save_format = 'fits'
         if save_format == 'fits':
-            outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(basename)
-            helio_dict = dict(refframe=settings.argflag['reduce']['calibrate']['refframe'],
+            outfile = os.path.join(_par['rdx']['scidir'], 'spec1d_{:s}.fits'.format(basename))
+            helio_dict = dict(refframe='pixel'
+                              if caliBrate.par['wavelengths']['reference'] == 'pixel' 
+                              else caliBrate.par['wavelengths']['frame'],
                               vel_correction=sci_dict['meta']['vel_corr'])
             arsave.save_1d_spectra_fits(all_specobjs, fitstbl[scidx], outfile,
-                                            helio_dict=helio_dict, obs_dict=settings.spect['mosaic'])
-        elif save_format == 'hdf5':
-            debugger.set_trace()  # NEEDS REFACTORINGj
-            arsave.save_1d_spectra_hdf5(None)
+                                        helio_dict=helio_dict, telescope=_spectrograph.telescope)
+#        elif save_format == 'hdf5':
+#            debugger.set_trace()  # NEEDS REFACTORING
+#            arsave.save_1d_spectra_hdf5(None)
         else:
             msgs.error(save_format + ' is not a recognized output format!')
         # Obj info
-        arsave.save_obj_info(all_specobjs, fitstbl, settings.spect, basename,
-            settings.argflag['run']['directory']['science'])
+        arsave.save_obj_info(all_specobjs, fitstbl, _spectrograph, basename, _par['rdx']['scidir'])
         # Write 2D images for the Science Frame
-        arsave.save_2d_images(
-            sci_dict, fitstbl, scidx,
-            settings.spect['fits']['headext{0:02d}'.format(1)], setup,
-            settings.argflag['run']['directory']['master']+'_'+spectrograph, # MFDIR
-            settings.argflag['run']['directory']['science'], basename)
+        arsave.save_2d_images(sci_dict, fitstbl, scidx, _spectrograph.primary_hdrext,
+                              setup, caliBrate.master_dir, _par['rdx']['scidir'], basename)
+        #---------------------------------------------------------------
 
+    #-------------------------------------------------------------------
     # Write standard stars at the very end
+    #-------------------------------------------------------------------
     for std_idx in std_dict.keys():
         all_std_objs = []
         for det in std_dict[std_idx].keys():
             all_std_objs += std_dict[std_idx][det]['specobjs']
-        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(std_dict[std_idx][det]['basename'])
+        outfile = os.path.join(_par['rdx']['scidir'],
+                               'spec1d_{:s}.fits'.format(std_dict[std_idx][det]['basename']))
         arsave.save_1d_spectra_fits(all_std_objs, fitstbl[std_idx], outfile,
-                                        obs_dict=settings.spect['mosaic'])
+                                    telescope=_spectrograph.telescope)
+    #-------------------------------------------------------------------
 
-    #########################
-    # Flux towards the very end..
-    #########################
-    if settings.argflag['reduce']['calibrate']['flux'] and (len(std_dict) > 0):
-        # Standard star (is this a calibration, e.g. goes above?)
-        msgs.info("Taking one star per detector mosaic")
-        msgs.info("Waited until very end to work on it")
-        msgs.warn("You should probably consider using the pypit_flux_spec script anyhow...")
+    #-------------------------------------------------------------------
+    # Flux calibrate
+    #-------------------------------------------------------------------
+    if _par['fluxcalib'] is None or len(std_dict) == 0:
+        msgs.info('Flux calibration is not performed.')
+        return status
 
-        # Kludge settings
-        fsettings = settings.spect.copy()
-        fsettings['run'] = settings.argflag['run']
-        fsettings['reduce'] = settings.argflag['reduce']
-        # Generate?
-        if settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None':
-            # Take the first standard
-            std_idx = list(std_dict.keys())[0]
-            # Build the list of stdobjs
-            all_std_objs = []
-            for det in std_dict[std_idx].keys():
-                all_std_objs += std_dict[std_idx][det]['specobjs']
-            FxSpec = fluxspec.FluxSpec(settings=fsettings, std_specobjs=all_std_objs,
-                                       setup=setup)  # This takes the last setup run, which is as sensible as any..
-            sensfunc = FxSpec.master(fitstbl[std_idx])
-        else:  # Input by user
-            FxSpec = fluxspec.FluxSpec(settings=fsettings,
-                                       sens_file=settings.argflag['reduce']['calibrate']['sensfunc']['archival'])
-            sensfunc = FxSpec.sensfunc
+    if _par['fluxcalib'] is None and len(std_dict) > 0:
+        msgs.info('Flux calibration parameters not provided.  Standards not used.')
+        return status
+
+    # Standard star (is this a calibration, e.g. goes above?)
+    msgs.info("Taking one star per detector mosaic")
+    msgs.info("Waited until very end to work on it")
+    msgs.warn("You should probably consider using the pypit_flux_spec script anyhow...")
+
+    # Get the sensitivity function
+    if _par['fluxcalib']['sensfunc'] is None:
+        # Take the first standard
+        std_idx = list(std_dict.keys())[0]
+        # Build the list of stdobjs
+        all_std_objs = []
+        for det in std_dict[std_idx].keys():
+            all_std_objs += std_dict[std_idx][det]['specobjs']
+        FxSpec = fluxspec.FluxSpec(std_specobjs=all_std_objs, spectrograph=_spectrograph,
+                                   setup=setup, root_path=caliBrate.master_root,
+                                   mode=_par['calibrations']['masters'])
+        sensfunc = FxSpec.master(fitstbl[std_idx])
+    else:
+        # User provided it
+        FxSpec = fluxspec.FluxSpec(sens_file=_par['fluxcalib']['sensfunc'],
+                                   spectrograph=_spectrograph, root_path=caliBrate.master_root,
+                                   mode=_par['calibrations']['masters'])
+        sensfunc = FxSpec.sensfunc
+
+    # Apply the flux calibration
+    msgs.info("Fluxing with {:s}".format(sensfunc['std']['name']))
+    for kk, sci_ID in enumerate(all_sci_ID):
+        # Load from disk (we zero'd out the object to free memory)
+        if save_format == 'fits':
+            sci_spec1d_file = os.path.join(_par['rdx']['scidir'],
+                                           'spec1d_{:s}.fits'.format(basenames[kk]))
+
+        # Load
+        sci_specobjs, sci_header = arload.load_specobj(sci_spec1d_file)
+        # TODO: (KBW) I'm wary of this kind of approach.  We want
+        # FluxSpec to check that its internals make sense and this
+        # bypasses any of that checking.
+        FxSpec.sci_specobjs = sci_specobjs
+        FxSpec.sci_header = sci_header
+
         # Flux
-        msgs.info("Fluxing with {:s}".format(sensfunc['std']['name']))
-        for kk, sci_ID in enumerate(all_sci_ID):
-            # Load from disk (we zero'd out the object to free memory)
-            if save_format == 'fits':
-                sci_spec1d_file = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(
-                    basenames[kk])
-            # Load
-            sci_specobjs, sci_header = arload.load_specobj(sci_spec1d_file)
-            FxSpec.sci_specobjs = sci_specobjs
-            FxSpec.sci_header = sci_header
-            # Flux
-            FxSpec.flux_science()
-            # Over-write
-            FxSpec.write_science(sci_spec1d_file)
+        FxSpec.flux_science()
+        # Over-write
+        FxSpec.write_science(sci_spec1d_file)
+    #-------------------------------------------------------------------
 
     return status
+

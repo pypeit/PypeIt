@@ -25,10 +25,6 @@ except ImportError:
 # Logging
 from pypit import msgs
 
-# TODO: Ever used?
-#from pypit import ardebug
-#debug = ardebug.init()
-
 # Initialize the settings variables
 argflag, spect = None, None
 
@@ -4562,7 +4558,8 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
 
     """
     # Dummy argflag
-    if spectrograph not in ['shane_kast_blue', 'keck_nirspec', 'keck_lris_red']:
+    if spectrograph not in ['shane_kast_blue', 'keck_nirspec', 'keck_deimos', 'keck_nires',
+                            'keck_lris_red']:
         msgs.error("Not setup for your instrument")  # You will need to fuss with scidx
     argf = get_argflag_class(("ARMS", spectrograph))
     argf.init_param()
@@ -4578,10 +4575,9 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
     spect.set_paramlist(lines)
     lines = spect.load_file()
     spect.set_paramlist(lines)
-
+    # If the instrument settings file sets some argflag settings, implement those changes now
     if len(spect.__dict__['_settings']) != 0:
         argf.set_paramlist(spect.__dict__['_settings'])
-    #
     if set_idx:
         for jj, key in enumerate(spect._spect.keys()):
             if key in ['det']:
@@ -4604,4 +4600,98 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
                         spect._spect[key]['index'] += [np.array([2,3])]
     init(argf, spect)
     return
+
+
+def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, transpose=False):
+    """
+    Convert a string representation of an array subsection (slice) into
+    a list of slice objects.
+
+    Args:
+        subarray (str):
+            The string to convert.  Should have the form of normal slice
+            operation, 'start:stop:step'.  The parser ignores whether or
+            not the string has the brackets '[]', but the string must
+            contain the appropriate ':' and ',' characters.
+        one_indexed (:obj:`bool`, optional):
+            The string should be interpreted as 1-indexed.  Default
+            is to assume python indexing.
+        include_end (:obj:`bool`, optional):
+            **If** the end is defined, adjust the slice such that
+            the last element is included.  Default is to exclude the
+            last element as with normal python slicing.
+        require_dim (:obj:`int`, optional):
+            Test if the string indicates the slice along the proper
+            number of dimensions.
+        transpose (:obj:`bool`, optional):
+            Transpose the order of the returned slices.  The
+            following are equivalent::
+                
+                tslices = parse_sec2slice('[:10,10:]')[::-1]
+                tslices = parse_sec2slice('[:10,10:]', transpose=True)
+
+    Returns:
+        list: A list of slice objects, one per dimension of the
+        prospective array.
+
+    Raises:
+        TypeError:
+            Raised if the input `subarray` is not a string.
+        ValueError:
+            Raised if the string does not match the required
+            dimensionality or if the string does not look like a
+            slice.
+    """
+    # Check it's a string
+    if not isinstance(subarray, basestring):
+        raise TypeError('Can only parse string-based subarray sections.')
+    # Remove brackets if they're included
+    sections = subarray.strip('[]').split(',')
+    # Check the dimensionality
+    ndim = len(sections)
+    if require_dim is not None and ndim != require_dim:
+        raise ValueError('Number of slices ({0}) in {1} does not match '.format(ndim, subarray) + 
+                         'required dimensions ({0}).'.format(require_dim))
+    # Convert the slice of each dimension from a string to a slice
+    # object
+    slices = []
+    for s in sections:
+        # Must be able to find the colon
+        if ':' not in s:
+            raise ValueError('Unrecognized slice string: {0}'.format(s))
+        # Initial conversion
+        _s = [ None if x == '' else int(x) for x in s.split(':') ]
+        if len(_s) > 3:
+            raise ValueError('String as too many sections.  Must have format \'start:stop:step\'.')
+        if len(_s) < 3:
+            # Include step
+            _s += [ None ]
+        if one_indexed:
+            # Decrement to convert from 1- to 0-indexing
+            _s = [ None if x is None else x-1 for x in _s ]
+        if include_end and _s[1] is not None:
+            # Increment to include last 
+            _s[1] += 1
+        # Append the new slice
+        slices += [slice(*_s)]
+
+    return slices[::-1] if transpose else slices
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

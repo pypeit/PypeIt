@@ -7,7 +7,6 @@ import os
 
 from scipy import signal, ndimage, interpolate
 
-
 from astropy import units
 from astropy.io import fits
 
