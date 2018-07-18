@@ -77,31 +77,6 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
                                          directory_path=directory_path, mode=mode)
 
-        # Comments from JFH.  Check if still relevant given changes.
-
-        # TODO, JFH I think the logic below flawed here. The
-        # processimages class is already dealing with the settings and
-        # setting them to defaults if the user did not pass anythign in,
-        # and to the union of settings and user_settings if the user did
-        # pass them in. The only thing that should be done below is to
-        # guarantee that frametype=arc specific settings get put in to
-        # the settings dict, since processimages does not know about
-        # that
-
-        # TODO, JFH Commented out because this duplicates code, is
-        # unnecessary, and the logic is flawed.  It also has the effect
-        # of overwriting any user input settings that processimages just
-        # dealt with the default settings
-
-        #if settings is None:
-        #    self.settings = processimages.default_settings()
-        #else:
-        #    self.settings = settings.copy()
-        #    # The following is somewhat kludgy and the current way we do settings may
-        #    #   not touch all the options (not sure .update() would help)
-        #    if 'combine' not in settings.keys():
-        #        if self.frametype in settings.keys():
-        #            self.settings['combine'] = settings[self.frametype]['combine']
 
     def build_image(self):
         """

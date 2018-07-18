@@ -13,8 +13,15 @@
     [[arcframe]]
         number = 1
     [[biasframe]]
+        number = 0
         [[[process]]]
             sig_lohi = 10, 10
+    [[pixelflatframe]]
+        number = 0
+    [[traceframe]]
+        number = 0
+    [[standardframe]]
+        number = 0
 
 [scienceframe]
     [[process]]
