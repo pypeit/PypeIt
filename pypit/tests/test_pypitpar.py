@@ -129,18 +129,24 @@ def test_sync():
     assert p['calibrations']['traceframe']['process']['sigrej'] == 20.5
 
 def test_pypit_file():
+    # Read the PypeIt file
     cfg, data, frametype, setups = parse_pypit_file(data_path('test_pypit_file.pypit'),
                                                     file_check=False)
+    # Long-winded way of getting the spectrograph name
     name = pypitpar.PypitPar.from_cfg_lines(merge_with=cfg)['rdx']['spectrograph']
+    # Instantiate the spectrograph
     spectrograph = load_spectrograph(name)
+    # Get the spectrograph specific configuration
     spec_cfg = spectrograph.default_pypit_par().to_config()
+    # Initialize the PypeIt parameters merge in the user config
     p = pypitpar.PypitPar.from_cfg_lines(cfg_lines=spec_cfg, merge_with=cfg)
-    # Default
+    # Test everything was merged correctly
+    # This is a PypitPar default that's not changed
     assert p['calibrations']['pinholeframe']['number'] == 0
-    # Spectrograph default
+    # These are spectrograph specific defaults
     assert p['rdx']['pipeline'] == 'ARMS'
     assert p['fluxcalib'] is not None
-    # Changes
+    # These are user-level changes
     assert p['calibrations']['arcframe']['number'] == 1
     assert p['calibrations']['biasframe']['process']['sig_lohi'] == [10, 10]
     assert p['calibrations']['traceframe']['process']['combine'] == 'mean'

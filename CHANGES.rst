@@ -228,6 +228,15 @@
 - Edits to Spectrograph class
 - Removed all use of settings in ARMS and its subsequent calls.  ARMS
   now uses PypitPar and its sub parameter sets
+- propagated ParSet changes into run_pypit and pypit_setup
+- settings/parameters for pypit now set in the pypit file using a
+  configuration parameter set
+- rewrote pypit file parser
+- Included automatically generated documentation of PypitPar when
+  running make html in doc/ directory
+- Checked orientation of array correct for DATASEC and OSCANSEC in
+  DetectorPar for each Spectrograph
+- Removed pypit/config directory
 
 0.7 (2017-02-07)
 ----------------

@@ -399,7 +399,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         """
         head_keys = self.kast_header_keys()
         head_keys[0]['filter1'] = 'RDFILT_N'
-        head_keys[0]['dispname'] = 'GRATING_N'
+        head_keys[0]['dispname'] = 'GRATNG_N'
         head_keys[0]['dispangle'] = 'GRTILT_P'
         #
         return head_keys
