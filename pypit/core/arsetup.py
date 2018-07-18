@@ -11,8 +11,6 @@ import yaml
 import linetools.utils
 
 from pypit import msgs
-#from pypit import arparse as settings
-from pypit import arparse
 from pypit import arutils
 from pypit import arparse
 from pypit.core import arsort
