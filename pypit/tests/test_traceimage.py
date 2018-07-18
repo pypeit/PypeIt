@@ -41,7 +41,7 @@ def test_instantiate(deimos_flat_files):
         assert True
         return
     # Empty
-    Timage = traceimage.TraceImage('keck_deimos')
+    traceImage = traceimage.TraceImage('keck_deimos')
 
 
 def test_process(deimos_flat_files):
@@ -49,11 +49,11 @@ def test_process(deimos_flat_files):
         assert True
         return
     # Instantiate
-    Timage = traceimage.TraceImage('keck_deimos', file_list=deimos_flat_files)
+    traceImage = traceimage.TraceImage('keck_deimos', file_list=deimos_flat_files)
     # Run
-    assert Timage.nfiles == 2
-    mstrace = Timage.process(bias_subtract='overscan', trim=True)
+    assert traceImage.nfiles == 2
+    mstrace = traceImage.process(bias_subtract='overscan', trim=True)
     assert isinstance(mstrace, np.ndarray)
-    assert Timage.steps[-1] == 'combine'
-    assert Timage.steps[-2] == 'bias_subtract'
+    assert traceImage.steps[-1] == 'combine'
+    assert traceImage.steps[-2] == 'bias_subtract'
 

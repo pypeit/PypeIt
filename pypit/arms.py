@@ -356,9 +356,9 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                               vel_correction=sci_dict['meta']['vel_corr'])
             arsave.save_1d_spectra_fits(all_specobjs, fitstbl[scidx], outfile,
                                         helio_dict=helio_dict, telescope=_spectrograph.telescope)
-        elif save_format == 'hdf5':
-            debugger.set_trace()  # NEEDS REFACTORING
-            arsave.save_1d_spectra_hdf5(None)
+#        elif save_format == 'hdf5':
+#            debugger.set_trace()  # NEEDS REFACTORING
+#            arsave.save_1d_spectra_hdf5(None)
         else:
             msgs.error(save_format + ' is not a recognized output format!')
         # Obj info

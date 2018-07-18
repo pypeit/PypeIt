@@ -444,12 +444,12 @@ class Calibrations(object):
         if not self.traceSlits.master():
             # Build the trace image first
             trace_image_files = arsort.list_of_files(self.fitstbl, 'trace', self.sci_ID)
-            Timage = traceimage.TraceImage(self.spectrograph,
+            traceImage = traceimage.TraceImage(self.spectrograph,
                                            file_list=trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
             # Load up and get ready
-            self.traceSlits.mstrace = Timage.process(bias_subtract=self.msbias,
-                                                     trim=self.par['trim'], apply_gain=True)
+            self.traceSlits.mstrace = traceImage.process(bias_subtract=self.msbias,
+                                                         trim=self.par['trim'], apply_gain=True)
             _ = self.traceSlits.make_binarr()
             # Now we go forth
             self.tslits_dict = self.traceSlits.run(arms=arms)
