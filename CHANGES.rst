@@ -3,7 +3,7 @@
 
 0.8.1
 -----
- - Figuring out how to tag releases
+- Figuring out how to tag releases
 
 0.8.0
 -----
