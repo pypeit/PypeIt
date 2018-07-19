@@ -16,7 +16,7 @@ import signal
 import warnings
 
 # Set version
-__version__ = '0.8.1'
+__version__ = '0.8.2dev'
 
 # Import and instantiate the logger
 from pypit import armsgs
