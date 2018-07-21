@@ -27,7 +27,7 @@ Define a utility base class used to hold parameters.
         lists to use `isinstance`_.
     | **02 Apr 2016**: (KBW) Allow input parameters to be callable
         functions.
-    | **05 Apr 2018**: (KBW) Added to pypit repo
+    | **05 Apr 2018**: (KBW) Added to pypeit repo
     | **18 Apr 2018**: (KBW) Add parameter descriptions; keep default
         values as attributes
     | **19 Apr 2018**: (KBW) Spruce up the __repr__ function and add the
@@ -712,7 +712,7 @@ class ParSet(object):
 
 class ParDatabase(object):
     """
-    NOTE: This isn't used in pypit yet...
+    NOTE: This isn't used in pypeit yet...
 
     Class used as a list of ParSets in a glorified structured numpy
     array.

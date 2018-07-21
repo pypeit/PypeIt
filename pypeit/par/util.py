@@ -26,13 +26,13 @@ import numpy as np
 
 from configobj import ConfigObj
 
-from pypit import msgs
+from pypeit import msgs
 
 #-----------------------------------------------------------------------
 # Parameter utility functions
 #-----------------------------------------------------------------------
 # TODO: This should go in a different module, or in __init__
-def pypit_root_directory():
+def pypeit_root_directory():
     """
     Get the root directory for the PYPIT source distribution.
 
@@ -46,10 +46,10 @@ def pypit_root_directory():
         OSError: Raised if `pkg_resources.resource_filename` fails.
     """
     try:
-        # Get the directory with the pypit source code
-        code_dir = resource_filename('pypit', '')
+        # Get the directory with the pypeit source code
+        code_dir = resource_filename('pypeit', '')
     except:
-        # TODO: pypit should always be installed as a package, so is
+        # TODO: pypeit should always be installed as a package, so is
         # this try/except block necessary?
         raise OSError('Could not find PYPIT package!')
     # Root directory is one level up from source code
@@ -170,11 +170,11 @@ def get_parset_list(cfg, pk, parsetclass):
             sub-ParSets.
         pk (str):
             The root of the keywords used to set a list of sub-ParSets.
-        parsetclass (:class:`pypit.par.parset.ParSet`):
+        parsetclass (:class:`pypeit.par.parset.ParSet`):
             The class used to construct each element in the list of
             parameter subsets.  The class **must** have a `from_dict`
             method that instantiates the
-            :class:`pypit.par.parset.ParSet` based on the provide
+            :class:`pypeit.par.parset.ParSet` based on the provide
             subsection/subdict from cfg.
 
     Returns:
@@ -230,12 +230,12 @@ def parset_to_dict(par):
 
 
 #-----------------------------------------------------------------------
-# Functions for parsing the input pypit file
+# Functions for parsing the input pypeit file
 # TODO: Should these go into a different module? PypitSetup?
 #-----------------------------------------------------------------------
-def _read_pypit_file_lines(ifile):
+def _read_pypeit_file_lines(ifile):
     """
-    General parser for a pypit file.
+    General parser for a pypeit file.
 
     - Checks that the file exists.
     - Reads all the lines in the file
@@ -264,8 +264,8 @@ def _read_pypit_file_lines(ifile):
     return np.array([ l.split('#')[0] for l in lines ])
 
 
-def _find_pypit_block(lines, group):
-    """Find the start and end of a pypit file block."""
+def _find_pypeit_block(lines, group):
+    """Find the start and end of a pypeit file block."""
     start = -1
     end = -1
     for i, l in enumerate(lines):
@@ -339,9 +339,9 @@ def _read_data_file_names(lines, file_check=True):
     return read_inp
 
 
-def _read_pypit_file_lines(ifile):
+def _read_pypeit_file_lines(ifile):
     """
-    General parser for a pypit file.
+    General parser for a pypeit file.
 
     - Checks that the file exists.
     - Reads all the lines in the file
@@ -371,7 +371,7 @@ def _read_pypit_file_lines(ifile):
 
 
 def _determine_data_format(lines):
-    """Determine how the data is formatted in the pypit file."""
+    """Determine how the data is formatted in the pypeit file."""
     return 'table' if len(lines) > 1 and lines[1][0] == '|' else 'raw'
 
 
@@ -410,15 +410,15 @@ def _parse_setup_lines(lines):
     return [ l.split()[1].strip() for l in lines if 'Setup' in l ]
 
 
-def parse_pypit_file(ifile, file_check=True):
+def parse_pypeit_file(ifile, file_check=True):
     """
-    Parse the user-provided .pypit reduction file.
+    Parse the user-provided .pypeit reduction file.
 
     Args:
         ifile (:obj:`str`):
-            Name of pypit file
+            Name of pypeit file
         file_check (:obj:`bool`, optional):
-            Check that the files in the pypit configuration data file
+            Check that the files in the pypeit configuration data file
             exist, and fault if they do not.
 
     Returns:
@@ -427,9 +427,9 @@ def parse_pypit_file(ifile, file_check=True):
         list of frametypes for each file, and (4) the list of setup
         lines.
     """
-    # Read in the pypit reduction file
+    # Read in the pypeit reduction file
     msgs.info('Loading the reduction file')
-    lines = _read_pypit_file_lines(ifile)
+    lines = _read_pypeit_file_lines(ifile)
 
     # Used to select the configuration lines: Anything that isn't part
     # of the data or setup blocks is assumed to be part of the
@@ -437,7 +437,7 @@ def parse_pypit_file(ifile, file_check=True):
     is_config = np.ones(len(lines), dtype=bool)
 
     # Parse data block
-    s, e = _find_pypit_block(lines, 'data')
+    s, e = _find_pypeit_block(lines, 'data')
     if s >= 0 and e < 0:
         msgs.error("Missing 'data end' in {0}".format(ifile))
     if s < 0:
@@ -456,7 +456,7 @@ def parse_pypit_file(ifile, file_check=True):
         msgs.info('Found {0:d} raw data frames'.format(len(data_files)))
 
     # Parse the setup block
-    s, e = _find_pypit_block(lines, 'setup')
+    s, e = _find_pypeit_block(lines, 'setup')
     if s >= 0 and e < 0:
         msgs.error("Missing 'setup end' in {0}".format(ifile))
     if s < 0:
@@ -469,23 +469,23 @@ def parse_pypit_file(ifile, file_check=True):
     return list(lines[is_config]), data_files, frametype, setups
 
 
-def pypit_config_lines(ifile):
+def pypeit_config_lines(ifile):
     """
-    Return the config lines from a pypit file.
+    Return the config lines from a pypeit file.
     """
-    lines = _read_pypit_file_lines(ifile)
+    lines = _read_pypeit_file_lines(ifile)
 
     # Find the config lines, assumed to be everything *except* the lines
     # in the data and setup blocks
     is_config = np.ones(len(lines), dtype=bool)
 
-    s, e = _find_pypit_block(lines, 'data')
+    s, e = _find_pypeit_block(lines, 'data')
     if s >= 0 and e < 0:
         msgs.error("Missing 'data end' in {0}".format(ifile))
     if not s < 0:
         is_config[s-1:e+1] = False
     
-    s, e = _find_pypit_block(lines, 'setup')
+    s, e = _find_pypeit_block(lines, 'setup')
     if s >= 0 and e < 0:
         msgs.error("Missing 'setup end' in {0}".format(ifile))
     if not s < 0:
@@ -494,11 +494,11 @@ def pypit_config_lines(ifile):
     return list(lines[is_config])
     
 
-#def pypit_file_line_groups(ifile):
+#def pypeit_file_line_groups(ifile):
 #    """
-#    Return the config, setup, and data lines from a pypit file.
+#    Return the config, setup, and data lines from a pypeit file.
 #    """
-#    lines = _read_pypit_file_lines(ifile)
+#    lines = _read_pypeit_file_lines(ifile)
 #
 #    # Find the config lines, assumed to be everything *except* the lines
 #    # in the data and setup blocks
@@ -521,7 +521,7 @@ def pypit_config_lines(ifile):
 #    return list(lines[is_config]), list(setup_lines), list(data_lines)
     
 
-def make_pypit_file(pypit_file, spectrograph, data_files, cfg_lines=None, setup_mode=False,
+def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setup_mode=False,
                     setup_lines=None, sorted_files=None, paths=None):
     """ Generate a default PYPIT file
 
@@ -580,7 +580,7 @@ def make_pypit_file(pypit_file, spectrograph, data_files, cfg_lines=None, setup_
     # a ConfigObj?
 
     # Here we go
-    with open(pypit_file, 'w') as f:
+    with open(pypeit_file, 'w') as f:
         f.write("# This is a comment line\n")
         f.write("\n")
         f.write("# User-defined execution parameters\n")

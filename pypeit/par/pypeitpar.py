@@ -1,13 +1,13 @@
 # encoding: utf-8
 """
-Defines parameter sets used to set the behavior for core pypit
+Defines parameter sets used to set the behavior for core pypeit
 functionality.
 
 For more details on the full parameter hierarchy and a tabulated
-description of the keywords in each parameter set, see :ref:`pypitpar`.
+description of the keywords in each parameter set, see :ref:`pypeitpar`.
 
-For examples of how to change the parameters for a run of pypit using
-the pypit input file, see :ref:`pypit_file`.
+For examples of how to change the parameters for a run of pypeit using
+the pypeit input file, see :ref:`pypeit_file`.
 
 **New Parameters**:
 
@@ -51,7 +51,7 @@ parameter sets:
 **New Parameter Sets:**
 
 To add an entirely new parameter set, use one of the existing parameter
-sets as a template, then add the parameter set to :class:`PypitPar`,
+sets as a template, then add the parameter set to :class:`PypeItPar`,
 assuming you want it to be accessed throughout the code.
 
 ----
@@ -61,11 +61,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import unicode_literals
-
-try:
-    basestring
-except NameError:
-    basestring = str
 
 import os
 import glob
@@ -80,8 +75,8 @@ import numpy
 from configobj import ConfigObj
 from astropy.time import Time
 
-from pypit.par.parset import ParSet
-from pypit.par import util
+from pypeit.par.parset import ParSet
+from pypeit.par import util
 
 # Needs this to determine the valid spectrographs TODO: This causes a
 # circular import.  Spectrograph specific parameter sets and where they
@@ -106,7 +101,7 @@ class FrameGroupPar(ParSet):
     frames should be grouped and combined.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
     """
     def __init__(self, frametype=None, useframe=None, number=None, process=None):
         # Grab the parameter names and values from the function
@@ -125,11 +120,11 @@ class FrameGroupPar(ParSet):
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['frametype'] = 'bias'
         options['frametype'] = FrameGroupPar.valid_frame_types()
-        dtypes['frametype'] = basestring
+        dtypes['frametype'] = str
         descr['frametype'] = 'Frame type.  ' \
                              'Options are: {0}'.format(', '.join(options['frametype']))
 
-        dtypes['useframe'] = basestring
+        dtypes['useframe'] = str
         descr['useframe'] = 'A master calibrations file to use if it exists.'
 
         defaults['number'] = 0
@@ -178,11 +173,11 @@ class ProcessImagesPar(ParSet):
     The parameters needed to perform basic image processing.
 
     These parameters are primarily used by
-    :class:`pypit.processimages.ProcessImages`, the base class of many
-    of the pypit objects.
+    :class:`pypeit.processimages.ProcessImages`, the base class of many
+    of the pypeit objects.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
     """
     def __init__(self, overscan=None, overscan_par=None, match=None, combine=None, satpix=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
@@ -204,7 +199,7 @@ class ProcessImagesPar(ParSet):
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['overscan'] = 'savgol'
         options['overscan'] = ProcessImagesPar.valid_overscan()
-        dtypes['overscan'] = basestring
+        dtypes['overscan'] = str
         descr['overscan'] = 'Method used to fit the overscan.  ' \
                             'Options are: {0}'.format(', '.join(options['overscan']))
         
@@ -223,13 +218,13 @@ class ProcessImagesPar(ParSet):
 
         defaults['combine'] = 'weightmean'
         options['combine'] = ProcessImagesPar.valid_combine_methods()
-        dtypes['combine'] = basestring
+        dtypes['combine'] = str
         descr['combine'] = 'Method used to combine frames.  Options are: {0}'.format(
                                        ', '.join(options['combine']))
 
         defaults['satpix'] = 'reject'
         options['satpix'] = ProcessImagesPar.valid_saturation_handling()
-        dtypes['satpix'] = basestring
+        dtypes['satpix'] = str
         descr['satpix'] = 'Handling of saturated pixels.  Options are: {0}'.format(
                                        ', '.join(options['satpix']))
 
@@ -249,7 +244,7 @@ class ProcessImagesPar(ParSet):
 
         defaults['replace'] = 'maxnonsat'
         options['replace'] = ProcessImagesPar.valid_rejection_replacements()
-        dtypes['replace'] = basestring
+        dtypes['replace'] = str
         descr['replace'] = 'If all pixels are rejected, replace them using this method.  ' \
                            'Options are: {0}'.format(', '.join(options['replace']))
 
@@ -407,7 +402,7 @@ class FlatFieldPar(ParSet):
     flattening.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
     """
     def __init__(self, frame=None, slitprofile=None, method=None, params=None, twodpca=None):
     
@@ -428,7 +423,7 @@ class FlatFieldPar(ParSet):
 
         # TODO: Provide a list of valid masters to use as options?
         defaults['frame'] = 'pixelflat'
-        dtypes['frame'] = basestring
+        dtypes['frame'] = str
         descr['frame'] = 'Frame to use for field flattening.  Options are: pixelflat, pinhole, ' \
                          'or a specified master calibration file.'
 
@@ -438,7 +433,7 @@ class FlatFieldPar(ParSet):
 
         defaults['method'] = 'bspline'
         options['method'] = FlatFieldPar.valid_methods()
-        dtypes['method'] = basestring
+        dtypes['method'] = str
         descr['method'] = 'Method used to flat field the data; use None to skip flat-fielding.  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
@@ -520,7 +515,7 @@ class FlexurePar(ParSet):
     correction.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
     """
     def __init__(self, method=None, maxshift=None, spectrum=None):
 
@@ -541,7 +536,7 @@ class FlexurePar(ParSet):
 
         defaults['method'] = 'boxcar'
         options['method'] = FlexurePar.valid_methods()
-        dtypes['method'] = basestring
+        dtypes['method'] = str
         descr['method'] = 'Method used to correct for flexure. Use None for no correction.  If ' \
                           'slitcen is used, the flexure correction is performed before the ' \
                           'extraction of objects.  ' \
@@ -552,7 +547,7 @@ class FlexurePar(ParSet):
         descr['maxshift'] = 'Maximum allowed flexure shift in pixels.'
 
         # TODO: THIS IS NOT USED!
-        dtypes['spectrum'] = basestring
+        dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
         # Instantiate the parameter set
@@ -605,7 +600,7 @@ class FluxCalibrationPar(ParSet):
     calibration.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
     """
     def __init__(self, nonlinear=None, sensfunc=None):
 
@@ -629,7 +624,7 @@ class FluxCalibrationPar(ParSet):
                              'pixelflats of the same lamp and setup and with a variety of ' \
                              'exposure times and count rates in every pixel.'
 
-        dtypes['sensfunc'] = basestring
+        dtypes['sensfunc'] = str
         descr['sensfunc'] = 'YAML file with an existing calibration function'
 
         # Instantiate the parameter set
@@ -664,7 +659,7 @@ class SkySubtractionPar(ParSet):
     subtraction.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
     """
     def __init__(self, bspline_spacing=None, nodding=None): #method=None, params=None):
 
@@ -693,7 +688,7 @@ class SkySubtractionPar(ParSet):
 
 #        defaults['method'] = 'bspline'
 #        options['method'] = SkySubtractionPar.valid_methods()
-#        dtypes['method'] = basestring
+#        dtypes['method'] = str
 #        descr['method'] = 'Method used to for sky subtraction.  ' \
 #                          'Options are: None, {0}'.format(', '.join(options['method']))
 #
@@ -746,7 +741,7 @@ class ManualExtractionPar(ParSet):
     extractions.
 
     For an example of how to define a series of manual extractions in
-    the pypit input file, see :ref:`pypit_file`.
+    the pypeit input file, see :ref:`pypeit_file`.
 
     Args:
         frame (:obj:`str`):
@@ -775,7 +770,7 @@ class ManualExtractionPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        dtypes['frame'] = basestring
+        dtypes['frame'] = str
         descr['frame'] = 'The name of the fits file for a manual extraction'
 
         dtypes['params'] = list
@@ -823,7 +818,7 @@ class ReducePar(ParSet):
     reductions.
     
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
     """
     def __init__(self, spectrograph=None, pipeline=None, detnum=None, sortroot=None, calwin=None,
                  scidir=None, qadir=None):
@@ -843,21 +838,21 @@ class ReducePar(ParSet):
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
         options['spectrograph'] = ReducePar.valid_spectrographs()
-        dtypes['spectrograph'] = basestring
+        dtypes['spectrograph'] = str
         descr['spectrograph'] = 'Spectrograph that provided the data to be reduced.  ' \
                                 'Options are: {0}'.format(', '.join(options['spectrograph']))
 
         options['pipeline'] = ReducePar.valid_pipelines()
-        dtypes['pipeline'] = basestring
-        descr['pipeline'] = 'Pipeline options that pypit can use for reductions.  ' \
+        dtypes['pipeline'] = str
+        descr['pipeline'] = 'Pipeline options that pypeit can use for reductions.  ' \
                             'Options are: {0}'.format(', '.join(options['pipeline']))
 
         dtypes['detnum'] = [list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices'
 
-        dtypes['sortroot'] = basestring
+        dtypes['sortroot'] = str
         descr['sortroot'] = 'A filename given to output the details of the sorted files.  If ' \
-                            'None, the default is the root name of the pypit file.  If off, ' \
+                            'None, the default is the root name of the pypeit file.  If off, ' \
                             'no output is produced.'
 
         defaults['calwin'] = 0
@@ -866,11 +861,11 @@ class ReducePar(ParSet):
                           'science frame'
 
         defaults['scidir'] = 'Science'
-        dtypes['scidir'] = basestring
+        dtypes['scidir'] = str
         descr['scidir'] = 'Directory relative to calling directory to write science files.'
 
         defaults['qadir'] = 'QA'
-        dtypes['qadir'] = basestring
+        dtypes['qadir'] = str
         descr['qadir'] = 'Directory relative to calling directory to write quality ' \
                          'assessment files.'
 
@@ -898,7 +893,7 @@ class ReducePar(ParSet):
     @staticmethod
     def valid_spectrographs():
         # WARNING: Needs this to determine the valid spectrographs.
-        # Should use pypit.spectrographs.util.valid_spectrographs
+        # Should use pypeit.spectrographs.util.valid_spectrographs
         # instead, but it causes a circular import.  Spectrographs have
         # to be redefined here.   To fix this, spectrograph specific
         # parameter sets (like DetectorPar) and where they go needs to
@@ -909,7 +904,7 @@ class ReducePar(ParSet):
 
     @staticmethod
     def valid_pipelines():
-        """Return the list of allowed pipelines within pypit."""
+        """Return the list of allowed pipelines within pypeit."""
         return [ 'ARMS' ] #, 'ARMED' ]
 
     def validate(self):
@@ -922,7 +917,7 @@ class WavelengthSolutionPar(ParSet):
     wavelength solution.
     
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
     """
     def __init__(self, reference=None, method=None, lamps=None, detection=None, numsearch=None,
                  nfitpix=None, IDpixels=None, IDwaves=None, medium=None, frame=None):
@@ -944,13 +939,13 @@ class WavelengthSolutionPar(ParSet):
         # does not make a difference.
         defaults['reference'] = 'arc'
         options['reference'] = WavelengthSolutionPar.valid_reference()
-        dtypes['reference'] = basestring
+        dtypes['reference'] = str
         descr['reference'] = 'Perform wavelength calibration with an arc, sky frame.  Use ' \
                              '\'pixel\' for no wavelength solution.'
 
         defaults['method'] = 'arclines'
         options['method'] = WavelengthSolutionPar.valid_methods()
-        dtypes['method'] = basestring
+        dtypes['method'] = str
         descr['method'] = 'Method to use to fit the individual arc lines.  ' \
                           '\'fit\' is likely more accurate, but \'simple\' uses a polynomial ' \
                           'fit (to the log of a gaussian) and is fast and reliable.  ' \
@@ -992,14 +987,14 @@ class WavelengthSolutionPar(ParSet):
         # TODO: Not used
         defaults['medium'] = 'vacuum'
         options['medium'] = WavelengthSolutionPar.valid_media()
-        dtypes['medium'] = basestring
+        dtypes['medium'] = str
         descr['medium'] = 'Medium used when wavelength calibrating the data.  ' \
                           'Options are: {0}'.format(', '.join(options['medium']))
 
         # TODO: What should the default be?  None or 'heliocentric'?
         defaults['frame'] = 'heliocentric'
         options['frame'] = WavelengthSolutionPar.valid_reference_frames()
-        dtypes['frame'] = basestring
+        dtypes['frame'] = str
         descr['frame'] = 'Frame of reference for the wavelength calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['frame']))
 
@@ -1068,7 +1063,7 @@ class TraceSlitsPar(ParSet):
     positions along the dispersion axis.
     
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
     """
     def __init__(self, function=None, polyorder=None, medrep=None, number=None, trim=None,
                  maxgap=None, maxshift=None, pad=None, sigdetect=None, fracignore=None,
@@ -1092,7 +1087,7 @@ class TraceSlitsPar(ParSet):
 
         defaults['function'] = 'legendre'
         options['function'] = TraceSlitsPar.valid_functions()
-        dtypes['function'] = basestring
+        dtypes['function'] = str
         descr['function'] = 'Function use to trace the slit center.  ' \
                             'Options are: {0}'.format(', '.join(options['function']))
 
@@ -1163,13 +1158,13 @@ class TraceSlitsPar(ParSet):
 
         defaults['sobel_mode'] = 'nearest'
         options['sobel_mode'] = TraceSlitsPar.valid_sobel_modes()
-        dtypes['sobel_mode'] = basestring
+        dtypes['sobel_mode'] = str
         descr['sobel_mode'] = 'Mode for Sobel filtering.  Default is \'nearest\' but the ' \
                               'developers find \'constant\' works best for DEIMOS.'
 
         defaults['pcatype'] = 'pixel'
         options['pcatype'] = TraceSlitsPar.valid_pca_types()
-        dtypes['pcatype'] = basestring
+        dtypes['pcatype'] = str
         descr['pcatype'] = 'Select to perform the PCA using the pixel position (pcatype=pixel) ' \
                            'or by spectral order (pcatype=order).  Pixel positions can be used ' \
                            'for multi-object spectroscopy where the gap between slits is ' \
@@ -1242,7 +1237,7 @@ class WaveTiltsPar(ParSet):
     monochromatic tilt along the slit.
     
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
 
     .. todo::
         Changed to reflect wavetilts.py settings.  Was `yorder`
@@ -1284,7 +1279,7 @@ class WaveTiltsPar(ParSet):
 
         defaults['function'] = 'legendre'
         # TODO: Allowed values?
-        dtypes['function'] = basestring
+        dtypes['function'] = str
         descr['function'] = 'Type of function for arc line fits'
 
         defaults['yorder'] = 4
@@ -1294,12 +1289,12 @@ class WaveTiltsPar(ParSet):
 
         defaults['func2D'] = 'legendre'
         # TODO: Allowed values?
-        dtypes['func2D'] = basestring
+        dtypes['func2D'] = str
         descr['func2D'] = 'Type of function for 2D fit'
 
         defaults['method'] = 'spca'
         options['method'] = WaveTiltsPar.valid_methods()
-        dtypes['method'] = basestring
+        dtypes['method'] = str
         descr['method'] = 'Method used to trace the tilt of the slit along an order.  ' \
                           'Options are: {0}'.format(', '.join(options['method']))
 
@@ -1350,7 +1345,7 @@ class TraceObjectsPar(ParSet):
     objects within a slit.
     
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
     """
     def __init__(self, function=None, order=None, find=None, nsmooth=None, xedge=None, method=None,
                  params=None):
@@ -1371,7 +1366,7 @@ class TraceObjectsPar(ParSet):
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['function'] = 'legendre'
         options['function'] = TraceObjectsPar.valid_functions()
-        dtypes['function'] = basestring
+        dtypes['function'] = str
         descr['function'] = 'Function to use to trace the object in each slit.  ' \
                             'Options are: {0}'.format(options['function'])
 
@@ -1381,7 +1376,7 @@ class TraceObjectsPar(ParSet):
 
         defaults['find'] = 'standard'
         options['find'] = TraceObjectsPar.valid_detection_algorithms()
-        dtypes['find'] = basestring
+        dtypes['find'] = str
         descr['find'] = 'Algorithm to use for finding objects.' \
                         'Options are: {0}'.format(', '.join(options['find']))
 
@@ -1395,7 +1390,7 @@ class TraceObjectsPar(ParSet):
 
         defaults['method'] = 'pca'
         options['method'] = TraceObjectsPar.valid_methods()
-        dtypes['method'] = basestring
+        dtypes['method'] = str
         descr['method'] = 'Method to use for tracing each object; only used with ARMED pipeline.' \
                           '  Options are: {0}'.format(', '.join(options['method']))
 
@@ -1460,7 +1455,7 @@ class ExtractObjectsPar(ParSet):
     spectra.
     
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
     """
     def __init__(self, pixelmap=None, pixelwidth=None, reuse=None, profile=None, maxnumber=None,
                  manual=None):
@@ -1486,7 +1481,7 @@ class ExtractObjectsPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        dtypes['pixelmap'] = basestring
+        dtypes['pixelmap'] = str
         descr['pixelmap'] = 'If desired, a fits file can be specified (of the appropriate form)' \
                             'to specify the locations of the pixels on the detector (in ' \
                             'physical space).  TODO: Where is "appropriate form" specified?'
@@ -1503,7 +1498,7 @@ class ExtractObjectsPar(ParSet):
 
         defaults['profile'] = 'gaussian'
         options['profile'] = ExtractObjectsPar.valid_profiles()
-        dtypes['profile'] = basestring
+        dtypes['profile'] = str
         descr['profile'] = 'Fitting function used to extract science data, only if the ' \
                            'extraction is 2D.  NOTE: options with suffix \'func\' fits a ' \
                            'function to the pixels whereas those without this suffix take into ' \
@@ -1557,7 +1552,7 @@ class CalibrationsPar(ParSet):
     class.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
     """
     def __init__(self, caldir=None, masters=None, setup=None, trim=None, badpix=None,
                  biasframe=None, arcframe=None, pixelflatframe=None, pinholeframe=None,
@@ -1579,17 +1574,17 @@ class CalibrationsPar(ParSet):
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['caldir'] = 'MF'
-        dtypes['caldir'] = basestring
+        dtypes['caldir'] = str
         descr['caldir'] = 'Directory relative to calling directory to write master files.'
 
         options['masters'] = CalibrationsPar.allowed_master_options()
-        dtypes['masters'] = basestring
+        dtypes['masters'] = str
         descr['masters'] = 'Treatment of master frames.  Use None to select the default ' \
                            'behavior (which is?), \'reuse\' to use any existing masters, and ' \
                            '\'force\' to __only__ use master frames.  ' \
                            'Options are: None, {0}'.format(', '.join(options['masters']))
 
-        dtypes['setup'] = basestring
+        dtypes['setup'] = str
         descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
                          'C_02_aa .  The detector number is ignored but the other information ' \
                          'must match the Master Frames in the master frame folder.'
@@ -1704,40 +1699,40 @@ class CalibrationsPar(ParSet):
 
 #-----------------------------------------------------------------------------
 # Parameters superset
-class PypitPar(ParSet):
+class PypeItPar(ParSet):
     """
-    The superset of parameters used by Pypit.
+    The superset of parameters used by PypeIt.
     
     This is a single object used as a container for all the
-    user-specified arguments used by Pypit.
+    user-specified arguments used by PypeIt.
     
     To get the default parameters for a given spectrograph, e.g.::
 
-        from pypit.spectrographs.util import load_spectrograph
+        from pypeit.spectrographs.util import load_spectrograph
 
         spectrograph = load_spectrograph('shane_kast_blue')
-        par = spectrograph.default_pypit_par()
+        par = spectrograph.default_pypeit_par()
 
     If the user has a set of configuration alterations to be read from a
-    pypit file, e.g.::
+    pypeit file, e.g.::
 
-        from pypit.par.util import parse_pypit_file
-        from pypit.spectrographs.util import load_spectrograph
-        from pypit.par import PypitPar
+        from pypeit.par.util import parse_pypeit_file
+        from pypeit.spectrographs.util import load_spectrograph
+        from pypeit.par import PypeItPar
 
         spectrograph = load_spectrograph('shane_kast_blue')
-        spec_cfg_lines = spectrograph.default_pypit_par().to_config()
-        user_cfg_lines = parse_pypit_file('myrdx.pypit')[0]
-        par = PypitPar.from_cfg_lines(cfg_lines=spec_cfg_lines,
+        spec_cfg_lines = spectrograph.default_pypeit_par().to_config()
+        user_cfg_lines = parse_pypeit_file('myrdx.pypeit')[0]
+        par = PypeItPar.from_cfg_lines(cfg_lines=spec_cfg_lines,
                                       merge_with=user_cfg_lines)
 
-    To write the configuration of a given instance of :class:`PypitPar`,
+    To write the configuration of a given instance of :class:`PypeItPar`,
     use the :func:`to_config` function::
         
-        par.to_config('mypypitpar.cfg')
+        par.to_config('mypypeitpar.cfg')
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypitpar`.
+    see :ref:`pypeitpar`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, objects=None, extract=None,
                  skysubtract=None, flexure=None, fluxcalib=None):
@@ -1805,7 +1800,7 @@ class PypitPar(ParSet):
                              'default flux-calibration parameters.'
         
         # Instantiate the parameter set
-        super(PypitPar, self).__init__(list(pars.keys()),
+        super(PypeItPar, self).__init__(list(pars.keys()),
                                        values=list(pars.values()),
                                        defaults=list(defaults.values()),
                                        dtypes=list(dtypes.values()),
@@ -1819,8 +1814,8 @@ class PypitPar(ParSet):
 #
 #        Likely doesn't work because it isn't recursive ...
 #        """
-#        if not isinstance(par, PypitPar):
-#            raise TypeError('Parameters can only be updated using another instance of PypitPar.')
+#        if not isinstance(par, PypeItPar):
+#            raise TypeError('Parameters can only be updated using another instance of PypeItPar.')
 #        self.data.update(par.data)
 
     @classmethod
@@ -1830,16 +1825,16 @@ class PypitPar(ParSet):
 
         Note that::
 
-            default = PypitPar()
-            nofile = PypitPar.from_cfg_file()
+            default = PypeItPar()
+            nofile = PypeItPar.from_cfg_file()
             assert default.data == nofile.data, 'This should always pass.'
 
         Args:
             cfg_file (:obj:`str`, optional):
                 The name of the configuration file that defines the
-                default parameters.  This can be used to load a pypit
+                default parameters.  This can be used to load a pypeit
                 config file from a previous run that was constructed and
-                output by pypit.  This has to contain the full set of
+                output by pypeit.  This has to contain the full set of
                 parameters, not just the subset you want to change.  For
                 the latter, use :arg:`merge_with` to provide one or more
                 config files to merge with the defaults to construct the
@@ -1875,15 +1870,15 @@ class PypitPar(ParSet):
             Allow the user to add to the ignored strings.
 
         Returns:
-            :class:`pypit.par.core.PypitPar`: The instance of the
+            :class:`pypeit.par.core.PypeItPar`: The instance of the
             parameter set.
         """
         # Get the base parameters in a ConfigObj instance
-        cfg = ConfigObj(PypitPar().to_config() if cfg_file is None else cfg_file)
+        cfg = ConfigObj(PypeItPar().to_config() if cfg_file is None else cfg_file)
 
         # Get the list of other configuration parameters to merge it with
         _merge_with = [] if merge_with is None else \
-                        ([merge_with] if isinstance(merge_with, basestring) else merge_with)
+                        ([merge_with] if isinstance(merge_with, str) else merge_with)
         merge_cfg = ConfigObj()
         for f in _merge_with:
             merge_cfg.merge(ConfigObj(f))
@@ -1906,16 +1901,16 @@ class PypitPar(ParSet):
 
         Note that::
 
-            default = PypitPar()
-            nofile = PypitPar.from_cfg_lines()
+            default = PypeItPar()
+            nofile = PypeItPar.from_cfg_lines()
             assert default.data == nofile.data, 'This should always pass.'
 
         Args:
             cfg_lines (:obj:`list`, optional):
                 A list of strings with lines read, or made to look like
                 they are, from a configuration file.  This can be used
-                to load lines from a previous run of pypit that was
-                constructed and output by pypit.  This has to contain
+                to load lines from a previous run of pypeit that was
+                constructed and output by pypeit.  This has to contain
                 the full set of parameters, not just the subset to
                 change.  For the latter, leave this as the default value
                 (None) and use :arg:`merge_with` to provide a set of
@@ -1951,11 +1946,11 @@ class PypitPar(ParSet):
             Allow the user to add to the ignored strings.
 
         Returns:
-            :class:`pypit.par.core.PypitPar`: The instance of the
+            :class:`pypeit.par.core.PypeItPar`: The instance of the
             parameter set.
         """
         # Get the base parameters in a ConfigObj instance
-        cfg = ConfigObj(PypitPar().to_config() if cfg_lines is None else cfg_lines)
+        cfg = ConfigObj(PypeItPar().to_config() if cfg_lines is None else cfg_lines)
         
         # Merge in additional parameters
         if merge_with is not None:
@@ -1969,13 +1964,13 @@ class PypitPar(ParSet):
         return cls.from_dict(cfg)
 
     @classmethod
-    def from_pypit_file(cls, ifile, evaluate=True):
+    def from_pypeit_file(cls, ifile, evaluate=True):
         """
-        Construct the parameter set using a pypit file.
+        Construct the parameter set using a pypeit file.
         
         Args:
             ifile (str):
-                Name of the pypit file to read.  Expects to find setup
+                Name of the pypeit file to read.  Expects to find setup
                 and data blocks in the file.  See docs.
             evaluate (:obj:`bool`, optional):
                 Evaluate the values in the config object before
@@ -2002,11 +1997,11 @@ class PypitPar(ParSet):
             Allow the user to add to the ignored strings.
 
         Returns:
-            :class:`pypit.par.core.PypitPar`: The instance of the
+            :class:`pypeit.par.core.PypeItPar`: The instance of the
             parameter set.
         """
         # TODO: Need to include instrument-specific defaults somewhere...
-        return cls.from_cfg_lines(merge_with=util.pypit_config_lines(ifile), evaluate=evaluate)
+        return cls.from_cfg_lines(merge_with=util.pypeit_config_lines(ifile), evaluate=evaluate)
 
     @classmethod
     def from_dict(cls, cfg):
@@ -2126,7 +2121,7 @@ class DetectorPar(ParSet):
 
     These parameters should be *independent* of any specific use of the
     detector, and are used in the definition of the instruments served
-    by Pypit.
+    by PypeIt.
 
     To see the list of instruments served, a table with the the current
     keywords, defaults, and descriptions for the :class:`DetectorPar`
@@ -2214,7 +2209,7 @@ class DetectorPar(ParSet):
         # section
         defaults['datasec'] = 'DATASEC' if pars['numamplifiers'] is None \
                                         else ['DATASEC']*pars['numamplifiers']
-        dtypes['datasec'] = [basestring, list]
+        dtypes['datasec'] = [str, list]
         descr['datasec'] = 'Either the data sections or the header keyword where the valid ' \
                            'data sections can be obtained, one per amplifier. If defined ' \
                            'explicitly should have the format of a numpy array slice'
@@ -2222,14 +2217,14 @@ class DetectorPar(ParSet):
         # TODO: Allow for None, such that there is no overscan region
         defaults['oscansec'] = 'BIASSEC' if pars['numamplifiers'] is None \
                                         else ['BIASSEC']*pars['numamplifiers']
-        dtypes['oscansec'] = [basestring, list]
+        dtypes['oscansec'] = [str, list]
         descr['oscansec'] = 'Either the overscan section or the header keyword where the valid ' \
                             'data sections can be obtained, one per amplifier. If defined ' \
                             'explicitly should have the format of a numpy array slice'
 
         # TODO: Allow this to be None?
         defaults['suffix'] = ''
-        dtypes['suffix'] = basestring
+        dtypes['suffix'] = str
         descr['suffix'] = 'Suffix to be appended to all saved calibration and extraction frames.'
 
         # Instantiate the parameter set
@@ -2258,7 +2253,7 @@ class DetectorPar(ParSet):
         """
         if self.data['numamplifiers'] > 1:
             keys = [ 'gain', 'ronoise', 'datasec', 'oscansec' ]
-            dtype = [ (int, float), (int, float), basestring, basestring ]
+            dtype = [ (int, float), (int, float), str, str ]
             for i in range(len(keys)):
                 if self.data[keys[i]] is None:
                     continue
@@ -2277,10 +2272,10 @@ class TelescopePar(ParSet):
     The parameters used to define the salient properties of a telescope.
 
     These parameters should be *independent* of any specific use of the
-    telescope.  They and are used by the :mod:`pypit.telescopes` module
-    to define the telescopes served by Pypit, and kept as part of the
-    :class:`pypit.spectrographs.spectrograph.Spectrograph` definition of
-    the instruments served by Pypit.
+    telescope.  They and are used by the :mod:`pypeit.telescopes` module
+    to define the telescopes served by PypeIt, and kept as part of the
+    :class:`pypeit.spectrographs.spectrograph.Spectrograph` definition of
+    the instruments served by PypeIt.
 
     To see the list of instruments served, a table with the the current
     keywords, defaults, and descriptions for the :class:`TelescopePar`
@@ -2305,7 +2300,7 @@ class TelescopePar(ParSet):
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['name'] = 'KECK'
         options['name'] = TelescopePar.valid_telescopes()
-        dtypes['name'] = basestring
+        dtypes['name'] = str
         descr['name'] = 'Name of the telescope used to obtain the observations.  ' \
                         'Options are: {0}'.format(', '.join(options['name']))
         
