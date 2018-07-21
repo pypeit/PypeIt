@@ -8,14 +8,13 @@ from __future__ import unicode_literals
 import numpy as np
 import pytest
 
-from pypeit import ardebug
-from pypeit import armsgs
+from pypeit import msgs
+debug = None
 
 def test_log_write():
-    debug = ardebug.init()
 
     outfil = 'tst.log'
-    msgs = armsgs.Messages(outfil, debug, 1)
+    msgs = msgs.Messages(outfil, debug, 1)
     msgs.close()
     # Insure scipy, numpy, astropy are being version
     with open(outfil, 'r') as f:
@@ -31,9 +30,7 @@ def test_log_write():
 
 
 def test_msgs():
-    debug = ardebug.init()
-
-    msgs = armsgs.Messages(None, debug, 1)
+    msgs = msgs.Messages(None, debug, 1)
     msgs.info("test 123")
     msgs.warn("test 123")
     msgs.bug("test 123")

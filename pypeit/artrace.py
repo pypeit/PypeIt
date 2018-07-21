@@ -13,14 +13,13 @@ from matplotlib import cm, font_manager
 from astropy.stats import sigma_clip
 from astropy.convolution import convolve, Gaussian1DKernel
 from pypeit import msgs
-from pypeit import arqa
-from pypeit import arplot
-from pypeit.core import ararc
-from pypeit import arutils
-from pypeit import arpca
-from pypeit import arparse as settings
-from pypeit.filter import BoxcarFilter
-from pypeit import ardebug as debugger
+from pypeit.core import qa
+from pypeit.core import plot
+from pypeit.core import arc
+from pypeit import utils
+from pypeit.core import pca
+#from pypeit.filter import BoxcarFilter
+from pypeit import debugger
 
 from pypeit.par.parset import ParSet
 
@@ -28,12 +27,6 @@ try:
     from pypeit import ginga
 except ImportError:
     pass
-
-
-try:
-    ustr = unicode
-except NameError:
-    ustr = str
 
 # Testing
 import time
@@ -317,7 +310,7 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe, varframe,
     #rec_sigframe_bin = np.sqrt(rec_varframe_bin/(smthby-2.0*rejhilo))
     #sigframe = rec_skysub*(1.0-rec_crmask)/rec_sigframe_bin
     ww = np.where(rec_crmask == 0.0)
-    med, mad = arutils.robust_meanstd(rec_sigframe_bin[ww])
+    med, mad = utils.robust_meanstd(rec_sigframe_bin[ww])
     ww = np.where(rec_crmask == 1.0)
     rec_sigframe_bin[ww] = maskval
     srtsig = np.sort(rec_sigframe_bin,axis=1)
@@ -331,15 +324,15 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe, varframe,
     trcxrng = np.arange(npix)/(npix-1.0)
     msgs.info("Identifying objects that are significantly detected")
     # Find significantly detected objects
-    mskpix, coeff = arutils.robust_polyfit(trcxrng, trcprof, 1+npix//40,
+    mskpix, coeff = utils.robust_polyfit(trcxrng, trcprof, 1+npix//40,
                                            function='legendre', sigma=2.0, minv=0.0, maxv=1.0)
-    backg = arutils.func_val(coeff, trcxrng, 'legendre', minv=0.0, maxv=1.0)
+    backg = utils.func_val(coeff, trcxrng, 'legendre', minv=0.0, maxv=1.0)
     trcprof -= backg
     wm = np.where(mskpix == 0)
     if wm[0].size == 0:
         msgs.warn("No objects found")
         return trace_object_dict(0, None)
-    med, mad = arutils.robust_meanstd(trcprof[wm])
+    med, mad = utils.robust_meanstd(trcprof[wm])
     trcprof -= med
     # Gaussian smooth
     #from scipy.ndimage.filters import gaussian_filter1d
@@ -433,8 +426,8 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe, varframe,
         w = np.where(centfit != maskval)
         specfit = specfit[w]
         centfit = centfit[w]
-        mskbad, coeffs = arutils.robust_polyfit(specfit, centfit, traceorder, function=tracefunc, minv=-1.0, maxv=1.0)
-        cval[o] = arutils.func_val(coeffs, np.array([0.0]), tracefunc, minv=-1.0, maxv=1.0)[0]
+        mskbad, coeffs = utils.robust_polyfit(specfit, centfit, traceorder, function=tracefunc, minv=-1.0, maxv=1.0)
+        cval[o] = utils.func_val(coeffs, np.array([0.0]), tracefunc, minv=-1.0, maxv=1.0)[0]
         w = np.where(mskbad == 0.0)
         if w[0].size != 0:
             allxfit = np.append(allxfit, specfit[w])
@@ -444,8 +437,8 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe, varframe,
         return trace_object_dict(0, None)
     # Tracing
     msgs.info("Performing global trace to all objects")
-    mskbad, coeffs = arutils.robust_polyfit(allxfit, allsfit, traceorder, function=tracefunc, minv=-1.0, maxv=1.0)
-    trcfunc = arutils.func_val(coeffs, np.linspace(-1.0, 1.0, skysub.shape[0]), tracefunc, minv=-1.0, maxv=1.0)
+    mskbad, coeffs = utils.robust_polyfit(allxfit, allsfit, traceorder, function=tracefunc, minv=-1.0, maxv=1.0)
+    trcfunc = utils.func_val(coeffs, np.linspace(-1.0, 1.0, skysub.shape[0]), tracefunc, minv=-1.0, maxv=1.0)
     msgs.info("Constructing a trace for all objects")
     trcfunc = trcfunc.reshape((-1, 1)).repeat(nobj, axis=1)
     trccopy = trcfunc.copy()
@@ -514,7 +507,7 @@ def obj_trace_qa(slf, frame, det, tracelist, root='trace', normalize=True, desc=
     # Grab the named of the method
     method = inspect.stack()[0][3]
     # Outfile name
-    outfile = arqa.set_qa_filename(slf._basename, method, det=det)
+    outfile = qa.set_qa_filename(slf._basename, method, det=det)
     #
     ycen = np.arange(frame.shape[0])
     # Normalize flux in the traces
@@ -539,7 +532,7 @@ def obj_trace_qa(slf, frame, det, tracelist, root='trace', normalize=True, desc=
         sclmin, sclmax = 0.4, 1.1
     else:
         nrm_frame = frame.copy()
-        sclmin, sclmax = arplot.zscale(nrm_frame)
+        sclmin, sclmax = plot.zscale(nrm_frame)
 
     # Plot
     plt.clf()
@@ -584,7 +577,7 @@ def obj_trace_qa(slf, frame, det, tracelist, root='trace', normalize=True, desc=
         #    plt.text((ltrace[iy[ii], ii]+rtrace[iy[ii], ii])/2., ycen[iy[ii]],
         #        lbl, color='green', ha='center')
     # Title
-    tstamp = arqa.gen_timestamp()
+    tstamp = qa.gen_timestamp()
     if desc == "":
         plt.suptitle(tstamp)
     else:
@@ -783,7 +776,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
 
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
     ordcen = slf._pixcen[det-1].copy()
-    tampl, tcent, twid, w, _ = ararc.detect_lines(censpec)
+    tampl, tcent, twid, w, _ = arc.detect_lines(censpec)
     satval = settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear']
     # Order of the polynomials to be used when fitting the tilts.
     arcdet = (tcent[w]+0.5).astype(np.int)
@@ -921,7 +914,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
                 cc = np.correlate(ccyfit, yfit, mode='same')
                 # TODO: This must have been obsolete even before I (KBW)
                 # removed the cython functionality!
-                params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
+                params, fail = utils.gauss_lsqfit(xfit, cc, 0.0)
                 centv = ccval + pcen - arcdet[j] - params[1]
             xtfit[k+sz] = ordcen[arcdet[j], slitnum] + k
             ytfit[k+sz] = centv
@@ -986,7 +979,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
                 cc = np.correlate(ccyfit, yfit, mode='same')
                 # TODO: This must have been obsolete even before I (KBW)
                 # removed the cython functionality!
-                params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
+                params, fail = utils.gauss_lsqfit(xfit, cc, 0.0)
                 centv = ccval + pcen - arcdet[j] - params[1]
             xtfit[sz-k] = ordcen[arcdet[j], slitnum] - k
             ytfit[sz-k] = centv
@@ -1198,7 +1191,7 @@ def trace_fweight_deprecated(fimage, xinit, ltrace=None, rtraceinvvar=None, radi
     # Return
     return xnew, xerr
 
-
+'''
 def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", maskval=-999999.9):
     """ Determine the spectral tilts in each echelle order
 
@@ -1224,7 +1217,7 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    arccen, maskslit, satmask = ararc.get_censpec(slf._lordloc[det-1], slf._rordloc[det-1],
+    arccen, maskslit, satmask = arc.get_censpec(slf._lordloc[det-1], slf._rordloc[det-1],
                                                       slf._pixlocn[det-1], msarc, det, settings.spect, gen_satmask=True)
     # If the user sets no tilts, return here
     if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
@@ -1266,7 +1259,7 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
             if wmask.size < settings.argflag['trace']['slits']['tilts']['order']+2:
                 maskslit[o] = 1
                 continue
-            null, tcoeff = arutils.robust_polyfit(xtfit[wmask], ytfit[wmask],
+            null, tcoeff = utils.robust_polyfit(xtfit[wmask], ytfit[wmask],
                                                   settings.argflag['trace']['slits']['tilts']['order'], sigma=2.0)
             # Save the tilt angle
             tiltang[j, o] = tcoeff[1]  # tan(tilt angle)
@@ -1285,7 +1278,7 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
             extrap_ord[o] = 1.0
             maskord = np.append(maskord, o)
         else:
-            null, tempc = arutils.robust_polyfit(centval[:, o][w], tiltang[:, o][w],
+            null, tempc = utils.robust_polyfit(centval[:, o][w], tiltang[:, o][w],
                                                  settings.argflag['trace']['slits']['tilts']['disporder'],
                                                  function=settings.argflag['trace']['slits']['function'], sigma=2.0,
                                                  minv=0.0, maxv=msarc.shape[0] - 1)
@@ -1293,7 +1286,7 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
     # Sort which orders are masked
     maskord.sort()
     xv = np.arange(msarc.shape[0])
-    tiltval = arutils.func_val(tcoeff, xv, settings.argflag['trace']['slits']['function'],
+    tiltval = utils.func_val(tcoeff, xv, settings.argflag['trace']['slits']['function'],
                                minv=0.0, maxv=msarc.shape[0] - 1).T
     ofit = settings.argflag['trace']['slits']['tilts']['params']
     lnpc = len(ofit) - 1
@@ -1307,13 +1300,13 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
         if not msgs._debug['no_qa']:
             #pcadesc = "Spectral Tilt PCA"
 #            arqa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc=pcadesc, addOne=False)
-            arpca.pca_plot(slf, outpar, ofit, 'Arc', pcadesc=pcadesc, addOne=False)
+            pca.pca_plot(slf, outpar, ofit, 'Arc', pcadesc=pcadesc, addOne=False)
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(norders)
-        extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
+        extrap_tilt, outpar = pca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
         tilts = extrap_tilt
 #        arqa.pca_arctilt(slf, tiltang, centval, tilts)
-        arpca.pca_arctilt(slf, tiltang, centval, tilts)
+        pca.pca_arctilt(slf, tiltang, centval, tilts)
     else:
         outpar = None
         msgs.warn("Could not perform a PCA when tracing the order tilts" + msgs.newline() +
@@ -1327,10 +1320,10 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
                 xtiltfit = np.append(xtiltfit, centval[:, o][w])
                 ytiltfit = np.append(ytiltfit, tiltang[:, o][w])
         if np.size(xtiltfit) > settings.argflag['trace']['slits']['tilts']['disporder'] + 2:
-            tcoeff = arutils.func_fit(xtiltfit, ytiltfit, settings.argflag['trace']['slits']['function'],
+            tcoeff = utils.func_fit(xtiltfit, ytiltfit, settings.argflag['trace']['slits']['function'],
                                       settings.argflag['trace']['slits']['tilts']['disporder'],
                                       minv=0.0, maxv=msarc.shape[0] - 1)
-            tiltval = arutils.func_val(tcoeff, xv, settings.argflag['trace']['slits']['function'], minv=0.0,
+            tiltval = utils.func_val(tcoeff, xv, settings.argflag['trace']['slits']['function'], minv=0.0,
                                        maxv=msarc.shape[0] - 1)
             tilts = tiltval[:, np.newaxis].repeat(tiltang.shape[1], axis=1)
         else:
@@ -1344,7 +1337,6 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
 
     return tiltsimg, satmask, outpar
 
-'''
 def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
     """ Determine the spectral tilt of each slit in a multislit image
 
@@ -1371,7 +1363,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    arccen, maskslit, _ = ararc.get_censpec(slf._lordloc[det-1], slf._rordloc[det-1],
+    arccen, maskslit, _ = arc.get_censpec(slf._lordloc[det-1], slf._rordloc[det-1],
                                                       slf._pixlocn[det-1], msarc, det, settings.spect,
                                                       gen_satmask=False)
     satmask = np.zeros_like(slf._pixcen)
@@ -1443,11 +1435,11 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
             # Perform a scanning polynomial fit to the tilts
             wmfit = np.where(ytfit != maskval)
             if wmfit[0].size > settings.argflag['trace']['slits']['tilts']['order'] + 1:
-                cmfit = arutils.func_fit(xtfit[wmfit], ytfit[wmfit],
+                cmfit = utils.func_fit(xtfit[wmfit], ytfit[wmfit],
                                          settings.argflag['trace']['slits']['function'],
                                          settings.argflag['trace']['slits']['tilts']['order'],
                                          minv=0.0, maxv=msarc.shape[1] - 1.0)
-                model = arutils.func_val(cmfit, xtfit, settings.argflag['trace']['slits']['function'],
+                model = utils.func_val(cmfit, xtfit, settings.argflag['trace']['slits']['function'],
                                          minv=0.0, maxv=msarc.shape[1] - 1.0)
             else:
                 aduse[j] = False
@@ -1465,7 +1457,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
                 yfit = ytfit[wmask] / (msarc.shape[0] - 1.0)
             else:
                 yfit = (2.0 * model[sz] - ytfit[wmask]) / (msarc.shape[0] - 1.0)
-            wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], yfit,
+            wmsk, mcoeff = utils.robust_polyfit(xtfit[wmask], yfit,
                                                   settings.argflag['trace']['slits']['tilts']['order'],
                                                   function=settings.argflag['trace']['slits']['function'],
                                                   sigma=2.0, minv=0.0, maxv=msarc.shape[1] - 1.0)
@@ -1473,7 +1465,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
             wmask = wmask[np.where(wmsk == 0)]
 
             # Save the tilt angle, and unmask the row
-            factr = (msarc.shape[0] - 1.0) * arutils.func_val(mcoeff, ordcen[arcdet[j], slit],
+            factr = (msarc.shape[0] - 1.0) * utils.func_val(mcoeff, ordcen[arcdet[j], slit],
                                                               settings.argflag['trace']['slits']['function'],
                                                               minv=0.0, maxv=msarc.shape[1] - 1.0)
             idx = int(factr + 0.5)
@@ -1525,7 +1517,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
         extrap_row = maskrows.copy()
         xv = np.arange(msarc.shape[1])
         # Tilt values
-        tiltval = arutils.func_val(tcoeff, xv, settings.argflag['trace']['slits']['function'],
+        tiltval = utils.func_val(tcoeff, xv, settings.argflag['trace']['slits']['function'],
                                    minv=0.0, maxv=msarc.shape[1] - 1.0).T
         msgs.work("May need to do a check here to make sure ofit is reasonable")
         ofit = settings.argflag['trace']['slits']['tilts']['params']
@@ -1539,7 +1531,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
             fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, weights=None,
                                          x0in=ordsnd, mask=maskrw, skipx0=False,
                                          function=settings.argflag['trace']['slits']['function'])
-#            arqa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc="Spectral Tilt PCA", addOne=False)
+#            qa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc="Spectral Tilt PCA", addOne=False)
             arpca.pca_plot(slf, outpar, ofit, 'Arc', pcadesc="Spectral Tilt PCA", addOne=False)
             # Extrapolate the remaining orders requested
             orders = np.linspace(0.0, 1.0, msarc.shape[0])
@@ -1781,7 +1773,7 @@ def find_obj_minima(trcprof, fwhm=3., nsmooth=3, nfind=8, xedge=0.03,
     #
     xvec = np.arange(len(yflux))
     # Find peaks
-    peaks, sigmas, ledges, redges = arutils.find_nminima(yflux, xvec, minsep=fwhm, nfind=nfind, width=int(fwhm))
+    peaks, sigmas, ledges, redges = utils.find_nminima(yflux, xvec, minsep=fwhm, nfind=nfind, width=int(fwhm))
     fint = interpolate.interp1d(xvec, yflux, bounds_error=False, fill_value=0.)
     ypeaks = -1.*fint(peaks)
     # Sky background (for significance)

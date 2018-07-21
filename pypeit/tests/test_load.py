@@ -9,8 +9,7 @@ from __future__ import unicode_literals
 import os
 import pytest
 
-from pypeit import arparse
-from pypeit import arload
+from pypeit.core import load
 
 
 def data_path(filename):
@@ -31,7 +30,7 @@ def data_path(filename):
 
 def test_load_specobj():
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
-    specobjs, head0 = arload.load_specobj(spec_file)
+    specobjs, head0 = load.load_specobj(spec_file)
     # Test
     assert isinstance(specobjs, list)
     assert len(specobjs[0].boxcar['counts']) == 1199
@@ -41,14 +40,14 @@ def test_load_1dspec():
     from linetools.spectra.xspectrum1d import XSpectrum1D
 
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
-    spec = arload.load_1dspec(spec_file)
+    spec = load.load_1dspec(spec_file)
     # Test
     assert isinstance(spec, XSpectrum1D)
     # Boxcar
-    spec = arload.load_1dspec(spec_file, extract='box')
+    spec = load.load_1dspec(spec_file, extract='box')
     assert isinstance(spec, XSpectrum1D)
     # By objname
-    spec2 = arload.load_1dspec(spec_file, objname='O473-S5473-D01-I0008')
+    spec2 = load.load_1dspec(spec_file, objname='O473-S5473-D01-I0008')
     assert isinstance(spec2, XSpectrum1D)
 
 

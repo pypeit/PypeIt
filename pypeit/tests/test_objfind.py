@@ -11,9 +11,9 @@ import pytest
 
 from astropy.table import Table
 
-from pypit import arutils
-from pypit import artrace
-from pypit import msgs
+from pypeit import utils
+from pypeit import artrace
+from pypeit import msgs
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -68,7 +68,7 @@ def test_npeaks():
     tbl = Table.read(data_path('trc.fits'))
     trc = tbl['trc'].data
     # Call
-    peaks, sigmas, ledges, redges = arutils.find_nminima(-1*trc, nsmooth=3)
+    peaks, sigmas, ledges, redges = utils.find_nminima(-1*trc, nsmooth=3)
 
     # TODO: (KBW) the second number keeps failing for me, presumably
     # because of a numpy/scipy version issue...

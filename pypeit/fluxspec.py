@@ -7,26 +7,21 @@ import yaml
 
 #from importlib import reload
 
-try:
-    basestring
-except NameError:  # For Python 3
-    basestring = str
-
 from astropy import units
 
 from pypeit import msgs
-from pypeit.core import arflux
-from pypeit import arload
-from pypeit.core import armasters
-from pypeit.core import arsave
-from pypeit import arutils
+from pypeit.core import flux
+from pypeit.core import load
+from pypeit.core import masters
+from pypeit.core import save
+from pypeit import utils
 from pypeit import masterframe
 
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par.pypeitpar import TelescopePar
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 class FluxSpec(masterframe.MasterFrame):
     """Class to guide fluxing
@@ -91,10 +86,10 @@ class FluxSpec(masterframe.MasterFrame):
         self.std_spec1d_file = std_spec1d_file
         # Need to unwrap these (sometimes)..
         self.std_specobjs = std_specobjs if std_specobjs is None \
-                                            else arutils.unravel_specobjs(std_specobjs)
+                                            else utils.unravel_specobjs(std_specobjs)
         self.std_header = std_header
         if self.std_spec1d_file is not None:
-            self.std_specobjs, self.std_header = arload.load_specobj(self.std_spec1d_file)
+            self.std_specobjs, self.std_header = load.load_specobj(self.std_spec1d_file)
             msgs.info('Loaded {0} spectra from the spec1d standard star file: {1}'.format(
                                 len(self.std_specobjs), self.std_spec1d_file))
             std_spectro = self.std_header['INSTRUME']
@@ -105,7 +100,7 @@ class FluxSpec(masterframe.MasterFrame):
         self.sci_specobjs = []
         self.sci_header = None
         if self.sci_spec1d_file is not None:
-            self.sci_specobjs, self.sci_header = arload.load_specobj(self.sci_spec1d_file)
+            self.sci_specobjs, self.sci_header = load.load_specobj(self.sci_spec1d_file)
             msgs.info('Loaded {0} spectra from the spec1d science file: {1}'.format(
                                 len(self.sci_specobjs), self.sci_spec1d_file))
             sci_spectro = self.sci_header['INSTRUME']
@@ -127,7 +122,7 @@ class FluxSpec(masterframe.MasterFrame):
             spectrograph_name = _spectrograph
             if _spectrograph is not None:
                 msgs.info("Spectrograph set to {0} from science file".format(_spectrograph))
-        if isinstance(_spectrograph, basestring):
+        if isinstance(_spectrograph, str):
             spectrograph_name = _spectrograph
             msgs.info("Spectrograph set to {0}, from argument string".format(_spectrograph))
         elif isinstance(_spectrograph, Spectrograph):
@@ -146,13 +141,13 @@ class FluxSpec(masterframe.MasterFrame):
         self.extinction_data = None
         if _spectrograph is not None:
             telescope = load_spectrograph(spectrograph=_spectrograph).telescope \
-                                    if isinstance(_spectrograph, basestring) \
+                                    if isinstance(_spectrograph, str) \
                                     else _spectrograph.telescope
             self.extinction_data \
-                    = arflux.load_extinction_data(telescope['longitude'], telescope['latitude'])
+                    = flux.load_extinction_data(telescope['longitude'], telescope['latitude'])
         elif self.sci_header is not None and 'LON-OBS' in self.sci_header.keys():
             self.extinction_data \
-                    = arflux.load_extinction_data(self.sci_header['LON-OBS'],
+                    = flux.load_extinction_data(self.sci_header['LON-OBS'],
                                                   self.sci_header['LAT-OBS'])
        
         # Once the spectrograph is instantiated, can also set the
@@ -163,7 +158,7 @@ class FluxSpec(masterframe.MasterFrame):
 
         # Main outputs
         self.sensfunc = None if self.sens_file is None \
-                            else armasters._load(self.sens_file, frametype=self.frametype)[0] 
+                            else masters._load(self.sens_file, frametype=self.frametype)[0]
 
         # Attributes
         self.steps = []
@@ -178,7 +173,7 @@ class FluxSpec(masterframe.MasterFrame):
         """
         Identify the standard star from the list of all spectra in the specobjs
 
-          Wrapper to arflux.find_standard which simply takes the brightest
+          Wrapper to flux.find_standard which simply takes the brightest
 
         Returns
         -------
@@ -190,7 +185,7 @@ class FluxSpec(masterframe.MasterFrame):
             # Find the standard in each detector
             for det in self.multi_det:
                 stds = [sobj for sobj in self.std_specobjs if sobj.det == det]
-                idx = arflux.find_standard(stds)
+                idx = flux.find_standard(stds)
                 sv_stds.append(stds[idx])
                 msgs.info("Using standard {} for det={}".format(stds[idx], det))
             # Now splice
@@ -206,7 +201,7 @@ class FluxSpec(masterframe.MasterFrame):
         else:
             # Find brightest object in the exposures
             # Searches over all slits (over all detectors), and all objects
-            self.std_idx = arflux.find_standard(self.std_specobjs)
+            self.std_idx = flux.find_standard(self.std_specobjs)
             # Set internal
             self.std = self.std_specobjs[self.std_idx]
             # Step
@@ -218,7 +213,7 @@ class FluxSpec(masterframe.MasterFrame):
         """
         Generate the senstivity function
 
-        Wrapper to arflux.generate_sensfunc
+        Wrapper to flux.generate_sensfunc
           Requires self.std has been set
 
         Returns
@@ -236,10 +231,10 @@ class FluxSpec(masterframe.MasterFrame):
             return None
 
         # Get extinction correction
-        extinction_corr = arflux.extinction_correction(self.std.boxcar['wave'],
+        extinction_corr = flux.extinction_correction(self.std.boxcar['wave'],
                                                        self.std_header['AIRMASS'],
                                                        self.extinction_data)
-        self.sensfunc = arflux.generate_sensfunc(self.std, self.std_header['RA'],
+        self.sensfunc = flux.generate_sensfunc(self.std, self.std_header['RA'],
                                                  self.std_header['DEC'],
                                                  self.std_header['EXPTIME'], extinction_corr)
 
@@ -253,7 +248,7 @@ class FluxSpec(masterframe.MasterFrame):
         Flux an input list of SpecObj objects
           Can be packed in detector, slit, etc. or as a simple list
 
-        Wrapper to arflux.apply_sensfunc()
+        Wrapper to flux.apply_sensfunc()
 
         Parameters
         ----------
@@ -266,24 +261,24 @@ class FluxSpec(masterframe.MasterFrame):
 
         """
         # Note the unravel here
-        for sci_obj in arutils.unravel_specobjs(specobjs):
+        for sci_obj in utils.unravel_specobjs(specobjs):
             if sci_obj is not None:
                 # Do it
-                arflux.apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime,
+                flux.apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime,
                                       self.extinction_data)
 
     def flux_science(self):
         """
         Flux the internal list of sci_specobjs
 
-        Wrapper to arflux.apply_sensfunc()
+        Wrapper to flux.apply_sensfunc()
 
         Returns
         -------
 
         """
         for sci_obj in self.sci_specobjs:
-            arflux.apply_sensfunc(sci_obj, self.sensfunc, self.sci_header['AIRMASS'],
+            flux.apply_sensfunc(sci_obj, self.sensfunc, self.sci_header['AIRMASS'],
                                   self.sci_header['EXPTIME'], self.extinction_data)
         self.steps.append(inspect.stack()[0][3])
 
@@ -307,7 +302,7 @@ class FluxSpec(masterframe.MasterFrame):
             msgs.warn("You need to load in the Standard spectra first!")
             return None
         #
-        if isinstance(obj_id, basestring):
+        if isinstance(obj_id, str):
             names = [spobj.idx for spobj in self.std_specobjs]
             self.std_idx = names.index(obj_id)
         elif isinstance(obj_id, int): # Extension number
@@ -387,7 +382,7 @@ class FluxSpec(masterframe.MasterFrame):
         # Add steps
         self.sensfunc['steps'] = self.steps
         # yamlify
-        ysens = arutils.yamlify(self.sensfunc)
+        ysens = utils.yamlify(self.sensfunc)
         with open(outfile, 'w') as yamlf:
             yamlf.write(yaml.dump(ysens))
         #
@@ -402,7 +397,7 @@ class FluxSpec(masterframe.MasterFrame):
             return None
         # Generate from model
         wave = np.linspace(self.sensfunc['wave_min'], self.sensfunc['wave_max'], 1000)
-        mag_func = arutils.func_val(self.sensfunc['c'], wave, self.sensfunc['func'])
+        mag_func = utils.func_val(self.sensfunc['c'], wave, self.sensfunc['func'])
         sens = 10.0**(0.4*mag_func)
         # Plot
         debugger.plot1d(wave, sens, xlbl='Wavelength', ylbl='Sensitivity Function')
@@ -432,7 +427,7 @@ class FluxSpec(masterframe.MasterFrame):
             telescope = TelescopePar(longitude=self.sci_header['LON-OBS'],
                                      latitude=self.sci_header['LAT-OBS'],
                                      elevation=self.sci_header['ALT-OBS'])
-        arsave.save_1d_spectra_fits(self.sci_specobjs, self.sci_header, outfile,
+        save.save_1d_spectra_fits(self.sci_specobjs, self.sci_header, outfile,
                                     helio_dict=helio_dict, telescope=telescope, clobber=True)
         # Step
         self.steps.append(inspect.stack()[0][3])
