@@ -8,9 +8,8 @@ from pkg_resources import resource_filename
 
 from arclines.io import load_line_list
 
-from pypit import msgs
-from pypit import arparse as settings
-from pypit import ardebug as debugger
+from pypeit import msgs
+from pypeit import debugger
 
 
 def parse_nist(ion):

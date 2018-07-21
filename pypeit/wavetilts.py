@@ -12,19 +12,16 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit import ginga
-from pypeit.core import ararc
-from pypeit.core import artracewave
-from pypeit.core import armasters
+from pypeit.core import arc
+from pypeit.core import tracewave
+from pypeit.core import masters
 from pypeit.par import pypeitpar
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit.spectrographs.util import load_spectrograph
 
-try:
-    basestring
-except NameError:
-    basestring = str
 
 class WaveTilts(masterframe.MasterFrame):
     """Class to guide slit/order tracing
@@ -74,7 +71,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Instantiate the spectograph
         # TODO: (KBW) Do we need this?  It's only used to get the
         # non-linear counts and the name of the master directory
-        if isinstance(spectrograph, basestring):
+        if isinstance(spectrograph, str):
             self.spectrograph = load_spectrograph(spectrograph=spectrograph)
         elif isinstance(spectrograph, Spectrograph):
             self.spectrograph = spectrograph
@@ -129,14 +126,14 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Arc
-        msarc_file = armasters.core_master_name('arc', setup, mdir)
-        msarc, _, _ = armasters._load(msarc_file)
+        msarc_file = masters.core_master_name('arc', setup, mdir)
+        msarc, _, _ = masters._load(msarc_file)
 
         # Instantiate
         slf = cls(msarc, setup=setup)
 
         # Tilts
-        mstilts_file = armasters.core_master_name('tilts', setup, mdir)
+        mstilts_file = masters.core_master_name('tilts', setup, mdir)
         hdul = fits.open(mstilts_file)
         slf.final_tilts = hdul[0].data
         slf.tilts = slf.final_tilts
@@ -172,7 +169,7 @@ class WaveTilts(masterframe.MasterFrame):
         """
         Analyze the tilts of the arc lines in a given slit/order
 
-        Wrapper to artracewave.analyze_lines()
+        Wrapper to tracewave.analyze_lines()
 
         Parameters
         ----------
@@ -184,7 +181,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         self.badlines, self.all_ttilts[slit] \
-                = artracewave.analyze_lines(self.msarc, self.all_trcdict[slit], slit,
+                = tracewave.analyze_lines(self.msarc, self.all_trcdict[slit], slit,
                                             self.tslits_dict['pixcen'], order=self.par['order'],
                                             function=self.par['function'])
         if self.badlines > 0:
@@ -199,7 +196,7 @@ class WaveTilts(masterframe.MasterFrame):
         """
         Extract the arcs down each slit/order
 
-        Wrapper to ararc.get_censpec()
+        Wrapper to arc.get_censpec()
 
         Returns
         -------
@@ -208,7 +205,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Extract an arc down each slit/order
-        self.arccen, self.arc_maskslit, _ = ararc.get_censpec(self.tslits_dict['lcen'],
+        self.arccen, self.arc_maskslit, _ = arc.get_censpec(self.tslits_dict['lcen'],
                                                               self.tslits_dict['rcen'],
                                                               self.pixlocn, self.msarc, self.det,
                                                               gen_satmask=gen_satmask)
@@ -233,7 +230,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.tilts : ndarray
 
         """
-        self.tilts, self.outpar = artracewave.fit_tilts(self.msarc, slit, self.all_ttilts[slit],
+        self.tilts, self.outpar = tracewave.fit_tilts(self.msarc, slit, self.all_ttilts[slit],
                                                         order=self.par['order'],
                                                         yorder=self.par['yorder'],
                                                         func2D=self.par['func2D'],
@@ -271,7 +268,7 @@ class WaveTilts(masterframe.MasterFrame):
         nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation'] \
                                 * self.spectrograph.detector[self.det-1]['nonlinear']
 
-        trcdict = artracewave.trace_tilt(self.tslits_dict['pixcen'], self.tslits_dict['lcen'],
+        trcdict = tracewave.trace_tilt(self.tslits_dict['pixcen'], self.tslits_dict['lcen'],
                                          self.tslits_dict['rcen'], self.det, self.msarc, slit,
                                          nonlinear_counts, idsonly=self.par['idsonly'],
                                          censpec=self.arccen[:, slit], nsmth=3,
@@ -346,7 +343,7 @@ class WaveTilts(masterframe.MasterFrame):
     def _qa(self, slit):
         """
         QA
-          Wrapper to artraceslits.slit_trace_qa()
+          Wrapper to traceslits.slit_trace_qa()
 
         Parameters
         ----------
@@ -356,7 +353,7 @@ class WaveTilts(masterframe.MasterFrame):
         -------
 
         """
-        self.tiltsplot, self.ztilto, self.xdat = artracewave.prep_tilts_qa(
+        self.tiltsplot, self.ztilto, self.xdat = tracewave.prep_tilts_qa(
             self.msarc, self.all_ttilts[slit], self.tilts, self.all_trcdict[slit]['arcdet'],
             self.pixcen, slit)
 

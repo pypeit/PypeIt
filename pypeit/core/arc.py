@@ -8,14 +8,13 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
-#from pypeit import arparse as settings
-from pypeit import arparse
+from pypeit.core import parse
 from pypeit import msgs
-from pypeit import arutils
+from pypeit import utils
 from pypeit import ararclines
-from pypeit import arqa
-from pypeit import arpixels
-from pypeit import ardebug as debugger
+from pypeit.core import qa
+from pypeit.core import pixels
+from pypeit import debugger
 
 # TODO: This should not be a core algorithm
 def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
@@ -54,7 +53,7 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
 
     # Instrument/disperser specific
     disperser = fitstbl["dispname"][arc_idx]
-    binspatial, binspectral = arparse.parse_binning(fitstbl['binning'][arc_idx])
+    binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
     modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl,
                                                arc_idx=arc_idx, binspatial=binspatial,
                                                binspectral=binspectral, msarc_shape=msarc_shape)
@@ -99,7 +98,7 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, ge
       Saturation mask
       None if gen_satmask=False
     """
-    dnum = arparse.get_dnum(det)
+    dnum = parse.get_dnum(det)
 
     ordcen = 0.5*(lordloc+rordloc)
     ordwid = 0.5*np.abs(lordloc-rordloc)
@@ -134,9 +133,9 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, ge
     if tordcen is None:
         msgs.warn("Could not determine which slits are fully on the detector")
         msgs.info("Assuming all slits are fully on the detector")
-        ordcen = arpixels.phys_to_pix(ordcen, pixlocn, 1)
+        ordcen = pixels.phys_to_pix(ordcen, pixlocn, 1)
     else:
-        ordcen = arpixels.phys_to_pix(tordcen[:,w], pixlocn, 1)
+        ordcen = pixels.phys_to_pix(tordcen[:,w], pixlocn, 1)
 
     pixcen = np.arange(frame.shape[0])
     temparr = pixcen.reshape(frame.shape[0], 1).repeat(ordcen.shape[1], axis=1)
@@ -265,7 +264,7 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
             continue  # Probably won't be a good solution
         # Fit the gaussian
         try:
-            popt = arutils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)
+            popt = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)
             ampl[p] = popt[0]
             cent[p] = popt[1]
             widt[p] = popt[2]
@@ -425,11 +424,11 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
         #msgs.info('n_order={:d}'.format(n_order))
         # Fit with rejection
         xfit, yfit = tcent[ifit], all_ids[ifit]
-        mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
+        mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask == 0]) + sv_ifit
         # Find new points (should we allow removal of the originals?)
-        twave = arutils.func_val(fit, tcent, aparm['func'], minv=fmin, maxv=fmax)
+        twave = utils.func_val(fit, tcent, aparm['func'], minv=fmin, maxv=fmax)
         for ss,iwave in enumerate(twave):
             mn = np.min(np.abs(iwave-llist['wave']))
             if mn/aparm['disp'] < aparm['match_toler']:
@@ -454,7 +453,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     # Final fit (originals can now be rejected)
     fmin, fmax = 0., 1.
     xfit, yfit = tcent[ifit]/(msarc.shape[0]-1), all_ids[ifit]
-    mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)#, debug=True)
+    mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)#, debug=True)
     irej = np.where(mask==1)[0]
     if len(irej) > 0:
         xrej = xfit[irej]
@@ -469,7 +468,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     ions = all_idsion[ifit][mask==0]
     #
     if msgs._debug['arc']:
-        wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
+        wave = utils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
             'legendre', minv=fmin, maxv=fmax)
         debugger.set_trace()
 
@@ -478,13 +477,13 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
         #debugger.xplot(xfit,yfit, scatter=True, xtwo=np.arange(msarc.shape[0]),
         #    ytwo=wave)
         #debugger.set_trace()
-        #wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
+        #wave = utils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
         #    'legendre', min=fmin, max=fmax)
 
     # 2nd order Poly fit for archival
     #get_poly=True
     if get_poly:
-        poly_fit = arutils.func_fit(yfit,xfit, 'polynomial',2, minv=fmin, maxv=fmax)
+        poly_fit = utils.func_fit(yfit,xfit, 'polynomial',2, minv=fmin, maxv=fmax)
         print(' Most likely you with to record these values:')
         print(poly_fit)
         debugger.set_trace()
@@ -496,8 +495,8 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     # QA
     #arc_fit_qa(slf, final_fit, slit)
     # RMS
-    rms_ang = arutils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
-    wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
+    rms_ang = utils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
+    wave = utils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
                             aparm['func'], minv=fmin, maxv=fmax)
     rms_pix = rms_ang/np.median(np.abs(wave-np.roll(wave,1)))
     msgs.info("Fit RMS = {} pix".format(rms_pix))
@@ -632,7 +631,7 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None):
     method = inspect.stack()[0][3]
     # Outfil
     if outfile is None:
-        outfile = arqa.set_qa_filename(setup, method, slit=slit)
+        outfile = qa.set_qa_filename(setup, method, slit=slit)
     #
     arc_spec = fit['spec']
 
@@ -683,7 +682,7 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None):
             edgecolor='gray', facecolor='none')
     # Solution
     xval = np.arange(len(arc_spec))
-    wave = arutils.func_val(fit['fitc'], xval/fit['xnorm'], 'legendre',
+    wave = utils.func_val(fit['fitc'], xval/fit['xnorm'], 'legendre',
         minv=fit['fmin'], maxv=fit['fmax'])
     ax_fit.plot(xval, wave, 'r-')
     xmin, xmax = 0., len(arc_spec)
@@ -693,7 +692,7 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None):
     ax_fit.set_ylabel('Wavelength')
     ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
     # Stats
-    wave_fit = arutils.func_val(fit['fitc'], fit['xfit'], 'legendre',
+    wave_fit = utils.func_val(fit['fitc'], fit['xfit'], 'legendre',
         minv=fit['fmin'], maxv=fit['fmax'])
     rms = np.sqrt(np.sum((fit['yfit']-wave_fit)**2)/len(fit['xfit'])) # Ang
     dwv_pix = np.median(np.abs(wave-np.roll(wave,1)))

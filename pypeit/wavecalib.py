@@ -11,20 +11,16 @@ from matplotlib import pyplot as plt
 
 from pypeit import msgs
 from pypeit import masterframe
-from pypeit.core import ararc
-from pypeit.core import armasters
-from pypeit.core import arsort
+from pypeit.core import arc
+from pypeit.core import masters
+from pypeit.core import sort
 from pypeit.par import pypeitpar
 
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
-try:
-    basestring
-except NameError:
-    basestring = str
 
 
 class WaveCalib(masterframe.MasterFrame):
@@ -77,7 +73,7 @@ class WaveCalib(masterframe.MasterFrame):
                  mode=None, fitstbl=None, sci_ID=None, arcparam=None):
 
         # Instantiate the spectograph
-        if isinstance(spectrograph, basestring):
+        if isinstance(spectrograph, str):
             self.spectrograph = load_spectrograph(spectrograph=spectrograph)
         elif isinstance(spectrograph, Spectrograph):
             self.spectrograph = spectrograph
@@ -117,13 +113,13 @@ class WaveCalib(masterframe.MasterFrame):
         """
         Main routine to generate the wavelength solutions in a loop over slits
 
-        Wrapper to ararc.simple_calib or ararc.calib_with_arclines
+        Wrapper to arc.simple_calib or arc.calib_with_arclines
 
         Parameters
         ----------
         method : str
-          'simple' -- ararc.simple_calib
-          'arclines' -- ararc.calib_with_arclines
+          'simple' -- arc.simple_calib
+          'arclines' -- arc.calib_with_arclines
         skip_QA : bool, optional
 
         Returns
@@ -138,16 +134,16 @@ class WaveCalib(masterframe.MasterFrame):
             ###############
             # Extract arc and identify lines
             if method == 'simple':
-                iwv_calib = ararc.simple_calib(self.msarc, self.arcparam, self.arccen[:, slit],
+                iwv_calib = arc.simple_calib(self.msarc, self.arcparam, self.arccen[:, slit],
                                                nfitpix=self.par['nfitpix'],
                                                IDpixels=self.par['IDpixels'],
                                                IDwaves=self.par['IDwaves'])
             elif method == 'arclines':
-                iwv_calib = ararc.calib_with_arclines(self.arcparam, self.arccen[:, slit])
+                iwv_calib = arc.calib_with_arclines(self.arcparam, self.arccen[:, slit])
             self.wv_calib[str(slit)] = iwv_calib.copy()
             # QA
             if not skip_QA:
-                ararc.arc_fit_qa(self.setup, iwv_calib, slit)
+                arc.arc_fit_qa(self.setup, iwv_calib, slit)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -157,14 +153,14 @@ class WaveCalib(masterframe.MasterFrame):
         """
         User method to calibrate a given spectrum from a chosen slit
 
-        Wrapper to ararc.simple_calib or ararc.calib_with_arclines
+        Wrapper to arc.simple_calib or arc.calib_with_arclines
 
         Parameters
         ----------
         slit : int
         method : str, optional
-          'simple' -- ararc.simple_calib
-          'arclines' -- ararc.calib_with_arclines
+          'simple' -- arc.simple_calib
+          'arclines' -- arc.calib_with_arclines
 
         Returns
         -------
@@ -174,9 +170,9 @@ class WaveCalib(masterframe.MasterFrame):
         """
         spec = self.wv_calib[str(slit)]['spec']
         if method == 'simple':
-            iwv_calib = ararc.simple_calib(self.msarc, self.arcparam, self.arccen[:, slit])
+            iwv_calib = arc.simple_calib(self.msarc, self.arcparam, self.arccen[:, slit])
         elif method == 'arclines':
-            iwv_calib = ararc.calib_with_arclines(self.arcparam, spec)
+            iwv_calib = arc.calib_with_arclines(self.arcparam, spec)
         else:
             msgs.error("Not an allowed method")
         return iwv_calib
@@ -185,7 +181,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         Extract an arc down the center of each slit/order
 
-        Wrapper to ararc.get_censpec
+        Wrapper to arc.get_censpec
 
         Parameters
         ----------
@@ -205,7 +201,7 @@ class WaveCalib(masterframe.MasterFrame):
         nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation'] \
                                 * self.spectrograph.detector[self.det-1]['nonlinear']
         self.arccen, self.maskslits, _ \
-                    = ararc.get_censpec(lordloc, rordloc, pixlocn, self.msarc, self.det,
+                    = arc.get_censpec(lordloc, rordloc, pixlocn, self.msarc, self.det,
                                         nonlinear_counts=nonlinear_counts, gen_satmask=False)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -229,9 +225,9 @@ class WaveCalib(masterframe.MasterFrame):
           self.arcparam
 
         """
-        self.wv_calib, _, _ =  armasters._load(filename, frametype=self.frametype)
+        self.wv_calib, _, _ =  masters._load(filename, frametype=self.frametype)
         # Recast a few items as arrays
-        # TODO -- Consider pushing into armaster
+        # TODO -- Consider pushing into master
         for key in self.wv_calib.keys():
             if key in ['steps', 'arcparam']:  # This isn't really necessary
                 continue
@@ -246,7 +242,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         Load the arc parameters
 
-        Wrapper to ararc.setup_param
+        Wrapper to arc.setup_param
 
         Parameters
         ----------
@@ -258,8 +254,8 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         # Setup arc parameters (e.g. linelist)
-        arc_idx = arsort.ftype_indices(self.fitstbl, 'arc', self.sci_ID)
-        self.arcparam = ararc.setup_param(self.spectrograph, self.msarc.shape, self.fitstbl,
+        arc_idx = sort.ftype_indices(self.fitstbl, 'arc', self.sci_ID)
+        self.arcparam = arc.setup_param(self.spectrograph, self.msarc.shape, self.fitstbl,
                                           arc_idx[0], calibrate_lamps=calibrate_lamps)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -308,7 +304,7 @@ class WaveCalib(masterframe.MasterFrame):
         pixlocn : ndarray
           From a TraceSlit object
         nonlinear : float, optional
-          Would be passed to ararc.detect_lines but that routine is
+          Would be passed to arc.detect_lines but that routine is
           currently being run in arclines.holy
         skip_QA : bool, optional
 
@@ -379,7 +375,7 @@ class WaveCalib(masterframe.MasterFrame):
             ax.set_ylabel('Counts')
             plt.show()
         elif item == 'fit':
-            ararc.arc_fit_qa(None, self.wv_calib[str(slit)], slit, outfile='show')
+            arc.arc_fit_qa(None, self.wv_calib[str(slit)], slit, outfile='show')
 
     def __repr__(self):
         # Generate sets string

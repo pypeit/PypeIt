@@ -8,7 +8,7 @@ from pypeit import msgs
 from pypeit import processimages
 from pypeit.par import pypeitpar
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 # TODO: This syntax for instantiaion differs slightlhy from ArcIMage,
 # and I think they need to be homogenized.
