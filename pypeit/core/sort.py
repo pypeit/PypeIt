@@ -1,17 +1,6 @@
 """ Routines for sorting data to be reduced by PYPIT"""
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-try:
-    basestring
-except NameError:
-    basestring = str
-
-'''
-try:
-    input = raw_input
-except NameError:
-    pass
-'''
 
 import os
 import re
@@ -26,9 +15,9 @@ from astropy import units
 
 from pypeit import msgs
 #from pypeit import arparse as settings
-from pypeit import arutils
-from pypeit.core.arflux import find_standard_file
-from pypeit import ardebug as debugger
+from pypeit import utils
+from pypeit.core.flux import find_standard_file
+from pypeit import debugger
 
 # TODO: (KBW) You know my comment about this...
 ftype_list = [     # NOTE:  arc must be listed first!
@@ -499,7 +488,7 @@ def write_lst(fitstbl, skeys, pypeit_filename, setup=False,
             typv = type(fitstbl[i][0])
             if typv is int or typv is np.int_:
                 prdtp.append("int")
-            elif isinstance(fitstbl[i][0], basestring) or typv is np.string_:
+            elif isinstance(fitstbl[i][0], str) or typv is np.string_:
                 prdtp.append("char")
             elif typv is float or typv is np.float_:
                 prdtp.append("double")
@@ -1051,7 +1040,7 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     identify frames with a similar appearance (i.e. one frame appears to be a scaled version of another).
     """
 
-    prob = arutils.erf(criteria/np.sqrt(2.0))[0]
+    prob = utils.erf(criteria/np.sqrt(2.0))[0]
     frsh0, frsh1, frsh2 = frames.shape
     msgs.info("Matching {:d} {:s} frames with confidence interval {:5.3%}".format(frsh2, frametype, prob))
     srtframes = [np.zeros((frsh0, frsh1, 1))]

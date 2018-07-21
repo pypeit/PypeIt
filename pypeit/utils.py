@@ -1,10 +1,5 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-try:
-    basestring
-except NameError:  # For Python 3
-    basestring = str
-
 import os
 import warnings
 import itertools
@@ -12,7 +7,6 @@ import itertools
 import numpy as np
 
 from scipy.optimize import curve_fit
-from scipy.special import erf
 from scipy import interpolate
 
 from astropy import units
@@ -25,7 +19,7 @@ from astropy.convolution import convolve, Gaussian1DKernel
 from pypeit.core import pydl
 
 from pypeit import msgs
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 def quicksave(data,fname):
     """
@@ -1086,7 +1080,7 @@ def yamlify(obj, debug=False):
         obj = bool(obj)
 #    elif isinstance(obj, bytes):
 #        obj = obj.decode('utf-8')
-    elif isinstance(obj, (np.string_, basestring)):
+    elif isinstance(obj, (np.string_, str)):
         obj = str(obj)
     elif isinstance(obj, units.Quantity):
         try:
@@ -1099,7 +1093,7 @@ def yamlify(obj, debug=False):
         # First convert keys
         nobj = {}
         for key, value in obj.items():
-            if isinstance(key, basestring):
+            if isinstance(key, str):
                 nobj[str(key)] = value
             else:
                 nobj[key] = value

@@ -8,7 +8,7 @@ import numpy as np
 from warnings import warn
 
 from pypeit import msgs
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 
 # Licensed under a 3-clause BSD style license - see LICENSE.rst

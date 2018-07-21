@@ -1,3 +1,3 @@
 
-from pypit.par.pypitpar import PypitPar
+from pypeit.par.pypeitpar import PypeItPar
 

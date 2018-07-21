@@ -2,24 +2,18 @@
 """
 from __future__ import absolute_import, division, print_function
 
-try:
-    basestring
-except NameError:  # For Python 3
-    basestring = str
 
-import glob
 
 import numpy as np
 
-from astropy.io import fits
 
 from pypeit import msgs
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
-from pypeit.core import arsort
+from pypeit.core import sort
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 
 class ShaneKastSpectrograph(spectrograph.Spectrograph):
@@ -127,14 +121,14 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         cond_dict = self.kast_cond_dict(ftype)
 
         # Do it
-        gd_chk = arsort.chk_all_conditions(fitstbl, cond_dict)
+        gd_chk = sort.chk_all_conditions(fitstbl, cond_dict)
 
         return gd_chk
 
     def get_match_criteria(self):
         """Set the general matching criteria for Shane Kast."""
         match_criteria = {}
-        for key in arsort.ftype_list:
+        for key in sort.ftype_list:
             match_criteria[key] = {}
 
         match_criteria['standard']['match'] = {}

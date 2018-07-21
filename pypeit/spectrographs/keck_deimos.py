@@ -8,14 +8,14 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit import arparse
+from pypeit.core import parse
 from pypeit.par.pypeitpar import DetectorPar
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
-from pypeit.core import arsort
+from pypeit.core import sort
 from pypeit.par import pypeitpar
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     """
@@ -278,7 +278,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def get_match_criteria(self):
         match_criteria = {}
-        for key in arsort.ftype_list:
+        for key in sort.ftype_list:
             match_criteria[key] = {}
 
         # Standard
@@ -467,7 +467,7 @@ def read_deimos(raw_file, det=None):
     preline = head0['PRELINE']
     postline = head0['POSTLINE']
     detlsize = head0['DETLSIZE']
-    x0, x_npix, y0, y_npix = np.array(arparse.load_sections(detlsize)).flatten()
+    x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
 
     # Create final image
     if det is None:
@@ -579,8 +579,8 @@ def deimos_read_1chip(hdu,chipno):
     postpix = hdu[0].header['POSTPIX']
     precol = hdu[0].header['PRECOL']
 
-    x1_dat, x2_dat, y1_dat, y2_dat = np.array(arparse.load_sections(datsec)).flatten()
-    x1_det, x2_det, y1_det, y2_det = np.array(arparse.load_sections(detsec)).flatten()
+    x1_dat, x2_dat, y1_dat, y2_dat = np.array(parse.load_sections(datsec)).flatten()
+    x1_det, x2_det, y1_det, y2_det = np.array(parse.load_sections(detsec)).flatten()
 
     # This rotates the image to be increasing wavelength to the top
     #data = np.rot90((hdu[chipno].data).T, k=2)

@@ -2,12 +2,6 @@
 """
 from __future__ import absolute_import, division, print_function
 
-try:
-    basestring
-except NameError:  # For Python 3
-    basestring = str
-
-import glob
 
 import numpy as np
 
@@ -16,7 +10,7 @@ from pypeit.par.pypeitpar import DetectorPar
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 class TngDoloresSpectrograph(spectrograph.Spectrograph):
     """

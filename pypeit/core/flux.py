@@ -20,8 +20,8 @@ except ImportError:
     pass
 
 from pypeit import msgs
-from pypeit import arutils
-from pypeit import ardebug as debugger
+from pypeit import utils
+from pypeit import debugger
 
 
 def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EXTRAP=0.05):
@@ -50,7 +50,7 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EX
         dwv = sensfunc['wave_max']-sensfunc['wave_min']
         inds = ((wave >= sensfunc['wave_min']-dwv*MAX_EXTRAP)
             & (wave <= sensfunc['wave_max']+dwv*MAX_EXTRAP))
-        mag_func = arutils.func_val(sensfunc['c'], wave[inds],
+        mag_func = utils.func_val(sensfunc['c'], wave[inds],
                                     sensfunc['func'])
         sens = 10.0**(0.4*mag_func)
         # Extinction
@@ -102,7 +102,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
                 dwv = slf._sensfunc['wave_max']-slf._sensfunc['wave_min']
                 inds = ((wave >= slf._sensfunc['wave_min']-dwv*MAX_EXTRAP)
                         & (wave <= slf._sensfunc['wave_max']+dwv*MAX_EXTRAP))
-                mag_func = arutils.func_val(slf._sensfunc['c'], wave[inds],
+                mag_func = utils.func_val(slf._sensfunc['c'], wave[inds],
                                             slf._sensfunc['func'])
                 sens = 10.0**(0.4*mag_func)
                 # Extinction
@@ -161,9 +161,9 @@ def bspline_magfit(wave, flux, var, flux_std, bspline_par=None):
     '''
 
     #  First iteration
-    mask, tck = arutils.robust_polyfit(wave, magfunc, 3, function='bspline', weights=np.sqrt(logivar),
+    mask, tck = utils.robust_polyfit(wave, magfunc, 3, function='bspline', weights=np.sqrt(logivar),
                                        bspline_par=bspline_par)
-    logfit1 = arutils.func_val(tck,wave,'bspline')
+    logfit1 = utils.func_val(tck,wave,'bspline')
     modelfit1 = 10.0**(0.4*(logfit1))
 
     residual = sensfunc/(modelfit1 + (modelfit1 == 0)) - 1.
@@ -183,12 +183,12 @@ def bspline_magfit(wave, flux, var, flux_std, bspline_par=None):
 
     #  Now do one more fit to the ratio of data/model - 1.
     # Fuss with the knots first ()
-    inner_knots = arutils.bspline_inner_knots(tck[0])
+    inner_knots = utils.bspline_inner_knots(tck[0])
     #
     if bspline_par is None:
         bspline_par = {}
     bspline_par['knots'] = inner_knots # This over-rides everyn
-    mask, tck_residual = arutils.robust_polyfit(wave, residual, 3, function='bspline',
+    mask, tck_residual = utils.robust_polyfit(wave, residual, 3, function='bspline',
                                                 weights=np.sqrt(residual_ivar), bspline_par=bspline_par) #**kwargs)
     if tck_residual[1].size != tck[1].size:
         msgs.error('Problem with bspline knots in bspline_magfit')
@@ -197,7 +197,7 @@ def bspline_magfit(wave, flux, var, flux_std, bspline_par=None):
     tck_log1 = list(tck)
     tck_log1[1] = tck[1] + tck_residual[1]
 
-    sensfit = 10.0**(0.4*(arutils.func_val(tck_log1,wave, 'bspline')))
+    sensfit = 10.0**(0.4*(utils.func_val(tck_log1,wave, 'bspline')))
 
     absdev = np.median(np.abs(sensfit/modelfit1-1))
     msgs.info('Difference between fits is {:g}'.format(absdev))
@@ -427,7 +427,7 @@ def find_standard(specobjs):
 
     """
     # Repackage as necessary (some backwards compatability)
-    all_specobj = arutils.unravel_specobjs(specobjs)
+    all_specobj = utils.unravel_specobjs(specobjs)
     # Do it
     medfx = []
     for indx, spobj in enumerate(all_specobj):

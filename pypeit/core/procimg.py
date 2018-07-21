@@ -11,15 +11,11 @@ from scipy import signal, ndimage
 
 from pypeit import msgs
 
-from pypeit import arutils
-from pypeit import arparse
+from pypeit import utils
+from pypeit.core import parse
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
-try:
-    basestring
-except NameError:
-    basestring = str
 
 # TODO: Add sigdev to the high-level parameter set so that it can be
 # changed by the user?
@@ -36,7 +32,7 @@ def find_bad_pixels(bias, numamplifiers, datasec, sigdev=10.0, trim=True):
         datasec (list):
             List of slices, one per amplifier, that contain the data in
             the raw frame.  The slices and be lists of slice ojects or
-            strings.  If they are strings, :func:`arparse.sec2slice` is
+            strings.  If they are strings, :func:`parse.sec2slice` is
             used to convert them for use in the function.
         sigdev (:obj:`float`, optional):
             Number of robust standard deviations beyond which to flag
@@ -60,7 +56,7 @@ def find_bad_pixels(bias, numamplifiers, datasec, sigdev=10.0, trim=True):
     if isinstance(datasec[0], str):
         _datasec = datasec.copy()
         for i in range(numamplifiers):
-            _datasec[i] = arparse.sec2slice(datasec[i], require_dim=2)
+            _datasec[i] = parse.sec2slice(datasec[i], require_dim=2)
     else:
         _datasec = datasec
 
@@ -234,7 +230,7 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
     :param grow: Once CRs are identified, grow each CR detection by all pixels within this radius
     :return: mask of cosmic rays (0=no CR, 1=CR)
     """
-    dnum = arparse.get_dnum(det)
+    dnum = parse.get_dnum(det)
 
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
 #    msgs.work("Include these parameters in the settings files to be adjusted by the user")
@@ -263,10 +259,10 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
         msgs.info("Convolving image with Laplacian kernel")
         # Subsample, convolve, clip negative values, and rebin to original size
         #set_trace()
-        subsam = arutils.subsample(scicopy)
+        subsam = utils.subsample(scicopy)
         conved = signal.convolve2d(subsam, laplkernel, mode="same", boundary="symm")
         cliped = conved.clip(min=0.0)
-        lplus = arutils.rebin(cliped, np.array(cliped.shape)/2.0)
+        lplus = utils.rebin(cliped, np.array(cliped.shape)/2.0)
 
         msgs.info("Creating noise model")
         # Build a custom noise map, and compare  this to the laplacian
@@ -512,13 +508,13 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
         datasec (list):
             List of slices, one per amplifier, that contain the data in
             the raw frame.  The slices and be lists of slice ojects or
-            strings.  If they are strings, :func:`arparse.sec2slice` is
+            strings.  If they are strings, :func:`parse.sec2slice` is
             used to convert them for use in the function.
         oscansec (list):
             List of slices, one per amplifier, that contain the
             overscane regions in the raw frame.  The slices and be lists
             of slice ojects or strings.  If they are strings,
-            :func:`arparse.sec2slice` is used to convert them for use in
+            :func:`parse.sec2slice` is used to convert them for use in
             the function.
         method (:obj:`str`, optional):
             The method used to fit the overscan region.  Options are
@@ -541,14 +537,14 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
     if isinstance(datasec[0], str):
         _datasec = datasec.copy()
         for i in range(numamplifiers):
-            _datasec[i] = arparse.sec2slice(datasec[i], require_dim=2)
+            _datasec[i] = parse.sec2slice(datasec[i], require_dim=2)
     else:
         _datasec = datasec
             
     if isinstance(oscansec[0], str):
         _oscansec = oscansec.copy()
         for i in range(numamplifiers):
-            _oscansec[i] = arparse.sec2slice(oscansec[i], require_dim=2)
+            _oscansec[i] = parse.sec2slice(oscansec[i], require_dim=2)
     else:
         _oscansec = oscansec
     

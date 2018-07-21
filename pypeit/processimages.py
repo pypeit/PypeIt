@@ -10,8 +10,8 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import ginga
 from pypeit.core import combine
-from pypeit.core import arprocimg
-from pypeit.core import arflat
+from pypeit.core import procimg
+from pypeit.core import flat
 from pypeit.core import parse
 
 from pypeit.par import pypeitpar
@@ -227,7 +227,7 @@ class ProcessImages(object):
         # efficient?
         datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
         if trim:
-            datasec_img = arprocimg.trim_frame(datasec_img, datasec_img < 1)
+            datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)
         if self.stack.shape != datasec_img.shape:
             raise ValueError('Shape mismatch: {0} {1}'.format(self.stack.shape, datasec_img.shape))
         
@@ -235,7 +235,7 @@ class ProcessImages(object):
         if self.spectrograph.detector[self.det-1]['numamplifiers'] == 1 \
                 and not isinstance(gain, list):
             gain = [gain]
-        self.stack *= arprocimg.gain_frame(datasec_img,
+        self.stack *= procimg.gain_frame(datasec_img,
                                            self.spectrograph.detector[self.det-1]['numamplifiers'],
                                            gain)
         # Step
@@ -280,13 +280,13 @@ class ProcessImages(object):
         numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
         for kk,image in enumerate(self.raw_images):
 
-            # Bias subtract (move here from arprocimg)
+            # Bias subtract (move here from procimg)
             if isinstance(msbias, np.ndarray):
                 msgs.info("Subtracting bias image from raw frame")
                 temp = image-msbias
             elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
-                temp = arprocimg.subtract_overscan(image, numamplifiers, self.datasec,
+                temp = procimg.subtract_overscan(image, numamplifiers, self.datasec,
                                                    self.oscansec,
                                                    method=self.proc_par['overscan'],
                                                    params=self.proc_par['overscan_par'])
@@ -295,7 +295,7 @@ class ProcessImages(object):
 
             # Trim?
             if trim:
-                temp = arprocimg.trim_frame(temp, datasec_img < 1)
+                temp = procimg.trim_frame(temp, datasec_img < 1)
 
             # Save
             if kk==0:
@@ -339,7 +339,7 @@ class ProcessImages(object):
         """
         Generate the CR mask frame
 
-        Wrapper to arprocimg.lacosmic
+        Wrapper to procimg.lacosmic
 
         Parameters
         ----------
@@ -360,7 +360,7 @@ class ProcessImages(object):
         # Run LA Cosmic to get the cosmic ray mask
         saturation = self.spectrograph.detector[self.det-1]['saturation']
         nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
-        self.crmask = arprocimg.lacosmic(self.det, self.stack, saturation, nonlinear,
+        self.crmask = procimg.lacosmic(self.det, self.stack, saturation, nonlinear,
                                          varframe=varframe, maxiter=self.proc_par['lamaxiter'],
                                          grow=self.proc_par['grow'],
                                          remove_compact_obj=self.proc_par['rmcompact'],
@@ -398,7 +398,7 @@ class ProcessImages(object):
             msgs.error('No bpm for {0}'.format(self.spectrograph.spectrograph))
 
         # Flat-field the data and return the result
-        self.stack = arflat.flatfield(self.stack, self.pixel_flat, self.bpm,
+        self.stack = flat.flatfield(self.stack, self.pixel_flat, self.bpm,
                                       slitprofile=self.slitprof)
         return self.stack
 
@@ -444,10 +444,10 @@ class ProcessImages(object):
             temp = self.raw_images[0]
             if trim:
                 datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
-                temp = arprocimg.trim_frame(temp, datasec_img < 1)
+                temp = procimg.trim_frame(temp, datasec_img < 1)
             self.proc_images = np.zeros((temp.shape[0], temp.shape[1], self.nloaded))
             for kk,image in enumerate(self.raw_images):
-                self.proc_images[:,:,kk] = arprocimg.trim_frame(image, datasec_img < 1) \
+                self.proc_images[:,:,kk] = procimg.trim_frame(image, datasec_img < 1) \
                                                 if trim else image
 
         # Combine
@@ -470,7 +470,7 @@ class ProcessImages(object):
 
         Currently only used by ScienceImage.
 
-        Wrapper to arprocimg.variance_frame
+        Wrapper to procimg.variance_frame
 
         Returns
         -------
@@ -480,9 +480,9 @@ class ProcessImages(object):
         msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
         datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
         if trim:
-            datasec_img = arprocimg.trim_frame(datasec_img, datasec_img < 1)
+            datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)
         detector = self.spectrograph.detector[self.det-1]
-        self.rawvarframe = arprocimg.variance_frame(datasec_img, self.stack,
+        self.rawvarframe = procimg.variance_frame(datasec_img, self.stack,
                                                     detector['gain'], detector['ronoise'],
                                                     numamplifiers=detector['numamplifiers'],
                                                     darkcurr=detector['darkcurr'],

@@ -14,13 +14,13 @@ from matplotlib import pyplot as plt
 
 from pypeit import msgs
 
-from pypeit import arutils
+from pypeit import utils
 #from pypeit import arparse as settings
-from pypeit import arparse
-from pypeit import arqa
-from pypeit import arpca
+from pypeit.core import parse
+from pypeit.core import qa
+from pypeit.core import pca
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 
 def get_ampscale(datasec_img, msflat, namp):
@@ -159,16 +159,16 @@ def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid,
     if tcky.size >= 2:
         yb, ye = min(np.min(specval), tcky[0]), max(np.max(specval), tcky[-1])
         bspline_par = dict(xmin=yb, xmax=ye, everyn=specval[wsp].size//tcky.size)  # knots=tcky)
-        mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 3, function='bspline',
+        mask, blzspl = utils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 3, function='bspline',
                                               sigma=5., maxone=False, bspline_par=bspline_par)
         #xmin=yb, xmax=ye, everyn=specval[wsp].size//tcky.size)  # knots=tcky)
-        blz_flat = arutils.func_val(blzspl, specval, 'bspline')
-        msblaze_slit = arutils.func_val(blzspl, np.linspace(0.0, 1.0, slordloc.shape[0]), 'bspline')
+        blz_flat = utils.func_val(blzspl, specval, 'bspline')
+        msblaze_slit = utils.func_val(blzspl, np.linspace(0.0, 1.0, slordloc.shape[0]), 'bspline')
     else:
-        mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 2, function='polynomial',
+        mask, blzspl = utils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 2, function='polynomial',
                                               sigma=5., maxone=False)
-        blz_flat = arutils.func_val(blzspl, specval, 'polynomial')
-        msblaze_slit = arutils.func_val(blzspl, np.linspace(0.0, 1.0, slordloc.shape[0]), 'polynomial')
+        blz_flat = utils.func_val(blzspl, specval, 'polynomial')
+        msblaze_slit = utils.func_val(blzspl, np.linspace(0.0, 1.0, slordloc.shape[0]), 'polynomial')
         iextrap_slit = 1.0
 
     # Extract a spectrum of the trace frame
@@ -191,16 +191,16 @@ def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid,
     if tckx.size >= 1:
         xb, xe = min(np.min(spatval), tckx[0]), max(np.max(spatval), tckx[-1])
         bspline_par = dict(xmin=xb, xmax=xe, everyn=specval[wch].size//tckx.size)  # knots=tcky)
-        mask, sltspl = arutils.robust_polyfit(spatval[wch][srt], sprof_fit[wch][srt], 3, function='bspline',
+        mask, sltspl = utils.robust_polyfit(spatval[wch][srt], sprof_fit[wch][srt], 3, function='bspline',
                                               sigma=5., maxone=False, bspline_par=bspline_par)
         #xmin=xb, xmax=xe, everyn=spatval[wch].size//tckx.size)  #, knots=tckx)
-        slt_flat = arutils.func_val(sltspl, spatval, 'bspline')
-        sltnrmval = arutils.func_val(sltspl, 0.5, 'bspline')
+        slt_flat = utils.func_val(sltspl, spatval, 'bspline')
+        sltnrmval = utils.func_val(sltspl, 0.5, 'bspline')
     else:
-        mask, sltspl = arutils.robust_polyfit(spatval[srt], sprof_fit[srt], 2, function='polynomial',
+        mask, sltspl = utils.robust_polyfit(spatval[srt], sprof_fit[srt], 2, function='polynomial',
                                               sigma=5., maxone=False)
-        slt_flat = arutils.func_val(sltspl, spatval, 'polynomial')
-        sltnrmval = arutils.func_val(sltspl, 0.5, 'polynomial')
+        slt_flat = utils.func_val(sltspl, spatval, 'polynomial')
+        sltnrmval = utils.func_val(sltspl, 0.5, 'polynomial')
         iextrap_slit = 1.0
 
     modvals = blz_flat * slt_flat
@@ -289,7 +289,7 @@ def norm_slits(mstrace, datasec_img, lordloc, rordloc, pixwid,
       Mask indicating if a slit is well-determined (0) or poor (1). If the latter, the slit profile
       and blaze function for those slits should be extrapolated or determined from another means
     """
-    dnum = arparse.get_dnum(det)
+    dnum = parse.get_dnum(det)
     nslits = lordloc.shape[1]
 
     # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
@@ -444,14 +444,14 @@ def slit_profile_pca(mstrace, tilts, msblaze, extrap_slit, slit_profiles,
         if extrap_slit[o] == 1:
             continue
         wmask = np.where(msblaze[:, o] != 0.0)[0]
-        null, bcoeff = arutils.robust_polyfit(specfit[wmask], msblaze[wmask, o],
+        null, bcoeff = utils.robust_polyfit(specfit[wmask], msblaze[wmask, o],
                                               ordfit, function=fitfunc, sigma=2.0,
                                               minv=0.0, maxv=mstrace.shape[0])
         fitcoeff[:, o] = bcoeff
 
     lnpc = len(ofit) - 1
     xv = np.arange(mstrace.shape[0])
-    blzval = arutils.func_val(fitcoeff, xv, fitfunc,
+    blzval = utils.func_val(fitcoeff, xv, fitfunc,
                               minv=0.0, maxv=mstrace.shape[0] - 1).T
     # Only do a PCA if there are enough good orders
     if np.sum(1.0 - extrap_slit) > ofit[0] + 1:
@@ -459,15 +459,15 @@ def slit_profile_pca(mstrace, tilts, msblaze, extrap_slit, slit_profiles,
         msgs.info("Performing a PCA on the spectral blaze function")
         ordsnd = np.arange(nslits) + 1.0
         xcen = xv[:, np.newaxis].repeat(nslits, axis=1)
-        fitted, outpar = arpca.basis(xcen, blzval, fitcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
+        fitted, outpar = pca.basis(xcen, blzval, fitcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
                                      function=fitfunc)
         if not msgs._debug['no_qa']:
 #            arqa.pca_plot(slf, outpar, ofit, "Blaze_Profile", pcadesc="PCA of blaze function fits")
-            arpca.pca_plot(slf.setup, outpar, ofit, "Blaze_Profile",
+            pca.pca_plot(slf.setup, outpar, ofit, "Blaze_Profile",
                            pcadesc="PCA of blaze function fits")
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(nslits)
-        extrap_blz, outpar = arpca.extrapolate(outpar, orders, function=fitfunc)
+        extrap_blz, outpar = pca.extrapolate(outpar, orders, function=fitfunc)
         extrap_blz *= blzmean
         extrap_blz *= blzmxval
     else:
@@ -516,13 +516,13 @@ def slit_profile_pca(mstrace, tilts, msblaze, extrap_slit, slit_profiles,
         if extrap_slit[o] == 1:
             continue
         wmask = np.where(mskslit[:, o] == 1.0)[0]
-        null, bcoeff = arutils.robust_polyfit(spatfit[wmask], msslits[wmask, o],
+        null, bcoeff = utils.robust_polyfit(spatfit[wmask], msslits[wmask, o],
                                               sordfit, function=fitfunc, sigma=2.0,
                                               minv=spatfit[0], maxv=spatfit[-1])
         fitcoeff[:, o] = bcoeff
 
     lnpc = len(sofit) - 1
-    sltval = arutils.func_val(fitcoeff, spatfit, fitfunc,
+    sltval = utils.func_val(fitcoeff, spatfit, fitfunc,
                               minv=spatfit[0], maxv=spatfit[-1]).T
     # Only do a PCA if there are enough good orders
     if np.sum(1.0 - extrap_slit) > sofit[0] + 1:
@@ -530,14 +530,14 @@ def slit_profile_pca(mstrace, tilts, msblaze, extrap_slit, slit_profiles,
         msgs.info("Performing a PCA on the spatial slit profiles")
         ordsnd = np.arange(nslits) + 1.0
         xcen = spatfit[:, np.newaxis].repeat(nslits, axis=1)
-        fitted, outpar = arpca.basis(xcen, sltval, fitcoeff, lnpc, sofit, x0in=ordsnd, mask=maskord, skipx0=False,
+        fitted, outpar = pca.basis(xcen, sltval, fitcoeff, lnpc, sofit, x0in=ordsnd, mask=maskord, skipx0=False,
                                      function=fitfunc)
         if not msgs._debug['no_qa']:
 #            arqa.pca_plot(slf, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
-            arpca.pca_plot(setup, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
+            pca.pca_plot(setup, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(nslits)
-        extrap_slt, outpar = arpca.extrapolate(outpar, orders, function=fitfunc)
+        extrap_slt, outpar = pca.extrapolate(outpar, orders, function=fitfunc)
         extrap_slt *= sltmean
         extrap_slt *= mskslit
     else:
@@ -594,12 +594,12 @@ def slit_profile_qa(mstrace, model, lordloc, rordloc, msordloc, textplt="Slit", 
     # Outfile
     method = inspect.stack()[0][3]
     if outroot is None:
-        outroot = arqa.set_qa_filename(setup, method)
+        outroot = qa.set_qa_filename(setup, method)
 
     npix, nord = lordloc.shape
     nbins = 40
     bins = np.linspace(-0.25, 1.25, nbins+1)
-    pages, npp = arqa.get_dimen(nord, maxp=maxp)
+    pages, npp = qa.get_dimen(nord, maxp=maxp)
     # Loop through all pages and plot the results
     ndone = 0
     axesIdx = True
@@ -841,12 +841,12 @@ def flatnorm(slf, det, msflat, bpix, maskval=-999999.9, overpix=6, plotdesc=""):
             if np.where(gdp)[0].size < 2*everyn:
                 msgs.warn("Not enough pixels in slit {0:d} to fit a bspline")
                 continue
-            bspl = arutils.func_fit(tilts[gdp][srt], msflat[gdp][srt], 'bspline', 3, everyn=everyn)
-            model_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
+            bspl = utils.func_fit(tilts[gdp][srt], msflat[gdp][srt], 'bspline', 3, everyn=everyn)
+            model_flat = utils.func_val(bspl, tilts.flatten(), 'bspline')
             model = model_flat.reshape(tilts.shape)
             word = np.where(ordpix == o + 1)
             msnormflat[word] = msflat[word] / model[word]
-            msblaze[:, o] = arutils.func_val(bspl, np.linspace(0.0, 1.0, msflat.shape[0]), 'bspline')
+            msblaze[:, o] = utils.func_val(bspl, np.linspace(0.0, 1.0, msflat.shape[0]), 'bspline')
             mskord[word] = 1.0
             flat_ext1d[:, o] = np.sum(msflat * mskord, axis=1) / np.sum(mskord, axis=1)
             mskord *= 0.0

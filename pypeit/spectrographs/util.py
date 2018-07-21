@@ -6,7 +6,7 @@ import numpy as np
 from pypeit import msgs
 from pypeit import spectrographs
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 # TODO: Allow the spectrographs to be identified by their camera?  Won't
 # work for 'shane_kast_red' and 'shane_kast_red_ret'.

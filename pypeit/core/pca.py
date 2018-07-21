@@ -8,8 +8,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from pypeit import msgs
-from pypeit import arutils
-from pypeit import arqa
+from pypeit import utils
+from pypeit.core import qa
 
 def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None,
           function='polynomial'):
@@ -30,7 +30,7 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
     # Do the PCA analysis
     eigc, hidden = get_pc(coeff[1:npc+1, usetrace], npc)
 
-    modl = arutils.func_vander(xfit[:,0], function, npc)
+    modl = utils.func_vander(xfit[:,0], function, npc)
     eigv = np.dot(modl[:,1:], eigc)
 
     med_hidden = np.median(hidden, axis=1)
@@ -40,28 +40,28 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
     high_order_matrix = med_highorder.T[np.newaxis,:].repeat(ntrace, axis=0)
 
     # y = hidden[0,:]
-    # coeff0 = arutils.robust_regression(x0in[usetrace], y, pnpc[1], 0.1, function=function)
+    # coeff0 = utils.robust_regression(x0in[usetrace], y, pnpc[1], 0.1, function=function)
 
     # y = hidden[1,:]
-    # coeff1 = arutils.robust_regression(x0in[usetrace], y, pnpc[2], 0.1, function=function)
+    # coeff1 = utils.robust_regression(x0in[usetrace], y, pnpc[2], 0.1, function=function)
 
     coeffstr = []
     for i in range(1, npc+1):
         # if pnpc[i] == 0:
         #     coeffstr.append([-9.99E9])
         #     continue
-        # coeff0 = arutils.robust_regression(x0in[usetrace], hidden[i-1,:], pnpc[i], 0.1, function=function, min=x0in[0], max=x0in[-1])
+        # coeff0 = utils.robust_regression(x0in[usetrace], hidden[i-1,:], pnpc[i], 0.1, function=function, min=x0in[0], max=x0in[-1])
         if weights is not None:
-            tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1, :], pnpc[i],
+            tmask, coeff0 = utils.robust_polyfit(x0in[usetrace], hidden[i-1, :], pnpc[i],
                                                    weights=weights[usetrace], sigma=2.0, function=function,
                                                    minv=x0in[0], maxv=x0in[-1])
         else:
-            tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1, :], pnpc[i],
+            tmask, coeff0 = utils.robust_polyfit(x0in[usetrace], hidden[i-1, :], pnpc[i],
                                                    sigma=2.0, function=function,
                                                    minv=x0in[0], maxv=x0in[-1])
         coeffstr.append(coeff0)
-        high_order_matrix[:, i-1] = arutils.func_val(coeff0, x0in, function, minv=x0in[0], maxv=x0in[-1])
-    # high_order_matrix[:,1] = arutils.func_val(coeff1, x0in, function)
+        high_order_matrix[:, i-1] = utils.func_val(coeff0, x0in, function, minv=x0in[0], maxv=x0in[-1])
+    # high_order_matrix[:,1] = utils.func_val(coeff1, x0in, function)
     high_fit = high_order_matrix.copy()
 
     high_order_fit = np.dot(eigv, high_order_matrix.T)
@@ -85,9 +85,9 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
             x0[good] = numer[good]/denom[good]
             imask = np.zeros(ntrace, dtype=np.float)
             imask[bad] = 1.0
-            ttmask, x0res = arutils.robust_polyfit(x0in, x0, pnpc[0], weights=weights, sigma=2.0,
+            ttmask, x0res = utils.robust_polyfit(x0in, x0, pnpc[0], weights=weights, sigma=2.0,
                                                    function=function, minv=x0in[0], maxv=x0in[-1], initialmask=imask)
-            x0fit = arutils.func_val(x0res, x0in, function, minv=x0in[0], maxv=x0in[-1])
+            x0fit = utils.func_val(x0res, x0in, function, minv=x0in[0], maxv=x0in[-1])
             good = np.where(ttmask == 0)[0]
             xstd = 1.0  # This should represent the dispersion in the fit
             chisq = ((x0[good]-x0fit[good])/xstd)**2.0
@@ -98,10 +98,10 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
             for i in range(1, 5):
                 good = np.where(fitmask != 0)[0]
                 x0[good] = numer[good]/denom[good]
-#				x0res = arutils.robust_regression(x0in[good],x0[good],pnpc[0],0.2,function=function)
-                x0res = arutils.func_fit(x0in[good], x0[good], function, pnpc[0],
+#				x0res = utils.robust_regression(x0in[good],x0[good],pnpc[0],0.2,function=function)
+                x0res = utils.func_fit(x0in[good], x0[good], function, pnpc[0],
                                          weights=weights, minv=x0in[0], maxv=x0in[-1])
-                x0fit = arutils.func_val(x0res, x0in, function, minv=x0in[0], maxv=x0in[-1])
+                x0fit = utils.func_val(x0res, x0in, function, minv=x0in[0], maxv=x0in[-1])
                 chisq = (x0[good]-x0fit[good])**2.0
                 fitmask[good] *= (chisq < np.sum(chisq)/2.0).astype(np.int)
                 chisqnu = np.sum(chisq)/np.sum(fitmask)
@@ -155,7 +155,7 @@ def do_pca(data, cov=False):
 def extrapolate(outpar, ords, function='polynomial'):
     nords = ords.size
 
-    x0ex = arutils.func_val(outpar['x0res'], ords, function,
+    x0ex = utils.func_val(outpar['x0res'], ords, function,
                             minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
 
     # Order centre
@@ -164,7 +164,7 @@ def extrapolate(outpar, ords, function='polynomial'):
         if outpar['coeffstr'][i-1][0] == -9.99E9:
             high_matr[:,i-1] = np.ones(nords)*outpar['high_fit'][0,i-1]
             continue
-        high_matr[:,i-1] = arutils.func_val(outpar['coeffstr'][i-1], ords, function,
+        high_matr[:,i-1] = utils.func_val(outpar['coeffstr'][i-1], ords, function,
                                             minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
     extfit = np.dot(outpar['eigv'], high_matr.T) + np.outer(x0ex, np.ones(outpar['eigv'].shape[0])).T
     outpar['high_matr'] = high_matr
@@ -173,16 +173,16 @@ def extrapolate(outpar, ords, function='polynomial'):
 
 def refine_iter(outpar, orders, mask, irshft, relshift, fitord, function='polynomial'):
     fail = False
-    x0ex = arutils.func_val(outpar['x0res'], orders, function,  minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
+    x0ex = utils.func_val(outpar['x0res'], orders, function,  minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
     # Make the refinement
     x0ex[irshft] += relshift
     # Refit the data to improve the refinement
     good = np.where(mask != 0.0)[0]
-#	x0res = arutils.robust_regression(x0in[good],x0[good],pnpc[0],0.2,function=function)
-    null, x0res = arutils.robust_polyfit(orders[good], x0ex[good], fitord, sigma=2.0, function=function,
+#	x0res = utils.robust_regression(x0in[good],x0[good],pnpc[0],0.2,function=function)
+    null, x0res = utils.robust_polyfit(orders[good], x0ex[good], fitord, sigma=2.0, function=function,
                                          minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
-    #x0res = arutils.func_fit(orders[good], x0ex[good], function, fitord, min=outpar['x0in'][0], max=outpar['x0in'][-1])
-    x0fit = arutils.func_val(x0res, orders, function, minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
+    #x0res = utils.func_fit(orders[good], x0ex[good], function, fitord, min=outpar['x0in'][0], max=outpar['x0in'][-1])
+    x0fit = utils.func_val(x0res, orders, function, minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
     chisq = (x0ex[good]-x0fit[good])**2.0
     chisqnu = np.sum(chisq)/np.sum(mask)
     msgs.prindent("  Reduced chi-squared = {0:E}".format(chisqnu))

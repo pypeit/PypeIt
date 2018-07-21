@@ -2,12 +2,6 @@
 """
 from __future__ import absolute_import, division, print_function
 
-try:
-    basestring
-except NameError:  # For Python 3
-    basestring = str
-
-import glob
 
 import numpy as np
 
@@ -16,9 +10,9 @@ from pypeit.par.pypeitpar import DetectorPar
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
 from pypeit.par import pypeitpar
-from pypeit.core import arsort
+from pypeit.core import sort
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 class WhtIsisSpectrograph(spectrograph.Spectrograph):
     """
@@ -127,7 +121,7 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
 
     def get_match_criteria(self):
         match_criteria = {}
-        for key in arsort.ftype_list:
+        for key in sort.ftype_list:
             match_criteria[key] = {}
 
         # Standard
