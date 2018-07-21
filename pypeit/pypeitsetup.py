@@ -8,23 +8,23 @@ import numpy as np
 
 from astropy.table import hstack, Table
 
-from pypit import msgs
-from pypit import arload
-from pypit import arparse
-from pypit.core import arsort
-from pypit.core import arsetup
+from pypeit import msgs
+from pypeit import arload
+from pypeit import arparse
+from pypeit.core import arsort
+from pypeit.core import arsetup
 
-from pypit.par import PypitPar
-from pypit.par.util import parse_pypit_file
-from pypit.spectrographs.util import load_spectrograph
+from pypeit.par import PypitPar
+from pypeit.par.util import parse_pypeit_file
+from pypeit.spectrographs.util import load_spectrograph
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 class PypitSetup(object):
     """
-    Prepare for a pypit run.
+    Prepare for a pypeit run.
 
-    The main deliverables are the set of parameters used for pypit's
+    The main deliverables are the set of parameters used for pypeit's
     algorithms (:attr:`par`), an :obj:`astropy.table.Table` with the
     details of the files to be reduced (:attr:`fitstbl`), and a
     dictionary with the list of instrument setups.
@@ -43,14 +43,14 @@ class PypitSetup(object):
             None, all files are expected to be for a single setup.
         cfg_lines (:obj:`list`, optional):
             A list of strings that provide a set of user-defined
-            parameters for executing pypit.  These are the lines of a
+            parameters for executing pypeit.  These are the lines of a
             configuration file.  See the documentation for the
             `configobj`_ package.  One of the user-level inputs should
             be the spectrograph that provided the data to be reduced.
             One can get the list of spectrographs currently served by
             running::
                 
-                from pypit.spectrographs.util import valid_spectrographs
+                from pypeit.spectrographs.util import valid_spectrographs
                 print(valid_spectrographs())
 
             To use all the default parameters when reducing data from a
@@ -61,16 +61,16 @@ class PypitSetup(object):
             (`cfg_lines`), this sets the spectrograph.  The spectrograph
             defined in `cfg_lines` takes precedent over anything
             provided by this argument.
-        pypit_file (:obj:`str`, optional):
-            The name of the pypit file used to instantiate the
+        pypeit_file (:obj:`str`, optional):
+            The name of the pypeit file used to instantiate the
             reduction.  This can be None, and will lead to default names
-            for output files (TODO: Give list).  Setting `pypit_file`
+            for output files (TODO: Give list).  Setting `pypeit_file`
             here *only sets the name of the file*.  To instantiate a
-            `PypitSetup` object directly from a pypit file (i.e. by
-            reading the file), use the :func:`from_pypit_file` method;
+            `PypitSetup` object directly from a pypeit file (i.e. by
+            reading the file), use the :func:`from_pypeit_file` method;
             i.e.::
                 
-                setup = PypitSetup.from_pypit_file('myfile.pypit')
+                setup = PypitSetup.from_pypeit_file('myfile.pypeit')
 
     Attributes:
         file_list (list):
@@ -79,14 +79,14 @@ class PypitSetup(object):
             See description of class argument.
         setups (list):
             See description of class argument.
-        pypit_file (str):
+        pypeit_file (str):
             See description of class argument.
-        spectrograph (:class:`pypit.spectrographs.spectrograph.Spectrograph`):
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             An instance of the `Spectograph` class used throughout the
             reduction procedures.
-        par (:class:`pypit.par.pypitpar.PypitPar`):
+        par (:class:`pypeit.par.pypeitpar.PypitPar`):
             An instance of the `PypitPar` class that provides the
-            parameters to all the algorthms that pypit uses to reduce
+            parameters to all the algorthms that pypeit uses to reduce
             the data.
         fitstbl (:class:`astropy.table.Table`):
             A `Table` that provides the salient metadata for the fits
@@ -97,12 +97,12 @@ class PypitSetup(object):
         setup_dict (dict):
             The dictionary with the list of instrument setups.
         steps (list):
-            The steps run to provide the pypit setup.
+            The steps run to provide the pypeit setup.
 
     .. _configobj: http://configobj.readthedocs.io/en/latest/
     """
     def __init__(self, file_list, frametype=None, setups=None, cfg_lines=None,
-                 spectrograph_name=None, pypit_file=None):
+                 spectrograph_name=None, pypeit_file=None):
 
         # The provided list of files cannot be None
         if file_list is None or len(file_list) == 0:
@@ -112,7 +112,7 @@ class PypitSetup(object):
         self.file_list = file_list
         self.frametype = frametype
         self.setups = setups
-        self.pypit_file = pypit_file
+        self.pypeit_file = pypeit_file
 
         # Determine the spectrograph name
         _spectrograph_name = spectrograph_name if cfg_lines is None \
@@ -127,9 +127,9 @@ class PypitSetup(object):
 
         # Get the spectrograph specific configuration to be merged with
         # the user modifications.
-        spectrograph_cfg_lines = self.spectrograph.default_pypit_par().to_config()
+        spectrograph_cfg_lines = self.spectrograph.default_pypeit_par().to_config()
 
-        # Instantiate the pypit parameters.  The user input
+        # Instantiate the pypeit parameters.  The user input
         # configuration (cfg_lines) can be None.
         self.par = PypitPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
 
@@ -140,22 +140,22 @@ class PypitSetup(object):
         self.steps = []
 
     @classmethod
-    def from_pypit_file(cls, filename):
+    def from_pypeit_file(cls, filename):
         """
-        Instantiate the :class:`PypitSetup` object using a pypit file.
+        Instantiate the :class:`PypitSetup` object using a pypeit file.
 
         Args:
             filename (str):
-                Name of the pypit file to read.  Pypit files have a
+                Name of the pypeit file to read.  Pypit files have a
                 specific set of valid formats. A description can be
                 found `here`_ (include doc link).
         
         Returns:
             :class:`PypitSetup`: The instance of the class.
         """
-        cfg_lines, data_files, frametype, setups = parse_pypit_file(filename)
+        cfg_lines, data_files, frametype, setups = parse_pypeit_file(filename)
         return cls(data_files, frametype=frametype, setups=setups, cfg_lines=cfg_lines,
-                   pypit_file=filename)
+                   pypeit_file=filename)
 
     @property
     def nfiles(self):
@@ -182,7 +182,7 @@ class PypitSetup(object):
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
 
-    def build_group_dict(self, pypit_file=None):
+    def build_group_dict(self, pypeit_file=None):
         """
         Builds a group dict and writes to disk
           This may be Deprecated (if the .sorted files are deemed too unintersting)
@@ -201,8 +201,8 @@ class PypitSetup(object):
         # TODO: Move this to a method that writes the sorted file
         # Write .sorted file
         if len(self.group_dict) > 0:
-            group_file = 'tmp.sorted' if pypit_file is None or len(pypit_file) == 0 \
-                                else pypit_file.replace('.pypit', '.sorted')
+            group_file = 'tmp.sorted' if pypeit_file is None or len(pypeit_file) == 0 \
+                                else pypeit_file.replace('.pypeit', '.sorted')
             arsetup.write_sorted(group_file, self.fitstbl, self.group_dict, self.setup_dict)
             msgs.info("Wrote group dict to {:s}".format(group_file))
         else:
@@ -364,7 +364,7 @@ class PypitSetup(object):
         overwrite : bool (optional)
         """
         if outfile is None:
-            outfile = self.pypit_file.replace('.pypit', '.fits')
+            outfile = self.pypeit_file.replace('.pypeit', '.fits')
         self.fitstbl.write(outfile, overwrite=overwrite)
 
     def run(self, setup_only=False, calibration_check=False, use_header_frametype=False,
@@ -410,8 +410,8 @@ class PypitSetup(object):
                 The directory to put the '.sorted' file.
 
         Returns:
-            :class:`pypit.par.pypitpar.PypitPar`,
-            :class:`pypit.spectrographs.spectrograph.Spectrograph`,
+            :class:`pypeit.par.pypeitpar.PypitPar`,
+            :class:`pypeit.spectrographs.spectrograph.Spectrograph`,
             :class:`astropy.table.Table`, dict: Returns the attributes
             :attr:`par`, :attr:`spectrograph`, :attr:`fitstbl`, and
             :attr:`setup_dict`.  If running with `setup_only` or
@@ -419,7 +419,7 @@ class PypitSetup(object):
             values.
         """
         # Kludge
-        pypit_file = '' if self.pypit_file is None else self.pypit_file
+        pypeit_file = '' if self.pypeit_file is None else self.pypeit_file
 
         # Build fitstbl
         if self.fitstbl is None:
@@ -432,7 +432,7 @@ class PypitSetup(object):
         # Write?
         if sort_dir is not None:
             print('WRITING: {0}'.format(sort_dir))
-            arsort.write_lst(self.fitstbl, self.spectrograph.header_keys(), pypit_file,
+            arsort.write_lst(self.fitstbl, self.spectrograph.header_keys(), pypeit_file,
                              setup=setup_only, sort_dir=sort_dir)
 
         # Match calibs to science
@@ -442,17 +442,17 @@ class PypitSetup(object):
         self.build_setup_dict(setup_only=setup_only)
 
         if setup_only:
-            # Collate all matching files and write .sorted Table (on pypit_setup only)
-            self.build_group_dict(pypit_file=pypit_file)
+            # Collate all matching files and write .sorted Table (on pypeit_setup only)
+            self.build_group_dict(pypeit_file=pypeit_file)
 
             # Write the setup file
-            setup_file = 'tmp.setups' if pypit_file is None or len(pypit_file) == 0 \
-                                else pypit_file.replace('.pypit', '.setups')
+            setup_file = 'tmp.setups' if pypeit_file is None or len(pypeit_file) == 0 \
+                                else pypeit_file.replace('.pypeit', '.setups')
             arsetup.write_setup(self.setup_dict, setup_file=setup_file)
         else:
             # Write the calib file
-            calib_file = 'tmp.calib' if pypit_file is None or len(pypit_file) == 0 \
-                                else pypit_file.replace('.pypit', '.calib')
+            calib_file = 'tmp.calib' if pypeit_file is None or len(pypeit_file) == 0 \
+                                else pypeit_file.replace('.pypeit', '.calib')
             arsetup.write_calib(calib_file, self.setup_dict)
 
         # Finish (depends on PYPIT run mode)

@@ -7,12 +7,12 @@ import os
 
 #from importlib import reload
 
-from pypit import msgs
-from pypit import arutils
-from pypit import masterframe
-from pypit import ginga
+from pypeit import msgs
+from pypeit import arutils
+from pypeit import masterframe
+from pypeit import ginga
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 class WaveImage(masterframe.MasterFrame):
     """Class to generate the Wavelength Image

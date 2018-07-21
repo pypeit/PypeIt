@@ -12,7 +12,7 @@ import yaml
 
 # CANNOT INCLUDE msgs IN THIS MODULE AS
 #  THE HTML GENERATION OCCURS FROM msgs
-#from pypit import msgs
+#from pypeit import msgs
 
 #try:
 #    basestring
@@ -296,18 +296,18 @@ def html_exp_pngs(exp_name, det):
     # Return
     return links, body
 
-def gen_mf_html(pypit_file):
+def gen_mf_html(pypeit_file):
     """ Generate the HTML for a MasterFrame set
     Parameters
     ----------
-    pypit_file : str
+    pypeit_file : str
 
     Returns
     -------
 
     """
     # Read calib file
-    calib_file = pypit_file.replace('.pypit', '.calib')
+    calib_file = pypeit_file.replace('.pypeit', '.calib')
     with open(calib_file, 'r') as infile:
         calib_dict = yaml.load(infile)
     # Parse
@@ -370,11 +370,11 @@ def gen_exp_html():
         print("Wrote: {:s}".format(exp_filename))
 
 
-def close_qa(pypit_file):
-    if pypit_file is None:
+def close_qa(pypeit_file):
+    if pypeit_file is None:
         return
     try:
-        gen_mf_html(pypit_file)
+        gen_mf_html(pypeit_file)
     except:  # Likely crashed real early
         pass
     else:

@@ -6,16 +6,16 @@ import numpy as np
 
 #from importlib import reload
 
-from pypit import msgs
-from pypit import processimages
-from pypit.core import armasters
-from pypit import masterframe
-from pypit.core import arsort
-from pypit.core import arflat
-from pypit import ginga
-from pypit.par import pypitpar
+from pypeit import msgs
+from pypeit import processimages
+from pypeit.core import armasters
+from pypeit import masterframe
+from pypeit.core import arsort
+from pypeit.core import arflat
+from pypeit import ginga
+from pypeit.par import pypeitpar
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 # TODO, JFH: I do not understand why ArcImage is its own class whereas
 # there is no class called FlatImage. In principle this is because
@@ -70,7 +70,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                  mode=None, flatpar=None, msbias=None, tslits_dict=None, tilts=None):
 
         # Image processing parameters
-        self.par = pypitpar.FrameGroupPar(self.frametype) if par is None else par
+        self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
         processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
@@ -101,7 +101,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.ntcky = None
 
         # FieldFlattening parameters
-        self.flatpar = pypitpar.FlatFieldPar() if flatpar is None else flatpar
+        self.flatpar = pypeitpar.FlatFieldPar() if flatpar is None else flatpar
 
 
     @property

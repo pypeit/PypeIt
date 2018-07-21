@@ -9,28 +9,28 @@ from abc import ABCMeta
 
 from astropy.table import Table
 
-from pypit import msgs
-from pypit import arpixels
+from pypeit import msgs
+from pypeit import arpixels
 
-from pypit import arcimage
-from pypit import biasframe
-from pypit import bpmimage
-from pypit import flatfield
-from pypit import traceimage
-from pypit import traceslits
-from pypit import wavecalib
-from pypit import wavetilts
-from pypit import waveimage
+from pypeit import arcimage
+from pypeit import biasframe
+from pypeit import bpmimage
+from pypeit import flatfield
+from pypeit import traceimage
+from pypeit import traceslits
+from pypeit import wavecalib
+from pypeit import wavetilts
+from pypeit import waveimage
 
-from pypit.core import arsort
-from pypit.core import armasters
-from pypit.core import arprocimg
+from pypeit.core import arsort
+from pypeit.core import armasters
+from pypeit.core import arprocimg
 
-from pypit.par import pypitpar
-from pypit.spectrographs.util import load_spectrograph
-from pypit.spectrographs.spectrograph import Spectrograph
+from pypeit.par import pypeitpar
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.spectrographs.spectrograph import Spectrograph
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 try:
     basestring
@@ -89,8 +89,8 @@ class Calibrations(object):
         # Instantiate the parameters
         # TODO: How far down through the other classes to we propagate
         # the spectrograph defaults as is done here...
-        self.par = self.spectrograph.default_pypit_par()['calibrations'] if par is None else par
-        if not isinstance(self.par, pypitpar.CalibrationsPar):
+        self.par = self.spectrograph.default_pypeit_par()['calibrations'] if par is None else par
+        if not isinstance(self.par, pypeitpar.CalibrationsPar):
             raise TypeError('Input parameters must be a CalibrationsPar instance.')
 
         # TODO: Kludge for now:  If master_root is provided, it

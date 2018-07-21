@@ -7,19 +7,19 @@ import os
 
 from astropy.io import fits
 
-from pypit import msgs
-from pypit import arcomb
-from pypit.core import arprocimg
-from pypit.core import arflat
-from pypit import ginga
-from pypit import arparse
+from pypeit import msgs
+from pypeit import arcomb
+from pypeit.core import arprocimg
+from pypeit.core import arflat
+from pypeit import ginga
+from pypeit import arparse
 
-from pypit.par import pypitpar
+from pypeit.par import pypeitpar
 
-from pypit.spectrographs.spectrograph import Spectrograph
-from pypit.spectrographs.util import load_spectrograph
+from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit.spectrographs.util import load_spectrograph
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 try:
     basestring
@@ -36,13 +36,13 @@ class ProcessImages(object):
         spectrograph (:obj:`str`, :class:`Spectrograph`):
             The spectrograph from which the data was taken.  Must be
             provided as a string that can be interpreted by
-            :func:`pypit.spectrographs.util.load_spectrograph` or a
+            :func:`pypeit.spectrographs.util.load_spectrograph` or a
             preconstructed instance of :class:`Spectrograph`.
         det (:obj:`int`, optional):
             The 1-indexed number of the detector.  Default is 1.
-        par (:obj:`pypitpar.ProcessImagesPar`, optional):
+        par (:obj:`pypeitpar.ProcessImagesPar`, optional):
             Parameters that dictate the processing of the images.  See
-            `pypit.par.pypitpar.ProcessImagesPar` for the defaults. 
+            `pypeit.par.pypeitpar.ProcessImagesPar` for the defaults. 
 
     Attributes:
         file_list (list):
@@ -88,13 +88,13 @@ class ProcessImages(object):
         # Optional
         self.det = det
 
-        if par is not None and not isinstance(par, pypitpar.ProcessImagesPar):
+        if par is not None and not isinstance(par, pypeitpar.ProcessImagesPar):
             raise TypeError('Provided ParSet for processing images must be type ProcessImagesPar.')
 
         # TODO: This can't be called self.par because it may overwrite
         # the self.par of the derived classes (e.g. BiasFrame).  The may
         # be a better way to do this, but I'm punting for now.
-        self.proc_par = pypitpar.ProcessImagesPar() if par is None else par
+        self.proc_par = pypeitpar.ProcessImagesPar() if par is None else par
 
         # Main (possible) outputs
         self.stack = None
@@ -271,7 +271,7 @@ class ProcessImages(object):
             return
 
         # Set the parameters
-        if par is not None and not isinstance(par, pypitpar.ProcessImagesPar):
+        if par is not None and not isinstance(par, pypeitpar.ProcessImagesPar):
             raise TypeError('Provided ParSet for must be type ProcessImagesPar.')
         if par is not None:
             self.proc_par = par
@@ -321,7 +321,7 @@ class ProcessImages(object):
 
         """
         # Set the parameters
-        if par is not None and not isinstance(par, pypitpar.ProcessImagesPar):
+        if par is not None and not isinstance(par, pypeitpar.ProcessImagesPar):
             raise TypeError('Provided ParSet for must be type ProcessImagesPar.')
         if par is not None:
             self.proc_par = par
@@ -357,7 +357,7 @@ class ProcessImages(object):
 
         """
         # Set the parameters
-        if par is not None and not isinstance(par, pypitpar.ProcessImagesPar):
+        if par is not None and not isinstance(par, pypeitpar.ProcessImagesPar):
             raise TypeError('Provided ParSet for must be type ProcessImagesPar.')
         if par is not None:
             self.proc_par = par

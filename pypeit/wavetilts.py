@@ -9,17 +9,17 @@ import numpy as np
 
 from astropy.io import fits
 
-from pypit import msgs
-from pypit import masterframe
-from pypit import ginga
-from pypit.core import ararc
-from pypit.core import artracewave
-from pypit.core import armasters
-from pypit.par import pypitpar
+from pypeit import msgs
+from pypeit import masterframe
+from pypeit import ginga
+from pypeit.core import ararc
+from pypeit.core import artracewave
+from pypeit.core import armasters
+from pypeit.par import pypeitpar
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
-from pypit.spectrographs.spectrograph import Spectrograph
+from pypeit.spectrographs.spectrograph import Spectrograph
 
 try:
     basestring
@@ -87,7 +87,7 @@ class WaveTilts(masterframe.MasterFrame):
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
                                          directory_path=directory_path, mode=mode)
 
-        self.par = pypitpar.WaveTiltsPar() if par is None else par
+        self.par = pypeitpar.WaveTiltsPar() if par is None else par
 
         # Parameters (but can be None)
         self.msarc = msarc

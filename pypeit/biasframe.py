@@ -7,14 +7,14 @@ import numpy as np
 import os
 
 
-from pypit import msgs
-from pypit.core import armasters
-from pypit.core import arsort
-from pypit import processimages
-from pypit import masterframe
-from pypit.par import pypitpar
+from pypeit import msgs
+from pypeit.core import armasters
+from pypeit.core import arsort
+from pypeit import processimages
+from pypeit import masterframe
+from pypeit.par import pypeitpar
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     """
@@ -64,7 +64,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
                  mode=None, fitstbl=None, sci_ID=None):
 
         # Parameters
-        self.par = pypitpar.FrameGroupPar(self.frametype) if par is None else par
+        self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
         processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,

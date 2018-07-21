@@ -7,9 +7,9 @@ import numpy as np
 
 from matplotlib import pyplot as plt
 
-from pypit import msgs
-from pypit import arutils
-from pypit import arqa
+from pypeit import msgs
+from pypeit import arutils
+from pypeit import arqa
 
 def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None,
           function='polynomial'):

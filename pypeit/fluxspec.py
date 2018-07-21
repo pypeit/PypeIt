@@ -14,19 +14,19 @@ except NameError:  # For Python 3
 
 from astropy import units
 
-from pypit import msgs
-from pypit.core import arflux
-from pypit import arload
-from pypit.core import armasters
-from pypit.core import arsave
-from pypit import arutils
-from pypit import masterframe
+from pypeit import msgs
+from pypeit.core import arflux
+from pypeit import arload
+from pypeit.core import armasters
+from pypeit.core import arsave
+from pypeit import arutils
+from pypeit import masterframe
 
-from pypit.spectrographs.spectrograph import Spectrograph
-from pypit.spectrographs.util import load_spectrograph
-from pypit.par.pypitpar import TelescopePar
+from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.par.pypeitpar import TelescopePar
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 class FluxSpec(masterframe.MasterFrame):
     """Class to guide fluxing

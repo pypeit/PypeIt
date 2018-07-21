@@ -9,17 +9,17 @@ import numpy as np
 
 from matplotlib import pyplot as plt
 
-from pypit import msgs
-from pypit import masterframe
-from pypit.core import ararc
-from pypit.core import armasters
-from pypit.core import arsort
-from pypit.par import pypitpar
+from pypeit import msgs
+from pypeit import masterframe
+from pypeit.core import ararc
+from pypeit.core import armasters
+from pypeit.core import arsort
+from pypeit.par import pypeitpar
 
-from pypit.spectrographs.spectrograph import Spectrograph
-from pypit.spectrographs.util import load_spectrograph
+from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit.spectrographs.util import load_spectrograph
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 try:
     basestring
@@ -93,7 +93,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Required parameters (but can be None)
         self.msarc = msarc
 
-        self.par = pypitpar.WavelengthSolutionPar() if par is None else par
+        self.par = pypeitpar.WavelengthSolutionPar() if par is None else par
 
         # Optional parameters
         self.fitstbl = fitstbl

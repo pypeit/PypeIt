@@ -1,44 +1,12 @@
+""" Module for image combining
+"""
 from __future__ import (print_function, absolute_import, division, unicode_literals)
-
-import time
 
 import numpy as np
 
-from pypit import msgs
-from pypit import arparse as settings
+from pypeit import msgs
 
-
-def comb_frames(frames_arr, det, frametype, **kwargs):
-    """ This method has been reduced to a simple wrapper to the core method.
-    It will be deprecated in a future refactor
-
-    Parameters
-    ----------
-    frames_arr : ndarray (3D)
-      Array of frames to be combined
-    frames_arr
-    det : int
-      Detector index
-    frametype : str, optional
-      What is the type of frame being combining?
-
-    Returns
-    -------
-    comb_frame : ndarray
-
-    """
-    dnum = settings.get_dnum(det)
-    reject = settings.argflag[frametype]['combine']['reject']
-    method = settings.argflag[frametype]['combine']['method']
-    satpix = settings.argflag[frametype]['combine']['satpix']
-    saturation = settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear']
-    return core_comb_frames(frames_arr, frametype=frametype, saturation=saturation,
-                            method=method, satpix=satpix, cosmics=reject['cosmics'],
-                            n_lohi=reject['lowhigh'], sig_lohi=reject['level'],
-                            replace=reject['replace'], **kwargs)
-
-
-def core_comb_frames(frames_arr, printtype=None, frametype='Unknown', saturation=None,
+def comb_frames(frames_arr, printtype=None, frametype='Unknown', saturation=None,
                      maskvalue=1048577, method='weightmean', satpix='reject', cosmics=None,
                      n_lohi=[0,0], sig_lohi=[3.,3.], replace='maxnonsat'):
     """

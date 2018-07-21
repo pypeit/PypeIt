@@ -5,13 +5,13 @@ import os
 import inspect
 import numpy as np
 
-from pypit import msgs
-from pypit import processimages
-from pypit import masterframe
-from pypit.core import arsort
-from pypit.par import pypitpar
+from pypeit import msgs
+from pypeit import processimages
+from pypeit import masterframe
+from pypeit.core import arsort
+from pypeit.par import pypeitpar
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     """
@@ -64,7 +64,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         self.msbias = msbias
 
         # Parameters
-        self.par = pypitpar.FrameGroupPar(self.frametype) if par is None else par
+        self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
         processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,

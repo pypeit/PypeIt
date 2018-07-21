@@ -14,18 +14,18 @@ from astropy.io import fits
 
 from linetools import utils as ltu
 
-from pypit import msgs
-from pypit import ardebug as debugger
-from pypit import arpixels
-from pypit.core import artraceslits
-from pypit.core import arsort
-from pypit import arutils
-from pypit import masterframe
-from pypit import ginga
-from pypit import traceimage
+from pypeit import msgs
+from pypeit import ardebug as debugger
+from pypeit import arpixels
+from pypeit.core import artraceslits
+from pypeit.core import arsort
+from pypeit import arutils
+from pypeit import masterframe
+from pypeit import ginga
+from pypeit import traceimage
 
-from pypit.par import pypitpar
-from pypit.par.util import parset_to_dict
+from pypeit.par import pypeitpar
+from pypeit.par.util import parset_to_dict
 
 try:
     basestring
@@ -126,7 +126,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.pixlocn = pixlocn
 
         # Set the parameters, using the defaults if none are provided
-        self.par = pypitpar.TraceSlitsPar() if par is None else par
+        self.par = pypeitpar.TraceSlitsPar() if par is None else par
 
         # Optional parameters
         self.det = det
@@ -201,7 +201,7 @@ class TraceSlits(masterframe.MasterFrame):
         # updated to use ParSets.
         slit_settings = ts_dict['settings']['trace']['slits']
         slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], binbpx=binbpx,
-                  par=pypitpar.TraceSlitsPar(function=slit_settings['function'],
+                  par=pypeitpar.TraceSlitsPar(function=slit_settings['function'],
                                              polyorder=slit_settings['polyorder'],
                                              medrep=slit_settings['medrep'],
                                              number=slit_settings['number'],

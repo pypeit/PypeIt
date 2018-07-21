@@ -11,18 +11,18 @@ import os
 import numpy as np
 
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
-#from pypit import ardebug as debugger
+#from pypeit import ardebug as debugger
 import pdb as debugger
 
 from ginga.util import grc
 
 from astropy.io import fits
 
-from pypit import msgs
+from pypeit import msgs
 
 # TODO: There needs to be a way to call show_image() without importing
 # arlris, requires a code refactor
-# from pypit import arlris
+# from pypeit import arlris
 
 def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     """ Connect to an active RC Ginga

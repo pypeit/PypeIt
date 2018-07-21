@@ -1,3 +1,5 @@
+""" Module for loading PypeIt files
+"""
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 try:
@@ -13,16 +15,12 @@ from astropy import units
 from astropy.time import Time
 from astropy.io import fits
 from astropy.table import Table
-import yaml
 
-import linetools.utils
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
-from pypit import msgs
-#from pypit import arparse as settings
-from pypit.core import arprocimg
-from pypit import arspecobj
-from pypit import ardebug as debugger
+from pypeit import msgs
+from pypeit import arspecobj
+from pypeit.core import debugger
 
 
 def load_headers(datlines, spectrograph, strict=True):

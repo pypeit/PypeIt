@@ -4,44 +4,16 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 import numpy as np
 
-from pypit import msgs
-from pypit import arparse as settings
-from pypit import ardebug as debugger
+from pypeit import msgs
+from pypeit import debugger
 
 try:
-    from pypit import ginga
+    from pypeit import ginga
 except ImportError:
     pass
 
 
-def gen_pixloc(frame_shape, det, settings_argflag, settings_spect):
-    """ Now a simple wrapper to core_gen_pixloc
-
-    Parameters
-    ----------
-    frame
-    det
-    kwargs
-
-    Returns
-    -------
-
-    """
-    if settings_argflag['reduce']['pixel']['locations'] is None:
-        gen=True
-    elif settings_argflag['reduce']['pixel']['locations'] in ["mstrace"]:
-        gen=False
-    else:
-        msgs.error("NOT READY FOR THIS")
-    dnum = settings.get_dnum(det)
-    xgap = settings_spect[dnum]['xgap']
-    ygap = settings_spect[dnum]['ygap']
-    ysize = settings_spect[dnum]['ysize']
-    # Do it
-    return core_gen_pixloc(frame_shape, xgap=xgap, ygap=ygap, ysize=ysize, gen=gen)
-
-
-def core_gen_pixloc(frame_shape, xgap=0, ygap=0, ysize=1., gen=True):
+def gen_pixloc(frame_shape, xgap=0, ygap=0, ysize=1., gen=True):
     """
     Generate an array of physical pixel coordinates
 
@@ -113,24 +85,8 @@ def phys_to_pix(array, pixlocn, axis):
     pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2).astype(int)
     return pix.ravel() if doravel else pix
 
-#    return phys_to_pix(array, diff)
-#
-#
-#def phys_to_pix(array, diff):
-#    """
-#    .. todo::
-#        Document this!
-#    """
-#    if len(array.shape) > 2:
-#        msgs.error('Input array must have two dimensions or less!')
-#    if len(diff.shape) != 1:
-#        msgs.error('Input difference array must be 1D!')
-#    _array = np.atleast_2d(array)
-#    doravel = len(array.shape) != 2
-#    pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2).astype(int)
-#    return pix.ravel() if doravel else pix
 
-
+'''
 def slit_pixels(slf, frameshape, det):
     """ Wrapper to the core_slit_pixels method
     May be Deprecated in a future Refactor
@@ -150,9 +106,10 @@ def slit_pixels(slf, frameshape, det):
     """
     return core_slit_pixels(slf._lordloc[det-1], slf._rordloc[det-1], frameshape,
                 settings.argflag['trace']['slits']['pad'])
+'''
 
 
-def core_slit_pixels(all_lordloc_in, all_rordloc_in, frameshape, pad):
+def slit_pixels(all_lordloc_in, all_rordloc_in, frameshape, pad):
     """ Generate an image indicating the slit/order associated with each pixel.
 
     Parameters

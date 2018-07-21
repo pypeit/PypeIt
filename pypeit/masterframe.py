@@ -6,10 +6,10 @@ from __future__ import absolute_import, division, print_function
 import os
 import warnings
 
-from pypit import msgs
-from pypit.core import armasters
+from pypeit import msgs
+from pypeit.core import armasters
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 from abc import ABCMeta
 

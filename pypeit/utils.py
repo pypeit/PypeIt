@@ -22,10 +22,10 @@ from astropy.convolution import convolve, Gaussian1DKernel
 #from pydl.pydlutils import math
 #from pydl.pydlutils import bspline
 
-from pypit.core import pydl
+from pypeit.core import pydl
 
-from pypit import msgs
-from pypit import ardebug as debugger
+from pypeit import msgs
+from pypeit import ardebug as debugger
 
 def quicksave(data,fname):
     """

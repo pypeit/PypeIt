@@ -1,5 +1,5 @@
 """
-pypit package initialization.
+pypeit package initialization.
 
 The current main purpose of this is to provide package-level globals
 that can be imported by submodules.
@@ -19,12 +19,12 @@ import warnings
 __version__ = '0.8.1dev'
 
 # Import and instantiate the logger
-from pypit import armsgs
-msgs = armsgs.Messages()
+from pypeit import msgs
+msgs = msgs.Messages()
 
 # Import the close_qa method so that it can be called when a hard stop
 # is requested by the user
-from pypit.arqa import close_qa
+from pypeit.arqa import close_qa
 
 # Send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
 def signal_handler(signalnum, handler):

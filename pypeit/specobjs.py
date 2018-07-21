@@ -11,10 +11,10 @@ from astropy import units
 from astropy.table import Table
 from astropy.units import Quantity
 
-from pypit import msgs
-from pypit import arparse
-from pypit.core import artraceslits
-from pypit import ardebug as debugger
+from pypeit import msgs
+from pypeit import arparse
+from pypeit.core import artraceslits
+from pypeit import ardebug as debugger
 
 try:
     basestring

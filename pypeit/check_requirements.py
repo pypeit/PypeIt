@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function
 
 import pkg_resources
 
-requirements_file = pkg_resources.resource_filename('pypit', 'requirements.txt')
+requirements_file = pkg_resources.resource_filename('pypeit', 'requirements.txt')
 install_requires = [line.strip().replace('==', '>=') for line in open(requirements_file)
                     if not line.strip().startswith('#') and line.strip() != '']
 for requirement in install_requires:

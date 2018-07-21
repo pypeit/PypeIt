@@ -12,20 +12,20 @@ from matplotlib import cm, font_manager
 
 from astropy.stats import sigma_clip
 from astropy.convolution import convolve, Gaussian1DKernel
-from pypit import msgs
-from pypit import arqa
-from pypit import arplot
-from pypit.core import ararc
-from pypit import arutils
-from pypit import arpca
-from pypit import arparse as settings
-from pypit.filter import BoxcarFilter
-from pypit import ardebug as debugger
+from pypeit import msgs
+from pypeit import arqa
+from pypeit import arplot
+from pypeit.core import ararc
+from pypeit import arutils
+from pypeit import arpca
+from pypeit import arparse as settings
+from pypeit.filter import BoxcarFilter
+from pypeit import ardebug as debugger
 
-from pypit.par.parset import ParSet
+from pypeit.par.parset import ParSet
 
 try:
-    from pypit import ginga
+    from pypeit import ginga
 except ImportError:
     pass
 
@@ -382,7 +382,7 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe, varframe,
             nobj = 1
             cent_spatial_manual = _manual[0]['params'][1]
 
-            # Entered into .pypit file in this format:
+            # Entered into .pypeit file in this format:
             #   [det, x_pixel_location, y_pixel_location,[x_range, y_range]]
             # - 1 or x_pixel_location is spatial pixel;
             # - 2 or y_pixel_location is dispersion/spectral pixel
@@ -1004,7 +1004,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
         if jxp_fix:
             from desispec.bootcalib import trace_crude_init
             from desispec.bootcalib import trace_fweight as dbtf
-            from pypit import ginga
+            from pypeit import ginga
             pcen = arcdet[j]
             img = msarc[pcen-nspecfit:pcen+nspecfit+1, ordcen[arcdet[j], slitnum]-sz:ordcen[arcdet[j], slitnum]+sz+1]
             rot_img = np.rot90(img,3) - 980.  # Bias!

@@ -21,10 +21,10 @@ import scipy
 import numpy
 import astropy
 
-from pypit import __version__ #, __last_updated__
-from pypit.arqa import close_qa
+from pypeit import __version__ #, __last_updated__
+from pypeit.arqa import close_qa
 
-#pypit_logger = None
+#pypeit_logger = None
 
 class PypitError(Exception):
     pass
@@ -63,10 +63,10 @@ class Messages:
 
         # TODO: Why are these two necessary?  It would seem better to
         # provide Messages with member functions that can operate on
-        # sciexp and pypit_file instead of having them kept within the
+        # sciexp and pypeit_file instead of having them kept within the
         # object itself...
         self.sciexp = None
-        self.pypit_file = None
+        self.pypeit_file = None
 
         # Initialize the log
         self._log = None
@@ -175,7 +175,7 @@ class Messages:
         header += 'python %s [options] filelist'.format(prognm)
         return header
 
-    def pypitheader(self, prognm):
+    def pypeitheader(self, prognm):
         """
         Get the info header for PYPIT
         """
@@ -188,7 +188,7 @@ class Messages:
 
     def usage(self, prognm):
         """
-        Print pypit usage data.
+        Print pypeit usage data.
         """
         # TODO: This is outdated
         stgs_arm = glob.glob(os.path.dirname(__file__)+'/data/settings/settings.arm*')
@@ -205,7 +205,7 @@ class Messages:
             spclist += ', ' + istsp.split('.')[-1]
 
         spcl = textwrap.wrap(spclist, width=60)
-        descs = self.pypitheader(prognm)
+        descs = self.pypeitheader(prognm)
 
         descs += '\n##  Available pipelines include (OUTDATED):'
         descs += '\n##   ' + armlist
@@ -222,12 +222,12 @@ class Messages:
         '''
         Close the log file before the code exits
         '''
-        close_qa(self.pypit_file)
-#        from pypit import arqa
+        close_qa(self.pypeit_file)
+#        from pypeit import arqa
 #        # QA HTML
-#        if self.pypit_file is not None:  # Likely testing
+#        if self.pypeit_file is not None:  # Likely testing
 #            try:
-#                arqa.gen_mf_html(self.pypit_file)
+#                arqa.gen_mf_html(self.pypeit_file)
 #            except:  # Likely crashed very early
 #                pass
 #            else:
@@ -400,12 +400,12 @@ class Messages:
 #    -------
 #    msgs : Messages
 #    """
-#    global pypit_logger
+#    global pypeit_logger
 #
 #    # Instantiate??
 #    if init is not None:
-#        pypit_logger = Messages(init[0], init[1], init[2])
+#        pypeit_logger = Messages(init[0], init[1], init[2])
 #
-#    return pypit_logger
+#    return pypeit_logger
 
 

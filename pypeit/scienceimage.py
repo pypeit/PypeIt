@@ -9,18 +9,18 @@ import datetime
 
 from astropy.time import Time
 
-from pypit import msgs
-from pypit import processimages
-from pypit import arspecobj
-from pypit.core import arprocimg
-from pypit.core import arskysub
-from pypit.core import arextract
-from pypit import artrace
-from pypit import ginga
+from pypeit import msgs
+from pypeit import processimages
+from pypeit import arspecobj
+from pypeit.core import arprocimg
+from pypeit.core import arskysub
+from pypeit.core import arextract
+from pypeit import artrace
+from pypeit import ginga
 
-from pypit.par import pypitpar
+from pypeit.par import pypeitpar
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 class ScienceImage(processimages.ProcessImages):
     """
@@ -106,10 +106,10 @@ class ScienceImage(processimages.ProcessImages):
 
         # Parameters
         # NOTE: This uses objtype, not frametype!
-        self.frame_par = pypitpar.FrameGroupPar(objtype) if frame_par is None else frame_par
-        self.trace_objects_par = pypitpar.TraceObjectsPar() \
+        self.frame_par = pypeitpar.FrameGroupPar(objtype) if frame_par is None else frame_par
+        self.trace_objects_par = pypeitpar.TraceObjectsPar() \
                                         if trace_objects_par is None else trace_objects_par
-        self.extract_objects_par = pypitpar.ExtractObjectsPar() \
+        self.extract_objects_par = pypeitpar.ExtractObjectsPar() \
                                         if extract_objects_par is None else extract_objects_par
 
         # Start us up

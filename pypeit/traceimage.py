@@ -4,11 +4,11 @@ from __future__ import absolute_import, division, print_function
 import inspect
 import numpy as np
 
-from pypit import msgs
-from pypit import processimages
-from pypit.par import pypitpar
+from pypeit import msgs
+from pypeit import processimages
+from pypeit.par import pypeitpar
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 # TODO: This syntax for instantiaion differs slightlhy from ArcIMage,
 # and I think they need to be homogenized.
@@ -64,7 +64,7 @@ class TraceImage(processimages.ProcessImages):
     frametype = 'trace_image'
 
     def __init__(self, spectrograph, file_list=[], det=1, par=None):
-        self.par = pypitpar.FrameGroupPar('trace') if par is None else par
+        self.par = pypeitpar.FrameGroupPar('trace') if par is None else par
         processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
                                              par=self.par['process'])
 

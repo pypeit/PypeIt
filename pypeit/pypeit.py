@@ -5,18 +5,18 @@ from __future__ import unicode_literals
 
 import time
 
-from pypit import msgs
-# TODO: (KBW) Can archeck code be put in pypit/__init__.py ?
-from pypit import archeck  # THIS IMPORT DOES THE CHECKING.  KEEP IT
-from pypit.core import arsort
-from pypit import arqa
-from pypit import arms
+from pypeit import msgs
+# TODO: (KBW) Can archeck code be put in pypeit/__init__.py ?
+from pypeit import check_requirements  # THIS IMPORT DOES THE CHECKING.  KEEP IT
+from pypeit.core import arsort
+from pypeit import arqa
+from pypeit import arms
 
-from pypit import pypitsetup
+from pypeit import pypeitsetup
 
-from pypit import ardebug
+from pypeit import ardebug
 
-def PYPIT(pypit_file, setup_only=False, calibration_check=False, use_header_frametype=False,
+def PYPIT(pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False,
           sort_dir=None, debug=None, quick=False, ncpus=1, overwrite=False, verbosity=2,
           use_masters=False, logname=None):
     """
@@ -25,11 +25,11 @@ def PYPIT(pypit_file, setup_only=False, calibration_check=False, use_header_fram
     .. todo::
         - More description in docstring
         - Allow the user to just provide a list of files or always
-          require a pypit file?
+          require a pypeit file?
 
     Args:
-        pypit_file (:obj:`str`):
-            Name of the pypit file to read.  Pypit files have a specific
+        pypeit_file (:obj:`str`):
+            Name of the pypeit file to read.  Pypit files have a specific
             set of valid formats. A description can be found `here`_
             (include doc link).
         setup_only (bool):
@@ -77,7 +77,7 @@ def PYPIT(pypit_file, setup_only=False, calibration_check=False, use_header_fram
             - 2: Calibration check successful (when `calibration_check=True`)
     """
     if quick:
-        raise NotImplementedError('Quick version of pypit is not yet implemented.')
+        raise NotImplementedError('Quick version of pypeit is not yet implemented.')
 
     # Init logger
     if debug is None:
@@ -85,13 +85,13 @@ def PYPIT(pypit_file, setup_only=False, calibration_check=False, use_header_fram
 
     # Reset the global logger
     msgs.reset(log=logname, debug=debug, verbosity=verbosity)
-    msgs.pypit_file = pypit_file
+    msgs.pypeit_file = pypeit_file
 
     # Record the starting time
     tstart = time.time()
 
     # Perform the setup
-    setup = pypitsetup.PypitSetup.from_pypit_file(pypit_file)
+    setup = pypeitsetup.PypitSetup.from_pypeit_file(pypeit_file)
     par, spectrograph, fitstbl, setup_dict = setup.run(setup_only=setup_only,
                                                        calibration_check=calibration_check,
                                                        use_header_frametype=use_header_frametype,
@@ -132,7 +132,7 @@ def PYPIT(pypit_file, setup_only=False, calibration_check=False, use_header_fram
         msgs.info('Data reduction complete')
         # QA HTML
         msgs.info('Generating QA HTML')
-        arqa.gen_mf_html(pypit_file)
+        arqa.gen_mf_html(pypeit_file)
         arqa.gen_exp_html()
     else:
         msgs.error('Data reduction failed with status ID {0:d}'.format(status))

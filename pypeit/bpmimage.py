@@ -4,13 +4,13 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import os
 
-from pypit import msgs
-from pypit.core import arprocimg
+from pypeit import msgs
+from pypeit.core import arprocimg
 
-from pypit.spectrographs.spectrograph import Spectrograph
-from pypit.spectrographs.util import load_spectrograph
+from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit.spectrographs.util import load_spectrograph
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 try:
     basestring

@@ -17,10 +17,10 @@ from astropy import units
 from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra.utils import collate
 
-from pypit import msgs
-from pypit import arload
-from pypit import arutils
-from pypit import ardebug as debugger
+from pypeit import msgs
+from pypeit import arload
+from pypeit import arutils
+from pypeit import ardebug as debugger
 
 # TODO
     # Shift spectra
