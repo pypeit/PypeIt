@@ -9,9 +9,9 @@ import pytest
 import os
 import numpy as np
 
-from pypeit import arpixels
-from pypeit.core import arsort
-from pypeit.core import arprocimg
+from pypeit.core import pixels
+from pypeit.core import sort
+from pypeit.core import procimg
 from pypeit.spectrographs.util import load_spectrograph
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def test_ampsec(spectrograph):
     """ Test sort_data
     """
     datasec_img = spectrograph.get_datasec_img(data_path('b1.fits.gz'), det=1)
-    datasec_img = arprocimg.trim_frame(datasec_img, datasec_img < 1)
+    datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)
     # Test
     assert datasec_img.shape == (2048, 350)
     #assert np.sum(np.isclose(datasec_img, 1)) == 2162688  # Data region

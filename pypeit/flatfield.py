@@ -8,14 +8,13 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit import processimages
-from pypeit.core import armasters
+from pypeit.core import masters
 from pypeit import masterframe
-from pypeit.core import arsort
-from pypeit.core import arflat
+from pypeit.core import flat
 from pypeit import ginga
 from pypeit.par import pypeitpar
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 # TODO, JFH: I do not understand why ArcImage is its own class whereas
 # there is no class called FlatImage. In principle this is because
@@ -142,7 +141,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         """
         Setup for the bspline fitting
 
-        Wrapper to arflat.prep_ntck
+        Wrapper to flat.prep_ntck
 
         Returns
         -------
@@ -153,7 +152,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         """
         # Step
         self.steps.append(inspect.stack()[0][3])
-        self.ntckx, self.ntcky = arflat.prep_ntck(self.tslits_dict['pixwid'],
+        self.ntckx, self.ntcky = flat.prep_ntck(self.tslits_dict['pixwid'],
                                                   method=self.flatpar['method'],
                                                   params=self.flatpar['params'],
                                                   get_slitprofile=self.flatpar['slitprofile'])
@@ -167,13 +166,13 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.slit_profiles
 
         """
-        return armasters.load_master_frame('slitprof', self.setup, self.mdir)
+        return masters.load_master_frame('slitprof', self.setup, self.mdir)
 
     def slit_profile(self, slit):
         """
         Generate the slit profile for a given slit
 
-        Wrapper to arflat.slit_profile()
+        Wrapper to flat.slit_profile()
 
         Parameters
         ----------
@@ -200,7 +199,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         slordloc = self.tslits_dict['lcen'][:,slit]
         srordloc = self.tslits_dict['rcen'][:,slit]
         modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit \
-                = arflat.slit_profile(slit, self.mspixelflat, self.tilts, slordloc, srordloc,
+                = flat.slit_profile(slit, self.mspixelflat, self.tilts, slordloc, srordloc,
                                       self.tslits_dict['slitpix'], self.tslits_dict['pixwid'],
                                       ntckx=self.ntckx, ntcky=self.ntcky)
         # Step
@@ -271,7 +270,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         if armed:
             if np.sum(self.extrap_slit) != 0.0:
                 slit_profiles, mstracenrm, msblaze \
-                            = arflat.slit_profile_pca(self.mspixelflat, self.tilts, self.msblaze,
+                            = flat.slit_profile_pca(self.mspixelflat, self.tilts, self.msblaze,
                                                       self.extrap_slit, self.slit_profiles,
                                                       self.tslits_dict['lcen'],
                                                       self.tslits_dict['rcen'],
@@ -294,7 +293,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             # profile. Avoid recalculating the slit profile and blaze function and save them here.
             self.SetFrame(self._msblaze, msblaze, det)
             self.SetFrame(self._slitprof, slit_profiles, det)
-            armasters.save_masters(self, det, mftype='slitprof')
+            masters.save_masters(self, det, mftype='slitprof')
             if settings.argflag["reduce"]["slitprofile"]["perform"]:
                 msgs.info("Preparing QA of each slit profile")
                 #                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],

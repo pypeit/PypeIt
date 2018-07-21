@@ -10,7 +10,7 @@ from abc import ABCMeta
 from astropy.table import Table
 
 from pypeit import msgs
-from pypeit import arpixels
+from pypeit.core import pixels
 
 from pypeit import arcimage
 from pypeit import biasframe
@@ -22,20 +22,16 @@ from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit import waveimage
 
-from pypeit.core import arsort
-from pypeit.core import armasters
-from pypeit.core import arprocimg
+from pypeit.core import sort
+from pypeit.core import masters
+from pypeit.core import procimg
 
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs.spectrograph import Spectrograph
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
-try:
-    basestring
-except NameError:
-    basestring = str
 
 class Calibrations(object):
     """
@@ -79,7 +75,7 @@ class Calibrations(object):
             if par is not None and par['rdx']['spectrograph'] != fitstbl['instrume'][0]:
                 msgs.error('Specified spectrograph does not match instrument in the fits table!')
             self.spectrograph = load_spectrograph(spectrograph=fitstbl['instrume'][0])
-        elif isinstance(spectrograph, basestring):
+        elif isinstance(spectrograph, str):
             self.spectrograph = load_spectrograph(spectrograph=spectrograph)
         elif isinstance(spectrograph, Spectrograph):
             self.spectrograph = spectrograph
@@ -301,7 +297,7 @@ class Calibrations(object):
         # Generate the spectrograph-specific amplifier ID image
         self.datasec_img = self.spectrograph.get_datasec_img(scifile, self.det)
         if self.par['trim']:
-            self.datasec_img = arprocimg.trim_frame(self.datasec_img, self.datasec_img < 1)
+            self.datasec_img = procimg.trim_frame(self.datasec_img, self.datasec_img < 1)
         return self.datasec_img
 
     def get_pixflatnrm(self):
@@ -344,7 +340,7 @@ class Calibrations(object):
             return self.mspixflatnrm, self.slitprof
 
         # Instantiate
-        pixflat_image_files = arsort.list_of_files(self.fitstbl, 'pixelflat', self.sci_ID)
+        pixflat_image_files = sort.list_of_files(self.fitstbl, 'pixelflat', self.sci_ID)
         self.flatField = flatfield.FlatField(self.spectrograph, file_list=pixflat_image_files,
                                              det=self.det, par=self.par['pixelflatframe'],
                                              setup=self.setup, root_path=self.master_root,
@@ -370,7 +366,7 @@ class Calibrations(object):
                 raise ValueError('Could not find user-defined flatfield master: {0}'.format(
                                                 self.par['flatfield']['frame']))
             msgs.info('Found user-defined file: {0}'.format(mspixelflat_name))
-            self.mspixflatnrm, head, _ = armasters._load(mspixelflat_name, exten=self.det,
+            self.mspixflatnrm, head, _ = masters._load(mspixelflat_name, exten=self.det,
                                                          frametype=None, force=True)
             # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
             self.slitprof = np.ones_like(self.mspixflatnrm)
@@ -378,8 +374,8 @@ class Calibrations(object):
         if self.mspixflatnrm is None:
             # TODO -- Consider turning the following back on.  I'm regenerating the flat for now
             # Use mstrace if the indices are identical
-            #if np.all(arsort.ftype_indices(fitstbl,'trace',1) ==
-            #                  arsort.ftype_indices(fitstbl, 'pixelflat', 1))
+            #if np.all(sort.ftype_indices(fitstbl,'trace',1) ==
+            #                  sort.ftype_indices(fitstbl, 'pixelflat', 1))
             #            and (traceSlits.mstrace is not None):
             #    flatField.mspixelflat = traceSlits.mstrace.copy()
             # Run
@@ -390,7 +386,7 @@ class Calibrations(object):
                                            steps=self.flatField.steps)
                 self.flatField.save_master(self.slitprof, raw_files=pixflat_image_files,
                                            steps=self.flatField.steps,
-                                           outfile=armasters.master_name('slitprof', self.setup,
+                                           outfile=masters.master_name('slitprof', self.setup,
                                                         self.master_dir))
         elif self.slitprof is None:
             self.slitprof, _, _ = self.flatField.load_master_slitprofile()
@@ -443,7 +439,7 @@ class Calibrations(object):
         # Load via master, as desired
         if not self.traceSlits.master():
             # Build the trace image first
-            trace_image_files = arsort.list_of_files(self.fitstbl, 'trace', self.sci_ID)
+            trace_image_files = sort.list_of_files(self.fitstbl, 'trace', self.sci_ID)
             traceImage = traceimage.TraceImage(self.spectrograph,
                                            file_list=trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
@@ -610,7 +606,7 @@ class Calibrations(object):
         xgap=self.spectrograph.detector[self.det-1]['xgap']
         ygap=self.spectrograph.detector[self.det-1]['ygap']
         ysize=self.spectrograph.detector[self.det-1]['ysize']
-        self.pixlocn = arpixels.core_gen_pixloc(self.shape, xgap=xgap, ygap=ygap, ysize=ysize)
+        self.pixlocn = pixels.core_gen_pixloc(self.shape, xgap=xgap, ygap=ygap, ysize=ysize)
 
         # Return
         return self.pixlocn

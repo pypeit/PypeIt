@@ -18,9 +18,9 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra.utils import collate
 
 from pypeit import msgs
-from pypeit import arload
-from pypeit import arutils
-from pypeit import ardebug as debugger
+from pypeit.core import load
+from pypeit import utils
+from pypeit import debugger
 
 # TODO
     # Shift spectra
@@ -473,7 +473,7 @@ def bspline_cr(spectra, n_grow_mask=1, cr_nsig=5.):
     goodp = all_s[srt] > 0.
 
     # Fit
-    mask, bspl = arutils.robust_polyfit(all_w[srt][goodp], all_f[srt][goodp], 3,
+    mask, bspl = utils.robust_polyfit(all_w[srt][goodp], all_f[srt][goodp], 3,
                                         function='bspline', sigma=cr_nsig, everyn=2*spectra.nspec,
                                         weights=1./np.sqrt(all_s[srt][goodp]), maxone=False)
     # Plot?
@@ -485,7 +485,7 @@ def bspline_cr(spectra, n_grow_mask=1, cr_nsig=5.):
         ax.scatter(all_w[srt][goodp], all_f[srt][goodp], color='k')
         #
         x = np.linspace(np.min(all_w), np.max(all_w), 30000)
-        y = arutils.func_val(bspl, x, 'bspline')
+        y = utils.func_val(bspl, x, 'bspline')
         ax.plot(x,y)
         # Masked
         ax.scatter(all_w[srt][goodp][mask==1], all_f[srt][goodp][mask==1], color='r')
@@ -532,7 +532,7 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
         if cr_two_alg == 'diff':
             diff = fluxes[0,:] - fluxes[1,:]
             # Robust mean/median
-            med, mad = arutils.robust_meanstd(diff)
+            med, mad = utils.robust_meanstd(diff)
             # Spec0?
             cr0 = (diff-med) > cr_nsig*mad
             if n_grow_mask > 0:
@@ -553,9 +553,9 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             diff = fluxes[0,:] - fluxes[1,:]
             rtio = fluxes[0,:] / fluxes[1,:]
             # Robust mean/median
-            rmed, rmad = arutils.robust_meanstd(rtio)
-            dmed, dmad = arutils.robust_meanstd(diff)
-            # Spec0?            med, mad = arutils.robust_meanstd(diff)
+            rmed, rmad = utils.robust_meanstd(rtio)
+            dmed, dmad = utils.robust_meanstd(diff)
+            # Spec0?            med, mad = utils.robust_meanstd(diff)
             cr0 = ((rtio-rmed) > cr_nsig*rmad) & ((diff-dmed) > cr_nsig*dmad)
             if n_grow_mask > 0:
                 cr0 = grow_mask(cr0, n_grow=n_grow_mask)
@@ -581,10 +581,10 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             srt = np.argsort(waves[gd])
             idx = gd[srt]
             # The following may eliminate bright, narrow emission lines
-            mask, spl = arutils.robust_polyfit(waves[idx], flux[idx], 3, function='bspline',
+            mask, spl = utils.robust_polyfit(waves[idx], flux[idx], 3, function='bspline',
                     weights=1./sig[gd][srt], sigma=cr_bsigma, maxone=False, everyn=cr_everyn)
             # Reject CR (with grow)
-            spec_fit = arutils.func_val(spl, wave, 'bspline')
+            spec_fit = utils.func_val(spl, wave, 'bspline')
             for ii in range(2):
                 diff = fluxes[ii,:] - spec_fit
                 cr = (diff > cr_nsig*sigs[ii,:]) & (sigs[ii,:]>0.)
@@ -715,7 +715,7 @@ def load_spec(files, iextensions=None, extract='opt', flux=True):
     spectra_list = []
     for ii, fname in enumerate(files):
         msgs.info("Loading extension {:d} of spectrum {:s}".format(extensions[ii], fname))
-        spectrum = arload.load_1dspec(fname, exten=extensions[ii], extract=extract, flux=flux)
+        spectrum = load.load_1dspec(fname, exten=extensions[ii], extract=extract, flux=flux)
         # Polish a bit -- Deal with NAN, inf, and *very* large values that will exceed
         #   the floating point precision of float32 for var which is sig**2 (i.e. 1e38)
         bad_flux = np.any([np.isnan(spectrum.flux), np.isinf(spectrum.flux),
@@ -869,14 +869,14 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             ivar[gd] = 1./sig[gd]**2
 
             # var_tot
-            var_tot = newvar + arutils.calc_ivar(ivar)
-            ivar_real = arutils.calc_ivar(var_tot)
+            var_tot = newvar + utils.calc_ivar(ivar)
+            ivar_real = utils.calc_ivar(var_tot)
             # smooth out possible outliers in noise
             var_med = medfilt(var_tot, 5)
             var_smooth = medfilt(var_tot, 99)#, boundary = 'reflect')
             # conservatively always take the largest variance
             var_final = np.maximum(var_med, var_smooth)
-            ivar_final = arutils.calc_ivar(var_final)
+            ivar_final = utils.calc_ivar(var_final)
             # Cap S/N ratio at SN_MAX to prevent overly aggressive rejection
             SN_MAX = 20.0
             ivar_cap = np.minimum(ivar_final,

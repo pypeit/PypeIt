@@ -18,8 +18,7 @@ from linetools.spectra.io import readspec
 
 import pypeit
 #from pypeit import msgs
-from pypeit.core import arwave
-from pypeit import arparse as settings
+from pypeit.core import wave
 
 
 def data_path(filename):
@@ -37,7 +36,7 @@ def test_flex_shift():
     arx_spec = readspec(arx_file)
     # Call
     #msgs._debug['flexure'] = True
-    flex_dict = arwave.flex_shift(obj_spec, arx_spec)
+    flex_dict = wave.flex_shift(obj_spec, arx_spec)
     assert np.abs(flex_dict['shift'] - 15.7) < 0.1
 
 

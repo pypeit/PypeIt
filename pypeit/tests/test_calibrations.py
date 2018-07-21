@@ -15,7 +15,7 @@ import numpy as np
 
 from astropy.table import Table
 
-from pypeit.core import arsort
+from pypeit.core import sort
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import calibrations
@@ -31,12 +31,12 @@ def data_path(filename):
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:
     skip_test=True
-    fitstbl = arsort.dummy_fitstbl(directory=data_path(''))
+    fitstbl = sort.dummy_fitstbl(directory=data_path(''))
     fitstbl['filename'][1] = 'b1.fits.gz'
 else:
     skip_test=False
     # MultiSlit
-    fitstbl = arsort.dummy_fitstbl(directory=os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA',
+    fitstbl = sort.dummy_fitstbl(directory=os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA',
                                                           'Shane_Kast_blue', '600_4310_d55'))
     fitstbl['filename'][1] = 'b1.fits.gz'
     for ii in range(2,5):
