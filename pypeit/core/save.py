@@ -17,9 +17,9 @@ from astropy.table import Table
 import linetools.utils
 
 from pypeit import msgs
-from pypeit import arutils
-from pypeit import arparse
-from pypeit import ardebug as debugger
+from pypeit import utils
+from pypeit.core import parse
+from pypeit import debugger
 
 
 '''
@@ -241,6 +241,7 @@ def save_tilts(slf, fname):
 '''
 
 
+'''
 def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     """ Write 1D spectra to an HDF5 file
 
@@ -352,6 +353,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     hdf.close()
 
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
+'''
 
 def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=None, clobber=True):
     """ Write 1D spectra to a multi-extension FITS file
@@ -368,7 +370,7 @@ def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=N
     outfile : str
     """
     # Repackage as necessary (some backwards compatability)
-    all_specobj = arutils.unravel_specobjs(specobjs)
+    all_specobj = utils.unravel_specobjs(specobjs)
     # Primary hdu
     prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
@@ -591,26 +593,25 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
             continue
         # Append
         names.append(specobj.idx)
-#        dnum = arparse.get_dnum(specobj.det)
         slits.append(specobj.slitid)
         # Boxcar width
         if 'size' in specobj.boxcar.keys():
             slit_pix = specobj.boxcar['size']
             # Convert to arcsec
-            binspatial, binspectral = arparse.parse_binning(fitstbl['binning'][specobj.scidx])
+            binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
             boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.det-1]['platescale'])
         else:
             boxsize.append(0.)
         # Optimal profile (FWHM)
         if 'fwhm' in specobj.optimal.keys():
-            binspatial, binspectral = arparse.parse_binning(fitstbl['binning'][specobj.scidx])
+            binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
             opt_fwhm.append(specobj.optimal['fwhm'] * binspatial
                                 * spectrograph.detector[specobj.det-1]['platescale'])
         else:
             opt_fwhm.append(0.)
         # S2N -- default to boxcar
         sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
-        ivar = arutils.calc_ivar(sext['var'])
+        ivar = utils.calc_ivar(sext['var'])
         is2n = np.median(sext['counts']*np.sqrt(ivar))
         s2n.append(is2n)
 
@@ -689,7 +690,7 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
             continue
         else:
             det = key
-        sdet = arparse.get_dnum(det, caps=True)  # e.g. DET02
+        sdet = parse.get_dnum(det, caps=True)  # e.g. DET02
         if 'sciframe' not in sci_output[det]:
             continue
         # Specified detector number?

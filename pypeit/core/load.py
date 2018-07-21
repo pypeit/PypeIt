@@ -2,11 +2,6 @@
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-try:
-    basestring
-except NameError:
-    basestring = str
-
 import os
 
 import numpy as np
@@ -19,8 +14,8 @@ from astropy.table import Table
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
 from pypeit import msgs
-from pypeit import arspecobj
-from pypeit.core import debugger
+from pypeit import specobjs
+from pypeit import debugger
 
 
 def load_headers(datlines, spectrograph, strict=True):
@@ -134,7 +129,7 @@ def load_headers(datlines, spectrograph, strict=True):
                     fitsdict[kw].append(value)
                 elif typv is float or typv is np.float_:
                     fitsdict[kw].append(value)
-                elif isinstance(value, basestring) or typv is np.string_:
+                elif isinstance(value, str) or typv is np.string_:
                     fitsdict[kw].append(value.strip())
                 elif typv is bool or typv is np.bool_:
                     fitsdict[kw].append(value)
@@ -259,7 +254,7 @@ def load_specobj(fname):
         spec = Table(hdu.data)
         shape = (len(spec), 1024)  # 2nd number is dummy
         # Init
-        specobj = arspecobj.SpecObjExp(shape, 'dum_config', int(objp[-1][1:]),
+        specobj = specobjs.SpecObjExp(shape, 'dum_config', int(objp[-1][1:]),
             int(objp[-2][1:]), [float(objp[1][1:])/10000.]*2, 0.5,
             float(objp[0][1:])/1000., 'unknown')
         # Add trace

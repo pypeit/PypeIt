@@ -8,10 +8,9 @@ import os
 
 import pytest
 
-from pypit import pypit
-from pypit import msgs
-from pypit.par.util import make_pypit_file
-from pypit import pypitsetup
+from pypeit import msgs
+from pypeit.par.util import make_pypeit_file
+from pypeit import pypeitsetup
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -23,9 +22,9 @@ def test_initialization():
     """
     # Generate a PYPIT file
     pypit_file = data_path('test.pypit')
-    make_pypit_file(pypit_file, 'shane_kast_blue', [data_path('b*fits.gz')], setup_mode=True)
+    make_pypeit_file(pypit_file, 'shane_kast_blue', [data_path('b*fits.gz')], setup_mode=True)
     # Perform the setup
-    setup = pypitsetup.PypitSetup.from_pypit_file(pypit_file)
+    setup = pypeitsetup.PypitSetup.from_pypit_file(pypit_file)
     par, spectrograph, fitstbl, setup_dict = setup.run()
     # Test
     assert spectrograph.spectrograph == 'shane_kast_blue'

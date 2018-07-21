@@ -12,10 +12,9 @@ import pytest
 from astropy import units
 from astropy.io import fits
 
-from pypeit import arparse as settings
-from pypeit import arspecobj
-from pypeit.core import arsort
-from pypeit.core import arsave
+from pypeit import specobjs
+from pypeit.core import sort
+from pypeit.core import save
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -25,7 +24,7 @@ def data_path(filename):
 def mk_specobj(flux=5, objid=500):
     # specobj
     npix = 100
-    specobj = arspecobj.SpecObjExp((100,100), 'Kast', 0, 0, (0.4,0.6), 0.5, 0.5, objtype='science')
+    specobj = specobjs.SpecObjExp((100,100), 'Kast', 0, 0, (0.4,0.6), 0.5, 0.5, objtype='science')
     specobj.boxcar = dict(wave=np.arange(npix)*units.AA, counts=np.ones(npix)*flux)
     specobj.optimal = dict(wave=np.arange(npix)*units.AA, counts=np.ones(npix)*flux-0.5)
     specobj.objid = objid
@@ -37,7 +36,7 @@ def mk_specobj(flux=5, objid=500):
 def test_save2d_fits():
     settings.dummy_settings()
     #fitsdict = arutils.dummy_fitsdict(nfile=1, spectrograph='none', directory=data_path(''))
-    fitstbl = arsort.dummy_fitstbl(directory=data_path(''))
+    fitstbl = sort.dummy_fitstbl(directory=data_path(''))
     # Kludge
     fitstbl.remove_column('filename')
     fitstbl['filename'] = 'b1.fits.gz'
@@ -54,7 +53,7 @@ def test_save2d_fits():
     sci_dict[0]['finalsky'] = dum + 0.1
     basename = 'test'
     scidx = 5
-    arsave.save_2d_images(sci_dict, fitstbl, scidx, 0, setup,
+    save.save_2d_images(sci_dict, fitstbl, scidx, 0, setup,
                           data_path('MF')+'_'+spectrograph, # MFDIR
         data_path(''), basename)
     # Read and test
@@ -68,11 +67,11 @@ def test_save1d_fits():
     """ save1d to FITS and HDF5
     """
     settings.dummy_settings()
-    fitstbl = arsort.dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
+    fitstbl = sort.dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
     # Dummy self
     specobjs = [mk_specobj()]
     # Write to FITS
-    arsave.save_1d_spectra_fits(specobjs, fitstbl[5], data_path('tst.fits'))
+    save.save_1d_spectra_fits(specobjs, fitstbl[5], data_path('tst.fits'))
 
 
 '''  # NEEDS REFACTORING

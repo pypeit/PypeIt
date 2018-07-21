@@ -9,18 +9,18 @@ import numpy as np
 from astropy.table import hstack, Table
 
 from pypeit import msgs
-from pypeit import arload
-from pypeit import arparse
-from pypeit.core import arsort
-from pypeit.core import arsetup
+from pypeit.core import load
+from pypeit.core import parse
+from pypeit.core import sort
+from pypeit.core import pypsetup
 
-from pypeit.par import PypitPar
+from pypeit.par import PypeItPar
 from pypeit.par.util import parse_pypeit_file
 from pypeit.spectrographs.util import load_spectrograph
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
-class PypitSetup(object):
+class PypeItSetup(object):
     """
     Prepare for a pypeit run.
 
@@ -116,7 +116,7 @@ class PypitSetup(object):
 
         # Determine the spectrograph name
         _spectrograph_name = spectrograph_name if cfg_lines is None \
-                    else PypitPar.from_cfg_lines(merge_with=cfg_lines)['rdx']['spectrograph'] 
+                    else PypeItPar.from_cfg_lines(merge_with=cfg_lines)['rdx']['spectrograph']
 
         # Cannot proceed without spectrograph name
         if _spectrograph_name is None:
@@ -131,7 +131,7 @@ class PypitSetup(object):
 
         # Instantiate the pypeit parameters.  The user input
         # configuration (cfg_lines) can be None.
-        self.par = PypitPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
 
         # Prepare internals for execution
         self.fitstbl = None
@@ -176,7 +176,7 @@ class PypitSetup(object):
 
         """
         # Build and sort the table
-        self.fitstbl = arload.load_headers(self.file_list, self.spectrograph, strict=strict)
+        self.fitstbl = load.load_headers(self.file_list, self.spectrograph, strict=strict)
         self.fitstbl.sort('time')
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -195,7 +195,7 @@ class PypitSetup(object):
         #
         all_sci_idx = np.where(self.fitstbl['science'])[0]
         all_sci_ID = self.fitstbl['sci_ID'][self.fitstbl['science']]
-        self.group_dict = arsetup.build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx,
+        self.group_dict = pypsetup.build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx,
                                                    all_sci_ID)
 
         # TODO: Move this to a method that writes the sorted file
@@ -203,7 +203,7 @@ class PypitSetup(object):
         if len(self.group_dict) > 0:
             group_file = 'tmp.sorted' if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.sorted')
-            arsetup.write_sorted(group_file, self.fitstbl, self.group_dict, self.setup_dict)
+            pypsetup.write_sorted(group_file, self.fitstbl, self.group_dict, self.setup_dict)
             msgs.info("Wrote group dict to {:s}".format(group_file))
         else:
             msgs.warn("No group dict entries and therefore no .sorted file")
@@ -234,7 +234,7 @@ class PypitSetup(object):
 #                msgs.error("When forcing use of master frames, you need to specify the You need to specify the following parameter in your PYPIT file:" 
 #                           + msgs.newline() + "reduce masters setup")
             # Generate a dummy setup_dict
-            self.setup_dict = arsetup.dummy_setup_dict(self.fitstbl,
+            self.setup_dict = pypsetup.dummy_setup_dict(self.fitstbl,
                                                        self.par['calibrations']['setup'])
             # Step
             self.steps.append(inspect.stack()[0][3])
@@ -252,7 +252,7 @@ class PypitSetup(object):
                 namp = self.spectrograph.detector[kk]["numamplifiers"]
                 # Run
                 det = kk+1
-                setupID = arsetup.instr_setup(sc, det, self.fitstbl, self.setup_dict, namp,
+                setupID = pypsetup.instr_setup(sc, det, self.fitstbl, self.setup_dict, namp,
                                               skip_cset=setup_only, config_name=cname)
                 # Only save the first detector for run setup
                 if kk == 0:
@@ -271,7 +271,7 @@ class PypitSetup(object):
         self.fitstbl -- Updated with 'AB_frame' column
 
         """
-        self.fitstbl = arsort.match_ABBA(self.fitstbl)
+        self.fitstbl = sort.match_ABBA(self.fitstbl)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -287,7 +287,7 @@ class PypitSetup(object):
         self.fitstbl -- Updated with 'sci_ID' and 'failures' columns
 
         """
-        self.fitstbl = arsort.match_to_science(self.par['calibrations'],
+        self.fitstbl = sort.match_to_science(self.par['calibrations'],
                                                self.spectrograph.get_match_criteria(),
                                                self.fitstbl, self.par['rdx']['calwin'],
                                                setup=setup_only,
@@ -319,7 +319,7 @@ class PypitSetup(object):
 
         """
         # Allow for input file types from the PYPIT file
-        self.filetypeflags = arsort.type_data(self.spectrograph, self.fitstbl,
+        self.filetypeflags = sort.type_data(self.spectrograph, self.fitstbl,
                                               ftdict=self.frametype, flag_unknown=flag_unknown,
                                               useIDname=use_header_frametype)
 
@@ -432,7 +432,7 @@ class PypitSetup(object):
         # Write?
         if sort_dir is not None:
             print('WRITING: {0}'.format(sort_dir))
-            arsort.write_lst(self.fitstbl, self.spectrograph.header_keys(), pypeit_file,
+            sort.write_lst(self.fitstbl, self.spectrograph.header_keys(), pypeit_file,
                              setup=setup_only, sort_dir=sort_dir)
 
         # Match calibs to science
@@ -448,12 +448,12 @@ class PypitSetup(object):
             # Write the setup file
             setup_file = 'tmp.setups' if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.setups')
-            arsetup.write_setup(self.setup_dict, setup_file=setup_file)
+            pypsetup.write_setup(self.setup_dict, setup_file=setup_file)
         else:
             # Write the calib file
             calib_file = 'tmp.calib' if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.calib')
-            arsetup.write_calib(calib_file, self.setup_dict)
+            pypsetup.write_calib(calib_file, self.setup_dict)
 
         # Finish (depends on PYPIT run mode)
         if calibration_check:
