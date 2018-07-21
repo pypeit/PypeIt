@@ -12,7 +12,7 @@ import linetools.utils
 
 from pypeit import msgs
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 
 def master_name(ftype, setup, mdir):

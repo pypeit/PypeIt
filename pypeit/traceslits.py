@@ -15,11 +15,10 @@ from astropy.io import fits
 from linetools import utils as ltu
 
 from pypeit import msgs
-from pypeit import ardebug as debugger
-from pypeit import arpixels
-from pypeit.core import artraceslits
-from pypeit.core import arsort
-from pypeit import arutils
+from pypeit import debugger
+from pypeit.core import pixels
+from pypeit.core import trace_slits
+from pypeit import utils
 from pypeit import masterframe
 from pypeit import ginga
 from pypeit import traceimage
@@ -27,10 +26,6 @@ from pypeit import traceimage
 from pypeit.par import pypeitpar
 from pypeit.par.util import parset_to_dict
 
-try:
-    basestring
-except NameError:
-    basestring = str
 
 class TraceSlits(masterframe.MasterFrame):
     """Class to guide slit/order tracing
@@ -259,7 +254,7 @@ class TraceSlits(masterframe.MasterFrame):
     def _edgearr_from_binarr(self):
         """
         Generate the first edgearr from the Sobolev produced siglev image
-        Wrapper to artraceslits.edgearr_from_binarr
+        Wrapper to trace_slits.edgearr_from_binarr
 
         Returns
         -------
@@ -268,7 +263,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         self.siglev, self.edgearr \
-                = artraceslits.edgearr_from_binarr(self.binarr, self.binbpx,
+                = trace_slits.edgearr_from_binarr(self.binarr, self.binbpx,
                                                    medrep=self.par['medrep'],
                                                    sobel_mode=self.par['sobel_mode'],
                                                    sigdetect=self.par['sigdetect'],
@@ -281,7 +276,7 @@ class TraceSlits(masterframe.MasterFrame):
         Generate the first edgearr from a user-supplied single slit
         Note this is different from add_user_slits (which is handled below)
 
-        Wrapper to artraceslits.edgearr_from_user
+        Wrapper to trace_slits.edgearr_from_user
 
         Returns
         -------
@@ -291,7 +286,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         #  This trace slits single option is likely to be deprecated
         iledge, iredge = (self.det-1)*2, (self.det-1)*2+1
-        self.edgearr = artraceslits.edgearr_from_user(self.mstrace.shape,
+        self.edgearr = trace_slits.edgearr_from_user(self.mstrace.shape,
                                                       self.par['single'][iledge],
                                                       self.par['single'][iredge], self.det)
         self.siglev = None
@@ -302,7 +297,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         Add left/right edges to edgearr
 
-        Wrapper to artraceslits.edgearr_add_left_right()
+        Wrapper to trace_slits.edgearr_add_left_right()
         If 0 is returned for both counts, this detector will be skipped
 
         Returns
@@ -315,7 +310,7 @@ class TraceSlits(masterframe.MasterFrame):
 
 
         """
-        self.edgearr, self.lcnt, self.rcnt = artraceslits.edgearr_add_left_right(
+        self.edgearr, self.lcnt, self.rcnt = trace_slits.edgearr_add_left_right(
             self.edgearr, self.binarr, self.binbpx, self.lcnt, self.rcnt, self.ednum)
         # Check on return
         if (self.lcnt == 0) and (self.rcnt == 0):
@@ -331,7 +326,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         Add a user-defined slit
 
-        Wrapper to artraceslits.add_user_edges()
+        Wrapper to trace_slits.add_user_edges()
 
         Parameters
         ----------
@@ -347,7 +342,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Reset (if needed) -- For running after PYPIT took a first pass
         self.reset_edgearr_ednum()
         # Add user input slits
-        self.edgearr = artraceslits.add_user_edges(self.edgearr, self.siglev, self.tc_dict, user_slits)
+        self.edgearr = trace_slits.add_user_edges(self.edgearr, self.siglev, self.tc_dict, user_slits)
         # Finish
         if run_to_finish:
             self._set_lrminx()
@@ -364,7 +359,7 @@ class TraceSlits(masterframe.MasterFrame):
         Assign slit edges by analyzing edgearr
         Single slits are handled trivially
 
-        Wrapper to artraceslits.assign_slits()
+        Wrapper to trace_slits.assign_slits()
 
         Returns
         -------
@@ -377,7 +372,7 @@ class TraceSlits(masterframe.MasterFrame):
         if self.lcnt == 1:
             self.edgearr[np.where(self.edgearr <= -2*self.ednum)] = -self.ednum
         else:
-            artraceslits.assign_slits(self.binarr, self.edgearr, lor=-1,
+            trace_slits.assign_slits(self.binarr, self.edgearr, lor=-1,
                                       function=self.par['function'],
                                       polyorder=self.par['polyorder'])
         # Assign right edges
@@ -385,7 +380,7 @@ class TraceSlits(masterframe.MasterFrame):
         if self.rcnt == 1:
             self.edgearr[np.where(self.edgearr >= 2*self.ednum)] = self.ednum
         else:
-            artraceslits.assign_slits(self.binarr, self.edgearr, lor=+1,
+            trace_slits.assign_slits(self.binarr, self.edgearr, lor=+1,
                                       function=self.par['function'],
                                       polyorder=self.par['polyorder'])
         # Steps
@@ -411,9 +406,9 @@ class TraceSlits(masterframe.MasterFrame):
             # Finish
             self.lcen = np.zeros((self.mstrace.shape[0], 1))
             self.rcen = np.zeros((self.mstrace.shape[0], 1))
-            self.lcen[:, 0] = arutils.func_val(self.lcoeff[:, 0], xint, self.par['function'],
+            self.lcen[:, 0] = utils.func_val(self.lcoeff[:, 0], xint, self.par['function'],
                                                minv=minvf, maxv=maxvf)
-            self.rcen[:, 0] = arutils.func_val(self.rcoeff[:, 0], xint, self.par['function'],
+            self.rcen[:, 0] = utils.func_val(self.rcoeff[:, 0], xint, self.par['function'],
                                                minv=minvf, maxv=maxvf)
             return True
         else:
@@ -439,7 +434,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         Last check on left/right edges
 
-        Wrapper to artraceslits.edgearr_final_left_right()
+        Wrapper to trace_slits.edgearr_final_left_right()
 
         Returns
         -------
@@ -449,7 +444,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         # Final left/right edgearr fussing (as needed)
-        self.edgearr, self.lcnt, self.rcnt = artraceslits.edgearr_final_left_right(
+        self.edgearr, self.lcnt, self.rcnt = trace_slits.edgearr_final_left_right(
             self.edgearr, self.ednum, self.siglev)
         # Steps
         self.steps.append(inspect.stack()[0][3])
@@ -458,7 +453,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         Fit the edges with (left or right)
 
-        Wrapper to artraceslits.fit_edges()
+        Wrapper to trace_slits.fit_edges()
 
         Parameters
         ----------
@@ -485,12 +480,12 @@ class TraceSlits(masterframe.MasterFrame):
         # Fit
         if side == 'left':
             self.lcoeff, self.lnmbrarr, self.ldiffarr, self.lwghtarr \
-                    = artraceslits.fit_edges(self.edgearr, self.lmin, self.lmax, plxbin, plybin,
+                    = trace_slits.fit_edges(self.edgearr, self.lmin, self.lmax, plxbin, plybin,
                                              left=True, polyorder=self.par['polyorder'],
                                              function=self.par['function'])
         else:
             self.rcoeff, self.rnmbrarr, self.rdiffarr, self.rwghtarr \
-                    = artraceslits.fit_edges(self.edgearr, self.rmin, self.rmax, plxbin, plybin,
+                    = trace_slits.fit_edges(self.edgearr, self.rmin, self.rmax, plxbin, plybin,
                                              left=False, polyorder=self.par['polyorder'],
                                              function=self.par['function'])
 
@@ -502,7 +497,7 @@ class TraceSlits(masterframe.MasterFrame):
         Ignore orders/slits on the edge of the detector when they run off
           Recommended for Echelle only
 
-        Wrapper to artraceslits.edgearr_ignore_orders()
+        Wrapper to trace_slits.edgearr_ignore_orders()
 
         Returns
         -------
@@ -514,7 +509,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         self.edgearr, self.lmin, self.lmax, self.rmin, self.rmax \
-                = artraceslits.edgearr_ignore_orders(self.edgearr, self.par['fracignore'])
+                = trace_slits.edgearr_ignore_orders(self.edgearr, self.par['fracignore'])
         # Steps
         self.steps.append(inspect.stack()[0][3])
 
@@ -534,24 +529,24 @@ class TraceSlits(masterframe.MasterFrame):
         """
         # Convert physical traces into a pixel trace
         msgs.info("Converting physical trace locations to nearest pixel")
-        self.pixcen = arpixels.phys_to_pix(0.5*(self.lcen+self.rcen), self.pixlocn, 1)
+        self.pixcen = pixels.phys_to_pix(0.5*(self.lcen+self.rcen), self.pixlocn, 1)
         self.pixwid = (self.rcen-self.lcen).mean(0).astype(np.int)
-        self.lordpix = arpixels.phys_to_pix(self.lcen, self.pixlocn, 1)
-        self.rordpix = arpixels.phys_to_pix(self.rcen, self.pixlocn, 1)
+        self.lordpix = pixels.phys_to_pix(self.lcen, self.pixlocn, 1)
+        self.rordpix = pixels.phys_to_pix(self.rcen, self.pixlocn, 1)
 
         # Slit pixels
         msgs.info("Identifying the pixels belonging to each slit")
-        self.slitpix = arpixels.core_slit_pixels(self.lcen, self.rcen, self.mstrace.shape,
+        self.slitpix = pixels.core_slit_pixels(self.lcen, self.rcen, self.mstrace.shape,
                                                  self.par['pad'])
         # ximg and edge mask
-        self.ximg, self.edge_mask = arpixels.ximg_and_edgemask(self.lcen, self.rcen, self.slitpix,
+        self.ximg, self.edge_mask = pixels.ximg_and_edgemask(self.lcen, self.rcen, self.slitpix,
                                                                trim_edg=self.par['trim'])
 
     def _match_edges(self):
         """
         # Assign a number to each edge 'grouping'
 
-        Wrapper to artraceslits.match_edges()
+        Wrapper to trace_slits.match_edges()
 
         Returns
         -------
@@ -561,7 +556,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
 
-        self.lcnt, self.rcnt = artraceslits.match_edges(self.edgearr, self.ednum)
+        self.lcnt, self.rcnt = trace_slits.match_edges(self.edgearr, self.ednum)
         # Sanity check (unlikely we will ever hit this)
         if self.lcnt >= self.ednum or self.rcnt >= self.ednum:
             msgs.error("Found more edges than allowed by ednum. Set ednum to a larger number.")
@@ -589,14 +584,14 @@ class TraceSlits(masterframe.MasterFrame):
         Handle close edges (as desired by the user)
           JXP does not recommend using this method for multislit
 
-        Wrapper to artraceslits.edgearr_close_slits()
+        Wrapper to trace_slits.edgearr_close_slits()
 
         Returns
         -------
         self.edgearr  : ndarray (internal)
 
         """
-        self.edgearr = artraceslits.edgearr_close_slits(self.binarr, self.edgearr, self.edgearrcp,
+        self.edgearr = trace_slits.edgearr_close_slits(self.binarr, self.edgearr, self.edgearrcp,
                                                         self.ednum, self.par['maxgap'],
                                                         function=self.par['function'],
                                                         polyorder=self.par['polyorder'])
@@ -607,7 +602,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         Synchronize slits in multi-slit mode (ARMLSD)
 
-        Wrapper to artraceslits.edgearr_mslit_sync()
+        Wrapper to trace_slits.edgearr_mslit_sync()
 
         Returns
         -------
@@ -616,7 +611,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         #
-        self.edgearr = artraceslits.edgearr_mslit_sync(self.edgearr, self.tc_dict, self.ednum)
+        self.edgearr = trace_slits.edgearr_mslit_sync(self.edgearr, self.tc_dict, self.ednum)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -625,7 +620,7 @@ class TraceSlits(masterframe.MasterFrame):
         Trace crude me
           And fuss with slits
 
-        Wrapper to artraceslits.edgearr_tcrude()
+        Wrapper to trace_slits.edgearr_tcrude()
 
         Returns
         -------
@@ -636,7 +631,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Settings
         _maxshift = self.par['maxshift'] if 'maxshift' in self.par.keys() else maxshift
 
-        self.edgearr, self.tc_dict = artraceslits.edgearr_tcrude(self.edgearr, self.siglev,
+        self.edgearr, self.tc_dict = trace_slits.edgearr_tcrude(self.edgearr, self.siglev,
                                                                  self.ednum, maxshift=_maxshift)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -672,7 +667,7 @@ class TraceSlits(masterframe.MasterFrame):
         Run the order slit edges PCA
           Recommended for ARMED
 
-        Wrapper to artraceslits.pca_order_slit_edges()
+        Wrapper to trace_slits.pca_order_slit_edges()
 
         Returns
         -------
@@ -683,7 +678,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         plxbin = self.pixlocn[:, :, 0].copy()
         self.lcen, self.rcen, self.extrapord \
-                = artraceslits.pca_order_slit_edges(self.binarr, self.edgearr, self.lcent,
+                = trace_slits.pca_order_slit_edges(self.binarr, self.edgearr, self.lcent,
                                                     self.rcent, self.gord, self.lcoeff,
                                                     self.rcoeff, plxbin, self.slitcen,
                                                     self.pixlocn,
@@ -700,7 +695,7 @@ class TraceSlits(masterframe.MasterFrame):
         Run the pixel slit edges PCA
           Recommended for ARMLSD
 
-        Wrapper to artraceslits.pca_pixel_slit_edges()
+        Wrapper to trace_slits.pca_pixel_slit_edges()
 
         Returns
         -------
@@ -711,7 +706,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         plxbin = self.pixlocn[:, :, 0].copy()
         self.lcen, self.rcen, self.extrapord \
-                = artraceslits.pca_pixel_slit_edges(self.binarr, self.edgearr, self.lcoeff,
+                = trace_slits.pca_pixel_slit_edges(self.binarr, self.edgearr, self.lcoeff,
                                                     self.rcoeff, self.ldiffarr, self.rdiffarr,
                                                     self.lnmbrarr, self.rnmbrarr, self.lwghtarr,
                                                     self.rwghtarr, self.lcent, self.rcent, plxbin,
@@ -725,7 +720,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         Remove a user-specified slit
 
-        Wrapper to artraceslits.remove_slit()
+        Wrapper to trace_slits.remove_slit()
 
         Parameters
         ----------
@@ -746,7 +741,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.rcen  : ndarray (internal)
 
         """
-        self.edgearr, self.lcen, self.rcen, self.tc_dict = artraceslits.remove_slit(
+        self.edgearr, self.lcen, self.rcen, self.tc_dict = trace_slits.remove_slit(
             self.edgearr, self.lcen, self.rcen, self.tc_dict, rm_slits, TOL=TOL)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -789,7 +784,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         Perform final synchronization
 
-        Wrapper to artraceslits.synchronize
+        Wrapper to trace_slits.synchronize
 
         Returns
         -------
@@ -801,7 +796,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.lcent, self.rcent, self.gord, \
             self.lcoeff, self.ldiffarr, self.lnmbrarr, self.lwghtarr, \
             self.rcoeff, self.rdiffarr, self.rnmbrarr, self.rwghtarr \
-                = artraceslits.synchronize_edges(self.binarr, self.edgearr, plxbin, self.lmin,
+                = trace_slits.synchronize_edges(self.binarr, self.edgearr, plxbin, self.lmin,
                                                  self.lmax, self.lcoeff, self.rmin, self.rcoeff,
                                                  self.lnmbrarr, self.ldiffarr, self.lwghtarr,
                                                  self.rnmbrarr, self.rdiffarr, self.rwghtarr,
@@ -1113,13 +1108,13 @@ class TraceSlits(masterframe.MasterFrame):
     def _qa(self, use_slitid=True):
         """
         QA
-          Wrapper to artraceslits.slit_trace_qa()
+          Wrapper to trace_slits.slit_trace_qa()
 
         Returns
         -------
 
         """
-        artraceslits.slit_trace_qa(self.mstrace, self.lcen,
+        trace_slits.slit_trace_qa(self.mstrace, self.lcen,
                                    self.rcen, self.extrapord, self.setup,
                                    desc="Trace of the slit edges D{:02d}".format(self.det),
                                    use_slitid=use_slitid)

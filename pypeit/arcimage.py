@@ -8,10 +8,10 @@ import numpy as np
 from pypeit import msgs
 from pypeit import processimages
 from pypeit import masterframe
-from pypeit.core import arsort
+from pypeit.core import sort
 from pypeit.par import pypeitpar
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     """
@@ -89,7 +89,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         # Get list of arc frames for this science frame
         #  unless one was input already
         if self.nfiles == 0:
-            self.file_list = arsort.list_of_files(self.fitstbl, self.frametype, self.sci_ID)
+            self.file_list = sort.list_of_files(self.fitstbl, self.frametype, self.sci_ID)
         # Combine
         self.stack = self.process(bias_subtract=self.msbias)
         #

@@ -1,5 +1,5 @@
 """ Abstract class for Master Image frames
-      This could go inside armasters.py
+      This could go inside masters.py
 """
 from __future__ import absolute_import, division, print_function
 
@@ -7,16 +7,12 @@ import os
 import warnings
 
 from pypeit import msgs
-from pypeit.core import armasters
+from pypeit.core import masters
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 from abc import ABCMeta
 
-try:
-    basestring
-except NameError:
-    basestring = str
 
 class MasterFrame(object):
     """
@@ -40,7 +36,7 @@ class MasterFrame(object):
         spec_name = None
         if spectrograph is not None:
             # Get the name of the spectrograph used for the directory name.
-            if isinstance(spectrograph, basestring):
+            if isinstance(spectrograph, str):
                 spec_name = spectrograph
             else:
                 # Try treating the object as a Spectrograph object
@@ -62,7 +58,7 @@ class MasterFrame(object):
 
     @property
     def ms_name(self):
-        return armasters.master_name(self.frametype, self.setup, self.directory_path)
+        return masters.master_name(self.frametype, self.setup, self.directory_path)
 
     @property
     def mdir(self):
@@ -86,7 +82,7 @@ class MasterFrame(object):
         file_list : list or None
         """
         if self._masters_load_chk() or force:
-            return armasters.load_master_frame(self.frametype, self.setup, self.mdir, force=force)
+            return masters.load_master_frame(self.frametype, self.setup, self.mdir, force=force)
         else:
             return None, None, None
 
@@ -111,7 +107,7 @@ class MasterFrame(object):
     def save_master(self, data, outfile=None, raw_files=None, steps=None):
         """
         Save the input data as a MasterFrame file
-          Primarily a wrapper to armasters.core_save_master
+          Primarily a wrapper to masters.core_save_master
 
         Intended for simple images only; more complex objects need their own method
 
@@ -124,6 +120,6 @@ class MasterFrame(object):
         """
         _outfile = self.ms_name if outfile is None else outfile
         keywds = None if steps is None else dict(steps=','.join(steps))
-        armasters.save_master(data, filename=_outfile, raw_files=raw_files, keywds=keywds,
+        masters.save_master(data, filename=_outfile, raw_files=raw_files, keywds=keywds,
                               frametype=self.frametype)
 

@@ -16,15 +16,14 @@ import matplotlib.pyplot as plt
 from matplotlib import cm, font_manager
 
 from pypeit import msgs
-from pypeit import arqa
-from pypeit import arplot
-from pypeit import arutils
-from pypeit import arpca
-from pypeit import arpixels
-from pypeit.core import arprocimg
-from pypeit import arparse as settings
-from pypeit import ardebug as debugger
-from pypeit.arutils import calc_ivar
+from pypeit.core import qa
+from pypeit.core import plot
+from pypeit import utils
+from pypeit.core import pca
+from pypeit.core import pixels
+from pypeit.core import procimg
+from pypeit import debugger
+from pypeit.utils import calc_ivar
 
 try:
     from pypeit import ginga
