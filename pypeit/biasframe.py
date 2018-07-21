@@ -8,13 +8,13 @@ import os
 
 
 from pypeit import msgs
-from pypeit.core import armasters
-from pypeit.core import arsort
+from pypeit.core import masters
+from pypeit.core import sort
 from pypeit import processimages
 from pypeit import masterframe
 from pypeit.par import pypeitpar
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     """
@@ -99,7 +99,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         """
         # Get all of the bias frames for this science frame
         if self.nfiles == 0:
-            self.file_list = arsort.list_of_files(self.fitstbl, 'bias', self.sci_ID)
+            self.file_list = sort.list_of_files(self.fitstbl, 'bias', self.sci_ID)
         # Combine
         self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
         #
@@ -140,7 +140,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         else:
             # It must be a user-specified file the user wishes to load
             msframe_name = os.path.join(self.directory_path, self.par['useframe'])
-            msframe, head, _ = armasters._core_load(msframe_name, frametype=self.frametype)
+            msframe, head, _ = masters._core_load(msframe_name, frametype=self.frametype)
 
         # Put in
         self.stack = msframe

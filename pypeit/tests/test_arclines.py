@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from pypeit import ararclines
-from pypeit import arparse
+from pypeit.core import parse
 
 
 def test_load_linelist():
@@ -17,7 +17,7 @@ def test_load_linelist():
     -------
     """
     # Init
-    arparse.dummy_settings()
+    parse.dummy_settings()
     # Load
     alist = ararclines.load_arcline_list(['CuI','ArI','NeI'], '600/7500', 'keck_lris_red',
                                          modify_parse_dict=dict(NeI={'min_wave': 3000.},

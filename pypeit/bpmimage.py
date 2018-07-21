@@ -5,17 +5,14 @@ import numpy as np
 import os
 
 from pypeit import msgs
-from pypeit.core import arprocimg
+from pypeit.core import procimg
 
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
+from pypeit.core import parse
 
-try:
-    basestring
-except NameError:
-    basestring = str
 
 class BPMImage(object):
     """
@@ -71,7 +68,7 @@ class BPMImage(object):
                  trim=True):
 
         # Spectrograph is required
-        if isinstance(spectrograph, basestring):
+        if isinstance(spectrograph, str):
             self.spectrograph = load_spectrograph(spectrograph=spectrograph)
         elif isinstance(spectrograph, Spectrograph):
             self.spectrograph = spectrograph
@@ -122,7 +119,7 @@ class BPMImage(object):
                 _datasec, one_indexed, include_end, transpose \
                         = self.spectrograph.get_image_section(self.filename, self.det,
                                                               section='datasec')
-                _datasec = [ arparse.sec2slice(sec, one_indexed=one_indexed,
+                _datasec = [ parse.sec2slice(sec, one_indexed=one_indexed,
                                                include_end=include_end, require_dim=2,
                                                transpose=transpose)
                                     for sec in _datasec ]
@@ -130,7 +127,7 @@ class BPMImage(object):
 
             # Identify the bad pixels.  WARNING: When self.trim is True,
             # this assumes that msbias is not trimmed.
-            self.bpm_img = arprocimg.find_bad_pixels(self.msbias, _numamplifiers, _datasec)
+            self.bpm_img = procimg.find_bad_pixels(self.msbias, _numamplifiers, _datasec)
 
             if self.trim:
                 mask = np.ones_like(self.bpm_img, dtype=bool)
@@ -139,7 +136,7 @@ class BPMImage(object):
 
         # Trim
         if self.trim:
-            self.bpm_img = arprocimg.trim_frame(self.bpm_img, mask)
+            self.bpm_img = procimg.trim_frame(self.bpm_img, mask)
         return self.bpm_img
 
 

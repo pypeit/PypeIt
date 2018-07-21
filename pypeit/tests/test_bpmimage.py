@@ -14,7 +14,7 @@ import glob
 import numpy as np
 
 from pypeit import bpmimage
-from pypeit.armsgs import PypitError
+from pypeit.msgs import PypeItError
 
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -32,7 +32,7 @@ def data_path(filename):
 def test_instantiate():
     # Empty
     # Can no longer be empty!
-    with pytest.raises(PypitError):
+    with pytest.raises(PypeItError):
         _ = bpmimage.BPMImage()
     bpm = bpmimage.BPMImage(spectrograph='keck_lris_red')
     assert bpm.spectrograph.spectrograph == 'keck_lris_red'
