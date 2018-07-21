@@ -20,11 +20,11 @@ from astropy.time import Time
 from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
-from pypeit.core import ararc
-from pypeit import arqa
-from pypeit import arutils
+from pypeit.core import arc
+from pypeit.core import qa
+from pypeit import utils
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 def flex_shift(obj_skyspec, arx_skyspec, mxshft=None):
     """ Calculate shift between object sky spectrum and archive sky spectrum
@@ -42,8 +42,8 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=None):
         mxshft = 20
     #Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
-    arx_amp, arx_cent, arx_wid, arx_w, arx_yprep = ararc.detect_lines(arx_skyspec.flux.value)
-    obj_amp, obj_cent, obj_wid, obj_w, obj_yprep = ararc.detect_lines(obj_skyspec.flux.value)
+    arx_amp, arx_cent, arx_wid, arx_w, arx_yprep = arc.detect_lines(arx_skyspec.flux.value)
+    obj_amp, obj_cent, obj_wid, obj_w, obj_yprep = arc.detect_lines(obj_skyspec.flux.value)
 
     #Keep only 5 brightest amplitude lines (xxx_keep is array of indices within arx_w of the 5 brightest)
     arx_keep = np.argsort(arx_amp[arx_w])[-5:]
@@ -140,13 +140,13 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=None):
     msgs.work("Consider taking median first [5 pixel]")
     everyn = obj_skyspec.npix // 20
     bspline_par = dict(everyn=everyn)
-    mask, ct = arutils.robust_polyfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3, function='bspline',
+    mask, ct = utils.robust_polyfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3, function='bspline',
                                   sigma=3., bspline_par=bspline_par)# everyn=everyn)
-    obj_sky_cont = arutils.func_val(ct, obj_skyspec.wavelength.value, 'bspline')
+    obj_sky_cont = utils.func_val(ct, obj_skyspec.wavelength.value, 'bspline')
     obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
-    mask, ct_arx = arutils.robust_polyfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value, 3, function='bspline',
+    mask, ct_arx = utils.robust_polyfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value, 3, function='bspline',
                                       sigma=3., bspline_par=bspline_par)# everyn=everyn)
-    arx_sky_cont = arutils.func_val(ct_arx, arx_skyspec.wavelength.value, 'bspline')
+    arx_sky_cont = utils.func_val(ct_arx, arx_skyspec.wavelength.value, 'bspline')
     arx_sky_flux = arx_skyspec.flux.value - arx_sky_cont
 
     # Consider shaprness filtering (e.g. LowRedux)
@@ -164,7 +164,7 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=None):
     subpix_grid = np.linspace(max_corr-3., max_corr+3., 7.)
 
     #Fit a 2-degree polynomial to peak of correlation function
-    fit = arutils.func_fit(subpix_grid, corr[subpix_grid.astype(np.int)], 'polynomial', 2)
+    fit = utils.func_fit(subpix_grid, corr[subpix_grid.astype(np.int)], 'polynomial', 2)
     max_fit = -0.5*fit[1]/fit[2]
 
     #Calculate and apply shift in wavelength
@@ -234,7 +234,7 @@ def flexure_slit():
     # Refit
     #  What if xfit shifts outside of 0-1?
     xshift = fdict['shift']/(slf._msarc[det-1].shape[0]-1)
-    mask, fit = arutils.robust_polyfit(np.array(slf._wvcalib[det-1]['xfit'])+xshift,
+    mask, fit = utils.robust_polyfit(np.array(slf._wvcalib[det-1]['xfit'])+xshift,
                                        np.array(slf._wvcalib[det-1]['yfit']),
                                        len(slf._wvcalib[det-1]['fitc']),
                                        function=slf._wvcalib[det-1]['function'], sigma=slf._wvcalib[det-1]['nrej'], minv=slf._wvcalib[det-1]['fmin'], maxv=slf._wvcalib[det-1]['fmax'])
@@ -244,7 +244,7 @@ def flexure_slit():
     msgs.work("Add another QA for wavelengths?")
     # Update mswave
     wv_calib = slf._wvcalib[det-1]
-    slf._mswave[det-1] = arutils.func_val(wv_calib['fitc'], slf._tilts[det-1], wv_calib['function'], minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
+    slf._mswave[det-1] = rutils.func_val(wv_calib['fitc'], slf._tilts[det-1], wv_calib['function'], minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
     # Write to Masters?  Not for now
     # For QA (kludgy..)
     censpec_wv = arextract.boxcar_cen(slf, det, slf._mswave[det-1])
@@ -545,7 +545,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list, slit_cen=False):
         flex_dict = flex_list[sl]
 
         # Outfile
-        outfile = arqa.set_qa_filename(basename, method+'_corr', det=det,
+        outfile = qa.set_qa_filename(basename, method+'_corr', det=det,
                                        slit=specobjs[sl][0].slitid)
 
         plt.figure(figsize=(8, 5.0))
@@ -559,7 +559,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list, slit_cen=False):
             fit = flex_dict['polyfit'][o]
             xval = np.linspace(-10., 10, 100) + flex_dict['corr_cen'][o] #+ flex_dict['shift'][o]
             #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
-            model = arutils.func_val(fit, xval, 'polynomial')
+            model = utils.func_val(fit, xval, 'polynomial')
             mxmod = np.max(model)
             ylim = [np.min(model/mxmod), 1.3]
             ax.plot(xval-flex_dict['corr_cen'][o], model/mxmod, 'k-')
@@ -607,7 +607,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list, slit_cen=False):
             gdsky = gdsky[idx]
 
         # Outfile
-        outfile = arqa.set_qa_filename(basename, method+'_sky', det=det,
+        outfile = qa.set_qa_filename(basename, method+'_sky', det=det,
                                        slit=specobjs[sl][0].slitid)
         # Figure
         plt.figure(figsize=(8, 5.0))

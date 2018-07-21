@@ -13,7 +13,7 @@ import pytest
 import glob
 import numpy as np
 
-from pypit import traceslits
+from pypeit import traceslits
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:

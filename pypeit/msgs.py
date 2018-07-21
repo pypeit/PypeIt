@@ -26,7 +26,7 @@ from pypeit.core.qa import close_qa
 
 #pypeit_logger = None
 
-class PypitError(Exception):
+class PypeItError(Exception):
     pass
 
 class Messages:

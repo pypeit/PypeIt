@@ -11,10 +11,10 @@ import yaml
 import linetools.utils
 
 from pypeit import msgs
-from pypeit import arutils
-from pypeit import arparse
-from pypeit.core import arsort
-from pypeit import ardebug as debugger
+from pypeit import utils
+from pypeit.core import parse
+from pypeit.core import sort
+from pypeit import debugger
 
 
 def dummy_setup_dict(fitstbl, setup):
@@ -34,7 +34,7 @@ def dummy_setup_dict(fitstbl, setup):
     setup_dict[setup[0]] = {}
     # Fill with dummy dicts
     for ii in range(1,20): # Dummy detectors
-        setup_dict[setup[0]][arparse.get_dnum(ii)] = dict(binning='1x1')
+        setup_dict[setup[0]][parse.get_dnum(ii)] = dict(binning='1x1')
     setup_dict[setup[0]][setup[-2:]] = {}
     # Fill up filenames
     setup_dict[setup[0]][setup[-2:]]['sci'] = fitstbl['filename'][fitstbl['science']].tolist()
@@ -61,7 +61,7 @@ def dummy_setup_dict(filesort, fitsdict):
     setup_dict[setup[0]] = {}
     # Fill with dummy dicts
     for ii in range(1,20): # Dummy detectors
-        setup_dict[setup[0]][arparse.get_dnum(ii)] = dict(binning='1x1')
+        setup_dict[setup[0]][parse.get_dnum(ii)] = dict(binning='1x1')
     setup_dict[setup[0]][setup[-2:]] = {}
     iSCI = filesort['science']
     # Fill up filenames
@@ -104,7 +104,7 @@ def calib_set(isetup_dict, fitstbl, sci_ID):
         #else:
         #    nms = []
         # Grab the names
-        idx = arsort.ftype_indices(fitstbl, cbkey, sci_ID)
+        idx = sort.ftype_indices(fitstbl, cbkey, sci_ID)
         names = fitstbl['filename'][idx].tolist()
         # Save
         new_cbset[cbkey] = names
@@ -240,7 +240,7 @@ def det_setup(isetup_dict, ddict):
       May be new or previously used
 
     """
-    det_str = [arparse.get_dnum(i+1, prefix=False) for i in range(99)]
+    det_str = [parse.get_dnum(i+1, prefix=False) for i in range(99)]
     # Init
     for dkey in det_str:
         mtch = True
@@ -298,7 +298,7 @@ def instr_setup(sci_ID, det, fitstbl, setup_dict, numamplifiers,
     cstr = '--'
     # Arc index
     #idx = np.where(fitstbl['arc'] & (fitstbl['sci_idx'] & sci_idx))[0]
-    idx = arsort.ftype_indices(fitstbl, 'arc', sci_ID)
+    idx = sort.ftype_indices(fitstbl, 'arc', sci_ID)
     try:
         disp_name = fitstbl["dispname"][idx[0]]
     except:
@@ -583,7 +583,7 @@ def write_calib(calib_file, setup_dict):
       setup dict
     """
     # Write
-    ydict = arutils.yamlify(setup_dict)
+    ydict = utils.yamlify(setup_dict)
     with open(calib_file, 'w') as yamlf:
         yamlf.write(yaml.dump(ydict))
 
@@ -609,7 +609,7 @@ def write_setup(setup_dict, setup_file=None, use_json=False):
         gddict = linetools.utils.jsonify(setup_dict)
         linetools.utils.savejson(setup_file, gddict, easy_to_read=True)
     else: # YAML
-        ydict = arutils.yamlify(setup_dict)
+        ydict = utils.yamlify(setup_dict)
         with open(setup_file, 'w') as yamlf:
             yamlf.write(yaml.dump(ydict))
 
@@ -677,7 +677,7 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
     """
     # Setup
     srt_tbl = fitstbl.copy()
-    srt_tbl['frametype'] = arsort.build_frametype_list(fitstbl)
+    srt_tbl['frametype'] = sort.build_frametype_list(fitstbl)
     # Output file
     ff = open(group_file, 'w')
     # Keys
@@ -692,7 +692,7 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
         ff.write('##########################################################\n')
         in_setup = []
         ff.write('Setup {:s}\n'.format(setup))
-        ydict = arutils.yamlify(setup_dict[setup])
+        ydict = utils.yamlify(setup_dict[setup])
         ff.write(yaml.dump(ydict))
         ff.write('#---------------------------------------------------------\n')
         # ID files
@@ -726,7 +726,7 @@ def build_group_dict(fitstbl, setupIDs, all_sci_idx, all_sci_ID):
     -------
     group_dict : dict
     """
-    ftype_keys = arsort.ftype_list + ['failures']
+    ftype_keys = sort.ftype_list + ['failures']
 
     group_dict = {}
     for sc,setupID in enumerate(setupIDs):
@@ -750,7 +750,7 @@ def build_group_dict(fitstbl, setupIDs, all_sci_idx, all_sci_ID):
             if key in ['unknown', 'dark', 'failures']:
                 continue
             #for idx in settings_spect[key]['index'][sc]:
-            indices = arsort.ftype_indices(fitstbl, key, sci_ID)
+            indices = sort.ftype_indices(fitstbl, key, sci_ID)
             #for idx in settings_spect[key]['index'][sc]:
             for idx in indices:
                 # Only add if new

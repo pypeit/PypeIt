@@ -13,7 +13,7 @@ import pytest
 import glob
 import numpy as np
 
-from pypit import traceimage
+from pypeit import traceimage
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:

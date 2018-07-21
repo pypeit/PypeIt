@@ -9,8 +9,8 @@ import os
 import pytest
 import glob
 
-from pypit.par.util import pypit_root_directory
-from pypit import spectrographs
+from pypeit.par.util import pypeit_root_directory
+from pypeit import spectrographs
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:
@@ -72,7 +72,7 @@ def test_kecknirspec():
 
 def test_shanekastblue():
     s = spectrographs.shane_kast.ShaneKastBlueSpectrograph()
-    example_file = os.path.join(pypit_root_directory(), 'pypit', 'tests', 'files',
+    example_file = os.path.join(pypeit_root_directory(), 'pypit', 'tests', 'files',
                                 'b1.fits.gz')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Shane Kast Blue read.')

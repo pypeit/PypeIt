@@ -15,9 +15,9 @@ import glob
 
 import yaml
 
-from pypit import msgs
-from pypit.par.util import parse_pypit_file
-from pypit.scripts import setup
+from pypeit import msgs
+from pypeit.par.util import parse_pypeit_file
+from pypeit.scripts import setup
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -54,7 +54,7 @@ def test_setup_made_pypit_file():
     This test depends on the one above
     """
     pypit_file = data_path('shane_kast_blue_setup_A/shane_kast_blue_setup_A.pypit')
-    cfg_lines, data_files, frametype, setups = parse_pypit_file(pypit_file)
+    cfg_lines, data_files, frametype, setups = parse_pypeit_file(pypit_file)
     print(setups)
     # Test
     assert len(data_files) == 2

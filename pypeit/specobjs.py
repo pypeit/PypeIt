@@ -12,14 +12,10 @@ from astropy.table import Table
 from astropy.units import Quantity
 
 from pypeit import msgs
-from pypeit import arparse
-from pypeit.core import artraceslits
-from pypeit import ardebug as debugger
+from pypeit.core import parse
+from pypeit.core import trace_slits
+from pypeit import debugger
 
-try:
-    basestring
-except NameError:
-    basestring = str
 
 class SpecObj(object):
     """Class to handle object spectra from a single exposure
@@ -116,7 +112,7 @@ class SpecObj(object):
             self.idx += '-S---'
         else:
             self.idx += '-S{:03d}'.format(self.slitid)
-        sdet = arparse.get_dnum(self.det, prefix=False)
+        sdet = parse.get_dnum(self.det, prefix=False)
         self.idx += '-D{:s}'.format(sdet)
         self.idx += '-I{:04d}'.format(self.scidx)
 
@@ -166,7 +162,7 @@ class SpecObj(object):
     # Printing
     def __repr__(self):
         # Generate sets string
-        sdet = arparse.get_dnum(self.det, prefix=False)
+        sdet = parse.get_dnum(self.det, prefix=False)
         return ('<SpecObj: Setup = {:}, Slit = {:} at spec = {:7.2f} & spat = ({:7.2f},{:7.2f}) on det={:s}, scidx={:}, objid = {:} and objtype={:s}>'.format(
             self.config, self.slitid, self.slit_spec_pos, self.slit_spat_pos[0], self.slit_spat_pos[1], sdet, self.scidx, self.objid, self.objtype))
 
@@ -261,7 +257,7 @@ class SpecObjs(object):
 
         """
         # TODO -- Add slicing
-        if isinstance(key, basestring):
+        if isinstance(key, str):
             return self.__getattr__(key)
         elif isinstance(key, int):
             return self.specobjs[key]
@@ -346,7 +342,7 @@ def init_exp(lordloc, rordloc, shape, maskslits,
             # Loop on objects
             #for qq in range(trc_img[sl]['nobj']):
             for qq in range(tracelist[sl]['traces'].shape[1]):
-                slitid, slitcen, xslit = artraceslits.get_slitid(shape, lordloc, rordloc,
+                slitid, slitcen, xslit = trace_slits.get_slitid(shape, lordloc, rordloc,
                                                                  sl, ypos=ypos)
                 # xobj
                 _, xobj = get_objid(lordloc, rordloc, sl, qq, tracelist, ypos=ypos)

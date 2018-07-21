@@ -11,9 +11,9 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord
 from astropy import units
 
-from pypeit.core import arwave
-from pypeit import arspecobj
-from pypeit.core import arsort
+from pypeit.core import wave
+from pypeit import specobjs
+from pypeit.core import sort
 from pypeit.tests.tstutils import load_kast_blue_masters
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -28,7 +28,7 @@ alt = 4160.0               # Elevation of the telescope (in m)
 
 @pytest.fixture
 def fitstbl():
-    return arsort.dummy_fitstbl()
+    return sort.dummy_fitstbl()
 
 
 def test_geovelocity():
@@ -39,8 +39,8 @@ def test_geovelocity():
     radec = SkyCoord(RA, DEC, unit=(units.hourangle, units.deg), frame='icrs')
     obstime = Time(mjd, format='mjd', scale='utc', location=loc)
 
-    corrhelio = arwave.geomotion_velocity(obstime, radec, frame="heliocentric")
-    corrbary = arwave.geomotion_velocity(obstime, radec, frame="barycentric")
+    corrhelio = wave.geomotion_velocity(obstime, radec, frame="heliocentric")
+    corrbary = wave.geomotion_velocity(obstime, radec, frame="barycentric")
 
     # IDL
     # vhel = x_keckhelio(106.59770833333332, 30.34736111111111, 2000., jd=2457783.769661)
@@ -58,13 +58,13 @@ def test_geocorrect(fitstbl):
 #    spectrograph = load_spectrograph(spectrograph='keck_lris_blue')
 
     # Specobjs (wrap in a list to mimic a slit)
-    specobjs = [arspecobj.dummy_specobj(fitstbl, extraction=True)]
+    specobjs = [specobjs.dummy_specobj(fitstbl, extraction=True)]
     scidx = 5
     tbname = fitstbl['date'][scidx]
     obstime = Time(tbname, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
     maskslits = np.array([False]*len(specobjs))
 
-    helio, hel_corr = arwave.geomotion_correct(specobjs, maskslits, fitstbl, scidx, obstime,
+    helio, hel_corr = wave.geomotion_correct(specobjs, maskslits, fitstbl, scidx, obstime,
                                                lon, lat, alt, 'heliocentric')
     assert np.isclose(helio, -9.17461338, rtol=1e-5)  # Checked against x_keckhelio
     #assert np.isclose(helio, -9.3344957, rtol=1e-5)  # Original

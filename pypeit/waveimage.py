@@ -8,11 +8,11 @@ import os
 #from importlib import reload
 
 from pypeit import msgs
-from pypeit import arutils
+from pypeit import utils
 from pypeit import masterframe
 from pypeit import ginga
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 class WaveImage(masterframe.MasterFrame):
     """Class to generate the Wavelength Image
@@ -80,7 +80,7 @@ class WaveImage(masterframe.MasterFrame):
         self.wave = np.zeros_like(self.tilts)
         for slit in ok_slits:
             iwv_calib = self.wv_calib[str(slit)]
-            tmpwv = arutils.func_val(iwv_calib['fitc'], self.tilts, iwv_calib['function'],
+            tmpwv = utils.func_val(iwv_calib['fitc'], self.tilts, iwv_calib['function'],
                                      minv=iwv_calib['fmin'], maxv=iwv_calib['fmax'])
             word = np.where(self.slitpix == slit+1)
             self.wave[word] = tmpwv[word]

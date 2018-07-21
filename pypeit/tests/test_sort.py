@@ -10,10 +10,9 @@ import numpy as np
 
 from astropy.table import hstack
 
-from pypeit import arparse as settings
-from pypeit.core import arsort
-from pypeit.core import arsetup
-from pypeit.armsgs import PypitError
+from pypeit.core import sort
+from pypeit.core import pypsetup
+from pypeit.msgs import PypeItError
 from pypeit.spectrographs.util import load_spectrograph
 
 

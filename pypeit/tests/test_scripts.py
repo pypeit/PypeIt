@@ -15,9 +15,9 @@ import pytest
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
-from pypit import msgs
-from pypit.scripts import coadd_1dspec
-from pypit.scripts import view_fits
+from pypeit import msgs
+from pypeit.scripts import coadd_1dspec
+from pypeit.scripts import view_fits
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
