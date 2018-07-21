@@ -12,15 +12,15 @@ import glob
 import numpy as np
 from astropy.io import fits
 
-from pypit import msgs
-from pypit import arparse
-from pypit.par.pypitpar import DetectorPar
-from pypit.par import pypitpar
-from pypit.spectrographs import spectrograph
-from pypit import telescopes
-from pypit.core import arsort
+from pypeit import msgs
+from pypeit import arparse
+from pypeit.par.pypeitpar import DetectorPar
+from pypeit.par import pypeitpar
+from pypeit.spectrographs import spectrograph
+from pypeit import telescopes
+from pypeit.core import arsort
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 class KeckLRISSpectrograph(spectrograph.Spectrograph):
     """
@@ -197,11 +197,11 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         self.sky_file = 'sky_LRISb_600.fits'
 
     @staticmethod
-    def default_pypit_par():
+    def default_pypeit_par():
         """
         Set default parameters for Keck LRISb reductions.
         """
-        par = pypitpar.PypitPar()
+        par = pypeitpar.PypitPar()
         par['rdx']['spectrograph'] = 'keck_lris_blue'
         # Use the ARMS pipeline
         par['rdx']['pipeline'] = 'ARMS'
@@ -209,11 +209,11 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['slits']['sigdetect'] = 30.
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypitpar.SkySubtractionPar()
+        par['skysubtract'] = pypeitpar.SkySubtractionPar()
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypitpar.FluxCalibrationPar()
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypitpar.FlexurePar()
+        par['flexure'] = pypeitpar.FlexurePar()
         return par
 
     def check_header(self, headers):

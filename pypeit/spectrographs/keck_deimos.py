@@ -7,15 +7,15 @@ import glob
 import numpy as np
 from astropy.io import fits
 
-from pypit import msgs
-from pypit import arparse
-from pypit.par.pypitpar import DetectorPar
-from pypit.spectrographs import spectrograph
-from pypit import telescopes
-from pypit.core import arsort
-from pypit.par import pypitpar
+from pypeit import msgs
+from pypeit import arparse
+from pypeit.par.pypeitpar import DetectorPar
+from pypeit.spectrographs import spectrograph
+from pypeit import telescopes
+from pypeit.core import arsort
+from pypeit.par import pypeitpar
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     """
@@ -171,11 +171,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # self.sky_file ?
 
     @staticmethod
-    def default_pypit_par():
+    def default_pypeit_par():
         """
         Set default parameters for Keck LRISb reductions.
         """
-        par = pypitpar.PypitPar()
+        par = pypeitpar.PypitPar()
         par['rdx']['spectrograph'] = 'keck_deimos'
 
         # Use the ARMS pipeline
@@ -195,11 +195,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
         # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypitpar.SkySubtractionPar()
+        par['skysubtract'] = pypeitpar.SkySubtractionPar()
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = None  #  pypitpar.FluxCalibrationPar()
+        par['fluxcalib'] = None  #  pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypitpar.FlexurePar()
+        par['flexure'] = pypeitpar.FlexurePar()
         return par
 
     def header_keys(self):
@@ -431,7 +431,7 @@ def read_deimos(raw_file, det=None):
     """
     Read a raw DEIMOS data frame (one or more detectors)
     Packed in a multi-extension HDU
-    Based on pypit.arlris.read_lris...
+    Based on pypeit.arlris.read_lris...
        Based on readmhdufits.pro
 
     Parameters

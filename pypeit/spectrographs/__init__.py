@@ -1,9 +1,9 @@
 
-from pypit.spectrographs import keck_deimos
-from pypit.spectrographs import keck_lris
-from pypit.spectrographs import keck_nires
-from pypit.spectrographs import keck_nirspec
-from pypit.spectrographs import shane_kast
-from pypit.spectrographs import tng_dolores
-from pypit.spectrographs import wht_isis
+from pypeit.spectrographs import keck_deimos
+from pypeit.spectrographs import keck_lris
+from pypeit.spectrographs import keck_nires
+from pypeit.spectrographs import keck_nirspec
+from pypeit.spectrographs import shane_kast
+from pypeit.spectrographs import tng_dolores
+from pypeit.spectrographs import wht_isis
 

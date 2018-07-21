@@ -3,10 +3,10 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 import numpy as np
 
-from pypit import msgs
-from pypit import spectrographs
+from pypeit import msgs
+from pypeit import spectrographs
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 # TODO: Allow the spectrographs to be identified by their camera?  Won't
 # work for 'shane_kast_red' and 'shane_kast_red_ret'.

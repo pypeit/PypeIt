@@ -13,15 +13,10 @@ from astropy.io import fits
 
 from linetools.spectra import xspectrum1d
 
-from pypit import msgs
-from pypit import arparse
-from pypit import arpixels
-from pypit.par import pypitpar
+from pypeit import msgs
+from pypeit.core import parse
+from pypeit.par import pypeitpar
 
-try:
-    basestring
-except NameError:
-    basestring = str
 
 # TODO: Consider changing the name of this to Instrument
 class Spectrograph(object):
@@ -31,7 +26,7 @@ class Spectrograph(object):
     Attributes:
         spectrograph (str):
             The name of the spectrograph.  See
-            :func:`pypit.spectrographs.util.valid_spectrographs` for the
+            :func:`pypeit.spectrographs.util.valid_spectrographs` for the
             currently supported spectrographs.
         telescope (:class:`TelescopePar`):
             Parameters of the telescope that feeds this spectrograph.
@@ -39,7 +34,7 @@ class Spectrograph(object):
             Name of the spectrograph camera.
         detector (list):
             A list of instances of
-            :class:`pypit.par.pypitpar.DetectorPar` with the parameters
+            :class:`pypeit.par.pypeitpar.DetectorPar` with the parameters
             for each detector in the spectrograph
         naxis (tuple):
             A tuple with the lengths of the two axes for current
@@ -83,14 +78,14 @@ class Spectrograph(object):
     def default_sky_spectrum():
         """
         Return the path to the default sky spectrum: currently
-        'pypit/data/sky_spec/paranal_sky.fits' in the pypit source
+        'pypeit/data/sky_spec/paranal_sky.fits' in the pypeit source
         distribution.
         """
-        return os.path.join(resource_filename('pypit', 'data/sky_spec/'), 'paranal_sky.fits')
+        return os.path.join(resource_filename('pypeit', 'data/sky_spec/'), 'paranal_sky.fits')
 
     @staticmethod
-    def default_pypit_par():
-        return pypitpar.PypitPar()
+    def default_pypeit_par():
+        return pypeitpar.PypitPar()
 
     def add_to_fitstbl(self, fitstbl):
         pass
@@ -99,16 +94,16 @@ class Spectrograph(object):
         # Check the detector
         if self.telescope is None:
             raise ValueError('Must define the telescope used to take the observations.')
-        if not isinstance(self.telescope, TelescopePar):
+        if not isinstance(self.telescope, pypeitpar.TelescopePar):
                 raise TypeError('Telescope parameters must be one of those specified in'
-                                'pypit.telescopes.')
+                                'pypeit.telescopes.')
 
     def _check_detector(self):
         # Check the detector
         if self.detector is None:
             raise ValueError('Must first define spectrograph detector parameters!')
         for d in self.detector:
-            if not isinstance(d, pypitpar.DetectorPar):
+            if not isinstance(d, pypeitpar.DetectorPar):
                 raise TypeError('Detector parameters must be specified using DetectorPar.')
 
 #    def _set_calib_par(self, user_supplied=None):
@@ -193,7 +188,7 @@ class Spectrograph(object):
                 Detector number
             section (:obj:`str`, optional):
                 The section to return.  Should be either datasec or
-                oscansec, according to the :class:`pypitpar.DetectorPar`
+                oscansec, according to the :class:`pypeitpar.DetectorPar`
                 keywords.
 
         Returns:
@@ -266,7 +261,7 @@ class Spectrograph(object):
             self.datasec_img = np.zeros(self.naxis, dtype=int)
             for i in range(self.detector[det-1]['numamplifiers']):
                 # Convert the data section from a string to a slice
-                datasec = arparse.sec2slice(data_sections[i], one_indexed=one_indexed,
+                datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
                                             include_end=include_end, require_dim=2,
                                             transpose=transpose)
                 # Assign the amplifier
@@ -446,7 +441,7 @@ class Spectrograph(object):
         Raises:
             FileNotFoundError:
                 Raised if the file does not exist as written or in the
-                pypit/data/sky_spec/ directory in the source
+                pypeit/data/sky_spec/ directory in the source
                 distribution.
         """
         # No file was defined
@@ -458,7 +453,7 @@ class Spectrograph(object):
             # Found directly
             return self.sky_file, xspectrum1d.XSpectrum1D.from_file(self.sky_file)
 
-        root = resource_filename('pypit', 'data/sky_spec/')
+        root = resource_filename('pypeit', 'data/sky_spec/')
         _sky_file = os.path.join(root, self.sky_file)
         if os.path.isfile(_sky_file):
             # Found within the source distribution

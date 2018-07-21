@@ -13,13 +13,13 @@ import numpy as np
 
 from astropy.io import fits
 
-from pypit import msgs
-from pypit.par import pypitpar
-from pypit.spectrographs import spectrograph
-from pypit import telescopes
-from pypit.core import arsort
+from pypeit import msgs
+from pypeit.par import pypeitpar
+from pypeit.spectrographs import spectrograph
+from pypeit import telescopes
+from pypeit.core import arsort
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 
 class ShaneKastSpectrograph(spectrograph.Spectrograph):
@@ -172,7 +172,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         self.camera = 'KASTb'
         self.detector = [
                 # Detector 1
-                pypitpar.DetectorPar(dataext         = 0,
+                pypeitpar.DetectorPar(dataext         = 0,
                                      dispaxis        = 1,
                                      xgap            = 0.,
                                      ygap            = 0.,
@@ -194,11 +194,11 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         self.sky_file = 'sky_kastb_600.fits'
 
     @staticmethod
-    def default_pypit_par():
+    def default_pypeit_par():
         """
         Set default parameters for Shane Kast Blue reductions.
         """
-        par = pypitpar.PypitPar()
+        par = pypeitpar.PypitPar()
         # TODO: Make self.spectrograph a class attribute?
         par['rdx']['spectrograph'] = 'shane_kast_blue'
         # Use the ARMS pipeline
@@ -212,11 +212,11 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # Set wave tilts order
         par['calibrations']['tilts']['order'] = 2
         # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypitpar.SkySubtractionPar()
+        par['skysubtract'] = pypeitpar.SkySubtractionPar()
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypitpar.FluxCalibrationPar()
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypitpar.FlexurePar()
+        par['flexure'] = pypeitpar.FlexurePar()
         return par
 
     def check_header(self, headers):
@@ -282,7 +282,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         self.camera = 'KASTr'
         self.detector = [
                 # Detector 1
-                pypitpar.DetectorPar(dataext         = 0,
+                pypeitpar.DetectorPar(dataext         = 0,
                                      dispaxis        = 0,
                                      xgap            = 0.,
                                      ygap            = 0.,
@@ -370,7 +370,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         self.camera = 'KASTr'
         self.detector = [
                 # Detector 1
-                pypitpar.DetectorPar(dataext         = 0,
+                pypeitpar.DetectorPar(dataext         = 0,
                                      dispaxis        = 1,
                                      xgap            = 0.,
                                      ygap            = 0.,

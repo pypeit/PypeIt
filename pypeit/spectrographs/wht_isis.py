@@ -11,14 +11,14 @@ import glob
 
 import numpy as np
 
-from pypit import msgs
-from pypit.par.pypitpar import DetectorPar
-from pypit.spectrographs import spectrograph
-from pypit import telescopes
-from pypit.par import pypitpar
-from pypit.core import arsort
+from pypeit import msgs
+from pypeit.par.pypeitpar import DetectorPar
+from pypeit.spectrographs import spectrograph
+from pypeit import telescopes
+from pypeit.par import pypeitpar
+from pypeit.core import arsort
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 class WhtIsisSpectrograph(spectrograph.Spectrograph):
     """
@@ -63,11 +63,11 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
         # self.sky_file = ?
 
     @staticmethod
-    def default_pypit_par():
+    def default_pypeit_par():
         """
         Set default parameters for Keck LRISb reductions.
         """
-        par = pypitpar.PypitPar()
+        par = pypeitpar.PypitPar()
         par['rdx']['spectrograph'] = 'wht_isis_blue'
         # Use the ARMS pipeline
         par['rdx']['pipeline'] = 'ARMS'
@@ -77,11 +77,11 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'simple'
         # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypitpar.SkySubtractionPar()
+        par['skysubtract'] = pypeitpar.SkySubtractionPar()
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = None  #  pypitpar.FluxCalibrationPar()
+        par['fluxcalib'] = None  #  pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypitpar.FlexurePar()
+        par['flexure'] = pypeitpar.FlexurePar()
         return par
 
     def header_keys(self):

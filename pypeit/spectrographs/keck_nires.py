@@ -12,11 +12,11 @@ import glob
 import numpy as np
 from astropy.io import fits
 
-from pypit import msgs
-from pypit import ardebug as debugger
-from pypit.par.pypitpar import DetectorPar
-from pypit.spectrographs import spectrograph
-from pypit import telescopes
+from pypeit import msgs
+from pypeit import ardebug as debugger
+from pypeit.par.pypeitpar import DetectorPar
+from pypeit.spectrographs import spectrograph
+from pypeit import telescopes
 
 # TODO: KeckNIRESSPectrograph instead (i.e. two SS) ?
 class KeckNIRESpectrograph(spectrograph.Spectrograph):
