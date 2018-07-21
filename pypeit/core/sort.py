@@ -24,11 +24,11 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from astropy import units
 
-from pypit import msgs
-#from pypit import arparse as settings
-from pypit import arutils
-from pypit.core.arflux import find_standard_file
-from pypit import ardebug as debugger
+from pypeit import msgs
+#from pypeit import arparse as settings
+from pypeit import arutils
+from pypeit.core.arflux import find_standard_file
+from pypeit import ardebug as debugger
 
 # TODO: (KBW) You know my comment about this...
 ftype_list = [     # NOTE:  arc must be listed first!
@@ -473,7 +473,7 @@ def chk_condition(fitstbl, cond):
     return ntmp
 
 
-def write_lst(fitstbl, skeys, pypit_filename, setup=False,
+def write_lst(fitstbl, skeys, pypeit_filename, setup=False,
               sort_dir=None):
     """
     Write out an ascii file that contains the details of the file sorting.
@@ -525,7 +525,7 @@ def write_lst(fitstbl, skeys, pypit_filename, setup=False,
     ascii_tbl['frametype'] = build_frametype_list(fitstbl)
     # Write
     if setup:
-        ascii_name = pypit_filename.replace('.pypit', '.lst')
+        ascii_name = pypeit_filename.replace('.pypeit', '.lst')
     else:
         ascii_name = sort_dir+'.lst'
     ascii_tbl[asciiord].write(ascii_name, format='ascii.fixed_width')
@@ -751,7 +751,7 @@ def sort_write(fitsdict, filesort, space=3):
     ascii_tbl['frametype'] = ftypes
     # Write
     if settings.argflag['run']['setup']:
-        ascii_name = settings.argflag['run']['redname'].replace('.pypit', '.lst')
+        ascii_name = settings.argflag['run']['redname'].replace('.pypeit', '.lst')
     else:
         ascii_name = settings.argflag['output']['sorted']+'.lst'
     ascii_tbl[asciiord].write(ascii_name, format='ascii.fixed_width')
@@ -964,12 +964,12 @@ def insufficient_frame_error(frametype):
                 + msgs.newline() + '[calibrations]'
                 + msgs.newline() + '    [[{0}frame]]'.format(frametype)
                 + msgs.newline() + '        number = XX'
-                + msgs.newline() + 'in the pypit file, or specify a specific'
+                + msgs.newline() + 'in the pypeit file, or specify a specific'
                 + 'pixelflat file by setting'
                 + msgs.newline() + '[calibrations]'
                 + msgs.newline() + '    [[{0}frame]]'.format(frametype)
                 + msgs.newline() + '        useframe = XX'
-                + msgs.newline() + 'in the pypit file')
+                + msgs.newline() + 'in the pypeit file')
 
 
 def match_warnings(calib_par, ftag, nmatch, numfr, target, setup=False):
@@ -1100,7 +1100,7 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
 
 def make_dirs(spectrograph, caldir, scidir, qadir, overwrite=False):
     """
-    Make the directories for the pypit output.
+    Make the directories for the pypeit output.
 
     .. todo::
         I think this should just fault if the directories exist and

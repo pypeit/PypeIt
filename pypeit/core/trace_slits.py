@@ -15,23 +15,23 @@ from scipy.special import erf
 import matplotlib.pyplot as plt
 from matplotlib import cm, font_manager
 
-from pypit import msgs
-from pypit import arqa
-from pypit import arplot
-from pypit import arutils
-from pypit import arpca
-from pypit import arpixels
-from pypit.core import arprocimg
-from pypit import arparse as settings
-from pypit import ardebug as debugger
-from pypit.arutils import calc_ivar
+from pypeit import msgs
+from pypeit import arqa
+from pypeit import arplot
+from pypeit import arutils
+from pypeit import arpca
+from pypeit import arpixels
+from pypeit.core import arprocimg
+from pypeit import arparse as settings
+from pypeit import ardebug as debugger
+from pypeit.arutils import calc_ivar
 
 try:
-    from pypit import ginga
+    from pypeit import ginga
 except ImportError:
     pass
 
-#from pypit import arcytrace
+#from pypeit import arcytrace
 
 try:
     ustr = unicode
@@ -999,7 +999,7 @@ def edgearr_close_slits(binarr, edgearrcp, edgearr, ednum, maxgap, function='leg
 #    hasedge = arcytrace.close_edges(edgearrcp, vals, int(settings['trace']['slits']['maxgap']))
     # TODO: This pure python function was translated from the cython
     # function above but was never fully tested; compare with function
-    # in pypit/arcytrace.pyx!
+    # in pypeit/arcytrace.pyx!
     hasedge = close_edges(edgearrcp, vals, int(settings['trace']['slits']['maxgap']))
 
     # Find all duplicate edges
@@ -1081,7 +1081,7 @@ def edgearr_close_slits(binarr, edgearrcp, edgearr, ednum, maxgap, function='leg
 
             # TODO: This pure python function was translated from the
             # cython function above but was never fully tested; compare
-            # with function in pypit/arcytrace.pyx!
+            # with function in pypeit/arcytrace.pyx!
             dual_edge(edgearr, edgearrcp, wdup[0], wdup[1], wvla, wvlb, shadj,
                       int(settings['trace']['slits']['maxgap']), edgedup[jj])
     # Now introduce new edge locations
@@ -1093,7 +1093,7 @@ def edgearr_close_slits(binarr, edgearrcp, edgearr, ednum, maxgap, function='leg
 
     # TODO: This pure python function was translated from the cython
     # function above but was never fully tested; compare with function
-    # in pypit/arcytrace.pyx!
+    # in pypeit/arcytrace.pyx!
     return close_slits(binarr, edgearrcp, vals, int(settings['trace']['slits']['maxgap']),
                        int(ednum))
 
@@ -1697,7 +1697,7 @@ def match_edges(edgdet, ednum, mr=50):
 
 # TODO: This pure python function was translated from the cython
 # function above but was never fully tested; compare with function in
-# pypit/arcytrace.pyx!
+# pypeit/arcytrace.pyx!
 def close_edges(edgdet, dets, npix):
     sz_x, sz_y = edgdet.shape
     sz_d = dets.size
@@ -1725,7 +1725,7 @@ def close_edges(edgdet, dets, npix):
 
 # TODO: This pure python function was translated from the cython
 # function above but was never fully tested; compare with function in
-# pypit/arcytrace.pyx!  The code is knarly and may need some attention!
+# pypeit/arcytrace.pyx!  The code is knarly and may need some attention!
 def close_slits(trframe, edgdet, dets, npix, ednum):
 
     sz_x, sz_y = edgdet.shape
@@ -1832,7 +1832,7 @@ def close_slits(trframe, edgdet, dets, npix, ednum):
 
 # TODO: This pure python function was translated from the cython
 # function above but was never fully tested; compare with function in
-# pypit/arcytrace.pyx!  This edits everything in place.  Do we want to
+# pypeit/arcytrace.pyx!  This edits everything in place.  Do we want to
 # do that?
 def dual_edge(edgearr, edgearrcp, wx, wy, wl, wr, shft, npix, newval):
 

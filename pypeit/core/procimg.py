@@ -9,12 +9,12 @@ import os
 
 from scipy import signal, ndimage
 
-from pypit import msgs
+from pypeit import msgs
 
-from pypit import arutils
-from pypit import arparse
+from pypeit import arutils
+from pypeit import arparse
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 try:
     basestring

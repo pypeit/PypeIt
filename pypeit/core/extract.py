@@ -15,13 +15,13 @@ from astropy import units
 from astropy.stats import sigma_clip
 from astropy.stats import sigma_clipped_stats
 
-from pypit import msgs
-from pypit import arqa
-from pypit import artrace
-from pypit import arutils
-from pypit import arpixels
-from pypit import ardebug as debugger
-from pypit import ginga
+from pypeit import msgs
+from pypeit import arqa
+from pypeit import artrace
+from pypeit import arutils
+from pypeit import arpixels
+from pypeit import ardebug as debugger
+from pypeit import ginga
 
 # MASK VALUES FROM EXTRACTION
 # 0 
@@ -602,10 +602,10 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
 
     from scipy.interpolate import interp1d
     from scipy.ndimage.filters import median_filter
-    from pypit.core.pydl import bspline
-    from pypit.core.pydl import iterfit as  bspline_iterfit
-    from pypit.core.pydl import djs_maskinterp
-    from pypit.arutils import bspline_profile
+    from pypeit.core.pydl import bspline
+    from pypeit.core.pydl import iterfit as  bspline_iterfit
+    from pypeit.core.pydl import djs_maskinterp
+    from pypeit.arutils import bspline_profile
     from scipy.special import erfcinv
 
     if hwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
@@ -1119,9 +1119,9 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     23-June-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
-    from pypit.arutils import find_nminima
-    from pypit.core.artraceslits import trace_fweight, trace_gweight
-    from pypit.specobj import SpecObj
+    from pypeit.arutils import find_nminima
+    from pypeit.core.artraceslits import trace_fweight, trace_gweight
+    from pypeit.specobj import SpecObj
     import scipy
 
     # Check that PEAK_THRESH values make sense

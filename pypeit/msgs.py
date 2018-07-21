@@ -22,7 +22,7 @@ import numpy
 import astropy
 
 from pypeit import __version__ #, __last_updated__
-from pypeit.arqa import close_qa
+from pypeit.core.qa import close_qa
 
 #pypeit_logger = None
 

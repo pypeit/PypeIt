@@ -7,10 +7,10 @@ import sys, os
 from matplotlib import pyplot as plt
 
 #from pydl.pydlutils.bspline import bspline
-from pypit.core import pydl
-from pypit import msgs
-from pypit import arutils
-from pypit import ardebug as debugger
+from pypeit.core import pydl
+from pypeit import msgs
+from pypeit import arutils
+from pypeit import ardebug as debugger
 
 # ToDO Fix masking logic. This code should also take an ivar for consistency with rest of extraction
 def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
@@ -239,7 +239,7 @@ def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3
 #                                                       kwargs_reject={'maxrej': 10})
 
     #  fullbkpt = full_bspline.breakpoints,
-    from pypit.core.pydl import iterfit as bspline_iterfit
+    from pypeit.core.pydl import iterfit as bspline_iterfit
     skyset2, outmask2   = bspline_iterfit(wsky, sky, invvar = sky_ivar, upper = sigrej, lower = sigrej, maxiter = 25,
                                         fullbkpt = full_bspline.breakpoints, kwargs_reject={'groupbadpix':True,'maxrej':10})
     yfit2, _ = skyset2.value(wsky)
@@ -273,8 +273,8 @@ def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3
 # Utility routine used by local_bg_subtraction_slit
 def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial = None, fullbkpt = None):
 
-    from pypit.arutils import bspline_profile
-    from pypit.core.pydl import flegendre, bspline
+    from pypeit.arutils import bspline_profile
+    from pypeit.core.pydl import flegendre, bspline
     from scipy.special import ndtr
 
     nx = data.size

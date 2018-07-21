@@ -24,7 +24,7 @@ msgs = msgs.Messages()
 
 # Import the close_qa method so that it can be called when a hard stop
 # is requested by the user
-from pypeit.arqa import close_qa
+from pypeit.core.qa import close_qa
 
 # Send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
 def signal_handler(signalnum, handler):

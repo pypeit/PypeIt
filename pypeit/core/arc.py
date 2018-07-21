@@ -8,14 +8,14 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
-#from pypit import arparse as settings
-from pypit import arparse
-from pypit import msgs
-from pypit import arutils
-from pypit import ararclines
-from pypit import arqa
-from pypit import arpixels
-from pypit import ardebug as debugger
+#from pypeit import arparse as settings
+from pypeit import arparse
+from pypeit import msgs
+from pypeit import arutils
+from pypeit import ararclines
+from pypeit import arqa
+from pypeit import arpixels
+from pypeit import ardebug as debugger
 
 # TODO: This should not be a core algorithm
 def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,

@@ -11,16 +11,16 @@ from scipy import interpolate
 
 import matplotlib.pyplot as plt
 
-from pypit import msgs
-from pypit.core import ararc
-from pypit import arutils
-from pypit import arparse
-from pypit import arpca
-from pypit import arqa
-from pypit import ardebug as debugger
+from pypeit import msgs
+from pypeit.core import ararc
+from pypeit import arutils
+from pypeit import arparse
+from pypeit import arpca
+from pypeit import arqa
+from pypeit import ardebug as debugger
 
 try:
-    from pypit import ginga
+    from pypeit import ginga
 except ImportError:
     pass
 

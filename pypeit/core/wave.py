@@ -19,12 +19,12 @@ from astropy.time import Time
 
 from linetools.spectra import xspectrum1d
 
-from pypit import msgs
-from pypit.core import ararc
-from pypit import arqa
-from pypit import arutils
+from pypeit import msgs
+from pypeit.core import ararc
+from pypeit import arqa
+from pypeit import arutils
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 def flex_shift(obj_skyspec, arx_skyspec, mxshft=None):
     """ Calculate shift between object sky spectrum and archive sky spectrum
@@ -191,7 +191,7 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=None):
 #    """
 #    #   latitude = settings.spect['mosaic']['latitude']
 #    #   longitude = settings.spect['mosaic']['longitude']
-#    root = resource_filename('pypit', 'data/sky_spec/')
+#    root = resource_filename('pypeit', 'data/sky_spec/')
 #    if skyspec_fil is None: #settings.argflag['reduce']['flexure']['spectrum'] is None:
 #        # Red or blue?
 #        if spectrograph in ['shane_kast_blue']:

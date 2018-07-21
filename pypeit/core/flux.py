@@ -19,9 +19,9 @@ try:
 except ImportError:
     pass
 
-from pypit import msgs
-from pypit import arutils
-from pypit import ardebug as debugger
+from pypeit import msgs
+from pypeit import arutils
+from pypeit import ardebug as debugger
 
 
 def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EXTRAP=0.05):
@@ -325,13 +325,13 @@ def load_calspec():
     Returns
     -------
     calspec_path : str
-      Path from pypitdir to calspec standard star files
+      Path from pypeitdir to calspec standard star files
     calspec_stds : Table
       astropy Table of the calspec standard stars (file, Name, RA, DEC)
     """
     # Read
     calspec_path = '/data/standards/calspec/'
-    calspec_file = resource_filename('pypit', calspec_path+'calspec_info.txt')
+    calspec_file = resource_filename('pypeit', calspec_path+'calspec_info.txt')
     calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
     # Return
     return calspec_path, calspec_stds
@@ -354,7 +354,7 @@ def load_extinction_data(longitude, latitude, toler=5.*units.deg):
     # Mosaic coord
     mosaic_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
     # Read list
-    extinct_path = resource_filename('pypit', '/data/extinction/')
+    extinct_path = resource_filename('pypeit', '/data/extinction/')
     extinct_summ = extinct_path+'README'
     extinct_files = Table.read(extinct_summ,comment='#',format='ascii')
     # Coords
@@ -395,7 +395,7 @@ def load_standard_file(std_dict):
     std_flux : Quantity array
       Flux of standard star
     """
-    root = resource_filename('pypit', std_dict['file']+'*')
+    root = resource_filename('pypeit', std_dict['file']+'*')
     fil = glob.glob(root)
     if len(fil) == 0:
         msgs.error("No standard star file: {:s}".format(fil))

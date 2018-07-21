@@ -7,8 +7,8 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import numpy as np
 from warnings import warn
 
-from pypit import msgs
-from pypit import ardebug as debugger
+from pypeit import msgs
+from pypeit import ardebug as debugger
 
 
 # Licensed under a 3-clause BSD style license - see LICENSE.rst

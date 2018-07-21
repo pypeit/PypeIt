@@ -8,23 +8,18 @@ import os
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit import arcomb
+from pypeit import ginga
+from pypeit.core import combine
 from pypeit.core import arprocimg
 from pypeit.core import arflat
-from pypeit import ginga
-from pypeit import arparse
+from pypeit.core import parse
 
 from pypeit.par import pypeitpar
 
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 
-from pypeit import ardebug as debugger
-
-try:
-    basestring
-except NameError:
-    basestring = str
+from pypeit import debugger
 
 class ProcessImages(object):
     """
@@ -78,7 +73,7 @@ class ProcessImages(object):
             raise IOError("file_list input to ProcessImages must be list. Empty is fine")
         self.file_list = file_list
 
-        if isinstance(spectrograph, basestring):
+        if isinstance(spectrograph, str):
             self.spectrograph = load_spectrograph(spectrograph=spectrograph)
         elif isinstance(spectrograph, Spectrograph):
             self.spectrograph = spectrograph
@@ -202,14 +197,14 @@ class ProcessImages(object):
         self.datasec, one_indexed, include_end, transpose \
                 = self.spectrograph.get_image_section(self.file_list[0], self.det,
                                                       section='datasec')
-        self.datasec = [ arparse.sec2slice(sec, one_indexed=one_indexed,
+        self.datasec = [ parse.sec2slice(sec, one_indexed=one_indexed,
                                            include_end=include_end, require_dim=2,
                                            transpose=transpose) for sec in self.datasec ]
         # Get the overscan sections
         self.oscansec, one_indexed, include_end, transpose \
                 = self.spectrograph.get_image_section(self.file_list[0], self.det,
                                                       section='oscansec')
-        self.oscansec = [ arparse.sec2slice(sec, one_indexed=one_indexed,
+        self.oscansec = [ parse.sec2slice(sec, one_indexed=one_indexed,
                                             include_end=include_end, require_dim=2,
                                             transpose=transpose) for sec in self.oscansec ]
         # Step
@@ -289,7 +284,7 @@ class ProcessImages(object):
             if isinstance(msbias, np.ndarray):
                 msgs.info("Subtracting bias image from raw frame")
                 temp = image-msbias
-            elif isinstance(msbias, basestring) and msbias == 'overscan':
+            elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
                 temp = arprocimg.subtract_overscan(image, numamplifiers, self.datasec,
                                                    self.oscansec,
@@ -328,7 +323,7 @@ class ProcessImages(object):
 
         # Now we can combine
         saturation = self.spectrograph.detector[self.det-1]['saturation']
-        self.stack = arcomb.core_comb_frames(self.proc_images, frametype=self.frametype,
+        self.stack = combine.comb_frames(self.proc_images, frametype=self.frametype,
                                              saturation=saturation,
                                              method=self.proc_par['combine'],
                                              satpix=self.proc_par['satpix'],

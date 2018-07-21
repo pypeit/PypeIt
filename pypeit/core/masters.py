@@ -10,9 +10,9 @@ from astropy import units
 
 import linetools.utils
 
-from pypit import msgs
+from pypeit import msgs
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 
 def master_name(ftype, setup, mdir):

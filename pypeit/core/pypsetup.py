@@ -10,11 +10,11 @@ import yaml
 
 import linetools.utils
 
-from pypit import msgs
-from pypit import arutils
-from pypit import arparse
-from pypit.core import arsort
-from pypit import ardebug as debugger
+from pypeit import msgs
+from pypeit import arutils
+from pypeit import arparse
+from pypeit.core import arsort
+from pypeit import ardebug as debugger
 
 
 def dummy_setup_dict(fitstbl, setup):
@@ -542,7 +542,7 @@ def get_setup_file(settings_argflag, spectrograph=None):
     if nexist == 1:
         return setup_files[0], nexist
     elif nexist == 0:
-        setup_file = settings_argflag['run']['redname'].replace('.pypit', '.setups')
+        setup_file = settings_argflag['run']['redname'].replace('.pypeit', '.setups')
         if os.path.isfile(setup_file):
             nexist = 1
         #date = str(datetime.date.today().strftime('%Y-%b-%d'))
@@ -565,7 +565,7 @@ def load_setup(**kwargs):
     setup_file, nexist = get_setup_file(**kwargs)
     if nexist == 0:
         debugger.set_trace()
-        msgs.error("No existing setup file.  Generate one first (e.g. pypit_setup)!")
+        msgs.error("No existing setup file.  Generate one first (e.g. pypeit_setup)!")
     # YAML
     with open(setup_file, 'r') as infile:
         setup_dict = yaml.load(infile)
@@ -615,7 +615,7 @@ def write_setup(setup_dict, setup_file=None, use_json=False):
 
 
 def load_sorted(sorted_file):
-    """ Load a .sorted file (mainly to generate a .pypit file)
+    """ Load a .sorted file (mainly to generate a .pypeit file)
 
     Parameters
     ----------

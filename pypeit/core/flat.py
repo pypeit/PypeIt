@@ -12,15 +12,15 @@ from scipy import interpolate
 from matplotlib import pyplot as plt
 
 
-from pypit import msgs
+from pypeit import msgs
 
-from pypit import arutils
-#from pypit import arparse as settings
-from pypit import arparse
-from pypit import arqa
-from pypit import arpca
+from pypeit import arutils
+#from pypeit import arparse as settings
+from pypeit import arparse
+from pypeit import arqa
+from pypeit import arpca
 
-from pypit import ardebug as debugger
+from pypeit import ardebug as debugger
 
 
 def get_ampscale(datasec_img, msflat, namp):
