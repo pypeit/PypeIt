@@ -10,12 +10,12 @@ import pytest
 
 from linetools.spectra import xspectrum1d
 
-import pypit
-from pypit.core import arsort
-from pypit.core import ararc
-from pypit import arparse as settings
+import pypeit
+from pypeit.core import arsort
+from pypeit.core import ararc
+from pypeit import arparse as settings
 
-from pypit.spectrographs.util import load_spectrograph
+from pypeit.spectrographs.util import load_spectrograph
 
 
 def test_setup_param():
@@ -39,7 +39,7 @@ def test_detect_lines():
         return
     det = 1
     # Using Paranal night sky as an 'arc'
-    arx_sky = xspectrum1d.XSpectrum1D.from_file(pypit.__path__[0]+'/data/sky_spec/paranal_sky.fits')
+    arx_sky = xspectrum1d.XSpectrum1D.from_file(pypeit.__path__[0]+'/data/sky_spec/paranal_sky.fits')
     arx_amp, arx_cent, arx_wid, arx_w, arx_yprep = ararc.detect_lines(arx_sky.flux.value)
     # Test
     assert len(arx_w[0]) == 1767

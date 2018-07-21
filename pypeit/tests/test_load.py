@@ -9,8 +9,8 @@ from __future__ import unicode_literals
 import os
 import pytest
 
-from pypit import arparse
-from pypit import arload
+from pypeit import arparse
+from pypeit import arload
 
 
 def data_path(filename):

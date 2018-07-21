@@ -15,9 +15,9 @@ import numpy as np
 
 from astropy.table import Table
 
-from pypit import wavecalib
-from pypit import traceslits
-from pypit import arcimage
+from pypeit import wavecalib
+from pypeit import traceslits
+from pypeit import arcimage
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:

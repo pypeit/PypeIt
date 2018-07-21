@@ -9,8 +9,8 @@ import os
 import numpy as np
 import pytest
 
-from pypit import arutils
-from pypit import msgs
+from pypeit import arutils
+from pypeit import msgs
 
 #def data_path(filename):
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')

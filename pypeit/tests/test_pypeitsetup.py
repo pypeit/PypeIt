@@ -16,10 +16,10 @@ import numpy as np
 from astropy.table import Table
 
 
-from pypit import pypitsetup
-from pypit.par import pypitpar
+from pypeit import pypeitsetup
+from pypeit.par import pypeitpar
 
-from pypit.tests import tstutils
+from pypeit.tests import tstutils
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:
@@ -32,8 +32,8 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 #def set_pars():
-#    reduce_par = pypitpar.ReducePar()
-#    run_par = pypitpar.RunPar()
+#    reduce_par = pypeitpar.ReducePar()
+#    run_par = pypeitpar.RunPar()
 #    return run_par, reduce_par
 
 def get_files():
@@ -52,7 +52,7 @@ def test_init():
         return
     # Init
     files = get_files()
-    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
+    setupc = pypeitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     assert len(setupc.steps) == 0
     assert setupc.nfiles == 0
 
@@ -65,7 +65,7 @@ def test_build_fitstbl():
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Init
-    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
+    setupc = pypeitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     #
     fitstbl = setupc.build_fitstbl(files)
     assert isinstance(fitstbl, Table)
@@ -83,7 +83,7 @@ def test_image_type():
     # Check for files
     files = get_files()
     # Init
-    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
+    setupc = pypeitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     fitstbl = setupc.build_fitstbl(files)
     # Type
     filetypes = setupc.type_data(flag_unknown=True)
@@ -99,7 +99,7 @@ def test_match():
     # Check for files
     files = get_files()
     # Init
-    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
+    setupc = pypeitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     _ = setupc.build_fitstbl(files)
     _ = setupc.type_data(flag_unknown=True)
 
@@ -121,7 +121,7 @@ def test_match_ABBA():
     settings_spect['bias']['number'] = 0
     settings_spect['standard']['number'] = 0
     # Init
-    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
+    setupc = pypeitsetup.PypitSetup(settings_argflag, settings_spect)
     # fitstbl
     _ = setupc.build_fitstbl(files)
 
@@ -142,11 +142,11 @@ def test_run():
     # Check for files
     files = get_files()
     # Init
-    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
+    setupc = pypeitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     # Run
     par, spectrograph, fitstbl, setup_dict = setupc.run()
     # Test
-    assert isinstance(par, pypitpar.PypitPar)
+    assert isinstance(par, pypeitpar.PypitPar)
     assert isinstance(fitstbl, Table)
     assert isinstance(setup_dict, dict)
 
@@ -157,7 +157,7 @@ def test_run_calcheck():
     # Check for files
     files = get_files()
     # Init
-    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
+    setupc = pypeitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     # Run
     par, spectrograph, fitstbl, setup_dict = setupc.run(calibration_check=True)
     # Test
@@ -169,7 +169,7 @@ def test_run_setup():
         return
     files = get_files()
     # Init
-    setupc = pypitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
+    setupc = pypeitsetup.PypitSetup(files, spectrograph_name='shane_kast_blue')
     # Run
     par, spectrograph, fitstbl, setup_dict = setupc.run(setup_only=True)
     # Test

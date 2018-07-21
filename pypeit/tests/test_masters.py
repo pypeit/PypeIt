@@ -6,8 +6,8 @@ from __future__ import unicode_literals
 
 import pytest
 
-from pypit import msgs
-from pypit.core import armasters
+from pypeit import msgs
+from pypeit.core import armasters
 
 #@pytest.fixture
 #def fitsdict():

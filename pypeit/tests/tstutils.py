@@ -7,13 +7,13 @@ from __future__ import unicode_literals
 import os
 import pytest
 
-from pypit import arcimage
-from pypit import arpixels
-from pypit import traceslits
-from pypit import wavecalib
-from pypit import wavetilts
-from pypit import processimages
-from pypit.spectrographs.util import load_spectrograph
+from pypeit import arcimage
+from pypeit import arpixels
+from pypeit import traceslits
+from pypeit import wavecalib
+from pypeit import wavetilts
+from pypeit import processimages
+from pypeit.spectrographs.util import load_spectrograph
 
 
 def data_path(filename):

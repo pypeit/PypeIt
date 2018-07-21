@@ -11,12 +11,12 @@ import sys
 import os, pdb
 import pytest
 
-#import pypit
+#import pypeit
 
 from astropy.table import Table
 
-from pypit import arspecobj
-from pypit import msgs
+from pypeit import arspecobj
+from pypeit import msgs
 
 #def data_path(filename):
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')

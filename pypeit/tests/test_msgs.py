@@ -8,8 +8,8 @@ from __future__ import unicode_literals
 import numpy as np
 import pytest
 
-from pypit import ardebug
-from pypit import armsgs
+from pypeit import ardebug
+from pypeit import armsgs
 
 def test_log_write():
     debug = ardebug.init()

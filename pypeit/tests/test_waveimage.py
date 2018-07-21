@@ -13,8 +13,8 @@ import pytest
 import glob
 import numpy as np
 
-from pypit.tests import tstutils
-from pypit import waveimage
+from pypeit.tests import tstutils
+from pypeit import waveimage
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:

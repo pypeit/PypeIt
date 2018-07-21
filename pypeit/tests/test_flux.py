@@ -21,12 +21,12 @@ except NameError:
 from astropy import units
 import linetools.utils
 
-from pypit import arparse as settings
-from pypit.core import arflux
-from pypit import arload
-from pypit import arutils
-from pypit.core import arsort
-from pypit import telescopes
+from pypeit import arparse as settings
+from pypeit.core import arflux
+from pypeit import arload
+from pypeit import arutils
+from pypeit.core import arsort
+from pypeit import telescopes
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb

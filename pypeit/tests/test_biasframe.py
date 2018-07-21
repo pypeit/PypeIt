@@ -13,8 +13,8 @@ import pytest
 import glob
 import numpy as np
 
-from pypit import processimages
-from pypit import biasframe
+from pypeit import processimages
+from pypeit import biasframe
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:

@@ -15,8 +15,8 @@ import numpy as np
 
 from astropy.table import Table
 
-from pypit.tests import tstutils
-from pypit import flatfield
+from pypeit.tests import tstutils
+from pypeit import flatfield
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:

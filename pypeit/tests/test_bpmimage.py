@@ -13,10 +13,10 @@ import pytest
 import glob
 import numpy as np
 
-from pypit import bpmimage
-from pypit.armsgs import PypitError
+from pypeit import bpmimage
+from pypeit.armsgs import PypitError
 
-from pypit.spectrographs.util import load_spectrograph
+from pypeit.spectrographs.util import load_spectrograph
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:

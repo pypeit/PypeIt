@@ -7,8 +7,8 @@ from __future__ import unicode_literals
 import numpy as np
 import pytest
 
-from pypit import ararclines
-from pypit import arparse
+from pypeit import ararclines
+from pypeit import arparse
 
 
 def test_load_linelist():

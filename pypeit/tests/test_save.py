@@ -12,10 +12,10 @@ import pytest
 from astropy import units
 from astropy.io import fits
 
-from pypit import arparse as settings
-from pypit import arspecobj
-from pypit.core import arsort
-from pypit.core import arsave
+from pypeit import arparse as settings
+from pypeit import arspecobj
+from pypeit.core import arsort
+from pypeit.core import arsave
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')

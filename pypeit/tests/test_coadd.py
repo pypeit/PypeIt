@@ -15,8 +15,8 @@ from astropy import units
 from linetools.spectra.utils import collate
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
-from pypit import arcoadd
-from pypit import msgs
+from pypeit import arcoadd
+from pypeit import msgs
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -138,7 +138,7 @@ def test_new_wave_grid():
 '''
 def test_median_flux():
     """ Test median flux algorithm """
-    from pypit import arcoadd as arco
+    from pypeit import arcoadd as arco
     spec = dummy_spectrum(s2n=10)
     # Put in a bad pixel
     spec.data['flux'][0,500] = 0.
@@ -286,7 +286,7 @@ def test_coadd_qa():
 '''
 def test_sigma_clip():
     """ Test sigma_clip method """
-    from pypit import arcoadd as arco
+    from pypeit import arcoadd as arco
     # Setup
     dspec = dummy_spectra(s2n=10.)
     cat_wave = arcoadd.new_wave_grid(dspec.data['wave'], wave_method='concatenate')

@@ -11,8 +11,8 @@ import os
 
 import pytest
 
-from pypit import fluxspec
-from pypit.scripts import flux_spec
+from pypeit import fluxspec
+from pypeit.scripts import flux_spec
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:
@@ -109,7 +109,7 @@ def test_script(kast_blue_files, deimos_files):
     flux_spec.main(pargs2)
 
     # DEIMOS (multi-det)
-    #pypit_flux_spec sensfunc --std_file=spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits  --instr=keck_deimos --sensfunc_file=sens.yaml --multi_det=3,7
+    #pypeit_flux_spec sensfunc --std_file=spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits  --instr=keck_deimos --sensfunc_file=sens.yaml --multi_det=3,7
     std_file = deimos_files[0]
     pargs3 = flux_spec.parser(['sensfunc',
                                '--std_file={:s}'.format(std_file),

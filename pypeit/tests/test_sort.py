@@ -10,11 +10,11 @@ import numpy as np
 
 from astropy.table import hstack
 
-from pypit import arparse as settings
-from pypit.core import arsort
-from pypit.core import arsetup
-from pypit.armsgs import PypitError
-from pypit.spectrographs.util import load_spectrograph
+from pypeit import arparse as settings
+from pypeit.core import arsort
+from pypeit.core import arsetup
+from pypeit.armsgs import PypitError
+from pypeit.spectrographs.util import load_spectrograph
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ def test_match_science(fitstblno):
     """ Test match_science routine
     """
     spectrograph = load_spectrograph('shane_kast_blue')
-    par = spectrograph.default_pypit_par()
+    par = spectrograph.default_pypeit_par()
     # Load
     filesort = arsort.type_data(spectrograph, fitstblno)
     # Match and test
@@ -92,7 +92,7 @@ def test_neg_match_science(fitstblno):
     """ Test using negative number for calibs
     """
     spectrograph = load_spectrograph('shane_kast_blue')
-    par = spectrograph.default_pypit_par()
+    par = spectrograph.default_pypeit_par()
     # Load
     filesort = arsort.type_data(spectrograph, fitstblno)
     mtbl = hstack([fitstblno,filesort])
@@ -107,7 +107,7 @@ def test_neg_match_science(fitstblno):
 
 def test_match_science_errors(fitstblno):
     spectrograph = load_spectrograph('shane_kast_blue')
-    par = spectrograph.default_pypit_par()
+    par = spectrograph.default_pypeit_par()
     # Load
     filesort = arsort.type_data(spectrograph, fitstblno)
     mtbl = hstack([fitstblno,filesort])
@@ -122,7 +122,7 @@ def test_instr_setup(fitstblno):
     Tickles most of the arsetup methods
     """
     spectrograph = load_spectrograph('shane_kast_blue')
-    par = spectrograph.default_pypit_par()
+    par = spectrograph.default_pypeit_par()
     # Load
     filesort = arsort.type_data(spectrograph, fitstblno)
     mtbl = hstack([fitstblno,filesort])

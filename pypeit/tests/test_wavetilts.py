@@ -15,9 +15,9 @@ import numpy as np
 
 from astropy.table import Table
 
-from pypit.tests import tstutils
-from pypit import wavetilts
-from pypit.par import pypitpar
+from pypeit.tests import tstutils
+from pypeit import wavetilts
+from pypeit.par import pypeitpar
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:
@@ -50,7 +50,7 @@ def test_step_by_step():
     spectrograph.detector[0]['nonlinear'] = 0.9
     root_path = data_path('MF') if os.getenv('PYPIT_DEV') is None \
                     else os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
-    par = pypitpar.WaveTiltsPar()
+    par = pypeitpar.WaveTiltsPar()
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
                                     root_path=root_path, mode='reuse', pixlocn=TSlits.pixlocn,
                                     tslits_dict=TSlits.tslits_dict)
@@ -87,7 +87,7 @@ def test_run():
     spectrograph.detector[0]['nonlinear'] = 0.9
     root_path = data_path('MF') if os.getenv('PYPIT_DEV') is None \
                     else os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
-    par = pypitpar.WaveTiltsPar()
+    par = pypeitpar.WaveTiltsPar()
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
                                     root_path=root_path, mode='reuse', pixlocn=TSlits.pixlocn,
                                     tslits_dict=TSlits.tslits_dict)

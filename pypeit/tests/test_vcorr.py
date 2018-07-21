@@ -11,11 +11,11 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord
 from astropy import units
 
-from pypit.core import arwave
-from pypit import arspecobj
-from pypit.core import arsort
-from pypit.tests.tstutils import load_kast_blue_masters
-from pypit.spectrographs.util import load_spectrograph
+from pypeit.core import arwave
+from pypeit import arspecobj
+from pypeit.core import arsort
+from pypeit.tests.tstutils import load_kast_blue_masters
+from pypeit.spectrographs.util import load_spectrograph
 
 mjd = 57783.269661
 RA = '07:06:23.45'

@@ -9,10 +9,10 @@ import pytest
 import os
 import numpy as np
 
-from pypit import arpixels
-from pypit.core import arsort
-from pypit.core import arprocimg
-from pypit.spectrographs.util import load_spectrograph
+from pypeit import arpixels
+from pypeit.core import arsort
+from pypeit.core import arprocimg
+from pypeit.spectrographs.util import load_spectrograph
 
 @pytest.fixture
 def spectrograph():

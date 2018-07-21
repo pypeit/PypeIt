@@ -15,13 +15,13 @@ import numpy as np
 
 from astropy.table import Table
 
-from pypit.core import arsort
+from pypeit.core import arsort
 
-from pypit.spectrographs.util import load_spectrograph
-from pypit import calibrations
-from pypit.par import pypitpar
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit import calibrations
+from pypeit.par import pypeitpar
 
-from pypit.tests import tstutils
+from pypeit.tests import tstutils
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -61,8 +61,8 @@ def multi_caliBrate():
 
     # Only changing the defaults
     # TODO: (KBW) I agree FrameGroupPar is a bit onerous...
-    calib_par = pypitpar.CalibrationsPar(badpix=False,
-                                         biasframe=pypitpar.FrameGroupPar('bias',
+    calib_par = pypeitpar.CalibrationsPar(badpix=False,
+                                         biasframe=pypeitpar.FrameGroupPar('bias',
                                                                           useframe='overscan'))
 
     master_root = data_path('MF') if os.getenv('PYPIT_DEV') is None \

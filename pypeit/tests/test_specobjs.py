@@ -9,8 +9,8 @@ import os
 import numpy as np
 import pytest
 
-from pypit import msgs
-from pypit import specobjs
+from pypeit import msgs
+from pypeit import specobjs
 msgs.reset(verbosity=2)
 
 #def data_path(filename):
