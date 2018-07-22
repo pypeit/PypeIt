@@ -1,4 +1,4 @@
-# Module to run tests on arsort and arsetup
+# Module to run tests on sort and arsetup
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -12,36 +12,36 @@ from astropy.table import hstack
 
 from pypeit.core import sort
 from pypeit.core import pypsetup
-from pypeit.msgs import PypeItError
+from pypeit.pypmsgs import PypeItError
 from pypeit.spectrographs.util import load_spectrograph
 
 
 @pytest.fixture
 def fitstbl():
-    return arsort.dummy_fitstbl()
+    return sort.dummy_fitstbl()
 
 @pytest.fixture
 def fitstblno():
-    return arsort.dummy_fitstbl(notype=True)
+    return sort.dummy_fitstbl(notype=True)
 
 
 def test_chk_condition(fitstbl):
     # Lamp (str)
     cond = 'lampstat06=on'
-    ntmp = arsort.chk_condition(fitstbl, cond)
+    ntmp = sort.chk_condition(fitstbl, cond)
     assert np.sum(ntmp) == 1
     # exptime (float)
     cond = 'exptime>30'
-    ntmp = arsort.chk_condition(fitstbl, cond)
+    ntmp = sort.chk_condition(fitstbl, cond)
     assert np.sum(ntmp) == 6
     cond = 'exptime<30'
-    ntmp = arsort.chk_condition(fitstbl, cond)
+    ntmp = sort.chk_condition(fitstbl, cond)
     assert np.sum(ntmp) == 1
     cond = 'exptime<=30'
-    ntmp = arsort.chk_condition(fitstbl, cond)
+    ntmp = sort.chk_condition(fitstbl, cond)
     assert np.sum(ntmp) == 4
     cond = 'exptime!=30'
-    ntmp = arsort.chk_condition(fitstbl, cond)
+    ntmp = sort.chk_condition(fitstbl, cond)
     assert np.sum(ntmp) == 7
 
 
@@ -50,7 +50,7 @@ def test_sort_data(fitstbl):
     """
     spectrograph = load_spectrograph('shane_kast_blue')
     # Sort
-    filesort = arsort.type_data(spectrograph, fitstbl)
+    filesort = sort.type_data(spectrograph, fitstbl)
     assert filesort['bias'][0]
     assert filesort['arc'][1]
     assert filesort['trace'][2]
@@ -65,7 +65,7 @@ def test_sort_data(fitstbl):
 #    # Modify settings -- WARNING: THIS IS GLOBAL!
 #    settings.spect['set'] = {}
 #    settings.spect['set']['standard'] = ['b009.fits.gz']
-#    filesort = arsort.type_data(fitstbl, settings.spect, settings.argflag)
+#    filesort = sort.type_data(fitstbl, settings.spect, settings.argflag)
 #    assert filesort['standard'][9]
 #    settings.spect['set'] = {}
 
@@ -76,14 +76,14 @@ def test_match_science(fitstblno):
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     # Load
-    filesort = arsort.type_data(spectrograph, fitstblno)
+    filesort = sort.type_data(spectrograph, fitstblno)
     # Match and test
     mtbl = hstack([fitstblno,filesort])
-    fitstbl = arsort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(),
+    fitstbl = sort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(),
                                       mtbl, par['rdx']['calwin'], setup=True)
-    assert arsort.ftype_indices(fitstbl, 'arc', 1)[0] == 1
-    assert arsort.ftype_indices(fitstbl, 'standard', 4)[0] == 4
-    assert arsort.ftype_indices(fitstbl, 'trace', 1)[0] == 2
+    assert sort.ftype_indices(fitstbl, 'arc', 1)[0] == 1
+    assert sort.ftype_indices(fitstbl, 'standard', 4)[0] == 4
+    assert sort.ftype_indices(fitstbl, 'trace', 1)[0] == 2
     assert fitstbl['sci_ID'][0] == 31
 
 
@@ -93,13 +93,13 @@ def test_neg_match_science(fitstblno):
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     # Load
-    filesort = arsort.type_data(spectrograph, fitstblno)
+    filesort = sort.type_data(spectrograph, fitstblno)
     mtbl = hstack([fitstblno,filesort])
     # Use negative number
     for ftype in ['arc', 'pixelflat', 'bias']:
         par['calibrations']['{0}frame'.format(ftype)]['number'] = 1
     par['calibrations']['traceframe']['number'] = -1
-    fitstbl = arsort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(),
+    fitstbl = sort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(),
                                       mtbl, par['rdx']['calwin'])
     assert np.sum(fitstbl['trace']) == 2
 
@@ -108,11 +108,11 @@ def test_match_science_errors(fitstblno):
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     # Load
-    filesort = arsort.type_data(spectrograph, fitstblno)
+    filesort = sort.type_data(spectrograph, fitstblno)
     mtbl = hstack([fitstblno,filesort])
     par['calibrations']['traceframe']['number'] = 10
-    with pytest.raises(PypitError):
-        arsort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(), mtbl,
+    with pytest.raises(PypeItError):
+        sort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(), mtbl,
                                 par['rdx']['calwin'])
 
 
@@ -123,22 +123,22 @@ def test_instr_setup(fitstblno):
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     # Load
-    filesort = arsort.type_data(spectrograph, fitstblno)
+    filesort = sort.type_data(spectrograph, fitstblno)
     mtbl = hstack([fitstblno,filesort])
     # Match and test
-    fitstbl = arsort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(),
+    fitstbl = sort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(),
                                       mtbl, par['rdx']['calwin'], setup=True)
 
     # Get an ID
     namp = 1
     setup_dict = {}
-    setupID = arsetup.instr_setup(1, 1, fitstbl, setup_dict, namp)
+    setupID = pypsetup.instr_setup(1, 1, fitstbl, setup_dict, namp)
     assert setupID == 'A_01_aa'
     # Should get same thing
-    setupID = arsetup.instr_setup(1, 1, fitstbl, setup_dict, namp)
+    setupID = pypsetup.instr_setup(1, 1, fitstbl, setup_dict, namp)
     assert setupID == 'A_01_aa'
     # New det (fake out kast_blue)
-    setupID2 = arsetup.instr_setup(1, 2, fitstbl, setup_dict, namp)
+    setupID2 = pypsetup.instr_setup(1, 2, fitstbl, setup_dict, namp)
     assert setupID2 == 'A_02_aa'
 
     # New calib set
@@ -149,7 +149,7 @@ def test_instr_setup(fitstblno):
     # Turn off other arc
     fitstbl['sci_ID'][1] = 1 + 4 + 8
     # Run
-    setupID3 = arsetup.instr_setup(2, 1, fitstbl, setup_dict, namp)
+    setupID3 = pypsetup.instr_setup(2, 1, fitstbl, setup_dict, namp)
     assert setupID3 == 'A_01_ab'
     assert setup_dict['A']['ab']['arc'][0] == 'b009.fits.gz'
 

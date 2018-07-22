@@ -72,7 +72,7 @@ def test_kecknirspec():
 
 def test_shanekastblue():
     s = spectrographs.shane_kast.ShaneKastBlueSpectrograph()
-    example_file = os.path.join(pypeit_root_directory(), 'pypit', 'tests', 'files',
+    example_file = os.path.join(pypeit_root_directory(), 'pypeit', 'tests', 'files',
                                 'b1.fits.gz')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Shane Kast Blue read.')

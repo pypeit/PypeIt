@@ -37,9 +37,9 @@ def main(args):
 
     from astropy.io import fits
 
-    from pypit import msgs
-    from pypit.spectrographs import keck_lris
-    from pypit.spectrographs import keck_deimos
+    from pypeit import msgs
+    from pypeit.spectrographs import keck_lris
+    from pypeit.spectrographs import keck_deimos
 
     # List only?
     if args.list:

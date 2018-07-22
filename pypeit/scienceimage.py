@@ -11,16 +11,16 @@ from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import processimages
-from pypeit import arspecobj
-from pypeit.core import arprocimg
-from pypeit.core import arskysub
-from pypeit.core import arextract
+from pypeit import specobjs
+from pypeit.core import procimg
+from pypeit.core import skysub
+from pypeit.core import extract
 from pypeit import artrace
 from pypeit import ginga
 
 from pypeit.par import pypeitpar
 
-from pypeit import ardebug as debugger
+from pypeit import debugger
 
 class ScienceImage(processimages.ProcessImages):
     """
@@ -214,7 +214,7 @@ class ScienceImage(processimages.ProcessImages):
         self.specobjs : list
 
         """
-        self.specobjs = arspecobj.init_exp(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
+        self.specobjs = specobjs.init_exp(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
                                            self.sciframe.shape, self.maskslits, self.det,
                                            self.scidx, self.fitstbl, self.tracelist,
                                            binning=self.binning, objtype=self.objtype)
@@ -245,7 +245,7 @@ class ScienceImage(processimages.ProcessImages):
         """
         if skyframe is None:
             skyframe = self.global_sky
-        self.modelvarframe = arprocimg.variance_frame(self.datasec_img, self.sciframe,
+        self.modelvarframe = procimg.variance_frame(self.datasec_img, self.sciframe,
                             self.spectrograph.detector[self.det-1]['gain'],
                             self.spectrograph.detector[self.det-1]['ronoise'],
                             numamplifiers=self.spectrograph.detector[self.det-1]['numamplifiers'],
@@ -273,7 +273,7 @@ class ScienceImage(processimages.ProcessImages):
 
         """
         msgs.info("Performing boxcar extraction")
-        self.skycorr_box = arextract.boxcar(self.specobjs, self.sciframe,
+        self.skycorr_box = extract.boxcar(self.specobjs, self.sciframe,
                                             self.modelvarframe, self.bpm,
                                             self.global_sky, self.crmask,
                                             self.tracelist, mswave,
@@ -302,12 +302,12 @@ class ScienceImage(processimages.ProcessImages):
         """
         msgs.info("Attempting optimal extraction with model profile")
         # Profile
-        arextract.obj_profiles(self.det, self.specobjs,
+        extract.obj_profiles(self.det, self.specobjs,
                                self.sciframe-self.global_sky-self.skycorr_box,
                                self.modelvarframe, self.crmask, self.tracelist, self.tilts,
                                self.maskslits, self.tslits_dict['slitpix'], doqa=False)
         # Extract
-        self.obj_model = arextract.optimal_extract(self.specobjs,
+        self.obj_model = extract.optimal_extract(self.specobjs,
                                                    self.sciframe-self.global_sky-self.skycorr_box,
                                                    self.modelvarframe, self.crmask,
                                                    self.tracelist, self.tilts, mswave,
@@ -417,8 +417,10 @@ class ScienceImage(processimages.ProcessImages):
 
         # Finish
         self.nobj = np.sum([tdict['nobj'] for tdict in self.tracelist if 'nobj' in tdict.keys()])
+        '''
         if doqa:  # QA?
             obj_trace_qa(slf, sciframe, det, tracelist, root="object_trace", normalize=False)
+        '''
         # Steps
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -459,7 +461,7 @@ class ScienceImage(processimages.ProcessImages):
         for slit in gdslits:
             msgs.info("Working on slit: {:d}".format(slit))
             # Find sky
-            slit_bgframe = arskysub.bg_subtraction_slit(slit+1, self.tslits_dict['slitpix'],
+            slit_bgframe = skysub.bg_subtraction_slit(slit+1, self.tslits_dict['slitpix'],
                                                         self.tslits_dict['edge_mask'],
                                                         self.sciframe, varframe, self.tilts,
                                                         bpm=self.bpm, crmask=self.crmask,

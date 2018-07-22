@@ -8,7 +8,7 @@
 This script generates a sky spectrum from a LowRedux IDL save file
 """
 
-import pypit.scripts.lowrdx_skyspec as lowrdx_skyspec
+import pypeit.scripts.lowrdx_skyspec as lowrdx_skyspec
 
 if __name__ == '__main__':
     args = lowrdx_skyspec.parser()

@@ -8,7 +8,7 @@
 This script pushes a FITS file to ginga
 """
 
-import pypit.scripts.view_fits as view_fits
+import pypeit.scripts.view_fits as view_fits
 
 if __name__ == '__main__':
     args = view_fits.parser()

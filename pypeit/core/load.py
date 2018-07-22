@@ -237,12 +237,12 @@ def load_specobj(fname):
 
     Returns
     -------
-    specobjs : list of SpecObjExp
+    specObjs : list of SpecObjExp
     head0
     """
     speckeys = ['wave', 'sky', 'mask', 'flam', 'flam_var', 'var', 'counts']
     #
-    specobjs = []
+    specObjs = []
     hdulist = fits.open(fname)
     head0 = hdulist[0].header
     for hdu in hdulist:
@@ -250,13 +250,20 @@ def load_specobj(fname):
             continue
         # Parse name
         objp = hdu.name.split('-')
+        det = int(objp[-2][1:])
         # Load data
         spec = Table(hdu.data)
         shape = (len(spec), 1024)  # 2nd number is dummy
         # Init
-        specobj = specobjs.SpecObjExp(shape, 'dum_config', int(objp[-1][1:]),
-            int(objp[-2][1:]), [float(objp[1][1:])/10000.]*2, 0.5,
-            float(objp[0][1:])/1000., 'unknown')
+        #specobj = specobjs.SpecObj(shape, 'dum_config', int(objp[-1][1:]),
+        #                           int(objp[-2][1:]), [float(objp[1][1:])/10000.]*2, 0.5,
+        #                           float(objp[0][1:])/1000., 'unknown')
+        # New and wrong
+        specobj = specobjs.SpecObj(shape, [float(objp[1][1:])/10000.]*2,
+                                   np.mean([int(objp[-1][1:]), int(objp[-2][1:])]),
+                                   config='dummy_config',
+                                   slitid=1, det=det,
+                                   spat_pixpos=100)  # DUMMY
         # Add trace
         specobj.trace = spec['obj_trace']
         # Add spectrum
@@ -278,9 +285,9 @@ def load_specobj(fname):
             # Add units on wave
             specobj.optimal['wave'] = specobj.optimal['wave'] * units.AA
         # Append
-        specobjs.append(specobj)
+        specObjs.append(specobj)
     # Return
-    return specobjs, head0
+    return specObjs, head0
 
 
 def load_tilts(fname):

@@ -4,7 +4,7 @@
 Show the trace image in a Ginga window with edges
 """
 
-import pypit.scripts.chk_edges as chk_edges
+import pypeit.scripts.chk_edges as chk_edges
 
 if __name__ == '__main__':
     args = chk_edges.parser()

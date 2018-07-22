@@ -12,7 +12,7 @@ import pdb as debugger
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Script to build HTML files for PYPIT QA. [v1.0]')
-    parser.add_argument("pypit_file", type=str, help="PYPIT file")
+    parser.add_argument("pypeit_file", type=str, help="PYPIT file")
     parser.add_argument("type", type=str, help="QA Type (MF, exp, all)")
 
     if options is None:
@@ -28,7 +28,7 @@ def main(args, unit_test=False, path=''):
       Mainly for running the unit test
     """
 
-    from pypit import arqa
+    from pypeit import arqa
 
     # Flags
     flg_MF, flg_exp = False, False
@@ -41,7 +41,7 @@ def main(args, unit_test=False, path=''):
 
     # Master Frame
     if flg_MF:
-        arqa.gen_mf_html(args.pypit_file)
+        arqa.gen_mf_html(args.pypeit_file)
 
     # Exposures
     if flg_exp:

@@ -36,7 +36,7 @@ def main(args):
     except:
         import pdb as debugger
 
-    from pypit import arlris
+    from pypeit import arlris
 
     # Assume LRIS for now
     arlris.convert_lowredux_pixflat(args.lowrdx_file, args.new_file)

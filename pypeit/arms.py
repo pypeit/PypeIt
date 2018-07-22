@@ -7,29 +7,25 @@ import os
 
 from collections import OrderedDict
 
-from pypit import msgs
-from pypit import arload
-from pypit import arutils
-from pypit.core import arsave
-from pypit.core import arwave
-from pypit.core import arsetup
-from pypit.core import arsort
-from pypit import calibrations
-from pypit import fluxspec
-from pypit import scienceimage
-from pypit.par import pypitpar
+from pypeit import msgs
+from pypeit.core import load
+from pypeit import utils
+from pypeit.core import save
+from pypeit.core import wave
+from pypeit.core import pypsetup
+from pypeit.core import sort
+from pypeit import calibrations
+from pypeit import fluxspec
+from pypeit import scienceimage
+from pypeit.par import pypeitpar
 
-#from pypit import arparse as settings
+#from pypeit import arparse as settings
 
-from pypit.spectrographs.spectrograph import Spectrograph
-from pypit.spectrographs.util import load_spectrograph
+from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit.spectrographs.util import load_spectrograph
 
-from pypit import ardebug as debugger
+from pypeit import debugger
 
-try:
-    basestring
-except NameError:
-    basestring = str
 
 def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
     """
@@ -45,7 +41,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
       Contains relevant information from fits header files
     setup_dict : dict
 
-    par (`pypit.par.pypitpar.PypitPar`): Uber top-level parameter set
+    par (`pypeit.par.pypeitpar.PypitPar`): Uber top-level parameter set
 
     Returns
     -------
@@ -72,7 +68,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
         if par is not None and par['rdx']['spectrograph'] != fitstbl['instrume'][0]:
             msgs.error('Specified spectrograph does not match instrument in the fits table!')
         _spectrograph = load_spectrograph(spectrograph=fitstbl['instrume'][0])
-    elif isinstance(spectrograph, basestring):
+    elif isinstance(spectrograph, str):
         _spectrograph = load_spectrograph(spectrograph=spectrograph)
     elif isinstance(spectrograph, Spectrograph):
         _spectrograph = spectrograph
@@ -80,8 +76,8 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
         raise TypeError('Could not instantiate Spectrograph!')
 
     # Instantiate the parameters
-    _par = _spectrograph.default_pypit_par() if par is None else par
-    if not isinstance(_par, pypitpar.PypitPar):
+    _par = _spectrograph.default_pypeit_par() if par is None else par
+    if not isinstance(_par, pypeitpar.PypitPar):
         raise TypeError('Input parameters must be a PypitPar instance.')
     required = [ 'rdx', 'calibrations', 'scienceframe', 'objects', 'extract', 'skysubtract',
                  'flexure', 'fluxcalib' ]
@@ -118,7 +114,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             msgs.info("Working on detector {0}".format(det))
             sci_dict[det] = {}
 
-            setup = arsetup.instr_setup(sci_ID, det, fitstbl, setup_dict,
+            setup = pypsetup.instr_setup(sci_ID, det, fitstbl, setup_dict,
                                         _spectrograph.detector[det-1]['numamplifiers'],
                                         must_exist=True)
 
@@ -160,7 +156,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             # Science frames
             #-----------------------------------------------------------
             msgs.info("Working on the science frame")
-            sci_image_files = arsort.list_of_files(fitstbl, 'science', sci_ID)
+            sci_image_files = sort.list_of_files(fitstbl, 'science', sci_ID)
 
             # Instantiate
             sciI = scienceimage.ScienceImage(_spectrograph, file_list=sci_image_files,
@@ -225,11 +221,11 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             # Flexure correction?
             if _par['flexure'] is not None and flg_objs and _par['flexure']['method'] is not None:
                 sky_file, sky_spectrum = _spectrograph.archive_sky_spectrum()
-                flex_list = arwave.flexure_obj(specobjs, maskslits, _par['flexure']['method'],
+                flex_list = wave.flexure_obj(specobjs, maskslits, _par['flexure']['method'],
                                                sky_spectrum, sky_file=sky_file,
                                                mxshft=_par['flexure']['maxshift'])
                 # QA
-                arwave.flexure_qa(specobjs, maskslits, basename, det, flex_list)
+                wave.flexure_qa(specobjs, maskslits, basename, det, flex_list)
 
             # Helio
             # Correct Earth's motion
@@ -244,7 +240,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                     msgs.info("Performing a {0} correction".format(
                                             caliBrate.par['wavelengths']['frame']))
 
-                    vel, vel_corr = arwave.geomotion_correct(specobjs, maskslits, fitstbl, scidx,
+                    vel, vel_corr = wave.geomotion_correct(specobjs, maskslits, fitstbl, scidx,
                                                              obstime,
                                                              _spectrograph.telescope['longitude'],
                                                              _spectrograph.telescope['latitude'],
@@ -261,7 +257,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             if vel_corr > -999999.9:
                 sci_dict['meta']['vel_corr'] = vel_corr
             if flg_objs:
-                sci_dict[det]['specobjs'] = arutils.unravel_specobjs([specobjs])
+                sci_dict[det]['specobjs'] = utils.unravel_specobjs([specobjs])
                 sci_dict[det]['finalvar'] = finalvar
                 sci_dict[det]['finalsky'] = finalsky
             else:  # Nothing extracted
@@ -274,7 +270,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             # Standard star frames
             #-----------------------------------------------------------
             # Can only reduce these frames if the mask is the same
-            std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
+            std_idx = sort.ftype_indices(fitstbl, 'standard', sci_ID)
             if len(std_idx) > 0:
                 std_idx = std_idx[0]
             else:
@@ -282,7 +278,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                 continue
             #
             msgs.info("Processing standard star")
-            std_image_files = arsort.list_of_files(fitstbl, 'standard', sci_ID)
+            std_image_files = sort.list_of_files(fitstbl, 'standard', sci_ID)
             if std_idx in std_dict.keys():
                 if det in std_dict[std_idx].keys():
                     continue
@@ -325,7 +321,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             # Save for fluxing and output later
             std_dict[std_idx][det] = {}
             std_dict[std_idx][det]['basename'] = std_basename
-            std_dict[std_idx][det]['specobjs'] = arutils.unravel_specobjs([stdobjs])
+            std_dict[std_idx][det]['specobjs'] = utils.unravel_specobjs([stdobjs])
             #-----------------------------------------------------------
 
         #---------------------------------------------------------------
@@ -354,7 +350,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                               if caliBrate.par['wavelengths']['reference'] == 'pixel' 
                               else caliBrate.par['wavelengths']['frame'],
                               vel_correction=sci_dict['meta']['vel_corr'])
-            arsave.save_1d_spectra_fits(all_specobjs, fitstbl[scidx], outfile,
+            save.save_1d_spectra_fits(all_specobjs, fitstbl[scidx], outfile,
                                         helio_dict=helio_dict, telescope=_spectrograph.telescope)
 #        elif save_format == 'hdf5':
 #            debugger.set_trace()  # NEEDS REFACTORING
@@ -362,9 +358,9 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
         else:
             msgs.error(save_format + ' is not a recognized output format!')
         # Obj info
-        arsave.save_obj_info(all_specobjs, fitstbl, _spectrograph, basename, _par['rdx']['scidir'])
+        save.save_obj_info(all_specobjs, fitstbl, _spectrograph, basename, _par['rdx']['scidir'])
         # Write 2D images for the Science Frame
-        arsave.save_2d_images(sci_dict, fitstbl, scidx, _spectrograph.primary_hdrext,
+        save.save_2d_images(sci_dict, fitstbl, scidx, _spectrograph.primary_hdrext,
                               setup, caliBrate.master_dir, _par['rdx']['scidir'], basename)
         #---------------------------------------------------------------
 
@@ -377,7 +373,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             all_std_objs += std_dict[std_idx][det]['specobjs']
         outfile = os.path.join(_par['rdx']['scidir'],
                                'spec1d_{:s}.fits'.format(std_dict[std_idx][det]['basename']))
-        arsave.save_1d_spectra_fits(all_std_objs, fitstbl[std_idx], outfile,
+        save.save_1d_spectra_fits(all_std_objs, fitstbl[std_idx], outfile,
                                     telescope=_spectrograph.telescope)
     #-------------------------------------------------------------------
 
@@ -395,7 +391,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
     # Standard star (is this a calibration, e.g. goes above?)
     msgs.info("Taking one star per detector mosaic")
     msgs.info("Waited until very end to work on it")
-    msgs.warn("You should probably consider using the pypit_flux_spec script anyhow...")
+    msgs.warn("You should probably consider using the pypeit_flux_spec script anyhow...")
 
     # Get the sensitivity function
     if _par['fluxcalib']['sensfunc'] is None:
@@ -425,7 +421,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                                            'spec1d_{:s}.fits'.format(basenames[kk]))
 
         # Load
-        sci_specobjs, sci_header = arload.load_specobj(sci_spec1d_file)
+        sci_specobjs, sci_header = load.load_specobj(sci_spec1d_file)
         # TODO: (KBW) I'm wary of this kind of approach.  We want
         # FluxSpec to check that its internals make sense and this
         # bypasses any of that checking.

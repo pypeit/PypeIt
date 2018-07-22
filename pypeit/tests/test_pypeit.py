@@ -24,7 +24,7 @@ def test_initialization():
     pypit_file = data_path('test.pypit')
     make_pypeit_file(pypit_file, 'shane_kast_blue', [data_path('b*fits.gz')], setup_mode=True)
     # Perform the setup
-    setup = pypeitsetup.PypitSetup.from_pypit_file(pypit_file)
+    setup = pypeitsetup.PypeItSetup.from_pypeit_file(pypit_file)
     par, spectrograph, fitstbl, setup_dict = setup.run()
     # Test
     assert spectrograph.spectrograph == 'shane_kast_blue'

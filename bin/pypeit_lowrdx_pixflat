@@ -8,8 +8,9 @@
 This script pushes a FITS file to ginga
 """
 
-import pypit.scripts.show_twod as show_twod
+import pypeit.scripts.lowrdx_pixflat as lowrdx_pixflat
 
 if __name__ == '__main__':
-    args = show_twod.parser()
-    show_twod.main(args)
+    args = lowrdx_pixflat.parser()
+    lowrdx_pixflat.main(args)
+

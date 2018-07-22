@@ -14,7 +14,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
-from pypit import traceslits
+from pypeit import traceslits
 
 def parser(options=None):
 
@@ -41,11 +41,11 @@ def main(args):
     from astropy.io import fits
     from astropy.table import Table
 
-    from pypit import msgs
-    import pypit.ginga
-    from pypit.core import armasters
-    from pypit.arparse import get_dnum
-    from pypit.core.artraceslits import get_slitid
+    from pypeit import msgs
+    import pypeit.ginga
+    from pypeit.core import armasters
+    from pypeit.arparse import get_dnum
+    from pypeit.core.artraceslits import get_slitid
 
     # List only?
     hdu = fits.open(args.file)
@@ -74,7 +74,7 @@ def main(args):
     # Show Image
     cwd = os.getcwd()
     wcs_img = cwd+'/'+head0['PYPMFDIR']+'/MasterWave_'+'{:s}_{:02d}_{:s}.fits'.format(head0['PYPCNFIG'], args.det, head0['PYPCALIB'])
-    viewer, ch = pypit.ginga.show_image(skysub, chname='DET{:s}'.format(sdet), wcs_img=wcs_img)
+    viewer, ch = pypeit.ginga.show_image(skysub, chname='DET{:s}'.format(sdet), wcs_img=wcs_img)
 
     # Add slits
     testing = False
@@ -92,7 +92,7 @@ def main(args):
     # Get slit ids
     #stup = (Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen)
     slit_ids = [get_slitid(Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen, ii)[0] for ii in range(Tslits.lcen.shape[1])]
-    pypit.ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
+    pypeit.ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
 
     # Object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')
@@ -103,5 +103,5 @@ def main(args):
             tbl = Table(hdu.data)
             trace = tbl['obj_trace']
             obj_id = hdu.name.split('-')[0]
-            pypit.ginga.show_trace(viewer, ch, trace, obj_id, color='green') #hdu.name)
+            pypeit.ginga.show_trace(viewer, ch, trace, obj_id, color='green') #hdu.name)
 

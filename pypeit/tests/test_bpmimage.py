@@ -14,7 +14,7 @@ import glob
 import numpy as np
 
 from pypeit import bpmimage
-from pypeit.msgs import PypeItError
+from pypeit.pypmsgs import PypeItError
 
 from pypeit.spectrographs.util import load_spectrograph
 

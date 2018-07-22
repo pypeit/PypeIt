@@ -4,7 +4,7 @@
 Plot a spectrum with an interactive QT GUI
 """
 
-import pypit.scripts.coadd_1dspec as coadd_1dspec
+import pypeit.scripts.coadd_1dspec as coadd_1dspec
 
 if __name__ == '__main__':
     args = coadd_1dspec.parser()

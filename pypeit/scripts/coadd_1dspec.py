@@ -37,9 +37,9 @@ def main(args, unit_test=False, path=''):
 
     from astropy.io import fits
 
-    from pypit import msgs
-    from pypit import arcoadd
-    from pypit import arspecobj
+    from pypeit import msgs
+    from pypeit.core import coadd
+    from pypeit import specobjs
 
     # Load the input file
     with open(args.infile, 'r') as infile:
@@ -125,7 +125,7 @@ def main(args, unit_test=False, path=''):
                 ind = files.index(fkey)
                 use_obj = iobj[ind]
             # Find object indices
-            mtch_obj, idx = arspecobj.mtch_obj_to_objects(use_obj, fdict[fkey], **local_kwargs)
+            mtch_obj, idx = specobjs.mtch_obj_to_objects(use_obj, fdict[fkey], **local_kwargs)
             if mtch_obj is None:
                 print("No object {:s} in file {:s}".format(iobj, fkey))
             elif len(mtch_obj) == 1:
@@ -161,10 +161,10 @@ def main(args, unit_test=False, path=''):
         if len(gdfiles) == 0:
             msgs.error("No files match your input criteria")
 
-        spectra = arcoadd.load_spec(gdfiles, iextensions=extensions,
+        spectra = coadd.load_spec(gdfiles, iextensions=extensions,
                                     extract=ex_value, flux=flux_value)
         exten = outfile.split('.')[-1]  # Allow for hdf or fits or whatever
         qafile = outfile.replace(exten, 'pdf')
         # Coadd!
-        arcoadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile, **gparam)
+        coadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile, **gparam)
 

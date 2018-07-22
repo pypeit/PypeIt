@@ -49,12 +49,12 @@ def test_run_setup():
     with pytest.raises(ValueError):
         setup.main(pargs2)
 
-def test_setup_made_pypit_file():
-    """ Test the .pypit file(s) made by pypit_setup
+def test_setup_made_pypeit_file():
+    """ Test the .pypeit file(s) made by pypeit_setup
     This test depends on the one above
     """
-    pypit_file = data_path('shane_kast_blue_setup_A/shane_kast_blue_setup_A.pypit')
-    cfg_lines, data_files, frametype, setups = parse_pypeit_file(pypit_file)
+    pypeit_file = data_path('shane_kast_blue_setup_A/shane_kast_blue_setup_A.pypeit')
+    cfg_lines, data_files, frametype, setups = parse_pypeit_file(pypeit_file)
     print(setups)
     # Test
     assert len(data_files) == 2

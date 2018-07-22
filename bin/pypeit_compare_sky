@@ -9,7 +9,7 @@ import sys, os
 
 this_file = os.path.realpath(__file__)
 #sky_path = this_file[:this_file.rfind('/')]+'/../data/sky_spec/'
-sky_path ='/{0}/pypit/data/sky_spec/'.format(this_file.strip('bin/pypit_compare_sky'))
+sky_path ='/{0}/pypeit/data/sky_spec/'.format(this_file.strip('bin/pypeit_compare_sky'))
 #sys.path.append(os.path.abspath(this_path+'/../src'))
 
 from linetools.spectra.io import readspec

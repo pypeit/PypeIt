@@ -19,8 +19,8 @@ import warnings
 __version__ = '0.8.1dev'
 
 # Import and instantiate the logger
-from pypeit import msgs
-msgs = msgs.Messages()
+from pypeit import pypmsgs
+msgs = pypmsgs.Messages()
 
 # Import the close_qa method so that it can be called when a hard stop
 # is requested by the user

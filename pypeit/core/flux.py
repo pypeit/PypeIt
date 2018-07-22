@@ -435,7 +435,10 @@ def find_standard(specobjs):
             medfx.append(0.)
         else:
             medfx.append(np.median(spobj.boxcar['counts']))
-    mxix = np.argmax(np.array(medfx))
+    try:
+        mxix = np.argmax(np.array(medfx))
+    except:
+        debugger.set_trace()
     msgs.info("Putative standard star {} has a median boxcar count of {}".format(all_specobj[mxix],
                                                                                  np.max(medfx)))
     # Return

@@ -16,11 +16,11 @@ from astropy.stats import sigma_clip
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
-from pypeit import arqa
+from pypeit.core import qa
 from pypeit import artrace
-from pypeit import arutils
-from pypeit import arpixels
-from pypeit import ardebug as debugger
+from pypeit import utils
+from pypeit.core import pixels
+from pypeit import debugger
 from pypeit import ginga
 
 # MASK VALUES FROM EXTRACTION
@@ -605,7 +605,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     from pypeit.core.pydl import bspline
     from pypeit.core.pydl import iterfit as  bspline_iterfit
     from pypeit.core.pydl import djs_maskinterp
-    from pypeit.arutils import bspline_profile
+    from pypeit.utils import bspline_profile
     from scipy.special import erfcinv
 
     if hwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
@@ -1119,9 +1119,9 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     23-June-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
-    from pypeit.arutils import find_nminima
-    from pypeit.core.artraceslits import trace_fweight, trace_gweight
-    from pypeit.specobj import SpecObj
+    from pypeit.utils import find_nminima
+    from pypeit.core.trace_slits import trace_fweight, trace_gweight
+    from pypeit.specobjs import SpecObj
     import scipy
 
     # Check that PEAK_THRESH values make sense
@@ -1144,11 +1144,11 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     # routine would save time, but not change functionality
     if thismask is None:
         pad =0
-        slitpix = arpixels.core_slit_pixels(slit_left, slit_righ, frameshape, pad)
+        slitpix = pixels.core_slit_pixels(slit_left, slit_righ, frameshape, pad)
         thismask = (slitpix > 0)
 
 #    if (ximg is None) | (edgmask is None):
-    ximg, edgmask = arpixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
+    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
 
     # If a mask was not passed in, create it
     if mask is None:
@@ -1360,8 +1360,8 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
           # Mask out anything that has left the slit/order.
           tracemask[:,iobj] = tracemask[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
           # ToDO add maxdev functionality?
-          polymask, coeff_fit1 = arutils.robust_polyfit(spec_vec,xpos1[:,iobj], ncoeff, weights = 1.0/xerr1[:,iobj], function = 'legendre',initialmask = tracemask[:,iobj],forceimask=True)
-          xfit1[:,iobj] = arutils.func_val(coeff_fit1, spec_vec, 'legendre')
+          polymask, coeff_fit1 = utils.robust_polyfit(spec_vec,xpos1[:,iobj], ncoeff, weights = 1.0/xerr1[:,iobj], function = 'legendre',initialmask = tracemask[:,iobj],forceimask=True)
+          xfit1[:,iobj] = utils.func_val(coeff_fit1, spec_vec, 'legendre')
 
           # Plot all the points that were not masked initially
           if(SHOW_QA == True) & (iiter == niter - 1):
@@ -1397,8 +1397,8 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
           # Mask out anything that has left the slit/order.
           tracemask[:,iobj] = tracemask[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
           # ToDO add maxdev functionality?
-          polymask, coeff_fit2 = arutils.robust_polyfit(spec_vec,xpos2[:,iobj], ncoeff, weights = 1.0/xerr2[:,iobj], function = 'legendre',initialmask = tracemask[:,iobj],forceimask=True)
-          xfit2[:,iobj] = arutils.func_val(coeff_fit2, spec_vec, 'legendre')
+          polymask, coeff_fit2 = utils.robust_polyfit(spec_vec,xpos2[:,iobj], ncoeff, weights = 1.0/xerr2[:,iobj], function = 'legendre',initialmask = tracemask[:,iobj],forceimask=True)
+          xfit2[:,iobj] = utils.func_val(coeff_fit2, spec_vec, 'legendre')
           ## Accept the last iteration of this Gaussian centroiding as the final fit. Update some other things
           if (iiter == niter-1):
               specobjs[iobj].trace_spat = xfit2[:,iobj]
@@ -1789,7 +1789,7 @@ def obj_profiles(det, specobjs, sciframe, varframe, crmask,
                     continue
                 # Fit the profile
                 try:
-                    mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdict['func'], weights=weight_val, maxone=False, guesses=guess)
+                    mask, gfit = utils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdict['func'], weights=weight_val, maxone=False, guesses=guess)
                 except RuntimeError:
                     msgs.warn("Bad Profile fit for object={:s}." + msgs.newline() +
                               "Skipping Optimal".format(specobjs[sl][o].idx))
@@ -1811,7 +1811,7 @@ def obj_profiles(det, specobjs, sciframe, varframe, crmask,
                     mn = np.min(slit_val[gdp])
                     mx = np.max(slit_val[gdp])
                     xval = np.linspace(mn, mx, 1000)
-                    model = arutils.func_val(gfit, xval, fdict['func'])
+                    model = utils.func_val(gfit, xval, fdict['func'])
                     plt.clf()
                     ax = plt.gca()
                     ax.scatter(slit_val[gdp], flux_val[gdp], marker='.', s=0.7, edgecolor='none', facecolor='black')
@@ -1819,8 +1819,8 @@ def obj_profiles(det, specobjs, sciframe, varframe, crmask,
                     # Gaussian too?
                     if False:
                         fdictg = dict(func='gaussian', deg=2)
-                        maskg, gfitg = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdictg['func'], weights=weight_val, maxone=False)
-                        modelg = arutils.func_val(gfitg, xval, fdictg['func'])
+                        maskg, gfitg = utils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdictg['func'], weights=weight_val, maxone=False)
+                        modelg = utils.func_val(gfitg, xval, fdictg['func'])
                         ax.plot(xval, modelg, 'r')
                     plt.show()
                     debugger.set_trace()
@@ -1835,7 +1835,7 @@ def obj_profiles(det, specobjs, sciframe, varframe, crmask,
     # QA
     if doqa: #not msgs._debug['no_qa'] and doqa:
         msgs.info("Preparing QA for spatial object profiles")
-#        arqa.obj_profile_qa(slf, specobjs, scitrace, det)
+#        qa.obj_profile_qa(slf, specobjs, scitrace, det)
         debugger.set_trace()  # Need to avoid slf
         obj_profile_qa(specobjs, scitrace, det)
     return
@@ -1863,7 +1863,7 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
         ncol = min(3, nobj)
         nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile
-        outfile = arqa.set_qa_filename(slf._basename, method, det=det, slit=specobjs[sl][0].slitid)
+        outfile = qa.set_qa_filename(slf._basename, method, det=det, slit=specobjs[sl][0].slitid)
         # Plot
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -1885,7 +1885,7 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
             mn = np.min(fdict['slit_val'][gdp])
             mx = np.max(fdict['slit_val'][gdp])
             xval = np.linspace(mn, mx, 1000)
-            fit = arutils.func_val(fdict['param'], xval, fdict['func'])
+            fit = utils.func_val(fdict['param'], xval, fdict['func'])
             ax.plot(xval, fit, 'r')
             # Axes
             ax.set_xlim(mn,mx)
@@ -1928,7 +1928,7 @@ def optimal_extract(specobjs, sciframe, varframe,
     model_ivar = np.zeros_like(varframe)
     cr_mask = 1.0-crmask
     gdvar = (varframe > 0.) & (cr_mask == 1.)
-    model_ivar[gdvar] = arutils.calc_ivar(varframe[gdvar])
+    model_ivar[gdvar] = utils.calc_ivar(varframe[gdvar])
     # Object model image
     obj_model = np.zeros_like(varframe)
     gdslits = np.where(~maskslits)[0]
@@ -1962,7 +1962,7 @@ def optimal_extract(specobjs, sciframe, varframe,
             gdo = (weight > 0) & (model_ivar > 0)
             # Profile image
             prof_img = np.zeros_like(weight)
-            prof_img[gdo] = arutils.func_val(fit_dict['param'], slit_img[gdo],
+            prof_img[gdo] = utils.func_val(fit_dict['param'], slit_img[gdo],
                                              fit_dict['func'])
             # Normalize
             norm_prof = np.sum(prof_img, axis=1)
@@ -1992,14 +1992,14 @@ def optimal_extract(specobjs, sciframe, varframe,
             # Optimal ivar
             opt_num = np.sum(mask * model_ivar * prof_img**2, axis=1)
             ivar_den = np.sum(mask * prof_img, axis=1)
-            opt_ivar = opt_num * arutils.calc_ivar(ivar_den)
+            opt_ivar = opt_num * utils.calc_ivar(ivar_den)
 
             # Save
             specobjs[sl][o].optimal['wave'] = opt_wave.copy()*units.AA  # Yes, units enter here
             specobjs[sl][o].optimal['counts'] = opt_flux.copy()
             gdiv = (opt_ivar > 0.) & (ivar_den > 0.)
             opt_var = np.zeros_like(opt_ivar)
-            opt_var[gdiv] = arutils.calc_ivar(opt_ivar[gdiv])
+            opt_var[gdiv] = utils.calc_ivar(opt_ivar[gdiv])
             specobjs[sl][o].optimal['var'] = opt_var.copy()
             #specobjs[o].boxcar['sky'] = skysum  # per pixel
 

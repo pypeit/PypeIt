@@ -24,7 +24,8 @@ def data_path(filename):
 def mk_specobj(flux=5, objid=500):
     # specobj
     npix = 100
-    specobj = specobjs.SpecObjExp((100,100), 'Kast', 0, 0, (0.4,0.6), 0.5, 0.5, objtype='science')
+    specobj = specobjs.SpecObj((100,100), 0, (0.4,0.6), objtype='science',
+                               spat_pixpos=300)
     specobj.boxcar = dict(wave=np.arange(npix)*units.AA, counts=np.ones(npix)*flux)
     specobj.optimal = dict(wave=np.arange(npix)*units.AA, counts=np.ones(npix)*flux-0.5)
     specobj.objid = objid
@@ -34,14 +35,14 @@ def mk_specobj(flux=5, objid=500):
 
 
 def test_save2d_fits():
-    settings.dummy_settings()
+    #settings.dummy_settings()
     #fitsdict = arutils.dummy_fitsdict(nfile=1, spectrograph='none', directory=data_path(''))
     fitstbl = sort.dummy_fitstbl(directory=data_path(''))
     # Kludge
     fitstbl.remove_column('filename')
     fitstbl['filename'] = 'b1.fits.gz'
     # Settings
-    settings.argflag['run']['directory']['science'] = data_path('')
+    #settings.argflag['run']['directory']['science'] = data_path('')
     setup = 'A_01_aa'
     spectrograph = 'shane_kast_blue'
     # Fill with dummy images
@@ -66,12 +67,12 @@ def test_save2d_fits():
 def test_save1d_fits():
     """ save1d to FITS and HDF5
     """
-    settings.dummy_settings()
+    #settings.dummy_settings()
     fitstbl = sort.dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
     # Dummy self
-    specobjs = [mk_specobj()]
+    specObjs = [mk_specobj()]
     # Write to FITS
-    save.save_1d_spectra_fits(specobjs, fitstbl[5], data_path('tst.fits'))
+    save.save_1d_spectra_fits(specObjs, fitstbl[5], data_path('tst.fits'))
 
 
 '''  # NEEDS REFACTORING

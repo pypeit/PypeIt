@@ -13,7 +13,7 @@ from __future__ import unicode_literals
 
 import argparse
 
-from pypit import msgs
+from pypeit import msgs
 
 # Globals
 #debug = ardebug.init()
@@ -32,8 +32,8 @@ def parser(options=None):
 
     parser = argparse.ArgumentParser(description=msgs.usage('PYPIT'),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('pypit_file', type=str,
-                        help='PYPIT reduction file (must have .pypit extension)')
+    parser.add_argument('pypeit_file', type=str,
+                        help='PYPIT reduction file (must have .pypeit extension)')
     parser.add_argument('-v', '--verbosity', type=int, default=2,
                         help='Verbosity level between 0 [none] and 2 [all]')
     parser.add_argument('-t', '--hdrframetype', default=False, action='store_true',
@@ -54,9 +54,9 @@ def parser(options=None):
                         help='Overwrite any existing files/directories')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-p', '--prep_setup', default=False, action='store_true',
-                       help='Run pypit to prepare the setup only')
+                       help='Run pypeit to prepare the setup only')
     group.add_argument('-c', '--calcheck', default=False, action='store_true',
-                       help='Run pypit only as a check on the calibrations')
+                       help='Run pypeit only as a check on the calibrations')
 
 #    parser.add_argument('-q', '--quick', default=False, help='Quick reduction',
 #                        action='store_true')
@@ -77,9 +77,9 @@ def main(args):
     import sys
     import traceback
 
-    from pypit import archeck
-    from pypit import pypit
-    from pypit import ardebug
+    from pypeit import check_requirements
+    from pypeit import pypeit
+    from pypeit import debugger
 
     # Initiate logging for bugs and command line help
     # These messages will not be saved to a log file
@@ -89,16 +89,13 @@ def main(args):
     #vrb = 2
 
     # Load options from command line
-    # TODO: Is this used?
-    debug = ardebug.init()
-    debug['develop'] = debug['develop'] or args.develop
-    debug['arc'] = debug['arc'] or args.debug_arc
-    splitnm = os.path.splitext(args.pypit_file)
-    if splitnm[1] != '.pypit':
-        msgs.error("Bad extension for PYPIT reduction file."+msgs.newline()+".pypit is required")
+    debug = None
+    splitnm = os.path.splitext(args.pypeit_file)
+    if splitnm[1] != '.pypeit':
+        msgs.error("Bad extension for PYPIT reduction file."+msgs.newline()+".pypeit is required")
     logname = splitnm[0] + ".log"
 
-    pypit.PYPIT(args.pypit_file, setup_only=args.prep_setup, calibration_check=args.calcheck,
+    pypeit.PYPIT(args.pypeit_file, setup_only=args.prep_setup, calibration_check=args.calcheck,
                 use_header_frametype=args.hdrframetype, sort_dir=args.sort_dir, debug=debug,
                 overwrite=args.overwrite, verbosity=args.verbosity, use_masters=args.use_masters,
                 logname=logname)
@@ -107,12 +104,12 @@ def main(args):
 
 #    # Execute the reduction, and catch any bugs for printout
 #    if debug['develop']:
-#        pypit.PYPIT(args.pypit_file, progname=pypit.__file__, quick=qck, ncpus=cpu,
+#        pypeit.PYPIT(args.pypeit_file, progname=pypeit.__file__, quick=qck, ncpus=cpu,
 #                    verbosity=args.verbosity, use_masters=args.use_masters, devtest=args.devtest,
 #                    logname=logname, debug=debug)
 #    else:
 #        try:
-#            pypit.PYPIT(args.pypit_file, progname=pypit.__file__, quick=qck, ncpus=cpu,
+#            pypeit.PYPIT(args.pypeit_file, progname=pypeit.__file__, quick=qck, ncpus=cpu,
 #                        verbosity=args.verbosity, use_masters=args.use_masters,
 #                        devtest=args.devtest, logname=logname, debug=debug)
 #        except:

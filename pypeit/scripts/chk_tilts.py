@@ -37,8 +37,8 @@ def main(pargs):
     import pdb as debugger
     import time
 
-    from pypit import ginga
-    from pypit import wavetilts
+    from pypeit import ginga
+    from pypeit import wavetilts
 
     import subprocess
 

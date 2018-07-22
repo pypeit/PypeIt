@@ -8,13 +8,13 @@ import time
 from pypeit import msgs
 # TODO: (KBW) Can archeck code be put in pypeit/__init__.py ?
 from pypeit import check_requirements  # THIS IMPORT DOES THE CHECKING.  KEEP IT
-from pypeit.core import arsort
-from pypeit import arqa
+from pypeit.core import sort
+from pypeit.core import qa
 from pypeit import arms
 
 from pypeit import pypeitsetup
 
-from pypeit import ardebug
+from pypeit import debugger
 
 def PYPIT(pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False,
           sort_dir=None, debug=None, quick=False, ncpus=1, overwrite=False, verbosity=2,
@@ -79,19 +79,15 @@ def PYPIT(pypeit_file, setup_only=False, calibration_check=False, use_header_fra
     if quick:
         raise NotImplementedError('Quick version of pypeit is not yet implemented.')
 
-    # Init logger
-    if debug is None:
-        debug = ardebug.init()
-
     # Reset the global logger
-    msgs.reset(log=logname, debug=debug, verbosity=verbosity)
+    msgs.reset(log=logname, debug=None, verbosity=verbosity)
     msgs.pypeit_file = pypeit_file
 
     # Record the starting time
     tstart = time.time()
 
     # Perform the setup
-    setup = pypeitsetup.PypitSetup.from_pypeit_file(pypeit_file)
+    setup = pypeitsetup.PypeItSetup.from_pypeit_file(pypeit_file)
     par, spectrograph, fitstbl, setup_dict = setup.run(setup_only=setup_only,
                                                        calibration_check=calibration_check,
                                                        use_header_frametype=use_header_frametype,
@@ -111,7 +107,7 @@ def PYPIT(pypeit_file, setup_only=False, calibration_check=False, use_header_fra
     # TODO: Do we want the code to interactively ask for a new
     # directory?  I think it would be better if it just faulted when a
     # directory/file exists and overwrite is False.
-    arsort.make_dirs(spectrograph.spectrograph, par['calibrations']['caldir'],
+    sort.make_dirs(spectrograph.spectrograph, par['calibrations']['caldir'],
                      par['rdx']['scidir'], par['rdx']['qadir'], overwrite=overwrite)
 
     # Just do it (sponsored by Nike)
@@ -132,8 +128,8 @@ def PYPIT(pypeit_file, setup_only=False, calibration_check=False, use_header_fra
         msgs.info('Data reduction complete')
         # QA HTML
         msgs.info('Generating QA HTML')
-        arqa.gen_mf_html(pypeit_file)
-        arqa.gen_exp_html()
+        qa.gen_mf_html(pypeit_file)
+        qa.gen_exp_html()
     else:
         msgs.error('Data reduction failed with status ID {0:d}'.format(status))
 

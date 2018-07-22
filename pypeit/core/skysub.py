@@ -9,8 +9,8 @@ from matplotlib import pyplot as plt
 #from pydl.pydlutils.bspline import bspline
 from pypeit.core import pydl
 from pypeit import msgs
-from pypeit import arutils
-from pypeit import ardebug as debugger
+from pypeit import utils
+from pypeit import debugger
 
 # ToDO Fix masking logic. This code should also take an ivar for consistency with rest of extraction
 def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
@@ -53,7 +53,7 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
 
     # Init
     bgframe = np.zeros_like(sciframe)
-    ivar = arutils.calc_ivar(varframe)
+    ivar = utils.calc_ivar(varframe)
     ny = sciframe.shape[0]
     piximg = tilts * (ny-1)
 
@@ -97,7 +97,7 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
                 #ax.plot(wsky, yfit, color='green')
                 plt.show()
                 #debugger.set_trace()
-            lskyset, outmask, lsky_fit, red_chi = arutils.bspline_profile(
+            lskyset, outmask, lsky_fit, red_chi = utils.bspline_profile(
                 wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
                 fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
                 kwargs_reject={'groupbadpix':True})
@@ -107,7 +107,7 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
 
     # Full fit now
     full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp)
-    skyset, full_out, yfit, _ = arutils.bspline_profile(
+    skyset, full_out, yfit, _ = utils.bspline_profile(
         wsky, sky, sky_ivar, np.ones_like(sky),
         fullbkpt=full_bspline.breakpoints,
         upper=sigrej, lower=sigrej, kwargs_reject={'groupbadpix':True, 'maxrej': 10})
@@ -205,7 +205,7 @@ def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3
                 #ax.plot(wsky, yfit, color='green')
                 plt.show()
                 #debugger.set_trace()
-            lskyset, outmask, lsky_fit, red_chi = arutils.bspline_profile(
+            lskyset, outmask, lsky_fit, red_chi = utils.bspline_profile(
                 wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
                 fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
                 kwargs_reject={'groupbadpix':True})
@@ -216,7 +216,7 @@ def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3
 
     # Full fit now
     full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp)
-    skyset, outmask, yfit, _ = arutils.bspline_profile(wsky, sky, sky_ivar, np.ones_like(sky),
+    skyset, outmask, yfit, _ = utils.bspline_profile(wsky, sky, sky_ivar, np.ones_like(sky),
                                                        fullbkpt=full_bspline.breakpoints,upper=sigrej, lower=sigrej,
                                                        kwargs_reject={'groupbadpix':True, 'maxrej': 10})
     if (np.sum(outmask == False) == 19233):
@@ -233,7 +233,7 @@ def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3
     bgframe[thismask], _ = skyset.value(piximg[thismask])
 
     # JFH testing
-#    skyset, outmask, yfit, _ = arutils.bspline_profile(wsky, sky, sky_ivar, np.ones_like(sky),
+#    skyset, outmask, yfit, _ = utils.bspline_profile(wsky, sky, sky_ivar, np.ones_like(sky),
 #                                                       upper=sigrej, lower=sigrej, maxiter = 20,
 #                                                       kwargs_bspline={'bkspace':bsp},
 #                                                       kwargs_reject={'maxrej': 10})
@@ -273,7 +273,7 @@ def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3
 # Utility routine used by local_bg_subtraction_slit
 def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial = None, fullbkpt = None):
 
-    from pypeit.arutils import bspline_profile
+    from pypeit.utils import bspline_profile
     from pypeit.core.pydl import flegendre, bspline
     from scipy.special import ndtr
 
@@ -425,7 +425,7 @@ def orig_bg_subtraction_slit(tslits_dict, pixlocn,
         if (wpix[0].size>5):
             txpix = sxvpix[wpix]
             typix = sscipix[wpix]
-            msk, cf = arutils.robust_polyfit(txpix, typix, 0, sigma=rejsigma)
+            msk, cf = utils.robust_polyfit(txpix, typix, 0, sigma=rejsigma)
             maskpix[wpix] = msk
             #fitcls[i] = cf[0]
             wgd=np.where(msk == 0)
@@ -493,17 +493,17 @@ def orig_bg_subtraction_slit(tslits_dict, pixlocn,
         msgs.info("Using bspline sky subtraction")
         gdp = (scifrcp != maskval) & (ordpix == slit+1) & (varframe > 0.)
         srt = np.argsort(tilts[gdp])
-        #bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
+        #bspl = utils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
         #                        **settings.argflag['reduce']['skysub']['bspline'])
-        ivar = arutils.calc_ivar(varframe)
-        mask, bspl = arutils.robust_polyfit(tilts[gdp][srt], scifrcp[gdp][srt], 3,
+        ivar = utils.calc_ivar(varframe)
+        mask, bspl = utils.robust_polyfit(tilts[gdp][srt], scifrcp[gdp][srt], 3,
                                             function='bspline',
                                             weights=np.sqrt(ivar)[gdp][srt],
                                             sigma=5., maxone=False,
                                             bspline_par=settings['skysub']['bspline'])
         # Just those in the slit
         in_slit = np.where(slitpix == slit+1)
-        bgf_flat = arutils.func_val(bspl, tilts[in_slit].flatten(), 'bspline')
+        bgf_flat = utils.func_val(bspl, tilts[in_slit].flatten(), 'bspline')
         #bgframe = bgf_flat.reshape(tilts.shape)
         bgframe[in_slit] = bgf_flat
         if msgs._debug['sky_sub']:

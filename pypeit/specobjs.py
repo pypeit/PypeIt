@@ -57,7 +57,8 @@ class SpecObj(object):
     # Init
 
     # TODO
-    def __init__(self, shape, slit_spat_pos, slit_spec_pos, det = 1, config = None, slitid = 999, scidx = 1, objtype='unknown'):
+    def __init__(self, shape, slit_spat_pos, slit_spec_pos, det = 1, config = None,
+                 slitid = 999, scidx = 1, objtype='unknown', spat_pixpos=None):
 
         #Assign from init parameters
         self.shape = shape
@@ -79,7 +80,7 @@ class SpecObj(object):
         self.trace_spat = None
         self.trace_spec = None
         self.fwhm = None
-        self.spat_pixpos = None # Position on the image in pixels at the midpoint of the slit in spectral direction
+        self.spat_pixpos = spat_pixpos # Position on the image in pixels at the midpoint of the slit in spectral direction
         self.maskwidth = None
 
         # Attributes for HAND apertures, which are object added to the extraction by hand
@@ -100,7 +101,7 @@ class SpecObj(object):
         #self.objid = int(np.round(xobj*1e3))
 
         # Set index
-        #self.set_idx()
+        self.set_idx()
 
         #
 
@@ -139,8 +140,9 @@ class SpecObj(object):
             return False
 
     def copy(self):
-        slf = SpecObj(self.shape, self.config, self.scidx, self.det, self.xslit, self.ypos, self.xobj,
-                       objtype=self.objtype)
+        slf = SpecObj(self.shape, self.slit_spat_pos, self.slit_spec_pos, det= self.det,
+                      config=self.config, slitid = self.slitid, scidx = self.scidx,
+                      objtype=self.objtype, spat_pixpos=self.spat_pixpos)
         slf.boxcar = self.boxcar.copy()
         slf.optimal = self.optimal.copy()
         return slf
@@ -518,7 +520,8 @@ def dummy_specobj(fitstbl, det=1, extraction=True):
     xobjs = [0.4, 0.6]
     specobjs = []
     for xobj in xobjs:
-        specobj = SpecObj(shape, config, scidx, det, xslit, ypos, xobj)
+        specobj = SpecObj(shape, 1240, xslit, spat_pixpos=900, det=det, config=config)
+        #specobj = SpecObj(shape, config, scidx, det, xslit, ypos, xobj)
         # Dummy extraction?
         if extraction:
             npix = 2001

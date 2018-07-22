@@ -185,6 +185,8 @@ class FluxSpec(masterframe.MasterFrame):
             # Find the standard in each detector
             for det in self.multi_det:
                 stds = [sobj for sobj in self.std_specobjs if sobj.det == det]
+                if len(stds) == 0:
+                    debugger.set_trace()
                 idx = flux.find_standard(stds)
                 sv_stds.append(stds[idx])
                 msgs.info("Using standard {} for det={}".format(stds[idx], det))

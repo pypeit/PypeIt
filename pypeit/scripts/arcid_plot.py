@@ -49,8 +49,8 @@ def main(args):
 
     from linetools.utils import loadjson
 
-    from pypit import arqa
-    from pypit import msgs
+    from pypeit import arqa
+    from pypeit import msgs
     msgs.reset(verbosity=2)
 
     # Read JSON

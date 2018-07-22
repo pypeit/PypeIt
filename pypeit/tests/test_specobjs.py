@@ -18,9 +18,9 @@ msgs.reset(verbosity=2)
 #    return os.path.join(data_dir, filename)
 
 shape = (1024,2048)
-sobj1 = specobjs.SpecObj(shape, (800., 810.), 1240.)
-sobj2 = specobjs.SpecObj(shape, (400., 430.), 1240.)
-sobj3 = specobjs.SpecObj(shape, (200., 220.), 1240.)
+sobj1 = specobjs.SpecObj(shape, 1240., (800., 810.), spat_pixpos=900)
+sobj2 = specobjs.SpecObj(shape, 1240., (400., 430.), spat_pixpos=900)
+sobj3 = specobjs.SpecObj(shape, 1240., (200., 220.), spat_pixpos=900)
 
 
 def test_init():

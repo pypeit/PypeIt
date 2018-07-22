@@ -1,4 +1,4 @@
-# Module to run tests on PypitPar classes
+# Module to run tests on PypeItPar classes
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -67,24 +67,24 @@ def test_calibrations():
     pypeitpar.CalibrationsPar()
 
 def test_pypeit():
-    pypeitpar.PypitPar()
+    pypeitpar.PypeItPar()
 
 def test_fromcfgfile():
-    pypeitpar.PypitPar.from_cfg_file()
+    pypeitpar.PypeItPar.from_cfg_file()
 
 def test_writecfg():
     default_file = 'default.cfg'
     if os.path.isfile(default_file):
         os.remove(default_file)
-    pypeitpar.PypitPar.from_cfg_file().to_config(cfg_file=default_file)
+    pypeitpar.PypeItPar.from_cfg_file().to_config(cfg_file=default_file)
     assert os.path.isfile(default_file), 'No file written!'
     os.remove(default_file)
 
 def test_readcfg():
     default_file = 'default.cfg'
     if not os.path.isfile(default_file):
-        pypeitpar.PypitPar.from_cfg_file().to_config(cfg_file=default_file)
-    pypeitpar.PypitPar.from_cfg_file('default.cfg')
+        pypeitpar.PypeItPar.from_cfg_file().to_config(cfg_file=default_file)
+    pypeitpar.PypeItPar.from_cfg_file('default.cfg')
     os.remove(default_file)
 
 def test_mergecfg():
@@ -92,7 +92,7 @@ def test_mergecfg():
     user_file = 'user_adjust.cfg'
     if os.path.isfile(user_file):
         os.remove(user_file)
-    p = pypeitpar.PypitPar.from_cfg_file()
+    p = pypeitpar.PypeItPar.from_cfg_file()
 
     # Make some modifications
     p['rdx']['spectrograph'] = 'keck_lris_blue'
@@ -104,7 +104,7 @@ def test_mergecfg():
     assert os.path.isfile(user_file), 'User file was not written!'
 
     # Read it in as a config to merge with the defaults
-    p = pypeitpar.PypitPar.from_cfg_file(merge_with=user_file)
+    p = pypeitpar.PypeItPar.from_cfg_file(merge_with=user_file)
 
     # Check the values are correctly read in
     assert p['rdx']['spectrograph'] == 'keck_lris_blue', 'Test spectrograph is incorrect!'
@@ -116,7 +116,7 @@ def test_mergecfg():
     os.remove(user_file)
 
 def test_sync():
-    p = pypeitpar.PypitPar()
+    p = pypeitpar.PypeItPar()
     proc = pypeitpar.ProcessImagesPar()
     proc['combine'] = 'mean'
     proc['sigrej'] = 20.5
@@ -133,15 +133,15 @@ def test_pypeit_file():
     cfg, data, frametype, setups = parse_pypeit_file(data_path('example_pypeit_file.pypeit'),
                                                     file_check=False)
     # Long-winded way of getting the spectrograph name
-    name = pypeitpar.PypitPar.from_cfg_lines(merge_with=cfg)['rdx']['spectrograph']
+    name = pypeitpar.PypeItPar.from_cfg_lines(merge_with=cfg)['rdx']['spectrograph']
     # Instantiate the spectrograph
     spectrograph = load_spectrograph(name)
     # Get the spectrograph specific configuration
     spec_cfg = spectrograph.default_pypeit_par().to_config()
     # Initialize the PypeIt parameters merge in the user config
-    p = pypeitpar.PypitPar.from_cfg_lines(cfg_lines=spec_cfg, merge_with=cfg)
+    p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spec_cfg, merge_with=cfg)
     # Test everything was merged correctly
-    # This is a PypitPar default that's not changed
+    # This is a PypeItPar default that's not changed
     assert p['calibrations']['pinholeframe']['number'] == 0
     # These are spectrograph specific defaults
     assert p['rdx']['pipeline'] == 'ARMS'

@@ -36,9 +36,9 @@ def main(pargs):
     import pdb as debugger
     import time
 
-    from pypit import ginga
-    from pypit import traceslits
-    from pypit.core.artraceslits import get_slitid
+    from pypeit import ginga
+    from pypeit import traceslits
+    from pypeit.core.artraceslits import get_slitid
 
     import subprocess
 

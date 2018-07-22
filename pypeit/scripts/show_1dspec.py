@@ -38,7 +38,7 @@ def main(args, unit_test=False):
 
     from linetools.guis.xspecgui import XSpecGui
 
-    from pypit import arload
+    from pypeit import arload
 
     # List only?
     if args.list:

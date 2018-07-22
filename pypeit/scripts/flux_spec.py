@@ -10,8 +10,8 @@ from __future__ import unicode_literals
 
 import argparse
 
-# pypit_flux_spec sensfunc --std_file=spec1d_Feige66_KASTb_2015May20T041246.96.fits  --instr=shane_kast_blue --sensfunc_file=tmp.yaml
-# pypit_flux_spec flux --sci_file=spec1d_J1217p3905_KASTb_2015May20T045733.56.fits --sensfunc_file=tmp.yaml --flux_file=tmp.fits
+# pypeit_flux_spec sensfunc --std_file=spec1d_Feige66_KASTb_2015May20T041246.96.fits  --instr=shane_kast_blue --sensfunc_file=tmp.yaml
+# pypeit_flux_spec flux --sci_file=spec1d_J1217p3905_KASTb_2015May20T045733.56.fits --sensfunc_file=tmp.yaml --flux_file=tmp.fits
 
 
 def parser(options=None):
@@ -38,7 +38,7 @@ def main(args, unit_test=False):
     """
     import pdb
 
-    from pypit import fluxspec
+    from pypeit import fluxspec
 
     # Parse the steps
     steps = args.steps.split(',')

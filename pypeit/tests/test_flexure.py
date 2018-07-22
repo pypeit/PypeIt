@@ -6,7 +6,6 @@ from __future__ import unicode_literals
 
 ### TEST_UNICODE_LITERALS
 
-import sys
 import os
 
 import pdb
@@ -17,7 +16,6 @@ import numpy as np
 from linetools.spectra.io import readspec
 
 import pypeit
-#from pypeit import msgs
 from pypeit.core import wave
 
 
@@ -28,8 +26,6 @@ def data_path(filename):
 
 def test_flex_shift():
     # Dummy slf
-    settings.dummy_settings()
-    settings.argflag['reduce']['flexure']['maxshift'] = 50
     # Read spectra
     obj_spec = readspec(data_path('obj_lrisb_600_sky.fits'))
     arx_file = pypeit.__path__[0]+'/data/sky_spec/sky_LRISb_600.fits'

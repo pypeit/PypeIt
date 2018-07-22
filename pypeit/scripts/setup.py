@@ -23,12 +23,12 @@ def parser(options=None):
                         help="Turn develop debugging on")
     parser.add_argument("--extension", default='.fits',
                         help='File extension; compression indicators (e.g. .gz) not required.')
-    parser.add_argument("--pypit_file", default=False, action='store_true',
-                        help='Input is the .pypit file')
+    parser.add_argument("--pypeit_file", default=False, action='store_true',
+                        help='Input is the .pypeit file')
     parser.add_argument("--redux_path", default=None,
                         help='Path to reduction folder.  Default is current working directory.')
     parser.add_argument("-c", "--custom", default=False, action='store_true',
-                        help='Generate custom folders and pypit files?')
+                        help='Generate custom folders and pypeit files?')
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
 #    parser.add_argument("-q", "--quick", default=False, help="Quick reduction",
@@ -46,11 +46,11 @@ def main(args):
     import datetime
     import pdb as debugger
 
-    from pypit import msgs
-    from pypit.spectrographs.util import valid_spectrographs
-    from pypit.core import arsetup
-    from pypit.par.util import make_pypit_file, parse_pypit_file
-    from pypit.scripts import run_pypit
+    from pypeit import msgs
+    from pypeit.spectrographs.util import valid_spectrographs
+    from pypeit.core import pypsetup
+    from pypeit.par.util import make_pypeit_file, parse_pypeit_file
+    from pypeit.scripts import run_pypeit
 
     # Check that input spectrograph is supported
     instruments_served = valid_spectrographs()
@@ -67,10 +67,10 @@ def main(args):
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
 
-    # Generate a dummy .pypit file
+    # Generate a dummy .pypeit file
     date = str(datetime.date.today().strftime('%Y-%b-%d'))
     root = args.spectrograph+'_'+date
-    pypit_file = outdir+'/'+root+'.pypit'
+    pypeit_file = outdir+'/'+root+'.pypeit'
 
     # Generate
     dfname = "{:s}*{:s}*".format(args.files_root, args.extension)
@@ -78,30 +78,30 @@ def main(args):
     cfg_lines = ['[rdx]']
     cfg_lines += ['    spectrograph = {0}'.format(args.spectrograph)]
     cfg_lines += ['    sortroot = {0}'.format(root)]
-    make_pypit_file(pypit_file, args.spectrograph, [dfname], cfg_lines=cfg_lines, setup_mode=True)
-    msgs.info('Wrote template pypit file: {0}'.format(pypit_file))
+    make_pypeit_file(pypeit_file, args.spectrograph, [dfname], cfg_lines=cfg_lines, setup_mode=True)
+    msgs.info('Wrote template pypeit file: {0}'.format(pypeit_file))
 
     # Parser
-    pinp = [pypit_file, '-p', '-s {0}'.format(root) ]
+    pinp = [pypeit_file, '-p', '-s {0}'.format(root) ]
     if args.overwrite:
         pinp += ['-o']
     if args.develop:
         pinp += ['-d']
-    pargs = run_pypit.parser(pinp)
-    sorted_file = pypit_file.replace('.pypit', '.sorted')
+    pargs = run_pypeit.parser(pinp)
+    sorted_file = pypeit_file.replace('.pypeit', '.sorted')
 
     # Run
-    run_pypit.main(pargs)
+    run_pypeit.main(pargs)
 
     # #####################
-    # Generate custom .pypit files
+    # Generate custom .pypeit files
     if not args.custom:
         return
 
     msgs.reset(verbosity=2)
 
     # Read master file
-    _, data_files, frametype, setups = parse_pypit_file(pypit_file)
+    _, data_files, frametype, setups = parse_pypeit_file(pypeit_file)
 
     # Get paths
     paths = []
@@ -111,8 +111,8 @@ def main(args):
         if path not in paths:
             paths.append(path)
 
-    # Generate .pypit files and sub-folders
-    all_setups, all_setuplines, all_setupfiles = arsetup.load_sorted(sorted_file)
+    # Generate .pypeit files and sub-folders
+    all_setups, all_setuplines, all_setupfiles = pypsetup.load_sorted(sorted_file)
     for setup, setup_lines, sorted_files in zip(all_setups, all_setuplines, all_setupfiles):
         root = args.spectrograph+'_setup_'
         # Make the dir
@@ -120,13 +120,13 @@ def main(args):
         if not os.path.exists(newdir):
             os.mkdir(newdir)
         # Now the file
-        pypit_file = os.path.join(newdir, root+setup+'.pypit')
+        pypeit_file = os.path.join(newdir, root+setup+'.pypeit')
         # Modify parlines
         for kk in range(len(cfg_lines)):
             if 'sortroot' in cfg_lines[kk]:
                 cfg_lines[kk] = '    sortroot = {0}'.format(root+setup)
 
-        make_pypit_file(pypit_file, args.spectrograph, [], cfg_lines=cfg_lines,
+        make_pypeit_file(pypeit_file, args.spectrograph, [], cfg_lines=cfg_lines,
                         setup_lines=setup_lines, sorted_files=sorted_files, paths=paths)
-        print("Wrote {:s}".format(pypit_file))
+        print("Wrote {:s}".format(pypeit_file))
 

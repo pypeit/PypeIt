@@ -7,10 +7,10 @@
 
 """
 This script examines a set of files and generates output
-to help setup the .pypit file
+to help setup the .pypeit file
 """
 
-import pypit.scripts.setup as setup
+import pypeit.scripts.setup as setup
 
 if __name__ == '__main__':
     args = setup.parser()

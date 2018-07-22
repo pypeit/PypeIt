@@ -4,7 +4,7 @@
 Show the arc image in a Ginga window with tilts
 """
 
-import pypit.scripts.chk_tilts as chk_tilts
+import pypeit.scripts.chk_tilts as chk_tilts
 
 if __name__ == '__main__':
     args = chk_tilts.parser()
