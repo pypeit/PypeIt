@@ -175,7 +175,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         Set default parameters for Keck LRISb reductions.
         """
-        par = pypeitpar.PypitPar()
+        par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_deimos'
 
         # Use the ARMS pipeline

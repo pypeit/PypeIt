@@ -536,7 +536,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Slit pixels
         msgs.info("Identifying the pixels belonging to each slit")
-        self.slitpix = pixels.core_slit_pixels(self.lcen, self.rcen, self.mstrace.shape,
+        self.slitpix = pixels.slit_pixels(self.lcen, self.rcen, self.mstrace.shape,
                                                  self.par['pad'])
         # ximg and edge mask
         self.ximg, self.edge_mask = pixels.ximg_and_edgemask(self.lcen, self.rcen, self.slitpix,

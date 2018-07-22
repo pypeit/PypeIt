@@ -61,7 +61,7 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
         """
         Set default parameters for Keck LRISb reductions.
         """
-        par = pypeitpar.PypitPar()
+        par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'wht_isis_blue'
         # Use the ARMS pipeline
         par['rdx']['pipeline'] = 'ARMS'

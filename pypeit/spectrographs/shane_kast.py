@@ -192,7 +192,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         """
         Set default parameters for Shane Kast Blue reductions.
         """
-        par = pypeitpar.PypitPar()
+        par = pypeitpar.PypeItPar()
         # TODO: Make self.spectrograph a class attribute?
         par['rdx']['spectrograph'] = 'shane_kast_blue'
         # Use the ARMS pipeline

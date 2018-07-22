@@ -201,7 +201,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         """
         Set default parameters for Keck LRISb reductions.
         """
-        par = pypeitpar.PypitPar()
+        par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_lris_blue'
         # Use the ARMS pipeline
         par['rdx']['pipeline'] = 'ARMS'

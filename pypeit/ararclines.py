@@ -51,7 +51,7 @@ def load_arcline_list(lines, disperser, spectrograph, wvmnx=None, modify_parse_d
     """
     # Get the parse dict
     parse_dict = load_parse_dict(modify_dict=modify_parse_dict)
-    root = resource_filename('pypit', 'data/arc_lines')
+    root = resource_filename('pypeit', 'data/arc_lines')
     with open(root+'/rejected_lines.yaml', 'r') as infile:
         rej_dict = yaml.load(infile)
     # Loop through the NIST Tables

@@ -85,7 +85,7 @@ class Spectrograph(object):
 
     @staticmethod
     def default_pypeit_par():
-        return pypeitpar.PypitPar()
+        return pypeitpar.PypeItPar()
 
     def add_to_fitstbl(self, fitstbl):
         pass

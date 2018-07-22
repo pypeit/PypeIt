@@ -606,7 +606,7 @@ class Calibrations(object):
         xgap=self.spectrograph.detector[self.det-1]['xgap']
         ygap=self.spectrograph.detector[self.det-1]['ygap']
         ysize=self.spectrograph.detector[self.det-1]['ysize']
-        self.pixlocn = pixels.core_gen_pixloc(self.shape, xgap=xgap, ygap=ygap, ysize=ysize)
+        self.pixlocn = pixels.gen_pixloc(self.shape, xgap=xgap, ygap=ygap, ysize=ysize)
 
         # Return
         return self.pixlocn
