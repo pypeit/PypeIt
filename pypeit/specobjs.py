@@ -108,7 +108,10 @@ class SpecObj(object):
     def set_idx(self):
         # Generate a unique index for this exposure
         #self.idx = '{:02d}'.format(self.setup)
-        self.idx = 'O{:04d}'.format(int(np.rint(self.spat_pixpos)))
+        if self.spat_pixpos is None:
+            self.idx = 'O----'
+        else:
+            self.idx = 'O{:04d}'.format(int(np.rint(self.spat_pixpos)))
         if self.slitid is None:
             self.idx += '-S---'
         else:
@@ -278,6 +281,9 @@ class SpecObjs(object):
         -------
         numpy array
         """
+        # JFH I think the summary needs to be rebuilt every time the user tries to slice, since otherwise,
+        # newly changed things don't make it into the summary
+        self.build_summary()
         # Special case(s)
         if k in self.summary.keys():  # _data
             lst = self.summary[k]
@@ -297,6 +303,13 @@ class SpecObjs(object):
     # Printing
     def __repr__(self):
         return self.summary.__repr__()
+
+    def __len__(self):
+        return len(self.specobjs)
+
+    def keys(self):
+        self.build_summary()
+        return self.summary.keys()
 
 
 def init_exp(lordloc, rordloc, shape, maskslits,
