@@ -264,7 +264,7 @@ class SpecObjs(object):
         # TODO -- Add slicing
         if isinstance(key, str):
             return self.__getattr__(key)
-        elif isinstance(key, int):
+        elif isinstance(key, (int, np.integer)):
             return self.specobjs[key]
 
     def __getattr__(self, k):
