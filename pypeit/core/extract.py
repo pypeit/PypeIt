@@ -1332,18 +1332,14 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
 
 
     msgs.info('Tweaking the object traces')
-
+    # Iterate flux weighted centroiding
     niter = 6
     fwhm_vec = np.zeros(niter)
     fwhm_vec[0:niter//3] = 1.3*FWHM
     fwhm_vec[niter//3:2*niter//3] = 1.1*FWHM
     fwhm_vec[2*niter//3:] = FWHM
 
-    # Iterate flux weighted centroiding
-    from IPython import embed
-    embed()
-
-    # Note the transpose is here because we  
+    # Note the transpose is here because we
     xpos0 = sobjs.trace_spat.T
     #xpos0 = np.stack([spec.trace_spat for spec in specobjs], axis=1)
     # This xinvvar is used to handle truncated slits/orders so that they don't break the fits
@@ -1378,7 +1374,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
               plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0)
               if np.any(~nomask):
                   plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=4.0,linestyle='None', zorder= 20)
-              plt.title('Flux Weighted Centroid to object {:s}.'.format(specobjs[iobj].idx))
+              plt.title('Flux Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
               plt.ylim((0.995*xfit1[:, iobj].min(), 1.005*xfit1[:, iobj].max()))
               plt.xlabel('Spectral Pixel')
               plt.ylabel('Spatial Pixel')
@@ -1408,9 +1404,9 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
           xfit2[:,iobj] = utils.func_val(coeff_fit2, spec_vec, 'legendre')
           ## Accept the last iteration of this Gaussian centroiding as the final fit. Update some other things
           if (iiter == niter-1):
-              specobjs[iobj].trace_spat = xfit2[:,iobj]
-              specobjs[iobj].spat_pixpos = specobjs[iobj].trace_spat[specmid]
-              specobjs[iobj].set_idx()
+              sobjs[iobj].trace_spat = xfit2[:,iobj]
+              sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
+              sobjs[iobj].set_idx()
               # Plot all the points that were not masked initially
               if(SHOW_QA == True):
                   nomask = (tracemask2[:,iobj]==0)
@@ -1418,7 +1414,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
                   plt.plot(spec_vec,xfit2[:,iobj],c='red',zorder=10,linewidth = 2.0)
                   if np.any(~nomask):
                       plt.plot(spec_vec[~nomask],xfit2[~nomask,iobj], c='blue',marker='+',markersize=4.0,linestyle='None', zorder= 20)
-                  plt.title('Gaussian Weighted Centroid to object {:s}.'.format(specobjs[iobj].idx))
+                  plt.title('Gaussian Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
                   plt.ylim((0.995*xfit2[:,iobj].min(),1.005*xfit2[:,iobj].max()))
                   plt.xlabel('Spectral Pixel')
                   plt.ylabel('Spatial Pixel')
@@ -1441,68 +1437,75 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
 
         # Decide how to assign a trace to the hand objects
         if nobj_reg > 0:  # Use brightest object on slit?
-            smash_peakflux = np.array([spec.smash_peakflux for spec in specobjs])
+            smash_peakflux = sobjs.smash_peakflux
             ibri = smash_peakflux.argmax()
-            trace_model = specobjs[ibri].trace_spat
-            med_fwhm_reg = np.median([specobj.fwhm for spec in specobjs])
+            trace_model = sobjs[ibri].trace_spat
+            med_fwhm_reg = np.median(sobjs.fwhm)
         elif std_trace is not None:   # If no objects found, use the standard?
             trace_model = std_trace
         else:  # If no objects or standard use the slit boundary
             trace_model = slit_left
         # Loop over HAND apertures and create and assign specobj
         for iobj in range(nobj_hand):
-            specobj = SpecObj(frameshape, slit_spat_pos, slit_spec_pos,
-                              det=specobj_dict['det'],
-                              config=specobj_dict['config'], slitid=specobj_dict['slitid'],
-                              scidx=specobj_dict['scidx'], objtype=specobj_dict['objtype'])
-            specobj.HAND_SPEC = HAND_SPEC[iobj]
-            specobj.HAND_SPAT = HAND_SPAT[iobj]
-            specobj.HAND_DET = HAND_DET[iobj]
-            specobj.HAND_FWHM = HAND_FWHM[iobj]
-            specobj.HAND_FLAG = True
+            thisobj = specobjs.SpecObj(frameshape, slit_spat_pos, slit_spec_pos,
+                                       det=specobj_dict['det'],
+                                       config=specobj_dict['config'], slitid=specobj_dict['slitid'],
+                                       scidx=specobj_dict['scidx'], objtype=specobj_dict['objtype'])
+            thisobj.HAND_SPEC = HAND_SPEC[iobj]
+            thisobj.HAND_SPAT = HAND_SPAT[iobj]
+            thisobj.HAND_DET = HAND_DET[iobj]
+            thisobj.HAND_FWHM = HAND_FWHM[iobj]
+            thisobj.HAND_FLAG = True
             f_ximg = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, ximg)
-            specobj.spat_fracpos = f_ximg(specobj.HAND_SPEC, specobj.HAND_SPAT, grid=False) # interpolate from ximg
-            specobj.smash_peakflux = np.interp(specobj.spat_fracpos*nsamp,np.arange(nsamp),fluxconv) # interpolate from fluxconv
+            thisobj.spat_fracpos = f_ximg(specobj.HAND_SPEC, thisobj.HAND_SPAT, grid=False) # interpolate from ximg
+            thisobj.smash_peakflux = np.interp(thisobj.spat_fracpos*nsamp,np.arange(nsamp),fluxconv) # interpolate from fluxconv
             # assign the trace
-            spat_0 = np.interp(specobj.HAND_SPEC, spec_vec, trace_model)
-            shift = specobj.HAND_SPAT - spat_0
-            specobj.trace_spat = trace_model + shift
-            specobj.spat_pixpos = specobj.trace_spat[specmid]
-            specobj.set_idx()
+            spat_0 = np.interp(thisobj.HAND_SPEC, spec_vec, trace_model)
+            shift = thisobj.HAND_SPAT - spat_0
+            thisobj.trace_spat = trace_model + shift
+            thisobj.spat_pixpos = specobj.trace_spat[specmid]
+            thisobj.set_idx()
             if HAND_FWHM[iobj] is not None: # If a HAND_FWHM was input use that for the FWHM
-                specobj.fwhm = HAND_FWHM[iobj]
+                thisobj.fwhm = HAND_FWHM[iobj]
             elif nobj_reg > 0: # Otherwise is None was input, then use the median of objects on this slit if they are present
-                specobj.fwhm = med_fwhm_reg
+                thisobj.fwhm = med_fwhm_reg
             else:  # Otherwise just use the FWHM parameter input to the code (or the default value)
-                specobj.fwhm = FWHM
-            specobjs.append(specobj)
+                thisobj.fwhm = FWHM
+            sobjs.add_sobj(thisobj)
 
 
-    nobj = len(specobjs)
+    nobj = len(sobjs)
     # If there are no regular aps and no hand aps, just return
     #if nobj == 0:
     #    return (None, skymask, objmask)
 
+
+    from IPython import embed
+    embed()
+
     ## Okay now loop over all the regular aps and exclude any which within a FWHM of the HAND_APERTURES
     if nobj_reg > 0 and HAND_DICT is not None:
-        spat_pixpos = np.array([spec.spat_pixpos for spec in specobjs])
-        hand_flag = np.array([spec.HAND_FLAG for spec in specobjs])
-        spec_fwhm = np.array([spec.fwhm for spec in specobjs])
+        spat_pixpos = sobjs.spat_pixpos
+        hand_flag = sobjs.HAND_FLAG
+        spec_fwhm = sobjs.fwhm
+        #spat_pixpos = np.array([spec.spat_pixpos for spec in specobjs])
+        #hand_flag = np.array([spec.HAND_FLAG for spec in specobjs])
+        #spec_fwhm = np.array([spec.fwhm for spec in specobjs])
         reg_ind, = np.where(hand_flag == False)
         hand_ind, = np.where(hand_flag == True)
         med_fwhm = np.median(spec_fwhm[hand_flag == False])
         spat_pixpos_hand = spat_pixpos[hand_ind]
         keep = np.ones(nobj,dtype=bool)
         for ireg in range(nobj_reg):
-            close = np.abs(specobjs[reg_ind[ireg]].spat_pixpos - spat_pixpos_hand) <= 0.6*med_fwhm
+            close = np.abs(sobjs[reg_ind[ireg]].spat_pixpos - spat_pixpos_hand) <= 0.6*med_fwhm
             if np.any(close):
                 # Print out a warning
-                msgs.warn('Deleting object {:s}'.format(specobjs[reg_ind[ireg]].idx) +
+                msgs.warn('Deleting object {:s}'.format(sobjs[reg_ind[ireg]].idx) +
                           ' because it collides with a user specified HAND aperture')
                 for ihand in range(len(close)):
                     if close[ihand] == True:
-                        msgs.warn('Hand aperture at (HAND_SPEC, HAND_SPAT) = ({:6.2f}'.format(specobjs[hand_ind[ihand]].HAND_SPEC) +
-                                  ',{:6.2f})'.format(specobjs[hand_ind[ihand]].HAND_SPAT) +
+                        msgs.warn('Hand aperture at (HAND_SPEC, HAND_SPAT) = ({:6.2f}'.format(sobjs[hand_ind[ihand]].HAND_SPEC) +
+                                  ',{:6.2f})'.format(sobjs[hand_ind[ihand]].HAND_SPAT) +
                                   ' lands within 0.6*med_fwhm = {:4.2f}'.format(0.6*med_fwhm) + ' of this object')
                 keep[reg_ind[ireg]] = False
         # Now remove the flagged objects
