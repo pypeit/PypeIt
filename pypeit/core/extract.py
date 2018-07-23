@@ -1121,7 +1121,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
 
     from pypeit.utils import find_nminima
     from pypeit.core.trace_slits import trace_fweight, trace_gweight
-    from pypeit.specobjs import SpecObj
+    from pypeit import specobjs
     import scipy
 
     # Check that PEAK_THRESH values make sense
@@ -1144,7 +1144,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     # routine would save time, but not change functionality
     if thismask is None:
         pad =0
-        slitpix = pixels.core_slit_pixels(slit_left, slit_righ, frameshape, pad)
+        slitpix = pixels.slit_pixels(slit_left, slit_righ, frameshape, pad)
         thismask = (slitpix > 0)
 
 #    if (ximg is None) | (edgmask is None):
@@ -1223,7 +1223,8 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     ypeak = ypeak[not_near_edge]
     npeak = len(xcen)
 
-    specobjs =[]
+    # Instantiate a null specobj
+    sobjs = specobjs.SpecObjs()
     # Choose which ones to keep and discard based on threshold params. Create SpecObj objects
     if npeak > 0:
         # Possible thresholds    [significance,  fraction of brightest, absolute]
@@ -1238,14 +1239,15 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
         # Now create SpecObj objects for all of these
         for iobj in range(nobj_reg):
             # ToDo Label with objid and objind here?
-            specobj = SpecObj(frameshape, slit_spat_pos, slit_spec_pos, det = specobj_dict['det'],
+            thisobj = specobjs.SpecObj(frameshape, slit_spat_pos, slit_spec_pos, det = specobj_dict['det'],
                               config = specobj_dict['config'], slitid = specobj_dict['slitid'],
                               scidx = specobj_dict['scidx'], objtype=specobj_dict['objtype'])
-            specobj.spat_fracpos = xcen[iobj]/nsamp
-            specobj.smash_peakflux = ypeak[iobj]
-            specobjs.append(specobj)
+            thisobj.spat_fracpos = xcen[iobj]/nsamp
+            thisobj.smash_peakflux = ypeak[iobj]
+            sobjs.add_sobj(thisobj)
     else:
         nobj_reg = 0
+
 
     #ToDo add peak finding QA here!
     if SHOW_QA:
@@ -1263,19 +1265,19 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
         if std_trace is not None:
             msgs.info('Using input STANDARD star trace as crutch for object tracing'.format(threshold))
             x_trace = np.interp(specmid, spec_vec, std_trace)
-            shift = slit_left + xsize*specobjs[iobj].spat_fracpos - x_trace
-            specobjs[iobj].trace_spat = std_trace + shift
+            shift = slit_left + xsize*sobjs[iobj].spat_fracpos - x_trace
+            sobjs[iobj].trace_spat = std_trace + shift
         else:    # If no standard is provided shift left slit boundary over to be initial trace
             # ToDO make this the average left and right boundary instead. That would be more robust.
-            specobjs[iobj].trace_spat = slit_left  + xsize*specobjs[iobj].spat_fracpos
+            sobjs[iobj].trace_spat = slit_left  + xsize*sobjs[iobj].spat_fracpos
 
-        specobjs[iobj].spat_pixpos = specobjs[iobj].trace_spat[specmid]
+        sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
-        specobjs[iobj].set_idx()
+        sobjs[iobj].set_idx()
 
         # Determine the FWHM max
-        yhalf = 0.5*specobjs[iobj].smash_peakflux
-        xpk = specobjs[iobj].spat_fracpos*nsamp
+        yhalf = 0.5*sobjs[iobj].smash_peakflux
+        xpk = sobjs[iobj].spat_fracpos*nsamp
         x0 = int(np.rint(xpk))
         # TODO It seems we have two codes that do similar things, i.e. findfwhm in arextract.py. Could imagine having one
         # Find right location where smash profile croses yhalf
@@ -1317,14 +1319,14 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
             fwhm_measure = (xrigh - xleft)
 
         if fwhm_measure is not None:
-            specobjs[iobj].fwhm = np.sqrt(np.fmax(fwhm_measure**2 - FWHM**2, (FWHM/2.0)**2)) # Set a floor of FWHM/2 on FWHM
+            sobjs[iobj].fwhm = np.sqrt(np.fmax(fwhm_measure**2 - FWHM**2, (FWHM/2.0)**2)) # Set a floor of FWHM/2 on FWHM
         else:
-            specobjs[iobj].fwhm = FWHM
+            sobjs[iobj].fwhm = FWHM
 
 
     objmask = np.zeros_like(thismask, dtype=bool)
     skymask = np.copy(thismask)
-    if (len(specobjs) == 0) & (HAND_DICT == None):
+    if (len(sobjs) == 0) & (HAND_DICT == None):
         msgs.info('No objects found')
         return (None, objmask, skymask)
 
@@ -1338,34 +1340,40 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     fwhm_vec[2*niter//3:] = FWHM
 
     # Iterate flux weighted centroiding
-    xpos0 = np.stack([spec.trace_spat for spec in specobjs], axis=1)
+    from IPython import embed
+    embed()
+
+    # Note the transpose is here because we  
+    xpos0 = sobjs.trace_spat.T
+    #xpos0 = np.stack([spec.trace_spat for spec in specobjs], axis=1)
     # This xinvvar is used to handle truncated slits/orders so that they don't break the fits
     xfit1 = xpos0
     ypos = np.outer(spec_vec, np.ones(nobj_reg))
     yind = np.arange(nspec,dtype=int)
     for iiter in range(niter):
         xpos1, xerr1 = trace_fweight(image*mask,xfit1, invvar = invvar*mask, radius = fwhm_vec[iiter])
-        xerr1 =0.0*xerr1 + 1.0
-        # Get the indices of the current trace
-        tracemask = np.zeros_like(xpos0,dtype=int)
-        #xfit1[:,ireg] = 0.0
-        # Mask out anything that left the image.
+        # Do not do any kind of masking based on xerr1. Trace fitting is much more robust when masked pixels are simply
+        # replaced by the tracing crutch
+        xerr1 =np.ones_like(xerr1)
+        # Mask out anything that left the image. 0 = good, 1 = masked (convention from robust_polyfit)
+        tracemask1 = np.zeros_like(xpos0,dtype=int)
         off_image = (xpos1 < -0.2*nspat) | (xpos1 > 1.2*nspat)
+        tracemask1[off_image] = 1
         # trace_fweight returns 999 for pixels that had large offsets. Mask these explicitly
-        mask_999 = (xerr1 > 900.0)
-        tracemask[off_image] = 1
-        tracemask[mask_999] = 1
+        #mask_999 = (xerr1 > 900.0)
+        #tracemask[mask_999] = 1
         xind = (np.fmax(np.fmin(np.rint(xpos1),nspat-1),0)).astype(int)
         for iobj in range(nobj_reg):
           # Mask out anything that has left the slit/order.
-          tracemask[:,iobj] = tracemask[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
+          tracemask1[:,iobj] = tracemask1[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
           # ToDO add maxdev functionality?
-          polymask, coeff_fit1 = utils.robust_polyfit(spec_vec,xpos1[:,iobj], ncoeff, weights = 1.0/xerr1[:,iobj], function = 'legendre',initialmask = tracemask[:,iobj],forceimask=True)
+          polymask, coeff_fit1 = utils.robust_polyfit(spec_vec,xpos1[:,iobj], ncoeff
+                                                      , function = 'legendre',initialmask = tracemask1[:,iobj],forceimask=True)
           xfit1[:,iobj] = utils.func_val(coeff_fit1, spec_vec, 'legendre')
 
           # Plot all the points that were not masked initially
           if(SHOW_QA == True) & (iiter == niter - 1):
-              nomask = (tracemask[:,iobj]==0)
+              nomask = (tracemask1[:,iobj]==0)
               plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
               plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0)
               if np.any(~nomask):
@@ -1380,24 +1388,23 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
 
     # Iterate Gaussian weighted centroiding
     for iiter in range(niter):
-        # ToDO errors look wrong here. Check them.
         xpos2, xerr2 = trace_gweight(image*mask,xfit2, invvar = invvar*mask, sigma = FWHM/2.3548)
-        xerr2 =0.0*xerr2 + 1.0
-        # Get the indices of the current trace
-        tracemask = np.zeros_like(xpos0,dtype=int)
-        #xfit1[:,ireg] = 0.0
-        # Mask out anything that left the image.
+        # Do not do any kind of masking based on xerr2. Trace fitting is much more robust when masked pixels are simply
+        # replaced by the tracing crutch
+        # Mask out anything that left the image. 0 = good, 1 = masked (convention from robust_polyfit)
+        tracemask2 = np.zeros_like(xpos0,dtype=int)
         off_image = (xpos2 < -0.2*nspat) | (xpos2 > 1.2*nspat)
-        # trace_fweight returns 999 for pixels that had large offsets. Mask these explicitly
-        mask_999 = (xerr2 > 900.0)
-        tracemask[off_image] = 1
-        tracemask[mask_999] = 1
+        tracemask2[off_image] = 1
+        # trace_gweight returns 999 for pixels that had large offsets. Mask these explicitly
+        #mask_999 = (xerr2 > 900.0)
+        #tracemask[mask_999] = 1
         xind = (np.fmax(np.fmin(np.rint(xpos2),nspat-1),0)).astype(int)
         for iobj in range(nobj_reg):
           # Mask out anything that has left the slit/order.
-          tracemask[:,iobj] = tracemask[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
+          tracemask2[:,iobj] = tracemask2[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
           # ToDO add maxdev functionality?
-          polymask, coeff_fit2 = utils.robust_polyfit(spec_vec,xpos2[:,iobj], ncoeff, weights = 1.0/xerr2[:,iobj], function = 'legendre',initialmask = tracemask[:,iobj],forceimask=True)
+          polymask, coeff_fit2 = utils.robust_polyfit(spec_vec,xpos2[:,iobj], ncoeff
+                                                      , function = 'legendre',initialmask = tracemask2[:,iobj],forceimask=True)
           xfit2[:,iobj] = utils.func_val(coeff_fit2, spec_vec, 'legendre')
           ## Accept the last iteration of this Gaussian centroiding as the final fit. Update some other things
           if (iiter == niter-1):
@@ -1406,7 +1413,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
               specobjs[iobj].set_idx()
               # Plot all the points that were not masked initially
               if(SHOW_QA == True):
-                  nomask = (tracemask[:,iobj]==0)
+                  nomask = (tracemask2[:,iobj]==0)
                   plt.errorbar(spec_vec[nomask],xpos2[nomask,iobj],yerr=xerr2[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
                   plt.plot(spec_vec,xfit2[:,iobj],c='red',zorder=10,linewidth = 2.0)
                   if np.any(~nomask):
