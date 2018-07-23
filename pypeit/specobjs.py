@@ -249,7 +249,7 @@ class SpecObjs(object):
         self.specobjs.pop(index)
         self.build_summary()
 
-    def __getitem__(self, key):
+    def __getitem__(self, item):
         """ Overload to allow one to pull an attribute
         or a portion of the SpecObjs list
 
@@ -261,11 +261,20 @@ class SpecObjs(object):
         -------
 
         """
-        # TODO -- Add slicing
-        if isinstance(key, str):
-            return self.__getattr__(key)
-        elif isinstance(key, (int, np.integer)):
-            return self.specobjs[key]
+        if isinstance(item, str):
+            return self.__getattr__(item)
+        elif isinstance(item, (int, np.integer)):
+            return self.specobjs[item]
+        elif (isinstance(item, slice) or  # Stolen from astropy.table
+            isinstance(item, np.ndarray) or
+            isinstance(item, list) or
+            isinstance(item, tuple) and all(isinstance(x, np.ndarray) for x in item)):
+            # here for the many ways to give a slice; a tuple of ndarray
+            # is produced by np.where, as in t[np.where(t['a'] > 2)]
+            # For all, a new table is constructed with slice of all columns
+            sobjs_new = np.array(self.specobjs,dtype=object)
+            return SpecObjs(specobjs=sobjs_new[item])
+
 
     def __getattr__(self, k):
         """ Generate an array of attribute 'k' from the specobjs
