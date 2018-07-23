@@ -1457,13 +1457,13 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
             thisobj.HAND_FWHM = HAND_FWHM[iobj]
             thisobj.HAND_FLAG = True
             f_ximg = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, ximg)
-            thisobj.spat_fracpos = f_ximg(specobj.HAND_SPEC, thisobj.HAND_SPAT, grid=False) # interpolate from ximg
+            thisobj.spat_fracpos = f_ximg(thisobj.HAND_SPEC, thisobj.HAND_SPAT, grid=False) # interpolate from ximg
             thisobj.smash_peakflux = np.interp(thisobj.spat_fracpos*nsamp,np.arange(nsamp),fluxconv) # interpolate from fluxconv
             # assign the trace
             spat_0 = np.interp(thisobj.HAND_SPEC, spec_vec, trace_model)
             shift = thisobj.HAND_SPAT - spat_0
             thisobj.trace_spat = trace_model + shift
-            thisobj.spat_pixpos = specobj.trace_spat[specmid]
+            thisobj.spat_pixpos = thisobj.trace_spat[specmid]
             thisobj.set_idx()
             if HAND_FWHM[iobj] is not None: # If a HAND_FWHM was input use that for the FWHM
                 thisobj.fwhm = HAND_FWHM[iobj]
@@ -1478,10 +1478,6 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     # If there are no regular aps and no hand aps, just return
     #if nobj == 0:
     #    return (None, skymask, objmask)
-
-
-    from IPython import embed
-    embed()
 
     ## Okay now loop over all the regular aps and exclude any which within a FWHM of the HAND_APERTURES
     if nobj_reg > 0 and HAND_DICT is not None:
@@ -1508,6 +1504,10 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
                                   ',{:6.2f})'.format(sobjs[hand_ind[ihand]].HAND_SPAT) +
                                   ' lands within 0.6*med_fwhm = {:4.2f}'.format(0.6*med_fwhm) + ' of this object')
                 keep[reg_ind[ireg]] = False
+
+        from IPython import embed
+        embed()
+
         # Now remove the flagged objects
         ibad, = np.where(keep == False)
         for ii in ibad:
