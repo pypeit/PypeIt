@@ -281,11 +281,7 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
         poly_basis = flegendre(x2, npoly).T
         profile_basis = np.column_stack((oprof, poly_basis))
 
-    #ToDo this seems different from IDL
-    if nobj == 1:
-        relative_mask = (oprof > 1e-10)
-    else:
-        relative_mask = (np.sum(oprof, axis=1) > 1e-10)
+    relative_mask = (np.sum(oprof, axis=1) > 1e-10)
 
     indx, = np.where(ivar[sortpix] > 0.0)
     ngood = indx.size
@@ -315,7 +311,11 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
 
     ncoeff = npoly + nobj
     skyset = bspline(None, fullbkpt=sset.breakpoints, nord=sset.nord, npoly=npoly)
-    skyset.coeff = sset.coeff[nobj:, :]  # Coefficients for the sky
+    # Set coefficients for the sky.
+    # The rehshape below deals with the different sizes of the coeff for npoly = 1 vs npoly > 1
+    # and mirrors similar logic in the bspline.py
+    skyset.coeff = sset.coeff[nobj:, :].reshape(skyset.coeff.shape)
+
     skyset.mask = sset.mask
     skyset.xmin = xmin
     skyset.xmax = xmax

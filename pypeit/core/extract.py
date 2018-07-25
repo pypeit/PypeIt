@@ -1510,8 +1510,9 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
     spat_pixpos = sobjs.spat_pixpos
     sobjs = sobjs[spat_pixpos.argsort()]
     # Assign integer objids
-    sobjs.objid = np.arange(nobj)
-
+    #ToDo Replace with sobjs[:].objid = np.arange(nobj) once the _setitem functionality is figured out
+    for ii in range(nobj):
+        sobjs[ii].objid = ii +1
 
     # Assign the maskwidth and compute some inputs for the object mask
     xtmp = (np.arange(nsamp) + 0.5)/nsamp

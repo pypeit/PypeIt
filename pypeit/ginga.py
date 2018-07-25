@@ -127,6 +127,10 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pste
     if slit_ids is None:
         slit_ids = [str(slit) for slit in np.arange(nslit)]
 
+    # Deal with case that slit_ids is input as a scalar
+    if hasattr(slit_ids,"__len__") == False:
+        slit_ids = [slit_ids]
+
     # Canvas
     canvas = viewer.canvas(ch._chname)
     canvas.clear()
