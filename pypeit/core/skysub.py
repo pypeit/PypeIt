@@ -335,6 +335,20 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
 
     return (sky_bmodel, obj_bmodel, outmask)
 
+def local_skysub(sciimg, sciivar, mstilts, waveimg, skyimage, rn2_img, slit_left, slit_righ, bsp, sobjs,
+                 PROF_NSIGMA = None, TRIM_EDG = (3,3),  niter=4, box_rad = 7, sigrej = 3.5, skysample = False,
+                 FULLWELL = 5e5,MINWELL = -1000.0, SN_GAUSS = 3.0):
+
+    # Synthesize thismask, ximg, and edgmask  from slit boundaries. Doing this outside this
+    # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
+    pad =0
+    slitpix = pixels.slit_pixels(slit_left, slit_righ, frameshape, pad)
+    thismask = (slitpix > 0)
+
+#    if (ximg is None) | (edgmask is None):
+    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
+
+
 
 def order_pixels(pixlocn, lord, rord):
     """

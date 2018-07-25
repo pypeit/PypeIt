@@ -82,6 +82,8 @@ class SpecObj(object):
         self.fwhm = None
         self.spat_pixpos = spat_pixpos # Position on the image in pixels at the midpoint of the slit in spectral direction
         self.maskwidth = None
+        self.mincol = None
+        self.maxcol = None
 
         # Attributes for HAND apertures, which are object added to the extraction by hand
         self.HAND_SPEC = None
