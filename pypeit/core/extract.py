@@ -1099,10 +1099,10 @@ specobj_dict = {'config': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype':
 
 
 
-def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thismask = None,
+def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
             HAND_DICT = None, std_trace = None, ncoeff = 5, nperslit = 10,  BG_SMTH = 5.0, PKWDTH = 3.0,
             SIG_THRESH = 5.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, TRIM_EDG = (3,3), OBJMASK_NTHRESH = 2.0,
-            SHOW_TRACE = False, SHOW_QA = False, specobj_dict=specobj_dict):
+            SHOW_TRACE = False, SHOW_FITS = False, SHOW_PEAKS = True, specobj_dict=specobj_dict):
 
     """ DOCS COMING SOON
 
@@ -1140,12 +1140,11 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
 
     slit_spat_pos = (np.interp(slit_spec_pos, spec_vec, slit_left), np.interp(slit_spec_pos, spec_vec, slit_righ))
 
-    # Synthesize thismask, ximg, and edgmask  from slit boundaries if user did not input them. Doing this outside this
-    # routine would save time, but not change functionality
-    if thismask is None:
-        pad =0
-        slitpix = pixels.slit_pixels(slit_left, slit_righ, frameshape, pad)
-        thismask = (slitpix > 0)
+    # Synthesize thismask, ximg, and edgmask  from slit boundaries. Doing this outside this
+    # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
+    pad =0
+    slitpix = pixels.slit_pixels(slit_left, slit_righ, frameshape, pad)
+    thismask = (slitpix > 0)
 
 #    if (ximg is None) | (edgmask is None):
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
@@ -1249,8 +1248,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
         nobj_reg = 0
 
 
-    #ToDo add peak finding QA here!
-    if SHOW_QA:
+    if SHOW_PEAKS:
         plt.plot(np.arange(nsamp), fluxsub, color ='cornflowerblue',linestyle=':', label='Collapsed Slit profile')
         plt.plot(np.arange(nsamp), fluxconv, color='black', label = 'FWHM Convolved Profile')
         plt.plot(xcen, ypeak, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
@@ -1331,7 +1329,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
         return (None, objmask, skymask)
 
 
-    msgs.info('Tweaking the object traces')
+    msgs.info('Fitting the object traces')
     # Iterate flux weighted centroiding
     niter = 6
     fwhm_vec = np.zeros(niter)
@@ -1344,7 +1342,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     #xpos0 = np.stack([spec.trace_spat for spec in specobjs], axis=1)
     # This xinvvar is used to handle truncated slits/orders so that they don't break the fits
     xfit1 = xpos0
-    ypos = np.outer(spec_vec, np.ones(nobj_reg))
+    #ypos = np.outer(spec_vec, np.ones(nobj_reg))
     yind = np.arange(nspec,dtype=int)
     for iiter in range(niter):
         xpos1, xerr1 = trace_fweight(image*mask,xfit1, invvar = invvar*mask, radius = fwhm_vec[iiter])
@@ -1368,7 +1366,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
           xfit1[:,iobj] = utils.func_val(coeff_fit1, spec_vec, 'legendre')
 
           # Plot all the points that were not masked initially
-          if(SHOW_QA == True) & (iiter == niter - 1):
+          if(SHOW_FITS == True) & (iiter == niter - 1):
               nomask = (tracemask1[:,iobj]==0)
               plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
               plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0)
@@ -1408,7 +1406,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
               sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
               sobjs[iobj].set_idx()
               # Plot all the points that were not masked initially
-              if(SHOW_QA == True):
+              if(SHOW_FITS == True):
                   nomask = (tracemask2[:,iobj]==0)
                   plt.errorbar(spec_vec[nomask],xpos2[nomask,iobj],yerr=xerr2[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
                   plt.plot(spec_vec,xfit2[:,iobj],c='red',zorder=10,linewidth = 2.0)
@@ -1502,21 +1500,15 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
                     if close[ihand] == True:
                         msgs.warn('Hand aperture at (HAND_SPEC, HAND_SPAT) = ({:6.2f}'.format(sobjs[hand_ind[ihand]].HAND_SPEC) +
                                   ',{:6.2f})'.format(sobjs[hand_ind[ihand]].HAND_SPAT) +
-                                  ' lands within 0.6*med_fwhm = {:4.2f}'.format(0.6*med_fwhm) + ' of this object')
+                                  ' lands within 0.6*med_fwhm = {:4.2f}'.format(0.6*med_fwhm) + ' pixels of this object')
                 keep[reg_ind[ireg]] = False
 
-        from IPython import embed
-        embed()
-
-        # Now remove the flagged objects
-        ibad, = np.where(keep == False)
-        for ii in ibad:
-            del specobjs[ii]
+        sobjs = sobjs[keep]
 
     # Sort objects according to their spatial location
-    nobj = len(specobjs)
-    spat_pixpos = np.array([spec.spat_pixpos for spec in specobjs])
-    specobjs = [x for _,x in sorted(zip(spat_pixpos,specobjs))]
+    nobj = len(sobjs)
+    spat_pixpos = sobjs.spat_pixpos
+    sobjs = sobjs[spat_pixpos.argsort()]
 
 
     # Assign the maskwidth and compute some inputs for the object mask
@@ -1524,40 +1516,40 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     qobj = np.zeros_like(xtmp)
     for iobj in range(nobj):
         if skythresh > 0.0:
-            specobjs[iobj].maskwidth = 3.0*specobjs[iobj].fwhm*(1.0 + 0.5*np.log10(np.fmax(specobjs[iobj].smash_peakflux/skythresh,1.0)))
+            sobjs[iobj].maskwidth = 3.0*sobjs[iobj].fwhm*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
         else:
-            specobjs[iobj].maskwidth = 3.0 * specobjs[iobj].fwhm
-        sep = np.abs(xtmp-specobjs[iobj].spat_fracpos)
-        sep_inc = specobjs[iobj].maskwidth/nsamp
+            sobjs[iobj].maskwidth = 3.0 * sobjs[iobj].fwhm
+        sep = np.abs(xtmp-sobjs[iobj].spat_fracpos)
+        sep_inc = sobjs[iobj].maskwidth/nsamp
         close = sep <= sep_inc
-        qobj[close] += specobjs[iobj].smash_peakflux*np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/specobjs[iobj].fwhm**2,-9.0))
+        qobj[close] += sobjs[iobj].smash_peakflux*np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].fwhm**2,-9.0))
 
     # Create an objmask
     objmask[thismask] = np.interp(ximg[thismask],xtmp,qobj) > (OBJMASK_NTHRESH*threshold)
 
     # Still have to make the skymask
-    all_fwhm = np.array([spec.fwhm for spec in specobjs])
+    all_fwhm = sobjs.fwhm
     med_fwhm = np.median(all_fwhm)
     for iobj in range(nobj):
         for ispec in range(nspec):
-            spat_min = np.fmin(np.fmax(int(np.floor(specobjs[iobj].trace_spat[ispec] - med_fwhm)),0),nspat)
-            spat_max = np.fmin(np.fmax(int(np.ceil(specobjs[iobj].trace_spat[ispec] + med_fwhm)),0),nspat)
+            spat_min = np.fmin(np.fmax(int(np.floor(sobjs[iobj].trace_spat[ispec] - med_fwhm)),0),nspat)
+            spat_max = np.fmin(np.fmax(int(np.ceil(sobjs[iobj].trace_spat[ispec] + med_fwhm)),0),nspat)
             skymask[ispec,spat_min:spat_max] = False
 
 
     # If requested display the resulting traces on top of the image
     if (nobj > 0) & (SHOW_TRACE):
         viewer, ch = ginga.show_image(image*(thismask==True))
-        ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = specobjs[0].slitid)
+        ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = sobjs[0].slitid)
         for iobj in range(nobj):
-            if specobjs[iobj].HAND_FLAG == False:
+            if sobjs[iobj].HAND_FLAG == False:
                 color = 'green'
             else:
                 color = 'orange'
-            ginga.show_trace(viewer, ch,specobjs[iobj].trace_spat, trc_name = specobjs[iobj].idx, color=color)
+            ginga.show_trace(viewer, ch,sobjs[iobj].trace_spat, trc_name = sobjs[iobj].idx, color=color)
 
 
-    return (specobjs, skymask, objmask)
+    return (sobjs, skymask, objmask)
 
 
 

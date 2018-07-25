@@ -11,6 +11,7 @@ from pypeit.core import pydl
 from pypeit import msgs
 from pypeit import utils
 from pypeit import debugger
+from pypeit.core import pixels
 
 # ToDO Fix masking logic. This code should also take an ivar for consistency with rest of extraction
 def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
@@ -134,7 +135,7 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
 
 
 # ToDO Fix masking logic. This code should also take an ivar for consistency with rest of extraction
-def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3., POS_MASK=True, PLOT_FIT=False):
+def global_skysub(image, ivar, slit_left, slit_righ, tilts, inmask = None, bsp=0.6, sigrej=3., TRIM_EDG = (3,3), POS_MASK=True, PLOT_FIT=False):
     """
     Perform global sky subtraction on an input slit
 
@@ -171,6 +172,16 @@ def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3
 
     """
 
+    # Synthesize thismask, ximg, and edgmask  from slit boundaries. Doing this outside this
+    # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
+    frameshape = image.shape
+    pad = 0
+    slitpix = pixels.slit_pixels(slit_left, slit_righ, frameshape, pad)
+    thismask = (slitpix > 0)
+
+    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=TRIM_EDG)
+
+
     # Init
     bgframe = np.zeros_like(image)
     nspec = image.shape[0]
@@ -179,7 +190,7 @@ def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3
         inmask = np.copy(thismask)
 
     # Sky pixels for fitting
-    fit_sky = (thismask == True) & (ivar > 0.0) & (inmask == True)
+    fit_sky = (thismask == True) & (ivar > 0.0) & (inmask == True) & (edgmask == False)
     isrt = np.argsort(piximg[fit_sky])
     wsky = piximg[fit_sky][isrt]
     sky = image[fit_sky][isrt]
@@ -237,7 +248,10 @@ def global_skysub(image, ivar, thismask, tilts, inmask = None, bsp=0.6, sigrej=3
         plt.show()
 
     # Return
-    return bgframe, outmask
+    # ToDO worth thinking about whether we want to return a mask here. It makese no sense to return outmask
+    # in its present form though since that does not refer to the whole image.
+#    return bgframe, outmask
+    return bgframe
 
 
 

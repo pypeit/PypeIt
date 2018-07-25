@@ -73,7 +73,7 @@ class SpecObj(object):
         # ToDo add all attributes here and to the documentaiton
 
         # Object finding attributes
-        self.objid = None
+        self.objid = 'None'
         self.idx = None
         self.spat_fracpos = None
         self.smash_peakflux = None
@@ -165,11 +165,16 @@ class SpecObj(object):
         return getattr(self, key)
 
     # Printing
+#    def __repr__(self):
+#        # Generate sets string
+#        sdet = parse.get_dnum(self.det, prefix=False)
+#        return ('<SpecObj: Setup = {:}, Slit = {:} at spec = {:7.2f} & spat = ({:7.2f},{:7.2f}) on det={:s}, scidx={:}, objid = {:} and objtype={:s}>'.format(
+#            self.config, self.slitid, self.slit_spec_pos, self.slit_spat_pos[0], self.slit_spat_pos[1], sdet, self.scidx, self.objid, self.objtype))
+
     def __repr__(self):
-        # Generate sets string
-        sdet = parse.get_dnum(self.det, prefix=False)
-        return ('<SpecObj: Setup = {:}, Slit = {:} at spec = {:7.2f} & spat = ({:7.2f},{:7.2f}) on det={:s}, scidx={:}, objid = {:} and objtype={:s}>'.format(
-            self.config, self.slitid, self.slit_spec_pos, self.slit_spat_pos[0], self.slit_spat_pos[1], sdet, self.scidx, self.objid, self.objtype))
+        # Create a single summary table for one object, so that the representation is always the same
+        sobjs = SpecObjs(specobjs=[self])
+        return sobjs.summary.__repr__()
 
 
 class SpecObjs(object):
@@ -188,6 +193,7 @@ class SpecObjs(object):
             specobjs: list, optional
         """
 
+        # ToDo Should we just be using numpy object arrays here instead of lists? Seems like that would be easier
         if specobjs is None:
             self.specobjs = []
         else:
