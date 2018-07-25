@@ -73,7 +73,7 @@ class SpecObj(object):
         # ToDo add all attributes here and to the documentaiton
 
         # Object finding attributes
-        self.objid = 'None'
+        self.objid = None
         self.idx = None
         self.spat_fracpos = None
         self.smash_peakflux = None
