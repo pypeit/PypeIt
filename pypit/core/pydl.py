@@ -204,23 +204,23 @@ class bspline(object):
     Attributes
     ----------
     breakpoints
-        To be documented.
+        Breakpoints for bspline, spacing for these breakpoints are determinated by keywords inputs;
     nord
-        To be documented.
+        Order of bspline; [default=4]
     npoly
-        To be documented.
+        Polynomial order to fit over 2nd variable (when specified as x2): [default=1]
     mask
-        To be documented.
+        Output mask, set =1 for good points, =0 for bad points;
     coeff
-        To be documented.
+        Output coefficient of the bspline;
     icoeff
-        To be documented.
+        Cholesky band matrix used to solve for the bspline coefficients;
     xmin
-        To be documented.
+        Normalization minimum for x2; [default max(xdata)]
     xmax
-        To be documented.
+        Normalization maximum for x2; [default min(xdata)]
     funcname
-        To be documented.
+        Function for the second variable; [default 'legendre']
     """
 
     def __init__(self, x, nord=4, npoly=1, bkpt=None, fullbkpt = None, bkspread=1.0,
