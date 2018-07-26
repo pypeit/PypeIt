@@ -361,8 +361,14 @@ class bspline(object):
                      xmax     =self.xmax,
                      funcname =self.funcname))
 
-
-
+    def to_json(self,filename):
+        """
+        Write bspline dict to a json file
+        :return:
+        """
+        msgs.info("Writing bspline_dict into .json file")
+        with open('filename', 'w') as fp:
+            json.dump(self, fp, sort_keys=True, indent=4)
 
     def fit(self, xdata, ydata, invvar, x2=None):
         """Calculate a B-spline in the least-squares sense.
