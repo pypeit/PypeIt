@@ -224,7 +224,7 @@ class bspline(object):
     """
 
     def __init__(self, x, nord=4, npoly=1, bkpt=None, fullbkpt = None, bkspread=1.0,
-                 verbose=False, **kwargs):
+                 verbose=False, from_dict=None, **kwargs):
         """Init creates an object whose attributes are similar to the
         structure returned by the create_bspline function.
         """
@@ -233,6 +233,29 @@ class bspline(object):
         #
         # Set the breakpoints.
         #
+
+        if from_dict is not None:
+            if "nord" in from_dict:
+                nord =from_dict['nord']
+            if "bkpt" in from_dict:
+                bkpt =from_dict['bkpt']
+            if "npoly" in from_dict:
+                npoly =from_dict['npoly']
+            if "mask" in from_dict:
+                mask =from_dict['mask']
+            if "npoly" in from_dict:
+                npoly =from_dict['npoly']
+            if "coeff" in from_dict:
+                coeff =from_dict['coeff']
+            if "icoeff" in from_dict:
+                icoeff =from_dict['icoeff']
+            if "xmin" in from_dict:
+                xmin =from_dict['xmin']
+            if "xmax" in from_dict:
+                xmax =from_dict['xmax']
+            if "funcname" in from_dict:
+                funcname =from_dict['funcname']
+
         if fullbkpt is None:
             if bkpt is None:
                 startx = x.min()
@@ -289,6 +312,7 @@ class bspline(object):
                 fullbkpt = np.insert(fullbkpt, 0, bkpt[0]-bkspace*i)
                 fullbkpt = np.insert(fullbkpt, fullbkpt.shape[0],
                                      bkpt[nshortbkpt-1] + bkspace*i)
+
         #
         # Set the attributes
         #
@@ -311,6 +335,34 @@ class bspline(object):
             self.funcname = 'legendre'
 
         return
+
+    def to_dict(self):
+        """
+        Write bspline parameters to a dict.
+        """
+
+        # need to move to lists for JSON files
+        breakpoints_np=self.breakpoints
+        breakpoints   =breakpoints_np.tolist()
+        mask_np       =self.mask
+        mask	      =mask_np.tolist()
+        coeff_np      =self.coeff
+        coeff	      =coeff_np.tolist()
+        icoeff_np     =self.icoeff
+        icoeff        =icoeff_np.tolist()
+
+        return (dict(bkpt     =breakpoints,
+                     nord     =self.nord,
+                     nploy    =self.npoly,
+                     mask     =mask,
+                     coeff    =coeff,
+                     icoeff   =icoeff,
+                     xmin     =self.xmin,
+                     xmax     =self.xmax,
+                     funcname =self.funcname))
+
+
+
 
     def fit(self, xdata, ydata, invvar, x2=None):
         """Calculate a B-spline in the least-squares sense.
@@ -938,7 +990,6 @@ def iterfit(xdata, ydata, invvar=None, upper=5, lower=5, x2=None,
     temp = yfit
     yfit[xsort] = temp
     return (sset, outmask)
-
 
 def uniq(x, index=None):
     """Replicates the IDL ``UNIQ()`` function.
