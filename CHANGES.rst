@@ -237,6 +237,7 @@
 - Checked orientation of array correct for DATASEC and OSCANSEC in
   DetectorPar for each Spectrograph
 - Add SpecObjs class
+- Add from_dict and to_dict methods to pydl bspline and update docs
 
 0.7 (2017-02-07)
 ----------------
