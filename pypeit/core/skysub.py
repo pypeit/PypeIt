@@ -135,7 +135,7 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
 
 
 # ToDO Fix masking logic. This code should also take an ivar for consistency with rest of extraction
-def global_skysub(image, ivar, slit_left, slit_righ, tilts, inmask = None, bsp=0.6, sigrej=3., TRIM_EDG = (3,3), POS_MASK=True, PLOT_FIT=False):
+def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3., TRIM_EDG = (3,3), POS_MASK=True, PLOT_FIT=False):
     """
     Perform global sky subtraction on an input slit
 
@@ -172,18 +172,12 @@ def global_skysub(image, ivar, slit_left, slit_righ, tilts, inmask = None, bsp=0
 
     """
 
-    # Synthesize thismask, ximg, and edgmask  from slit boundaries. Doing this outside this
+    # Synthesize ximg, and edgmask  from slit boundaries. Doing this outside this
     # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
-    frameshape = image.shape
-    pad = 0
-    slitpix = pixels.slit_pixels(slit_left, slit_righ, frameshape, pad)
-    thismask = (slitpix > 0)
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=TRIM_EDG)
 
-
     # Init
-    bgframe = np.zeros_like(image)
     nspec = image.shape[0]
     piximg = tilts * (nspec-1)
     if inmask is None:
@@ -231,7 +225,7 @@ def global_skysub(image, ivar, slit_left, slit_righ, tilts, inmask = None, bsp=0
                                                        fullbkpt=full_bspline.breakpoints,upper=sigrej, lower=sigrej,
                                                        kwargs_reject={'groupbadpix':True, 'maxrej': 10})
     # Evaluate and save
-    bgframe[thismask], _ = skyset.value(piximg[thismask])
+    bgframe, _ = skyset.value(piximg[thismask])
 
     # Debugging/checking
     if PLOT_FIT:
@@ -335,20 +329,15 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
 
     return (sky_bmodel, obj_bmodel, outmask)
 
-def local_skysub(sciimg, sciivar, mstilts, waveimg, skyimage, rn2_img, slit_left, slit_righ, bsp, sobjs,
-                 PROF_NSIGMA = None, TRIM_EDG = (3,3),  niter=4, box_rad = 7, sigrej = 3.5, skysample = False,
-                 FULLWELL = 5e5,MINWELL = -1000.0, SN_GAUSS = 3.0):
+def local_skysub_extract(sciimg, sciivar, mstilts, waveimg, skyimage, rn2_img, thismask, slit_left, slit_righ, sobjs, bsp,
+    TRIM_EDG = (3,3), STD = False, PROF_NSIGMA = None, niter=4, box_rad = 7, sigrej = 3.5, skysample = False,
+    FULLWELL = 5e5,MINWELL = -1000.0, SN_GAUSS = 3.0, SHOW_2D=False):
 
-    # Synthesize thismask, ximg, and edgmask  from slit boundaries. Doing this outside this
-    # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
-    pad =0
-    slitpix = pixels.slit_pixels(slit_left, slit_righ, frameshape, pad)
-    thismask = (slitpix > 0)
-
-#    if (ximg is None) | (edgmask is None):
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
 
 
+
+    return (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
 
 def order_pixels(pixlocn, lord, rord):
     """
