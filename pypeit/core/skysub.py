@@ -329,12 +329,15 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
 
     return (sky_bmodel, obj_bmodel, outmask)
 
-def local_skysub_extract(sciimg, sciivar, mstilts, waveimg, skyimage, rn2_img, thismask, slit_left, slit_righ, sobjs, bsp,
+def local_skysub_extract(sciimg, sciivar, tilts, waveimg, skyimage, rn2_img, thismask, slit_left, slit_righ, sobjs, bsp,
     TRIM_EDG = (3,3), STD = False, PROF_NSIGMA = None, niter=4, box_rad = 7, sigrej = 3.5, skysample = False,
     FULLWELL = 5e5,MINWELL = -1000.0, SN_GAUSS = 3.0, SHOW_2D=False):
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
 
+    nspat = sciimg.shape[1]
+    nspec = sciimg.shape[0]
+    piximg = tilts * (nspec-1)
 
 
     return (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
