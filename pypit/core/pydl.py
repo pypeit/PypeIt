@@ -329,22 +329,13 @@ class bspline(object):
         Write bspline parameters to a dict.
         """
 
-        # need to move to lists for JSON files
-        breakpoints_np=self.breakpoints
-        breakpoints   =breakpoints_np.tolist()
-        mask_np       =self.mask
-        mask	      =mask_np.tolist()
-        coeff_np      =self.coeff
-        coeff	      =coeff_np.tolist()
-        icoeff_np     =self.icoeff
-        icoeff        =icoeff_np.tolist()
-
-        return (dict(bkpt     =breakpoints,
+        # needs to move np.arrays to lists for JSON files
+        return (dict(bkpt     =self.breakpoints.tolist(),
                      nord     =self.nord,
                      npoly    =self.npoly,
-                     mask     =mask,
-                     coeff    =coeff,
-                     icoeff   =icoeff,
+                     mask     =self.mask.tolist(),
+                     coeff    =self.coeff.tolist(),
+                     icoeff   =self.icoeff.tolist(),
                      xmin     =self.xmin,
                      xmax     =self.xmax,
                      funcname =self.funcname))
