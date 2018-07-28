@@ -7,6 +7,7 @@ import sys, os
 from matplotlib import pyplot as plt
 
 #from pydl.pydlutils.bspline import bspline
+from pypeit import ginga
 from pypeit.core import pydl
 from pypeit import msgs
 from pypeit import utils
@@ -333,7 +334,7 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs, bsp,
     TRIM_EDG = (3,3), STD = False, PROF_NSIGMA = None, niter=4, box_rad = 7, sigrej = 3.5, skysample = False,
-    FULLWELL = 5e5,MINWELL = -1000.0, SN_GAUSS = 3.0, COADD_2D = False, SHOW_2D=False):
+    FULLWELL = 5e5,MINWELL = -1000.0, SN_GAUSS = 3.0, COADD_2D = False, SHOW_RESIDS=False):
 
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
@@ -593,7 +594,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             sobjs[iobj].mincol = mincol
             sobjs[iobj].maxcol = maxcol
 
-        # If requested display the model fits for this grouping
+
+        '''   # If requested display the model fits for this grouping
         if SHOW_2D == True:
             viewer, ch = ginga.show_image((sciimg - skyimage) * np.sqrt(modelivar))
             # TODO figure out a way to overplot the pixels that were masked in red like as a scatter plot
@@ -604,6 +606,20 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 else:
                     color = 'orange'
                 ginga.show_trace(viewer, ch, sobjs[iobj].trace_spat, sobjs[iobj].idx, color=color)
+        '''
+    # If requested display the model fits for this slit
+    if SHOW_RESIDS == True:
+        # TODO add error checking here to see if ginga exists
+        viewer, ch = ginga.show_image((sciimg - skyimage - objimage) * np.sqrt(modelivar)*thismask)
+        # TODO figure out a way to overplot the pixels that were masked in red like as a scatter plot
+        for spec in sobjs
+            if spec.HAND_FLAG == False:
+                color = 'green'
+            else:
+                color = 'orange'
+            ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
+        # TODO figure out a way to set the cuts of the ginga viewer to go from -5 to 5
+
 
     return (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
 
