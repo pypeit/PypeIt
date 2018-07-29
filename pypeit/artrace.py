@@ -345,8 +345,6 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe, varframe,
         objl, objr, bckl, bckr = find_objects(trcprof, bgreg, mad)
     else:
         msgs.error("Bad object identification algorithm!!")
-    if msgs._debug['trace_obj']:
-        debugger.set_trace()
     # Remove objects within x percent of the slit edge
     xp = (objr+objl)/float(trcprof.size)/2.
     gdobj = (xp < (1-xedge)) * (xp > xedge)
@@ -467,11 +465,13 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe, varframe,
                                                 [objl, objr], [bckl, bckr],
                                                 triml=triml, trimr=trimr)
     # Check object traces in ginga
+    '''
     if msgs._debug['trace_obj']:
         viewer, ch = ginga.show_image(skysub)
         for ii in range(nobj):
             ginga.show_trace(viewer, ch, traces[:, ii], '{:d}'.format(ii), clear=(ii == 0))
         debugger.set_trace()
+    '''
     # Trace dict
     tracelist = trace_object_dict(nobj, traces, object=rec_obj_img, background=rec_bg_img,
                                   params=tracepar)

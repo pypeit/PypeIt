@@ -327,16 +327,12 @@ class SpecObjs(object):
         return self.summary.keys()
 
 
-def init_exp(lordloc, rordloc, shape, maskslits,
-             det, scidx, fitstbl, tracelist, settings, ypos=0.5, **kwargs):
+def init_exp(lcen, rcen, shape, maskslits,
+             det, scidx, fitstbl, tracelist, ypos=0.5, **kwargs):
     """ Generate a list of SpecObjExp objects for a given exposure
 
     Parameters
     ----------
-    self
-       Instrument "setup" (min=10,max=99)
-    scidx : int
-       Index of file
     det : int
        Detector index
     tracelist : list of dict
@@ -356,9 +352,10 @@ def init_exp(lordloc, rordloc, shape, maskslits,
         fitsrow = None
     else:
         fitsrow = fitstbl[scidx]
-    config = instconfig(fitsrow=fitsrow, binning=settings['detector']['binning'])
+    config = instconfig(fitsrow=fitsrow, binning=kwargs['binning'])
     slits = range(len(tracelist))
     gdslits = np.where(~maskslits)[0]
+    yval = int(shape[0]*ypos)
 
     # Loop on slits
     for sl in slits:
@@ -372,16 +369,22 @@ def init_exp(lordloc, rordloc, shape, maskslits,
             # Loop on objects
             #for qq in range(trc_img[sl]['nobj']):
             for qq in range(tracelist[sl]['traces'].shape[1]):
-                slitid, slitcen, xslit = trace_slits.get_slitid(shape, lordloc, rordloc,
+                slitid, slitcen, xslit = trace_slits.get_slitid(shape, lcen, rcen,
                                                                  sl, ypos=ypos)
                 # xobj
-                _, xobj = get_objid(lordloc, rordloc, sl, qq, tracelist, ypos=ypos)
+                _, xobj = get_objid(lcen, rcen, sl, qq, tracelist, ypos=ypos)
                 # Generate
                 if tracelist[sl]['object'] is None:
-                    specobj = SpecObj((tracelist[0]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj, **kwargs)
+                    specobj = SpecObj(shape, (lcen[yval,sl], rcen[yval,sl]), float(yval), det=det,
+                            slitid=sl+1, scidx=scidx, objtype=kwargs['objtype']) #self.fitstbl, self.tracelist, binning=self.binning,
+                    #specobj = SpecObj((tracelist[0]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj, **kwargs)
                 else:
-                    specobj = SpecObj((tracelist[sl]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj,
-                                         **kwargs)
+                    specobj = SpecObj(shape, (lcen[yval,sl], rcen[yval,sl]), float(yval), det=det, slitid=sl+1, scidx=scidx, objtype=kwargs['objtype'])
+                    #specobj = SpecObj((tracelist[sl]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj,
+                    #                     **kwargs)
+                specobj.ypos = ypos
+                specobj.xslit = xslit
+                specobj.xobj = xobj
                 # Add traces
                 specobj.trace = tracelist[sl]['traces'][:, qq]
                 # Append

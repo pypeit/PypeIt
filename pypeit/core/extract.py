@@ -1810,7 +1810,7 @@ def obj_profiles(det, specobjs, sciframe, varframe, crmask,
                 fdict['flux_val'] = flux_val
                 scitrace[sl]['opt_profile'].append(copy.deepcopy(fdict))
                 specobjs[sl][o].optimal['fwhm'] = fdict['param'][1]  # Pixels
-                if msgs._debug['obj_profile']:
+                if False: #msgs._debug['obj_profile']:
                     gdp = mask == 0
                     mn = np.min(slit_val[gdp])
                     mx = np.max(slit_val[gdp])
