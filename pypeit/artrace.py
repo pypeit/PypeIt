@@ -18,7 +18,7 @@ from pypeit.core import plot
 from pypeit.core import arc
 from pypeit import utils
 from pypeit.core import pca
-#from pypeit.filter import BoxcarFilter
+from pypeit.filter import BoxcarFilter
 from pypeit import debugger
 
 from pypeit.par.parset import ParSet

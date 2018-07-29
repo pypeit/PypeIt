@@ -1,4 +1,4 @@
-# Required packages for PYPIT
+# Required packages for PypeIt
 #
 # TODO: Make linetools and arclines pip installable so that they can be
 # added here, or add them as submodule dependencies in extern/ directory

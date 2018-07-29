@@ -77,7 +77,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
 
     # Instantiate the parameters
     _par = _spectrograph.default_pypeit_par() if par is None else par
-    if not isinstance(_par, pypeitpar.PypitPar):
+    if not isinstance(_par, pypeitpar.PypeItPar):
         raise TypeError('Input parameters must be a PypitPar instance.')
     required = [ 'rdx', 'calibrations', 'scienceframe', 'objects', 'extract', 'skysubtract',
                  'flexure', 'fluxcalib' ]
