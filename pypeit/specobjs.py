@@ -376,10 +376,11 @@ def init_exp(lcen, rcen, shape, maskslits,
                 # Generate
                 if tracelist[sl]['object'] is None:
                     specobj = SpecObj(shape, (lcen[yval,sl], rcen[yval,sl]), float(yval), det=det,
-                            slitid=sl+1, scidx=scidx, objtype=kwargs['objtype']) #self.fitstbl, self.tracelist, binning=self.binning,
+                            slitid=sl+1, scidx=scidx, objtype=kwargs['objtype'],
+                                      spat_pixpos=xobj*shape[1]) #self.fitstbl, self.tracelist, binning=self.binning,
                     #specobj = SpecObj((tracelist[0]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj, **kwargs)
                 else:
-                    specobj = SpecObj(shape, (lcen[yval,sl], rcen[yval,sl]), float(yval), det=det, slitid=sl+1, scidx=scidx, objtype=kwargs['objtype'])
+                    specobj = SpecObj(shape, (lcen[yval,sl], rcen[yval,sl]), float(yval), det=det, slitid=sl+1, scidx=scidx, objtype=kwargs['objtype'], spat_pixpos=xobj*shape[1]) #self.fitstbl, self.tracelist, binning=self.binning,
                     #specobj = SpecObj((tracelist[sl]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj,
                     #                     **kwargs)
                 specobj.ypos = ypos
