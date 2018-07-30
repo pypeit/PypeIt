@@ -1,10 +1,14 @@
-0.9 (unreleased)
-----------------
+0.8.2dev (unreleased)
+---------------------
 
 - Major refactor to rename most modules and incorporate the PYPIT -> PypeIt switch
 
-0.8 (released)
---------------
+0.8.1
+-----
+- Figuring out how to tag releases
+
+0.8.0
+-----
 
 - First major steps on ARMED echelle data reduction pipeline
 - APF/Levy and Keck/HIRES implemented
@@ -242,6 +246,7 @@
 - Checked orientation of array correct for DATASEC and OSCANSEC in
   DetectorPar for each Spectrograph
 - Add SpecObjs class
+- Add from_dict and to_dict methods to pydl bspline and update docs
 
 0.7 (2017-02-07)
 ----------------
