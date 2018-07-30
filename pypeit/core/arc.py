@@ -396,16 +396,6 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
                 msgs.error('Insufficient lines to auto-fit.')
 
     # Debug
-    #debug=True
-    if msgs._debug['arc']:
-        #tmp = list(gd_str)
-        #tmp.pop(1)
-        #gd_str = np.array(tmp)
-        #xdb.xpcol(tcent[idx_str[gd_str]],ids[gd_str])
-        #xdb.xplot(tcent[idx_str[gd_str]],ids[gd_str],scatter=True)
-        # debugger.xplot(yprep)
-        debugger.set_trace()
-
     msgs.work('Cross correlate here?')
 
     # Setup for fitting
@@ -467,6 +457,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     yfit = yfit[mask==0]
     ions = all_idsion[ifit][mask==0]
     #
+    '''
     if msgs._debug['arc']:
         wave = utils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
             'legendre', minv=fmin, maxv=fmax)
@@ -479,6 +470,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
         #debugger.set_trace()
         #wave = utils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
         #    'legendre', min=fmin, max=fmax)
+    '''
 
     # 2nd order Poly fit for archival
     #get_poly=True
