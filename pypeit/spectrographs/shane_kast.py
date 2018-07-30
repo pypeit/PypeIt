@@ -27,6 +27,31 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         self.telescope = telescopes.ShaneTelescopePar()
         self.timeunit = 's'
 
+    @staticmethod
+    def kast_default_pypeit_par():
+        """
+        Set default parameters for Shane Kast Blue reductions.
+        """
+        par = pypeitpar.PypeItPar()
+        # TODO: Make self.spectrograph a class attribute?
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+        # Frame numbers
+        par['calibrations']['standardframe']['number'] = 1
+        par['calibrations']['biasframe']['number'] = 5
+        par['calibrations']['pixelflatframe']['number'] = 5
+        par['calibrations']['traceframe']['number'] = 5
+        par['calibrations']['arcframe']['number'] = 1
+        # Set wave tilts order
+        par['calibrations']['tilts']['order'] = 2
+        # Always sky subtract, starting with default parameters
+        par['skysubtract'] = pypeitpar.SkySubtractionPar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypeitpar.FlexurePar()
+        return par
+
     def kast_header_keys(self):
         """
         Provide the relevant header keywords
@@ -187,30 +212,12 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # Uses default primary_hdrext
         self.sky_file = 'sky_kastb_600.fits'
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for Shane Kast Blue reductions.
         """
-        par = pypeitpar.PypeItPar()
-        # TODO: Make self.spectrograph a class attribute?
+        par = self.kast_default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_blue'
-        # Use the ARMS pipeline
-        par['rdx']['pipeline'] = 'ARMS'
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 1
-        par['calibrations']['biasframe']['number'] = 5
-        par['calibrations']['pixelflatframe']['number'] = 5
-        par['calibrations']['traceframe']['number'] = 5
-        par['calibrations']['arcframe']['number'] = 1
-        # Set wave tilts order
-        par['calibrations']['tilts']['order'] = 2
-        # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypeitpar.SkySubtractionPar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         return par
 
     def check_header(self, headers):
@@ -296,6 +303,16 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         # Uses timeunit from parent class
         # Uses default primary_hdrext
         # self.sky_file = ?
+
+    def default_pypeit_par(self):
+        """
+        Set default parameters for Shane Kast Blue reductions.
+        """
+        par = self.kast_default_pypeit_par()
+        #
+        par['rdx']['spectrograph'] = 'shane_kast_red'
+        #
+        return par
 
     def check_header(self, headers):
         """Validate elements of the header."""
@@ -383,6 +400,17 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         # Uses timeunit from parent class
         # Uses default primary_hdrext
         # self.sky_file = ?
+
+    def default_pypeit_par(self):
+        """
+        Set default parameters for Shane Kast Blue reductions.
+        """
+        par = self.kast_default_pypeit_par()
+        par['rdx']['spectrograph'] = 'shane_kast_red_ret'
+        #
+        par['calibrations']['pixelflatframe']['number'] = 3
+        par['calibrations']['traceframe']['number'] = 3
+        return par
 
     def header_keys(self):
         """
