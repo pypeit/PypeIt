@@ -1,5 +1,10 @@
-0.8 (unreleased)
+0.9 (unreleased)
 ----------------
+
+- Major refactor to rename most modules and incorporate the PYPIT -> PypeIt switch
+
+0.8 (released)
+--------------
 
 - First major steps on ARMED echelle data reduction pipeline
 - APF/Levy and Keck/HIRES implemented
