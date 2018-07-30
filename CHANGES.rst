@@ -1,5 +1,12 @@
-0.8 (unreleased)
-----------------
+0.8.2dev (unreleased)
+---------------------
+
+0.8.1
+-----
+- Figuring out how to tag releases
+
+0.8.0
+-----
 
 - First major steps on ARMED echelle data reduction pipeline
 - APF/Levy and Keck/HIRES implemented
