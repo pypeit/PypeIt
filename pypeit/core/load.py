@@ -259,11 +259,14 @@ def load_specobj(fname):
         #                           int(objp[-2][1:]), [float(objp[1][1:])/10000.]*2, 0.5,
         #                           float(objp[0][1:])/1000., 'unknown')
         # New and wrong
-        specobj = specobjs.SpecObj(shape, [float(objp[1][1:])/10000.]*2,
+        try:
+            specobj = specobjs.SpecObj(shape, [float(objp[1][1:])/10000.]*2,
                                    np.mean([int(objp[-1][1:]), int(objp[-2][1:])]),
                                    config='dummy_config',
                                    slitid=1, det=det,
                                    spat_pixpos=100)  # DUMMY
+        except:
+            debugger.set_trace()
         # Add trace
         specobj.trace = spec['obj_trace']
         # Add spectrum

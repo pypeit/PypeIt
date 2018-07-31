@@ -1596,7 +1596,7 @@ def boxcar(specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace, mswav
     for sl in slits:
         if sl not in gdslits:
             continue
-        word = np.where((slitpix == sl + 1) & (varframe > 0.))
+        word = np.where((slitpix.astype(int) == sl + 1) & (varframe > 0.))
         if word[0].size == 0:
             continue
         mask_slit = np.zeros(sciframe.shape, dtype=np.float)
@@ -1755,7 +1755,10 @@ def obj_profiles(det, specobjs, sciframe, varframe, crmask,
             # Object pixels
             weight = objreg.copy()
             # Identify good rows
-            gdrow = np.where(specobjs[sl][o].boxcar['counts'] > COUNT_LIM)[0]
+            try:
+                gdrow = np.where(specobjs[sl][o].boxcar['counts'] > COUNT_LIM)[0]
+            except:
+                debugger.set_trace()
             # Normalized image
             norm_img = sciframe / np.outer(specobjs[sl][o].boxcar['counts'], np.ones(sciframe.shape[1]))
             # Eliminate rows with CRs (wipes out boxcar)
@@ -1811,7 +1814,7 @@ def obj_profiles(det, specobjs, sciframe, varframe, crmask,
                 fdict['flux_val'] = flux_val
                 scitrace[sl]['opt_profile'].append(copy.deepcopy(fdict))
                 specobjs[sl][o].optimal['fwhm'] = fdict['param'][1]  # Pixels
-                if msgs._debug['obj_profile']:
+                if False: #msgs._debug['obj_profile']:
                     gdp = mask == 0
                     mn = np.min(slit_val[gdp])
                     mx = np.max(slit_val[gdp])

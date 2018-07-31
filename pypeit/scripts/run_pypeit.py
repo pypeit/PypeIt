@@ -95,7 +95,7 @@ def main(args):
         msgs.error("Bad extension for PYPIT reduction file."+msgs.newline()+".pypeit is required")
     logname = splitnm[0] + ".log"
 
-    pypeit.PYPIT(args.pypeit_file, setup_only=args.prep_setup, calibration_check=args.calcheck,
+    pypeit.PypeIt(args.pypeit_file, setup_only=args.prep_setup, calibration_check=args.calcheck,
                 use_header_frametype=args.hdrframetype, sort_dir=args.sort_dir, debug=debug,
                 overwrite=args.overwrite, verbosity=args.verbosity, use_masters=args.use_masters,
                 logname=logname)

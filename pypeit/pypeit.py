@@ -16,8 +16,8 @@ from pypeit import pypeitsetup
 
 from pypeit import debugger
 
-def PYPIT(pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False,
-          sort_dir=None, debug=None, quick=False, ncpus=1, overwrite=False, verbosity=2,
+def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False,
+          sort_dir=None, debug=None, quick=False, ncpus=1, overwrite=True, verbosity=2,
           use_masters=False, logname=None):
     """
     Execute PYPIT.
