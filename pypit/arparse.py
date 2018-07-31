@@ -4646,7 +4646,10 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
     if not isinstance(subarray, basestring):
         raise TypeError('Can only parse string-based subarray sections.')
     # Remove brackets if they're included
-    sections = subarray.strip('[]').split(',')
+    try:
+        sections = subarray.strip('[]').split(',')
+    except:
+        debugger.set_trace()
     # Check the dimensionality
     ndim = len(sections)
     if require_dim is not None and ndim != require_dim:

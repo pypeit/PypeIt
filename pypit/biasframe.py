@@ -45,6 +45,9 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     sci_ID : int (optional)
       Science ID value
       used to match bias frames to the current science exposure
+    par : ParSet
+      PypitPar['calibrations']['biasframe']
+
 
     Attributes
     ----------

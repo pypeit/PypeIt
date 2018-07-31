@@ -47,3 +47,9 @@ class TNGTelescopePar(TelescopePar):
                                               latitude=28.754,
                                               elevation=2387.2)
 
+class VLTTelescopePar(TelescopePar):
+    def __init__(self):
+        super(VLTTelescopePar, self).__init__(name='VLT',
+                                               longitude=70.404830556,
+                                               latitude=-24.6271666666,
+                                               elevation=2635.43)
