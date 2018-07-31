@@ -8,7 +8,7 @@ SPHINXOPTS    = -aE -w ./sphinx_warnings.out
 SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = _build
-LOCALFILES    = $(BUILDDIR)/* api module.rst pypit.rst pypit.*.rst sphinx_warnings.out pypit_par.rst
+LOCALFILES    = $(BUILDDIR)/* api module.rst pypeit.rst pypeit.*.rst sphinx_warnings.out pypeit_par.rst
 
 
 # User-friendly check for sphinx-build
@@ -57,7 +57,7 @@ clean:
 
 html:
 	export SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT)
-	$(SPHINXAPI) -o . ../pypit --separate
+	$(SPHINXAPI) -o . ../pypeit --separate
 	python3 ./scripts/build_par_rst.py
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo

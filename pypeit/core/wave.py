@@ -244,7 +244,7 @@ def flexure_slit():
     msgs.work("Add another QA for wavelengths?")
     # Update mswave
     wv_calib = slf._wvcalib[det-1]
-    slf._mswave[det-1] = rutils.func_val(wv_calib['fitc'], slf._tilts[det-1], wv_calib['function'], minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
+    slf._mswave[det-1] = utils.func_val(wv_calib['fitc'], slf._tilts[det-1], wv_calib['function'], minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
     # Write to Masters?  Not for now
     # For QA (kludgy..)
     censpec_wv = arextract.boxcar_cen(slf, det, slf._mswave[det-1])
