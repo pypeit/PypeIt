@@ -355,12 +355,12 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
 
     # Fill in the optimally extraction tags
     specobj.optimal['WAVE_OPT'] = wave_opt    # Optimally extracted wavelengths
-    specobj.optimal['FLUX_OPT'] = flux_opt    # Optimally extracted flux
-    specobj.optimal['IVAR_OPT'] = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
-    specobj.optimal['NIVAR_OPT'] = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
+    specobj.optimal['COUNTS_OPT'] = flux_opt    # Optimally extracted flux
+    specobj.optimal['COUNTS_IVAR_OPT'] = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
+    specobj.optimal['COUNTS_NIVAR_OPT'] = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
     specobj.optimal['MASK_OPT'] = mask_opt    # Mask for optimally extracted flux
-    specobj.optimal['SKY_OPT'] = sky_opt      # Optimally extracted sky
-    specobj.optimal['RN_OPT'] = rn_opt        # Square root of optimally extracted read noise squared
+    specobj.optimal['COUNTS_SKY_OPT'] = sky_opt      # Optimally extracted sky
+    specobj.optimal['COUNTS_RN_OPT'] = rn_opt        # Square root of optimally extracted read noise squared
     specobj.optimal['FRAC_USE'] = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     specobj.optimal['CHI2'] = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
@@ -391,12 +391,12 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
 
     specobj.boxcar['WAVE_BOX'] = wave_box
-    specobj.boxcar['FLUX_BOX'] = flux_box*mask_box
-    specobj.boxcar['IVAR_BOX'] = ivar_box*mask_box
-    specobj.boxcar['NIVAR_BOX'] = nivar_box*mask_box
+    specobj.boxcar['COUNTS_BOX'] = flux_box*mask_box
+    specobj.boxcar['COUNTS_IVAR_BOX'] = ivar_box*mask_box
+    specobj.boxcar['COUNTS_NIVAR_BOX'] = nivar_box*mask_box
     specobj.boxcar['MASK_BOX'] = mask_box
-    specobj.boxcar['SKY_BOX'] = sky_box
-    specobj.boxcar['RN_BOX'] = rn_box
+    specobj.boxcar['COUNTS_SKY_BOX'] = sky_box
+    specobj.boxcar['COUNTS_RN_BOX'] = rn_box
 
     return None
 
