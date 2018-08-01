@@ -312,7 +312,7 @@ class bspline(object):
             self.funcname = 'legendre'
 
     @classmethod
-    def from_dict(cls, x, from_dict):
+    def from_dict(cls, from_dict):
         """ Create bspline from a dict.
 
         Parameters
@@ -328,8 +328,7 @@ class bspline(object):
         """
 
         # needs to move lists to np.arrays for JSON files
-        return cls(x,
-                   nord=from_dict['nord'],
+        return cls(nord=from_dict['nord'],
                    npoly=from_dict['npoly'],
                    bkpt=np.array(from_dict['bkpt']),
                    mask=np.array(from_dict['mask']),
