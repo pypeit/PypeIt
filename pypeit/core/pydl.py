@@ -224,7 +224,7 @@ class bspline(object):
     """
 
     def __init__(self, x, nord=4, npoly=1, bkpt=None, fullbkpt = None, bkspread=1.0,
-                 verbose=False, from_dict=None, **kwargs):
+                 verbose=False, **kwargs):
         """Init creates an object whose attributes are similar to the
         structure returned by the create_bspline function.
         """
