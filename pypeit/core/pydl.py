@@ -311,6 +311,7 @@ class bspline(object):
         else:
             self.funcname = 'legendre'
 
+    @classmethod
     def from_dict(cls, x, from_dict):
         """ Create bspline from a dict.
 
