@@ -41,7 +41,7 @@ def test_user_redo():
         assert True
         return
     # Check for files
-    wvcalib_file = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'WaveCalib',
+    wvcalib_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'WaveCalib',
                                 'MasterWaveCalib_ShaneKastBlue_A.json')
     assert chk_for_files(wvcalib_file)
     # Instantiate
@@ -58,7 +58,7 @@ def test_step_by_step():
         assert True
         return
 
-    root_path = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
+    root_path = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     setup = 'A_01_aa'
 
     # Load up the Masters
@@ -92,7 +92,7 @@ def test_one_shot():
         assert True
         return
 
-    root_path = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
+    root_path = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     setup = 'A_01_aa'
 
     # Load up the Masters

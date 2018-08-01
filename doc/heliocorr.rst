@@ -6,7 +6,7 @@
 Heliocentric Correction
 ***********************
 
-This document will describe how PYPIT imposes a heliocentric correction
+This document will describe how PypeIt imposes a heliocentric correction
 on each 1D spectrum extracted.
 
 Overview
@@ -15,7 +15,7 @@ Overview
 Nearly all analysis of the 1D spectra from astronomical objects
 will require one to remove the peculiar motion of the Earth.  In addition,
 one may wish to correct for the Solar System.
-The default in PYPIT is to impose a heliocentric correction to place
+The default in PypeIt is to impose a heliocentric correction to place
 the Earth within the Sun's reference frame.
 
 

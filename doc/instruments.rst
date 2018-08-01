@@ -10,11 +10,11 @@ Overview
 ++++++++
 
 Below we describe all of the spectrographs that may
-be reduced by PYPIT.  We also provide any suggested
-tips for customizing the PYPIT file.
+be reduced by PypeIt.  We also provide any suggested
+tips for customizing the PypeIt file.
 
 =============== =========   ===================================
-PYPIT Name      Telescope   Instrument
+PypeIt Name      Telescope   Instrument
 =============== =========   ===================================
 shane_kast_blue Lick 3m     Kast dual spectrometer; blue camera
 shane_kast_red  Lick 3m     Kast dual spectrometer; red camera

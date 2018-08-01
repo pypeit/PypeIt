@@ -66,9 +66,9 @@ def run_setup(data_files, scripts, packages, install_requires):
           provides=NAME,                                                # *
           version=VERSION,
           license='BSD3',
-          description='PYPIT Spectroscopic Reduction',
+          description='PypeIt Spectroscopic Reduction',
           long_description=open('README.md').read(),
-          author='PYPIT Collaboration',
+          author='PypeIt Collaboration',
           author_email='pypeit@ucolick.org',
           keywords='pypeit PypeIt astronomy Keck UCO Lick data reduction',
           url='https://github.com/pypeit/PypeIt',

@@ -6,7 +6,7 @@ Spec1D Output
 
 .. index:: spec1d
 
-A primary data product for PYPIT are 1D, calibrated spectra
+A primary data product for PypeIt are 1D, calibrated spectra
 for extracted sources.  The most fundamental spectrum may be
 described by two arrays: flux, wavelength.  These together
 with an error array are the minimal output for even the 
@@ -20,7 +20,7 @@ Arrays
 ------
 
 To allow the inclusion of multiple combinations of arrays,
-the standard format in PYPIT for spec1D output per object
+the standard format in PypeIt for spec1D output per object
 is a binary FITS table.  The types of spectral arrays
 that may be outputted are:
 
@@ -46,7 +46,7 @@ TRACE       pixel                   Best centroid of the
 Extractions
 -----------
 
-Because there are several modes of extraction in PYPIT, there may
+Because there are several modes of extraction in PypeIt, there may
 be multiple outputs of the spectral arrays.  These are then prefixed
 by the extraction mode.
 
@@ -91,7 +91,7 @@ Format
 HDF5
 ++++
 
-PYPIT will generate a single HDF5 file for each science exposure. The
+PypeIt will generate a single HDF5 file for each science exposure. The
 HDF5 file contains the groups: header, meta, boxcar and optimal. Each
 group has its respective datasets:
 

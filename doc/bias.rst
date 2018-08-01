@@ -27,7 +27,7 @@ provided.  It can be explicitly enforced by adding::
 
     bias useframe bias
 
-to the PYPIT reduction file.
+to the PypeIt reduction file.
 
 Subtract Overscan
 -----------------
@@ -38,7 +38,7 @@ method is applied by adding::
 
     bias useframe overscan
 
-to the PYPIT reduction file.
+to the PypeIt reduction file.
 
 Overscan Algorithms
 +++++++++++++++++++

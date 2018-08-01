@@ -92,7 +92,7 @@ By Example
 
 For reference, there are
 existing PypeIt files in `PypeIt development suite
-<https://github.com/PypeIt/PypeIt-development-suite>`_.
+<https://github.com/pypeit/PypeIt-development-suite>`_.
 The PypeIt development suite is recommended for download
 (see :doc:`installing`), and the relevant PypeIt files are located
 in::

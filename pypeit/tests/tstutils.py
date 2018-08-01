@@ -25,8 +25,8 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
     spectrograph = load_spectrograph(spectrograph='shane_kast_blue')
     spectrograph.naxis = (2112,350)     # Image shape with overscan
 
-    root_path = data_path('MF') if os.getenv('PYPIT_DEV') is None \
-                    else os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
+    root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
+                    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     directory_path = root_path+'_'+spectrograph.spectrograph
                     
     mode = 'reuse'
