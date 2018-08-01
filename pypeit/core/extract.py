@@ -1050,12 +1050,12 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
 
 
 
-def parse_hand_dict(HAND_DICT):
-    """ Utility routine for objfind to parase the HAND_DICT dictionary for hand selected apertures
+def parse_hand_dict(HAND_EXTRACT_DICT):
+    """ Utility routine for objfind to parase the HAND_EXTRACT_DICT dictionary for hand selected apertures
 
     Parameters
     ----------
-    HAND_DICT:   dictionary
+    HAND_EXTRACT_DICT:   dictionary
 
     Returns
     -------
@@ -1069,38 +1069,38 @@ def parse_hand_dict(HAND_DICT):
     """
 
 
-    if ('HAND_SPEC' not in HAND_DICT.keys() | 'HAND_SPAT' not in HAND_DICT.keys()):
-        raise ValueError('HAND_SPEC and HAND_SPAT must be set in the HAND_DICT')
+    if ('HAND_EXTRACT_SPEC' not in HAND_EXTRACT_DICT.keys() | 'HAND_EXTRACT_SPAT' not in HAND_EXTRACT_DICT.keys()):
+        raise ValueError('HAND_EXTRACT_SPEC and HAND_EXTRACT_SPAT must be set in the HAND_EXTRACT_DICT')
 
-    HAND_SPEC=np.asarray(HAND_DICT['HAND_SPEC'])
-    HAND_SPAT=np.asarray(HAND_DICT['HAND_SPAT'])
-    HAND_DET = np.asarray(HAND_DICT['HAND_DET'])
-    if(HAND_SPEC.size == HAND_SPAT.size == HAND_DET.size) == False:
-        raise ValueError('HAND_SPEC, HAND_SPAT, and HAND_DET must have the same size in the HAND_DICT')
-    nhand = HAND_SPEC.size
+    HAND_EXTRACT_SPEC=np.asarray(HAND_EXTRACT_DICT['HAND_EXTRACT_SPEC'])
+    HAND_EXTRACT_SPAT=np.asarray(HAND_EXTRACT_DICT['HAND_EXTRACT_SPAT'])
+    HAND_EXTRACT_DET = np.asarray(HAND_EXTRACT_DICT['HAND_EXTRACT_DET'])
+    if(HAND_EXTRACT_SPEC.size == HAND_EXTRACT_SPAT.size == HAND_EXTRACT_DET.size) == False:
+        raise ValueError('HAND_EXTRACT_SPEC, HAND_EXTRACT_SPAT, and HAND_EXTRACT_DET must have the same size in the HAND_EXTRACT_DICT')
+    nhand = HAND_EXTRACT_SPEC.size
 
-    HAND_FWHM = HAND_DICT.get('HAND_FWHM')
-    if HAND_FWHM is not None:
-        HAND_FWHM = np.asarray(HAND_FWHM)
-        if(HAND_FWHM.size==HAND_SPEC.size):
+    HAND_EXTRACT_FWHM = HAND_EXTRACT_DICT.get('HAND_EXTRACT_FWHM')
+    if HAND_EXTRACT_FWHM is not None:
+        HAND_EXTRACT_FWHM = np.asarray(HAND_EXTRACT_FWHM)
+        if(HAND_EXTRACT_FWHM.size==HAND_EXTRACT_SPEC.size):
             pass
-        elif (HAND_FWHM.size == 1):
-            HAND_FWHM = np.full(nhand, HAND_FWHM)
+        elif (HAND_EXTRACT_FWHM.size == 1):
+            HAND_EXTRACT_FWHM = np.full(nhand, HAND_EXTRACT_FWHM)
         else:
-            raise ValueError('HAND_FWHM must either be a number of have the same size as HAND_SPEC and HAND_SPAT')
+            raise ValueError('HAND_EXTRACT_FWHM must either be a number of have the same size as HAND_EXTRACT_SPEC and HAND_EXTRACT_SPAT')
     else:
-        HAND_FWHM = np.full(nhand, None)
+        HAND_EXTRACT_FWHM = np.full(nhand, None)
 
-    return (HAND_SPEC, HAND_SPAT, HAND_DET, HAND_FWHM)
+    return (HAND_EXTRACT_SPEC, HAND_EXTRACT_SPAT, HAND_EXTRACT_DET, HAND_EXTRACT_FWHM)
 
 
 
-specobj_dict = {'config': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 'science'}
+specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 'science'}
 
 
 
 def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
-            HAND_DICT = None, std_trace = None, ncoeff = 5, nperslit = 10,  BG_SMTH = 5.0, PKWDTH = 3.0,
+            HAND_EXTRACT_DICT = None, std_trace = None, ncoeff = 5, nperslit = 10,  BG_SMTH = 5.0, PKWDTH = 3.0,
             SIG_THRESH = 5.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, TRIM_EDG = (3,3), OBJMASK_NTHRESH = 2.0,
             SHOW_TRACE = False, SHOW_FITS = False, SHOW_PEAKS = True, specobj_dict=specobj_dict):
 
@@ -1239,7 +1239,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
         for iobj in range(nobj_reg):
             # ToDo Label with objid and objind here?
             thisobj = specobjs.SpecObj(frameshape, slit_spat_pos, slit_spec_pos, det = specobj_dict['det'],
-                              config = specobj_dict['config'], slitid = specobj_dict['slitid'],
+                              setup = specobj_dict['setup'], slitid = specobj_dict['slitid'],
                               scidx = specobj_dict['scidx'], objtype=specobj_dict['objtype'])
             thisobj.spat_fracpos = xcen[iobj]/nsamp
             thisobj.smash_peakflux = ypeak[iobj]
@@ -1324,7 +1324,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
 
     objmask = np.zeros_like(thismask, dtype=bool)
     skymask = np.copy(thismask)
-    if (len(sobjs) == 0) & (HAND_DICT == None):
+    if (len(sobjs) == 0) & (HAND_EXTRACT_DICT == None):
         msgs.info('No objects found')
         return (None, objmask, skymask)
 
@@ -1421,17 +1421,17 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
 
 
 
-    # Now deal with the hand apertures if a HAND_DICT was passed in. Add these to the SpecObj objects
-    if HAND_DICT is not None:
+    # Now deal with the hand apertures if a HAND_EXTRACT_DICT was passed in. Add these to the SpecObj objects
+    if HAND_EXTRACT_DICT is not None:
         # First Parse the hand_dict
-        HAND_SPEC, HAND_SPAT, HAND_DET, HAND_FWHM = parse_hand_dict(HAND_DICT)
+        HAND_EXTRACT_SPEC, HAND_EXTRACT_SPAT, HAND_EXTRACT_DET, HAND_EXTRACT_FWHM = parse_hand_dict(HAND_EXTRACT_DICT)
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = thismask[int(np.rint(HAND_SPEC)),int(np.rint(HAND_SPAT))]
-        HAND_SPEC = HAND_SPEC[hand_on_slit]
-        HAND_SPAT = HAND_SPAT[hand_on_slit]
-        HAND_DET  = HAND_DET[hand_on_slit]
-        HAND_FWHM = HAND_FWHM[hand_on_slit]
-        nobj_hand = len(HAND_SPEC)
+        HAND_EXTRACT_SPEC = HAND_EXTRACT_SPEC[hand_on_slit]
+        HAND_EXTRACT_SPAT = HAND_EXTRACT_SPAT[hand_on_slit]
+        HAND_EXTRACT_DET  = HAND_EXTRACT_DET[hand_on_slit]
+        HAND_EXTRACT_FWHM = HAND_EXTRACT_FWHM[hand_on_slit]
+        nobj_hand = len(HAND_EXTRACT_SPEC)
 
         # Decide how to assign a trace to the hand objects
         if nobj_reg > 0:  # Use brightest object on slit?
@@ -1443,28 +1443,28 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
             trace_model = std_trace
         else:  # If no objects or standard use the slit boundary
             trace_model = slit_left
-        # Loop over HAND apertures and create and assign specobj
+        # Loop over HAND_EXTRACT apertures and create and assign specobj
         for iobj in range(nobj_hand):
             thisobj = specobjs.SpecObj(frameshape, slit_spat_pos, slit_spec_pos,
                                        det=specobj_dict['det'],
-                                       config=specobj_dict['config'], slitid=specobj_dict['slitid'],
+                                       setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
                                        scidx=specobj_dict['scidx'], objtype=specobj_dict['objtype'])
-            thisobj.HAND_SPEC = HAND_SPEC[iobj]
-            thisobj.HAND_SPAT = HAND_SPAT[iobj]
-            thisobj.HAND_DET = HAND_DET[iobj]
-            thisobj.HAND_FWHM = HAND_FWHM[iobj]
-            thisobj.HAND_FLAG = True
+            thisobj.HAND_EXTRACT_SPEC = HAND_EXTRACT_SPEC[iobj]
+            thisobj.HAND_EXTRACT_SPAT = HAND_EXTRACT_SPAT[iobj]
+            thisobj.HAND_EXTRACT_DET = HAND_EXTRACT_DET[iobj]
+            thisobj.HAND_EXTRACT_FWHM = HAND_EXTRACT_FWHM[iobj]
+            thisobj.HAND_EXTRACT_FLAG = True
             f_ximg = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, ximg)
-            thisobj.spat_fracpos = f_ximg(thisobj.HAND_SPEC, thisobj.HAND_SPAT, grid=False) # interpolate from ximg
+            thisobj.spat_fracpos = f_ximg(thisobj.HAND_EXTRACT_SPEC, thisobj.HAND_EXTRACT_SPAT, grid=False) # interpolate from ximg
             thisobj.smash_peakflux = np.interp(thisobj.spat_fracpos*nsamp,np.arange(nsamp),fluxconv) # interpolate from fluxconv
             # assign the trace
-            spat_0 = np.interp(thisobj.HAND_SPEC, spec_vec, trace_model)
-            shift = thisobj.HAND_SPAT - spat_0
+            spat_0 = np.interp(thisobj.HAND_EXTRACT_SPEC, spec_vec, trace_model)
+            shift = thisobj.HAND_EXTRACT_SPAT - spat_0
             thisobj.trace_spat = trace_model + shift
             thisobj.spat_pixpos = thisobj.trace_spat[specmid]
             thisobj.set_idx()
-            if HAND_FWHM[iobj] is not None: # If a HAND_FWHM was input use that for the FWHM
-                thisobj.fwhm = HAND_FWHM[iobj]
+            if HAND_EXTRACT_FWHM[iobj] is not None: # If a HAND_EXTRACT_FWHM was input use that for the FWHM
+                thisobj.fwhm = HAND_EXTRACT_FWHM[iobj]
             elif nobj_reg > 0: # Otherwise is None was input, then use the median of objects on this slit if they are present
                 thisobj.fwhm = med_fwhm_reg
             else:  # Otherwise just use the FWHM parameter input to the code (or the default value)
@@ -1477,13 +1477,13 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
     #if nobj == 0:
     #    return (None, skymask, objmask)
 
-    ## Okay now loop over all the regular aps and exclude any which within a FWHM of the HAND_APERTURES
-    if nobj_reg > 0 and HAND_DICT is not None:
+    ## Okay now loop over all the regular aps and exclude any which within a FWHM of the HAND_EXTRACT_APERTURES
+    if nobj_reg > 0 and HAND_EXTRACT_DICT is not None:
         spat_pixpos = sobjs.spat_pixpos
-        hand_flag = sobjs.HAND_FLAG
+        hand_flag = sobjs.HAND_EXTRACT_FLAG
         spec_fwhm = sobjs.fwhm
         #spat_pixpos = np.array([spec.spat_pixpos for spec in specobjs])
-        #hand_flag = np.array([spec.HAND_FLAG for spec in specobjs])
+        #hand_flag = np.array([spec.HAND_EXTRACT_FLAG for spec in specobjs])
         #spec_fwhm = np.array([spec.fwhm for spec in specobjs])
         reg_ind, = np.where(hand_flag == False)
         hand_ind, = np.where(hand_flag == True)
@@ -1495,11 +1495,11 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
             if np.any(close):
                 # Print out a warning
                 msgs.warn('Deleting object {:s}'.format(sobjs[reg_ind[ireg]].idx) +
-                          ' because it collides with a user specified HAND aperture')
+                          ' because it collides with a user specified HAND_EXTRACT aperture')
                 for ihand in range(len(close)):
                     if close[ihand] == True:
-                        msgs.warn('Hand aperture at (HAND_SPEC, HAND_SPAT) = ({:6.2f}'.format(sobjs[hand_ind[ihand]].HAND_SPEC) +
-                                  ',{:6.2f})'.format(sobjs[hand_ind[ihand]].HAND_SPAT) +
+                        msgs.warn('Hand aperture at (HAND_EXTRACT_SPEC, HAND_EXTRACT_SPAT) = ({:6.2f}'.format(sobjs[hand_ind[ihand]].HAND_EXTRACT_SPEC) +
+                                  ',{:6.2f})'.format(sobjs[hand_ind[ihand]].HAND_EXTRACT_SPAT) +
                                   ' lands within 0.6*med_fwhm = {:4.2f}'.format(0.6*med_fwhm) + ' pixels of this object')
                 keep[reg_ind[ireg]] = False
 
@@ -1545,7 +1545,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
         viewer, ch = ginga.show_image(image*(thismask==True))
         ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = sobjs[0].slitid)
         for iobj in range(nobj):
-            if sobjs[iobj].HAND_FLAG == False:
+            if sobjs[iobj].HAND_EXTRACT_FLAG == False:
                 color = 'green'
             else:
                 color = 'orange'
