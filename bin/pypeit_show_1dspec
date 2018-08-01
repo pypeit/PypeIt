@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+
+"""
+Plot a spectrum with an interactive QT GUI
+"""
+
+import pypeit.scripts.show_1dspec as show_1dspec
+
+if __name__ == '__main__':
+    args = show_1dspec.parser()
+    show_1dspec.main(args)

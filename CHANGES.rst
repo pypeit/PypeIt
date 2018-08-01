@@ -1,6 +1,8 @@
 0.8.2dev (unreleased)
 ---------------------
 
+- Major refactor to rename most modules and incorporate the PYPIT -> PypeIt switch
+
 0.8.1
 -----
 - Figuring out how to tag releases

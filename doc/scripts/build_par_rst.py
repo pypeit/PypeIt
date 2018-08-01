@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Dynamically build the rst documentation of the pypit parameters.
+Dynamically build the rst documentation of the pypeit parameters.
 """
 
 import os
@@ -9,8 +9,8 @@ import time
 import numpy
 
 from pkg_resources import resource_filename
-from pypit.par import pypitpar
-from pypit.par.parset import ParSet
+from pypeit.par import pypeitpar
+from pypeit.par.parset import ParSet
 
 #-----------------------------------------------------------------------------
 #def class_name(p):
@@ -43,20 +43,20 @@ if __name__ == '__main__':
 
     # Read the baseline file that is not changed and must be edited by
     # the person building the documentation as necessary.
-    pypit_root = os.path.dirname(resource_filename('pypit', ''))
-    input_base = os.path.join(pypit_root, 'doc', 'scripts', 'base_par_rst.txt')
+    pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
+    input_base = os.path.join(pypeit_root, 'doc', 'scripts', 'base_par_rst.txt')
     with open(input_base, 'r') as f:
         lines = [ l.replace('\n','') for l in f.readlines() ]
     lines += ['']
 
     # Start to append the automatically generated documentation
-    lines += ['Current PypitPar Parameter Hierarchy']
+    lines += ['Current PypeItPar Parameter Hierarchy']
     lines += ['++++++++++++++++++++++++++++++++++++']
     lines += ['']
 
-    p = pypitpar.PypitPar(skysubtract=pypitpar.SkySubtractionPar(),
-                          flexure=pypitpar.FlexurePar(),
-                          fluxcalib=pypitpar.FluxCalibrationPar())
+    p = pypeitpar.PypeItPar(skysubtract=pypeitpar.SkySubtractionPar(),
+                          flexure=pypeitpar.FlexurePar(),
+                          fluxcalib=pypeitpar.FluxCalibrationPar())
 
     lines += par_hierarchy(p)
     lines += ['']
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     lines += p.to_rst_table()
     lines += ['']
 
-    output_rst = os.path.join(pypit_root, 'doc', 'pypit_par.rst')
+    output_rst = os.path.join(pypeit_root, 'doc', 'pypeit_par.rst')
     with open(output_rst, 'w') as f:
         f.write('\n'.join(lines))
     
