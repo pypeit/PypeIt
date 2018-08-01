@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+#
+# See top-level LICENSE file for Copyright information
+#
+# -*- coding: utf-8 -*-
+
+"""
+This script pushes a FITS file to ginga
+"""
+
+import pypeit.scripts.lowrdx_pixflat as lowrdx_pixflat
+
+if __name__ == '__main__':
+    args = lowrdx_pixflat.parser()
+    lowrdx_pixflat.main(args)
+

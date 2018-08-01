@@ -1,8 +1,8 @@
-# PYPIT
+# PypeIt
 The Python Spectroscopic Data Reduction Pipeline.  For
 documentation visit:
 
-http://pypit.readthedocs.io
+http://pypeit.readthedocs.io
 
 # Instruments Served
 * Keck/LRIS 
@@ -14,7 +14,7 @@ http://pypit.readthedocs.io
 
 # Requirements
 
-(see `./pypit/requirements.txt`)
+(see `./pypeit/requirements.txt`)
 
 * python
 * numpy

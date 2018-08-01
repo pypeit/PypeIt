@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+#
+# See top-level LICENSE file for Copyright information
+#
+# -*- coding: utf-8 -*-
+
+"""
+This script generates an ArcID plot from a Master WaveSoln file
+"""
+
+import pypeit.scripts.arcid_plot as arcid_plot
+
+if __name__ == '__main__':
+    args = arcid_plot.parser()
+    arcid_plot.main(args)

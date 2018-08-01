@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+
+"""
+Build the HTML files for QA
+"""
+
+import pypeit.scripts.qa_html as qa_html
+
+if __name__ == '__main__':
+    args = qa_html.parser()
+    qa_html.main(args)
