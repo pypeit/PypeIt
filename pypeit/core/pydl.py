@@ -312,14 +312,14 @@ class bspline(object):
             self.funcname = 'legendre'
 
     @classmethod
-    def from_dict(cls, from_dict):
+    def from_dict(cls, bspline_dict):
         """ Create bspline from a dict.
 
         Parameters
         ----------
         x : numpy.ndarray
             Independent variable.
-        from_dict : dictionary
+        bspline_dict : dictionary
             bspline dictionary created with to_dict().
 
         Returns
@@ -328,15 +328,16 @@ class bspline(object):
         """
 
         # needs to move lists to np.arrays for JSON files
-        return cls(nord=from_dict['nord'],
-                   npoly=from_dict['npoly'],
-                   bkpt=np.array(from_dict['bkpt']),
-                   mask=np.array(from_dict['mask']),
-                   coeff=np.array(from_dict['coeff']),
-                   icoeff=np.array(from_dict['icoeff']),
-                   xmin=from_dict['xmin'],
-                   xmax=from_dict['xmax'],
-                   funcname=from_dict['funcname'])
+        return cls(None,
+                   nord=bspline_dict['nord'],
+                   npoly=bspline_dict['npoly'],
+                   bkpt=np.array(bspline_dict['bkpt']),
+                   mask=np.array(bspline_dict['mask']),
+                   coeff=np.array(bspline_dict['coeff']),
+                   icoeff=np.array(bspline_dict['icoeff']),
+                   xmin=bspline_dict['xmin'],
+                   xmax=bspline_dict['xmax'],
+                   funcname=bspline_dict['funcname'])
 
     def to_dict(self):
         """Write bspline parameters to a dict.
