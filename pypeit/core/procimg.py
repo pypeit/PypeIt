@@ -486,6 +486,8 @@ def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
     if np.any(datasec_img > numamplifiers):
         raise ValueError('Pixel amplifier IDs do not match number of amplifiers.')
 
+    # ToDO We should not be using numpy masked arrays!!!
+
     # Get the amplifier indices
     indx = datasec_img.astype(int) == 0
     amp = np.ma.MaskedArray(datasec_img.astype(int) - 1, mask=indx).filled(0)
