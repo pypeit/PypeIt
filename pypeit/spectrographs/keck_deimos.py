@@ -12,7 +12,7 @@ from pypeit.core import parse
 from pypeit.par.pypeitpar import DetectorPar
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
-from pypeit.core import sort
+from pypeit.core import fsort
 from pypeit.par import pypeitpar
 
 from pypeit import debugger
@@ -278,7 +278,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def get_match_criteria(self):
         match_criteria = {}
-        for key in sort.ftype_list:
+        for key in fsort.ftype_list:
             match_criteria[key] = {}
 
         # Standard

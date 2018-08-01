@@ -13,7 +13,7 @@ from astropy import units
 from astropy.io import fits
 
 from pypeit import specobjs
-from pypeit.core import sort
+from pypeit.core import fsort
 from pypeit.core import save
 
 def data_path(filename):
@@ -37,7 +37,7 @@ def mk_specobj(flux=5, objid=500):
 def test_save2d_fits():
     #settings.dummy_settings()
     #fitsdict = arutils.dummy_fitsdict(nfile=1, spectrograph='none', directory=data_path(''))
-    fitstbl = sort.dummy_fitstbl(directory=data_path(''))
+    fitstbl = fsort.dummy_fitstbl(directory=data_path(''))
     # Kludge
     fitstbl.remove_column('filename')
     fitstbl['filename'] = 'b1.fits.gz'
@@ -68,7 +68,7 @@ def test_save1d_fits():
     """ save1d to FITS and HDF5
     """
     #settings.dummy_settings()
-    fitstbl = sort.dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
+    fitstbl = fsort.dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
     # Dummy self
     specObjs = [mk_specobj()]
     # Write to FITS

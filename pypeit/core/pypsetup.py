@@ -13,7 +13,7 @@ import linetools.utils
 from pypeit import msgs
 from pypeit import utils
 from pypeit.core import parse
-from pypeit.core import sort
+from pypeit.core import fsort
 from pypeit import debugger
 
 
@@ -104,7 +104,7 @@ def calib_set(isetup_dict, fitstbl, sci_ID):
         #else:
         #    nms = []
         # Grab the names
-        idx = sort.ftype_indices(fitstbl, cbkey, sci_ID)
+        idx = fsort.ftype_indices(fitstbl, cbkey, sci_ID)
         names = fitstbl['filename'][idx].tolist()
         # Save
         new_cbset[cbkey] = names
@@ -298,7 +298,7 @@ def instr_setup(sci_ID, det, fitstbl, setup_dict, numamplifiers,
     cstr = '--'
     # Arc index
     #idx = np.where(fitstbl['arc'] & (fitstbl['sci_idx'] & sci_idx))[0]
-    idx = sort.ftype_indices(fitstbl, 'arc', sci_ID)
+    idx = fsort.ftype_indices(fitstbl, 'arc', sci_ID)
     try:
         disp_name = fitstbl["dispname"][idx[0]]
     except:
@@ -677,7 +677,7 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
     """
     # Setup
     srt_tbl = fitstbl.copy()
-    srt_tbl['frametype'] = sort.build_frametype_list(fitstbl)
+    srt_tbl['frametype'] = fsort.build_frametype_list(fitstbl)
     # Output file
     ff = open(group_file, 'w')
     # Keys
@@ -726,7 +726,7 @@ def build_group_dict(fitstbl, setupIDs, all_sci_idx, all_sci_ID):
     -------
     group_dict : dict
     """
-    ftype_keys = sort.ftype_list + ['failures']
+    ftype_keys = fsort.ftype_list + ['failures']
 
     group_dict = {}
     for sc,setupID in enumerate(setupIDs):
@@ -750,7 +750,7 @@ def build_group_dict(fitstbl, setupIDs, all_sci_idx, all_sci_ID):
             if key in ['unknown', 'dark', 'failures']:
                 continue
             #for idx in settings_spect[key]['index'][sc]:
-            indices = sort.ftype_indices(fitstbl, key, sci_ID)
+            indices = fsort.ftype_indices(fitstbl, key, sci_ID)
             #for idx in settings_spect[key]['index'][sc]:
             for idx in indices:
                 # Only add if new

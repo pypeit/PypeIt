@@ -19,7 +19,7 @@ from pypeit.tests import tstutils
 from pypeit import flatfield
 
 # These tests are not run on Travis
-if os.getenv('PYPIT_DEV') is None:
+if os.getenv('PYPEIT_DEV') is None:
     skip_test=True
 else:
     skip_test=False

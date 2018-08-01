@@ -9,7 +9,7 @@ import os
 
 from pypeit import msgs
 from pypeit.core import masters
-from pypeit.core import sort
+from pypeit.core import fsort
 from pypeit import processimages
 from pypeit import masterframe
 from pypeit.par import pypeitpar
@@ -99,7 +99,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         """
         # Get all of the bias frames for this science frame
         if self.nfiles == 0:
-            self.file_list = sort.list_of_files(self.fitstbl, 'bias', self.sci_ID)
+            self.file_list = fsort.list_of_files(self.fitstbl, 'bias', self.sci_ID)
         # Combine
         self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
         #

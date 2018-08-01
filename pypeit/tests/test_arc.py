@@ -11,7 +11,7 @@ import pytest
 from linetools.spectra import xspectrum1d
 
 import pypeit
-from pypeit.core import sort
+from pypeit.core import fsort
 from pypeit.core import arc
 
 from pypeit.spectrographs.util import load_spectrograph
@@ -24,7 +24,7 @@ def test_setup_param():
     -------
     """
     spectrograph = load_spectrograph(spectrograph='shane_kast_blue')
-    fitstbl = sort.dummy_fitstbl()
+    fitstbl = fsort.dummy_fitstbl()
     # Run
     arcparm = arc.setup_param(spectrograph, (2048,2048), fitstbl, 0)
     for key in ['llist','disp','wvmnx']:

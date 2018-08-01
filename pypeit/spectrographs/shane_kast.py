@@ -11,7 +11,7 @@ from pypeit import msgs
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
-from pypeit.core import sort
+from pypeit.core import fsort
 
 from pypeit import debugger
 
@@ -146,14 +146,14 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         cond_dict = self.kast_cond_dict(ftype)
 
         # Do it
-        gd_chk = sort.chk_all_conditions(fitstbl, cond_dict)
+        gd_chk = fsort.chk_all_conditions(fitstbl, cond_dict)
 
         return gd_chk
 
     def get_match_criteria(self):
         """Set the general matching criteria for Shane Kast."""
         match_criteria = {}
-        for key in sort.ftype_list:
+        for key in fsort.ftype_list:
             match_criteria[key] = {}
 
         match_criteria['standard']['match'] = {}

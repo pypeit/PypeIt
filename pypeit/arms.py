@@ -13,7 +13,7 @@ from pypeit import utils
 from pypeit.core import save
 from pypeit.core import wave
 from pypeit.core import pypsetup
-from pypeit.core import sort
+from pypeit.core import fsort
 from pypeit import calibrations
 from pypeit import fluxspec
 from pypeit import scienceimage
@@ -156,7 +156,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             # Science frames
             #-----------------------------------------------------------
             msgs.info("Working on the science frame")
-            sci_image_files = sort.list_of_files(fitstbl, 'science', sci_ID)
+            sci_image_files = fsort.list_of_files(fitstbl, 'science', sci_ID)
 
             # Instantiate
             sciI = scienceimage.ScienceImage(_spectrograph, file_list=sci_image_files,
@@ -270,7 +270,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             # Standard star frames
             #-----------------------------------------------------------
             # Can only reduce these frames if the mask is the same
-            std_idx = sort.ftype_indices(fitstbl, 'standard', sci_ID)
+            std_idx = fsort.ftype_indices(fitstbl, 'standard', sci_ID)
             if len(std_idx) > 0:
                 std_idx = std_idx[0]
             else:
@@ -278,7 +278,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                 continue
             #
             msgs.info("Processing standard star")
-            std_image_files = sort.list_of_files(fitstbl, 'standard', sci_ID)
+            std_image_files = fsort.list_of_files(fitstbl, 'standard', sci_ID)
             if std_idx in std_dict.keys():
                 if det in std_dict[std_idx].keys():
                     continue

@@ -8,7 +8,7 @@ import time
 from pypeit import msgs
 # TODO: (KBW) Can archeck code be put in pypeit/__init__.py ?
 from pypeit import check_requirements  # THIS IMPORT DOES THE CHECKING.  KEEP IT
-from pypeit.core import sort
+from pypeit.core import fsort
 from pypeit.core import qa
 from pypeit import arms
 
@@ -107,7 +107,7 @@ def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_fr
     # TODO: Do we want the code to interactively ask for a new
     # directory?  I think it would be better if it just faulted when a
     # directory/file exists and overwrite is False.
-    sort.make_dirs(spectrograph.spectrograph, par['calibrations']['caldir'],
+    fsort.make_dirs(spectrograph.spectrograph, par['calibrations']['caldir'],
                      par['rdx']['scidir'], par['rdx']['qadir'], overwrite=overwrite)
 
     # Just do it (sponsored by Nike)

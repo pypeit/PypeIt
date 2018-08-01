@@ -2,11 +2,6 @@
 """
 from __future__ import absolute_import, division, print_function
 
-try:
-    basestring
-except NameError:  # For Python 3
-    basestring = str
-
 import glob
 
 import numpy as np
@@ -18,7 +13,7 @@ from pypeit.par.pypeitpar import DetectorPar
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
-from pypeit.core import sort
+from pypeit.core import fsort
 
 from pypeit import debugger
 
@@ -125,7 +120,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
     def get_match_criteria(self):
         match_criteria = {}
-        for key in sort.ftype_list:
+        for key in fsort.ftype_list:
             match_criteria[key] = {}
         #
         match_criteria['standard']['match'] = {}
@@ -620,7 +615,7 @@ def lris_read_amp(inp, ext):
     ;------------------------------------------------------------------------
     """
     # Parse input
-    if isinstance(inp, basestring):
+    if isinstance(inp, str):
         hdu = fits.open(inp)
     else:
         hdu = inp
