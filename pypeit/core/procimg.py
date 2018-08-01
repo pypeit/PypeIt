@@ -820,7 +820,7 @@ def trim_frame(frame, mask):
 #        debugger.set_trace()
 #        msgs.error("Cannot trim file")
 
-
+#ToDO JFH: I think we should have separate routines that create a raw variance frame and a model variance frame
 def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
                    exptime=None, skyframe=None, objframe=None):
     """
@@ -854,6 +854,8 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
     -------
     variance image : ndarray
     """
+
+    # ToDO JFH: I would just add the darkcurrent here into the effective read noise image
     # The effective read noise (variance image)
     rnoise = rn_frame(datasec_img, gain, ronoise, numamplifiers=numamplifiers)
 
@@ -869,7 +871,11 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
     # get the same behavior?  Why is darkcurr (what was dnoise) used
     # with sciframe and not objframe?
 
+    # ToDO JFH: shouldn't dark current be added here as well??
     _objframe = np.zeros_like(skyframe) if objframe is None else objframe
     return np.abs(skyframe + _objframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise
+
+
+
 
 

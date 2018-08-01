@@ -1099,7 +1099,7 @@ specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 
 
 
 
-def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
+def objfind(image, invvar, slit_left, slit_righ, inmask = None, FWHM = 3.0,
             HAND_EXTRACT_DICT = None, std_trace = None, ncoeff = 5, nperslit = 10,  BG_SMTH = 5.0, PKWDTH = 3.0,
             SIG_THRESH = 5.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, TRIM_EDG = (3,3), OBJMASK_NTHRESH = 2.0,
             SHOW_TRACE = False, SHOW_FITS = False, SHOW_PEAKS = True, specobj_dict=specobj_dict):
@@ -1150,11 +1150,11 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
 
     # If a mask was not passed in, create it
-    if mask is None:
-        mask = thismask & (invvar > 0.0)
+    if inmask is None:
+        inmask = thismask & (invvar > 0.0)
 
 
-    thisimg =image*((thismask == True) & (mask == True) & (edgmask == False))
+    thisimg =image*((thismask == True) & (invvar > 0.0) & (inmask == True) & (edgmask == False))
     #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
     xsize = slit_righ - slit_left
     nsamp = np.ceil(np.median(xsize))
@@ -1345,7 +1345,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
     #ypos = np.outer(spec_vec, np.ones(nobj_reg))
     yind = np.arange(nspec,dtype=int)
     for iiter in range(niter):
-        xpos1, xerr1 = trace_fweight(image*mask,xfit1, invvar = invvar*mask, radius = fwhm_vec[iiter])
+        xpos1, xerr1 = trace_fweight(image*inmask,xfit1, invvar = invvar*inmask, radius = fwhm_vec[iiter])
         # Do not do any kind of masking based on xerr1. Trace fitting is much more robust when masked pixels are simply
         # replaced by the tracing crutch
         xerr1 =np.ones_like(xerr1)
@@ -1382,7 +1382,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0,
 
     # Iterate Gaussian weighted centroiding
     for iiter in range(niter):
-        xpos2, xerr2 = trace_gweight(image*mask,xfit2, invvar = invvar*mask, sigma = FWHM/2.3548)
+        xpos2, xerr2 = trace_gweight(image*inmask,xfit2, invvar = invvar*inmask, sigma = FWHM/2.3548)
         # Do not do any kind of masking based on xerr2. Trace fitting is much more robust when masked pixels are simply
         # replaced by the tracing crutch
         # Mask out anything that left the image. 0 = good, 1 = masked (convention from robust_polyfit)
