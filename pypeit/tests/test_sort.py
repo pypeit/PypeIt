@@ -10,7 +10,7 @@ import numpy as np
 
 from astropy.table import hstack
 
-from pypeit.core import sort
+from pypeit.core import fsort
 from pypeit.core import pypsetup
 from pypeit.pypmsgs import PypeItError
 from pypeit.spectrographs.util import load_spectrograph
@@ -18,30 +18,30 @@ from pypeit.spectrographs.util import load_spectrograph
 
 @pytest.fixture
 def fitstbl():
-    return sort.dummy_fitstbl()
+    return fsort.dummy_fitstbl()
 
 @pytest.fixture
 def fitstblno():
-    return sort.dummy_fitstbl(notype=True)
+    return fsort.dummy_fitstbl(notype=True)
 
 
 def test_chk_condition(fitstbl):
     # Lamp (str)
     cond = 'lampstat06=on'
-    ntmp = sort.chk_condition(fitstbl, cond)
+    ntmp = fsort.chk_condition(fitstbl, cond)
     assert np.sum(ntmp) == 1
     # exptime (float)
     cond = 'exptime>30'
-    ntmp = sort.chk_condition(fitstbl, cond)
+    ntmp = fsort.chk_condition(fitstbl, cond)
     assert np.sum(ntmp) == 6
     cond = 'exptime<30'
-    ntmp = sort.chk_condition(fitstbl, cond)
+    ntmp = fsort.chk_condition(fitstbl, cond)
     assert np.sum(ntmp) == 1
     cond = 'exptime<=30'
-    ntmp = sort.chk_condition(fitstbl, cond)
+    ntmp = fsort.chk_condition(fitstbl, cond)
     assert np.sum(ntmp) == 4
     cond = 'exptime!=30'
-    ntmp = sort.chk_condition(fitstbl, cond)
+    ntmp = fsort.chk_condition(fitstbl, cond)
     assert np.sum(ntmp) == 7
 
 
@@ -50,7 +50,7 @@ def test_sort_data(fitstbl):
     """
     spectrograph = load_spectrograph('shane_kast_blue')
     # Sort
-    filesort = sort.type_data(spectrograph, fitstbl)
+    filesort = fsort.type_data(spectrograph, fitstbl)
     assert filesort['bias'][0]
     assert filesort['arc'][1]
     assert filesort['trace'][2]
@@ -76,14 +76,14 @@ def test_match_science(fitstblno):
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     # Load
-    filesort = sort.type_data(spectrograph, fitstblno)
+    filesort = fsort.type_data(spectrograph, fitstblno)
     # Match and test
     mtbl = hstack([fitstblno,filesort])
-    fitstbl = sort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(),
+    fitstbl = fsort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(),
                                       mtbl, par['rdx']['calwin'], setup=True)
-    assert sort.ftype_indices(fitstbl, 'arc', 1)[0] == 1
-    assert sort.ftype_indices(fitstbl, 'standard', 4)[0] == 4
-    assert sort.ftype_indices(fitstbl, 'trace', 1)[0] == 2
+    assert fsort.ftype_indices(fitstbl, 'arc', 1)[0] == 1
+    assert fsort.ftype_indices(fitstbl, 'standard', 4)[0] == 4
+    assert fsort.ftype_indices(fitstbl, 'trace', 1)[0] == 2
     assert fitstbl['sci_ID'][0] == 31
 
 
@@ -93,13 +93,13 @@ def test_neg_match_science(fitstblno):
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     # Load
-    filesort = sort.type_data(spectrograph, fitstblno)
+    filesort = fsort.type_data(spectrograph, fitstblno)
     mtbl = hstack([fitstblno,filesort])
     # Use negative number
     for ftype in ['arc', 'pixelflat', 'bias']:
         par['calibrations']['{0}frame'.format(ftype)]['number'] = 1
     par['calibrations']['traceframe']['number'] = -1
-    fitstbl = sort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(),
+    fitstbl = fsort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(),
                                       mtbl, par['rdx']['calwin'])
     assert np.sum(fitstbl['trace']) == 2
 
@@ -108,11 +108,11 @@ def test_match_science_errors(fitstblno):
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     # Load
-    filesort = sort.type_data(spectrograph, fitstblno)
+    filesort = fsort.type_data(spectrograph, fitstblno)
     mtbl = hstack([fitstblno,filesort])
     par['calibrations']['traceframe']['number'] = 10
     with pytest.raises(PypeItError):
-        sort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(), mtbl,
+        fsort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(), mtbl,
                                 par['rdx']['calwin'])
 
 
@@ -123,10 +123,10 @@ def test_instr_setup(fitstblno):
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     # Load
-    filesort = sort.type_data(spectrograph, fitstblno)
+    filesort = fsort.type_data(spectrograph, fitstblno)
     mtbl = hstack([fitstblno,filesort])
     # Match and test
-    fitstbl = sort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(),
+    fitstbl = fsort.match_to_science(par['calibrations'], spectrograph.get_match_criteria(),
                                       mtbl, par['rdx']['calwin'], setup=True)
 
     # Get an ID

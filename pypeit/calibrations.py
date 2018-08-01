@@ -22,7 +22,7 @@ from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit import waveimage
 
-from pypeit.core import sort
+from pypeit.core import fsort
 from pypeit.core import masters
 from pypeit.core import procimg
 
@@ -340,7 +340,7 @@ class Calibrations(object):
             return self.mspixflatnrm, self.slitprof
 
         # Instantiate
-        pixflat_image_files = sort.list_of_files(self.fitstbl, 'pixelflat', self.sci_ID)
+        pixflat_image_files = fsort.list_of_files(self.fitstbl, 'pixelflat', self.sci_ID)
         self.flatField = flatfield.FlatField(self.spectrograph, file_list=pixflat_image_files,
                                              det=self.det, par=self.par['pixelflatframe'],
                                              setup=self.setup, root_path=self.master_root,
@@ -439,7 +439,7 @@ class Calibrations(object):
         # Load via master, as desired
         if not self.traceSlits.master():
             # Build the trace image first
-            trace_image_files = sort.list_of_files(self.fitstbl, 'trace', self.sci_ID)
+            trace_image_files = fsort.list_of_files(self.fitstbl, 'trace', self.sci_ID)
             traceImage = traceimage.TraceImage(self.spectrograph,
                                            file_list=trace_image_files, det=self.det,
                                            par=self.par['traceframe'])

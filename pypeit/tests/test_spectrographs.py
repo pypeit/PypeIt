@@ -13,7 +13,7 @@ from pypeit.par.util import pypeit_root_directory
 from pypeit import spectrographs
 
 # These tests are not run on Travis
-if os.getenv('PYPIT_DEV') is None:
+if os.getenv('PYPEIT_DEV') is None:
     skip_test=True
 else:
     skip_test=False

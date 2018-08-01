@@ -900,12 +900,12 @@ class ReducePar(ParSet):
         # be rethought.
         return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
-                'wht_isis_blue']
+                'wht_isis_blue', 'vlt_xshooter_vis']
 
     @staticmethod
     def valid_pipelines():
-        """Return the list of allowed pipelines within pypeit."""
-        return [ 'ARMS' ] #, 'ARMED' ]
+        """Return the list of allowed pipelines within pypit."""
+        return [ 'ARMS' , 'ARMED' ]
 
     def validate(self):
         pass
@@ -2342,7 +2342,7 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'KECK', 'SHANE', 'WHT', 'APF', 'TNG' ]
+        return [ 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT' ]
 
     def validate(self):
         pass

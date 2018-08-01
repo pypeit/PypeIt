@@ -10,7 +10,6 @@ import os
 import numpy as np
 
 from pypeit.core import pixels
-from pypeit.core import sort
 from pypeit.core import procimg
 from pypeit.spectrographs.util import load_spectrograph
 

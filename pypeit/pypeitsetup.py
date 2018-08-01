@@ -11,7 +11,7 @@ from astropy.table import hstack, Table
 from pypeit import msgs
 from pypeit.core import load
 from pypeit.core import parse
-from pypeit.core import sort
+from pypeit.core import fsort
 from pypeit.core import pypsetup
 
 from pypeit.par import PypeItPar
@@ -271,7 +271,7 @@ class PypeItSetup(object):
         self.fitstbl -- Updated with 'AB_frame' column
 
         """
-        self.fitstbl = sort.match_ABBA(self.fitstbl)
+        self.fitstbl = fsort.match_ABBA(self.fitstbl)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -287,7 +287,7 @@ class PypeItSetup(object):
         self.fitstbl -- Updated with 'sci_ID' and 'failures' columns
 
         """
-        self.fitstbl = sort.match_to_science(self.par['calibrations'],
+        self.fitstbl = fsort.match_to_science(self.par['calibrations'],
                                                self.spectrograph.get_match_criteria(),
                                                self.fitstbl, self.par['rdx']['calwin'],
                                                setup=setup_only,
@@ -319,7 +319,7 @@ class PypeItSetup(object):
 
         """
         # Allow for input file types from the PYPIT file
-        self.filetypeflags = sort.type_data(self.spectrograph, self.fitstbl,
+        self.filetypeflags = fsort.type_data(self.spectrograph, self.fitstbl,
                                               ftdict=self.frametype, flag_unknown=flag_unknown,
                                               useIDname=use_header_frametype)
 
@@ -432,7 +432,7 @@ class PypeItSetup(object):
         # Write?
         if sort_dir is not None:
             print('WRITING: {0}'.format(sort_dir))
-            sort.write_lst(self.fitstbl, self.spectrograph.header_keys(), pypeit_file,
+            fsort.write_lst(self.fitstbl, self.spectrograph.header_keys(), pypeit_file,
                              setup=setup_only, sort_dir=sort_dir)
 
         # Match calibs to science

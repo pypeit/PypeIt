@@ -38,8 +38,6 @@ class TraceImage(processimages.ProcessImages):
     spectrograph : str (optional)
        Used to specify properties of the detector (for processing)
        Attempt to set with settings['run']['spectrograph'] if not input
-    settings : dict (optional)
-      Settings for trace slits
     setup : str (optional)
       Setup tag
     det : int, optional
@@ -48,6 +46,9 @@ class TraceImage(processimages.ProcessImages):
       Indices for bias frames (if a Bias image may be generated)
     fitstbl : Table (optional)
       FITS info (mainly for filenames)
+    par : ParSet
+      PypitPar['calibrations']['traceframe']
+
     #ToDO datasec_img is not documented!
 
     Attributes

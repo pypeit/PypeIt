@@ -13,7 +13,7 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc
 from pypeit.core import masters
-from pypeit.core import sort
+from pypeit.core import fsort
 from pypeit.par import pypeitpar
 
 from pypeit.spectrographs.spectrograph import Spectrograph
@@ -254,7 +254,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         # Setup arc parameters (e.g. linelist)
-        arc_idx = sort.ftype_indices(self.fitstbl, 'arc', self.sci_ID)
+        arc_idx = fsort.ftype_indices(self.fitstbl, 'arc', self.sci_ID)
         self.arcparam = arc.setup_param(self.spectrograph, self.msarc.shape, self.fitstbl,
                                           arc_idx[0], calibrate_lamps=calibrate_lamps)
         # Step

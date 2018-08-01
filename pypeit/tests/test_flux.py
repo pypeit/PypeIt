@@ -24,7 +24,7 @@ import linetools.utils
 from pypeit.core import flux
 from pypeit.core import load
 from pypeit import utils
-from pypeit.core import sort
+from pypeit.core import fsort
 from pypeit import telescopes
 
 #from xastropy.xutils import afits as xafits
@@ -51,7 +51,7 @@ def test_gen_sensfunc():
     sfile = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     specobjs = load.load_specobj(sfile)
     telescope = telescopes.ShaneTelescopePar()
-    fitstbl = sort.dummy_fitstbl()
+    fitstbl = fsort.dummy_fitstbl()
     RA = '05:06:36.6'
     DEC = '52:52:01.0'
 
