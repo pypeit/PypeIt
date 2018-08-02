@@ -27,7 +27,7 @@ def data_path(filename):
 @pytest.fixture
 def deimos_files():
     if not skip_test:
-        deimos_std_file = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'Science',
+        deimos_std_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                                                  'spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits')
     else:
         deimos_std_file = None
@@ -36,9 +36,9 @@ def deimos_files():
 @pytest.fixture
 def kast_blue_files():
     if not skip_test:
-        std_file = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'Science',
+        std_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                                           'spec1d_Feige66_KASTb_2015May20T041246.96.fits')
-        sci_file = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'Science',
+        sci_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                                           'spec1d_J1217p3905_KASTb_2015May20T045733.56.fits')
         kast_blue_files = [std_file, sci_file]
     else:

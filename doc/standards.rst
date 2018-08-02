@@ -6,7 +6,7 @@
 Standard Stars
 **************
 
-PYPIT has a set of standard stars used for flux
+PypeIt has a set of standard stars used for flux
 calibration that are mainly taken from the now
 defunct STScI calspec package.
 
@@ -61,5 +61,5 @@ feige110_005.fits           FEIGE110      23:19:58.40    -05:09:56.2
 
 
 
-Full list is available in pypit/data/standards/calspec/README
+Full list is available in pypeit/data/standards/calspec/README
 

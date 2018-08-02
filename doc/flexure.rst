@@ -7,7 +7,7 @@ Flexure Correction
 ******************
 
 This document will describe how a flexure correction
-is performed for each 1D spectrum extracted in PYPIT.
+is performed for each 1D spectrum extracted in PypeIt.
 
 Overview
 ========
@@ -47,7 +47,7 @@ Usage
 
 By default in ARMLSD, a flexure correction is performed
 on the boxcar extraction of the sky.  This may be disabled
-by the following setting in the .pypit file::
+by the following setting in the .pypeit file::
 
     reduce flexure spectrum None
 
@@ -72,9 +72,9 @@ Alternate sky models
 You may find that the default sky models are not the best suited 
 for your data.There is a script that allows the user to plot the 
 extracted sky spectrum for their data against any of the sky models 
-in the PYPIT archive. To use this script::
+in the PypeIt archive. To use this script::
 
-    pypit_compare_sky <Name of 1D spectrum> <Name of sky model>
+    pypeit_compare_sky <Name of 1D spectrum> <Name of sky model>
 
 As noted above, the Paranal sky model is the default reference.
 Presently, we are finding that the sky spectrum at Mauna Kea (measured
@@ -85,11 +85,11 @@ in the LowRedux package. The best practice currently is to use the one
 that best matches as an optional parameter
 
 You can use a different sky model than the default by placing the 
-following line under the ''Reduce'' block in your .pypit file::
+following line under the ''Reduce'' block in your .pypeit file::
 
     reduce flexure spectrum <Name of sky model>
 
-The models supplied with PYPIT are,
+The models supplied with PypeIt are,
 
 ================================   ===========
 Filename                           Description

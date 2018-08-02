@@ -25,7 +25,7 @@ else:
 def deimos_flat_files():
     if not skip_test:
         # Longslit in dets 3,7
-        deimos_flat_files = [os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS',
+        deimos_flat_files = [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS',
                                           '830G_L', ifile) 
                                             for ifile in ['d0914_0014.fits', 'd0914_0015.fits']]
         assert len(deimos_flat_files) == 2
@@ -36,7 +36,7 @@ def deimos_flat_files():
 @pytest.fixture
 def kast_blue_bias_files():
     if not skip_test:
-        kast_blue_bias_files = glob.glob(os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA',
+        kast_blue_bias_files = glob.glob(os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
                                                       'Shane_Kast_blue', '600_4310_d55',
                                                       'b1?.fits*'))
     else:
