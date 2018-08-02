@@ -24,12 +24,12 @@ from pypit import ardebug as debugger
 
 class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Keck/LRIS specific code
+    Child to handle VLT/XSHOOTER specific code
     """
     def __init__(self):
         # Get it started
         super(VLTXShooterSpectrograph, self).__init__()
-        self.spectrograph = 'vlt_xshooter'
+        self.spectrograph = 'vlt_xshooter_vis'
         self.telescope = telescopes.VLTTelescopePar()
 
     def xshooter_header_keys(self):
