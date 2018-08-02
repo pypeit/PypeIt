@@ -38,7 +38,7 @@ def main(pargs):
 
     from pypeit import ginga
     from pypeit import traceslits
-    from pypeit.core.artraceslits import get_slitid
+    from pypeit.core.trace_slits import get_slitid
 
     import subprocess
 
