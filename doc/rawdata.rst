@@ -13,7 +13,7 @@ We recommend you organize them by date of observation.
 You will need to provide the full path to the files
 and a filename root (unless you wish to specify them
 one by one!).  Here is an example path+root that one
-would use with pypit_setup::
+would use with pypeit_setup::
 
     /Users/xavier/Keck/LRIS/data/2016apr06/Raw/LB.20160406.
 

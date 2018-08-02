@@ -27,7 +27,7 @@ def main(*args, **kwargs):
 
     parser = argparse.ArgumentParser(description='Parse')
     parser.add_argument("file", type=str, help="Spectral file")
-    parser.add_argument("skyfile", type=str, help="Archived PYPIT sky file (e.g. paranal_sky.fits")
+    parser.add_argument("skyfile", type=str, help="Archived PypeIt sky file (e.g. paranal_sky.fits")
     parser.add_argument("--exten", type=int, help="FITS extension")
     parser.add_argument("--optimal", default=False,
                         help="Show Optimal? Default is boxcar", action="store_true")

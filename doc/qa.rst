@@ -1,10 +1,10 @@
 .. highlight:: rest
 
 ********
-PYPIT QA
+PypeIt QA
 ********
 
-As part of the standard reduction, PYPIT generates a series
+As part of the standard reduction, PypeIt generates a series
 of Quality Assurance (QA) files. This documentation describes
 the typical outputs, in the typical order that they appear.
 The basic arrangement is that individual PNG files are created
@@ -34,7 +34,7 @@ one generated for each setup and detector and
 (possibly) calibration set.
 
 Generally, the title describes the type of QA and the
-sub-title indicates the user who ran PYPIT and the
+sub-title indicates the user who ran PypeIt and the
 date of the processing.
 
 .. _slit-edge-qa:

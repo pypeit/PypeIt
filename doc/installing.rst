@@ -1,10 +1,10 @@
 .. highlight:: rest
 
 ****************
-Installing PYPIT
+Installing PypeIt
 ****************
 
-This document will describe how to install PYPIT.
+This document will describe how to install PypeIt.
 
 Installing Dependencies
 =======================
@@ -20,7 +20,7 @@ Detailed installation instructions are presented below:
 Python Dependencies
 -------------------
 
-PYPIT depends on the following list of Python packages. 
+PypeIt depends on the following list of Python packages. 
 
 We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to install and/or update these packages.
 
@@ -37,7 +37,7 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 
 These packages need to be installed by cloning from GitHub:
 
-* `arclines <https://github.com/PYPIT/arclines>`_  (this also requires numba)
+* `arclines <https://github.com/pypeit/arclines>`_  (this also requires numba)
 * `ginga <https://github.com/profxj/ginga>`_ JXP's fork of Ginga
 
 If you are using Anaconda, you can check the presence of these packages with::
@@ -56,12 +56,12 @@ For Ginga, it is currently necessary that you install the fork maintained by JXP
     cd ginga
     python setup.py install
 
-We hope to make a plug-in for PYPIT instead in the future.
+We hope to make a plug-in for PypeIt instead in the future.
 
 Installing Linetools
 --------------------
 The latest version of `linetools <https://github.com/linetools/linetools/>`_ is
-also required for PYPIT.
+also required for PypeIt.
 Linetools is a package designed for the analysis of 1-D spectra.
 The installation steps for linetools are provided
 `here <http://linetools.readthedocs.io/en/latest/install.html/>`_.
@@ -79,7 +79,7 @@ GSL installation
 ++++++++++++++++
 
 The package complies Cython code that links to gsl routines.
-These must be installed on your system prior to PYPIT installation.
+These must be installed on your system prior to PypeIt installation.
 We recommend that if you need to install GSL that you use Anaconda,
 e.g.::
 
@@ -111,7 +111,7 @@ The Mac OSX El Capitan operating system introduced
 as the creation of symlinks in SIP-protected folders (ex: /usr, /bin etc).
 The /Users folder, where Anaconda generally installs packages,
 is also SIP-protected. This means that the relative paths produced by
-some of our Cython code are interfered with by SIP and will cause PYPIT to crash.
+some of our Cython code are interfered with by SIP and will cause PypeIt to crash.
 
 Here are some hacks to make the anaconda installation work as
 well as some alternate installation instructions:
@@ -120,7 +120,7 @@ well as some alternate installation instructions:
 ::
 
 	 #in this example, GSL is installed in '/Users/USERNAME/anaconda/lib/'
-	 cd PYPIT/pypit/
+	 cd PypeIt/pypeit/
 	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyextract.so
 	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyextract.so
 	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcytrace.so
@@ -156,22 +156,22 @@ Since Homebrew installs programs in /usr/local , which is not
 SIP protected, this should work without additional hacks.
 
 
-Installing PYPIT
+Installing PypeIt
 ================
 
 We recommend that you grab the code from github::
 
-	#go to the directory where you would like to install PYPIT.
-	git clone https://github.com/PYPIT/PYPIT.git
+	#go to the directory where you would like to install PypeIt.
+	git clone https://github.com/pypeit/pypeit.git
 
 From there, you can build and install either with install or develop, e.g.::
 
-	cd PYPIT
+	cd PypeIt
 	python setup.py develop
 
 or::
 
-	cd PYPIT
+	cd PypeIt
 	python setup.py install
 
 This should compile all the necessary Cython files, etc.
@@ -183,22 +183,22 @@ If your python installation requires root access, you'll need to use sudo with t
 
 Tests
 =====
-In order to assess whether PYPIT has been properly installed,
+In order to assess whether PypeIt has been properly installed,
 we suggest you run the following tests:
 
-1. Ensure run_pypit works
+1. Ensure run_pypeit works
 -------------------------
-Go to a directory outside of the PYPIT directory (e.g. your home directory),
-then type run_pypit.::
+Go to a directory outside of the PypeIt directory (e.g. your home directory),
+then type run_pypeit.::
 
 	cd
-	run_pypit
+	run_pypeit
 
 
-2. Run the PYPIT unit tests
+2. Run the PypeIt unit tests
 ---------------------------
 
-Enter the PYPIT directory and do::
+Enter the PypeIt directory and do::
 
     python setup.py test
 
@@ -206,33 +206,33 @@ Enter the PYPIT directory and do::
 3. Try the test suite
 ---------------------
 We have provided a suite of tests that you can download and run via this Repo:
-`TestSuite <https://github.com/PYPIT/PYPIT-development-suite>`_
+`TestSuite <https://github.com/pypeit/PypeIt-development-suite>`_
 
 It can be installed as follows::
 
-	# we suggest installing this in the directory above PYPIT
-	git clone https://github.com/PYPIT/PYPIT-development-suite.git
+	# we suggest installing this in the directory above PypeIt
+	git clone https://github.com/pypeit/PypeIt-development-suite.git
 
 To run the test::
 
-	cd PYPIT-development-suite
-	./pypit_test all
+	cd PypeIt-development-suite
+	./pypeit_test all
 
 .. note::
 
-	pypit_test can also take the argument kast instead of all. 
+	pypeit_test can also take the argument kast instead of all. 
 
 
 The test takes a while to run but should run without issue if all the packages have been properly installed. 
 
 
-**If you installed GSL with anaconda, a common error from running ./pypit_test all is:**
+**If you installed GSL with anaconda, a common error from running ./pypeit_test all is:**
 
 |[BUG]     :: There appears to be a bug on Line 7 of arproc.py with error:
 
-| dlopen(/Users/USERNAME/software/PYPIT/pypit/arcyextract.so, 2): Library not loaded: @rpath/./libgsl.0.dylib
+| dlopen(/Users/USERNAME/software/PypeIt/pypeit/arcyextract.so, 2): Library not loaded: @rpath/./libgsl.0.dylib
 
-| Referenced from: /Users/USERNAME/software/PYPIT/pypit/arcyextract.so
+| Referenced from: /Users/USERNAME/software/PypeIt/pypeit/arcyextract.so
 
 
 **To fix this bug:**

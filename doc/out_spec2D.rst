@@ -6,11 +6,11 @@ Spec2D Output
 
 .. index:: spec2d
 
-During the data reduction proceess, PYPIT creates a series
+During the data reduction proceess, PypeIt creates a series
 of 2D spectral images prior to extraction of 1D spectra.
 And, of course, several of these 2D images may have greater
 value for analysis than the 1D spectra.  For each on-source
-exposure, PYPIT outputs a series of these images, with the
+exposure, PypeIt outputs a series of these images, with the
 number set by the :ref:`outputs-reduction-mode`.  
 The following table describes the possible products:
 

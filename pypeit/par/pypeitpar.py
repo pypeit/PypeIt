@@ -2282,7 +2282,8 @@ class TelescopePar(ParSet):
     class, and an explanation of how to define a new instrument, see
     :ref:`instruments`.
     """
-    def __init__(self, name=None, longitude=None, latitude=None, elevation=None):
+    def __init__(self, name=None, longitude=None, latitude=None, elevation=None, fratio=None,
+                 diameter=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2304,17 +2305,20 @@ class TelescopePar(ParSet):
         descr['name'] = 'Name of the telescope used to obtain the observations.  ' \
                         'Options are: {0}'.format(', '.join(options['name']))
         
-        defaults['longitude'] = 155.47833
         dtypes['longitude'] = [int, float]
         descr['longitude'] = 'Longitude of the telescope on Earth in degrees.'
 
-        defaults['latitude'] = 19.82833
         dtypes['latitude'] = [int, float]
         descr['latitude'] = 'Latitude of the telescope on Earth in degrees.'
 
-        defaults['elevation'] = 4160.0
         dtypes['elevation'] = [int, float]
         descr['elevation'] = 'Elevation of the telescope in m'
+
+        dtypes['fratio'] = [int, float]
+        descr['fratio'] = 'f-ratio of the telescope'
+
+        dtypes['diameter'] = [int, float]
+        descr['diameter'] = 'Diameter of the telescope in m'
 
         # Instantiate the parameter set
         super(TelescopePar, self).__init__(list(pars.keys()),
@@ -2331,7 +2335,7 @@ class TelescopePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'name', 'longitude', 'latitude', 'elevation' ]
+        parkeys = [ 'name', 'longitude', 'latitude', 'elevation', 'fratio', 'diameter' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2346,5 +2350,21 @@ class TelescopePar(ParSet):
 
     def validate(self):
         pass
+
+    def platescale(self):
+        r"""
+        Return the platescale of the telescope in arcsec per mm.
+
+        Calculated as
+
+        .. math::
+            p = \frac{206265}{f D},
+
+        where :math:`f` is the f-ratio and :math:`D` is the diameter.
+        If either of these is not available, the function returns
+        `None`.
+        """
+        return None if self['fratio'] is None or self['diameter'] is None \
+                else 206265/self['fratio']/self['diameter']/1e3
 
 

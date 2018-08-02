@@ -34,7 +34,7 @@ if os.getenv('PYPEIT_DEV') is None:
 else:
     skip_test=False
     # MultiSlit
-    fitstbl = fsort.dummy_fitstbl(directory=os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA',
+    fitstbl = fsort.dummy_fitstbl(directory=os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
                                                           'Shane_Kast_blue', '600_4310_d55'))
     fitstbl['filename'][1] = 'b1.fits.gz'
     for ii in range(2,5):
@@ -63,8 +63,8 @@ def multi_caliBrate():
                                          biasframe=pypeitpar.FrameGroupPar('bias',
                                                                           useframe='overscan'))
 
-    master_root = data_path('MF') if os.getenv('PYPIT_DEV') is None \
-                    else os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
+    master_root = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
+                    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     
     multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl, spectrograph=spectrograph,
                                                         par=calib_par, master_root=master_root,

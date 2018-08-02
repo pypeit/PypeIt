@@ -4,7 +4,7 @@
 Code Flow
 =========
 
-This describes the standard code flow of PYPIT.
+This describes the standard code flow of PypeIt.
 
 ARMS
 ====
@@ -14,9 +14,9 @@ Multi-slit and longslit reductions.
 ===============  ============= ============= ============================================ ===========================
 Step             Class/module  Internals     Outputs                                      QA
 ===============  ============= ============= ============================================ ===========================
-Setup            PypitSetup    fitstbl       keck_lris_red_setup_A.fits
+Setup            PypeItSetup   fitstbl       keck_lris_red_setup_A.fits
 ..                             setup_dict    setup_files/keck_lris_red_2018-Jun-19.setups
-..                                           keck_lris_red_setup_A.pypit
+..                                           keck_lris_red_setup_A.pypeit
 Bias             BiasFrame     msbias        MasterBias_A_02_aa.fits
 ArcImg           ArcImage      msarc         MasterArc_A_02_aa.fits
 Bad Pixel Mask   BPMImage      msbpm
