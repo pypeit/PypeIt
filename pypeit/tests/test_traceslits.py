@@ -34,7 +34,7 @@ def test_load_from_master_and_run():
         assert True
         return
     # Check for files
-    mstrace_root = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'Trace',
+    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
                                 'MasterTrace_KeckLRISr_150420_402')
     assert chk_for_files(mstrace_root)
     # Load
@@ -47,7 +47,7 @@ def test_add_slit():
         assert True
         return
     # Check for files
-    mstrace_root = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'Trace',
+    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
                                 'MasterTrace_KeckLRISr_150420_402')
     assert chk_for_files(mstrace_root)
     # Load
@@ -65,7 +65,7 @@ def test_remove_slit():
         assert True
         return
     # Check for files
-    mstrace_root = os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'Trace',
+    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
                                 'MasterTrace_KeckLRISr_20160110_A')
     assert chk_for_files(mstrace_root)
     # Load

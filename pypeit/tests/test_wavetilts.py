@@ -48,8 +48,8 @@ def test_step_by_step():
     setup = 'A_01_aa'
     spectrograph.detector[0]['saturation'] = 60000.
     spectrograph.detector[0]['nonlinear'] = 0.9
-    root_path = data_path('MF') if os.getenv('PYPIT_DEV') is None \
-                    else os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
+    root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
+                    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     par = pypeitpar.WaveTiltsPar()
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
                                     root_path=root_path, mode='reuse', pixlocn=TSlits.pixlocn,
@@ -85,8 +85,8 @@ def test_run():
     setup = 'A_01_aa'
     spectrograph.detector[0]['saturation'] = 60000.
     spectrograph.detector[0]['nonlinear'] = 0.9
-    root_path = data_path('MF') if os.getenv('PYPIT_DEV') is None \
-                    else os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
+    root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
+                    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     par = pypeitpar.WaveTiltsPar()
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
                                     root_path=root_path, mode='reuse', pixlocn=TSlits.pixlocn,

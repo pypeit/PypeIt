@@ -109,7 +109,7 @@ Contents
 .. toctree::
    :maxdepth: 4
 
-   pypit
+   pypeit
 
 Indices and tables
 ++++++++++++++++++

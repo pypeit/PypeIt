@@ -28,7 +28,7 @@ def data_path(filename):
 @pytest.fixture
 def deimos_flat_files():
     if not skip_test:
-        deimos_flat_files = [os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS',
+        deimos_flat_files = [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS',
                                           '830G_L', ifile)
                                 for ifile in ['d0914_0014.fits', 'd0914_0015.fits']]
     else:

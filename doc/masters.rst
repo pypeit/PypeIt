@@ -4,7 +4,7 @@
 Master Frames
 *************
 
-By default, PYPIT will write a series of
+By default, PypeIt will write a series of
 calibration files per setup to the hard-drive in the
 MastersFrames folder named MF_instrument (e.g.
 MF_lris_blue).  This is to allow the user
@@ -55,15 +55,15 @@ identified by the code.
 Command Line
 ------------
 
-When executing run_pypit, call with -m or --use_masters, e.g.::
+When executing run_pypeit, call with -m or --use_masters, e.g.::
 
-    run_pypit pypit_file.pypit -m
+    run_pypeit pypeit_file.pypeit -m
 
-PYPIT file
+PypeIt file
 ----------
 
 Alternatively, you can add `reduce masters reuse True` to your
-PYPIT file.
+PypeIt file.
 
 Force
 +++++
@@ -74,8 +74,8 @@ In this case, take the following steps:
 
 1. Generate the properly named MF directory (e.g. MF_lris_red).
 2. Copy all the necessary MasterFrame files into this directory
-3. Add `reduce masters force True` to the PYPIT file
-4. Add `reduce masters setup SETUP_NAME` to the PYPIT file, where
+3. Add `reduce masters force True` to the PypeIt file
+4. Add `reduce masters setup SETUP_NAME` to the PypeIt file, where
 SETUP_NAME needs to match the setup used in the MasterFrames, e.g.
 C_01_aa or A_02_ab.  Note that the detector number is not used
 but should be 2 digits.

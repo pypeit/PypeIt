@@ -44,8 +44,8 @@ def test_build_me():
                                               wvcalib=True)
     # Instantiate
     setup = 'A_01_aa'
-    root_path = data_path('MF') if os.getenv('PYPIT_DEV') is None \
-                    else os.path.join(os.getenv('PYPIT_DEV'), 'Cooked', 'MF')
+    root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
+                    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     directory_path = root_path+'_'+spectrograph.spectrograph
     mode = 'reuse'
     maskslits = np.zeros(TSlits.nslit, dtype=bool)

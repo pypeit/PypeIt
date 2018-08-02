@@ -8,7 +8,7 @@ Flat fielding
 Overview
 ========
 
-PYPIT corrects pixel-to-pixel variations using input pixelflat frames
+PypeIt corrects pixel-to-pixel variations using input pixelflat frames
 or by loading a pre-made master pixelflat.  The default approach is to
 use pixel flat frames and require that several be provided.
 
@@ -48,7 +48,7 @@ bspline
 
 The bspline method takes a single parameter which, if >= 1, corresponds to
 the spacing between knots in the spectral direction, in units of pixels.
-If the supplied parameter value is less than 1, PYPIT assumes that this
+If the supplied parameter value is less than 1, PypeIt assumes that this
 represents a fraction of the pixels in the spectral direction, and will
 use this as the knot spacing. The default value is 0.05.
 
@@ -56,7 +56,7 @@ Blaze information
 =================
 
 The blaze functions that are derived from one of the methods listed above
-are saved by PYPIT. If desired, you can perform a simple 2D PCA on the
+are saved by PypeIt. If desired, you can perform a simple 2D PCA on the
 blaze models. This step is only recommended (but not necessary) for
 echelle data reduction, where the blaze functions of neighbouring slits
 are quite similar. A 2D PCA will not be performed if the argument of the

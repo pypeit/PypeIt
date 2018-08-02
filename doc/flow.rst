@@ -11,16 +11,16 @@ Setup
 Flow
 ----
 
-Below is the code flow for the :ref:`pypit-setup` script.  The
+Below is the code flow for the :ref:`pypeit-setup` script.  The
 following are nearly all function names or object methods.
 The module name is typically the first item, e.g. arparse.init
 is a method in arparse.py.  Here goes::
 
-   ├── pypit_setup
-   |  ├── pyputils.make_pypit_file(pypit_file, spectrograph, dfnames)
-   |  ├── run_pypit.parser(options)
-   |  ├── pypit.PYPIT(args)
-   |  |  ├── load_input(pypit_file)
+   ├── pypeit_setup
+   |  ├── pyputils.make_pypeit_file(pypeit_file, spectrograph, dfnames)
+   |  ├── run_pypeit.parser(options)
+   |  ├── pypeit.PypeIt(args)
+   |  |  ├── load_input(pypeit_file)
    |  |  |  ++ generates pyp_dict
    |  |  ├── arparse.get_argflag_class()
    |  |  |  ++ generates argf Class
@@ -43,7 +43,7 @@ is a method in arparse.py.  Here goes::
    |  |  |  ├── # Checks on FITS files
    |  |  |  ├── settings.spect['check'][ch]
    |  |  ├── # Flip dispersion direction (if needed)
-   |  ├── ARMLSD  # This is formally below PYPIT, but I want to reduce the indentation here
+   |  ├── ARMLSD  # This is formally below PypeIt, but I want to reduce the indentation here
    |  |  ├── armbase.SetupScience(fitsdict)
    |  |  |  ├── filesort = arsort.sort_data(fitsdict)
    |  |  |  |  ├── find_standard_file()
