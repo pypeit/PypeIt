@@ -12,15 +12,15 @@ import glob
 import numpy as np
 from astropy.io import fits
 
-from pypit import msgs
-from pypit import arparse
-from pypit.par.pypitpar import DetectorPar
-from pypit.par import pypitpar
-from pypit.spectrographs import spectrograph
-from pypit import telescopes
-from pypit.core import arsort
+from pypeit import msgs
+from pypeit.core import parse
+from pypeit.par.pypeitpar import DetectorPar
+from pypeit.par import pypeitpar
+from pypeit.spectrographs import spectrograph
+from pypeit import telescopes
+from pypeit.core import fsort
 
-from pypit import ardebug as debugger
+from pypeit import debugger
 
 class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     """
@@ -50,7 +50,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
 class VLTXShooterVisSpectrograph(VLTXShooterSpectrograph):
     """
-    Child to handle Keck/LRISb specific code
+    Child to handle VLT/XSHOOTER specific code
     """
     def __init__(self):
         # Get it started
@@ -82,11 +82,11 @@ class VLTXShooterVisSpectrograph(VLTXShooterSpectrograph):
         #self.sky_file = 'sky_LRISb_600.fits'
 
     @staticmethod
-    def default_pypit_par():
+    def default_pypeit_par():
         """
         Set default parameters for Keck LRISb reductions.
         """
-        par = pypitpar.PypitPar()
+        par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'vlt_xshooter_vis'
         # Use the ARMS pipeline
         par['rdx']['pipeline'] = 'ARMED'
@@ -95,11 +95,11 @@ class VLTXShooterVisSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['maxshift'] = 0.5  # Trace crude
         #par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypitpar.SkySubtractionPar()
+        par['skysubtract'] = pypeitpar.SkySubtractionPar()
         # Always flux calibrate, starting with default parameters
-        #par['fluxcalib'] = pypitpar.FluxCalibrationPar()
+        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypitpar.FlexurePar()
+        par['flexure'] = pypeitpar.FlexurePar()
         return par
 
     def check_header(self):
