@@ -1099,7 +1099,7 @@ specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 
 
 
 
-def objfind(image, invvar, slit_left, slit_righ, inmask = None, FWHM = 3.0,
+def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
             HAND_EXTRACT_DICT = None, std_trace = None, ncoeff = 5, nperslit = 10,  BG_SMTH = 5.0, PKWDTH = 3.0,
             SIG_THRESH = 5.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, TRIM_EDG = (3,3), OBJMASK_NTHRESH = 2.0,
             SHOW_TRACE = False, SHOW_FITS = False, SHOW_PEAKS = True, specobj_dict=specobj_dict):
@@ -1142,9 +1142,9 @@ def objfind(image, invvar, slit_left, slit_righ, inmask = None, FWHM = 3.0,
 
     # Synthesize thismask, ximg, and edgmask  from slit boundaries. Doing this outside this
     # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
-    pad =0
-    slitpix = pixels.slit_pixels(slit_left, slit_righ, frameshape, pad)
-    thismask = (slitpix > 0)
+    #    pad =0
+    #    slitpix = pixels.slit_pixels(slit_left, slit_righ, frameshape, pad)
+    #    thismask = (slitpix > 0)
 
 #    if (ximg is None) | (edgmask is None):
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
@@ -1426,7 +1426,7 @@ def objfind(image, invvar, slit_left, slit_righ, inmask = None, FWHM = 3.0,
         # First Parse the hand_dict
         HAND_EXTRACT_SPEC, HAND_EXTRACT_SPAT, HAND_EXTRACT_DET, HAND_EXTRACT_FWHM = parse_hand_dict(HAND_EXTRACT_DICT)
         # Determine if these hand apertures land on the slit in question
-        hand_on_slit = thismask[int(np.rint(HAND_SPEC)),int(np.rint(HAND_SPAT))]
+        hand_on_slit = thismask[int(np.rint(HAND_EXTRACT_SPEC)),int(np.rint(HAND_EXTRACT_SPAT))]
         HAND_EXTRACT_SPEC = HAND_EXTRACT_SPEC[hand_on_slit]
         HAND_EXTRACT_SPAT = HAND_EXTRACT_SPAT[hand_on_slit]
         HAND_EXTRACT_DET  = HAND_EXTRACT_DET[hand_on_slit]
@@ -1552,7 +1552,7 @@ def objfind(image, invvar, slit_left, slit_righ, inmask = None, FWHM = 3.0,
             ginga.show_trace(viewer, ch,sobjs[iobj].trace_spat, trc_name = sobjs[iobj].idx, color=color)
 
 
-    return (sobjs, skymask, objmask)
+    return (sobjs, skymask[thismask], objmask[thismask])
 
 
 
