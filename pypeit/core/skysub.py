@@ -466,8 +466,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                                     box_rad, sobjs[iobj])
                     # If the extraction is bad do not update
                     if sobjs[iobj].optimal['MASK_OPT'].any():
-                        flux = sobjs[iobj].optimal['FLUX_OPT']
-                        fluxivar = sobjs[iobj].optimal['IVAR_OPT']
+                        flux = sobjs[iobj].optimal['COUNTS_OPT']
+                        fluxivar = sobjs[iobj].optimal['COUNTS_IVAR_OPT']
                         wave = sobjs[iobj].optimal['WAVE_OPT']
 
                 if wave.any():
@@ -612,8 +612,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         # TODO add error checking here to see if ginga exists
         viewer, ch = ginga.show_image((sciimg - skyimage - objimage) * np.sqrt(modelivar)*thismask)
         # TODO figure out a way to overplot the pixels that were masked in red like as a scatter plot
-        for spec in sobjs
-            if spec.HAND_FLAG == False:
+        for spec in sobjs:
+            if spec.HAND_EXTRACT_FLAG == False:
                 color = 'green'
             else:
                 color = 'orange'
