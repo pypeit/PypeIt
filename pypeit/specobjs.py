@@ -86,11 +86,11 @@ class SpecObj(object):
         self.maxcol = None
 
         # Attributes for HAND apertures, which are object added to the extraction by hand
-        self.HAND_SPEC = None
-        self.HAND_SPAT = None
-        self.HAND_DET = None
-        self.HAND_FWHM = None
-        self.HAND_FLAG = False
+        self.HAND_EXTRACT_SPEC = None
+        self.HAND_EXTRACT_SPAT = None
+        self.HAND_EXTRACT_DET = None
+        self.HAND_EXTRACT_FWHM = None
+        self.HAND_EXTRACT_FLAG = False
 
 
         # Dictionaries holding boxcar and optimal extraction parameters
