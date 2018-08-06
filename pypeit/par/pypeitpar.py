@@ -2153,7 +2153,7 @@ class DetectorPar(ParSet):
 
         # TODO: Should this be detector-specific, or camera-specific?
         defaults['dispaxis'] = 0
-        options['dispaxis'] = [ 0, 1 ]
+        options['dispaxis'] = [ 0, 1, -1]
         dtypes['dispaxis'] = int
         descr['dispaxis'] = 'Spectra are dispersed along this axis (0 for row, 1 for column)'
 

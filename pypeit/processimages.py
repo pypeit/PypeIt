@@ -110,6 +110,7 @@ class ProcessImages(object):
         # Constructed by process:
         self.crmask = None          # build_crmask
         self.rawvarframe = None     # build_rawvarframe
+        self.rn2img = None          # build_rn2img
         self.bpm = None             # passed as an argument to process(), flat_field()
         self.pixel_flat = None      # passed as an argument to process(), flat_field()
         self.slitprof = None        # passed as an argument to process(), flat_field()
@@ -464,6 +465,32 @@ class ProcessImages(object):
         # Done
         return self.stack.copy()
 
+    def build_rn2img(self):
+        """
+        Generate the model read noise squared image
+
+        Currently only used by ScienceImage.
+
+        Wrapper to procimg.rn_frame
+
+        Returns
+        -------
+        self.rn2img : ndarray
+
+        """
+        msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
+        datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+        if trim:
+            datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)
+        detector = self.spectrograph.detector[self.det-1]
+        self.rn2img = procimg.rn_frame(datasec_img, detector['gain'], detector['ronoise'], numamplifiers=detector['numamplifiers'])
+
+        # ToDO JFH should we add a step here?
+        # Step
+        # self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.rn2img
+
     def build_rawvarframe(self, trim=True):
         """
         Generate the Raw Variance frame
@@ -492,6 +519,7 @@ class ProcessImages(object):
         self.steps.append(inspect.stack()[0][3])
         # Return
         return self.rawvarframe
+
 
     def show(self, attr='stack', idx=None, display='ginga'):
         """
