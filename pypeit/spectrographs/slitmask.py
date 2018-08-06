@@ -1,4 +1,5 @@
-""" Module to define the SlitMask class
+"""
+Module to define the SlitMask class
 """
 from __future__ import absolute_import
 from __future__ import division

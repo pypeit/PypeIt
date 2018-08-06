@@ -27,6 +27,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'keck_deimos'
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'DEIMOS'
+        self.grating = None
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext         = 1,
@@ -425,6 +426,105 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             arcparam['min_ampl'] = 2000.  # Lines tend to be very strong
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+
+
+    def get_grating(self, filename):
+        hdu = fits.open(filename)
+
+        # Grating slider
+        slider = hdu[0].header['GRATEPOS']
+        # TODO: Add test for slider
+
+        # Central wavelength, grating angle, and tilt position
+        if slider == 3:
+            central_wave = hdu[0].header['G3TLTWAV']
+            angle = (hdu[0].header['G3TLTRAW'] + 29094)/2500
+            tilt = hdu[0].header['G3TLTVAL']
+        else:
+            # Slider is 2 or 4
+            central_wave = hdu[0].header['G4TLTWAV']
+            angle = (hdu[0].header['G4TLTRAW'] + 40934)/2500
+            tilt = hdu[0].header['G4TLTVAL']
+
+        # Ruling
+        name = hdu[0].header['GRATENAM']
+        if 'Mirror' in name:
+            ruling = 0
+        else:
+            # Remove all non-numeric characters from the name and
+            # convert to a floating point number
+            ruling = float(re.sub('[^0-9]', '', name))
+            # Adjust
+            if abs(ruling-1200) < 0.5:
+                ruling = 1200.06
+            elif abs(ruling-831) <  2:
+                ruling = 831.90
+
+        # Get the orientation of the grating
+        roll, yaw, tilt = KeckDEIMOSSpectrograph._grating_orientation(slider, ruling, tilt)
+   
+    @staticmethod
+    def _grating_orientation(slider, ruling, tilt):
+        """
+        Return the roll, yaw, and tilt of the grating.
+
+        Numbers are hardwired.
+
+        From xidl/DEEP2/spec2d/pro/omodel_params.pro
+        """
+        if slider == 2 and int(ruling) == 0:
+            # Mirror in place of the grating
+            return 0., 0., -19.423
+
+        if slider == 2:
+            raise ValueError('Ruling should be 0 if slider in position 2.')
+
+        # Use the calibrated coefficients
+        _ruling = int(ruling) if int(ruling) in [600, 831, 900, 1200] else 'other'
+        orientation_coeffs = {3: {    600: [ 0.145, -0.008, 5.6, -0.182],
+                                      831: [ 0.143,  0.000, 5.6, -0.182],
+                                      900: [ 0.141,  0.000, 5.6, -0.134],
+                                     1200: [ 0.145,  0.055, 5.6, -0.181],
+                                  'other': [ 0.145,  0.000, 5.6, -0.182] },
+                              4: {    600: [-0.065,  0.063, 6.9, -0.298],
+                                      831: [-0.034,  0.060, 6.9, -0.196],
+                                      900: [-0.064,  0.083, 6.9, -0.277],
+                                     1200: [-0.052,  0.122, 6.9, -0.294],
+                                  'other': [-0.050,  0.080, 6.9, -0.250] } }
+
+        # Return calbirated roll, yaw, and tilt
+        return orientation_coeffs[grating][_ruling][0], \
+                orientation_coeffs[grating][_ruling][1],
+                tilt*(1-orientation_coeffs[grating][_ruling][2]-4) \
+                    + orientation_coeffs[grating][_ruling][3]
+
+    def focal_plane(self):
+        """
+        Return pupil distance and radius of curvature in mm.
+
+        Taken from xidl/DEEP2/spec2d/pro/model/pre_grating
+        """
+        return 20018.4, 2124.71
+
+    def sample_focal_plane(self, nx, ny, grid_buffer=5):
+
+        # Size of the relevant focal plane in mm
+        xsize = 364.
+        ysize = 220.
+
+        dx = xsize/(nx-1)
+        dy = ysize/(ny-1)
+
+        xs = -nx//2 - grid_buffer
+        ys = -grid_buffer
+
+        return numpy.meshgrid((xs + numpy.arange(nx+2*grid_buffer+1))*dx,
+                              (ys + numpy.arange(ny+2*grid_buffer+1))*dy, indexing='xy')
+
+
+
+        
+            
 
 
 def read_deimos(raw_file, det=None):
