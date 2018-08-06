@@ -25,7 +25,7 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext         = 0,
-                            dispaxis        = 1,
+                            dispaxis        = -1,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -35,35 +35,45 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
                             nonlinear       = 0.76,
                             numamplifiers   = 1,
                             gain            = 3.8,
-                            ronoise         = 2,
-                            datasec         = '[:,:]',
-                            oscansec        = '[:,:]'
+                            ronoise         = 5.0,
+                            datasec         = '[0:2048,0:980]',
+                            oscansec        = '[0:2048,980:1024]'
                             )
             ]
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
 
-    def bpm(self, shape=None, **null_kwargs):
-        """ Generate a BPM
+
+
+    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+        """
+        Override parent bpm function with BPM specific to X-Shooter VIS.
+
+        .. todo::
+            Allow for binning changes.
 
         Parameters
         ----------
-        shape : tuple, REQUIRED
+        det : int, REQUIRED
+        **null_kwargs:
+            Captured and never used
 
         Returns
         -------
-        badpix : ndarray
+        bpix : ndarray
+          0 = ok; 1 = Mask
 
         """
-        # Edges of the detector are junk
         msgs.info("Custom bad pixel mask for NIRES")
-        if shape is None and self.naxis is None:
-            raise ValueError('Must define shape!')
-        _shape = self.naxis if shape is None else shape
-        self.bpm = np.zeros(_shape)
-        #self.bpm[:, :20] = 1.
-        #self.bpm[:, 1000:] = 1.
+        self.empty_bpm(shape=shape, filename=filename, det=det)
+        if det == 1:
+            self.bpm_img[:, :20] = 1.
+            self.bpm_img[:, 1000:] = 1.
+
+        return self.bpm_img
+
+
 
     def setup_arcparam(self, arcparam, fitstbl=None, arc_idx=None,
                        msarc_shape=None, **null_kwargs):
