@@ -2156,7 +2156,7 @@ class DetectorPar(ParSet):
         options['dispaxis'] = [ 0, 1, -1]
         dtypes['dispaxis'] = int
         descr['dispaxis'] = 'Spectra are dispersed along this axis (0 for row, 1 for column,' \
-                            + 'negative sign means there will be a flip because wavelengths will always be increasing upward)'
+                            'negative sign means there will be a flip because wavelengths will always be increasing upward)'
 
         defaults['xgap'] = 0.0
         dtypes['xgap'] = [int, float]
