@@ -1,7 +1,7 @@
 .. highlight:: rest
 
 *************
-Running PYPIT
+Running PypeIt
 *************
 
 This document describes the process to run the reduction.
@@ -11,23 +11,23 @@ It assumes:
 
 2. You have entered one of the setup sub-folders
 
-3. You have :ref:`run-calcheck` on the custom :doc:`pypit_file` and edited it as needed
+3. You have :ref:`run-calcheck` on the custom :doc:`pypeit_file` and edited it as needed
 
-4. You have double checked that neither `run calcheck` nor `run setup` are set to True in your custom :doc:`pypit_file`
+4. You have double checked that neither `run calcheck` nor `run setup` are set to True in your custom :doc:`pypeit_file`
 
 See the :doc:`cookbook` for additional details.
 
-.. _run-pypit:
+.. _run-pypeit:
 
-run_pypit
+run_pypeit
 =========
 
-The main script to run the PYPIT reduction is :ref:`run-pypit`.  It
+The main script to run the PypeIt reduction is :ref:`run-pypeit`.  It
 should have been installed in your Python path.  Here is its usage::
 
-    usage: run_pypit [-h] [-v VERBOSITY] [-m] [-d] [--debug_arc] pypit_file
+    usage: run_pypeit [-h] [-v VERBOSITY] [-m] [-d] [--debug_arc] pypeit_file
 
-    ##  PYPIT : The Python Spectroscopic Data Reduction Pipeline v0.7.0.dev0
+    ##  PypeIt : The Python Spectroscopic Data Reduction Pipeline v0.7.0.dev0
     ##
     ##  Available pipelines include:
     ##   armed, arms
@@ -36,7 +36,7 @@ should have been installed in your Python path.  Here is its usage::
     ##  Last updated: 07Feb2017
 
     positional arguments:
-      pypit_file            PYPIT reduction file (must have .pypit extension)
+      pypeit_file            PypeIt reduction file (must have .pypeit extension)
 
     optional arguments:
       -h, --help            show this help message and exit

@@ -5,7 +5,7 @@ Calibration Overview
 ====================
 
 This document gives an overview of the calibration
-steps of PYPIT.  There is additional documentation
+steps of PypeIt.  There is additional documentation
 for several of the more complex steps.
 
 Sequence of Events
@@ -22,7 +22,7 @@ datasec    datasec image 2D image describing the detector pixels for analysis
 datasec
 =======
 
-In this step, PYPIT parses the instrument settings file
+In this step, PypeIt parses the instrument settings file
 (or user input) to establish the region on each detector
 for analysis.  The overscan section is also established
 and is included in the datasec if one exists.

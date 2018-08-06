@@ -16,12 +16,12 @@ to the wide variety in:
 Developing a single algorithm to handle all of these
 edge cases (pun intended) is challenging if not impossible.
 Therefore, there are a number of user-input parameters
-that one may need to consider when running PYPIT (see below).
+that one may need to consider when running PypeIt (see below).
 
 Underlying the effort is the TraceSlits class which can be
 used to load the Master frame output for tracing (a FITS and
 a JSON file). See the
-`TraceSlits.ipynb <https://github.com/PYPIT/PYPIT/blob/master/doc/nb/TraceSlits.ipynb>`_
+`TraceSlits.ipynb <https://github.com/pypeit/pypeit/blob/master/doc/nb/TraceSlits.ipynb>`_
 Notebook on GitHub in doc/nb/ for some usage examples.
 
 Algorithm
@@ -63,7 +63,7 @@ The slit edges are traced using a "trace" frame.
 If neighboring slits are very close together, you
 can use a "pinhole" frame to trace the slit centroid.
 
-In the current version of PYPIT, pinhole frames are
+In the current version of PypeIt, pinhole frames are
 only used for echelle data reduction. Pinhole frames
 are usually an exposure of a quartz lamp through a
 very short (pinhole) slit. Thus, neighboring slit
@@ -126,10 +126,10 @@ Scripts
 
 .. _trace-slit-script:
 
-pypit_chk_edges
+pypeit_chk_edges
 ---------------
 
-PYPIT includes a simple script to show the processed
+PypeIt includes a simple script to show the processed
 Trace image and the slit/order edges defined by the
 algorithm.  These are displayed in a Ginga viewer.
 Here is the call::
@@ -156,7 +156,7 @@ because only a small portion of the detector
 may be illuminated by this 'long' slit.
 
 Therefore, when reducing long slit data, it may be a good
-idea to explicitly tell PYPIT that there is only
+idea to explicitly tell PypeIt that there is only
 1 slit to be identified. You can set this using
 the keyword::
 
@@ -173,7 +173,7 @@ Add User Slits
 --------------
 
 See the
-`TraceSlits.ipynb <https://github.com/PYPIT/PYPIT/blob/master/doc/nb/TraceSlits.ipynb>`_
+`TraceSlits.ipynb <https://github.com/pypeit/pypeit/blob/master/doc/nb/TraceSlits.ipynb>`_
 Notebook on GitHub in doc/nb/
 
 Single user slit
@@ -185,7 +185,7 @@ will be maintained.
 If necessary, the user may define the edges of the slit
 on each detector.  Currently this is only implemented for
 single slit (i.e. longslit) mode.  The syntax is to add a
-line to the PYPIT file indicating the start and end of each
+line to the PypeIt file indicating the start and end of each
 slit on each detector in detector column units (as binned).
 
 For example, for the LRISr longslit with 2x2 binning, the
@@ -254,7 +254,7 @@ multiobject or echelle data), the sky background
 is determined from relatively few pixels towards
 the edge of the slit, where the flux from a uniformly
 illuminated slit tends to roll off. To correct for
-this effect, PYPIT models the spatial slit profile
+this effect, PypeIt models the spatial slit profile
 of a trace frame (i.e. a flatfield with the same
 slit length as the science slit). The relevant set
 of parameters that determine the fit properties
@@ -273,14 +273,14 @@ first line above can be set to True. If the calculation
 is performed, the second line sets the method that should
 be used to determine the spatial slit profile.
 
-At this stage, PYPIT only supports the value 'bspline', where
+At this stage, PypeIt only supports the value 'bspline', where
 the knot spacing is set by the third line above. If the
-argument of reduce flatfield params is n >= 1, PYPIT
+argument of reduce flatfield params is n >= 1, PypeIt
 will place a knot at every n pixels. Otherwise, if n < 1,
-PYPIT will place a knot at every k pixels, where k=n*N
+PypeIt will place a knot at every k pixels, where k=n*N
 and N is the total number of pixels in the spectral
 direction. The number of knots in the spatial
-direction is set automatically by PYPIT, to be twice
+direction is set automatically by PypeIt, to be twice
 the number of pixels along the slit. Thus, the user
 only has the ability to change the number of knots
 in the spectral direction (i.e. the blaze function).

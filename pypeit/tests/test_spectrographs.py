@@ -22,7 +22,7 @@ def test_keckdeimos():
     s = spectrographs.keck_deimos.KeckDEIMOSSpectrograph()
     if skip_test:
         return
-    example_file = os.path.join(os.environ['PYPIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS',
                                 '830G_L', 'd0914_0002.fits')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Keck DEIMOS read.')
@@ -35,7 +35,7 @@ def test_kecklrisblue():
     s = spectrographs.keck_lris.KeckLRISBSpectrograph()
     if skip_test:
         return
-    example_file = os.path.join(os.environ['PYPIT_DEV'], 'RAW_DATA', 'Keck_LRIS_blue',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_LRIS_blue',
                                 'long_400_3400_d560', 'LB.20160109.14149.fits.gz')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Keck LRIS Blue read.')
@@ -48,7 +48,7 @@ def test_kecklrisred():
     s = spectrographs.keck_lris.KeckLRISRSpectrograph()
     if skip_test:
         return
-    example_file = os.path.join(os.environ['PYPIT_DEV'], 'RAW_DATA', 'Keck_LRIS_red',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_LRIS_red',
                                 'long_600_7500_d560', 'LR.20160216.05529.fits')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Keck LRIS Red read.')
@@ -61,7 +61,7 @@ def test_kecknirspec():
     s = spectrographs.keck_nirspec.KeckNIRSPECSpectrograph()
     if skip_test:
         return
-    example_file = os.path.join(os.environ['PYPIT_DEV'], 'RAW_DATA', 'Keck_NIRSPEC',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_NIRSPEC',
                                 'NIRSPEC-1', 'NS.20160414.02171.fits.gz')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Keck LRIS Red read.')
@@ -85,7 +85,7 @@ def test_shanekastred():
     s = spectrographs.shane_kast.ShaneKastRedSpectrograph()
     if skip_test:
         return
-    example_file = os.path.join(os.environ['PYPIT_DEV'], 'RAW_DATA', 'Shane_Kast_red',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Shane_Kast_red',
                                 '600_7500_d55', 'r112.fits.gz')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Shane Kast Red read.')
@@ -108,7 +108,7 @@ def test_whtisisblue():
     s = spectrographs.wht_isis.WhtIsisBlueSpectrograph()
     if skip_test:
         return
-    example_file = os.path.join(os.environ['PYPIT_DEV'], 'RAW_DATA', 'WHT_ISIS_blue',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'WHT_ISIS_blue',
                                 'long_R300B_d5300', 'r2324566.fit.gz')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for WHT ISIS Blue read.')

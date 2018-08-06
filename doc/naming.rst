@@ -5,7 +5,7 @@ Output Naming
 *************
 
 There is no standard for naming data reduction output products in
-Astronomy, nor even common practices.  PYPIT follows its own schema.
+Astronomy, nor even common practices.  PypeIt follows its own schema.
 
 A naming system must provide unique names (to avoid overwriting files)
 but one also desires a format that is both compact and informative.
@@ -24,7 +24,7 @@ Prefix
 
 The file type is indicated by its prefix, a short label.
 The following Table lists all formats for the 
-:ref:`outputs-compactness-compact` output format of PYPIT.
+:ref:`outputs-compactness-compact` output format of PypeIt.
 We describe each and include the likely suffix(es). 
 
 =======   ===========================================  ======
@@ -42,7 +42,7 @@ Instrument
 ----------
 
 The second label indicates the instrument.  Here are the
-set of currently supported instruments in PYPIT: 
+set of currently supported instruments in PypeIt: 
 
 .. _KastWebSite: http://mthamilton.ucolick.org/techdocs/instruments/kast/
 .. _LRISWebSite: https://www2.keck.hawaii.edu/inst/lris/
@@ -85,7 +85,7 @@ A typical filename may then appear as::
 Source Identifiers
 ------------------
 
-PYPIT reduces each detector separately and associates identified
+PypeIt reduces each detector separately and associates identified
 slits and objects to that detector.  Therefore, sources are 
 uniquely identified by a combination of these :ref:`source-id-values`.  
 If requested (:ref:`outputs-compactness-explode`), the Spec1D files

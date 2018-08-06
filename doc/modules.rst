@@ -1,7 +1,7 @@
-pypit
+pypeit
 =====
 
 .. toctree::
    :maxdepth: 4
 
-   pypit
+   pypeit

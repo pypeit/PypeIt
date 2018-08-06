@@ -1,43 +1,43 @@
 .. highlight:: rest
 
 *************
-PYPIT scripts
+PypeIt scripts
 *************
 
-PYPIT is packaged with several scripts that should have
+PypeIt is packaged with several scripts that should have
 been installed directly into your path (e.g. ~/anaconda/bin).
 
 Pipeline Scripts
 ++++++++++++++++
 
-.. _pypit-setup:
+.. _pypeit-setup:
 
-pypit_setup
+pypeit_setup
 ===========
 
 This setups files for data reduction.  See :doc:`setup` for details
 
-run_pypit
+run_pypeit
 =========
 
-This is the main executable for PYPIT.  See :doc:`running` for details.
+This is the main executable for PypeIt.  See :doc:`running` for details.
 
 Inspecting Data
 +++++++++++++++
 
 The following scripts are inspecting the data products
-produced by PYPIT.
+produced by PypeIt.
 
-.. _pypit-1dspec:
+.. _pypeit-1dspec:
 
-pypit_show_1dspec
+pypeit_show_1dspec
 =================
 
 Wrapper around the linetools XSpecGUI.  Grabs a single
-1D spectrum from the PYPIT spec1d output and runs::
+1D spectrum from the PypeIt spec1d output and runs::
 
-   unix> pypit_show_1dspec -h
-    usage: pypit_show_1dspec [-h] [--list] [--exten EXTEN] [--extract EXTRACT] [--obj OBJ] file
+   unix> pypeit_show_1dspec -h
+    usage: pypeit_show_1dspec [-h] [--list] [--exten EXTEN] [--extract EXTRACT] [--obj OBJ] file
 
     Parse
 
@@ -52,9 +52,9 @@ Wrapper around the linetools XSpecGUI.  Grabs a single
       --extract EXTRACT  Extraction method. Default is boxcar. ['box', 'opt']
 
 
-.. _pypit-2dspec:
+.. _pypeit-2dspec:
 
-pypit_show_2dspec
+pypeit_show_2dspec
 =================
 
 This script displays the sky-subtracted 2D image for a single
@@ -63,13 +63,13 @@ any objects extracted.  It should be called from the reduction
 directory, i.e. above the Science folder where the spec2d image
 is located.  Here is the usage::
 
-    unix> pypit_show_2dspec -h
-    usage: pypit_show_2dspec [-h] [--list] [--det DET] file
+    unix> pypeit_show_2dspec -h
+    usage: pypeit_show_2dspec [-h] [--list] [--det DET] file
 
     Display spec2d image in a Ginga viewer
 
     positional arguments:
-      file        PYPIT spec2d file
+      file        PypeIt spec2d file
 
     optional arguments:
       -h, --help  show this help message and exit
@@ -79,7 +79,7 @@ is located.  Here is the usage::
 The script can be called multiple times to load multiple detectors
 into one Ginga viewer.
 
-pypit_view_fits
+pypeit_view_fits
 ===============
 
 This is a wrapper to the Ginga image viewer.  It is a bit of a kludge
@@ -103,7 +103,7 @@ that into Ginga.  The dummy file is deleted afterwards.::
 Data Processing Scripts
 +++++++++++++++++++++++
 
-pypit_coadd_1dspec
+pypeit_coadd_1dspec
 ==================
 
 See :doc:`coadding` for further details.
@@ -111,14 +111,14 @@ See :doc:`coadding` for further details.
 Calibration Scripts
 +++++++++++++++++++
 
-pypit_arcid_plot
+pypeit_arcid_plot
 ================
 
 Generate a PDF plot from a MasterFrame_WaveCalib.json file.
 This may be useful to ID lines in other data.::
 
-    unix> pypit_arcid_plot -h
-    usage: pypit_arcid_plot [-h] wave_soln title outfile
+    unix> pypeit_arcid_plot -h
+    usage: pypeit_arcid_plot [-h] wave_soln title outfile
 
     positional arguments:
       wave_soln   MasterWaveSoln file [JSON]
@@ -128,17 +128,17 @@ This may be useful to ID lines in other data.::
     optional arguments:
       -h, --help  show this help message and exit
 
-pypit_lowrdx_pixflat
+pypeit_lowrdx_pixflat
 =====================
 
-Convert a LowRedux pixel flat into a PYPIT ready file::
+Convert a LowRedux pixel flat into a PypeIt ready file::
 
-    unix> pypit_lowrdx_pixflat -h
-    usage: pypit_lowrdx_pixflat [-h] lowrdx_file new_file
+    unix> pypeit_lowrdx_pixflat -h
+    usage: pypeit_lowrdx_pixflat [-h] lowrdx_file new_file
 
     positional arguments:
       lowrdx_file  LowRedux Pixel Flat FITS file
-      new_file     PYPIT FITS file
+      new_file     PypeIt FITS file
 
     optional arguments:
       -h, --help   show this help message and exit
