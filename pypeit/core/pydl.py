@@ -331,7 +331,7 @@ class bspline(object):
         return cls(None,
                    nord=bspline_dict['nord'],
                    npoly=bspline_dict['npoly'],
-                   bkpt=np.array(bspline_dict['bkpt']),
+                   breakpoints=np.array(bspline_dict['breakpoints']),
                    mask=np.array(bspline_dict['mask']),
                    coeff=np.array(bspline_dict['coeff']),
                    icoeff=np.array(bspline_dict['icoeff']),
@@ -355,7 +355,7 @@ class bspline(object):
         """
 
         # needs to move np.arrays to lists for JSON files
-        return (dict(bkpt=self.breakpoints.tolist(),
+        return (dict(breakpoints=self.breakpoints.tolist(),
                      nord=self.nord,
                      npoly=self.npoly,
                      mask=self.mask.tolist(),
