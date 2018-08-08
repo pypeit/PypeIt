@@ -5,6 +5,9 @@ from __future__ import absolute_import, division, print_function
 
 import glob
 import numpy as np
+
+from scipy import interpolate
+
 from astropy.io import fits
 
 from pypeit import msgs
@@ -14,6 +17,8 @@ from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
 from pypeit.core import fsort
 from pypeit.par import pypeitpar
+
+from pypeit.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
 
 from pypeit import debugger
 
@@ -27,7 +32,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'keck_deimos'
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'DEIMOS'
-        self.grating = None
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext         = 1,
@@ -170,6 +174,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file ?
+
+        # Don't instantiate these until they're needed
+        self.grating = None
+        self.optical_model = None
 
     @staticmethod
     def default_pypeit_par():
@@ -427,7 +435,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
-
     def get_grating(self, filename):
         hdu = fits.open(filename)
 
@@ -462,7 +469,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Get the orientation of the grating
         roll, yaw, tilt = KeckDEIMOSSpectrograph._grating_orientation(slider, ruling, tilt)
-   
+
+        self.grating = None if ruling == 0 else ReflectionGrating(ruling, tilt, roll, yaw,
+                                                                  central_wave=central_wave)
+        return self.grating
+
     @staticmethod
     def _grating_orientation(slider, ruling, tilt):
         """
@@ -498,34 +509,129 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 tilt*(1-orientation_coeffs[grating][_ruling][2]-4) \
                     + orientation_coeffs[grating][_ruling][3]
 
-    def focal_plane(self):
+    def mask_to_pixel_coordinates(self, x, y, wave=None, order=1):
+        if self.grating is None:
+            raise ValueError('Must define a grating first; use get_grating(filename).')
+        if self.optical_model is None:
+            self.optical_model = DEIMOSOpticalModel(self.grating)
+        if self.detector_map is None:
+            self.detector_map = DEIMOSDetectorMap()
+        x_img, y_img = self.optical_model.mask_to_imaging_coordinates(x, y, wave=wave, order=order)
+        return self.detector_map.ccd_coordinates(x_img, y_img)
+
+
+class DEIMOSOpticalModel(OpticalModel):
+    # TODO: Are focal_r_surface (!R_IMSURF) and focal_r_curvature
+    # (!R_CURV) supposed to be the same?  If so, consolodate these into
+    # a single number.
+    def _init__(self, grating):
+        super(DEIMOSOpticalModel, self).__init__(
+                    20018.4,                # Pupil distance in mm (!PPLDIST, !D_1)
+                    2133.6,                 # Radius of the image surface in mm (!R_IMSURF)
+                    2124.71,                # Focal-plane radius of curvature in mm (!R_CURV)
+                    2120.9,                 # Mask radius of curvature in mm (!M_RCURV)
+                    np.radians(6.)          # Mask tilt angle in radians (!M_ANGLE)
+                    128.803,                # Mask y zero point in mm (!ZPT_YM)
+                    3.378,                  # Mask z zero-point in mm (!MASK_HT0)
+                    2197.1,                 # Collimator distance in mm (sys.COL_DST)
+                    4394.2,                 # Collimator radius of curvature in mm (!R_COLL)
+                    -0.75,                  # Collimator curvature constant (!K_COLL)
+                    np.radians(0.002),      # Collimator tilt error in radians (sys.COL_ERR)
+                    0.0,                    # Collimator tilt phi angle in radians (sys.COL_PHI)
+                    grating,                # DEIMOS grating object
+                    np.radians(2.752),      # Camera angle in radians (sys.CAM_ANG)
+                    np.pi/2,                # Camera tilt phi angle in radians (sys.CAM_PHI)
+                    382.0,                  # Camera focal length in mm (sys.CAM_FOC)
+                    DEIMOSCameraDistortion(),   # Object used to apply/remove camera distortions
+                    np.radians(0.021),      # ICS rotation in radians (sys.MOS_ROT)
+                    [-0.234, -3.822])       # Camera optical axis center in mm (sys.X_OPT,sys.Y_OPT)
+
+        # Include tent mirror
+	    self.tent_theta = np.radians(71.5-0.5)  # Tent mirror theta angle (sys.TNT_ANG)
+	    self.tent_phi = np.radians(90.+0.081)   # Tent mirror phi angle (sys.TNT_PHI)
+
+        #TENT MIRROR: this mirror is OK to leave in del-theta,phi
+        self.tent_reflection \
+                = OpticalModel.get_reflection_transform(self.tent_theta, self.tent_phi)
+
+    def mask_coo_to_grating_input_vectors(self, x, y):
         """
-        Return pupil distance and radius of curvature in mm.
+        Propagate rays from the mask plane to the grating.
 
-        Taken from xidl/DEEP2/spec2d/pro/model/pre_grating
+        Taken from xidl/DEEP2/spec2d/pro/model/pre_grating.pro
+
+        Need to override parent class to add tent mirror reflection.
         """
-        return 20018.4, 2124.71
-
-    def sample_focal_plane(self, nx, ny, grid_buffer=5):
-
-        # Size of the relevant focal plane in mm
-        xsize = 364.
-        ysize = 220.
-
-        dx = xsize/(nx-1)
-        dy = ysize/(ny-1)
-
-        xs = -nx//2 - grid_buffer
-        ys = -grid_buffer
-
-        return numpy.meshgrid((xs + numpy.arange(nx+2*grid_buffer+1))*dx,
-                              (ys + numpy.arange(ny+2*grid_buffer+1))*dy, indexing='xy')
+        r = super(DEIMOSOpticalModel, self).mask_coo_to_grating_input_vectors(x, y)
+        # Reflect off the tent mirror and return
+        return reflect(r, self.tent_reflection)
 
 
+class DEIMOSCameraDistortion:
+    """Class to remove or apply DEIMOS camera distortion."""
+    def __init__(self):
+        self.c0 = 1.
+        self.c2 = 0.0457563
+        self.c4 = -0.3088123
+        self.c6 = -14.917
+    
+        x = np.linspace(-0.6, 0.6, 1000)
+        y = self.remove_distortion(x)
+        self.interpolator = interpolate.interp1d(y, x)
 
+    def remove_distortion(self, x):
+        x2 = np.square(x)
+        return x / (self.c0 + x2 * (self.c2 + x2 * (self.c4 + x2 * self.c6)))
+
+    def apply_distortion(self, y):
+        indx = (y > self.interpolator.x[0]) & (y < self.interpolator.x[-1])
+        if not np.all(indx):
+            warnings.warn('Some input angles outside of valid distortion interval!')
+        x = np.zeros_like(y)
+        x[indx] = self.interpolator(y[indx])
+        return x
+
+
+class DEIMOSDetectorMap(DetectorMap):
+    """
+    A map of the center coordinates and rotation of each CCD in DEIMOS.
+
+    !! PIXEL COORDINATES ARE 1-INDEXED !!
+    """
+    def __init__(self):
+        # Number of chips
+        self.nccd = 8
+
+        # Number of pixels for each chip in each dimension
+        self.npix = np.array([2048, 4096])
+
+        # The size of the CCD pixels in mm
+        self.pixel_size = 0.015
+
+        # Nominal gap between each CCD in each dimension in mm
+        self.ccd_gap = np.array([1, 0.1])
+
+        # Width of the CCD edge in each dimension in mm
+        self.ccd_edge = np.array([0.154, 0.070])
+
+        # Effective size of each chip in each dimension in pixels
+        self.ccd_size = self.npix + (2*self.ccd_edge + self.ccd_gap)/self.pixel_size
+
+        # Center coordinates
+        origin = np.array([[-1.5,-0.5], [-0.5,-0.5], [ 0.5,-0.5], [ 1.5,-0.5],
+                           [-1.5, 0.5], [-0.5, 0.5], [ 0.5, 0.5], [ 1.5, 0.5]])
+        offset = np.array([[-20.05, 14.12], [-12.64, 7.25], [0.00, 0.00], [-1.34, -19.92],
+                           [-19.02, 16.46], [ -9.65, 8.95], [1.88, 1.02], [ 4.81, -24.01]])
+        self.ccd_center = origin * self.ccd_size[None,:] + offset
         
-            
+        # Construct the rotation matrix
+        self.rotation = np.radians([-0.082, 0.030, 0.0, -0.1206, 0.136, -0.06, -0.019, -0.082])
+        cosa = np.cos(self.rotation)
+        sina = np.sin(self.rotation)
+        self.rot_matrix = np.array([cosa, -sina, sina, cosa]).T.reshape(self.nccd,2,2)
 
+        # ccd_geom.pro has offsets by sys.CN_XERR, but these are all 0.
+   
 
 def read_deimos(raw_file, det=None):
     """
