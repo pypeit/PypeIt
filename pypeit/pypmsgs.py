@@ -26,8 +26,10 @@ from pypeit.core.qa import close_qa
 
 #pypeit_logger = None
 
+
 class PypeItError(Exception):
     pass
+
 
 class Messages:
     """
@@ -40,9 +42,6 @@ class Messages:
     ----------
     log : str or None
       Name of saved log file (no log will be saved if log=="")
-    debug : dict
-      dict used for debugging.
-      'LOAD', 'BIAS', 'ARC', 'TRACE'
     verbosity : int (0,1,2)
       Level of verbosity:
         0 = No output
@@ -52,11 +51,9 @@ class Messages:
       If true, the screen output will have colors, otherwise
       normal screen output will be displayed
     """
-    def __init__(self, log=None, debug=None, verbosity=None, colors=True):
+    def __init__(self, log=None, verbosity=None, colors=True):
 
         # Initialize other variables
-        # TODO: debug could just be develop=True or False
-        self._debug = debug
         self._verbosity = 2 if verbosity is None else verbosity
 #        self._last_updated = __last_updated__
         self._version = __version__
@@ -100,21 +97,21 @@ class Messages:
             msg = msg.replace(i, '')
         return msg
 
-    def _debugmessage(self):
-        if self._debug is not None and self._debug['develop']:
+    def _devmsg(self):
+        if self._verbosity == 2:
             info = inspect.getouterframes(inspect.currentframe())[3]
-            dbgmsg = self._start + self._blue_CL + info[1].split('/')[-1] + ' ' + str(info[2]) \
+            devmsg = self._start + self._blue_CL + info[1].split('/')[-1] + ' ' + str(info[2]) \
                         + ' ' + info[3] + '()' + self._end + ' - '
         else:
-            dbgmsg = ''
-        return dbgmsg
+            devmsg = ''
+        return devmsg
 
-    def _print(self, premsg, msg, last=True, debug=True):
+    def _print(self, premsg, msg, last=True):
         """
         Print to standard error and the log file
         """
-        dbgmsg = self._debugmessage() if debug else ''
-        _msg = premsg+dbgmsg+msg
+        devmsg = self._devmsg()
+        _msg = premsg+devmsg+msg
         print(_msg, file=sys.stderr)
         if self._log:
             clean_msg = self._cleancolors(_msg)
@@ -139,7 +136,7 @@ class Messages:
         self._log.write("You are using astropy version={:s}\n\n".format(astropy.__version__))
         self._log.write("------------------------------------------------------\n\n")
 
-    def reset(self, log=None, debug=None, verbosity=None, colors=True):
+    def reset(self, log=None, verbosity=None, colors=True):
         """
         Reinitialize the object.
 
@@ -147,8 +144,7 @@ class Messages:
         but also a dynamically defined log file.
         """
         # Initialize other variables
-        self._debug = debug
-        self._verbosity = 1 if verbosity is None else verbosity
+        self._verbosity = 2 if verbosity is None else verbosity
         self.reset_log_file(log)
         self.disablecolors()
         if colors:
@@ -177,10 +173,10 @@ class Messages:
 
     def pypeitheader(self, prognm):
         """
-        Get the info header for PYPIT
+        Get the info header for PypeIt
         """
         header = '##  '
-        header += self._start + self._white_GR + 'PYPIT : '
+        header += self._start + self._white_GR + 'PypeIt : '
         header += 'The Python Spectroscopic Data Reduction Pipeline v{0:s}'.format(
                         self._version) + self._end + '\n'
         header += '##  '
@@ -305,7 +301,7 @@ class Messages:
         """
         Print a work in progress message
         """
-        if self._debug is not None and self._debug['develop']:
+        if self._verbosity == 2:
             premsgp = self._start + self._black_CL + '[WORK IN ]::' + self._end + '\n'
             premsgs = self._start + self._yellow_CL + '[PROGRESS]::' + self._end + ' '
             self._print(premsgp+premsgs, msg)
@@ -315,7 +311,7 @@ class Messages:
         Print an indent
         """
         premsg = '             '
-        self._print(premsg, msg, debug=False)
+        self._print(premsg, msg)
 
     def input(self):
         """
@@ -386,26 +382,3 @@ class Messages:
         self._white_BL = ''
         self._black_YL = ''
         self._yellow_BK = ''
-
-
-#def get_logger(init=None):
-#    """ Logger
-#    Parameters
-#    ----------
-#    init : tuple
-#      For instantiation
-#      (log, debug, verbosity)
-#
-#    Returns
-#    -------
-#    msgs : Messages
-#    """
-#    global pypeit_logger
-#
-#    # Instantiate??
-#    if init is not None:
-#        pypeit_logger = Messages(init[0], init[1], init[2])
-#
-#    return pypeit_logger
-
-

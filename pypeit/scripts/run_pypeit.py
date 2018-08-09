@@ -4,7 +4,7 @@
 #
 # -*- coding: utf-8 -*-
 """
-This script runs PYPIT
+This script runs PypeIt
 """
 from __future__ import print_function
 from __future__ import absolute_import
@@ -30,10 +30,10 @@ from pypeit import msgs
 
 def parser(options=None):
 
-    parser = argparse.ArgumentParser(description=msgs.usage('PYPIT'),
+    parser = argparse.ArgumentParser(description=msgs.usage('PypeIt'),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('pypeit_file', type=str,
-                        help='PYPIT reduction file (must have .pypeit extension)')
+                        help='PypeIt reduction file (must have .pypeit extension)')
     parser.add_argument('-v', '--verbosity', type=int, default=2,
                         help='Verbosity level between 0 [none] and 2 [all]')
     parser.add_argument('-t', '--hdrframetype', default=False, action='store_true',
@@ -44,8 +44,6 @@ def parser(options=None):
                              'writing these files.')
     parser.add_argument('-m', '--use_masters', default=False, action='store_true',
                         help='Load previously generated MasterFrames')
-    parser.add_argument('-d', '--develop', default=False, action='store_true',
-                        help='Turn develop debugging on')
 #    parser.add_argument('--devtest', default=False, action='store_true',
 #                        help='Running development tests')
     parser.add_argument('--debug_arc', default=False, action='store_true',
@@ -89,16 +87,14 @@ def main(args):
     #vrb = 2
 
     # Load options from command line
-    debug = None
     splitnm = os.path.splitext(args.pypeit_file)
     if splitnm[1] != '.pypeit':
         msgs.error("Bad extension for PYPIT reduction file."+msgs.newline()+".pypeit is required")
     logname = splitnm[0] + ".log"
 
     pypeit.PypeIt(args.pypeit_file, setup_only=args.prep_setup, calibration_check=args.calcheck,
-                use_header_frametype=args.hdrframetype, sort_dir=args.sort_dir, debug=debug,
-                overwrite=args.overwrite, verbosity=args.verbosity, use_masters=args.use_masters,
-                logname=logname)
+                  use_header_frametype=args.hdrframetype, sort_dir=args.sort_dir, overwrite=args.overwrite,
+                  verbosity=args.verbosity, use_masters=args.use_masters, logname=logname)
 
     return 0
 
