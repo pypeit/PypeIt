@@ -1,5 +1,14 @@
+# Module to run tests on pyidl functions
+
 import numpy as np
 from pypeit.core.pydl import bspline
+import pytest
+
+try:
+    tsterror = FileExistsError
+except NameError:
+    FileExistsError = OSError
+
 
 def test_bsplinetodict():
     """ Test for writing a bspline onto a dict
@@ -14,8 +23,5 @@ def test_bsplinetodict():
     
     bspline_fromdict = bspline.from_dict(bspline_todict)
     
-    print(' ')
-    print('Returns 0. if the breakpoints are the same before and after')
-    print('reading from the dictionary:')
-    print(np.max(np.array(bspline_todict['breakpoints'])-bspline_fromdict.breakpoints))
+    assert np.max(np.array(bspline_todict['breakpoints'])-bspline_fromdict.breakpoints) == 0.
 
