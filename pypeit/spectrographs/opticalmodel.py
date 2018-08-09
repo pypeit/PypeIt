@@ -727,9 +727,8 @@ class DetectorMap:
             warnings.warn('Points may not be on any detector!')
         if numpy.any(on_ndet > 1):
             warnings.warn('Points may be on more than one detector!')
-        d = numpy.amax(numpy.arange(self.nccd)[:,None]*indx, axis=0)
+        d = numpy.amax(numpy.arange(self.nccd)[:,None]*indx, axis=0) + 1
         d[numpy.sum(indx, axis=0) == 0] = -1
-        d += 1
 
         # Pull out the coordinates for the correct detector
         coo = numpy.array([coo[_d-1,i,:] if _d > 0 else numpy.full(coo.shape[2:],-1.) 

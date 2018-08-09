@@ -47,3 +47,20 @@ def test_deimos_mask_coordinates():
     assert numpy.isclose(xpix, 528.54329982), 'Incorrect x coordinate'
     assert numpy.isclose(ypix, 487.64455754), 'Incorrect y coordinate'
 
+def test_deimos_ccd_slits():
+    if skip_test:
+        return
+    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M',
+                     'DE.20100913.22358.fits.gz')
+    spec = KeckDEIMOSSpectrograph()
+    ccd, xpix, ypix = spec.mask_to_pixel_coordinates(filename=f)
+    indx = ccd < 1
+    assert numpy.sum(indx) == 4, 'Should find 4 slits that are off all CCDs at the central lambda'
+    ccds_with_slits_at_cwl, n_per_ccd = numpy.unique(ccd, return_counts=True)
+    assert list(set(numpy.arange(6)+1) - set(ccds_with_slits_at_cwl)) == [3, 4], \
+            'Should not find any slits on CCDs 3 and 4'
+    assert numpy.sum(n_per_ccd) == 106, 'Should return coordinates for all 106 slits'
+    assert n_per_ccd[1] == 28, 'Incorrect number of slits on CCD 1'
+
+   
+
