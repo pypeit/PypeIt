@@ -89,7 +89,7 @@ def main(args):
     # Load options from command line
     splitnm = os.path.splitext(args.pypeit_file)
     if splitnm[1] != '.pypeit':
-        msgs.error("Bad extension for PYPIT reduction file."+msgs.newline()+".pypeit is required")
+        msgs.error("Bad extension for PypeIt reduction file."+msgs.newline()+".pypeit is required")
     logname = splitnm[0] + ".log"
 
     pypeit.PypeIt(args.pypeit_file, setup_only=args.prep_setup, calibration_check=args.calcheck,
