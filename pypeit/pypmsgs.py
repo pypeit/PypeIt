@@ -112,7 +112,8 @@ class Messages:
         """
         devmsg = self._devmsg()
         _msg = premsg+devmsg+msg
-        print(_msg, file=sys.stderr)
+        if self._verbosity != 0:
+            print(_msg, file=sys.stderr)
         if self._log:
             clean_msg = self._cleancolors(_msg)
             self._log.write(clean_msg+'\n' if last else clean_msg)
