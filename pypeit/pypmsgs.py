@@ -12,6 +12,7 @@ from __future__ import unicode_literals
 
 import sys
 import os
+import getpass
 import glob
 import textwrap
 import inspect
@@ -25,6 +26,8 @@ from pypeit import __version__ #, __last_updated__
 from pypeit.core.qa import close_qa
 
 #pypeit_logger = None
+
+developers = ['rcooke']
 
 
 class PypeItError(Exception):
@@ -54,7 +57,10 @@ class Messages:
     def __init__(self, log=None, verbosity=None, colors=True):
 
         # Initialize other variables
-        self._verbosity = 2 if verbosity is None else verbosity
+        self._defverb = 1
+        if getpass.getuser() in developers:
+            self._defverb = 2
+        self._verbosity = self._defverb if verbosity is None else verbosity
 #        self._last_updated = __last_updated__
         self._version = __version__
 
@@ -145,7 +151,7 @@ class Messages:
         but also a dynamically defined log file.
         """
         # Initialize other variables
-        self._verbosity = 2 if verbosity is None else verbosity
+        self._verbosity = self._defverb if verbosity is None else verbosity
         self.reset_log_file(log)
         self.disablecolors()
         if colors:
