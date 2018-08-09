@@ -317,8 +317,6 @@ class bspline(object):
 
         Parameters
         ----------
-        x : numpy.ndarray
-            Independent variable.
         bspline_dict : dictionary
             bspline dictionary created with to_dict().
 
@@ -331,7 +329,7 @@ class bspline(object):
         return cls(None,
                    nord=bspline_dict['nord'],
                    npoly=bspline_dict['npoly'],
-                   breakpoints=np.array(bspline_dict['breakpoints']),
+                   fullbkpt=np.array(bspline_dict['breakpoints']),
                    mask=np.array(bspline_dict['mask']),
                    coeff=np.array(bspline_dict['coeff']),
                    icoeff=np.array(bspline_dict['icoeff']),
@@ -364,7 +362,6 @@ class bspline(object):
                      xmin=self.xmin,
                      xmax=self.xmax,
                      funcname=self.funcname))
-
 
     def fit(self, xdata, ydata, invvar, x2=None):
         """Calculate a B-spline in the least-squares sense.
