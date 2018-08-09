@@ -10,19 +10,24 @@ import numpy
 
 class SlitMask:
     """
-    Generic class for a slit mask.
+    Generic class for a slit mask that holds the slit positions and IDs.
 
     Args:
         corners (array-like):
             A list or numpy.ndarray with the list of coordinates.  The
-            object must be 2 or 3 dimensional: 1st axis it the slit, 2nd
-            axis are the corners, 3rd axis is the x and y coordinate for
-            the corner.  If two dimensional, class assumes there is only
-            one slit.  The dimensions of the last two dimensions must
+            object must be 2 or 3 dimensional: 1st axis is the slit, 2nd
+            axis are the 4 corners, 3rd axis is the x and y coordinate
+            for the corner.  If two dimensional, class assumes there is
+            only one slit.  The size of the last two dimensions must
             always be 4 and 2, respectively.  The input order is
-            expected to be top-right, bottom-right, bottom-left,
-            top-left.  The computed length, width, and position angle is
-            relative to this assumption.
+            expected to be top-right (high x, low y), bottom-right (low
+            x, low y), bottom-left (low x, high y), top-left (high x,
+            high y).  The x coordinates are along the spatial direction
+            and the y coordinates are long the spectral direction.  The
+            computed length (difference in x), width (difference in y),
+            and position angle (Cartesian angle) is relative to this
+            assumption.
+
         slitid (array-like, optional):
             ID numbers for each slit.  If None, just a running number
             for each of the coordinates provided.

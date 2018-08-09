@@ -10,23 +10,6 @@ import warnings
 import numpy
 
 # ----------------------------------------------------------------------
-# Utility functions
-def conjugate_surface_transform(ray, surface_transform, forward=False):
-    return numpy.matmul(surface_transform, ray) if forward else \
-                numpy.matmul(surface_transform.T, ray)
-
-
-def reflect(r, surface):
-    """
-    Reflect a (set of) ray(s) of a surface using the provided
-    transformation.
-    """
-    _r = conjugate_surface_transform(r, surface, forward=True)
-    _r[2] = -_r[2]
-    return conjugate_surface_transform(r, surface)
-
-
-# ----------------------------------------------------------------------
 # General class for a reflection grating
 class ReflectionGrating:
     """
@@ -40,7 +23,7 @@ class ReflectionGrating:
 
         self.central_wave = central_wave    # Central wavelength (angstroms)
 
-        self.transform = self._get_grating_transform(self)
+        self.transform = self._get_grating_transform()
 
     def _get_grating_transform(self):
         """
@@ -89,26 +72,40 @@ class ReflectionGrating:
             raise ValueError('Must define a wavelength for the calculation.')
         if wave is None:
             warnings.warn('Using central wavelength for calculation.')
-        _wave = self.central_wave if wave is None else wave
+        _wave = numpy.array([self.central_wave]) if wave is None else numpy.atleast_1d(wave)
+        if _wave.ndim > 1:
+            raise NotImplementedError('Input wavelength must be one number or a vector.')
+        nwave = _wave.size
+
+        _r = numpy.atleast_2d(r)
+        if _r.ndim > 2:
+            raise NotImplementedError('Rays must be 1D for a single ray, or 2D for multiple.')
+
         # Transform into the grating conjugate surface
-        r = conjugate_surface_transform(r, self.transform, forward=True)
+        _r = OpticalModel.conjugate_surface_transform(_r, self.transform, forward=True)
 
         # Get the grating input angles
-        alpha = -numpy.arctan(-r[1],-r[2])
-        gamma = numpy.arctan(r[0],sqrt(numpy.square(r[1])+numpy.square(r[2])))
+        alpha = -numpy.arctan2(-_r[:,1],-_r[:,2])
+        gamma = numpy.arctan2(_r[:,0],numpy.sqrt(numpy.square(_r[:,1])+numpy.square(_r[:,2])))
 
-        # Use the grating equation to get the output angle
-        beta = numpy.arcsin((order * 1e7*self.ruling * _wave / numpy.cos(gamma)) - numpy.sin(alpha))
+        # Use the grating equation to get the output angle (minus sign
+        # in front of sin(alpha) is for reflection)
+        beta = numpy.arcsin((order * 1e-7 * self.ruling * _wave[None,:] / numpy.cos(gamma)[:,None])
+                            - numpy.sin(alpha)[:,None])
 
         # Revert to ray vectors
         wavesign = 1-2*(_wave < 0)
         cosg = numpy.cos(gamma)
-        r = numpy.array([numpy.sin(gamma),
-                         numpy.sin(-beta*wavesign)*cosg,
-                         numpy.cos(-beta*wavesign)*cosg ]).T
+        _r = numpy.array([numpy.repeat(numpy.sin(gamma), nwave).reshape(-1,nwave),
+                          numpy.sin(-beta*wavesign[None,:])*cosg[:,None],
+                          numpy.cos(-beta*wavesign[None,:])*cosg[:,None] ]).T
+
+        if nwave == 1:
+            # Flatten if only one ray provided
+            _r = _r[0]
 
         # Return vectors transformed out of the grating conjugate surface
-        return conjugate_surface_transform(r, self.transform)
+        return OpticalModel.conjugate_surface_transform(_r, self.transform)
 
 
 # ----------------------------------------------------------------------
@@ -125,19 +122,58 @@ class OpticalModel:
 
     Primary objective is to trace light rays from the focal plane
     position to a position in the imagine coordinate system of the
-    camera.
+    camera.  See :func:`mask_to_imaging_coordinates`.
 
     It is expected that each spectrograph will have its own optical
     model to perturb what is done in the vanilla model as necessary.
 
     .. todo:
-        Provide a ParSet?
+        Provide a ParSet for the arguments of the function?
 
     Args:
+        pupil_distance (float):
+            Pupil distance in mm
+        focal_r_surface (float):
+            Radius of the image surface in mm
+        focal_r_curvature (float):
+            Focal-plane radius of curvature in mm
+        mask_r_curvature (float):
+            Mask radius of curvature in mm
+        mask_tilt_angle (float):
+            Mask tilt angle in radians
+        mask_y_zeropoint (float):
+            Mask y zero point in mm
+        mask_z_zeropoint (float):
+            Mask z zero point in mm
+        collimator_d (float):
+            Collimator distance in mm
+        collimator_r (float):
+            Collimator radius of curvature in mm
+        collimator_k (float):
+            Collimator curvature constant
+        coll_tilt_err (float):
+            Collimator tilt error in radians
+        coll_tilt_phi (float):
+            Collimator tilt phi in radians
+        grating (:class:`ReflectionGrating`):
+            Grating object that evaluates the grating equation and
+            performs the grating reflection.
+        camera_tilt (float):
+            Camera angle in radians
+        camera_phi (float):
+            Camera tilt phi angle in radians
+        camera_focal_length (float):
+            Camera focal length in mm
+        camera_distortions (object):
+            Class to apply/remove camera distortions.  Can be None.  If
+            provided, must have `remove_distortion` and
+            `apply_distortion` methods.
+        imaging_rotation (float):
+            Image coordinate system rotation in radians
+        optical_axis (numpy.ndarray):
+            Camera optical axis center (x,y) in mm
 
     Attributes:
-
-    Raises:
     """
     def __init__(self, pupil_distance, focal_r_surface, focal_r_curvature, mask_r_curvature,
                  mask_tilt_angle, mask_y_zeropoint, mask_z_zeropoint, collimator_d, collimator_r,
@@ -174,7 +210,7 @@ class OpticalModel:
         # theta-x,y is better, although this is not ridiculous.
         self.camera_transform \
                 = OpticalModel.get_reflection_transform(-self.camera_tilt,
-                                                        self.camera_phi + numpy.pi/2)
+                                                        self.camera_phi + numpy.pi)
 
         self.camera_distortions = camera_distortions    # Class to apply/remove camera distortions
 
@@ -206,6 +242,63 @@ class OpticalModel:
                             [            sint*sinp,           -sint*cosp,       cost ]])
 
     @staticmethod
+    def conjugate_surface_transform(ray, surface_transform, forward=False):
+        """
+        Transform a ray by a surface.
+
+        .. todo::
+            (KBW) I'm trying to mimic what was done in the IDL code,
+            meaning the matrix ordering may not make sense...
+
+        Args:
+            ray (numpy.ndarray):
+                The rays to tranform.  If more than one ray is provided,
+                they must be organized along the last axis.  I.e., for
+                two rays, the shape of ray should be (2,3).
+            surface_transform (numpy.ndarray):
+                The transform for the surface.  For example, see
+                :func:`OpticalModel.get_reflection_transform`.  For more
+                than one surface, the surface matrix must be organized
+                along the last two axes.  I.e., for two surfaces, the
+                shape of surface should be (2,3,3).
+        Returns:
+            numpy.ndarray: The array with the reflected arrays.
+        """
+        return numpy.einsum('...ji,...i', surface_transform, ray) if forward else \
+                    numpy.einsum('...ij,...i', surface_transform, ray)
+
+    @staticmethod
+    def reflect(r, surface):
+        """
+        Reflect a (set of) ray(s) of a surface using the provided
+        transformation.
+
+        .. todo::
+            (KBW) I'm trying to mimic what was done in the IDL code,
+            meaning the matrix ordering may not make sense...
+
+        Args:
+            r (numpy.ndarray):
+                The rays to reflect of the defined surface.  If more
+                than one ray is provided, they must be organized along
+                the last axis.  I.e., for two rays, the shape of r
+                should be (2,3).
+            surface (numpy.ndarray):
+                The transform for the surface used in the reflection.
+                For example, see
+                :func:`OpticalModel.get_reflection_transform`.  For more
+                than one surface, the surface matrix must be organized
+                along the last two axes.  I.e., for two surfaces, the
+                shape of surface should be (2,3,3).
+
+        Returns:
+            numpy.ndarray: The array with the reflected arrays.
+        """
+        _r = OpticalModel.conjugate_surface_transform(r, surface, forward=True)
+        _r[...,2] *= -1
+        return OpticalModel.conjugate_surface_transform(_r, surface)
+
+    @staticmethod
     def get_reflection_transform(theta, phi):
         """
         General reflection transform.
@@ -216,9 +309,13 @@ class OpticalModel:
         sinp = numpy.sin(phi+numpy.pi/2)
         cost = numpy.cos(theta)
         sint = numpy.sin(theta)
-        return numpy.array([[      cosp,       sinp, numpy.zeros_like(phi)],
-                            [-cost*sinp,  cost*cosp,                  sint],
-                            [ sint*sinp, -sint*cosp,                  cost]])
+        transform = numpy.array([[      cosp,       sinp, numpy.zeros_like(phi)],
+                                 [-cost*sinp,  cost*cosp,                  sint],
+                                 [ sint*sinp, -sint*cosp,                  cost]])
+
+        # If theta and phi are vectors move the axes so that, e.g.,
+        # transform[0] is the transform for (theta[0],phi[0])
+        return numpy.moveaxis(transform, -1, 0) if transform.ndim > 2 else transform
 
     # TODO: Inverse operation not provided; see xidl/DEEP2/spec2d/pro/model/proj_to_mask.pro
     def project_mask_onto_plane(self, x, y, a):
@@ -247,7 +344,7 @@ class OpticalModel:
         sint = numpy.sin(self.mask_tilt_angle)
         cost = numpy.cos(self.mask_tilt_angle)
         tant = sint/cost
-        
+
         px = self.mask_r_curvature * numpy.sin(x / self.mask_r_curvature)
         py = (y - self.mask_r_curvature * tant * (1. - cosm)) * cost + self.mask_y_zeropoint
         pa = numpy.arctan((numpy.tan(numpy.radians(a)) - tant * px / self.mask_r_curvature)
@@ -263,15 +360,15 @@ class OpticalModel:
         rho = numpy.sqrt(numpy.square(px) + numpy.square(py))
     
         # Spherical image and mask surface heights
-        hs = self.r_surface * (1. - numpy.sqrt(1. - numpy.square(rho / self.r_surface)))
+        hs = self.focal_r_surface * (1. - numpy.sqrt(1. - numpy.square(rho/self.focal_r_surface)))
         hm = self.mask_z_zeropoint + y * sint + self.mask_r_curvature*(1. - cosm)
     
-        px *= (1 - hs + hm) / self.pupil_distance
-        py *= (1 - hs + hm) / self.pupil_distance
-    
+        px *= (1 - (hs - hm) / self.pupil_distance)
+        py *= (1 - (hs - hm) / self.pupil_distance)
+
         return px, py, pa
     
-    def telescope_plane_coo_to_unit_vector(self, x, y, a):
+    def telescope_plane_coo_to_unit_vector(self, x, y): #, a):
         """
         Convert the coordinates in the focal plane to the ray tracing unit
         vector.
@@ -283,7 +380,7 @@ class OpticalModel:
         r2 = numpy.square(x) + numpy.square(y)
         hm = self.focal_r_curvature - numpy.sqrt(numpy.square(self.focal_r_curvature)-r2)
         theta = numpy.arctan(numpy.sqrt(r2) / (self.pupil_distance - hm))
-        phi = numpy.arctan(y, x)
+        phi = numpy.arctan2(y, x)
     
         sint = numpy.sin(theta)
         return numpy.array([ numpy.cos(phi)*sint, numpy.sin(phi)*sint, numpy.cos(theta) ]).T
@@ -295,18 +392,19 @@ class OpticalModel:
 
         Taken from xidl/DEEP2/spec2d/pro/model/coll_angle.pro
         """
-
         r2 = numpy.square(x) + numpy.square(y)
-        hm = self.focal_r_curvature - numpy.sqrt(numpy.square(self.focal_r_curvature)-r2)
+        fr2 = numpy.square(self.focal_r_curvature)
+        hm = self.focal_r_curvature - numpy.sqrt(fr2-r2)
         d2 = self.pupil_distance + self.collimator_d
 
         cott = (self.pupil_distance - hm) / numpy.sqrt(r2)
-        k = 1. + (1. + self.collimator_k) * cott*cott
+        cott2 = numpy.square(cott)
+        k = 1. + (1. + self.collimator_k) * cott2
         d = d2 * (1. + self.collimator_k)
 
         # The following is general for conic sections.  In practice, a
         # parabola is fine.  Note the switch in sign for quadratic root
-        b = numpy.sqrt(cott*cott + d2*k*(2.*self.collimator_r - d) \
+        b = numpy.sqrt(cott2 + d2*k*(2.*self.collimator_r - d) \
                     / numpy.square(self.collimator_r - d))
         r = (self.collimator_r - d) * (b - cott) / k if self.collimator_r > d \
                     else (d - self.collimator_r) * (b + cott) / k
@@ -317,7 +415,7 @@ class OpticalModel:
         # The general conic form (important)
         r /= self.collimator_r
 
-        return numpy.arctan(r / numpy.sqrt(1. - (1.+self.collimator_r)*r*r)), numpy.arctan(y, x)
+        return numpy.arctan(r / numpy.sqrt(1. - (1.+self.collimator_k)*r*r)), numpy.arctan2(y, x)
 
     def mask_coo_to_grating_input_vectors(self, x, y):
         """
@@ -325,26 +423,27 @@ class OpticalModel:
 
         Taken from xidl/DEEP2/spec2d/pro/model/pre_grating.pro
         """
-        if x.ndim != 1 or y.ndim != 1:
-            raise ValueError('Must provide vectors.')
-   
+        _x = numpy.atleast_1d(x)
+        _y = numpy.atleast_1d(y)
+
         # Project the mask coordinates onto the telescope focal plane
-        px, py, pa = self.project_mask_onto_plane(x, y, numpy.zeros_like(x))
+        px, py, pa = self.project_mask_onto_plane(_x, _y, numpy.zeros_like(_x))
 
         # Project the focal-plane coordinates onto the collimator
         theta, phi = self.telescope_plane_coo_to_collimator_angle(px, py)
 
-        # Form the reflection transform
+        # Form the reflection transform (a1)
         collimator_reflection = OpticalModel.get_reflection_transform(theta, phi)
 
         # Get the telescope plane unit vectors
         r = self.telescope_plane_coo_to_unit_vector(px, py)
 
         # Reflect off the collimator
-        r = reflect(r, collimator_reflection)
+        r = OpticalModel.reflect(r, collimator_reflection)
 
-        # Transform with collimator error
-        return conjugate_surface_transform(r, self.collimator_transform, forward=True)
+        # Transform with collimator error (e1)
+        return OpticalModel.conjugate_surface_transform(r, self.collimator_transform,
+                                                        forward=True)
 
     def ics_coo_to_grating_output_vectors(self, x, y):
         """
@@ -364,13 +463,13 @@ class OpticalModel:
         yp = -sinp * _x + cosp * _y
 
         # 7. Display coords are different than the x,y,z convention adopted so far:
-        xp = -xp
-        yp = -yp
+        xp *= -1
+        yp *= -1
 
         # 6. Convert to x,y in focal plane:
         rp = numpy.sqrt(xp*xp + yp*yp)
         theta = numpy.arctan(rp / self.camera_focal_length)
-        phi = numpy.arctan(yp, xp)
+        phi = numpy.arctan2(yp, xp)
 
         # 5. Remove the camera distortion in theta (phi unchanged)
         if self.camera_distortions is not None:
@@ -381,7 +480,7 @@ class OpticalModel:
         r = numpy.array([numpy.cos(phi)*sint, numpy.sin(phi)*sint, numpy.cos(theta)]).T
 
         # 3. Transform through the camera system
-        return conjugate_surface_transform(r, self.camera_transform)
+        return OpticalModel.conjugate_surface_transform(r, self.camera_transform)
 
     def grating_output_vectors_to_ics_coo(self, r):
         """
@@ -392,30 +491,32 @@ class OpticalModel:
 
         Inverted xidl/DEEP2/spec2d/pro/model/ics_post_grating.pro
         """
-        # 3. Transform through the camera system
-        r = conjugate_surface_transform(r, self.camera_transform, forward=True)
+        # 3. Transform through the camera system.
+        _r = OpticalModel.conjugate_surface_transform(r, self.camera_transform, forward=True)
 
-        # 4. Get angles from unit vectors
-        theta = numpy.arccos(r[2])
-        phi = numpy.arctan(r[1]/r[0])
+        # 4. Get angles from unit vectors; theta is flipped
+        theta = numpy.arccos(_r[...,2])
+        phi = numpy.arctan2(_r[...,1], _r[...,0])
 
         # 5. Apply the camera distortion in theta (phi unchanged)
         if self.camera_distortions is not None:
             theta = self.camera_distortions.apply_distortion(theta)
 
         # 6. Convert angles to x,y
+        # WARNING: There's a +/- 90 deg limit on imaging_rotation when
+        # this will work...
         tanp = numpy.tan(phi)
-        x = self.camera_focal_length * numpy.tan(theta) / numpy.sqrt(1 + numpy.square(tanp))
-        y = x * tanp
+        xp = self.camera_focal_length * numpy.tan(theta) / numpy.sqrt(1 + numpy.square(tanp))
+        yp = xp * tanp
 
         # 7. Image coordinates are flipped.
-        x = -x
-        y = -y
+        xp *= -1
+        yp *= -1
 
         # 8. Add the mosaic transform and return the coordinates
-        cosp = numpy.cos(self.imaging_rotation)
-        sinp = numpy.sin(self.imaging_rotation)
-        return _x*cosp - _y*sinp + self.optical_axis[0], _x*sinp + _y*cosp + self.optical_axis[1]
+        cosp = numpy.cos(-self.imaging_rotation)
+        sinp = numpy.sin(-self.imaging_rotation)
+        return xp*cosp - yp*sinp + self.optical_axis[0], xp*sinp + yp*cosp + self.optical_axis[1]
 
     def mask_to_imaging_coordinates(self, x, y, wave, order):
         """
@@ -437,13 +538,41 @@ class OpticalModel:
 
 
 # ----------------------------------------------------------------------
-# General class for mapping the image plane to multiple detectors in a
-# mosaic
+# Detector coordinates
 class DetectorMap:
     """
-    Base class for detector coordinate mapping.
+    General class for mapping the image plane to the pixel coordinates
+    for multiple detectors in a mosaic.
 
     !! PIXEL COORDINATES ARE 1-INDEXED !!
+
+    All CCDs in the detector are assumed to have the same size.
+
+    .. todo:
+        - Allow for instantiation arguments.
+        - Remove ccd_gap and ccd_edge from attributes?
+
+    Attributes:
+        nccd (int):
+            Number of CCD chips in the detector.
+        npix (numpy.ndarray):
+            Number of pixels in each dimension (x,y) of all CCDs.
+        pixel_size (float):
+            Pixel size in mm.
+        ccd_gap (numpy.ndarray):
+            The nominal gap between each chip in (x,y) in mm.
+        ccd_edge (numpy.ndarray):
+            The width of the CCD edge in (x,y) in mm.
+        ccd_size (numpy.ndarray):
+            The nominal size in number of pixels of each CCD accounting
+            for gap, edge width, and number of pixels.
+        ccd_center (numpy.ndarray):
+            The (x,y) center of each CCD in number of pixels, accounting
+            for the per CCD offset.
+        rotation (numpy.ndarray):
+            The rotation of each CCD.
+        rot_matrix (numpy.ndarray):
+            The rotation matrix used for each CCD.
     """
     def __init__(self):
         # Basic detector with vanilla properties
@@ -461,11 +590,11 @@ class DetectorMap:
 
         # Nominal gap between each CCD in each dimension in mm
         # TODO: Currently assumes all chips are the same
-        self.ccd_gap = numpy.array([0])
+        self.ccd_gap = numpy.array([0, 0])
 
         # Width of the CCD edge in each dimension in mm
         # TODO: Currently assumes all chips are the same
-        self.ccd_edge = numpy.array([1])
+        self.ccd_edge = numpy.array([1, 1])
 
         # Effective size of each chip in each dimension in pixels
         # TODO: Currently assumes all chips are the same
@@ -482,11 +611,34 @@ class DetectorMap:
         sina = numpy.sin(self.rotation)
         self.rot_matrix = numpy.array([cosa, -sina, sina, cosa]).T.reshape(self.nccd,2,2)
 
-    def image_coordinates(self, x_pix, y_pix, detector):
+    def image_coordinates(self, x_pix, y_pix, detector=1, in_mm=True):
         """
-        Input can be an array.
+        Convert the provided (1-indexed) pixel coordinates into
+        coordinates in the image plane.
+
+        Args:
+            x_pix (:obj:`float` or array-like):
+                Pixel coordinate in x (1-indexed) on the detector
+            y_pix (:obj:`float` or array-like):
+                Pixel coordinate in y (1-indexed) on the detector
+            detector (:obj:`int` or array-like, optional):
+                Relevant detector for the pixel coordinates.  Default is
+                1.  Can be a single detector used for all coordinates or
+                an array that provides the detector for each (x,y)
+                coordinate.
+            in_mm (:obj:`bool`, optional):
+                Return the coordinates in mm.
+
+        Returns:
+            float, numpy.ndarray: Returns two objects with the x and y
+            coordinates.  Return object type is based on the input.
+
+        Raises:
+            ValueError:
+                Raised if the detector number is not valid or if the
+                input x and y arrays do not have the same shape.
         """
-        if numpy.any(detector > self.nccd):
+        if numpy.any((detector > self.nccd) | (detector < 1)):
             raise ValueError('Incorrect detector number')
         
         # Reshape into vectors
@@ -499,7 +651,7 @@ class DetectorMap:
         # all coordinates
         _d = numpy.atleast_1d(detector-1)
         if _d.shape != _x.shape and len(_d) == 1:
-            _d = numpy.repeat(_d, numpy.prod(_x.shape)).reshape(_x.shape)
+            _d = numpy.full(_x.shape, detector-1, dtype=int)
 
         # Keep the input shape for the returned arrays
         inp_shape = None
@@ -516,17 +668,41 @@ class DetectorMap:
         coo = numpy.array([numpy.matmul(self.rot_matrix[d], c) for d,c in zip(_d,coo)]) \
                     + self.ccd_center[_d,:]
 
+        x_img = coo[0,0] if inp_shape is None else coo[:,0].reshape(inp_shape)
+        y_img = coo[0,1] if inp_shape is None else coo[:,1].reshape(inp_shape)
+
         # Return with the appropriate shape
-        return coo[0,0] if inp_shape is None else coo[:,0].reshape(inp_shape), \
-                    coo[0,1] if inp_shape is None else coo[:,1].reshape(inp_shape)
+        return x_img * self.pixel_size if in_mm else x_img, \
+                    y_img * self.pixel_size if in_mm else y_img
 
     def ccd_coordinates(self, x_img, y_img, in_mm=True):
         """
-        Input can be an array.
+        Convert the provided coordinates in the image plate to
+        (1-indexed) pixel coordinates on the relevant detector.
+
+        Args:
+            x_img (:obj:`float` or array-like):
+                Image coordinates in x
+            y_img (:obj:`float` or array-like):
+                Image coordinates in y
+            in_mm (:obj:`bool`, optional):
+                The input coordinates are provided in mm, not pixels.
+
+        Returns:
+            float, numpy.ndarray: Returns three objects, the detector
+            associated with each coordinates and the x and y pixel
+            coordinates on that detector.  Return object type (float or
+            array) is based on the input.
+
+        Raises:
+            ValueError:
+                Raised if the input x and y arrays do not have the same
+                shape.
         """
+
         # Reshape into vectors and convert to pixels, if necessary
-        _x = numpy.atleast_1d(1e3*x_img/self.pixel_size if in_mm else x_img)
-        _y = numpy.atleast_1d(1e3*y_img/self.pixel_size if in_mm else y_img)
+        _x = numpy.atleast_1d(x_img/self.pixel_size if in_mm else x_img)
+        _y = numpy.atleast_1d(y_img/self.pixel_size if in_mm else y_img)
         if _x.shape != _y.shape:
             raise ValueError('Mismatch error between x and y shape.')
 
@@ -544,22 +720,22 @@ class DetectorMap:
         coo = numpy.array([[numpy.matmul(r.T, _c) for _c in c] \
                                 for r,c in zip(self.rot_matrix, coo)]) + self.npix[None,None,:]/2
 
-        # Determine the associated detector
+        # Determine the associated detector (1-indexed)
         indx = numpy.all((coo > 0) & (coo <= self.npix[None,None,:]), axis=2)
         on_ndet = numpy.sum(indx, axis=0)
         if numpy.any(on_ndet == 0):
             warnings.warn('Points may not be on any detector!')
         if numpy.any(on_ndet > 1):
             warnings.warn('Points may be on more than one detector!')
-        d = (numpy.arange(self.nccd)[:,None]*numpy.ones(coo.shape[1], dtype=int)[None,:])[indx]
-        if d.ndim > 1:
-            d = d[:,0]
+        d = numpy.amax(numpy.arange(self.nccd)[:,None]*indx, axis=0)
+        d[numpy.sum(indx, axis=0) == 0] = -1
         d += 1
 
+        # Pull out the coordinates for the correct detector
+        coo = numpy.array([coo[_d-1,i,:] if _d > 0 else numpy.full(coo.shape[2:],-1.) 
+                                for i,_d in enumerate(d)])
+
         # Return the coordinates
-        coo = coo[indx,:]
-        if coo.ndim > 2:
-            coo = coo[0,:,:]
         return d if inp_shape is None else d.reshape(inp_shape), \
                     coo[0,0] if inp_shape is None else coo[:,0].reshape(inp_shape), \
                     coo[0,1] if inp_shape is None else coo[:,1].reshape(inp_shape)

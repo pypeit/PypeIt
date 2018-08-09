@@ -4,6 +4,7 @@ Implements DEIMOS-specific functions, including reading in slitmask design files
 from __future__ import absolute_import, division, print_function
 
 import glob
+import re
 import numpy as np
 
 from scipy import interpolate
@@ -18,7 +19,8 @@ from pypeit import telescopes
 from pypeit.core import fsort
 from pypeit.par import pypeitpar
 
-from pypeit.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
+from pypeit.spectrographs.slitmask import SlitMask
+from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
 
 from pypeit import debugger
 
@@ -176,8 +178,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # self.sky_file ?
 
         # Don't instantiate these until they're needed
+        self.slitmask = None
         self.grating = None
         self.optical_model = None
+        self.detector_map = None
 
     @staticmethod
     def default_pypeit_par():
@@ -435,7 +439,24 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
+    def get_slitmask(self, filename):
+        hdu = fits.open(filename)
+        corners = np.array([hdu['BluSlits'].data['slitX1'],
+                            hdu['BluSlits'].data['slitY1'],
+                            hdu['BluSlits'].data['slitX2'],
+                            hdu['BluSlits'].data['slitY2'],
+                            hdu['BluSlits'].data['slitX3'],
+                            hdu['BluSlits'].data['slitY3'],
+                            hdu['BluSlits'].data['slitX4'],
+                            hdu['BluSlits'].data['slitY4']]).T.reshape(-1,4,2)
+        self.slitmask = SlitMask(corners, slitid=hdu['BluSlits'].data['dSlitId'])
+        return self.slitmask
+
     def get_grating(self, filename):
+        """
+        Take from xidl/DEEP2/spec2d/pro/deimos_omodel.pro and
+        xidl/DEEP2/spec2d/pro/deimos_grating.pro
+        """
         hdu = fits.open(filename)
 
         # Grating slider
@@ -445,12 +466,14 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Central wavelength, grating angle, and tilt position
         if slider == 3:
             central_wave = hdu[0].header['G3TLTWAV']
-            angle = (hdu[0].header['G3TLTRAW'] + 29094)/2500
+            # Not used
+            #angle = (hdu[0].header['G3TLTRAW'] + 29094)/2500
             tilt = hdu[0].header['G3TLTVAL']
         else:
             # Slider is 2 or 4
             central_wave = hdu[0].header['G4TLTWAV']
-            angle = (hdu[0].header['G4TLTRAW'] + 40934)/2500
+            # Not used
+            #angle = (hdu[0].header['G4TLTRAW'] + 40934)/2500
             tilt = hdu[0].header['G4TLTVAL']
 
         # Ruling
@@ -492,31 +515,54 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Use the calibrated coefficients
         _ruling = int(ruling) if int(ruling) in [600, 831, 900, 1200] else 'other'
-        orientation_coeffs = {3: {    600: [ 0.145, -0.008, 5.6, -0.182],
-                                      831: [ 0.143,  0.000, 5.6, -0.182],
-                                      900: [ 0.141,  0.000, 5.6, -0.134],
-                                     1200: [ 0.145,  0.055, 5.6, -0.181],
-                                  'other': [ 0.145,  0.000, 5.6, -0.182] },
-                              4: {    600: [-0.065,  0.063, 6.9, -0.298],
-                                      831: [-0.034,  0.060, 6.9, -0.196],
-                                      900: [-0.064,  0.083, 6.9, -0.277],
-                                     1200: [-0.052,  0.122, 6.9, -0.294],
-                                  'other': [-0.050,  0.080, 6.9, -0.250] } }
+        orientation_coeffs = {3: {    600: [ 0.145, -0.008, 5.6e-4, -0.182],
+                                      831: [ 0.143,  0.000, 5.6e-4, -0.182],
+                                      900: [ 0.141,  0.000, 5.6e-4, -0.134],
+                                     1200: [ 0.145,  0.055, 5.6e-4, -0.181],
+                                  'other': [ 0.145,  0.000, 5.6e-4, -0.182] },
+                              4: {    600: [-0.065,  0.063, 6.9e-4, -0.298],
+                                      831: [-0.034,  0.060, 6.9e-4, -0.196],
+                                      900: [-0.064,  0.083, 6.9e-4, -0.277],
+                                     1200: [-0.052,  0.122, 6.9e-4, -0.294],
+                                  'other': [-0.050,  0.080, 6.9e-4, -0.250] } }
 
         # Return calbirated roll, yaw, and tilt
-        return orientation_coeffs[grating][_ruling][0], \
-                orientation_coeffs[grating][_ruling][1],
-                tilt*(1-orientation_coeffs[grating][_ruling][2]-4) \
-                    + orientation_coeffs[grating][_ruling][3]
+        return orientation_coeffs[slider][_ruling][0], \
+                orientation_coeffs[slider][_ruling][1], \
+                tilt*(1-orientation_coeffs[slider][_ruling][2]) \
+                    + orientation_coeffs[slider][_ruling][3]
 
-    def mask_to_pixel_coordinates(self, x, y, wave=None, order=1):
+    def mask_to_pixel_coordinates(self, x=None, y=None, wave=None, order=1, filename=None):
+
+        if x is None and y is not None or x is not None and y is None:
+            raise ValueError('Must provide both x and y or neither to use slit mask.')
+
+        if filename is not None:
+            if x is None and y is None:
+                # Reset the slit mask
+                self.get_slitmask(filename)
+            # Reset the grating
+            self.get_grating(filename)
+
+        if x is None and y is None and self.slitmask is None:
+            raise ValueError('No coordinates; Provide them directly or instantiate slit mask.')
+
+        _x = self.slitmask.center[:,0] if x is None else x
+        _y = self.slitmask.center[:,1] if y is None else y
+
         if self.grating is None:
-            raise ValueError('Must define a grating first; use get_grating(filename).')
+            raise ValueError('Must define a grating first; provide a file or use get_grating()')
+
         if self.optical_model is None:
             self.optical_model = DEIMOSOpticalModel(self.grating)
+        else:
+            self.optical_model.reset_grating(self.grating)
+
         if self.detector_map is None:
             self.detector_map = DEIMOSDetectorMap()
-        x_img, y_img = self.optical_model.mask_to_imaging_coordinates(x, y, wave=wave, order=order)
+
+        x_img, y_img = self.optical_model.mask_to_imaging_coordinates(_x, _y, wave=wave,
+                                                                      order=order)
         return self.detector_map.ccd_coordinates(x_img, y_img)
 
 
@@ -524,13 +570,13 @@ class DEIMOSOpticalModel(OpticalModel):
     # TODO: Are focal_r_surface (!R_IMSURF) and focal_r_curvature
     # (!R_CURV) supposed to be the same?  If so, consolodate these into
     # a single number.
-    def _init__(self, grating):
+    def __init__(self, grating):
         super(DEIMOSOpticalModel, self).__init__(
                     20018.4,                # Pupil distance in mm (!PPLDIST, !D_1)
                     2133.6,                 # Radius of the image surface in mm (!R_IMSURF)
                     2124.71,                # Focal-plane radius of curvature in mm (!R_CURV)
                     2120.9,                 # Mask radius of curvature in mm (!M_RCURV)
-                    np.radians(6.)          # Mask tilt angle in radians (!M_ANGLE)
+                    np.radians(6.),         # Mask tilt angle in radians (!M_ANGLE)
                     128.803,                # Mask y zero point in mm (!ZPT_YM)
                     3.378,                  # Mask z zero-point in mm (!MASK_HT0)
                     2197.1,                 # Collimator distance in mm (sys.COL_DST)
@@ -547,12 +593,15 @@ class DEIMOSOpticalModel(OpticalModel):
                     [-0.234, -3.822])       # Camera optical axis center in mm (sys.X_OPT,sys.Y_OPT)
 
         # Include tent mirror
-	    self.tent_theta = np.radians(71.5-0.5)  # Tent mirror theta angle (sys.TNT_ANG)
-	    self.tent_phi = np.radians(90.+0.081)   # Tent mirror phi angle (sys.TNT_PHI)
+        self.tent_theta = np.radians(71.5-0.5)  # Tent mirror theta angle (sys.TNT_ANG)
+        self.tent_phi = np.radians(90.+0.081)   # Tent mirror phi angle (sys.TNT_PHI)
 
         #TENT MIRROR: this mirror is OK to leave in del-theta,phi
         self.tent_reflection \
                 = OpticalModel.get_reflection_transform(self.tent_theta, self.tent_phi)
+
+    def reset_grating(self, grating):
+        self.grating = grating
 
     def mask_coo_to_grating_input_vectors(self, x, y):
         """
@@ -564,7 +613,7 @@ class DEIMOSOpticalModel(OpticalModel):
         """
         r = super(DEIMOSOpticalModel, self).mask_coo_to_grating_input_vectors(x, y)
         # Reflect off the tent mirror and return
-        return reflect(r, self.tent_reflection)
+        return OpticalModel.reflect(r, self.tent_reflection)
 
 
 class DEIMOSCameraDistortion:
