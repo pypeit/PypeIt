@@ -224,7 +224,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, function='legendre', pol
                 break
             if wpk.size != 1:
                 try:
-                    wpkmsk = prune_peaks(smedgehist, wpk, np.where(wpk+2 == offs)[0][0])#, debug=debug)
+                    wpkmsk = prune_peaks(smedgehist, wpk, np.where(wpk+2 == offs)[0][0])
                 except:
                     debugger.set_trace()
                 wpk = wpk[np.where(wpkmsk == 1)]
@@ -237,12 +237,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, function='legendre', pol
             if np.all(pedges[:, 1]-pedges[:, 0] == 0):
                 # Remaining peaks have no width
                 break
-#            if msgs._debug['trace']:
-#                plt.clf()
-#                plt.plot(arrcen, 'k-', drawstyle='steps')
-#                plt.plot(wpk, np.zeros(wpk.size), 'ro')
-#                plt.show()
-#                debugger.set_trace()
+
             # Label all edge ids (in the original edgearr) that are located in each peak with the same number
             for ii in range(pks.size):
                 shbad = np.zeros(edgearr.shape)
@@ -275,7 +270,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, function='legendre', pol
                 # Find the peaks of this distribution
                 wspk = np.where((smallhist[1:-1] >= smallhist[2:]) & (smallhist[1:-1] > smallhist[:-2]))[0]
                 wspk += 1  # Add one here to account for peak finding
-#                if msgs._debug['trace'] and False:
+#                if False:
 #                    plt.clf()
 #                    plt.plot(smallhist, 'k-', drawstyle='steps')
 #                    plt.show()
@@ -1979,7 +1974,7 @@ def pca_order_slit_edges(binarr, edgearr, lcent, rcent, gord, lcoeff, rcoeff, pl
     xcen = xv[:, np.newaxis].repeat(ordsnd.size, axis=1)
     fitted, outpar = pca.basis(xcen, slitcen, coeffs, lnpc, ofit, x0in=ordsnd, mask=maskord,
                                  skipx0=False, function=function)
-#    if not msgs._debug['no_qa']:
+#    if False:
 #        debugger.set_trace()  # NEED TO REMOVE slf
 #        # pca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc)
 
@@ -2093,7 +2088,7 @@ def pca_pixel_slit_edges(binarr, edgearr, lcoeff, rcoeff, ldiffarr, rdiffarr,
         xcen = xv[:, np.newaxis].repeat(binarr.shape[1], axis=1)
         fitted, outpar = pca.basis(xcen, trcval, tcoeff, lnpc, ofit, weights=pxwght,
                                      x0in=ordsnd, mask=maskrw, skipx0=False, function=function)
-#        if not msgs._debug['no_qa']:
+#        if False:
 #            # JXP -- NEED TO REMOVE SLF FROM THE NEXT BIT
 #            msgs.warn("NEED TO REMOVE SLF FROM THE NEXT BIT")
 #            # pca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc, addOne=False)
@@ -2413,8 +2408,6 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
     else: # There's an order overlap
         rsub = edgbtwn[1]-(lval)
     """
-#    if msgs._debug['trace']:
-#        debugger.set_trace()
     if mnvalp > mnvalm:
         lvp = (utils.func_val(lcoeff[:, lval + 1 - lmin], xv, function, minv=minvf, maxv=maxvf) \
                + 0.5).astype(np.int)

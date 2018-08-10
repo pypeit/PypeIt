@@ -445,7 +445,7 @@ def scale_spectra(spectra, smask, sn2, iref=0, scale_method='auto', hand_scale=N
     return scales, omethod
 
 
-def bspline_cr(spectra, n_grow_mask=1, cr_nsig=5.):
+def bspline_cr(spectra, n_grow_mask=1, cr_nsig=5., debug=False):
     """ Experimental and not so successful..
 
     Parameters
@@ -477,7 +477,6 @@ def bspline_cr(spectra, n_grow_mask=1, cr_nsig=5.):
                                         function='bspline', sigma=cr_nsig, everyn=2*spectra.nspec,
                                         weights=1./np.sqrt(all_s[srt][goodp]), maxone=False)
     # Plot?
-    debug = True
     if debug:
         from matplotlib import pyplot as plt
         plt.clf()

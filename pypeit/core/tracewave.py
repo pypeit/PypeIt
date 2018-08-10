@@ -624,7 +624,7 @@ def echelle_tilt(slf, msarc, det, settings_argflag, settings_spect, pcadesc="PCA
         xcen = xv[:, np.newaxis].repeat(norders, axis=1)
         fitted, outpar = pca.basis(xcen, tiltval, tcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
                                      function=settings_argflag['trace']['slits']['function'])
-        if not msgs._debug['no_qa']:
+        if False:
             #pcadesc = "Spectral Tilt PCA"
 #            qa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc=pcadesc, addOne=False)
             pca.pca_plot(slf, outpar, ofit, 'Arc', pcadesc=pcadesc, addOne=False)
@@ -723,7 +723,7 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
         if trcdict is None:
             # No arc lines were available to determine the spectral tilt
             continue
-        if msgs._debug['tilts']:
+        if False:
             debugger.chk_arc_tilts(msarc, trcdict, sedges=(lordloc[:,slit], rordloc[:,slit]))
             debugger.set_trace()
 
@@ -925,7 +925,7 @@ def tilts_spline(all_tilts, arcdet, aduse, polytilts, msarc, use_mtilt=False, ma
     #tmp3 = tiltspl(xsbs, zsbs, grid=True)
     print(tmp, tmp2)
     '''
-    if msgs._debug['tilts']:
+    if False:
         tiltqa = tiltspl(xsbs, zsbs, grid=False)
         plt.clf()
         # plt.imshow((zsbs-tiltqa)/zsbs, origin='lower')

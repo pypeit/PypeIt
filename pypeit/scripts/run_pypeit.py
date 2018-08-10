@@ -15,18 +15,6 @@ import argparse
 
 from pypeit import msgs
 
-# Globals
-#debug = ardebug.init()
-#debug['develop'] = True
-#debug['arc'] = True
-#debug['sky_sub'] = True
-#debug['trace'] = True
-#debug['obj_profile'] = True
-#debug['trace_obj'] = True
-#debug['tilts'] = True
-#debug['flexure'] = True
-#debug['no_qa'] = True
-
 
 def parser(options=None):
 
@@ -102,12 +90,12 @@ def main(args):
 #    if debug['develop']:
 #        pypeit.PYPIT(args.pypeit_file, progname=pypeit.__file__, quick=qck, ncpus=cpu,
 #                    verbosity=args.verbosity, use_masters=args.use_masters, devtest=args.devtest,
-#                    logname=logname, debug=debug)
+#                    logname=logname)
 #    else:
 #        try:
 #            pypeit.PYPIT(args.pypeit_file, progname=pypeit.__file__, quick=qck, ncpus=cpu,
 #                        verbosity=args.verbosity, use_masters=args.use_masters,
-#                        devtest=args.devtest, logname=logname, debug=debug)
+#                        devtest=args.devtest, logname=logname)
 #        except:
 #            # There is a bug in the code, print the file and line number of the error.
 #            et, ev, tb = sys.exc_info()
