@@ -458,7 +458,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     ions = all_idsion[ifit][mask==0]
     #
     '''
-    if False:
+    if debug:
         wave = utils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
             'legendre', minv=fmin, maxv=fmax)
         debugger.set_trace()

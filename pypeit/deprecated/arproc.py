@@ -29,7 +29,7 @@ try:
 except NameError:
     basestring = str
 
-def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0, debug=False):
+def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0, doqa=True):
     """ Generate a frame containing the background sky spectrum
 
     Parameters
@@ -129,7 +129,7 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0, debu
                                             maxone=False, **settings.argflag['reduce']['skysub']['bspline'])
         bgf_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
         bgframe = bgf_flat.reshape(tilts.shape)
-        if debug:
+        if doqa:
             plt_bspline_sky(tilts, sciframe, bgf_flat, gdp)
             debugger.set_trace()
     else:
@@ -326,7 +326,7 @@ def reduce_prepare(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det,
 
 def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
                    standard=False, triml=1, trimr=1,
-                   mspixelflatnrm=None, debug=False):
+                   mspixelflatnrm=None, doqa=True):
     """ Run standard extraction steps on an echelle frame
 
     Parameters
@@ -428,7 +428,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
         if np.sum(1.0 - extrap_slit) > ofit[0] + 1:
             fitted, outpar = arpca.basis(xcen, trccen, trccoeff, lnpc, ofit, skipx0=False, mask=maskord,
                                          function=settings.argflag['trace']['object']['function'])
-            if not debug:
+            if doqa:
 #                arqa.pca_plot(slf, outpar, ofit, "Object_Trace", pcadesc="PCA of object trace")
                 arpca.pca_plot(slf.setup, outpar, ofit, "Object_Trace", pcadesc="PCA of object trace")
             # Extrapolate the remaining orders requested
@@ -492,7 +492,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
                                              tracelist=scitrace)
 
     # Save the quality control
-    if not debug:
+    if doqa:
         artrace.obj_trace_qa(slf, sciframe, trobjl, trobjr, None, det,
                              root="object_trace", normalize=False)
 

@@ -1911,7 +1911,7 @@ def find_peak_limits(hist, pks):
 
 def pca_order_slit_edges(binarr, edgearr, lcent, rcent, gord, lcoeff, rcoeff, plxbin, slitcen,
                          pixlocn, function='lengendre', polyorder=3, diffpolyorder=2,
-                         ofit=[3,2,1,0,0,0], extrapolate=[0,0]):
+                         ofit=[3,2,1,0,0,0], extrapolate=[0,0], doqa=True):
     """ Perform a PCA analyis on the order edges
     Primarily for extrapolation
 
@@ -1974,7 +1974,7 @@ def pca_order_slit_edges(binarr, edgearr, lcent, rcent, gord, lcoeff, rcoeff, pl
     xcen = xv[:, np.newaxis].repeat(ordsnd.size, axis=1)
     fitted, outpar = pca.basis(xcen, slitcen, coeffs, lnpc, ofit, x0in=ordsnd, mask=maskord,
                                  skipx0=False, function=function)
-#    if False:
+#    if doqa:
 #        debugger.set_trace()  # NEED TO REMOVE slf
 #        # pca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc)
 
@@ -2011,7 +2011,7 @@ def pca_order_slit_edges(binarr, edgearr, lcent, rcent, gord, lcoeff, rcoeff, pl
 
 def pca_pixel_slit_edges(binarr, edgearr, lcoeff, rcoeff, ldiffarr, rdiffarr,
                          lnmbrarr, rnmbrarr, lwghtarr, rwghtarr, lcent, rcent, plxbin,
-                         function='lengendre', polyorder=3, ofit=[3,2,1,0,0,0]):
+                         function='lengendre', polyorder=3, ofit=[3,2,1,0,0,0], doqa=True):
     """ PCA analysis for slit edges
 
     Parameters
@@ -2088,7 +2088,7 @@ def pca_pixel_slit_edges(binarr, edgearr, lcoeff, rcoeff, ldiffarr, rdiffarr,
         xcen = xv[:, np.newaxis].repeat(binarr.shape[1], axis=1)
         fitted, outpar = pca.basis(xcen, trcval, tcoeff, lnpc, ofit, weights=pxwght,
                                      x0in=ordsnd, mask=maskrw, skipx0=False, function=function)
-#        if False:
+#        if doqa:
 #            # JXP -- NEED TO REMOVE SLF FROM THE NEXT BIT
 #            msgs.warn("NEED TO REMOVE SLF FROM THE NEXT BIT")
 #            # pca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc, addOne=False)
