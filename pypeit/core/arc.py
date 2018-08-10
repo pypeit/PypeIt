@@ -1,21 +1,18 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-import os
-import time
 import inspect
 
 import numpy as np
-from matplotlib import pyplot as plt
 from matplotlib import gridspec
-
-from pypeit.core import parse
+from matplotlib import pyplot as plt
+from pypeit import ararclines
+from pypeit import debugger
 from pypeit import msgs
 from pypeit import utils
-from pypeit import ararclines
-from pypeit.core import qa
+from pypeit.core import parse
 from pypeit.core import pixels
-from pypeit.core import wavecal
-from pypeit import debugger
+from pypeit.core import qa
+from pypeit.core.wavecal import autoid
 
 
 # TODO: This should not be a core algorithm
@@ -516,19 +513,18 @@ def calib_with_arclines(aparm, spec, use_method="general"):
     final_fit : dict
       Dict of fit info
     """
-    import arclines.holy.grail
     # Extract the arc
     #msgs.work("Detecting lines")
     #tampl, tcent, twid, w, satsnd, spec = detect_lines( slf, det, msarc, censpec=censpec)
 
     if use_method == "semi-brute":
-        best_dict, final_fit = wavecal.semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+        best_dict, final_fit = autoid.semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
     elif use_method == "basic":
-        stuff = wavecal.basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
+        stuff = autoid.basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
         status, ngd_match, match_idx, scores, final_fit = stuff
     else:
         # Now preferred
-        best_dict, final_fit = wavecal.general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+        best_dict, final_fit = autoid.general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
     #
     return final_fit
 
