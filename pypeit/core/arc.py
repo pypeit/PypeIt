@@ -14,7 +14,9 @@ from pypeit import utils
 from pypeit import ararclines
 from pypeit.core import qa
 from pypeit.core import pixels
+from pypeit.core import wavecal
 from pypeit import debugger
+
 
 # TODO: This should not be a core algorithm
 def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
@@ -75,6 +77,7 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
 
     # Return
     return arcparam
+
 
 def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, gen_satmask=False):
     """ Extract a simple spectrum down the center of each slit
@@ -170,6 +173,7 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, ge
     del temparr
 
     return arccen, maskslit, satsnd
+
 
 def detect_lines(censpec, nfitpix=5, nonlinear=None):
     """
@@ -518,13 +522,13 @@ def calib_with_arclines(aparm, spec, use_method="general"):
     #tampl, tcent, twid, w, satsnd, spec = detect_lines( slf, det, msarc, censpec=censpec)
 
     if use_method == "semi-brute":
-        best_dict, final_fit = arclines.holy.grail.semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+        best_dict, final_fit = wavecal.semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
     elif use_method == "basic":
-        stuff = arclines.holy.grail.basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
+        stuff = wavecal.basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
         status, ngd_match, match_idx, scores, final_fit = stuff
     else:
         # Now preferred
-        best_dict, final_fit = arclines.holy.grail.general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+        best_dict, final_fit = wavecal.general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
     #
     return final_fit
 
