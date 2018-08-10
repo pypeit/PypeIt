@@ -66,6 +66,9 @@ class ReflectionGrating:
         wave is in angstroms
         ruling is in mm^-1
 
+        If more than one wave provided, wavelength samples are ordered
+        along the first axis.
+
         Taken from xidl/DEEP2/spec2d/pro/model/qmodel.pro.
         """
         if wave is None and self.central_wave is None:
@@ -101,7 +104,7 @@ class ReflectionGrating:
                           numpy.cos(-beta*wavesign[None,:])*cosg[:,None] ]).T
 
         if nwave == 1:
-            # Flatten if only one ray provided
+            # Flatten if only one wave provided
             _r = _r[0]
 
         # Return vectors transformed out of the grating conjugate surface
@@ -529,6 +532,9 @@ class OpticalModel:
         Convert mask coordinates in mm to detector coordinates in pixels.
 
         wave is in angstroms
+
+        If more than one wavelength is provided, wavelength samples are
+        ordered along the first axis.
 
         Taken from xidl/DEEP2/spec2d/pro/model/qmodel.pro.
         """
