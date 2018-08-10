@@ -28,7 +28,7 @@ from pypeit.core.qa import close_qa
 #pypeit_logger = None
 
 # Alphabetical list of developers
-developers = ['ema', 'milvang', 'rcooke', 'xavier']
+developers = ['ema', 'milvang', 'rcooke', 'westfall', 'xavier']
 
 
 class PypeItError(Exception):
