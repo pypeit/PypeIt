@@ -29,6 +29,7 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `astropy <http://www.astropy.org/>`_ version 2.0.5 or later
 * `scipy <http://www.scipy.org/>`_ version 0.18.1 or later
 * `matplotlib <http://matplotlib.org/>`_  version 1.5.3 or later
+* `numba <https://numba.pydata.org/>`_ version 0.39.0 or later (optional - some speed ups, inc. wavecal)
 * `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)
 * `h5py <https://www.h5py.org/>`_ version 2.6 (for data I/O)
 *  yaml -- On Python 3 (at least), you may need to install pyyaml
@@ -37,12 +38,11 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 
 These packages need to be installed by cloning from GitHub:
 
-* `arclines <https://github.com/pypeit/arclines>`_  (this also requires numba)
 * `ginga <https://github.com/profxj/ginga>`_ JXP's fork of Ginga
 
 If you are using Anaconda, you can check the presence of these packages with::
 
-	conda list "^python$|numpy|astropy$|scipy$|matplotlib|PyQT|ginga|yaml|h5py"
+	conda list "^python$|numpy|astropy$|scipy$|matplotlib|numba|PyQT|ginga|yaml|h5py"
 
 If the packages have been installed, this command should print out all the packages and their version numbers.
 
