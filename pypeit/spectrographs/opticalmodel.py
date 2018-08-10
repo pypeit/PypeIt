@@ -128,7 +128,9 @@ class OpticalModel:
     model to perturb what is done in the vanilla model as necessary.
 
     .. todo:
-        Provide a ParSet for the arguments of the function?
+        - Provide a ParSet for the arguments of the function?
+        - I say this is vanilla, but I'm not sure how much of this is
+          still DEIMOS specific.
 
     Args:
         pupil_distance (float):
@@ -246,8 +248,10 @@ class OpticalModel:
         """
         Transform a ray by a surface.
 
+        Taken from xidl/DEEP2/spec2d/pro/model/gen_xfm.pro
+
         .. todo::
-            (KBW) I'm trying to mimic what was done in the IDL code,
+            I'm trying to mimic what was done in the IDL code,
             meaning the matrix ordering may not make sense...
 
         Args:
