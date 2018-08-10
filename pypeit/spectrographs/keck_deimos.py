@@ -532,7 +532,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 tilt*(1-orientation_coeffs[slider][_ruling][2]) \
                     + orientation_coeffs[slider][_ruling][3]
 
-    def mask_to_pixel_coordinates(self, x=None, y=None, wave=None, order=1, filename=None):
+    def mask_to_pixel_coordinates(self, x=None, y=None, wave=None, order=1, filename=None,
+                                  corners=False):
 
         if x is None and y is not None or x is not None and y is None:
             raise ValueError('Must provide both x and y or neither to use slit mask.')
@@ -547,8 +548,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         if x is None and y is None and self.slitmask is None:
             raise ValueError('No coordinates; Provide them directly or instantiate slit mask.')
 
-        _x = self.slitmask.center[:,0] if x is None else x
-        _y = self.slitmask.center[:,1] if y is None else y
+        _x = x
+        _y = y
+        if _x is None:
+            _x = self.slitmask.corners[...,0].ravel() if corners else self.slitmask.center[:,0]
+            _y = self.slitmask.corners[...,1].ravel() if corners else self.slitmask.center[:,1]
 
         if self.grating is None:
             raise ValueError('Must define a grating first; provide a file or use get_grating()')
@@ -563,7 +567,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         x_img, y_img = self.optical_model.mask_to_imaging_coordinates(_x, _y, wave=wave,
                                                                       order=order)
-        return self.detector_map.ccd_coordinates(x_img, y_img)
+        if corners:
+            x_img = x_img.reshape(self.slitmask.corners.shape[:2])
+            y_img = y_img.reshape(self.slitmask.corners.shape[:2])
+        return (x_img, y_img) + self.detector_map.ccd_coordinates(x_img, y_img)
 
 
 class DEIMOSOpticalModel(OpticalModel):

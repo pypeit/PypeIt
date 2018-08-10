@@ -482,10 +482,12 @@ class OpticalModel:
         # 3. Transform through the camera system
         return OpticalModel.conjugate_surface_transform(r, self.camera_transform)
 
-    def grating_output_vectors_to_ics_coo(self, r):
+    def grating_output_vectors_to_ics_coo(self, r, sign=1):
         """
         Revert rays from the CCD coordinates back to the grating
         output vectors.
+
+        There's a sign degeneracy going this way, so it must be defined.
 
         OUTPUT IS MM
 
@@ -494,7 +496,7 @@ class OpticalModel:
         # 3. Transform through the camera system.
         _r = OpticalModel.conjugate_surface_transform(r, self.camera_transform, forward=True)
 
-        # 4. Get angles from unit vectors; theta is flipped
+        # 4. Get angles from unit vectors
         theta = numpy.arccos(_r[...,2])
         phi = numpy.arctan2(_r[...,1], _r[...,0])
 
@@ -510,8 +512,8 @@ class OpticalModel:
         yp = xp * tanp
 
         # 7. Image coordinates are flipped.
-        xp *= -1
-        yp *= -1
+        xp *= sign
+        yp *= sign
 
         # 8. Add the mosaic transform and return the coordinates
         cosp = numpy.cos(-self.imaging_rotation)
@@ -534,7 +536,7 @@ class OpticalModel:
 
         # Propagate the rays through the camera to the detector and
         # return the imaging coordinates (in mm)
-        return self.grating_output_vectors_to_ics_coo(r)
+        return self.grating_output_vectors_to_ics_coo(r, sign=1-2*(x<0))
 
 
 # ----------------------------------------------------------------------
