@@ -1,7 +1,10 @@
 0.8.2dev (unreleased)
 ---------------------
 
-- Major refactor to rename most modules and incorporate the PYPIT -> PypeIt switch
+- Major refactor to rename most modules and incorporate the PYPIT ->
+  PypeIt switch
+- Add SlitMask, OpticalModel, and DetectorMap classes.  Implemented
+  DEIMOSOpticalModel based on DEEP2 IDL code.
 
 0.8.1
 -----
