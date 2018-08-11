@@ -10,7 +10,9 @@ from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import patterns
 from pypeit.core.wavecal import fitting
 from pypeit.core.wavecal import utils
+from pypeit.core.wavecal import qa
 
+from pypeit import msgs
 
 def basic(spec, lines, wv_cen, disp, siglev=20., min_ampl=300.,
           swv_uncertainty=350., pix_tol=2, plot_fil=None, min_match=5,
@@ -287,9 +289,8 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
     return best_dict, final_fit
 
 
-def general(spec, lines, min_ampl=300.,
-            outroot=None, debug=False, do_fit=True, verbose=False,
-            fit_parm=None, lowest_ampl=200.):
+def general(spec, lines, min_ampl=300., outroot=None, do_fit=True,
+            verbose=False, fit_parm=None, lowest_ampl=200., debug=False):
     """
     Parameters
     ----------
@@ -317,7 +318,7 @@ def general(spec, lines, min_ampl=300.,
     from arclines import plots as arcl_plots
 
     # Import the triangles algorithm
-    from arclines.holy.patterns import triangles
+    from pypeit.core.wavecal.patterns import triangles
 
     # Load line lists
     line_lists = waveio.load_line_lists(lines)
@@ -347,7 +348,7 @@ def general(spec, lines, min_ampl=300.,
         sav_nmatch = best_dict['nmatch']
 
         # Loop on pix_tol
-        for pix_tol in [1.]:#, 2.]:
+        for pix_tol in [1.]:
             # Triangle pattern matching
             dindex, lindex, wvcen, disps = triangles(use_tcent, wvdata, npix, 5, 10, pix_tol)
 
@@ -412,23 +413,23 @@ def general(spec, lines, min_ampl=300.,
     wvdata.sort()
 
     if best_dict['nmatch'] == 0:
-        print('---------------------------------------------------')
-        print('Report:')
-        print('::   No matches! Try another algorithm')
-        print('---------------------------------------------------')
+        msgs.info('---------------------------------------------------' + msgs.newline() +
+                  'Report:' + msgs.newline() +
+                  '  No matches! Try another algorithm' + msgs.newline() +
+                  '---------------------------------------------------')
         return
 
     # Report
-    print('---------------------------------------------------')
-    print('Report:')
-    print('::   Number of lines recovered    = {:d}'.format(all_tcent.size))
-    print('::   Number of lines analyzed     = {:d}'.format(use_tcent.size))
-    print('::   Number of acceptable matches = {:d}'.format(best_dict['nmatch']))
-    print('::   Best central wavelength      = {:g}A'.format(best_dict['bwv']))
-    print('::   Best dispersion              = {:g}A/pix'.format(best_dict['bdisp']))
-    print('::   Best solution used pix_tol   = {}'.format(best_dict['pix_tol']))
-    print('::   Best solution had unknown    = {}'.format(best_dict['unknown']))
-    print('---------------------------------------------------')
+    msgs.info('---------------------------------------------------' + msgs.newline() +
+              'Report:' + msgs.newline() +
+              '  Number of lines recovered    = {:d}'.format(all_tcent.size) + msgs.newline() +
+              '  Number of lines analyzed     = {:d}'.format(use_tcent.size) + msgs.newline() +
+              '  Number of acceptable matches = {:d}'.format(best_dict['nmatch']) + msgs.newline() +
+              '  Best central wavelength      = {:g}A'.format(best_dict['bwv']) + msgs.newline() +
+              '  Best dispersion              = {:g}A/pix'.format(best_dict['bdisp']) + msgs.newline() +
+              '  Best solution used pix_tol   = {}'.format(best_dict['pix_tol']) + msgs.newline() +
+              '  Best solution had unknown    = {}'.format(best_dict['unknown']) + msgs.newline() +
+              '---------------------------------------------------')
 
     # Write IDs
     if outroot is not None:
@@ -440,8 +441,8 @@ def general(spec, lines, min_ampl=300.,
     # Plot
     if outroot is not None:
         tmp_list = vstack([line_lists, unknwns])
-        arcl_plots.match_qa(spec, use_tcent, tmp_list,
-                            best_dict['IDs'], best_dict['scores'], outroot+'.pdf')
+        qa.match_qa(spec, use_tcent, tmp_list,
+                    best_dict['IDs'], best_dict['scores'], outroot+'.pdf')
         print("Wrote: {:s}".format(outroot+'.pdf'))
 
     # Fit

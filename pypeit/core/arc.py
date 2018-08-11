@@ -172,17 +172,13 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, ge
     return arccen, maskslit, satsnd
 
 
-def detect_lines(censpec, nfitpix=5, nonlinear=None):
+def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
 
     Parameters
     ----------
-    det : int
-      Index of the detector
-    msarc : ndarray
-      Calibration frame that will be used to identify slit traces (in most cases, the slit edge)
     censpec : ndarray, optional
       A 1D spectrum to be searched for significant detections
 
@@ -216,7 +212,6 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None):
     # Detect the location of the arc lines
     msgs.info("Detecting the strongest, nonsaturated lines")
 
-    fitp = nfitpix # settings.argflag['arc']['calibrate']['nfitpix']
     if len(censpec.shape) == 3:
         detns = censpec[:, 0].flatten()
     else:
@@ -232,14 +227,14 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None):
                     (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3)))[0]
 #                    (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)) & # )[0]
 #                    (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
-    tampl, tcent, twid = fit_arcspec(xrng, detns, pixt, fitp)
+    tampl, tcent, twid = fit_arcspec(xrng, detns, pixt, nfitpix)
     w = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
-    # Check the results
-    #plt.clf()
-    #plt.plot(xrng,detns,'k-')
-    #plt.plot(tcent,tampl,'ro')
-    #plt.show()
-    # Return
+    if debug:
+        # Check the results
+        plt.clf()
+        plt.plot(xrng, detns, 'k-')
+        plt.plot(tcent, tampl, 'ro')
+        plt.show()
     return tampl, tcent, twid, w, detns
 
 

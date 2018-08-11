@@ -3,6 +3,7 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
+from pypeit.core import arc
 
 
 def arc_lines_from_spec(spec, min_ampl=300.):
@@ -18,10 +19,8 @@ def arc_lines_from_spec(spec, min_ampl=300.):
 
     """
 
-    # imports
-    from arclines.pypit_utils import find_peaks
     # Find peaks
-    tampl, tcent, twid, w, yprep = find_peaks(spec)
+    tampl, tcent, twid, w, yprep = arc.detect_lines(spec, nfitpix=7)
     all_tcent = tcent[w]
     all_tampl = tampl[w]
 
