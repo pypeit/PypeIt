@@ -269,6 +269,16 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     return ampl, cent, widt
 
 
+def simple_calib_driver(msarc, aparm, censpec, ok_mask, nfitpix=5, get_poly=False,
+                        IDpixels=None, IDwaves=None):
+    wv_calib = {}
+    for slit in ok_mask:
+        iwv_calib = simple_calib(msarc, aparm, censpec[:, slit], nfitpix=nfitpix,
+                                 get_poly=get_poly, IDpixels=IDpixels, IDwaves=IDwaves)
+        wv_calib[str(slit)] = iwv_calib.copy()
+    return wv_calib
+
+
 def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
                  IDpixels=None, IDwaves=None):
     """Simple calibration algorithm for longslit wavelengths
@@ -492,7 +502,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     return final_fit
 
 
-def calib_with_arclines(aparm, spec, use_method="general"):
+def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
     """Holy grail algorithms for wavelength calibration
 
     Uses arcparam to guide the analysis
@@ -511,6 +521,10 @@ def calib_with_arclines(aparm, spec, use_method="general"):
     # Extract the arc
     #msgs.work("Detecting lines")
     #tampl, tcent, twid, w, satsnd, spec = detect_lines( slf, det, msarc, censpec=censpec)
+    self.wv_calib = {}
+    for slit in ok_mask:
+        self.wv_calib[str(slit)] = iwv_calib.copy()
+        self.arccen[:, slit]
 
     if use_method == "semi-brute":
         best_dict, final_fit = autoid.semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
