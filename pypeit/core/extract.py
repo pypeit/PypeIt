@@ -1345,10 +1345,10 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     fwhm_vec[2*niter//3:] = FWHM
 
     # Note the transpose is here because we
-    xpos0 = sobjs.trace_spat.T
+    xpos0 = np.copy(sobjs.trace_spat.T)
     #xpos0 = np.stack([spec.trace_spat for spec in specobjs], axis=1)
     # This xinvvar is used to handle truncated slits/orders so that they don't break the fits
-    xfit1 = xpos0
+    xfit1 = np.copy(xpos0)
     #ypos = np.outer(spec_vec, np.ones(nobj_reg))
     #yind = np.arange(nspec,dtype=int)
     for iiter in range(niter):
@@ -1369,6 +1369,10 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
           #tracemask1[:,iobj] = tracemask1[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
           tracemask1[:,iobj] = tracemask1[:, iobj] | ((xpos1[:,iobj] < slit_left) | (xpos1[:,iobj] > slit_righ)).astype(int)
           # ToDO add maxdev functionality?
+          # ToDO need to pass in an error vector for robust_polyfit such that it will be able to assign all pixels the same
+          # weight. Right now it is always converging to the slit boundary initial guess becuae that is from a polynomial
+          # fit. It is rejecting a huge number of pixels. Need some maximum number of pixels per iteration to reject.
+          # I would say get rid of robust_polyfit altogether and port xy2traceset which was much more robust. 
           polymask, coeff_fit1 = utils.robust_polyfit(spec_vec,xpos1[:,iobj], ncoeff
                                                       , function = 'legendre',initialmask = tracemask1[:,iobj],forceimask=True)
           xfit1[:,iobj] = utils.func_val(coeff_fit1, spec_vec, 'legendre')
@@ -1376,17 +1380,22 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
           # Plot all the points that were not masked initially
           if(SHOW_FITS == True) & (iiter == niter - 1):
               nomask = (tracemask1[:,iobj]==0)
-              plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
-              plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0)
+              # plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
+              plt.plot(spec_vec[nomask],xpos1[nomask,iobj],marker='o', c='k', markersize=4.0,linestyle='None',
+                       label='flux weighted centroid')
+              plt.plot(spec_vec,xpos0[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
+              plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
               if np.any(~nomask):
-                  plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=4.0,linestyle='None', zorder= 20)
+                  plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=4.0,linestyle='None',
+                           zorder= 20, label='masked points')
               plt.title('Flux Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
               plt.ylim((0.995*xfit1[:, iobj].min(), 1.005*xfit1[:, iobj].max()))
               plt.xlabel('Spectral Pixel')
               plt.ylabel('Spatial Pixel')
+              plt.legend()
               plt.show()
 
-    xfit2 = xfit1
+    xfit2 = np.copy(xfit1)
 
     # Iterate Gaussian weighted centroiding
     for iiter in range(niter):
@@ -1426,6 +1435,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
                   plt.xlabel('Spectral Pixel')
                   plt.ylabel('Spatial Pixel')
                   plt.show()
+                  embed()
 
 
 
