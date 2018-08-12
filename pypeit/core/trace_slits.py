@@ -2864,6 +2864,12 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
         xerr[good] = np.sqrt(numer_var[good])/weight[good]
 #        xerr[good] = np.sqrt(meanvar[good])/weight[good] # Burles error which I don't follow
 
+    # For pixels with large deviations, simply reset to initial values and set large error as with trace_fweight
+    bad = np.any([np.abs(xnew-xinit) > 2*sigma_out + 0.5,xinit < 2*sigma_out - 0.5,xinit > nx - 0.5 - 2*sigma_out],axis=0)
+    if np.sum(bad) > 0:
+        xnew[bad] = xinit[bad]
+        xerr[bad] = 999.0
+
     # Reshape to the right size for output if more than one trace was input
     if ndim > 1:
         xnew = xnew.reshape(npix,nTrace)
