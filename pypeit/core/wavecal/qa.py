@@ -6,6 +6,7 @@ import numpy as np
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
+from matplotlib.backends.backend_pdf import PdfPages
 
 from pypeit import utils
 
