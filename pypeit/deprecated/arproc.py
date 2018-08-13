@@ -29,7 +29,7 @@ try:
 except NameError:
     basestring = str
 
-def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
+def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0, doqa=True):
     """ Generate a frame containing the background sky spectrum
 
     Parameters
@@ -129,7 +129,7 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
                                             maxone=False, **settings.argflag['reduce']['skysub']['bspline'])
         bgf_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
         bgframe = bgf_flat.reshape(tilts.shape)
-        if msgs._debug['sky_sub']:
+        if doqa:
             plt_bspline_sky(tilts, sciframe, bgf_flat, gdp)
             debugger.set_trace()
     else:
@@ -326,7 +326,7 @@ def reduce_prepare(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det,
 
 def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
                    standard=False, triml=1, trimr=1,
-                   mspixelflatnrm=None):
+                   mspixelflatnrm=None, doqa=True):
     """ Run standard extraction steps on an echelle frame
 
     Parameters
@@ -428,7 +428,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
         if np.sum(1.0 - extrap_slit) > ofit[0] + 1:
             fitted, outpar = arpca.basis(xcen, trccen, trccoeff, lnpc, ofit, skipx0=False, mask=maskord,
                                          function=settings.argflag['trace']['object']['function'])
-            if not msgs._debug['no_qa']:
+            if doqa:
 #                arqa.pca_plot(slf, outpar, ofit, "Object_Trace", pcadesc="PCA of object trace")
                 arpca.pca_plot(slf.setup, outpar, ofit, "Object_Trace", pcadesc="PCA of object trace")
             # Extrapolate the remaining orders requested
@@ -492,7 +492,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
                                              tracelist=scitrace)
 
     # Save the quality control
-    if not msgs._debug['no_qa']:
+    if doqa:
         artrace.obj_trace_qa(slf, sciframe, trobjl, trobjr, None, det,
                              root="object_trace", normalize=False)
 
@@ -513,8 +513,8 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
                         scitrace=scitrace, standard=standard)
 
 
-def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, det,
-                     mswave, mspixelflatnrm=None, standard=False, slitprof=None):
+def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, det, mswave,
+                     mspixelflatnrm=None, standard=False, slitprof=None, debug=False):
     """ Run standard extraction steps on an echelle frame
 
     Parameters
@@ -546,7 +546,7 @@ def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, d
     # Estimate Sky Background
     if settings.argflag['reduce']['skysub']['perform']:
         # Perform an iterative background/science extraction
-        if msgs._debug['obj_profile'] and False:
+        if debug:
             debugger.set_trace()  # JXP says THIS MAY NOT WORK AS EXPECTED
             msgs.warn("Reading background from 2D image on disk")
             datfil = settings.argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename.replace(":","_"))
@@ -609,8 +609,6 @@ def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, d
     # Flexure down the slit? -- Not currently recommended
     if settings.argflag['reduce']['flexure']['method'] == 'slitcen':
         flex_dict = arwave.flexure_slit(slf, det)
-        #if not msgs._debug['no_qa']:
-#        arqa.flexure(slf, det, flex_dict, slit_cen=True)
         arwave.flexure_qa(slf, det, flex_dict, slit_cen=True)
 
     # Perform an optimal extraction
@@ -715,7 +713,6 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img,
     if settings.argflag['reduce']['flexure']['perform'] and (not standard):
         if settings.argflag['reduce']['flexure']['method'] is not None:
             flex_list = arwave.flexure_obj(slf, det)
-            #if not msgs._debug['no_qa']:
             arwave.flexure_qa(slf, det, flex_list)
 
     # Correct Earth's motion

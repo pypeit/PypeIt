@@ -9,8 +9,8 @@ This document will describe how to install PypeIt.
 Installing Dependencies
 =======================
 Though we have tried to keep the number of dependencies low,
-there are a few packages that need to be installed (various python packages,
-GSL, and linetools).
+there are a few packages that need to be installed (various python packages
+and linetools).
 
 In general, we recommend that you use Anaconda for the majority
 of these installations.
@@ -70,90 +70,6 @@ Do **not** use the pip install.
 According to the linetools documentation page, "If you wish to have
 full functionality of the GUIs and are using MacOSX, then you probably
 need to change your backend from macosx to TkAgg in the matplotlibrc file."
-
-
-GSL
----
-
-GSL installation
-++++++++++++++++
-
-The package complies Cython code that links to gsl routines.
-These must be installed on your system prior to PypeIt installation.
-We recommend that if you need to install GSL that you use Anaconda,
-e.g.::
-
-    conda install -c https://conda.anaconda.org/asmeurer gsl
-
-You are also required to point the ENVIRONMENTAL variable
-GSL_PATH to the path above the lib/ and include/ directories
-You may determine this path with::
-
-    gsl-config --prefix
-
-It is possible you will also need to set the
-LD_LIBRARY_PATH environmental variable to the gsl lib directory,
-e.g.::
-
-    export LD_LIBRARY_PATH=/u/xavier/anaconda/lib
-
-.. _GSLELCAPITAN:
-
-GSL on Mac OSX El Capitan
-+++++++++++++++++++++++++
-.. warning::
-
-	**The above method for installing GSL with Anaconda will not work
-	if you are using Mac OSX El Capitan!**
-
-The Mac OSX El Capitan operating system introduced
-"Sytem Integrity Protection" (SIP), which restricts root access to as well
-as the creation of symlinks in SIP-protected folders (ex: /usr, /bin etc).
-The /Users folder, where Anaconda generally installs packages,
-is also SIP-protected. This means that the relative paths produced by
-some of our Cython code are interfered with by SIP and will cause PypeIt to crash.
-
-Here are some hacks to make the anaconda installation work as
-well as some alternate installation instructions:
-
-**1) Replace relative paths in compiled Cython files with full path** 
-::
-
-	 #in this example, GSL is installed in '/Users/USERNAME/anaconda/lib/'
-	 cd PypeIt/pypeit/
-	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyextract.so
-	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyextract.so
-	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcytrace.so
-	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcytrace.so
-	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcycomb.so
-	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcycomb.so
-	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyproc.so
-	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyproc.so
-	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyutils.so
-	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyutils.so
-	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyarc.so
-	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyarc.so
-	 
-
-**2) Disable System Integrity Protection**
-
-This is a last resort solution and we do not
-recommend it due to security concerns. Instructions for how
-to do this can be
-found `here <https://www.quora.com/How-do-I-turn-off-the-rootless-in-OS-X-El-Capitan-10-11/>`_.
-
-
-**3) Install GSL with Homebrew instead of Anaconda**
-
-Since `Homebrew <http://brew.sh/>`_ installs programs in /usr/local , which is not SIP protected, this should work without additional hacks.::
-
-  brew install gsl
-
-in which case the ``GSL_PATH`` variable should be set to ``/usr/local/Cellar/gsl/1.16/``, where ``1.16`` might have to
-be replaced with whatever version number you have installed.
-
-Since Homebrew installs programs in /usr/local , which is not
-SIP protected, this should work without additional hacks.
 
 
 Installing PypeIt

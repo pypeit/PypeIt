@@ -250,6 +250,7 @@
   DetectorPar for each Spectrograph
 - Add SpecObjs class
 - Add from_dict and to_dict methods to pydl bspline and update docs
+- Updated from_dict method in pydl bspline
 
 0.7 (2017-02-07)
 ----------------
