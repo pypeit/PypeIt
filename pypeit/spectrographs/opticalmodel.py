@@ -115,7 +115,7 @@ class ReflectionGrating:
 # Vanilla imaging spectrograph optical model
 class OpticalModel:
     """
-    Vanilla optical model for a imaging spectrograph.
+    Vanilla optical model for an imaging spectrograph.
     
     Model includes four elements:
         - Slit mask at the focal plane

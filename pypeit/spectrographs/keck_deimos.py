@@ -454,7 +454,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def get_grating(self, filename):
         """
-        Take from xidl/DEEP2/spec2d/pro/deimos_omodel.pro and
+        Taken from xidl/DEEP2/spec2d/pro/deimos_omodel.pro and
         xidl/DEEP2/spec2d/pro/deimos_grating.pro
         """
         hdu = fits.open(filename)
@@ -469,12 +469,14 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # Not used
             #angle = (hdu[0].header['G3TLTRAW'] + 29094)/2500
             tilt = hdu[0].header['G3TLTVAL']
-        else:
+        elif slider in [2,4]:
             # Slider is 2 or 4
             central_wave = hdu[0].header['G4TLTWAV']
             # Not used
             #angle = (hdu[0].header['G4TLTRAW'] + 40934)/2500
             tilt = hdu[0].header['G4TLTVAL']
+        else:
+            raise ValueError('Slider has unknown value: {0}'.format(slider))
 
         # Ruling
         name = hdu[0].header['GRATENAM']
@@ -534,10 +536,72 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def mask_to_pixel_coordinates(self, x=None, y=None, wave=None, order=1, filename=None,
                                   corners=False):
+        r"""
+        Convert the mask coordinates in mm to pixel coordinates on the
+        DEIMOS detector.
 
+        If not already instantiated, the :attr:`slitmask`,
+        :attr:`grating`, :attr:`optical_model`, and :attr:`detector_map`
+        attributes are instantiated.  If these are not instantiated, a
+        file must be provided.  If no arguments are provided, the
+        function expects these attributes to be set and will output the
+        pixel coordinates for the centers of the slits in the
+        :attr:`slitmask` at the central wavelength of the
+        :attr:`grating`.
+
+        Method generally expected to be executed in one of two modes:
+            - Use the `filename` to read the slit mask and determine the
+              detector positions at the central wavelength.
+            - Specifically map the provided x, y, and wave values to the
+              detector.
+
+        If arrays are provided for both `x`, `y`, and `wave`, the
+        returned objects have the shape :math:`N_\lambda\times S_x`,
+        where :math:`S_x` is the shape of the x and y arrays.
+
+        Args:
+            x (array-like, optional):
+                The x coordinates in the slit mask in mm.  Default is to
+                use the center of the slits in the :attr:`slitmask`.
+            y (array-like, optional):
+                The y coordinates in the slit mask in mm.  Default is to
+                use the center of the slits in the :attr:`slitmask`.
+            wave (array-like, optional):
+                The wavelengths in angstroms for the propagated
+                coordinates.  Default is to use the central wavelength
+                of the :attr:`grating`.
+            order (:obj:`int`, optional):
+                The grating order.  Default is 1.
+            filename (:obj:`str`, optional):
+                The filename to use to (re)instantiate the
+                :attr:`slitmask` and :attr:`grating`.  Default is to use
+                previously instantiated attributes.
+            corners (:obj:`bool`, optional):
+                Instead of using the centers of the slits in the
+                :attr:`slitmask`, return the detector pixel coordinates
+                for the corners of all slits.
+
+        Returns:
+            numpy.ndarray: Returns 5 arrays: (1-2) the x and y
+            coordinates in the image plane in mm, (3) the detector
+            (1-indexed) where the slit should land at the provided
+            wavelength(s), and (4-5) the pixel coordinates (1-indexed)
+            in the relevant detector.
+
+        Raises:
+            ValueError:
+                Raised if the user provides one but not both of the x
+                and y coordinates, if no coordinates are provided or
+                available within the :attr:`slitmask`, or if the
+                :attr:`grating` hasn't been defined and not file is
+                provided.
+        """
+        # Cannot provide just one of x or y
         if x is None and y is not None or x is not None and y is None:
             raise ValueError('Must provide both x and y or neither to use slit mask.')
 
+        # Use the file to update the slitmask (if no x coordinates are
+        # provided) and the grating
         if filename is not None:
             if x is None and y is None:
                 # Reset the slit mask
@@ -545,31 +609,41 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # Reset the grating
             self.get_grating(filename)
 
+        # Check that any coordinates are available
         if x is None and y is None and self.slitmask is None:
             raise ValueError('No coordinates; Provide them directly or instantiate slit mask.')
 
-        _x = x
-        _y = y
+        # Make sure the coordinates are numpy arrays
+        _x = None if x is None else np.atleast_1d(x)
+        _y = None if y is None else np.atleast_1d(y)
         if _x is None:
+            # Use all the slit centers or corners
             _x = self.slitmask.corners[...,0].ravel() if corners else self.slitmask.center[:,0]
             _y = self.slitmask.corners[...,1].ravel() if corners else self.slitmask.center[:,1]
 
+        # Check that the grating is defined
         if self.grating is None:
             raise ValueError('Must define a grating first; provide a file or use get_grating()')
 
+        # Instantiate the optical model or reset it grating
         if self.optical_model is None:
             self.optical_model = DEIMOSOpticalModel(self.grating)
         else:
             self.optical_model.reset_grating(self.grating)
 
+        # Instantiate the detector map, if necessary
         if self.detector_map is None:
             self.detector_map = DEIMOSDetectorMap()
 
+        # Compute the detector image plane coordinates (mm)
         x_img, y_img = self.optical_model.mask_to_imaging_coordinates(_x, _y, wave=wave,
                                                                       order=order)
+        # Reshape if computing the corner positions
         if corners:
             x_img = x_img.reshape(self.slitmask.corners.shape[:2])
             y_img = y_img.reshape(self.slitmask.corners.shape[:2])
+
+        # Use the detector map to convert to the detector coordinates
         return (x_img, y_img) + self.detector_map.ccd_coordinates(x_img, y_img)
 
 
