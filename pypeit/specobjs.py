@@ -57,14 +57,14 @@ class SpecObj(object):
     # Init
 
     # TODO
-    def __init__(self, shape, slit_spat_pos, slit_spec_pos, det = 1, config = None,
+    def __init__(self, shape, slit_spat_pos, slit_spec_pos, det = 1, setup = None,
                  slitid = 999, scidx = 1, objtype='unknown', spat_pixpos=None):
 
         #Assign from init parameters
         self.shape = shape
         self.slit_spat_pos = slit_spat_pos
         self.slit_spec_pos = slit_spec_pos
-        self.config = config
+        self.setup = setup
         self.slitid = slitid
         self.scidx = copy.deepcopy(scidx)
         self.det = det
@@ -82,13 +82,15 @@ class SpecObj(object):
         self.fwhm = None
         self.spat_pixpos = spat_pixpos # Position on the image in pixels at the midpoint of the slit in spectral direction
         self.maskwidth = None
+        self.mincol = None
+        self.maxcol = None
 
         # Attributes for HAND apertures, which are object added to the extraction by hand
-        self.HAND_SPEC = None
-        self.HAND_SPAT = None
-        self.HAND_DET = None
-        self.HAND_FWHM = None
-        self.HAND_FLAG = False
+        self.HAND_EXTRACT_SPEC = None
+        self.HAND_EXTRACT_SPAT = None
+        self.HAND_EXTRACT_DET = None
+        self.HAND_EXTRACT_FWHM = None
+        self.HAND_EXTRACT_FLAG = False
 
 
         # Dictionaries holding boxcar and optimal extraction parameters
@@ -144,7 +146,7 @@ class SpecObj(object):
 
     def copy(self):
         slf = SpecObj(self.shape, self.slit_spat_pos, self.slit_spec_pos, det= self.det,
-                      config=self.config, slitid = self.slitid, scidx = self.scidx,
+                      setup=self.setup, slitid = self.slitid, scidx = self.scidx,
                       objtype=self.objtype, spat_pixpos=self.spat_pixpos)
         slf.boxcar = self.boxcar.copy()
         slf.optimal = self.optimal.copy()
@@ -326,7 +328,7 @@ class SpecObjs(object):
         self.build_summary()
         return self.summary.keys()
 
-
+# ToDO This method is deprecated I think
 def init_exp(lcen, rcen, shape, maskslits,
              det, scidx, fitstbl, tracelist, ypos=0.5, **kwargs):
     """ Generate a list of SpecObjExp objects for a given exposure

@@ -900,7 +900,7 @@ class ReducePar(ParSet):
         # be rethought.
         return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
-                'wht_isis_blue', 'vlt_xshooter_vis']
+                'wht_isis_blue', 'vlt_xshooter_vis', 'vlt_xshooter_nir']
 
     @staticmethod
     def valid_pipelines():
@@ -2153,9 +2153,10 @@ class DetectorPar(ParSet):
 
         # TODO: Should this be detector-specific, or camera-specific?
         defaults['dispaxis'] = 0
-        options['dispaxis'] = [ 0, 1 ]
+        options['dispaxis'] = [ 0, 1, -1]
         dtypes['dispaxis'] = int
-        descr['dispaxis'] = 'Spectra are dispersed along this axis (0 for row, 1 for column)'
+        descr['dispaxis'] = 'Spectra are dispersed along this axis (0 for row, 1 for column,' \
+                            'negative sign means there will be a flip because wavelengths will always be increasing upward)'
 
         defaults['xgap'] = 0.0
         dtypes['xgap'] = [int, float]
