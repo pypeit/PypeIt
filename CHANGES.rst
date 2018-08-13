@@ -2,6 +2,9 @@
 ---------------------
 
 - Major refactor to rename most modules and incorporate the PYPIT -> PypeIt switch
+- Improved treatment of large offsets in pypeit.core.trace_slits.trace_gweight to be symmetric with trace_fweight. Large outlying pixels were breaking object tracing.
+- Added thresholding in pypeit.core.tracewave to ensure that tilts are never crazy values due to extrapolation of f
+  its which can break sky subtraction. 
 
 0.8.1
 -----
