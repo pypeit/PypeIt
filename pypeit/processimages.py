@@ -399,8 +399,7 @@ class ProcessImages(object):
             msgs.error('No bpm for {0}'.format(self.spectrograph.spectrograph))
 
         # Flat-field the data and return the result
-        self.stack = flat.flatfield(self.stack, self.pixel_flat, self.bpm,
-                                    slitprofile=self.slitprof)
+        self.stack = flat.flatfield(self.stack, self.pixel_flat, self.bpm, self.slitprof)
         return self.stack
 
     def process(self, bias_subtract=None, apply_gain=False, trim=True, overwrite=False,
