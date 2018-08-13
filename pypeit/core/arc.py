@@ -518,23 +518,25 @@ def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
     final_fit : dict
       Dict of fit info
     """
-    # Extract the arc
-    #msgs.work("Detecting lines")
-    #tampl, tcent, twid, w, satsnd, spec = detect_lines( slf, det, msarc, censpec=censpec)
-    self.wv_calib = {}
-    for slit in ok_mask:
-        self.wv_calib[str(slit)] = iwv_calib.copy()
-        self.arccen[:, slit]
+    if ok_mask is None:
+        ok_mask = np.arange(spec.shape[1])
 
     if use_method == "semi-brute":
-        best_dict, final_fit = autoid.semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+        final_fit = {}
+        for slit in ok_mask:
+            best_dict, ifinal_fit = autoid.semi_brute(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'],
+                                                      fit_parm=aparm, min_ampl=aparm['min_ampl'])
+            final_fit[str(slit)] = ifinal_fit.copy()
     elif use_method == "basic":
-        stuff = autoid.basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
-        status, ngd_match, match_idx, scores, final_fit = stuff
+        final_fit = {}
+        for slit in ok_mask:
+            status, ngd_match, match_idx, scores, ifinal_fit =\
+                autoid.basic(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'])
+            final_fit[str(slit)] = ifinal_fit.copy()
     else:
         # Now preferred
-        best_dict, final_fit = autoid.general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
-    #
+        best_dict, final_fit = autoid.general(spec, aparm['lamps'], ok_mask=ok_mask,
+                                              fit_parm=aparm, min_ampl=aparm['min_ampl'])
     return final_fit
 
 

@@ -7,7 +7,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
-from arclines.utils import func_val
+from pypeit import utils
 
 
 def arc_fit_qa(slf, fit, outfile, ids_only=False, title=None):
@@ -75,7 +75,7 @@ def arc_fit_qa(slf, fit, outfile, ids_only=False, title=None):
                        edgecolor='gray', facecolor='none')
     # Solution
     xval = np.arange(len(arc_spec))
-    wave = func_val(fit['fitc'], xval/fit['xnorm'], 'legendre',
+    wave = utils.func_val(fit['fitc'], xval/fit['xnorm'], 'legendre',
                             minv=fit['fmin'], maxv=fit['fmax'])
     ax_fit.plot(xval, wave, 'r-')
     xmin, xmax = 0., len(arc_spec)
@@ -85,7 +85,7 @@ def arc_fit_qa(slf, fit, outfile, ids_only=False, title=None):
     ax_fit.set_ylabel('Wavelength')
     ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
     # Stats
-    wave_fit = func_val(fit['fitc'], fit['xfit'], 'legendre',
+    wave_fit = utils.func_val(fit['fitc'], fit['xfit'], 'legendre',
                                 minv=fit['fmin'], maxv=fit['fmax'])
     rms = np.sqrt(np.sum((fit['yfit']-wave_fit)**2)/len(fit['xfit'])) # Ang
     dwv_pix = np.median(np.abs(wave-np.roll(wave,1)))

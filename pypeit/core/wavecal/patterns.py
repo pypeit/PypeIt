@@ -2,10 +2,44 @@
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-
 import numpy as np
+from scipy.ndimage.filters import maximum_filter
+from scipy.ndimage.morphology import generate_binary_structure, binary_erosion
 import numba as nb
 import pdb
+
+
+def detect_peaks(image):
+    """
+    Takes a 2D image and returns 1 if a local maximum is found, and 0 otherwise
+
+    Parameters
+    ----------
+    image : ndarray
+      2D image
+
+    Returns
+    -------
+    pimage : ndarray
+      boolean mask of the peaks (1 when the pixel's value is the neighborhood maximum, 0 otherwise)
+
+    """
+    # Define an 8-connected neighborhood
+    neighborhood = generate_binary_structure(2, 2)
+
+    # Apply the local maximum filter
+    local_max = maximum_filter(image, footprint=neighborhood) == image
+
+    # Background mask
+    background = (image == 0)
+
+    # Remove artifacts from local maximum filter
+    eroded_background = binary_erosion(background, structure=neighborhood, border_value=1)
+
+    # Remove the background from the local_max mask
+    pimage = local_max ^ eroded_background
+
+    return pimage
 
 
 def match_quad_to_list(spec_lines, line_list, wv_guess, dwv_guess,
