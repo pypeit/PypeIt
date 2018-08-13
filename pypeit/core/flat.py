@@ -333,7 +333,7 @@ def norm_slits(mstrace, datasec_img, lordloc, rordloc, pixwid,
 
 
 def slit_profile_pca(mstrace, tilts, msblaze, extrap_slit, slit_profiles,
-                     lordloc, rordloc, pixwid, slitpix, setup):
+                     lordloc, rordloc, pixwid, slitpix, setup, debug=False):
     """ Perform a PCA analysis on the spatial slit profile and blaze function.
 
     Parameters
@@ -461,7 +461,7 @@ def slit_profile_pca(mstrace, tilts, msblaze, extrap_slit, slit_profiles,
         xcen = xv[:, np.newaxis].repeat(nslits, axis=1)
         fitted, outpar = pca.basis(xcen, blzval, fitcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
                                      function=fitfunc)
-        if not msgs._debug['no_qa']:
+        if not debug:
 #            arqa.pca_plot(slf, outpar, ofit, "Blaze_Profile", pcadesc="PCA of blaze function fits")
             pca.pca_plot(slf.setup, outpar, ofit, "Blaze_Profile",
                            pcadesc="PCA of blaze function fits")
@@ -532,7 +532,7 @@ def slit_profile_pca(mstrace, tilts, msblaze, extrap_slit, slit_profiles,
         xcen = spatfit[:, np.newaxis].repeat(nslits, axis=1)
         fitted, outpar = pca.basis(xcen, sltval, fitcoeff, lnpc, sofit, x0in=ordsnd, mask=maskord, skipx0=False,
                                      function=fitfunc)
-        if not msgs._debug['no_qa']:
+        if not debug:
 #            arqa.pca_plot(slf, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
             pca.pca_plot(setup, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
         # Extrapolate the remaining orders requested

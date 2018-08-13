@@ -16,27 +16,6 @@ else:
 # Moved to the top and changed to only import set_trace
 from pdb import set_trace
 
-def init():
-    """
-    Returns
-    -------
-    debug : dict
-        default debug dict
-    """
-    debug = dict(develop=False,
-                 arc=False,
-                 obj_profile=False,
-                 slit_profile=False,
-                 sky_sub=False,
-                 trace=False,
-                 wave=False,
-                 tilts=False,
-                 flexure=False,
-                 no_qa=False,
-                 trace_obj=False,
-                 )
-    return debug
-
 # ADD-ONs from xastropy
 def plot1d(*args, **kwargs):
     """ Plot 1d arrays
