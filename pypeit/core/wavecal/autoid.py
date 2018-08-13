@@ -349,17 +349,26 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
 
     # Echelle
     #ngridw, ngridd = 100000, 100
+
+    # Set the wavelength grid
     if binw is None:
         ngridw = 1000
+        tot_list = vstack([line_lists, unknwns])
+        wvdata = np.array(tot_list['wave'].data)  # Removes mask if any
+        binw = np.linspace(np.min(wvdata), np.max(wvdata), ngridw)
     else:
         ngridw = binw.size
-    if binw is None:
-        ngridd = 1000
+    # Set the dispersion grid
+    if bind is None:
+        ngridd = 100
+        bind = np.linspace(-4.0, 2.0, ngridd)
     else:
         ngridd = bind.size
 
-    bestlist, bestinds = [], []
-    for slit in ok_mask:
+    bestlist = []
+    allwcen, alldisp, allhnum = np.array([]), np.array([]), np.array([])
+    for cnt, slit in enumerate(ok_mask):
+        bestlist.append([])
         # Lines
         all_tcent, cut_tcent, icut = utils.arc_lines_from_spec(spec[:, slit], min_ampl=min_ampl)
 
@@ -427,9 +436,7 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                 histpeaks = patterns.detect_peaks(np.abs(histimg))
 
                 # Find the indices of the nstore largest peaks
-                bidx = np.unravel_index(np.argpartition(np.abs(histpeaks*histimg), -nstore)[-nstore:], histimg.shape)
-                bestlist.append(bidx)
-                bestinds.append([slit, unknown, pix_tol])
+                bidx = np.unravel_index(np.argpartition(np.abs(histpeaks*histimg), -nstore, axis=None)[-nstore:], histimg.shape)
 
                 if debug:
                     print(histimg[bidx], binw[bidx[0]], 10.0**bind[bidx[1]])
@@ -444,13 +451,43 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                     pdb.set_trace()
                     plt.imshow(histimgp[:, ::-1].T, extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
 
+                # Get the peak value of central wavelength and dispersion
+                wcenval = binw[bidx[0]]
+                dispval = bind[bidx[1]]
+                histnum = np.abs(histimg[bidx])
 
+                # Find all good solutions
+                for idx in range(nstore):
+                    # Select all solutions around the best solution within a square of side 2*nsel
+                    nselw, nseld = 5, 25  # Longslit
+                    #nselw, nseld = 1, 1  # Echelle
+                    wlo = binw[max(0, bidx[0][idx] - nselw)]
+                    whi = binw[min(ngridw - 1, bidx[0][idx] + nselw)]
+                    dlo = 10.0 ** bind[max(0, bidx[1][idx] - nseld)]
+                    dhi = 10.0 ** bind[min(ngridd - 1, bidx[1][idx] + nseld)]
+                    if histimgp[bidx][idx] > histimgm[bidx][idx]:
+                        wgd = np.where((wvcenp > wlo) & (wvcenp < whi) & (dispsp > dlo) & (dispsp < dhi))
+                        dindex = dindexp[wgd[0], :].flatten()
+                        lindex = lindexp[wgd[0], :].flatten()
+                        sign = +1.0
+                    else:
+                        wgd = np.where((wvcenm > wlo) & (wvcenm < whi) & (dispsm > dlo) & (dispsm < dhi))
+                        dindex = dindexm[wgd[0], :].flatten()
+                        lindex = lindexm[wgd[0], :].flatten()
+                        sign = -1.0
+                    # Store relevant values in an array to solve for best solution
+                    bestlist[cnt].append([wcenval[idx], dispval[idx], histnum[idx], sign, dindex, lindex])
+                allwcen = np.append(allwcen, wcenval)
+                alldisp = np.append(alldisp, dispval)
+                allhnum = np.append(allhnum, histnum)
 
     # Using the results from all slits, decide on the best solutions
-    #np.histogram()
+    pdb.set_trace()
+    np.linspace(dmin, dmax, ngridd)
+    np.histogram(alldisp, bins=bind, weights=allhnum)
 
     """
-                # Find all good solutions
+                
                 # Select all solutions around the best solution within a square of side 2*nsel
                 # nselw, nseld = 5, 25  # Longslit
                 nselw, nseld = 1, 1  # Echelle
