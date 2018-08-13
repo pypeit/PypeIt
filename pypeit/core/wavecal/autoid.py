@@ -360,7 +360,7 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
         ngridw = binw.size
     # Set the dispersion grid
     if bind is None:
-        ngridd = 100
+        ngridd = 1000
         bind = np.linspace(-4.0, 2.0, ngridd)
     else:
         ngridd = bind.size
@@ -417,15 +417,7 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                 lindexm = lindexm[ww[0], :]
                 dispsm = dispsm[ww]
                 wvcenm = wvcenm[ww]
-                # Setup the grids and histogram
-                if binw is None:
-                    wmin = max(np.min(wvcenp), np.min(wvcenm), np.min(wvdata))
-                    wmax = min(np.max(wvcenp), np.max(wvcenm), np.max(wvdata))
-                    binw = np.linspace(wmin, wmax, ngridw)
-                if bind is None:
-                    dmin = max(np.min(np.log10(dispsp)), np.min(np.log10(dispsm)))
-                    dmax = min(np.max(np.log10(dispsp)), np.max(np.log10(dispsm)))
-                    bind = np.linspace(dmin, dmax, ngridd)
+                # Construct the histograms
                 histimgp, xed, yed = np.histogram2d(wvcenp, np.log10(dispsp), bins=[binw, bind])
                 histimgm, xed, yed = np.histogram2d(wvcenm, np.log10(dispsm), bins=[binw, bind])
                 #histimgp = gaussian_filter(histimgp, 3)
@@ -483,9 +475,10 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
 
     # Using the results from all slits, decide on the best solutions
     pdb.set_trace()
-    np.linspace(dmin, dmax, ngridd)
     np.histogram(alldisp, bins=bind, weights=allhnum)
-
+    from matplotlib import pyplot as plt
+    null = plt.hist(alldisp, bins=bind, weights=allhnum)
+    plt.show()
     """
                 
                 # Select all solutions around the best solution within a square of side 2*nsel
