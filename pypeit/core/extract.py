@@ -22,7 +22,7 @@ from pypeit import utils
 from pypeit.core import pixels
 from pypeit import debugger
 from pypeit import ginga
-from IPython import embed
+#from IPython import embed
 
 # MASK VALUES FROM EXTRACTION
 # 0 
@@ -1372,7 +1372,8 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
           # ToDO need to pass in an error vector for robust_polyfit such that it will be able to assign all pixels the same
           # weight. Right now it is always converging to the slit boundary initial guess becuae that is from a polynomial
           # fit. It is rejecting a huge number of pixels. Need some maximum number of pixels per iteration to reject.
-          # I would say get rid of robust_polyfit altogether and port xy2traceset which was much more robust. 
+          # I would say get rid of robust_polyfit altogether and port xy2traceset which was much more robust.
+          weight = np.ones_like(xpos1)
           polymask, coeff_fit1 = utils.robust_polyfit(spec_vec,xpos1[:,iobj], ncoeff
                                                       , function = 'legendre',initialmask = tracemask1[:,iobj],forceimask=True)
           xfit1[:,iobj] = utils.func_val(coeff_fit1, spec_vec, 'legendre')
@@ -1435,7 +1436,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
                   plt.xlabel('Spectral Pixel')
                   plt.ylabel('Spatial Pixel')
                   plt.show()
-                  embed()
+
 
 
 
