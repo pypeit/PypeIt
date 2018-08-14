@@ -53,6 +53,8 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
     # Instrument/disperser specific
     disperser = fitstbl["dispname"][arc_idx]
     binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
+    # ToDo JFH: Why is the arcparam being modified in place instead of being passed back from the spectrograh class.
+    # This code looks rather sloppy.
     modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl,
                                                arc_idx=arc_idx, binspatial=binspatial,
                                                binspectral=binspectral, msarc_shape=msarc_shape)
@@ -280,7 +282,7 @@ def simple_calib_driver(msarc, aparm, censpec, ok_mask, nfitpix=5, get_poly=Fals
 
 
 def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
-                 IDpixels=None, IDwaves=None):
+                 IDpixels=None, IDwaves=None, debug=False):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -394,7 +396,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
         gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
         msgs.info('Found {:d} lines within the dispersion threshold'.format(len(gd_str)))
         if len(gd_str) < 5:
-            if msgs._debug['arc']:
+            if debug:
                 msgs.warn('You should probably try your best to ID lines now.')
                 debugger.set_trace()
                 debugger.plot1d(yprep)
@@ -429,7 +431,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
             mn = np.min(np.abs(iwave-llist['wave']))
             if mn/aparm['disp'] < aparm['match_toler']:
                 imn = np.argmin(np.abs(iwave-llist['wave']))
-                #if msgs._debug['arc']:
+                #if debug:
                 #    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
                 # Update and append
                 all_ids[ss] = llist['wave'][imn]
@@ -437,7 +439,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
                 ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit,dtype=int))
-        #if msgs._debug['arc']:
+        #if debug:
         #    debugger.set_trace()
         # Increment order
         if n_order < aparm['n_final']:
@@ -449,7 +451,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     # Final fit (originals can now be rejected)
     fmin, fmax = 0., 1.
     xfit, yfit = tcent[ifit]/(msarc.shape[0]-1), all_ids[ifit]
-    mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)#, debug=True)
+    mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)
     irej = np.where(mask==1)[0]
     if len(irej) > 0:
         xrej = xfit[irej]
@@ -464,7 +466,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     ions = all_idsion[ifit][mask==0]
     #
     '''
-    if msgs._debug['arc']:
+    if debug:
         wave = utils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
             'legendre', minv=fmin, maxv=fmax)
         debugger.set_trace()

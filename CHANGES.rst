@@ -2,6 +2,11 @@
 ---------------------
 
 - Major refactor to rename most modules and incorporate the PYPIT -> PypeIt switch
+- Add SlitMask, OpticalModel, and DetectorMap classes.  Implemented
+  DEIMOSOpticalModel based on DEEP2 IDL code.
+- Improved treatment of large offsets in pypeit.core.trace_slits.trace_gweight to be symmetric with trace_fweight. Large outlying pixels were breaking object tracing.
+- Added thresholding in pypeit.core.tracewave to ensure that tilts are never crazy values due to extrapolation of fits which can break sky subtraction. 
+
 
 0.8.1
 -----
@@ -247,6 +252,7 @@
   DetectorPar for each Spectrograph
 - Add SpecObjs class
 - Add from_dict and to_dict methods to pydl bspline and update docs
+- Updated from_dict method in pydl bspline
 
 0.7 (2017-02-07)
 ----------------

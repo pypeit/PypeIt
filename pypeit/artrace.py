@@ -196,7 +196,7 @@ def trace_objects_in_slits(slf, det, sciframe, varframe, crmask, doqa=False, **k
         tracelist += tlist
 
     # QA?
-    if doqa: # and (not msgs._debug['no_qa']):
+    if doqa:
         obj_trace_qa(slf, sciframe, det, tracelist, root="object_trace", normalize=False)
 
     # Return
@@ -465,13 +465,12 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe, varframe,
                                                 [objl, objr], [bckl, bckr],
                                                 triml=triml, trimr=trimr)
     # Check object traces in ginga
-    '''
-    if msgs._debug['trace_obj']:
+    if debug:
         viewer, ch = ginga.show_image(skysub)
         for ii in range(nobj):
             ginga.show_trace(viewer, ch, traces[:, ii], '{:d}'.format(ii), clear=(ii == 0))
         debugger.set_trace()
-    '''
+
     # Trace dict
     tracelist = trace_object_dict(nobj, traces, object=rec_obj_img, background=rec_bg_img,
                                   params=tracepar)

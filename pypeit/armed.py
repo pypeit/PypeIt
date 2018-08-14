@@ -119,7 +119,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Determine the edges of the spectrum (spatial)
             if ('trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']):
-                if True:#not msgs._debug['develop']:
+                if True:
                     msgs.info("Tracing slit edges with a {0:s} frame".format(settings.argflag['trace']['useframe']))
                     if settings.argflag['trace']['useframe'] == 'pinhole':
                         ###############
