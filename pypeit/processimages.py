@@ -423,6 +423,7 @@ class ProcessImages(object):
         self.stack : ndarray
 
         """
+
         # Over-write?
         if (inspect.stack()[0][3] in self.steps) & (not overwrite):
             msgs.warn("Images already combined.  Use overwrite=True to do it again.")

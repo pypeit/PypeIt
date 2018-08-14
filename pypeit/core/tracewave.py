@@ -804,6 +804,10 @@ def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', mask
     ynorm = np.outer(np.linspace(0., 1., msarc.shape[0]), np.ones(msarc.shape[1]))
     polytilts = ynorm - polytilts/(msarc.shape[0]-1)
 
+    # JFH Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
+    # wavelength solution fitting
+    polytilts = np.fmax(np.fmin(polytilts, 1.2), -0.2)
+
     # Return
     outpar = None
     return polytilts, outpar

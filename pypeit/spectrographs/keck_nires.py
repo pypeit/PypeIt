@@ -36,8 +36,8 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 3.8,
                             ronoise         = 5.0,
-                            datasec         = '[0:2048,0:980]',
-                            oscansec        = '[0:2048,980:1024]'
+                            datasec         = '[1:2048,1:1024]',
+                            oscansec        = '[1:2048,980:1024]'
                             )
             ]
         # Uses default timeunit
