@@ -444,8 +444,6 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             wcenval = binw[bidx[0]]
             dispval = bind[bidx[1]]
             histnum = np.abs(histimg[bidx])
-            for i in range(wcenval.size):
-                print(histnum[i], wcenval[i], dispval[i])
 
             # Find all good solutions
             for idx in range(nstore):
@@ -500,7 +498,6 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
         dcen, wcen = np.array([]), np.array([])
         nseld=1
         for ss in range(len(bestlist[cnt])):
-            print(dedge[dhmax-nseld], bestlist[cnt][ss][1], dedge[dhmax+nseld+1])
             if dedge[dhmax-nseld] <= bestlist[cnt][ss][1] <= dedge[dhmax+1+nseld]:
                 wcen = np.append(wcen, bestlist[cnt][ss][0])
                 dcen = np.append(dcen, bestlist[cnt][ss][1])
@@ -527,7 +524,7 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
         # Check that a solution has been found
         if patt_dict['nmatch'] == 0:
             msgs.info('---------------------------------------------------' + msgs.newline() +
-                      'Report for slit {0:d}/{1:d}:'.format(slit, nslit) + msgs.newline() +
+                      'Report for slit {0:d}/{1:d}:'.format(slit+1, nslit) + msgs.newline() +
                       '  No matches! Try another algorithm' + msgs.newline() +
                       '---------------------------------------------------')
             all_final_fit.append(None)
@@ -535,13 +532,13 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
 
         # Report
         msgs.info('---------------------------------------------------' + msgs.newline() +
-                  'Report for slit {0:d}/{1:d}:'.format(slit, nslit) + msgs.newline() +
+                  'Report for slit {0:d}/{1:d}:'.format(slit+1, nslit) + msgs.newline() +
                   '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                   '  Number of lines recovered    = {:d}'.format(all_tcent.size) + msgs.newline() +
                   '  Number of lines analyzed     = {:d}'.format(use_tcent.size) + msgs.newline() +
                   '  Number of acceptable matches = {:d}'.format(patt_dict['nmatch']) + msgs.newline() +
                   '  Best central wavelength      = {:g}A'.format(patt_dict['bwv']) + msgs.newline() +
-                  '  Best dispersion              = {:g}A/pix'.format(patt_dict['bdisp']) + msgs.newline() +
+                  '  Best dispersion              = {:g}A/pix'.format(10.0**patt_dict['bdisp']) + msgs.newline() +
                   '  Best solution had unknown    = {}'.format(use_unknowns) + msgs.newline() +
                   '---------------------------------------------------')
 
