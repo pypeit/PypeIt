@@ -653,7 +653,7 @@ def orig_bg_subtraction_slit(tslits_dict, pixlocn,
                         settings,
                         tracemask=None,
                         rejsigma=3.0, maskval=-999999.9,
-                        method='bspline'):
+                        method='bspline', debug=False):
     """ Extract a science target and background flux
     :param slf:
     :param sciframe:
@@ -778,7 +778,7 @@ def orig_bg_subtraction_slit(tslits_dict, pixlocn,
         bgf_flat = utils.func_val(bspl, tilts[in_slit].flatten(), 'bspline')
         #bgframe = bgf_flat.reshape(tilts.shape)
         bgframe[in_slit] = bgf_flat
-        if msgs._debug['sky_sub']:
+        if debug:
             plt_bspline_sky(tilts, scifrcp, bgf_flat, in_slit, gdp)
             debugger.set_trace()
     else:
