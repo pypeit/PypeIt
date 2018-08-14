@@ -261,10 +261,10 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                 # Leave slit_profiles as ones if the slitprofile is not
                 # being determined, otherwise, set the model.
                 self.slit_profiles[word] = modvals/nrmvals
-            self.mspixelflatnrm[word] /= nrmvals
+            self.mspixelflatnrm[word] /= modvals
             # Fill
-            self.msblaze[:,slit] = msblaze_slit
-            self.blazeext[:,slit] = blazeext_slit
+            self.msblaze[:, slit] = msblaze_slit
+            self.blazeext[:, slit] = blazeext_slit
 
         # If some slit profiles/blaze functions need to be extrapolated, do that now
         if armed:
