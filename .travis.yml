@@ -59,7 +59,7 @@ env:
       #- EXTRA_CONTEXT="package_name=AstropyProject" FOLDERNAME='AstropyProject'
       #- EXTRA_CONTEXT='_parent_project=sunpy'
       #- TASK='render' EXTRA_CONTEXT='include_example_cython_code=y initialize_git_repo=n'
-      - PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
+      #- PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
       - PYTHON_VERSION=3.6 SETUP_CMD='egg_info'
 
 matrix:
