@@ -397,6 +397,7 @@ def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
         if ww[0].size == 0:
             continue
         unq, cnts = np.unique(lindex[ww], return_counts=True)
+        unq = unq.astype(np.int)
         detids[dd] = linelist[unq[np.argmax(cnts)]]
         scr = score_triangles(cnts)
         scores[dd] = scr

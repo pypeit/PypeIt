@@ -390,6 +390,7 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             continue
 
         # Loop on pix_tol
+        # TODO: Allow for different pixel tolerance?
         for pix_tol in [1.0]:
             # Loop on sign (i.e. if pixels correlate/anticorrelate wavelength)
             try:
@@ -428,6 +429,7 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             # Find the indices of the nstore largest peaks
             bidx = np.unravel_index(np.argpartition(np.abs(histpeaks*histimg), -nstore, axis=None)[-nstore:], histimg.shape)
 
+            debug = True
             if debug:
                 print(histimg[bidx], binw[bidx[0]], 10.0**bind[bidx[1]])
                 from matplotlib import pyplot as plt
@@ -445,6 +447,8 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             wcenval = binw[bidx[0]]
             dispval = bind[bidx[1]]
             histnum = np.abs(histimg[bidx])
+            for i in range(wcenval.size):
+                print(histnum[i], wcenval[i], dispval[i])
 
             # Find all good solutions
             for idx in range(nstore):
@@ -480,9 +484,9 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
     msgs.info("Fitting the wavelength solution for each slit")
 
     # Fit the wavelength solution for each slit
-    all_final_fit = []
+    all_patt_dict, all_final_fit = [], []
     for cnt, slit in enumerate(ok_mask):
-        pdb.set_trace()
+        #pdb.set_trace()
         # patt_dict
         patt_dict = dict(nmatch=0, ibest=-1, bwv=0., min_ampl=min_ampl)
         use_tcent = slit_tcent[cnt]
@@ -490,34 +494,43 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
         # Check there are lines in this slit
         if use_tcent.size == 0:
             msgs.warn("No lines to identify in slit {0:d}!".format(slit))
+            all_patt_dict.append(None)
             all_final_fit.append(None)
             continue
 
         # Obtain a full list of indices that are consistent with the maximum value
         dindex, lindex, allsgn = np.array([]), np.array([]), np.array([])
+        dcen, wcen = np.array([]), np.array([])
+        nseld=1
         for ss in range(len(bestlist[cnt])):
+            print(dedge[dhmax-nseld], bestlist[cnt][ss][1], dedge[dhmax+nseld+1])
             if dedge[dhmax-nseld] <= bestlist[cnt][ss][1] <= dedge[dhmax+1+nseld]:
+                wcen = np.append(wcen, bestlist[cnt][ss][0])
+                dcen = np.append(dcen, bestlist[cnt][ss][1])
                 allsgn = np.append(allsgn, bestlist[cnt][ss][3]*np.ones(bestlist[cnt][ss][4].size))
                 dindex = np.append(dindex, bestlist[cnt][ss][4])
                 lindex = np.append(lindex, bestlist[cnt][ss][5])
-
         # Find the favoured sign and only use those values
         if np.sum(allsgn) > 0.0:
             use_tcent = all_tcent.copy()
             sign = +1.0
             signtxt = "correlate"
         else:
-            use_tcent = use_tcent = (npix - 1.0) - all_tcent.copy()[::-1]
+            use_tcent = (npix - 1.0) - all_tcent.copy()[::-1]
             sign = -1.0
             signtxt = "anticorrelate"
         dindex = dindex[np.where(allsgn == sign)]
         lindex = lindex[np.where(allsgn == sign)]
         patterns.solve_triangles(use_tcent, wvdata, dindex, lindex, patt_dict)
 
+        # Fill in the patterns dictionary
+        patt_dict['bwv'] = np.mean(wcen)
+        patt_dict['bdisp'] = np.mean(dcen)
+
         # Check that a solution has been found
         if patt_dict['nmatch'] == 0:
             msgs.info('---------------------------------------------------' + msgs.newline() +
-                      'Report:' + msgs.newline() +
+                      'Report for slit {0:d}/{1:d}:'.format(slit, nslit) + msgs.newline() +
                       '  No matches! Try another algorithm' + msgs.newline() +
                       '---------------------------------------------------')
             all_final_fit.append(None)
@@ -526,22 +539,22 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
         # Report
         msgs.info('---------------------------------------------------' + msgs.newline() +
                   'Report for slit {0:d}/{1:d}:'.format(slit, nslit) + msgs.newline() +
+                  '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                   '  Number of lines recovered    = {:d}'.format(all_tcent.size) + msgs.newline() +
                   '  Number of lines analyzed     = {:d}'.format(use_tcent.size) + msgs.newline() +
                   '  Number of acceptable matches = {:d}'.format(patt_dict['nmatch']) + msgs.newline() +
                   '  Best central wavelength      = {:g}A'.format(patt_dict['bwv']) + msgs.newline() +
                   '  Best dispersion              = {:g}A/pix'.format(patt_dict['bdisp']) + msgs.newline() +
-                  '  Best solution used pix_tol   = {}'.format(patt_dict['pix_tol']) + msgs.newline() +
-                  '  Best solution had unknown    = {}'.format(patt_dict['unknown']) + msgs.newline() +
+                  '  Best solution had unknown    = {}'.format(use_unknowns) + msgs.newline() +
                   '---------------------------------------------------')
 
-        slittxt = '_Slit{0:03d}_'.format(slit)
+        slittxt = '_Slit{0:03d}'.format(slit)
         if outroot is not None:
             # Write IDs
             out_dict = dict(pix=use_tcent, IDs=patt_dict['IDs'])
             jdict = ltu.jsonify(out_dict)
             ltu.savejson(outroot + slittxt + '.json', jdict, easy_to_read=True, overwrite=True)
-            msgs.info("Wrote: {:s}".format(outroot+'.json'))
+            msgs.info("Wrote: {:s}".format(outroot + slittxt + '.json'))
 
             # Plot
             tmp_list = vstack([line_lists, unknwns])
@@ -550,7 +563,7 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             msgs.info("Wrote: {:s}".format(outroot + slittxt + '.pdf'))
 
         # Perform final fit to the line IDs
-        final_fit = None
+        final_fit = dict()
         if do_fit:
             NIST_lines = line_lists['NIST'] > 0
             ifit = np.where(patt_dict['mask'])[0]
@@ -559,20 +572,20 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             else:
                 plot_fil = None
             # Purge UNKNOWNS from ifit
-            imsk = np.array([True]*len(ifit))
+            imsk = np.ones(len(ifit), dtype=np.bool)
             for kk, idwv in enumerate(np.array(patt_dict['IDs'])[ifit]):
                 if np.min(np.abs(line_lists['wave'][NIST_lines]-idwv)) > 0.01:
                     imsk[kk] = False
             ifit = ifit[imsk]
             # Allow for weaker lines in the fit
-            all_tcent, weak_cut_tcent, icut = utils.arc_lines_from_spec(spec, min_ampl=lowest_ampl)
+            all_tcent, weak_cut_tcent, icut = utils.arc_lines_from_spec(spec[:, slit], min_ampl=lowest_ampl)
             use_weak_tcent = all_tcent.copy()
             add_weak = []
             for weak in use_weak_tcent:
                 if np.min(np.abs(all_tcent-weak)) > 5.:
                     add_weak += [weak]
             if len(add_weak) > 0:
-                if patt_dict['sign'] == +1.0:
+                if sign == +1.0:
                     use_weak = np.array(add_weak)
                 else:
                     use_weak = (npix - 1.0) - np.array(add_weak)[::-1]
@@ -582,11 +595,13 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                                                    np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
                                                    patt_dict['bdisp'], plot_fil=plot_fil, verbose=verbose,
                                                    aparm=fit_parm)
-            # Append this fit to the list
-            all_final_fit.append(final_fit.copy())
 
             if plot_fil is not None:
                 print("Wrote: {:s}".format(plot_fil))
+
+        # Append the results to the full list
+        all_final_fit.append(final_fit.copy())
+        all_patt_dict.append(patt_dict.copy())
 
     # Return
     return all_patt_dict, all_final_fit
