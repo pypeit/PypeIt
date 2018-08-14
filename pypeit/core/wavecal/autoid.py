@@ -361,7 +361,6 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
     if binw is None:
         ngridw = 1000
         tot_list = vstack([line_lists, unknwns])
-        wvdata = np.array(tot_list['wave'].data)  # Removes mask if any
         binw = np.linspace(np.min(wvdata), np.max(wvdata), ngridw)
     else:
         ngridw = binw.size
