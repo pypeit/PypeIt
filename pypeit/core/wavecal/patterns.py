@@ -363,7 +363,7 @@ def triangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
     return dindex, lindex, wvcen, disps
 
 
-def solve_triangles(detlines, linelist, dindex, lindex, best_dict=None):
+def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
     """  Given a starting solution, find the best match for all detlines
 
     Parameters
@@ -376,7 +376,7 @@ def solve_triangles(detlines, linelist, dindex, lindex, best_dict=None):
       Index array of all detlines used in each triangle
     lindex : ndarray
       Index array of the assigned line to each index in dindex
-    best_dict : dict
+    patt_dict : dict
       Contains all relevant details of the fit
 
     Returns
@@ -384,8 +384,8 @@ def solve_triangles(detlines, linelist, dindex, lindex, best_dict=None):
 
     """
     nlines = detlines.size
-    if best_dict is None:
-        best_dict = dict(nmatch=0, ibest=-1, bwv=0.)
+    if patt_dict is None:
+        patt_dict = dict(nmatch=0, ibest=-1, bwv=0.)
 
     # Find the best ID of each line
     detids = np.zeros(nlines)
@@ -405,11 +405,11 @@ def solve_triangles(detlines, linelist, dindex, lindex, best_dict=None):
             ngd_match += 1
 
     # Iteratively fit this solution, and ID all lines.
-    if ngd_match > best_dict['nmatch']:
-        best_dict['mask'] = mask
-        best_dict['nmatch'] = ngd_match
-        best_dict['scores'] = scores
-        best_dict['IDs'] = detids
+    if ngd_match > patt_dict['nmatch']:
+        patt_dict['mask'] = mask
+        patt_dict['nmatch'] = ngd_match
+        patt_dict['scores'] = scores
+        patt_dict['IDs'] = detids
     return
 
 
