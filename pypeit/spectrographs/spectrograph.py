@@ -474,3 +474,36 @@ class Spectrograph(object):
         txt += ' camera={:s}'.format(self.camera)
         txt += '>'
         return txt
+
+    def mm_per_pix(self, det=1):
+        """
+        Return the spatial scale at the telescope focal plane in mm per
+        pixel at the detector.
+
+        The fratio and diameter of the telescope must be defined.
+
+        Args:
+            det (:obj:`int`, optional):
+                Detector to use for the spectrograph platescale.
+
+        Returns:
+            float: The spatial scale at the telescope focal plane in mm
+            per detector pixel scale.
+        
+        Raises:
+            ValueError: 
+                Raised if the telescope is undefined, any of the numbers
+                needed for the calculation are not available, or the
+                selected detector is out of range.
+        """
+        if det > self.ndet:
+            raise ValueError('Selected detector out of range; det={0}..{1}.'.format(1,self.ndet))
+        tel_platescale = None if self.telescope is None else self.telescope.platescale()
+        if self.telescope is None or tel_platescale is None or \
+                self.detector[det-1]['platescale'] is None:
+            raise ValueError('Incomplete information to calculate mm per pixel.')
+
+        return self.detector[det-1]['platescale']/tel_platescale
+
+            
+

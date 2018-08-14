@@ -17,7 +17,7 @@ from pypeit import pypeitsetup
 from pypeit import debugger
 
 def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False,
-          sort_dir=None, debug=None, quick=False, ncpus=1, overwrite=True, verbosity=2,
+          sort_dir=None, quick=False, ncpus=1, overwrite=True, verbosity=2,
           use_masters=False, logname=None):
     """
     Execute PYPIT.
@@ -50,8 +50,6 @@ def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_fr
             headers using the instrument specific keywords.
         sort_dir (str):
             The directory to put the '.sorted' file.
-        debug (:obj:`dict`, optional):
-            Debugging dictionary.  TODO: More description.
         quick (:obj:`bool`, optional):
             Perform a quick version of the reduction.  NOT IMPLEMENTED.
         ncpus (:obj:`int`, optional):
@@ -80,7 +78,7 @@ def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_fr
         raise NotImplementedError('Quick version of pypeit is not yet implemented.')
 
     # Reset the global logger
-    msgs.reset(log=logname, debug=None, verbosity=verbosity)
+    msgs.reset(log=logname, verbosity=verbosity)
     msgs.pypeit_file = pypeit_file
 
     # Record the starting time

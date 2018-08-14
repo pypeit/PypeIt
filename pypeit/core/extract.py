@@ -1835,7 +1835,7 @@ def obj_profiles(det, specobjs, sciframe, varframe, crmask,
                 fdict['flux_val'] = flux_val
                 scitrace[sl]['opt_profile'].append(copy.deepcopy(fdict))
                 specobjs[sl][o].optimal['fwhm'] = fdict['param'][1]  # Pixels
-                if False: #msgs._debug['obj_profile']:
+                if False:
                     gdp = mask == 0
                     mn = np.min(slit_val[gdp])
                     mx = np.max(slit_val[gdp])
@@ -1862,7 +1862,7 @@ def obj_profiles(det, specobjs, sciframe, varframe, crmask,
                 scitrace[sl]['opt_profile'].append({})
                 continue
     # QA
-    if doqa: #not msgs._debug['no_qa'] and doqa:
+    if doqa:
         msgs.info("Preparing QA for spatial object profiles")
 #        qa.obj_profile_qa(slf, specobjs, scitrace, det)
         debugger.set_trace()  # Need to avoid slf
@@ -2035,11 +2035,6 @@ def optimal_extract(specobjs, sciframe, varframe,
             # Update object model
             counts_image = np.outer(opt_flux, np.ones(prof_img.shape[1]))
             obj_model += prof_img * counts_image
-            '''
-            if 'OPTIMAL' in msgs._debug:
-                debugger.set_trace()
-                debugger.xplot(opt_wave, opt_flux, np.sqrt(opt_var))
-            '''
 
     # KBW: Using variance_frame here produces a circular import.  I've
     # changed this function to return the object model, then this last

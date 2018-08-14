@@ -31,7 +31,6 @@ def test_flex_shift():
     arx_file = pypeit.__path__[0]+'/data/sky_spec/sky_LRISb_600.fits'
     arx_spec = readspec(arx_file)
     # Call
-    #msgs._debug['flexure'] = True
     flex_dict = wave.flex_shift(obj_spec, arx_spec)
     assert np.abs(flex_dict['shift'] - 15.7) < 0.1
 
