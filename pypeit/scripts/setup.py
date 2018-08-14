@@ -55,7 +55,7 @@ def main(args):
     # Check that input spectrograph is supported
     instruments_served = valid_spectrographs()
     if args.spectrograph not in instruments_served:
-        raise ValueError('Instrument \'{0}\' unknown to PYPIT.\n'.format(args.spectrograph)
+        raise ValueError('Instrument \'{0}\' unknown to PypeIt.\n'.format(args.spectrograph)
                          + '\tAvailable options are: {0}\n'.format(', '.join(instruments_served))
                          + '\tSelect an available instrument or consult the documentation '
                          + 'on how to add a new instrument.')
