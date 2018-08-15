@@ -195,8 +195,7 @@ class PypeItSetup(object):
         #
         all_sci_idx = np.where(self.fitstbl['science'])[0]
         all_sci_ID = self.fitstbl['sci_ID'][self.fitstbl['science']]
-        self.group_dict = pypsetup.build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx,
-                                                   all_sci_ID)
+        self.group_dict = pypsetup.build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx, all_sci_ID)
 
         # TODO: Move this to a method that writes the sorted file
         # Write .sorted file

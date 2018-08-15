@@ -95,12 +95,12 @@ def load_headers(datlines, spectrograph, strict=True):
         # Now get the rest of the keywords
 
         for head_idx in head_keys.keys():
-            for kw,hkey in head_keys[head_idx].items():
+            for kw, hkey in head_keys[head_idx].items():
                 try:
                     value = headarr[head_idx][hkey]
                 except KeyError: # Keyword not found in header
                     msgs.warn("{:s} keyword not in header. Setting to None".format(hkey))
-                    value=str('None')
+                    value = str('None')
 #                except IndexError:
 #                    debugger.set_trace()
                 # Convert the input time into hours -- Should we really do this here??
@@ -261,10 +261,10 @@ def load_specobj(fname):
         # New and wrong
         try:
             specobj = specobjs.SpecObj(shape, [float(objp[1][1:])/10000.]*2,
-                                   np.mean([int(objp[-1][1:]), int(objp[-2][1:])]),
-                                   config='dummy_config',
-                                   slitid=1, det=det,
-                                   spat_pixpos=100)  # DUMMY
+                                       np.mean([int(objp[-1][1:]), int(objp[-2][1:])]),
+                                       config='dummy_config',
+                                       slitid=1, det=det,
+                                       spat_pixpos=100)  # DUMMY
         except:
             debugger.set_trace()
         # Add trace
