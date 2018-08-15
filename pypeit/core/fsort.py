@@ -54,6 +54,7 @@ def ftype_indices(fitstbl, ftype, sci_ID):
     idx = np.where(fitstbl[ftype] & (fitstbl['sci_ID'] & sci_ID > 0))[0]
     return idx
 
+
 def list_of_files(fitstbl, ftype, sci_ID):
     """
     Generate a list of filenames with path for a given frametype and sci_ID

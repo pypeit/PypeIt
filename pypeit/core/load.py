@@ -261,10 +261,10 @@ def load_specobj(fname):
         # New and wrong
         try:
             specobj = specobjs.SpecObj(shape, [float(objp[1][1:])/10000.]*2,
-                                   np.mean([int(objp[-1][1:]), int(objp[-2][1:])]),
-                                   config='dummy_config',
-                                   slitid=1, det=det,
-                                   spat_pixpos=100)  # DUMMY
+                                       np.mean([int(objp[-1][1:]), int(objp[-2][1:])]),
+                                       config='dummy_config',
+                                       slitid=1, det=det,
+                                       spat_pixpos=100)  # DUMMY
         except:
             debugger.set_trace()
         # Add trace
