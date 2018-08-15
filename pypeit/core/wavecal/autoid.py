@@ -361,13 +361,14 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
     if binw is None:
         ngridw = 1000
         tot_list = vstack([line_lists, unknwns])
+        # Ideally, you want binw to roughly sample the A/pix of the spectrograph
         binw = np.linspace(np.min(wvdata), np.max(wvdata), ngridw)
     else:
         ngridw = binw.size
     # Set the dispersion grid
     if bind is None:
         ngridd = 1000
-        bind = np.linspace(-4.0, 2.0, ngridd)
+        bind = np.linspace(-3.0, 1.0, ngridd)
     else:
         ngridd = bind.size
 
@@ -390,11 +391,11 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
 
         # Loop on pix_tol
         # TODO: Allow for different pixel tolerance?
-        for pix_tol in [2.0]:
+        for pix_tol in [1.0]:
             # First run pattern recognition assuming pixels correlate with wavelength
 
             # Triangle pattern matching
-            dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 5, 10, pix_tol)
+            dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 4, 10, pix_tol)
             # dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 3, 6, pix_tol)
             # Remove any invalid results
             ww = np.where((binw[0] < wvcenp) & (wvcenp < binw[-1]) & (10.0**bind[0] < dispsp) & (dispsp < 10.0**bind[-1]))
@@ -496,7 +497,6 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
         # Obtain a full list of indices that are consistent with the maximum value
         dindex, lindex, allsgn = np.array([]), np.array([]), np.array([])
         dcen, wcen = np.array([]), np.array([])
-        nseld=1
         for ss in range(len(bestlist[cnt])):
             if dedge[dhmax-nseld] <= bestlist[cnt][ss][1] <= dedge[dhmax+1+nseld]:
                 wcen = np.append(wcen, bestlist[cnt][ss][0])
@@ -519,12 +519,12 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
 
         # Fill in the patterns dictionary
         patt_dict['bwv'] = np.mean(wcen)
-        patt_dict['bdisp'] = np.mean(dcen)
+        patt_dict['bdisp'] = 10.0**np.mean(dcen)
 
         # Check that a solution has been found
         if patt_dict['nmatch'] == 0:
             msgs.info('---------------------------------------------------' + msgs.newline() +
-                      'Report for slit {0:d}/{1:d}:'.format(slit+1, nslit) + msgs.newline() +
+                      'Initial report for slit {0:d}/{1:d}:'.format(slit+1, nslit) + msgs.newline() +
                       '  No matches! Try another algorithm' + msgs.newline() +
                       '---------------------------------------------------')
             all_final_fit.append(None)
@@ -532,13 +532,13 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
 
         # Report
         msgs.info('---------------------------------------------------' + msgs.newline() +
-                  'Report for slit {0:d}/{1:d}:'.format(slit+1, nslit) + msgs.newline() +
+                  'Initial report for slit {0:d}/{1:d}:'.format(slit+1, nslit) + msgs.newline() +
                   '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                   '  Number of lines recovered    = {:d}'.format(all_tcent.size) + msgs.newline() +
                   '  Number of lines analyzed     = {:d}'.format(use_tcent.size) + msgs.newline() +
                   '  Number of acceptable matches = {:d}'.format(patt_dict['nmatch']) + msgs.newline() +
                   '  Best central wavelength      = {:g}A'.format(patt_dict['bwv']) + msgs.newline() +
-                  '  Best dispersion              = {:g}A/pix'.format(10.0**patt_dict['bdisp']) + msgs.newline() +
+                  '  Best dispersion              = {:g}A/pix'.format(patt_dict['bdisp']) + msgs.newline() +
                   '  Best solution had unknown    = {}'.format(use_unknowns) + msgs.newline() +
                   '---------------------------------------------------')
 

@@ -21,9 +21,10 @@ from pypeit import arcimage
 
 # These tests are not run on Travis
 if os.getenv('PYPEIT_DEV') is None:
-    skip_test=True
+    skip_test = True
 else:
-    skip_test=False
+    skip_test = False
+
 
 def chk_for_files(root):
     files = glob.glob(root+'*')
@@ -32,9 +33,11 @@ def chk_for_files(root):
     else:
         return True
 
+
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
+
 
 def test_user_redo():
     if skip_test:
@@ -52,6 +55,7 @@ def test_user_redo():
     new_wv_calib = waveCalib.calibrate_spec(0)
     # Test
     assert new_wv_calib['rms'] < 0.035
+
 
 def test_step_by_step():
     if skip_test:
