@@ -33,9 +33,10 @@ def test_run_setup():
         os.remove(sfile)
     #
     droot = data_path('b')
-    pargs = setup.parser([droot, 'shane_kast_blue', '-d', '-c',
+    pargs = setup.parser([droot, 'shane_kast_blue', '-c',
                           '--extension=fits.gz', '--redux_path={:s}'.format(data_path(''))])
     setup.main(pargs)
+
     setup_file = glob.glob(data_path('setup_files/shane_kast_blue*.setups'))[0]
     # Load
     with open(setup_file, 'r') as infile:
@@ -44,7 +45,7 @@ def test_run_setup():
     assert '01' in setup_dict['A'].keys()
     assert setup_dict['A']['--']['disperser']['name'] == '600/4310'
     # Failures
-    pargs2 = setup.parser([droot, 'shane_kast_blu', '-d', '-c',
+    pargs2 = setup.parser([droot, 'shane_kast_blu', '-c',
                               '--extension=fits.gz', '--redux_path={:s}'.format(data_path(''))])
     with pytest.raises(ValueError):
         setup.main(pargs2)

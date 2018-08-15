@@ -57,8 +57,8 @@ class SpecObj(object):
     # Init
 
     # TODO
-    def __init__(self, shape, slit_spat_pos, slit_spec_pos, det = 1, setup = None,
-                 slitid = 999, scidx = 1, objtype='unknown', spat_pixpos=None):
+    def __init__(self, shape, slit_spat_pos, slit_spec_pos, det=1, setup=None,
+                 slitid=999, scidx=1, objtype='unknown', spat_pixpos=None, config=None):
 
         #Assign from init parameters
         self.shape = shape
@@ -69,6 +69,7 @@ class SpecObj(object):
         self.scidx = copy.deepcopy(scidx)
         self.det = det
         self.objtype = objtype
+        self.config = config
 
         # ToDo add all attributes here and to the documentaiton
 
@@ -145,8 +146,8 @@ class SpecObj(object):
             return False
 
     def copy(self):
-        slf = SpecObj(self.shape, self.slit_spat_pos, self.slit_spec_pos, det= self.det,
-                      setup=self.setup, slitid = self.slitid, scidx = self.scidx,
+        slf = SpecObj(self.shape, self.slit_spat_pos, self.slit_spec_pos, det=self.det,
+                      setup=self.setup, slitid = self.slitid, scidx=self.scidx,
                       objtype=self.objtype, spat_pixpos=self.spat_pixpos)
         slf.boxcar = self.boxcar.copy()
         slf.optimal = self.optimal.copy()
