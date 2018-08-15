@@ -9,6 +9,7 @@ from __future__ import unicode_literals
 
 import os
 
+from pathlib import Path
 import pytest
 import glob
 import numpy as np
@@ -18,6 +19,11 @@ from astropy.table import Table
 from pypeit import wavecalib
 from pypeit import traceslits
 from pypeit import arcimage
+
+from pypeit.core.wavecal import autoid
+import json
+import h5py
+test_arc_path = str(Path().absolute()) + '/files/wavecalib/'
 
 # These tests are not run on Travis
 if os.getenv('PYPEIT_DEV') is None:
@@ -114,3 +120,105 @@ def test_one_shot():
     assert 'arcparam' in wv_calib2.keys()
 
 
+def test_wavecalib_general():
+
+    # LRISb 600/4000 with the longslit
+    names = ['LRISb_600_4000_longslit']
+    spec_files = ['lrisb_600_4000_PYPIT.json']
+    all_lines = [['CdI', 'HgI', 'ZnI']]
+    all_wvcen = [4400.]
+    all_disp = [1.26]
+    fidxs = [0]
+    scores = [dict(rms=0.13, nxfit=13, nmatch=10)]
+
+    '''
+    # LRISb off-center
+    # NeI lines are seen beyond the dicrhoic but are ignored
+    names += ['LRISb_600_4000_red']
+    src_files += ['LRISb_600_LRX.hdf5']  # Create with low_redux.py if needed
+    all_wvcen += [5000.]
+    all_disp += [1.26]
+    all_lines += [['CdI', 'ZnI', 'HgI']]  #,'NeI']]
+    fidxs += [18]
+    scores += [dict(rms=0.08, nxfit=10, nmatch=10)]
+    '''
+
+    # LRISr 600/7500 longslit
+    names += ['LRISr_600_7500_longslit']
+    spec_files += ['lrisr_600_7500_PYPIT.json']
+    all_wvcen += [7000.]
+    all_disp += [1.6]
+    all_lines += [['ArI', 'HgI', 'KrI', 'NeI', 'XeI']]
+    fidxs += [-1]
+    scores += [dict(rms=0.08, nxfit=30, nmatch=50)]
+
+    '''
+    # LRISr 900/XX00 longslit -- blue
+    names += ['LRISr_900_XX00_longslit']
+    src_files += ['lrisr_900_XX00_PYPIT.json']
+    all_wvcen += [5800.]
+    all_disp += [1.08]
+    all_lines += [['ArI', 'HgI', 'KrI', 'NeI', 'XeI', 'CdI', 'ZnI']]
+    fidxs += [-1]
+    scores += [dict(rms=0.08, nxfit=10, nmatch=10)]
+    '''
+
+    # LRISr 400/8500 longslit -- red
+    names += ['LRISr_400_8500_longslit']
+    spec_files += ['lrisr_400_8500_PYPIT.json']
+    all_wvcen += [8000.]
+    all_disp += [2.382]
+    all_lines += [['ArI', 'HgI', 'KrI', 'NeI', 'XeI']]
+    fidxs += [-1]
+    scores += [dict(rms=0.12, nxfit=40, nmatch=40)]
+
+    # Kastb 600 grism
+    names += ['KASTb_600_standard']
+    spec_files += ['kastb_600_PYPIT.json']
+    all_lines += [['CdI', 'HeI', 'HgI']]
+    all_wvcen += [4400.]
+    all_disp += [1.02]
+    fidxs += [0]
+    scores += [dict(rms=0.1, nxfit=13, nmatch=10)]
+
+    # Kastr 600/7500 grating
+    names += ['KASTr_600_7500_standard']
+    spec_files += ['kastr_600_7500_PYPIT.json']
+    all_lines += [['ArI', 'NeI', 'HgI']]
+    all_wvcen += [6800.]
+    all_disp += [2.345]
+    fidxs += [0]
+    scores += [dict(rms=0.1, nxfit=20, nmatch=20)]
+
+    # Favored parameters (should match those in the defaults)
+    min_ampl = 300.
+
+    # Run it
+    for name, spec_file, lines, wvcen, disp, score, fidx in zip(
+            names, spec_files, all_lines, all_wvcen, all_disp, scores, fidxs):
+        # Load spectrum
+        exten = spec_file.split('.')[-1]
+        if exten == 'json':
+            with open(test_arc_path+spec_file, 'r') as f:
+                pypit_fit = json.load(f)
+            spec = np.array(pypit_fit['spec'])
+        elif exten == 'hdf5':
+            hdf = h5py.File(test_arc_path+spec_file,'r')
+            spec = hdf['arcs/{:d}/spec'.format(fidx)].value
+
+        patt_dict, final_fit = autoid.general(spec.reshape((spec.size, 1)), lines,
+                                              min_ampl=min_ampl, min_nmatch=10)
+
+        # Score
+        grade = True
+        slit = 0
+        if final_fit[slit]['rms'] > score['rms']:
+            grade = False
+            print("Solution for {:s} failed RMS!!".format(name))
+        if len(final_fit[slit]['xfit']) < score['nxfit']:
+            grade = False
+            print("Solution for {:s} failed N xfit!!".format(name))
+        if patt_dict[slit]['nmatch'] < score['nmatch']:
+            grade = False
+            print("Solution for {:s} failed N match!!".format(name))
+        assert(grade)
