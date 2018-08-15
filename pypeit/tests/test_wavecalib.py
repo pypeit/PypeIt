@@ -221,4 +221,4 @@ def test_wavecalib_general():
         if patt_dict[slit]['nmatch'] < score['nmatch']:
             grade = False
             print("Solution for {:s} failed N match!!".format(name))
-        assert(grade)
+        assert grade
