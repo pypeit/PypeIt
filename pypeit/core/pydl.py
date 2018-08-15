@@ -221,121 +221,108 @@ class bspline(object):
         Normalization maximum for x2; [default min(xdata)]
     funcname
         Function for the second variable; [default 'legendre']
+    from_dict
+        If not None, create a bspline from a dictionary created by to_dict(). [default 'None']
     """
 
     def __init__(self, x, nord=4, npoly=1, bkpt=None, fullbkpt = None, bkspread=1.0,
-                 verbose=False, **kwargs):
+                 verbose=False, from_dict=None, **kwargs):
         """Init creates an object whose attributes are similar to the
         structure returned by the create_bspline function.
         """
         #ToDO Consider refactoring the argument list so that there are no kwargs
 
-        #
-        # Set the breakpoints.
-        #
-        if fullbkpt is None:
-            if bkpt is None:
-                startx = x.min()
-                rangex = x.max() - startx
-                if 'placed' in kwargs:
-                    w = ((kwargs['placed'] >= startx) &
-                         (kwargs['placed'] <= startx+rangex))
-                    if w.sum() < 2:
-                        bkpt = np.arange(2, dtype='f') * rangex + startx
+        if from_dict is not None:
+            self.nord=from_dict['nord'],
+            self.npoly=from_dict['npoly'],
+            self.breakpoints=np.array(from_dict['breakpoints']),
+            self.mask=np.array(from_dict['mask']),
+            self.coeff=np.array(from_dict['coeff']),
+            self.icoeff=np.array(from_dict['icoeff']),
+            self.xmin=from_dict['xmin'],
+            self.xmax=from_dict['xmax'],
+            self.funcname=from_dict['funcname'])
+        elif:
+            #
+            # Set the breakpoints.
+            #
+            if fullbkpt is None:
+                if bkpt is None:
+                    startx = x.min()
+                    rangex = x.max() - startx
+                    if 'placed' in kwargs:
+                        w = ((kwargs['placed'] >= startx) &
+                             (kwargs['placed'] <= startx+rangex))
+                        if w.sum() < 2:
+                            bkpt = np.arange(2, dtype='f') * rangex + startx
+                        else:
+                            bkpt = kwargs['placed'][w]
+                    elif 'bkspace' in kwargs:
+                        nbkpts = int(rangex/kwargs['bkspace']) + 1
+                        if nbkpts < 2:
+                            nbkpts = 2
+                        tempbkspace = rangex/float(nbkpts-1)
+                        bkpt = np.arange(nbkpts, dtype='f')*tempbkspace + startx
+                    elif 'nbkpts' in kwargs:
+                        nbkpts = kwargs['nbkpts']
+                        if nbkpts < 2:
+                            nbkpts = 2
+                        tempbkspace = rangex/float(nbkpts-1)
+                        bkpt = np.arange(nbkpts, dtype='f') * tempbkspace + startx
+                    elif 'everyn' in kwargs:
+                        nx = x.size
+                        nbkpts = max(nx/kwargs['everyn'], 1)
+                        if nbkpts == 1:
+                            xspot = [0]
+                        else:
+                            xspot = (nx/nbkpts)*np.arange(nbkpts)
+                            # JFH This was a bug. Made fixes
+                            #xspot = int(nx/(nbkpts-1)) * np.arange(nbkpts, dtype='i4')
+                        #bkpt = x[xspot].astype('f')
+                        bkpt = np.interp(xspot,np.arange(nx),x)
                     else:
-                        bkpt = kwargs['placed'][w]
-                elif 'bkspace' in kwargs:
-                    nbkpts = int(rangex/kwargs['bkspace']) + 1
-                    if nbkpts < 2:
-                        nbkpts = 2
-                    tempbkspace = rangex/float(nbkpts-1)
-                    bkpt = np.arange(nbkpts, dtype='f')*tempbkspace + startx
-                elif 'nbkpts' in kwargs:
-                    nbkpts = kwargs['nbkpts']
-                    if nbkpts < 2:
-                        nbkpts = 2
-                    tempbkspace = rangex/float(nbkpts-1)
-                    bkpt = np.arange(nbkpts, dtype='f') * tempbkspace + startx
-                elif 'everyn' in kwargs:
-                    nx = x.size
-                    nbkpts = max(nx/kwargs['everyn'], 1)
-                    if nbkpts == 1:
-                        xspot = [0]
-                    else:
-                        xspot = (nx/nbkpts)*np.arange(nbkpts)
-                        # JFH This was a bug. Made fixes
-                        #xspot = int(nx/(nbkpts-1)) * np.arange(nbkpts, dtype='i4')
-                    #bkpt = x[xspot].astype('f')
-                    bkpt = np.interp(xspot,np.arange(nx),x)
+                        raise ValueError('No information for bkpts.')
+                imin = bkpt.argmin()
+                imax = bkpt.argmax()
+                if x.min() < bkpt[imin]:
+                    if verbose:
+                        print('Lowest breakpoint does not cover lowest x value: changing.')
+                    bkpt[imin] = x.min()
+                if x.max() > bkpt[imax]:
+                    if verbose:
+                        print('Highest breakpoint does not cover highest x value: changing.')
+                    bkpt[imax] = x.max()
+                nshortbkpt = bkpt.size
+                fullbkpt = bkpt.copy()
+                if nshortbkpt == 1:
+                    bkspace = np.float32(bkspread)
                 else:
-                    raise ValueError('No information for bkpts.')
-            imin = bkpt.argmin()
-            imax = bkpt.argmax()
-            if x.min() < bkpt[imin]:
-                if verbose:
-                    print('Lowest breakpoint does not cover lowest x value: changing.')
-                bkpt[imin] = x.min()
-            if x.max() > bkpt[imax]:
-                if verbose:
-                    print('Highest breakpoint does not cover highest x value: changing.')
-                bkpt[imax] = x.max()
-            nshortbkpt = bkpt.size
-            fullbkpt = bkpt.copy()
-            if nshortbkpt == 1:
-                bkspace = np.float32(bkspread)
+                    bkspace = (bkpt[1] - bkpt[0]) * np.float32(bkspread)
+                for i in np.arange(1, nord, dtype=np.float32):
+                    fullbkpt = np.insert(fullbkpt, 0, bkpt[0]-bkspace*i)
+                    fullbkpt = np.insert(fullbkpt, fullbkpt.shape[0],
+                                         bkpt[nshortbkpt-1] + bkspace*i)
+
+            #
+            # Set the attributes
+            #
+            nc = fullbkpt.size - nord
+            self.breakpoints = fullbkpt
+            self.nord = nord
+            self.npoly = npoly
+            self.mask = np.ones((fullbkpt.size,), dtype='bool')
+            if npoly > 1:
+                self.coeff = np.zeros((npoly, nc), dtype='d')
+                self.icoeff = np.zeros((npoly, nc), dtype='d')
             else:
-                bkspace = (bkpt[1] - bkpt[0]) * np.float32(bkspread)
-            for i in np.arange(1, nord, dtype=np.float32):
-                fullbkpt = np.insert(fullbkpt, 0, bkpt[0]-bkspace*i)
-                fullbkpt = np.insert(fullbkpt, fullbkpt.shape[0],
-                                     bkpt[nshortbkpt-1] + bkspace*i)
-
-        #
-        # Set the attributes
-        #
-        nc = fullbkpt.size - nord
-        self.breakpoints = fullbkpt
-        self.nord = nord
-        self.npoly = npoly
-        self.mask = np.ones((fullbkpt.size,), dtype='bool')
-        if npoly > 1:
-            self.coeff = np.zeros((npoly, nc), dtype='d')
-            self.icoeff = np.zeros((npoly, nc), dtype='d')
-        else:
-            self.coeff = np.zeros((nc,), dtype='d')
-            self.icoeff = np.zeros((nc,), dtype='d')
-        self.xmin = 0.0
-        self.xmax = 1.0
-        if 'funcname' in kwargs:
-            self.funcname = kwargs['funcname']
-        else:
-            self.funcname = 'legendre'
-
-    @classmethod
-    def from_dict(cls, bspline_dict):
-        """ Create bspline from a dict.
-
-        Parameters
-        ----------
-        bspline_dict : dictionary
-            bspline dictionary created with to_dict().
-
-        Returns
-        -------
-        a bspline object
-        """
-
-        # needs to move lists to np.arrays for JSON files
-        return cls(None,
-                   nord=bspline_dict['nord'],
-                   npoly=bspline_dict['npoly'],
-                   fullbkpt=np.array(bspline_dict['breakpoints']),
-                   mask=np.array(bspline_dict['mask']),
-                   coeff=np.array(bspline_dict['coeff']),
-                   icoeff=np.array(bspline_dict['icoeff']),
-                   xmin=bspline_dict['xmin'],
-                   xmax=bspline_dict['xmax'],
-                   funcname=bspline_dict['funcname'])
+                self.coeff = np.zeros((nc,), dtype='d')
+                self.icoeff = np.zeros((nc,), dtype='d')
+            self.xmin = 0.0
+            self.xmax = 1.0
+            if 'funcname' in kwargs:
+                self.funcname = kwargs['funcname']
+            else:
+                self.funcname = 'legendre'
 
     def to_dict(self):
         """Write bspline parameters to a dict.
