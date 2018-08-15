@@ -6,6 +6,9 @@ import numpy as np
 from pypeit.core import arc
 import numba as nb
 
+from matplotlib import pyplot as plt
+import pdb
+
 
 def arc_lines_from_spec(spec, min_ampl=300.):
     """
@@ -68,7 +71,9 @@ def hist_wavedisp(waves, disps, dispbin=None, wavebin=None, scale=1.0, debug=Tru
     if wavebin is None:
         wavebin = [np.min(waves), np.max(waves)]
 
+    # Convert to linear
     lin_dispbin = 10.0**dispbin
+    lin_disps = 10.0**disps
 
     # Determine how many elements will be used for the histogram
     nelem = np.zeros(dispbin.size-1, dtype=nb.types.uint64)
@@ -84,14 +89,12 @@ def hist_wavedisp(waves, disps, dispbin=None, wavebin=None, scale=1.0, debug=Tru
     cntr = 0
     for dd in range(dispbin.size-1):
         wbin = np.linspace(wavebin[0], wavebin[1], nelem[dd])
-        wdsp = np.where((disps > lin_dispbin[dd]) & (disps <= lin_dispbin[dd+1]))
+        wdsp = np.where((lin_disps > lin_dispbin[dd]) & (lin_disps <= lin_dispbin[dd+1]))
         hist_wd[cntr:cntr+1+nelem[dd]], _ = np.histogram(waves[wdsp], bins=wbin)
         cent_d[cntr:cntr+1+nelem[dd]] = 0.5*(lin_dispbin[dd] + lin_dispbin[dd+1])
         cent_w[cntr:cntr+1+nelem[dd]] = wbin
 
     if debug:
-        from matplotlib import pyplot as plt
-        import pdb
         # Create and plot up the 2D plot
         nelem_mx = np.max(nelem)
         hist_wd_plt = np.zeros((nelem_mx, dispbin.size), dtype=nb.types.uint64)
@@ -99,7 +102,7 @@ def hist_wavedisp(waves, disps, dispbin=None, wavebin=None, scale=1.0, debug=Tru
         cntr = 0
         for dd in range(dispbin.size-1):
             wbin = np.linspace(wavebin[0], wavebin[1], nelem[dd])
-            wdsp = np.where((disps > lin_dispbin[dd]) & (disps <= lin_dispbin[dd+1]))
+            wdsp = np.where((lin_disps > lin_dispbin[dd]) & (lin_disps <= lin_dispbin[dd+1]))
             fval, _ = np.histogram(waves[wdsp], bins=wbin)
             hist_wd_plt[:, dd], _ = np.interp(wbin_mx, wbin, fval)
         plt.clf()

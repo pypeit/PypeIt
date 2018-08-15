@@ -368,7 +368,7 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
         ngridw = binw.size
     # Set the dispersion grid
     if bind is None:
-        ngridd = 1000
+        ngridd = 100
         bind = np.linspace(-3.0, 1.0, ngridd)
     else:
         ngridd = bind.size
@@ -417,6 +417,8 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             dispsm = dispsm[ww]
             wvcenm = wvcenm[ww]
             # Construct the histograms
+            histimgp, xed, yed = utils.hist_wavedisp(wvcenp, np.log10(dispsp), dispbin=bind, wavebin=[np.min(wvdata), np.max(wvdata)])
+            pdb.set_trace()
             histimgp, xed, yed = np.histogram2d(wvcenp, np.log10(dispsp), bins=[binw, bind])
             histimgm, xed, yed = np.histogram2d(wvcenm, np.log10(dispsm), bins=[binw, bind])
             #histimgp = gaussian_filter(histimgp, 3)
@@ -429,7 +431,7 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             # Find the indices of the nstore largest peaks
             bidx = np.unravel_index(np.argpartition(np.abs(histpeaks*histimg), -nstore, axis=None)[-nstore:], histimg.shape)
 
-            debug = False
+            debug = True
             if debug:
                 from matplotlib import pyplot as plt
                 plt.clf()
@@ -440,8 +442,10 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                 #plt.axhline(bind[bidx[1]], color='r', linestyle='--')
                 plt.show()
                 pdb.set_trace()
+                plt.clf()
                 plt.imshow(histimgp[:, ::-1].T, extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
-
+                pdb.set_trace()
+                plt.show()
             # Get the peak value of central wavelength and dispersion
             wcenval = binw[bidx[0]]
             dispval = bind[bidx[1]]
