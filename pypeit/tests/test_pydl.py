@@ -16,12 +16,13 @@ def test_bsplinetodict():
     """
 
     x = np.random.rand(500)
+
     # Create bspline
-    
     init_bspline = bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
+    # Write bspline to bspline_dict
     bspline_dict = init_bspline.to_dict()
-    
-    bspline_fromdict = bspline(x, from_dict=bspline_dict)
-    
+    # Create bspline from bspline_dict
+    bspline_fromdict = bspline(None, from_dict=bspline_dict)
+
     assert np.max(np.array(bspline_dict['breakpoints'])-bspline_fromdict.breakpoints) == 0.
 
