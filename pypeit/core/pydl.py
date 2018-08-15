@@ -223,6 +223,8 @@ class bspline(object):
         Function for the second variable; [default 'legendre']
     from_dict
         If not None, create a bspline from a dictionary created by to_dict(). [default 'None']
+        It is possible to instantiate a bspline from a dict without the x data:
+        new_bspline = bspline(None, from_dict=dictionary)
     """
 
     def __init__(self, x, nord=4, npoly=1, bkpt=None, fullbkpt = None, bkspread=1.0,
