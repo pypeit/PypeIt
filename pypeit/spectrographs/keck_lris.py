@@ -311,6 +311,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                             suffix          ='_02red'
                             )
             ]
+        self.numhead = 5
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file ?

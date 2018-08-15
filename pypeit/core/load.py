@@ -95,12 +95,12 @@ def load_headers(datlines, spectrograph, strict=True):
         # Now get the rest of the keywords
 
         for head_idx in head_keys.keys():
-            for kw,hkey in head_keys[head_idx].items():
+            for kw, hkey in head_keys[head_idx].items():
                 try:
                     value = headarr[head_idx][hkey]
                 except KeyError: # Keyword not found in header
                     msgs.warn("{:s} keyword not in header. Setting to None".format(hkey))
-                    value=str('None')
+                    value = str('None')
 #                except IndexError:
 #                    debugger.set_trace()
                 # Convert the input time into hours -- Should we really do this here??

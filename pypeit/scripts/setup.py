@@ -14,13 +14,11 @@ from __future__ import (print_function, absolute_import, division,
 import argparse
 
 def parser(options=None):
-    parser = argparse.ArgumentParser(description="Script to setup a PYPIT run [v2]")
+    parser = argparse.ArgumentParser(description="Script to setup a PypeIt run [v2]")
     parser.add_argument("files_root", type=str, help="File path+root, e.g. /data/Kast/b ")
     parser.add_argument("spectrograph", type=str, help="Name of spectrograph")
     parser.add_argument("-v", "--verbosity", type=int, default=2,
                         help="(2) Level of verbosity (0-2)")
-    parser.add_argument("-d", "--develop", default=False, action='store_true',
-                        help="Turn develop debugging on")
     parser.add_argument("--extension", default='.fits',
                         help='File extension; compression indicators (e.g. .gz) not required.')
     parser.add_argument("--pypeit_file", default=False, action='store_true',
@@ -55,7 +53,7 @@ def main(args):
     # Check that input spectrograph is supported
     instruments_served = valid_spectrographs()
     if args.spectrograph not in instruments_served:
-        raise ValueError('Instrument \'{0}\' unknown to PYPIT.\n'.format(args.spectrograph)
+        raise ValueError('Instrument \'{0}\' unknown to PypeIt.\n'.format(args.spectrograph)
                          + '\tAvailable options are: {0}\n'.format(', '.join(instruments_served))
                          + '\tSelect an available instrument or consult the documentation '
                          + 'on how to add a new instrument.')
@@ -85,8 +83,6 @@ def main(args):
     pinp = [pypeit_file, '-p', '-s {0}'.format(root) ]
     if args.overwrite:
         pinp += ['-o']
-    if args.develop:
-        pinp += ['-d']
     pargs = run_pypeit.parser(pinp)
     sorted_file = pypeit_file.replace('.pypeit', '.sorted')
 
