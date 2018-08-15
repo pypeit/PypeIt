@@ -357,11 +357,12 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
     nselw, nseld = 5, 25  # Longslit
     # nselw, nseld = 1, 1  # Echelle
 
+    # The wavelength grid (i.e. the binw size) should depend on the dispersion.
+
     # Set the wavelength grid
     if binw is None:
-        ngridw = 1000
-        tot_list = vstack([line_lists, unknwns])
         # Ideally, you want binw to roughly sample the A/pix of the spectrograph
+        ngridw = 1000
         binw = np.linspace(np.min(wvdata), np.max(wvdata), ngridw)
     else:
         ngridw = binw.size
