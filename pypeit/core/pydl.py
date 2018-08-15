@@ -241,8 +241,8 @@ class bspline(object):
             self.icoeff=np.array(from_dict['icoeff']),
             self.xmin=from_dict['xmin'],
             self.xmax=from_dict['xmax'],
-            self.funcname=from_dict['funcname'])
-        elif:
+            self.funcname=from_dict['funcname']
+        else:
             #
             # Set the breakpoints.
             #

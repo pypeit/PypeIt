@@ -19,9 +19,9 @@ def test_bsplinetodict():
     # Create bspline
     
     init_bspline = bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
-    bspline_todict = init_bspline.to_dict()
+    bspline_dict = init_bspline.to_dict()
     
-    bspline_fromdict = bspline.from_dict(bspline_todict)
+    bspline_fromdict = bspline(x, from_dict=bspline_dict)
     
-    assert np.max(np.array(bspline_todict['breakpoints'])-bspline_fromdict.breakpoints) == 0.
+    assert np.max(np.array(bspline_dict['breakpoints'])-bspline_fromdict.breakpoints) == 0.
 
