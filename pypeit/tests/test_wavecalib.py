@@ -9,7 +9,6 @@ from __future__ import unicode_literals
 
 import os
 
-from pathlib import Path
 import pytest
 import glob
 import numpy as np
@@ -23,8 +22,6 @@ from pypeit import arcimage
 from pypeit.core.wavecal import autoid
 import json
 import h5py
-test_arc_path = str(Path().absolute()) + '/tests/files/wavecalib/'
-test_arc_path = test_arc_path.replace('/tests/tests/', '/tests/')   # Kludge because Travis runs from a different directory
 
 # These tests are not run on Travis
 if os.getenv('PYPEIT_DEV') is None:
@@ -33,17 +30,17 @@ else:
     skip_test = False
 
 
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files/wavecalib')
+    return os.path.join(data_dir, filename)
+
+
 def chk_for_files(root):
     files = glob.glob(root+'*')
     if len(files) == 0:
         return False
     else:
         return True
-
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
 
 def test_user_redo():
@@ -200,11 +197,11 @@ def test_wavecalib_general():
         # Load spectrum
         exten = spec_file.split('.')[-1]
         if exten == 'json':
-            with open(test_arc_path+spec_file, 'r') as f:
+            with open(data_path(spec_file), 'r') as f:
                 pypit_fit = json.load(f)
             spec = np.array(pypit_fit['spec'])
         elif exten == 'hdf5':
-            hdf = h5py.File(test_arc_path+spec_file,'r')
+            hdf = h5py.File(data_path(spec_file), 'r')
             spec = hdf['arcs/{:d}/spec'.format(fidx)].value
 
         patt_dict, final_fit = autoid.general(spec.reshape((spec.size, 1)), lines, min_ampl=min_ampl)
