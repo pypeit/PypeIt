@@ -507,18 +507,16 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
     msgs.info("Fitting the wavelength solution for each slit")
 
     # Fit the wavelength solution for each slit
-    all_patt_dict, all_final_fit = [], []
+    all_patt_dict, all_final_fit = {}, {}
     for cnt, slit in enumerate(ok_mask):
-        #pdb.set_trace()
         # patt_dict
         patt_dict = dict(nmatch=0, ibest=-1, bwv=0., min_ampl=min_ampl)
-        use_tcent = slit_tcent[cnt]
 
         # Check there are lines in this slit
-        if use_tcent.size == 0:
+        if slit_tcent[cnt].size == 0:
             msgs.warn("No lines to identify in slit {0:d}!".format(slit))
-            all_patt_dict.append(None)
-            all_final_fit.append(None)
+            all_patt_dict[str(slit)] = None
+            all_final_fit[str(slit)] = None
             continue
 
         # Obtain a full list of indices that are consistent with the maximum value
@@ -533,11 +531,11 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                 lindex = np.append(lindex, bestlist[cnt][ss][5])
         # Find the favoured sign and only use those values
         if np.sum(allsgn) > 0.0:
-            use_tcent = all_tcent.copy()
+            use_tcent = slit_tcent[cnt].copy()
             sign = +1.0
             signtxt = "correlate"
         else:
-            use_tcent = (npix - 1.0) - all_tcent.copy()[::-1]
+            use_tcent = (npix - 1.0) - slit_tcent[cnt].copy()[::-1]
             sign = -1.0
             signtxt = "anticorrelate"
         dindex = dindex[np.where(allsgn == sign)]
@@ -554,7 +552,8 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                       'Initial report for slit {0:d}/{1:d}:'.format(slit+1, nslit) + msgs.newline() +
                       '  No matches! Try another algorithm' + msgs.newline() +
                       '---------------------------------------------------')
-            all_final_fit.append(None)
+            all_patt_dict[str(slit)] = None
+            all_final_fit[str(slit)] = None
             continue
 
         # Report
@@ -621,8 +620,8 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                 print("Wrote: {:s}".format(plot_fil))
 
         # Append the results to the full list
-        all_final_fit.append(final_fit.copy())
-        all_patt_dict.append(patt_dict.copy())
+        all_patt_dict[str(slit)] = patt_dict.copy()
+        all_final_fit[str(slit)] = final_fit.copy()
 
     # Return
     return all_patt_dict, all_final_fit

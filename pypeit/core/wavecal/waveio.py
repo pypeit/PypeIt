@@ -31,7 +31,7 @@ def load_by_hand():
     """
     str_len_dict = defs.str_len()
 
-    src_file = pypeit.__path__[0]+'/data/sources/by_hand_list.ascii'
+    src_file = pypeit.__path__[0]+'/data/arc_lines/sources/by_hand_list.ascii'
     # Read
     line_list = Table.read(src_file, format='ascii.fixed_width', comment='#')
     # Add
@@ -170,7 +170,7 @@ def load_source_table():
     sources : Table
 
     """
-    src_file = pypeit.__path__[0]+'/data/sources/arcline_sources.ascii'
+    src_file = pypeit.__path__[0]+'/data/arc_lines/sources/arcline_sources.ascii'
     # Load
     sources = Table.read(src_file, format='ascii.fixed_width', comment='#')
     # Return
@@ -194,7 +194,7 @@ def load_nist(ion):
     # Root (for development only)
     root = pypeit.__path__[0]
     # Find file
-    srch_file = root + '/data/NIST/'+ion+'_vacuum.ascii'
+    srch_file = root + '/data/arc_lines/NIST/'+ion+'_vacuum.ascii'
     nist_file = glob.glob(srch_file)
     if len(nist_file) == 0:
         raise IOError("Cannot find NIST file {:s}".format(srch_file))
@@ -245,7 +245,7 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
     """
     line_dict = defs.lines()
     # Load
-    line_path = pypeit.__path__[0]+'/data/lists/'
+    line_path = pypeit.__path__[0]+'/data/arc_lines/lists/'
     if unknwn_file is None:
         unknwn_file = line_path+'UNKNWNs.dat'
     line_list = load_line_list(unknwn_file)
