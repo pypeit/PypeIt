@@ -142,7 +142,7 @@ class WaveCalib(masterframe.MasterFrame):
         # QA
         if not skip_QA:
             for slit in ok_mask:
-                arc.arc_fit_qa(self.setup, self.wv_calib, slit)
+                arc.arc_fit_qa(self.setup, self.wv_calib[str(slit)], slit)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -150,6 +150,7 @@ class WaveCalib(masterframe.MasterFrame):
 
     def calibrate_spec(self, slit, method='arclines'):
         """
+        TODO: Deprecate this function? It's only being used by the tests
         User method to calibrate a given spectrum from a chosen slit
 
         Wrapper to arc.simple_calib or arc.calib_with_arclines

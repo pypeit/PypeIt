@@ -1,0 +1,14 @@
+# Creation Date: 2018-May-03
+# Creation Date: 2018-May-03
+# Creation Date: 2017-Mar-26
+# Creation Date: 2016-Dec-21
+| ion |       wave | NIST | Instr | amplitude |                    Source |
+| XeI |  8233.8964 |    1 |    17 |     58686 | lrisr_600_7500_PYPIT.json |
+| XeI |  8282.3921 |    1 |     1 |     46786 | lrisr_400_8500_PYPIT.json |
+| XeI |  8349.1157 |    1 |    17 |      1657 | lrisr_600_7500_PYPIT.json |
+| XeI |  8821.8324 |    1 |    16 |     10000 |  deimos_830g_r_PYPIT.json |
+| XeI |  8954.7086 |    1 |    17 |     38663 | lrisr_400_8500_PYPIT.json |
+| XeI |  9047.9296 |    1 |    16 |     12000 |  deimos_830g_r_PYPIT.json |
+| XeI |  9165.1667 |    1 |    16 |     13000 |  deimos_830g_r_PYPIT.json |
+| XeI |  9802.3840 |    1 |    17 |     64296 | lrisr_400_8500_PYPIT.json |
+| XeI |  9925.9190 |    1 |    17 |     60153 | lrisr_400_8500_PYPIT.json |

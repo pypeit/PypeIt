@@ -90,26 +90,6 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
     rms_ang = utils.calc_fit_rms(xfit, yfit, fit, aparm['func'],
                                    minv=fmin, maxv=fmax)
     rms_pix = rms_ang/disp
-    #
-    '''
-    if msgs._debug['arc']:
-        msarc = slf._msarc[det-1]
-        wave = utils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
-            'legendre', minv=fmin, maxv=fmax)
-        debugger.xplot(xfit,yfit, scatter=True,
-            xtwo=np.arange(msarc.shape[0])/float(msarc.shape[0]),
-            ytwo=wave)
-        debugger.xpcol(xfit*msarc.shape[0], yfit)
-        debugger.set_trace()
-    '''
-
-        #debugger.xplot(xfit, np.ones(len(xfit)), scatter=True,
-        #    xtwo=np.arange(msarc.shape[0]),ytwo=yprep)
-        #debugger.xplot(xfit,yfit, scatter=True, xtwo=np.arange(msarc.shape[0]),
-        #    ytwo=wave)
-        #debugger.set_trace()
-        #wave = utils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
-        #    'legendre', min=fmin, max=fmax)
 
     # Pack up fit
     final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit,
@@ -121,6 +101,3 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
         qa.arc_fit_qa(None, final_fit, plot_fil)
     # Return
     return final_fit
-
-
-

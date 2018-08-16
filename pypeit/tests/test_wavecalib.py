@@ -206,12 +206,11 @@ def test_wavecalib_general():
             hdf = h5py.File(test_arc_path+spec_file,'r')
             spec = hdf['arcs/{:d}/spec'.format(fidx)].value
 
-        patt_dict, final_fit = autoid.general(spec.reshape((spec.size, 1)), lines,
-                                              min_ampl=min_ampl, min_nmatch=10)
+        patt_dict, final_fit = autoid.general(spec.reshape((spec.size, 1)), lines, min_ampl=min_ampl)
 
         # Score
         grade = True
-        slit = 0
+        slit = '0'
         if final_fit[slit]['rms'] > score['rms']:
             grade = False
             print("Solution for {:s} failed RMS!!".format(name))

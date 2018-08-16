@@ -15,29 +15,35 @@ from pypeit.core.wavecal import qa
 from pypeit import msgs
 
 
-def basic(spec, lines, wv_cen, disp, siglev=20., min_ampl=300.,
-          swv_uncertainty=350., pix_tol=2, plot_fil=None, min_match=5,
+def basic(spec, lines, wv_cen, disp, min_ampl=300.,
+          swv_uncertainty=350., pix_tol=2, plot_fil=None, min_nmatch=5,
           **kwargs):
-    """ Basic holy grail algorithm
+    """ Basic algorithm to wavelength calibrate spectroscopic data
 
     Parameters
     ----------
-    spec : spectrum
+    spec : ndarray
+      Extracted 1D Arc Spectrum
     lines : list
       List of arc lamps on
     wv_cen : float
       Guess at central wavelength
     disp : float
       Dispersion A/pix
-    siglev
-    min_ampl
-    swv_uncertainty
-    pix_tol
-    plot_fil
+    min_ampl : float
+      Minimum amplitude of the arc lines that will be used in the fit
+    swv_uncertainty : float
 
+    pix_tol : float
+      Tolerance in units of pixels to match to
+    plot_fil : str, optional
+      Name of output file
+    min_nmatch : int
+      Minimum number of acceptable matches before a solution is deemed to be found
     Returns
     -------
     status : int
+      If successful, status=1
 
     """
 
@@ -84,7 +90,7 @@ def basic(spec, lines, wv_cen, disp, siglev=20., min_ampl=300.,
             imx = np.argmax(counts)
             IDs.append(wvdata[uni[imx]])
     ngd_match = np.sum(mask)
-    if ngd_match < min_match:
+    if ngd_match < min_nmatch:
         msgs.warn("Insufficient matches to continue")
         status = -1
         return status, ngd_match, match_idx, scores, None
@@ -290,34 +296,54 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
 
 def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             outroot=None, debug=False, do_fit=True, verbose=False,
-            fit_parm=None, min_nmatch=0, lowest_ampl=200.,
+            fit_parm=None, lowest_ampl=200.,
             binw=None, bind=None, nstore=10, use_unknowns=False):
-    """
+    """ General algorithm to wavelength calibrate spectroscopic data
+
     Parameters
     ----------
-    spec
-    lines
-    siglev
-    min_ampl
+    spec : ndarray
+      Extracted 1D Arc Spectrum
+    lines : list
+      List of arc lamps on
+    ok_mask : ndarray
+
+    min_ampl : float
+      Minimum amplitude of the arc lines that will be used in the fit
     islinelist : bool
       Is lines a linelist (True), or a list of ions (False)
-    outroot
-    debug
-    do_fit
-    verbose
-    fit_parm
-    min_nmatch
-    lowest_ampl
-    binw : array
-      Wavelength bins
-    bind : array
-      Dispersion bins
+    outroot : str, optional
+      Name of output file
+    debug : bool
+      Used to debug the algorithm
+    do_fit : bool
+      If True, a fit and iterative identification of arc lines will be performed.
+      If False, the final fit will not be computed, and only the initial IDs will
+      be returned (as well as a blank list of empty dicts for the final fit).
+    verbose : bool
+      If True, the final fit will print out more detail as the RMS is refined,
+      and lines are rejected. This is mostly helpful for developing the algorithm.
+    fit_parm : dict
+      Fitting parameter dictionary (see fitting.iterative_fitting)
+    lowest_ampl : float
+    binw : ndarray, optional
+      Set the wavelength grid when identifying the best solution
+    bind : ndarray, optional
+      Set the dispersion grid when identifying the best solution
+    nstore : int
+      The number of "best" initial solutions to consider
+    use_unknowns : bool
+      If True, arc lines that are known to be present in the spectra, but
+      have not been attributed to an element+ion, will be included in the fit.
 
     Returns
     -------
-    best_dict : dict
-    final_fit : dict
-
+    all_patt_dict : list of dicts
+      A list of dictionaries, which contain the results from the preliminary
+      pattern matching algorithm providing the first guess at the ID lines
+    all_final_fit : list of dicts
+      A list of dictionaries, which contain the full fitting results and
+      final best guess of the line IDs
     """
     from astropy.table import vstack
     from linetools import utils as ltu
@@ -488,18 +514,16 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
     msgs.info("Fitting the wavelength solution for each slit")
 
     # Fit the wavelength solution for each slit
-    all_patt_dict, all_final_fit = [], []
+    all_patt_dict, all_final_fit = {}, {}
     for cnt, slit in enumerate(ok_mask):
-        #pdb.set_trace()
         # patt_dict
         patt_dict = dict(nmatch=0, ibest=-1, bwv=0., min_ampl=min_ampl)
-        use_tcent = slit_tcent[cnt]
 
         # Check there are lines in this slit
-        if use_tcent.size == 0:
+        if slit_tcent[cnt].size == 0:
             msgs.warn("No lines to identify in slit {0:d}!".format(slit))
-            all_patt_dict.append(None)
-            all_final_fit.append(None)
+            all_patt_dict[str(slit)] = None
+            all_final_fit[str(slit)] = None
             continue
 
         # Obtain a full list of indices that are consistent with the maximum value
@@ -514,11 +538,11 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                 lindex = np.append(lindex, bestlist[cnt][ss][5])
         # Find the favoured sign and only use those values
         if np.sum(allsgn) > 0.0:
-            use_tcent = all_tcent.copy()
+            use_tcent = slit_tcent[cnt].copy()
             sign = +1.0
             signtxt = "correlate"
         else:
-            use_tcent = (npix - 1.0) - all_tcent.copy()[::-1]
+            use_tcent = (npix - 1.0) - slit_tcent[cnt].copy()[::-1]
             sign = -1.0
             signtxt = "anticorrelate"
         dindex = dindex[np.where(allsgn == sign)]
@@ -535,7 +559,8 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                       'Initial report for slit {0:d}/{1:d}:'.format(slit+1, nslit) + msgs.newline() +
                       '  No matches! Try another algorithm' + msgs.newline() +
                       '---------------------------------------------------')
-            all_final_fit.append(None)
+            all_patt_dict[str(slit)] = None
+            all_final_fit[str(slit)] = None
             continue
 
         # Report
@@ -602,8 +627,8 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                 print("Wrote: {:s}".format(plot_fil))
 
         # Append the results to the full list
-        all_final_fit.append(final_fit.copy())
-        all_patt_dict.append(patt_dict.copy())
+        all_patt_dict[str(slit)] = patt_dict.copy()
+        all_final_fit[str(slit)] = final_fit.copy()
 
     # Return
     return all_patt_dict, all_final_fit

@@ -621,7 +621,8 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None):
 
     Parameters
     ----------
-    fit : Wavelength fit
+    fit : dict
+      Wavelength fit for this slit
     arc_spec : ndarray
       Arc spectrum
     outfile : str, optional
