@@ -189,7 +189,7 @@ def test_wavecalib_general():
     scores += [dict(rms=0.1, nxfit=20, nmatch=20)]
 
     # Favored parameters (should match those in the defaults)
-    min_ampl = 300.
+    min_ampl = 1000.
 
     # Run it
     for name, spec_file, lines, wvcen, disp, score, fidx in zip(
