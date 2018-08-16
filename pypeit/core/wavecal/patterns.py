@@ -428,8 +428,8 @@ def quadrangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
 
     lindex = np.zeros((1, nptn), dtype=nb.types.uint64)
     dindex = np.zeros((1, nptn), dtype=nb.types.uint64)
-    wvcen = np.array([])
-    disps = np.array([])
+    wvcen = np.zeros((1,), dtype=nb.types.ulong)
+    disps = np.zeros((1,), dtype=nb.types.ulong)
 
     # Generate the patterns
     for dl in range(0, sz_d-nptn+1):  # dl is the starting point of the detlines pattern
@@ -469,13 +469,14 @@ def quadrangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
                                             tst *= -1.0
                                         if tst <= tol:
                                             # The second pattern matches, store the result!
-                                            lindex = np.append(lindex, np.array([ll, la, lb, lr]), axis=0)
-                                            dindex = np.append(dindex, np.array([dl, da, db, dr]), axis=0)
+                                            lindex = np.vstack((lindex, np.array([[ll, la, lb, lr]], dtype=nb.types.uint64)))
+                                            dindex = np.vstack((dindex, np.array([[dl, da, db, dr]], dtype=nb.types.uint64)))
                                             tst = (linelist[lr] - linelist[ll]) / (detlines[dr] - detlines[dl])
-                                            wvcen = np.append(wvcen, (npixels/2.)*tst + (linelist[lr]-tst*detlines[dr]))
-                                            disps = np.append(disps, tst)
+                                            wvl = (npixels/2.)*tst + (linelist[lr]-tst*detlines[dr])
+                                            wvcen = np.hstack((wvcen, np.array([wvl], dtype=nb.types.ulong)))
+                                            disps = np.hstack((disps, np.array([tst], dtype=nb.types.ulong)))
     # Return, but first remove the spurious first entry due to array creation
-    return dindex[1:, :], lindex[1:, :], wvcen, disps
+    return dindex[1:, :], lindex[1:, :], wvcen[1:], disps[1:]
 
 
 def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):

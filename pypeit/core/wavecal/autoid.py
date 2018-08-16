@@ -297,7 +297,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
 def general(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
             outroot=None, debug=False, do_fit=True, verbose=False,
             fit_parm=None, lowest_ampl=200.,
-            binw=None, bind=None, nstore=10, use_unknowns=False):
+            binw=None, bind=None, nstore=1, use_unknowns=True):
     """ General algorithm to wavelength calibrate spectroscopic data
 
     Parameters
@@ -353,6 +353,8 @@ def general(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
 
     npix, nslit = spec.shape
 
+    detsrch, lstsrch = 14, 6
+
     if ok_mask is None:
         ok_mask = np.arange(nslit)
 
@@ -380,21 +382,21 @@ def general(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
     #ngridw, ngridd = 1000, 1000  # Longslit
     #ngridw, ngridd = 100000, 100  # Echelle
 
-    nselw, nseld = 5, 25  # Longslit
-    # nselw, nseld = 1, 1  # Echelle
+    #nselw, nseld = 5, 25  # Longslit
+    nselw, nseld = 3, 3  # Echelle
 
     # The wavelength grid (i.e. the binw size) should depend on the dispersion.
 
     # Set the wavelength grid
     if binw is None:
         # Ideally, you want binw to roughly sample the A/pix of the spectrograph
-        ngridw = 1000
+        ngridw = 200
         binw = np.linspace(np.min(wvdata), np.max(wvdata), ngridw)
     else:
         ngridw = binw.size
     # Set the dispersion grid
     if bind is None:
-        ngridd = 1000
+        ngridd = 2000
         bind = np.linspace(-3.0, 1.0, ngridd)
     else:
         ngridd = bind.size
@@ -418,15 +420,16 @@ def general(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
 
         # Loop on pix_tol
         # TODO: Allow for different pixel tolerance?
-        for pix_tol in [1.0]:
+        msgs.info("Begin pattern matching")
+        for pix_tol in [0.5]:
             # First run pattern recognition assuming pixels correlate with wavelength
 
             # Triangle pattern matching
-#            dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 5, 10, pix_tol)
-            dindexp, lindexp, wvcenp, dispsp = quadrangles(use_tcent, wvdata, npix, 5, 5, pix_tol)
-            # dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 3, 6, pix_tol)
+#            dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, detsrch, lstsrch, pix_tol)
+            dindexp, lindexp, wvcenp, dispsp = quadrangles(use_tcent, wvdata, npix, detsrch, lstsrch, pix_tol)
             # Remove any invalid results
-            ww = np.where((binw[0] < wvcenp) & (wvcenp < binw[-1]) & (10.0**bind[0] < dispsp) & (dispsp < 10.0**bind[-1]))
+            ww = np.where((binw[0] < wvcenp) & (wvcenp < binw[-1]) &
+                          (10.0**bind[0] < dispsp) & (dispsp < 10.0**bind[-1]))
             dindexp = dindexp[ww[0], :]
             lindexp = lindexp[ww[0], :]
             dispsp = dispsp[ww]
@@ -435,11 +438,11 @@ def general(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
             # Now run pattern recognition assuming pixels correlate with wavelength
             use_tcent = (npix - 1.0) - all_tcent.copy()[::-1]
             # Triangle pattern matching
-#            dindexm, lindexm, wvcenm, dispsm = triangles(use_tcent, wvdata, npix, 5, 10, pix_tol)
-            dindexm, lindexm, wvcenm, dispsm = quadrangles(use_tcent, wvdata, npix, 5, 5, pix_tol)
-            #dindexm, lindexm, wvcenm, dispsm = triangles(use_tcent, wvdata, npix, 3, 6, pix_tol)
+#            dindexm, lindexm, wvcenm, dispsm = triangles(use_tcent, wvdata, npix, detsrch, lstsrch, pix_tol)
+            dindexm, lindexm, wvcenm, dispsm = quadrangles(use_tcent, wvdata, npix, detsrch, lstsrch, pix_tol)
             # Remove any invalid results
-            ww = np.where((binw[0] < wvcenm) & (wvcenm < binw[-1]) & (10.0**bind[0] < dispsm) & (dispsm < 10.0**bind[-1]))
+            ww = np.where((binw[0] < wvcenm) & (wvcenm < binw[-1]) &
+                          (10.0**bind[0] < dispsm) & (dispsm < 10.0**bind[-1]))
             dindexm = dindexm[ww[0], :]
             lindexm = lindexm[ww[0], :]
             dispsm = dispsm[ww]
@@ -450,30 +453,33 @@ def general(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
             #histimgp = gaussian_filter(histimgp, 3)
             #histimgm = gaussian_filter(histimgm, 3)
             histimg = histimgp - histimgm
-            #histimg = gaussian_filter(histimg, 6)
+            #histimg = gaussian_filter(histimg, 3)
 
             histpeaks = patterns.detect_peaks(np.abs(histimg))
 
             # Find the indices of the nstore largest peaks
             bidx = np.unravel_index(np.argpartition(np.abs(histpeaks*histimg), -nstore, axis=None)[-nstore:], histimg.shape)
 
-            debug = False
+            debug = True
             if debug:
                 from matplotlib import pyplot as plt
                 plt.clf()
-                plt.imshow(np.log10(np.abs(histimg[:, ::-1].T)), extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
+                plt.imshow((np.abs(histimg[:, ::-1].T)), extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
                 #plt.imshow(histimg[:, ::-1].T, extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
-                plt.plot(binw[bidx[0]], bind[bidx[1]], 'ro')
+                plt.plot(binw[bidx[0]], bind[bidx[1]], 'r+')
                 #plt.axvline(binw[bidx[0]], color='r', linestyle='--')
                 #plt.axhline(bind[bidx[1]], color='r', linestyle='--')
                 plt.show()
-                pdb.set_trace()
-                plt.imshow(histimgp[:, ::-1].T, extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
-
+                if False:
+                    pdb.set_trace()
+                    plt.clf()
+                    plt.imshow(histimgp[:, ::-1].T, extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
+                    plt.show()
             # Get the peak value of central wavelength and dispersion
             wcenval = binw[bidx[0]]
             dispval = bind[bidx[1]]
             histnum = np.abs(histimg[bidx])
+            print(histnum)
 
             # Find all good solutions
             for idx in range(nstore):
@@ -501,10 +507,11 @@ def general(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
     # Using the results from all slits, decide on the best solutions (assume all slits have the same dispersion)
     dhist, dedge = np.histogram(alldisp, bins=bind, weights=allhnum)
     dhmax = np.argmax(dhist)
-    if debug:
+    if debug and False:
         from matplotlib import pyplot as plt
-        null = plt.hist(alldisp, bins=bind, weights=allhnum)
+        null = plt.hist(alldisp, bins=bind, weights=allhnum, normed=False)
         plt.show()
+        #pdb.set_trace()
     msgs.info("Best initial guess for spectrograph dispersion: {0:.4f}A/pixel".format(10.0**np.mean(dedge[dhmax:dhmax+2])))
     msgs.info("Fitting the wavelength solution for each slit")
 
