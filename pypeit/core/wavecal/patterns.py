@@ -276,7 +276,7 @@ def triangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
         |               |      |
         s               b      e
 
-        Then, regardless of the value (b-s)/(e-s) is the same coordinate system
+        Then, the value (b-s)/(e-s) is in the same coordinate system
         for both detlines and linelist.
 
     Parameters
@@ -338,14 +338,14 @@ def triangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
 
     # Test each detlines combination
     cntdet = 0
-    for d in range(0, sz_d-nptn+1):
+    for d in range(0, sz_d-nptn+1):      # d is the starting point of the pattern
         dup = d + detsrch
         if dup > sz_d:
             dup = sz_d
         if detsrch == -1:
             dup = sz_d
-        for dd in range(d+nptn-1, dup):
-            for xd in range(d+1, dd):
+        for dd in range(d+nptn-1, dup):  # dd is the end point of the pattern
+            for xd in range(d+1, dd):  # xd is the mid point of the pattern
                 # Create the test pattern
                 dval = (detlines[xd]-detlines[d])/(detlines[dd]-detlines[d])
                 tol = pixtol/(detlines[dd]-detlines[d])
@@ -374,6 +374,108 @@ def triangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
                                 disps[cntdet] = tst
                             cntdet += 1
     return dindex, lindex, wvcen, disps
+
+
+@nb.jit(nopython=True, cache=True)
+def quadrangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
+    """ Brute force pattern recognition using quadrangles. A quadrangle contains
+        (for either detlines or linelist):
+          (1) a left line (ll),
+          (2) a right line (r), and
+          (3) two lines in between (a, b)
+
+
+                        |
+                  |     |      |
+        |         |     |      |
+        |         |     |      |
+        ll         a     b      r
+
+        Then, the values (a-ll)/(r-ll) and (b-ll)/(r-ll) are in the same
+        coordinate system for both detlines and linelist.
+
+    Parameters
+    ----------
+    detlines : ndarray
+      list of detected lines in pixels (sorted, increasing)
+    linelist : ndarray
+      list of lines that should be detected (sorted, increasing)
+    npixels : float
+      Number of pixels along the dispersion direction
+    detsrch : int
+      Number of consecutive elements in detlines to use to create a pattern (-1 means all lines in detlines)
+    lstsrch : int
+      Number of consecutive elements in linelist to use to create a pattern (-1 means all lines in detlines)
+    pixtol : float
+      tolerance that is used to determine if a match is successful (in units of pixels)
+
+    Returns
+    -------
+    dindex : ndarray
+      Index array of all detlines used in each triangle
+    lindex : ndarray
+      Index array of the assigned line to each index in dindex
+    wvcen : ndarray
+      central wavelength of each triangle
+    disps : ndarray
+      Dispersion of each triangle (angstroms/pixel)
+    """
+
+    nptn = 4  # Number of lines used to create a pattern
+
+    sz_d = detlines.size
+    sz_l = linelist.size
+
+    lindex = np.zeros((1, nptn), dtype=nb.types.uint64)
+    dindex = np.zeros((1, nptn), dtype=nb.types.uint64)
+    wvcen = np.array([])
+    disps = np.array([])
+
+    # Generate the patterns
+    for dl in range(0, sz_d-nptn+1):  # dl is the starting point of the detlines pattern
+        dup = dl + detsrch
+        if dup > sz_d:
+            dup = sz_d
+        if detsrch == -1:
+            dup = sz_d
+        for dr in range(dl+nptn-1, dup):  # dr is the end point of the detlines pattern
+            # Set the tolerance
+            tol = pixtol / (detlines[dr] - detlines[dl])
+            for da in range(dl+1, dr-1):  # da is the left mid point of the detlines pattern
+                # Create the test pattern
+                daval = (detlines[da]-detlines[dl])/(detlines[dr]-detlines[dl])
+                for db in range(da+1, dr):  # db is the right mid point of the detlines pattern
+                    # Create the test pattern
+                    dbval = (detlines[db]-detlines[dl])/(detlines[dr]-detlines[dl])
+                    # Search through all possible patterns in the linelist
+                    for ll in range(0, sz_l-nptn+1):  # ll is the start point of the linelist pattern
+                        lup = ll + lstsrch
+                        if lup > sz_l:
+                            lup = sz_l
+                        if lstsrch == -1:
+                            lup = sz_l
+                        for lr in range(ll+nptn-1, lup):  # lr is the end point of the linelist pattern
+                            for la in range(ll+1, lr-1):  # la is the end point of the linelist pattern
+                                laval = (linelist[la] - linelist[ll]) / (linelist[lr] - linelist[ll])
+                                tst = laval - daval
+                                if tst < 0.0:
+                                    tst *= -1.0
+                                if tst <= tol:
+                                    # The first pattern matches, check the second one.
+                                    for lb in range(la+1, lr):  # la is the end point of the linelist pattern
+                                        lbval = (linelist[lb] - linelist[ll]) / (linelist[lr] - linelist[ll])
+                                        tst = lbval - dbval
+                                        if tst < 0.0:
+                                            tst *= -1.0
+                                        if tst <= tol:
+                                            # The second pattern matches, store the result!
+                                            lindex = np.append(lindex, np.array([ll, la, lb, lr]), axis=0)
+                                            dindex = np.append(dindex, np.array([dl, da, db, dr]), axis=0)
+                                            tst = (linelist[lr] - linelist[ll]) / (detlines[dr] - detlines[dl])
+                                            wvcen = np.append(wvcen, (npixels/2.)*tst + (linelist[lr]-tst*detlines[dr]))
+                                            disps = np.append(disps, tst)
+    # Return, but first remove the spurious first entry due to array creation
+    return dindex[1:, :], lindex[1:, :], wvcen, disps
 
 
 def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):

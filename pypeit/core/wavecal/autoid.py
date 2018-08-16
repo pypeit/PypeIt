@@ -349,7 +349,7 @@ def general(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
     from linetools import utils as ltu
 
     # Import the triangles algorithm
-    from pypeit.core.wavecal.patterns import triangles
+    from pypeit.core.wavecal.patterns import triangles, quadrangles
 
     npix, nslit = spec.shape
 
@@ -422,7 +422,8 @@ def general(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
             # First run pattern recognition assuming pixels correlate with wavelength
 
             # Triangle pattern matching
-            dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 4, 10, pix_tol)
+#            dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 5, 10, pix_tol)
+            dindexp, lindexp, wvcenp, dispsp = quadrangles(use_tcent, wvdata, npix, 5, 5, pix_tol)
             # dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 3, 6, pix_tol)
             # Remove any invalid results
             ww = np.where((binw[0] < wvcenp) & (wvcenp < binw[-1]) & (10.0**bind[0] < dispsp) & (dispsp < 10.0**bind[-1]))
@@ -434,7 +435,8 @@ def general(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
             # Now run pattern recognition assuming pixels correlate with wavelength
             use_tcent = (npix - 1.0) - all_tcent.copy()[::-1]
             # Triangle pattern matching
-            dindexm, lindexm, wvcenm, dispsm = triangles(use_tcent, wvdata, npix, 5, 10, pix_tol)
+#            dindexm, lindexm, wvcenm, dispsm = triangles(use_tcent, wvdata, npix, 5, 10, pix_tol)
+            dindexm, lindexm, wvcenm, dispsm = quadrangles(use_tcent, wvdata, npix, 5, 5, pix_tol)
             #dindexm, lindexm, wvcenm, dispsm = triangles(use_tcent, wvdata, npix, 3, 6, pix_tol)
             # Remove any invalid results
             ww = np.where((binw[0] < wvcenm) & (wvcenm < binw[-1]) & (10.0**bind[0] < dispsm) & (dispsm < 10.0**bind[-1]))
