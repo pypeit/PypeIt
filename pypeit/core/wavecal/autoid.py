@@ -297,7 +297,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
 def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             outroot=None, debug=False, do_fit=True, verbose=False,
             fit_parm=None, lowest_ampl=200.,
-            binw=None, bind=None, nstore=10, use_unknowns=False):
+            binw=None, bind=None, nstore=10, use_unknowns=True):
     """ General algorithm to wavelength calibrate spectroscopic data
 
     Parameters
