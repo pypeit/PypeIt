@@ -380,8 +380,8 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
     #ngridw, ngridd = 1000, 1000  # Longslit
     #ngridw, ngridd = 100000, 100  # Echelle
 
-    nselw, nseld = 5, 25  # Longslit
-    # nselw, nseld = 1, 1  # Echelle
+    #nselw, nseld = 5, 25  # Longslit
+    nselw, nseld = 1, 1  # Echelle
 
     # The wavelength grid (i.e. the binw size) should depend on the dispersion.
 
@@ -422,7 +422,7 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             # First run pattern recognition assuming pixels correlate with wavelength
 
             # Triangle pattern matching
-            dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 4, 10, pix_tol)
+            dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 5, 10, pix_tol)
             # dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 3, 6, pix_tol)
             # Remove any invalid results
             ww = np.where((binw[0] < wvcenp) & (wvcenp < binw[-1]) & (10.0**bind[0] < dispsp) & (dispsp < 10.0**bind[-1]))
@@ -444,10 +444,10 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             wvcenm = wvcenm[ww]
             # Construct the histograms
             if True:
-                histimgp, xed, yed = utils.hist_wavedisp(wvcenp, np.log10(dispsp), dispbin=bind, wavebin=[np.min(wvdata), np.max(wvdata)])
-                histimgm, xed, yed = utils.hist_wavedisp(wvcenm, np.log10(dispsm), dispbin=bind, wavebin=[np.min(wvdata), np.max(wvdata)])
+                histimgp, wed, ded = utils.hist_wavedisp(wvcenp, np.log10(dispsp), dispbin=bind, wavebin=[np.min(wvdata), np.max(wvdata)])
+                histimgm, wed, ded = utils.hist_wavedisp(wvcenm, np.log10(dispsm), dispbin=bind, wavebin=[np.min(wvdata), np.max(wvdata)])
                 histimg = histimgp - histimgm
-                bidx = np.argpartition(np.abs(histpeaks*histimg), -nstore, axis=None)[-nstore:]
+                bidx = np.argpartition(np.abs(histimg), -nstore, axis=None)[-nstore:]
             else:
                 # The old algorithm
                 histimgp, xed, yed = np.histogram2d(wvcenp, np.log10(dispsp), bins=[binw, bind])
@@ -456,11 +456,11 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                 #histimgm = gaussian_filter(histimgm, 3)
                 histimg = histimgp - histimgm
                 #histimg = gaussian_filter(histimg, 6)
-                histpeaks = patterns.detect_peaks(np.abs(histimg))
+                histpeaks = patterns.detect_2Dpeaks(np.abs(histimg))
                 # Find the indices of the nstore largest peaks
                 bidx = np.unravel_index(np.argpartition(np.abs(histpeaks*histimg), -nstore, axis=None)[-nstore:], histimg.shape)
 
-            debug = True
+            debug = False
             if debug:
                 from matplotlib import pyplot as plt
                 plt.clf()
@@ -475,33 +475,41 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                 plt.imshow(histimgp[:, ::-1].T, extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
                 pdb.set_trace()
                 plt.show()
+
             # Get the peak value of central wavelength and dispersion
-            wcenval = binw[bidx[0]]
-            dispval = bind[bidx[1]]
+            wcenval = wed[bidx]
+            dispval = ded[bidx]
             histnum = np.abs(histimg[bidx])
 
             # Find all good solutions
             for idx in range(nstore):
                 # Select all solutions around the best solution within a square of side 2*nsel
-                wlo = binw[max(0, bidx[0][idx] - nselw)]
-                whi = binw[min(ngridw - 1, bidx[0][idx] + nselw)]
-                dlo = 10.0 ** bind[max(0, bidx[1][idx] - nseld)]
-                dhi = 10.0 ** bind[min(ngridd - 1, bidx[1][idx] + nseld)]
+                # wlo = binw[max(0, bidx[0][idx] - nselw)]
+                # whi = binw[min(ngridw - 1, bidx[0][idx] + nselw)]
+                darg = np.argmin(np.abs(bind - np.log10(dispval[idx])))
+                dlo = 10.0 ** bind[max(0, darg - nseld)]
+                dhi = 10.0 ** bind[min(ngridd - 1, darg + nseld)]
+                wdelt = nselw*dispval[idx]
                 if histimgp[bidx][idx] > histimgm[bidx][idx]:
-                    wgd = np.where((wvcenp > wlo) & (wvcenp < whi) & (dispsp > dlo) & (dispsp < dhi))
+                    # wgd = np.where((wvcenp > wlo) & (wvcenp < whi) & (dispsp > dlo) & (dispsp < dhi))
+                    wgd = np.where((wvcenp > wcenval[idx]-wdelt) & (wvcenp < wcenval[idx]+wdelt) &
+                                   (dispsp > dlo) & (dispsp < dhi))
                     dindex = dindexp[wgd[0], :].flatten()
                     lindex = lindexp[wgd[0], :].flatten()
                     sign = +1.0
                 else:
-                    wgd = np.where((wvcenm > wlo) & (wvcenm < whi) & (dispsm > dlo) & (dispsm < dhi))
+                    # wgd = np.where((wvcenm > wlo) & (wvcenm < whi) & (dispsm > dlo) & (dispsm < dhi))
+                    wgd = np.where((wvcenm > wcenval[idx]-wdelt) & (wvcenm < wcenval[idx]+wdelt) &
+                                   (dispsm > dlo) & (dispsm < dhi))
                     dindex = dindexm[wgd[0], :].flatten()
                     lindex = lindexm[wgd[0], :].flatten()
                     sign = -1.0
                 # Store relevant values in an array to solve for best solution
                 bestlist[cnt].append([wcenval[idx], dispval[idx], histnum[idx], sign, dindex, lindex])
             allwcen = np.append(allwcen, wcenval)
-            alldisp = np.append(alldisp, dispval)
+            alldisp = np.append(alldisp, np.log10(dispval))
             allhnum = np.append(allhnum, histnum)
+            for i in range(allwcen.size): print(allwcen[i], alldisp[i], allhnum[i])
 
     # Using the results from all slits, decide on the best solutions (assume all slits have the same dispersion)
     dhist, dedge = np.histogram(alldisp, bins=bind, weights=allhnum)
@@ -530,6 +538,7 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
         dindex, lindex, allsgn = np.array([]), np.array([]), np.array([])
         dcen, wcen = np.array([]), np.array([])
         for ss in range(len(bestlist[cnt])):
+
             if dedge[dhmax-nseld] <= bestlist[cnt][ss][1] <= dedge[dhmax+1+nseld]:
                 wcen = np.append(wcen, bestlist[cnt][ss][0])
                 dcen = np.append(dcen, bestlist[cnt][ss][1])
