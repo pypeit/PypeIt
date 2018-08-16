@@ -14,6 +14,7 @@ import glob
 
 from setuptools import setup, find_packages
 
+
 def get_data_files():
     """ Build the list of data files to include.  """
     data_files = []
@@ -77,7 +78,7 @@ def run_setup(data_files, scripts, packages, install_requires):
           include_package_data=True,
           scripts=scripts,
           install_requires=install_requires,
-          requires=[ 'Python (>2.7.0)' ],                               # *
+          requires=[ 'Python (>3.6.0)' ],                               # *
           zip_safe=False,                                               # *
           use_2to3=False,                                               # *
           setup_requires=[ 'pytest-runner' ],
