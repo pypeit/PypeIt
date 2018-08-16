@@ -327,6 +327,7 @@ class bspline(object):
         a bspline object
         """
 
+        # TODO There is a bug here because the breakpoints are not being set.
         # needs to move lists to np.arrays for JSON files
         return cls(None,
                    nord=bspline_dict['nord'],

@@ -71,6 +71,10 @@ class WaveTilts(masterframe.MasterFrame):
         # Instantiate the spectograph
         # TODO: (KBW) Do we need this?  It's only used to get the
         # non-linear counts and the name of the master directory
+
+        ## JFH I think then name of the master directory is usually passed in via setup. I don't see why we need spectrograph
+        ## for that. If it is just saturation limits that are needed I would advocate passing those in as individual
+        ## keyword parameters to whatever method in this class uses them.
         if isinstance(spectrograph, str):
             self.spectrograph = load_spectrograph(spectrograph=spectrograph)
         elif isinstance(spectrograph, Spectrograph):

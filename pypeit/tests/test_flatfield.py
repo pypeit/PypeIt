@@ -18,6 +18,8 @@ from astropy.table import Table
 from pypeit.tests import tstutils
 from pypeit import flatfield
 
+from pypeit import debugger
+
 # These tests are not run on Travis
 if os.getenv('PYPEIT_DEV') is None:
     skip_test=True
@@ -72,6 +74,7 @@ def test_run():
                                     tslits_dict=TSlits.tslits_dict.copy())
     # Use mstrace
     flatField.mspixelflat = TSlits.mstrace.copy()
-    mspixelflatnrm = flatField.run()
-    assert np.isclose(np.median(mspixelflatnrm), 1.0086422)
+    mspixelflatnrm, slitprofiles = flatField.run()
+    assert np.isclose(np.median(mspixelflatnrm), 0.98186201)
+
 

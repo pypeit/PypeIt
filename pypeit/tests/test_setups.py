@@ -33,9 +33,10 @@ def test_run_setup():
         os.remove(sfile)
     #
     droot = data_path('b')
-    pargs = setup.parser([droot, 'shane_kast_blue', '-d', '-c',
+    pargs = setup.parser([droot, 'shane_kast_blue', '-c',
                           '--extension=fits.gz', '--redux_path={:s}'.format(data_path(''))])
     setup.main(pargs)
+
     setup_file = glob.glob(data_path('setup_files/shane_kast_blue*.setups'))[0]
     # Load
     with open(setup_file, 'r') as infile:

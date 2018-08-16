@@ -58,7 +58,8 @@ class SpecObj(object):
 
     # TODO
     def __init__(self, shape, slit_spat_pos, slit_spec_pos, det = 1, setup = None,
-                 slitid = 999, scidx = 1, objtype='unknown', spat_pixpos=None):
+                 slitid = 999, scidx = 1, objtype='unknown', spat_pixpos=None,
+                 config=None):
 
         #Assign from init parameters
         self.shape = shape
@@ -69,6 +70,7 @@ class SpecObj(object):
         self.scidx = copy.deepcopy(scidx)
         self.det = det
         self.objtype = objtype
+        self.config = config
 
         # ToDo add all attributes here and to the documentaiton
 
