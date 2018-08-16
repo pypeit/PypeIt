@@ -6,7 +6,6 @@ import numpy as np
 from scipy.ndimage.filters import maximum_filter
 from scipy.ndimage.morphology import generate_binary_structure, binary_erosion
 import numba as nb
-import pdb
 
 
 def detect_peaks(image):
@@ -264,7 +263,22 @@ def score_quad_matches(fidx):
 
 @nb.jit(nopython=True, cache=True)
 def triangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
-    """
+    """ Brute force pattern recognition using triangles. A triangle contains
+        (for either detlines or linelist):
+          (1) a starting point (s),
+          (2) an end point (e), and
+          (3) something in between (b)
+
+
+                        |
+                        |      |
+        |               |      |
+        |               |      |
+        s               b      e
+
+        Then, regardless of the value (b-s)/(e-s) is the same coordinate system
+        for both detlines and linelist.
+
     Parameters
     ----------
     detlines : ndarray
@@ -290,7 +304,6 @@ def triangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
       central wavelength of each triangle
     disps : ndarray
       Dispersion of each triangle (angstroms/pixel)
-
     """
 
     nptn = 3  # Number of lines used to create a pattern
@@ -416,14 +429,19 @@ def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
 
 def score_triangles(counts):
     """  Grades for the triangle results
+
     Parameters
     ----------
-    fidx
+    counts : ndarray
+      Each element is a counter, representing a wavelength that is attributed to a given detected line.
+      The more times that a wavelength is attributed to a detected line, the higher the counts. The more
+      different wavelengths that are attributed to the same detected line (i.e. not ideal) the longer
+      the counts list will be.
 
     Returns
     -------
-    scores : list
-
+    score : str
+      A string indicating the relative quality of the ID
     """
     ncnt = counts.size
     max_counts = np.max(counts)

@@ -15,29 +15,35 @@ from pypeit.core.wavecal import qa
 from pypeit import msgs
 
 
-def basic(spec, lines, wv_cen, disp, siglev=20., min_ampl=300.,
-          swv_uncertainty=350., pix_tol=2, plot_fil=None, min_match=5,
+def basic(spec, lines, wv_cen, disp, min_ampl=300.,
+          swv_uncertainty=350., pix_tol=2, plot_fil=None, min_nmatch=5,
           **kwargs):
-    """ Basic holy grail algorithm
+    """ Basic algorithm to wavelength calibrate spectroscopic data
 
     Parameters
     ----------
-    spec : spectrum
+    spec : ndarray
+      Extracted 1D Arc Spectrum
     lines : list
       List of arc lamps on
     wv_cen : float
       Guess at central wavelength
     disp : float
       Dispersion A/pix
-    siglev
-    min_ampl
-    swv_uncertainty
-    pix_tol
-    plot_fil
+    min_ampl : float
+      Minimum amplitude of the arc lines that will be used in the fit
+    swv_uncertainty : float
 
+    pix_tol : float
+      Tolerance in units of pixels to match to
+    plot_fil : str, optional
+      Name of output file
+    min_nmatch : int
+      Minimum number of acceptable matches before a solution is deemed to be found
     Returns
     -------
     status : int
+      If successful, status=1
 
     """
 
@@ -84,7 +90,7 @@ def basic(spec, lines, wv_cen, disp, siglev=20., min_ampl=300.,
             imx = np.argmax(counts)
             IDs.append(wvdata[uni[imx]])
     ngd_match = np.sum(mask)
-    if ngd_match < min_match:
+    if ngd_match < min_nmatch:
         msgs.warn("Insufficient matches to continue")
         status = -1
         return status, ngd_match, match_idx, scores, None
@@ -290,34 +296,54 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
 
 def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             outroot=None, debug=False, do_fit=True, verbose=False,
-            fit_parm=None, min_nmatch=0, lowest_ampl=200.,
+            fit_parm=None, lowest_ampl=200.,
             binw=None, bind=None, nstore=10, use_unknowns=False):
-    """
+    """ General algorithm to wavelength calibrate spectroscopic data
+
     Parameters
     ----------
-    spec
-    lines
-    siglev
-    min_ampl
+    spec : ndarray
+      Extracted 1D Arc Spectrum
+    lines : list
+      List of arc lamps on
+    ok_mask : ndarray
+
+    min_ampl : float
+      Minimum amplitude of the arc lines that will be used in the fit
     islinelist : bool
       Is lines a linelist (True), or a list of ions (False)
-    outroot
-    debug
-    do_fit
-    verbose
-    fit_parm
-    min_nmatch
-    lowest_ampl
-    binw : array
-      Wavelength bins
-    bind : array
-      Dispersion bins
+    outroot : str, optional
+      Name of output file
+    debug : bool
+      Used to debug the algorithm
+    do_fit : bool
+      If True, a fit and iterative identification of arc lines will be performed.
+      If False, the final fit will not be computed, and only the initial IDs will
+      be returned (as well as a blank list of empty dicts for the final fit).
+    verbose : bool
+      If True, the final fit will print out more detail as the RMS is refined,
+      and lines are rejected. This is mostly helpful for developing the algorithm.
+    fit_parm : dict
+      Fitting parameter dictionary (see fitting.iterative_fitting)
+    lowest_ampl : float
+    binw : ndarray, optional
+      Set the wavelength grid when identifying the best solution
+    bind : ndarray, optional
+      Set the dispersion grid when identifying the best solution
+    nstore : int
+      The number of "best" initial solutions to consider
+    use_unknowns : bool
+      If True, arc lines that are known to be present in the spectra, but
+      have not been attributed to an element+ion, will be included in the fit.
 
     Returns
     -------
-    best_dict : dict
-    final_fit : dict
-
+    all_patt_dict : list of dicts
+      A list of dictionaries, which contain the results from the preliminary
+      pattern matching algorithm providing the first guess at the ID lines
+    all_final_fit : list of dicts
+      A list of dictionaries, which contain the full fitting results and
+      final best guess of the line IDs
     """
     from astropy.table import vstack
     from linetools import utils as ltu
@@ -587,9 +613,9 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
                 use_tcent = np.concatenate([use_tcent, use_weak])
             # Fit
             final_fit = fitting.iterative_fitting(spec, use_tcent, ifit,
-                                                   np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
-                                                   patt_dict['bdisp'], plot_fil=plot_fil, verbose=verbose,
-                                                   aparm=fit_parm)
+                                                  np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
+                                                  patt_dict['bdisp'], plot_fil=plot_fil, verbose=verbose,
+                                                  aparm=fit_parm)
 
             if plot_fil is not None:
                 print("Wrote: {:s}".format(plot_fil))
@@ -600,200 +626,3 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
 
     # Return
     return all_patt_dict, all_final_fit
-
-
-def general_old(spec, lines, ok_mask=None, min_ampl=300., outroot=None, do_fit=True,
-            verbose=False, fit_parm=None, lowest_ampl=200., ngrid=1000, debug=False):
-    """
-    Parameters
-    ----------
-    spec
-    lines
-    siglev
-    min_ampl
-    outroot
-    debug
-    do_fit
-    verbose
-    fit_parm
-    min_nmatch
-    lowest_ampl
-
-    Returns
-    -------
-    best_dict : dict
-    final_fit : dict
-
-    """
-    # imports
-    from astropy.table import vstack
-    from linetools import utils as ltu
-
-    # Import the triangles algorithm
-    from pypeit.core.wavecal.patterns import triangles
-
-    npix, nslit = spec.shape
-
-    if ok_mask is None:
-        ok_mask = np.arange(nslit)
-
-    # Load line lists
-    line_lists = waveio.load_line_lists(lines)
-    unknwns = waveio.load_unknown_list(lines)
-
-    bst_linelist = []
-    for slit in ok_mask:
-        # Lines
-        all_tcent, cut_tcent, icut = utils.arc_lines_from_spec(spec[:, slit], min_ampl=min_ampl)
-        use_tcent = all_tcent.copy()
-        #use_tcent = cut_tcent.copy()  # min_ampl is having not effect at present
-
-        # Best
-        best_dict = dict(nmatch=0, ibest=-1, bwv=0., min_ampl=min_ampl)
-
-        # Loop on unknowns
-        for unknown in [False, True]:
-            if unknown:
-                tot_list = vstack([line_lists,unknwns])
-            else:
-                tot_list = line_lists
-            wvdata = np.array(tot_list['wave'].data)  # Removes mask if any
-            wvdata.sort()
-
-            sav_nmatch = best_dict['nmatch']
-
-            # Loop on pix_tol
-            for pix_tol in [1.]:
-                # Triangle pattern matching
-                dindex, lindex, wvcen, disps = triangles(use_tcent, wvdata, npix, 5, 10, pix_tol)
-
-                # Remove any invalid results
-                ww = np.where((wvcen > 0.0) & (disps > 0.0))
-                dindex = dindex[ww[0], :]
-                lindex = lindex[ww[0], :]
-                disps = disps[ww]
-                wvcen = wvcen[ww]
-
-                # Setup the grids and histogram
-                binw = np.linspace(max(np.min(wvcen), np.min(wvdata)), min(np.max(wvcen), np.max(wvdata)), ngrid)
-                bind = np.linspace(np.min(np.log10(disps)), np.max(np.log10(disps)), ngrid)
-                histimg, xed, yed = np.histogram2d(wvcen, np.log10(disps), bins=[binw, bind])
-                histimg = gaussian_filter(histimg, 3)
-
-                # Find the best combination of central wavelength and dispersion
-                bidx = np.unravel_index(np.argmax(histimg), histimg.shape)
-
-                if debug:
-                    from matplotlib import pyplot as plt
-                    plt.clf()
-                    plt.imshow(histimg[:, ::-1].T, extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
-                    plt.axvline(binw[bidx[0]], color='r', linestyle='--')
-                    plt.axhline(bind[bidx[1]], color='r', linestyle='--')
-                    plt.show()
-                    print(histimg[bidx], binw[bidx[0]], 10.0**bind[bidx[1]])
-                    pdb.set_trace()
-
-                # Find all good solutions
-                nsel = 5  # Select all solutions around the best solution within a square of side 2*nsel
-                wlo = binw[bidx[0] - nsel]
-                whi = binw[bidx[0] + nsel]
-                dlo = 10.0 ** bind[bidx[1] - 5*nsel]
-                dhi = 10.0 ** bind[bidx[1] + 5*nsel]
-                wgd = np.where((wvcen > wlo) & (wvcen < whi) & (disps > dlo) & (disps < dhi))
-                dindex = dindex[wgd[0], :].flatten()
-                lindex = lindex[wgd[0], :].flatten()
-        # Go from here
-
-
-    # Given the best solution, fit for all detlines
-    patterns.solve_triangles(use_tcent, wvdata, dindex, lindex, best_dict)
-    if best_dict['nmatch'] > sav_nmatch:
-        best_dict['pix_tol'] = pix_tol
-
-        # Save linelist?
-        if best_dict['nmatch'] > sav_nmatch:
-            best_dict['bwv'] = binw[bidx[0]]
-            best_dict['bdisp'] = 10.0**bind[bidx[1]]
-            best_dict['line_list'] = tot_list.copy()
-            best_dict['unknown'] = unknown
-            best_dict['ampl'] = unknown
-
-    # Try to pick up some extras by turning off/on unknowns
-    if best_dict['unknown']:
-        tot_list = line_lists
-    else:
-        tot_list = vstack([line_lists,unknwns])
-
-    # Retrieve the wavelengths of the linelist and sort
-    wvdata = np.array(tot_list['wave'].data)  # Removes mask if any
-    wvdata.sort()
-
-    if best_dict['nmatch'] == 0:
-        msgs.info('---------------------------------------------------' + msgs.newline() +
-                  'Report:' + msgs.newline() +
-                  '  No matches! Try another algorithm' + msgs.newline() +
-                  '---------------------------------------------------')
-        return
-
-    # Report
-    msgs.info('---------------------------------------------------' + msgs.newline() +
-              'Report:' + msgs.newline() +
-              '  Number of lines recovered    = {:d}'.format(all_tcent.size) + msgs.newline() +
-              '  Number of lines analyzed     = {:d}'.format(use_tcent.size) + msgs.newline() +
-              '  Number of acceptable matches = {:d}'.format(best_dict['nmatch']) + msgs.newline() +
-              '  Best central wavelength      = {:g}A'.format(best_dict['bwv']) + msgs.newline() +
-              '  Best dispersion              = {:g}A/pix'.format(best_dict['bdisp']) + msgs.newline() +
-              '  Best solution used pix_tol   = {}'.format(best_dict['pix_tol']) + msgs.newline() +
-              '  Best solution had unknown    = {}'.format(best_dict['unknown']) + msgs.newline() +
-              '---------------------------------------------------')
-
-    # Write IDs
-    if outroot is not None:
-        out_dict = dict(pix=use_tcent, IDs=best_dict['IDs'])
-        jdict = ltu.jsonify(out_dict)
-        ltu.savejson(outroot+'.json', jdict, easy_to_read=True, overwrite=True)
-        print("Wrote: {:s}".format(outroot+'.json'))
-
-    # Plot
-    if outroot is not None:
-        tmp_list = vstack([line_lists, unknwns])
-        qa.match_qa(spec, use_tcent, tmp_list,
-                    best_dict['IDs'], best_dict['scores'], outroot+'.pdf')
-        print("Wrote: {:s}".format(outroot+'.pdf'))
-
-    # Fit
-    final_fit = None
-    if do_fit:
-        # Good lines = NIST or OH
-        good_lines = np.any([line_lists['NIST'] > 0, line_lists['ion'] == 'OH'], axis=0)
-        #
-        ifit = np.where(best_dict['mask'])[0]
-        if outroot is not None:
-            plot_fil = outroot+'_fit.pdf'
-        else:
-            plot_fil = None
-        # Purge UNKNOWNS from ifit
-        imsk = np.array([True]*len(ifit))
-        for kk, idwv in enumerate(np.array(best_dict['IDs'])[ifit]):
-            if np.min(np.abs(line_lists['wave'][good_lines]-idwv)) > 0.01:
-                imsk[kk] = False
-        ifit = ifit[imsk]
-        # Allow for weaker lines in the fit
-        all_tcent, weak_cut_tcent, icut = utils.arc_lines_from_spec(spec, min_ampl=lowest_ampl)
-        use_weak_tcent = all_tcent.copy()
-        add_weak = []
-        for weak in use_weak_tcent:
-            if np.min(np.abs(use_tcent-weak)) > 5.:
-                add_weak += [weak]
-        if len(add_weak) > 0:
-            use_tcent = np.concatenate([use_tcent, np.array(add_weak)])
-        # Fit
-        final_fit = fitting.iterative_fitting(spec, use_tcent, ifit,
-                                              np.array(best_dict['IDs'])[ifit], line_lists[good_lines],
-                                              best_dict['bdisp'], plot_fil=plot_fil, verbose=verbose,
-                                              aparm=fit_parm)
-        if plot_fil is not None:
-            print("Wrote: {:s}".format(plot_fil))
-
-    # Return
-    return best_dict, final_fit

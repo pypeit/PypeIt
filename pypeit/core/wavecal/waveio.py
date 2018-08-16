@@ -11,10 +11,10 @@ from astropy.io import fits
 
 from linetools import utils as ltu
 
-import arclines # For path
+import pypeit  # For path
 from pypeit.core.wavecal import defs
-line_path = arclines.__path__[0]+'/data/lists/'
-nist_path = arclines.__path__[0]+'/data/NIST/'
+line_path = pypeit.__path__[0]+'/data/arc_lines/lists/'
+nist_path = pypeit.__path__[0]+'/data/arc_lines/NIST/'
 
 
 def load_by_hand():
