@@ -31,7 +31,7 @@ def load_by_hand():
     """
     str_len_dict = defs.str_len()
 
-    src_file = arclines.__path__[0]+'/data/sources/by_hand_list.ascii'
+    src_file = pypeit.__path__[0]+'/data/sources/by_hand_list.ascii'
     # Read
     line_list = Table.read(src_file, format='ascii.fixed_width', comment='#')
     # Add
@@ -170,7 +170,7 @@ def load_source_table():
     sources : Table
 
     """
-    src_file = arclines.__path__[0]+'/data/sources/arcline_sources.ascii'
+    src_file = pypeit.__path__[0]+'/data/sources/arcline_sources.ascii'
     # Load
     sources = Table.read(src_file, format='ascii.fixed_width', comment='#')
     # Return
@@ -192,7 +192,7 @@ def load_nist(ion):
     """
     import glob
     # Root (for development only)
-    root = arclines.__path__[0]
+    root = pypeit.__path__[0]
     # Find file
     srch_file = root + '/data/NIST/'+ion+'_vacuum.ascii'
     nist_file = glob.glob(srch_file)
@@ -245,7 +245,7 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
     """
     line_dict = defs.lines()
     # Load
-    line_path = arclines.__path__[0]+'/data/lists/'
+    line_path = pypeit.__path__[0]+'/data/lists/'
     if unknwn_file is None:
         unknwn_file = line_path+'UNKNWNs.dat'
     line_list = load_line_list(unknwn_file)
@@ -260,6 +260,7 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
             msk[match] = True
         # Finish
         return line_list[msk]
+
 
 def load_spectrum(spec_file, index=0):
     """ Load a simple spectrum from input file
@@ -297,6 +298,7 @@ def load_spectrum(spec_file, index=0):
             raise IOError("spec not in your JSON dict")
     # Return
     return spec
+
 
 def write_line_list(tbl, outfile):
     """
