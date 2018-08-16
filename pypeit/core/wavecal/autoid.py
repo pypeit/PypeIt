@@ -297,7 +297,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
 def general(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
             outroot=None, debug=False, do_fit=True, verbose=False,
             fit_parm=None, lowest_ampl=200.,
-            binw=None, bind=None, nstore=10, use_unknowns=False):
+            binw=None, bind=None, nstore=10, use_unknowns=True):
     """ General algorithm to wavelength calibrate spectroscopic data
 
     Parameters
@@ -422,7 +422,7 @@ def general(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
             # First run pattern recognition assuming pixels correlate with wavelength
 
             # Triangle pattern matching
-            dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 4, 10, pix_tol)
+            dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 5, 10, pix_tol)
             # dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, 3, 6, pix_tol)
             # Remove any invalid results
             ww = np.where((binw[0] < wvcenp) & (wvcenp < binw[-1]) & (10.0**bind[0] < dispsp) & (dispsp < 10.0**bind[-1]))
