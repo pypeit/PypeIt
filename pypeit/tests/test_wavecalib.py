@@ -23,7 +23,8 @@ from pypeit import arcimage
 from pypeit.core.wavecal import autoid
 import json
 import h5py
-test_arc_path = str(Path().absolute()) + '/files/wavecalib/'
+test_arc_path = str(Path().absolute()) + '/tests/files/wavecalib/'
+test_arc_path = test_arc_path.replace('/tests/tests/', '/tests/')   # Kludge because Travis runs from a different directory
 
 # These tests are not run on Travis
 if os.getenv('PYPEIT_DEV') is None:
