@@ -417,19 +417,22 @@ def general(spec, lines, ok_mask=None, min_ampl=300., islinelist=False,
             dispsm = dispsm[ww]
             wvcenm = wvcenm[ww]
             # Construct the histograms
-            histimgp, xed, yed = utils.hist_wavedisp(wvcenp, np.log10(dispsp), dispbin=bind, wavebin=[np.min(wvdata), np.max(wvdata)])
-            pdb.set_trace()
-            histimgp, xed, yed = np.histogram2d(wvcenp, np.log10(dispsp), bins=[binw, bind])
-            histimgm, xed, yed = np.histogram2d(wvcenm, np.log10(dispsm), bins=[binw, bind])
-            #histimgp = gaussian_filter(histimgp, 3)
-            #histimgm = gaussian_filter(histimgm, 3)
-            histimg = histimgp - histimgm
-            #histimg = gaussian_filter(histimg, 6)
-
-            histpeaks = patterns.detect_peaks(np.abs(histimg))
-
-            # Find the indices of the nstore largest peaks
-            bidx = np.unravel_index(np.argpartition(np.abs(histpeaks*histimg), -nstore, axis=None)[-nstore:], histimg.shape)
+            if True:
+                histimgp, xed, yed = utils.hist_wavedisp(wvcenp, np.log10(dispsp), dispbin=bind, wavebin=[np.min(wvdata), np.max(wvdata)])
+                histimgm, xed, yed = utils.hist_wavedisp(wvcenm, np.log10(dispsm), dispbin=bind, wavebin=[np.min(wvdata), np.max(wvdata)])
+                histimg = histimgp - histimgm
+                bidx = np.argpartition(np.abs(histpeaks*histimg), -nstore, axis=None)[-nstore:]
+            else:
+                # The old algorithm
+                histimgp, xed, yed = np.histogram2d(wvcenp, np.log10(dispsp), bins=[binw, bind])
+                histimgm, xed, yed = np.histogram2d(wvcenm, np.log10(dispsm), bins=[binw, bind])
+                #histimgp = gaussian_filter(histimgp, 3)
+                #histimgm = gaussian_filter(histimgm, 3)
+                histimg = histimgp - histimgm
+                #histimg = gaussian_filter(histimg, 6)
+                histpeaks = patterns.detect_peaks(np.abs(histimg))
+                # Find the indices of the nstore largest peaks
+                bidx = np.unravel_index(np.argpartition(np.abs(histpeaks*histimg), -nstore, axis=None)[-nstore:], histimg.shape)
 
             debug = True
             if debug:
