@@ -460,7 +460,7 @@ def general(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
             # Find the indices of the nstore largest peaks
             bidx = np.unravel_index(np.argpartition(np.abs(histpeaks*histimg), -nstore, axis=None)[-nstore:], histimg.shape)
 
-            debug = True
+            debug = False
             if debug:
                 from matplotlib import pyplot as plt
                 plt.clf()
