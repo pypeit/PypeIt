@@ -306,7 +306,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return any_slits
 
-    def add_user_slits(self, user_slits, run_to_finish=False):
+    def add_user_slits(self, user_slits, run_to_finish=False, usefracpix=False):
         """
         Add a user-defined slit
 
@@ -334,7 +334,7 @@ class TraceSlits(masterframe.MasterFrame):
             self._fit_edges('right')
             self._synchronize()
             self._pca()
-            self._trim_slits()
+            self._trim_slits(usefracpix=usefracpix)
         # Step
         self.steps.append(inspect.stack()[0][3])
 

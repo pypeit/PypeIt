@@ -83,8 +83,8 @@ class SlitMask:
         self.bottom = numpy.mean(self.corners[:,1:3,:], axis=1)
 
         # Length and width
-        self.length = numpy.absolute(numpy.diff(self.corners[:,0:2,0], axis=1))
-        self.width = numpy.absolute(numpy.diff(self.corners[:,1:3,1], axis=1))
+        self.length = numpy.absolute(numpy.diff(self.corners[:,0:2,0], axis=1)).ravel()
+        self.width = numpy.absolute(numpy.diff(self.corners[:,1:3,1], axis=1)).ravel()
 
         # Position angle
         self.pa = numpy.degrees(numpy.arctan2(numpy.diff(self.corners[:,0:2,1], axis=1),
