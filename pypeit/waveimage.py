@@ -14,6 +14,7 @@ from pypeit import ginga
 
 from pypeit import debugger
 
+
 class WaveImage(masterframe.MasterFrame):
     """Class to generate the Wavelength Image
 

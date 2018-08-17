@@ -17,6 +17,7 @@ from pypeit.core import fsort
 
 from pypeit import debugger
 
+
 class KeckLRISSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/LRIS specific code
@@ -141,6 +142,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Return
         return match_criteria
 
+
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISb specific code
@@ -264,8 +266,6 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 
-
-
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISr specific code
@@ -311,6 +311,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                             suffix          ='_02red'
                             )
             ]
+        self.numhead = 5
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file ?

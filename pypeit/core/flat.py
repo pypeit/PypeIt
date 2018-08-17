@@ -715,7 +715,7 @@ def sn_frame(slf, sciframe, idx):
 '''
 
 
-def flatfield(sciframe, flatframe, bpix, slitprofile, snframe=None, varframe=None):
+def flatfield(sciframe, flatframe, bpix, slitprofile=None, snframe=None, varframe=None):
     """ Flat field the input image
 
     .. todo::
@@ -744,7 +744,8 @@ def flatfield(sciframe, flatframe, bpix, slitprofile, snframe=None, varframe=Non
         msgs.error("Cannot set both varframe and snframe")
 
     # Fold in the slit profile
-    flatframe *= slitprofile
+    if slitprofile is not None:
+        flatframe *= slitprofile
 
     # New image
     retframe = np.zeros_like(sciframe)

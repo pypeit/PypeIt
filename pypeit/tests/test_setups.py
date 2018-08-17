@@ -45,7 +45,7 @@ def test_run_setup():
     assert '01' in setup_dict['A'].keys()
     assert setup_dict['A']['--']['disperser']['name'] == '600/4310'
     # Failures
-    pargs2 = setup.parser([droot, 'shane_kast_blu', '-d', '-c',
+    pargs2 = setup.parser([droot, 'shane_kast_blu', '-c',
                               '--extension=fits.gz', '--redux_path={:s}'.format(data_path(''))])
     with pytest.raises(ValueError):
         setup.main(pargs2)
