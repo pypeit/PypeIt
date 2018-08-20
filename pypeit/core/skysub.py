@@ -374,7 +374,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     nspec = sciimg.shape[0]
 
     # Create the imagews that will be returned
-    outmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & (sciimg < FULLWELL) & (sciimg > MINWELL)
+    # ToDO Would it be more transparent to pass in this mask as an inmask, i.e. via optional keyword argument?
+    outmask_orig = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & (sciimg < FULLWELL) & (sciimg > MINWELL)
+    outmask = np.copy(outmask_orig)
     modelivar = np.copy(sciivar)
     objimage = np.zeros_like(sciimg)
     skyimage = np.copy(global_sky)
@@ -607,6 +609,48 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     color = 'orange'
                 ginga.show_trace(viewer, ch, sobjs[iobj].trace_spat, sobjs[iobj].idx, color=color)
         '''
+
+    # If requested display the model fits for this slit
+    if SHOW_RESIDS == True:
+        viewer, ch = ginga.show_image((sciimg - skyimage - objimage) * np.sqrt(modelivar) * thismask)
+        # TODO add error checking here to see if ginga exists
+        canvas = viewer.canvas(ch._chname)
+        out1 = canvas.clear()
+        out2 = ch.cut_levels(-5.0, 5.0)
+        out3 = ch.set_color_algorithm('linear')
+        # Overplot the traces
+        for spec in sobjs:
+            if spec.HAND_EXTRACT_FLAG == False:
+                color = 'green'
+            else:
+                color = 'orange'
+            ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
+
+        # These are the pixels that were masked by the extraction
+        spec_mask, spat_mask = np.where((outmask == False) & (outmask_orig == True))
+        nmask = len(spec_mask)
+        # note: must cast numpy floats to regular python floats to pass the remote interface
+        points_mask = [dict(type='point', args=(float(spat_mask[i]), float(spec_mask[i]), 2),
+                            kwargs=dict(style='plus', color='red')) for i in range(nmask)]
+
+        # These are the pixels that were originally masked
+        spec_omask, spat_omask = np.where((outmask_orig == False) & (thismask == True))
+        nomask = len(spec_omask)
+        # note: must cast numpy floats to regular python floats to pass the remote interface
+        points_omask = [dict(type='point', args=(float(spat_omask[i]), float(spec_omask[i]), 2),
+                             kwargs=dict(style='plus', color='cyan')) for i in range(nomask)]
+
+        # Labels for the points
+        text_mask = [dict(type='text', args=(nspat / 2, nspec / 2, 'masked by extraction'),
+                          kwargs=dict(color='red', fontsize=20))]
+        text_omask = [dict(type='text', args=(nspat / 2, nspec / 2 + 30, 'masked initially'),
+                           kwargs=dict(color='cyan', fontsize=20))]
+
+        canvas_list = points_mask + points_omask + text_mask + text_omask
+        canvas.add('constructedcanvas', canvas_list)
+
+
+
     # If requested display the model fits for this slit
     if SHOW_RESIDS == True:
         # TODO add error checking here to see if ginga exists
@@ -614,7 +658,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         # TODO figure out a way to overplot the pixels that were masked in red like as a scatter plot
         for spec in sobjs:
             if spec.HAND_EXTRACT_FLAG == False:
-                color = 'green'
+                color = 'blue'
             else:
                 color = 'orange'
             ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
