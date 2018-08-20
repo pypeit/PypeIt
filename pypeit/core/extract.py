@@ -1120,6 +1120,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     23-June-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
+    from pydl.pydlutils import trace
     from pypeit.utils import find_nminima
     from pypeit.core import trace_slits
     from pypeit import specobjs
@@ -1360,13 +1361,12 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
         tracemask1 = np.zeros_like(xpos0,dtype=int)
         off_image = (xpos1 < -0.2*nspat) | (xpos1 > 1.2*nspat)
         tracemask1[off_image] = 1
-        # trace_fweight returns 999 for pixels that had large offsets. Mask these explicitly
-        #mask_999 = (xerr1 > 900.0)
-        #tracemask[mask_999] = 1
-        #xind = (np.fmax(np.fmin(np.rint(xpos1),nspat-1),0)).astype(int)
+        # Trying with traceset2xy
+        pos_set1 = trace.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos1.T, ncoeff = 5)
+        xfit1 = pos_set1.yfit.T
+        ''' OLD CODE IS BELOW USING ROBUST_POLYFIT
         for iobj in range(nobj_reg):
           # Mask out anything that has left the slit/order.
-          #tracemask1[:,iobj] = tracemask1[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
           tracemask1[:,iobj] = tracemask1[:, iobj] | ((xpos1[:,iobj] < slit_left) | (xpos1[:,iobj] > slit_righ)).astype(int)
           # ToDO add maxdev functionality?
           # ToDO need to pass in an error vector for robust_polyfit such that it will be able to assign all pixels the same
@@ -1377,24 +1377,24 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
           polymask, coeff_fit1 = utils.robust_polyfit(spec_vec,xpos1[:,iobj], ncoeff
                                                       , function = 'legendre',initialmask = tracemask1[:,iobj],forceimask=True)
           xfit1[:,iobj] = utils.func_val(coeff_fit1, spec_vec, 'legendre')
-
-          # Plot all the points that were not masked initially
-          if(SHOW_FITS == True) & (iiter == niter - 1):
-              nomask = (tracemask1[:,iobj]==0)
-              # plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
-              plt.plot(spec_vec[nomask],xpos1[nomask,iobj],marker='o', c='k', markersize=4.0,linestyle='None',
-                       label='flux weighted centroid')
-              plt.plot(spec_vec,xpos0[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
-              plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
-              if np.any(~nomask):
-                  plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=4.0,linestyle='None',
-                           zorder= 20, label='masked points')
-              plt.title('Flux Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
-              plt.ylim((0.995*xfit1[:, iobj].min(), 1.005*xfit1[:, iobj].max()))
-              plt.xlabel('Spectral Pixel')
-              plt.ylabel('Spatial Pixel')
-              plt.legend()
-              plt.show()
+          '''
+        # Plot all the points that were not masked initially
+        if(SHOW_FITS == True) & (iiter == niter - 1):
+            for iobj in range(nobj_reg):
+                nomask = (tracemask1[:,iobj]==0)
+                # plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
+                plt.plot(spec_vec[nomask],xpos1[nomask,iobj],marker='o', c='k', markersize=3.0,linestyle='None',label='flux weighted centroid')
+                plt.plot(spec_vec,xpos0[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
+                plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
+                if np.any(~nomask):
+                    plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=4.0,linestyle='None',
+                             zorder= 20, label='masked points')
+                plt.title('Flux Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
+                plt.ylim((0.995*xfit1[:, iobj].min(), 1.005*xfit1[:, iobj].max()))
+                plt.xlabel('Spectral Pixel')
+                plt.ylabel('Spatial Pixel')
+                plt.legend()
+                plt.show()
 
     xfit2 = np.copy(xfit1)
 
@@ -1407,10 +1407,31 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
         tracemask2 = np.zeros_like(xpos0,dtype=int)
         off_image = (xpos2 < -0.2*nspat) | (xpos2 > 1.2*nspat)
         tracemask2[off_image] = 1
-        # trace_gweight returns 999 for pixels that had large offsets. Mask these explicitly
-        #mask_999 = (xerr2 > 900.0)
-        #tracemask[mask_999] = 1
-        #xind = (np.fmax(np.fmin(np.rint(xpos2),nspat-1),0)).astype(int)
+        pos_set2 = trace.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos2.T, ncoeff = 5)
+        xfit2 = pos_set2.yfit.T
+        if (iiter == niter - 1):
+            for iobj in range(nobj_reg):
+                sobjs[iobj].trace_spat = xfit2[:, iobj]
+                sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
+                sobjs[iobj].set_idx()
+                # Plot all the points that were not masked initially
+                if (SHOW_FITS == True):
+                    nomask = (tracemask2[:, iobj] == 0)
+                    plt.plot(spec_vec[nomask], xpos2[nomask, iobj], marker='o', c='k', markersize=3.0, linestyle='None',
+                             label='gauss. weighted centroid')
+                    plt.plot(spec_vec, xfit1[:, iobj], c='g', zorder=20, linewidth=2.0, linestyle='--',
+                             label='initial guess from flux weighting')
+                    plt.plot(spec_vec, xfit2[:, iobj], c='red', zorder=10, linewidth=2.0, label='final fit to trace')
+                    if np.any(~nomask):
+                        plt.plot(spec_vec[~nomask], xfit2[~nomask, iobj], c='blue', marker='+', markersize=4.0,
+                                 linestyle='None',zorder=20, label='masked points')
+                    plt.title('Gaussian Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
+                    plt.ylim((0.995 * xfit2[:, iobj].min(), 1.005 * xfit2[:, iobj].max()))
+                    plt.xlabel('Spectral Pixel')
+                    plt.ylabel('Spatial Pixel')
+                    plt.legend()
+                    plt.show()
+        ''' OLD CODE USING ROBUST_POLYFIT
         for iobj in range(nobj_reg):
           # Mask out anything that has left the slit/order.
           #tracemask2[:,iobj] = tracemask2[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
@@ -1436,11 +1457,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
                   plt.xlabel('Spectral Pixel')
                   plt.ylabel('Spatial Pixel')
                   plt.show()
-
-
-
-
-
+        '''
 
     # Now deal with the hand apertures if a HAND_EXTRACT_DICT was passed in. Add these to the SpecObj objects
     if HAND_EXTRACT_DICT is not None:
