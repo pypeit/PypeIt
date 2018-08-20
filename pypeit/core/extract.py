@@ -18,6 +18,7 @@ from astropy.stats import sigma_clipped_stats
 from pypeit import msgs
 from pypeit.core import qa
 from pypeit import artrace
+from pypeit.core import pydl
 from pypeit import utils
 from pypeit.core import pixels
 from pypeit import debugger
@@ -603,10 +604,10 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
 
     from scipy.interpolate import interp1d
     from scipy.ndimage.filters import median_filter
-    from pypeit.core.pydl import bspline
-    from pypeit.core.pydl import iterfit as  bspline_iterfit
-    from pypeit.core.pydl import djs_maskinterp
-    from pypeit.utils import bspline_profile
+    #from pypeit.core.pydl import bspline
+    #from pypeit.core.pydl import iterfit as  bspline_iterfit
+    #from pypeit.core.pydl import djs_maskinterp
+    #from pypeit.utils import bspline_profile
     from scipy.special import erfcinv
 
     if hwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
@@ -641,9 +642,9 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
              (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
 
 
-    b_answer, bmask   = bspline_iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    b_answer, bmask2  = bspline_iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask, kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    c_answer, cmask   = bspline_iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,kwargs_bspline={'everyn': 30}, kwargs_reject={'groupbadpix':True,'maxrej':1})
+    b_answer, bmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
+    b_answer, bmask2  = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask, kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
+    c_answer, cmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,kwargs_bspline={'everyn': 30}, kwargs_reject={'groupbadpix':True,'maxrej':1})
     spline_flux, _ = b_answer.value(wave[indsp])
     cont_flux, _ = c_answer.value(wave[indsp])
 
@@ -677,10 +678,10 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     sn2_1[ispline] = s2_1_interp(wave[ispline])
     bmask = np.zeros(nspec,dtype='bool')
     bmask[indsp] = bmask2
-    spline_flux1 = djs_maskinterp(spline_flux1,(bmask == False))
+    spline_flux1 = pydl.djs_maskinterp(spline_flux1,(bmask == False))
     cmask2 = np.zeros(nspec,dtype='bool')
     cmask2[indsp] = cmask
-    cont_flux1 = djs_maskinterp(cont_flux1,(cmask2 == False))
+    cont_flux1 = pydl.djs_maskinterp(cont_flux1,(cmask2 == False))
 
     (_, _, sigma1) = sigma_clipped_stats(flux[indsp],sigma_lower=3.0,sigma_upper=5.0)
 
@@ -808,7 +809,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     si = inside[np.argsort(sigma_x.flat[inside])]
     sr = si[::-1]
 
-    bset, bmask = bspline_iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si]
+    bset, bmask = pydl.iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si]
                            , nord = 4, bkpt = bkpt, maxiter = 15, upper = 1, lower = 1)
     mode_fit, _ = bset.value(sigma_x.flat[si])
     median_fit = np.median(norm_obj[norm_ivar > 0.0])
@@ -903,10 +904,10 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         xx = np.sum(xtemp, 1)/nspat
         profile_basis = np.column_stack((mode_zero,mode_shift))
 
-        mode_shift_out = bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis
+        mode_shift_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis
                                       ,maxiter=1,kwargs_bspline= {'nbkpts':nbkpts})
         mode_shift_set = mode_shift_out[0]
-        temp_set = bspline(None, fullbkpt = mode_shift_set.breakpoints,nord=mode_shift_set.nord)
+        temp_set = pydl.bspline(None, fullbkpt = mode_shift_set.breakpoints,nord=mode_shift_set.nord)
         temp_set.coeff = mode_shift_set.coeff[0, :]
         h0, _ = temp_set.value(xx)
         temp_set.coeff = mode_shift_set.coeff[1, :]
@@ -916,10 +917,10 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         trace_corr = trace_corr + delta_trace_corr
 
         profile_basis = np.column_stack((mode_zero,mode_stretch))
-        mode_stretch_out = bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis,
+        mode_stretch_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis,
                                             maxiter=1,fullbkpt = mode_shift_set.breakpoints)
         mode_stretch_set = mode_stretch_out[0]
-        temp_set = bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
+        temp_set = pydl.bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
         temp_set.coeff = mode_stretch_set.coeff[0, :]
         h0, _ = temp_set.value(xx)
         temp_set.coeff = mode_stretch_set.coeff[1, :]
@@ -944,7 +945,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
             keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
             if keep.sum() == 0:
                 keep = np.ones(bkpt.size, type=bool)
-            bset_out = bspline_profile(sigma_x.flat[inside[ss]],norm_obj.flat[inside[ss]],norm_ivar.flat[inside[ss]],pb[ss],
+            bset_out = utils.bspline_profile(sigma_x.flat[inside[ss]],norm_obj.flat[inside[ss]],norm_ivar.flat[inside[ss]],pb[ss],
                                     nord = 4, bkpt=bkpt[keep],maxiter=2)
             bset = bset_out[0] # This updated bset used for the next set of trace corrections
 
@@ -962,7 +963,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                        np.isfinite(norm_obj.flat[ss]) &
                        np.isfinite(norm_ivar.flat[ss]))
     pb = (np.outer(area, np.ones(nspat,dtype=float)))
-    bset_out = bspline_profile(sigma_x.flat[ss[inside]],norm_obj.flat[ss[inside]], norm_ivar.flat[ss[inside]], pb.flat[ss[inside]],
+    bset_out = utils.bspline_profile(sigma_x.flat[ss[inside]],norm_obj.flat[ss[inside]], norm_ivar.flat[ss[inside]], pb.flat[ss[inside]],
                             nord=4, bkpt = bkpt, upper = 10, lower=10)
     bset = bset_out[0]
     outmask = bset_out[1]
@@ -1120,7 +1121,6 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     23-June-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
-    from pydl.pydlutils import trace
     from pypeit.utils import find_nminima
     from pypeit.core import trace_slits
     from pypeit import specobjs
@@ -1362,7 +1362,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
         off_image = (xpos1 < -0.2*nspat) | (xpos1 > 1.2*nspat)
         tracemask1[off_image] = 1
         # Trying with traceset2xy
-        pos_set1 = trace.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos1.T, ncoeff = 5)
+        pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos1.T, ncoeff = 5)
         xfit1 = pos_set1.yfit.T
         ''' OLD CODE IS BELOW USING ROBUST_POLYFIT
         for iobj in range(nobj_reg):
@@ -1407,7 +1407,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
         tracemask2 = np.zeros_like(xpos0,dtype=int)
         off_image = (xpos2 < -0.2*nspat) | (xpos2 > 1.2*nspat)
         tracemask2[off_image] = 1
-        pos_set2 = trace.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos2.T, ncoeff = 5)
+        pos_set2 = pydl.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos2.T, ncoeff = 5)
         xfit2 = pos_set2.yfit.T
         # Now upon the last iteration set the final trace
         if (iiter == niter - 1):
