@@ -632,7 +632,7 @@ def load_sorted(sorted_file):
     """
     all_setups, all_setuplines, all_setupfiles = [], [], []
     try:
-        with open(sorted_file,'r') as ff:
+        with open(sorted_file, 'r') as ff:
             # Should begin with ####
             fline = ff.readline()
             if fline[0:4] != '####':

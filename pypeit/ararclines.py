@@ -6,7 +6,7 @@ import glob, copy
 import yaml
 from pkg_resources import resource_filename
 
-from arclines.io import load_line_list
+from pypeit.core.wavecal import waveio
 
 from pypeit import msgs
 from pypeit import debugger
@@ -23,7 +23,7 @@ def parse_nist(ion):
     """
     nist_path = resource_filename('arclines', 'data/NIST/')
     line_file = nist_path+'{:s}_vacuum.ascii'.format(ion)
-    nist_tbl = load_line_list(line_file, NIST=True)
+    nist_tbl = waveio.load_line_list(line_file, NIST=True)
 
     # Return
     return nist_tbl
