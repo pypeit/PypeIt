@@ -42,22 +42,22 @@ def test_load_from_master_and_run():
     assert isinstance(traceSlits.mstrace, np.ndarray)
 
 
-def test_add_slit():
-    if skip_test:
-        assert True
-        return
-    # Check for files
-    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
-                                'MasterTrace_KeckLRISr_150420_402')
-    assert chk_for_files(mstrace_root)
-    # Load
-    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
-    norig = traceSlits.nslit
-    #  left edge, right edge, row on image
-    add_user_slits = [[489, 563, 1024]]
-    # run_to_finish resets things in a proper manner
-    traceSlits.add_user_slits(add_user_slits, run_to_finish=True)
-    assert traceSlits.nslit == (norig+1)
+#def test_add_slit():
+#    if skip_test:
+#        assert True
+#        return
+#    # Check for files
+#    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
+#                                'MasterTrace_KeckLRISr_150420_402')
+#    assert chk_for_files(mstrace_root)
+#    # Load
+#    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
+#    norig = traceSlits.nslit
+#    #  left edge, right edge, row on image
+#    add_user_slits = [[489, 563, 1024]]
+#    # run_to_finish resets things in a proper manner
+#    traceSlits.add_user_slits(add_user_slits, run_to_finish=True)
+#    assert traceSlits.nslit == (norig+1)
 
 
 def test_remove_slit():

@@ -519,7 +519,8 @@ def trace_fweight_deprecated(fimage, xinit, ltrace=None, rtraceinvvar=None, radi
     return xnew, xerr
 
 
-def echelle_tilt(slf, msarc, det, settings_argflag, settings_spect, pcadesc="PCA trace of the spectral tilts", maskval=-999999.9):
+def echelle_tilt(slf, msarc, det, settings_argflag, settings_spect,
+                 pcadesc="PCA trace of the spectral tilts", maskval=-999999.9, doqa=True):
     """ Determine the spectral tilts in each echelle order
 
     Parameters
@@ -624,7 +625,7 @@ def echelle_tilt(slf, msarc, det, settings_argflag, settings_spect, pcadesc="PCA
         xcen = xv[:, np.newaxis].repeat(norders, axis=1)
         fitted, outpar = pca.basis(xcen, tiltval, tcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
                                      function=settings_argflag['trace']['slits']['function'])
-        if not msgs._debug['no_qa']:
+        if doqa:
             #pcadesc = "Spectral Tilt PCA"
 #            qa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc=pcadesc, addOne=False)
             pca.pca_plot(slf, outpar, ofit, 'Arc', pcadesc=pcadesc, addOne=False)
@@ -723,7 +724,7 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
         if trcdict is None:
             # No arc lines were available to determine the spectral tilt
             continue
-        if msgs._debug['tilts']:
+        if doqa:
             debugger.chk_arc_tilts(msarc, trcdict, sedges=(lordloc[:,slit], rordloc[:,slit]))
             debugger.set_trace()
 
@@ -802,6 +803,10 @@ def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', mask
     # y normalization and subtract
     ynorm = np.outer(np.linspace(0., 1., msarc.shape[0]), np.ones(msarc.shape[1]))
     polytilts = ynorm - polytilts/(msarc.shape[0]-1)
+
+    # JFH Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
+    # wavelength solution fitting
+    polytilts = np.fmax(np.fmin(polytilts, 1.2), -0.2)
 
     # Return
     outpar = None
@@ -886,7 +891,7 @@ def tilts_interp(ordcen, slit, all_tilts, polytilts, arcdet, aduse, msarc):
     return tilts
 
 
-def tilts_spline(all_tilts, arcdet, aduse, polytilts, msarc, use_mtilt=False, maskval=-999999.9):
+def tilts_spline(all_tilts, arcdet, aduse, polytilts, msarc, use_mtilt=False, maskval=-999999.9, doqa=False):
     msgs.info("Performing a spline fit to the tilts")
     # Unpack
     xtilt, ytilt, ztilt, mtilt, wtilt = all_tilts
@@ -925,7 +930,7 @@ def tilts_spline(all_tilts, arcdet, aduse, polytilts, msarc, use_mtilt=False, ma
     #tmp3 = tiltspl(xsbs, zsbs, grid=True)
     print(tmp, tmp2)
     '''
-    if msgs._debug['tilts']:
+    if doqa:
         tiltqa = tiltspl(xsbs, zsbs, grid=False)
         plt.clf()
         # plt.imshow((zsbs-tiltqa)/zsbs, origin='lower')

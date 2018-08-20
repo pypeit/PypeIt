@@ -2,6 +2,14 @@
 ---------------------
 
 - Major refactor to rename most modules and incorporate the PYPIT -> PypeIt switch
+- Add SlitMask, OpticalModel, and DetectorMap classes.  Implemented
+  DEIMOSOpticalModel based on DEEP2 IDL code.
+- Improved treatment of large offsets in pypeit.core.trace_slits.trace_gweight to be symmetric with trace_fweight. Large outlying pixels were breaking object tracing.
+- Added thresholding in pypeit.core.tracewave to ensure that tilts are never crazy values due to extrapolation of fits which can break sky subtraction. 
+- Turn off 2.7 Travis testing
+- Integrated arclines into PypeIt
+- Modified debug/developer modes
+
 
 0.8.1
 -----

@@ -499,7 +499,6 @@ class ScienceImage(processimages.ProcessImages):
                                                           apply_gain=apply_gain,
                                                           pixel_flat=pixel_flat, bpm=self.bpm,
                                                           trim=trim)
-
         # Construct raw variance image
         self.rawvarframe = self.build_rawvarframe(trim=trim)
 

@@ -127,23 +127,22 @@ class WaveCalib(masterframe.MasterFrame):
         self.wv_calib : dict
 
         """
-        # Loop
-        self.wv_calib = {}
+        # Obtain a list of good slits
         ok_mask = np.where(self.maskslits == 0)[0]
-        for slit in ok_mask:
-            ###############
-            # Extract arc and identify lines
-            if method == 'simple':
-                iwv_calib = arc.simple_calib(self.msarc, self.arcparam, self.arccen[:, slit],
-                                               nfitpix=self.par['nfitpix'],
-                                               IDpixels=self.par['IDpixels'],
-                                               IDwaves=self.par['IDwaves'])
-            elif method == 'arclines':
-                iwv_calib = arc.calib_with_arclines(self.arcparam, self.arccen[:, slit])
-            self.wv_calib[str(slit)] = iwv_calib.copy()
-            # QA
-            if not skip_QA:
-                arc.arc_fit_qa(self.setup, iwv_calib, slit)
+
+        # Obtain calibration for all slits
+        if method == 'simple':
+            self.wv_calib = arc.simple_calib_driver(self.msarc, self.arcparam, self.arccen, ok_mask,
+                                                    nfitpix=self.par['nfitpix'],
+                                                    IDpixels=self.par['IDpixels'],
+                                                    IDwaves=self.par['IDwaves'])
+        elif method == 'arclines':
+            self.wv_calib = arc.calib_with_arclines(self.arcparam, self.arccen, ok_mask=ok_mask)
+
+        # QA
+        if not skip_QA:
+            for slit in ok_mask:
+                arc.arc_fit_qa(self.setup, self.wv_calib[str(slit)], slit)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -151,6 +150,7 @@ class WaveCalib(masterframe.MasterFrame):
 
     def calibrate_spec(self, slit, method='arclines'):
         """
+        TODO: Deprecate this function? It's only being used by the tests
         User method to calibrate a given spectrum from a chosen slit
 
         Wrapper to arc.simple_calib or arc.calib_with_arclines

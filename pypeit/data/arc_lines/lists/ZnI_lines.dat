@@ -1,0 +1,8 @@
+# Creation Date: 2016-Dec-21
+| ion |       wave | NIST | Instr | amplitude |                    Source |
+| ZnI |  3283.2800 |    1 |     2 |       528 | lrisb_600_4000_PYPIT.json |
+| ZnI |  3303.5300 |    1 |     2 |      1209 | lrisb_600_4000_PYPIT.json |
+| ZnI |  3345.9800 |    1 |     2 |      2198 | lrisb_600_4000_PYPIT.json |
+| ZnI |  4681.4500 |    1 |     2 |     22288 | lrisb_600_4000_PYPIT.json |
+| ZnI |  4723.4700 |    1 |     2 |     35865 | lrisb_600_4000_PYPIT.json |
+| ZnI |  4811.8700 |    1 |     2 |     49870 | lrisb_600_4000_PYPIT.json |

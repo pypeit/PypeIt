@@ -22,6 +22,7 @@ from pypeit import utils
 from pypeit.core import pixels
 from pypeit import debugger
 from pypeit import ginga
+#from IPython import embed
 
 # MASK VALUES FROM EXTRACTION
 # 0 
@@ -1120,7 +1121,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     """
 
     from pypeit.utils import find_nminima
-    from pypeit.core.trace_slits import trace_fweight, trace_gweight
+    from pypeit.core import trace_slits
     from pypeit import specobjs
     import scipy
 
@@ -1180,17 +1181,23 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
 
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, FWHM/2.3548,mode='nearest')
 
-    xcen, sigma, ledg, redg = find_nminima(-fluxconv,nfind=nperslit, width = PKWDTH, minsep = np.fmax(FWHM, PKWDTH))
+    xcen, sigma_pk, ledg, redg = find_nminima(-fluxconv,nfind=nperslit, width = PKWDTH, minsep = np.fmax(FWHM, PKWDTH))
+    xcen_neg,sigma_pk_neg,ledg_neg,redg_neg = find_nminima(fluxconv,nfind=nperslit, width = PKWDTH,
+                                                           minsep = np.fmax(FWHM, PKWDTH))
     ypeak = np.interp(xcen,np.arange(nsamp),fluxconv)
     # Create a mask for pixels to use for a background flucutation level estimate. Mask spatial pixels that hit an object
-    imask = np.ones(int(nsamp), dtype=bool)
+    imask_pos = np.ones(int(nsamp), dtype=bool)
+    imask_neg = np.ones(int(nsamp), dtype=bool)
     xvec = np.arange(nsamp)
     for zz in range(len(xcen)):
         ibad = (np.abs(xvec - xcen[zz]) <= 2.0*FWHM)
-        imask[ibad] = False
+        imask_pos[ibad] = False
+    for zz in range(len(xcen_neg)):
+        ibad = (np.abs(xvec - xcen_neg[zz]) <= 2.0*FWHM)
+        imask_neg[ibad] = False
 
     # Good pixels for flucutation level estimate. Omit edge pixels and pixels within a FWHM of a candidate object
-    igd = imask & (xvec > 3.0) & (xvec <= (nsamp-3.0))
+    igd = imask_pos & imask_neg & (xvec > TRIM_EDG[0]) & (xvec <= (nsamp-TRIM_EDG[1]))
     if np.any(igd) == False:
         igd = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
 
@@ -1326,7 +1333,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     skymask = np.copy(thismask)
     if (len(sobjs) == 0) & (HAND_EXTRACT_DICT == None):
         msgs.info('No objects found')
-        return (None, objmask, skymask)
+        return (None, objmask[thismask], skymask[thismask])
 
 
     msgs.info('Fitting the object traces')
@@ -1338,14 +1345,14 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     fwhm_vec[2*niter//3:] = FWHM
 
     # Note the transpose is here because we
-    xpos0 = sobjs.trace_spat.T
+    xpos0 = np.copy(sobjs.trace_spat.T)
     #xpos0 = np.stack([spec.trace_spat for spec in specobjs], axis=1)
     # This xinvvar is used to handle truncated slits/orders so that they don't break the fits
-    xfit1 = xpos0
+    xfit1 = np.copy(xpos0)
     #ypos = np.outer(spec_vec, np.ones(nobj_reg))
-    yind = np.arange(nspec,dtype=int)
+    #yind = np.arange(nspec,dtype=int)
     for iiter in range(niter):
-        xpos1, xerr1 = trace_fweight(image*inmask,xfit1, invvar = invvar*inmask, radius = fwhm_vec[iiter])
+        xpos1, xerr1 = trace_slits.trace_fweight(image*inmask,xfit1, invvar = invvar*inmask, radius = fwhm_vec[iiter])
         # Do not do any kind of masking based on xerr1. Trace fitting is much more robust when masked pixels are simply
         # replaced by the tracing crutch
         xerr1 =np.ones_like(xerr1)
@@ -1356,11 +1363,17 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
         # trace_fweight returns 999 for pixels that had large offsets. Mask these explicitly
         #mask_999 = (xerr1 > 900.0)
         #tracemask[mask_999] = 1
-        xind = (np.fmax(np.fmin(np.rint(xpos1),nspat-1),0)).astype(int)
+        #xind = (np.fmax(np.fmin(np.rint(xpos1),nspat-1),0)).astype(int)
         for iobj in range(nobj_reg):
           # Mask out anything that has left the slit/order.
-          tracemask1[:,iobj] = tracemask1[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
+          #tracemask1[:,iobj] = tracemask1[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
+          tracemask1[:,iobj] = tracemask1[:, iobj] | ((xpos1[:,iobj] < slit_left) | (xpos1[:,iobj] > slit_righ)).astype(int)
           # ToDO add maxdev functionality?
+          # ToDO need to pass in an error vector for robust_polyfit such that it will be able to assign all pixels the same
+          # weight. Right now it is always converging to the slit boundary initial guess becuae that is from a polynomial
+          # fit. It is rejecting a huge number of pixels. Need some maximum number of pixels per iteration to reject.
+          # I would say get rid of robust_polyfit altogether and port xy2traceset which was much more robust.
+          weight = np.ones_like(xpos1)
           polymask, coeff_fit1 = utils.robust_polyfit(spec_vec,xpos1[:,iobj], ncoeff
                                                       , function = 'legendre',initialmask = tracemask1[:,iobj],forceimask=True)
           xfit1[:,iobj] = utils.func_val(coeff_fit1, spec_vec, 'legendre')
@@ -1368,21 +1381,26 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
           # Plot all the points that were not masked initially
           if(SHOW_FITS == True) & (iiter == niter - 1):
               nomask = (tracemask1[:,iobj]==0)
-              plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
-              plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0)
+              # plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
+              plt.plot(spec_vec[nomask],xpos1[nomask,iobj],marker='o', c='k', markersize=4.0,linestyle='None',
+                       label='flux weighted centroid')
+              plt.plot(spec_vec,xpos0[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
+              plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
               if np.any(~nomask):
-                  plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=4.0,linestyle='None', zorder= 20)
+                  plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=4.0,linestyle='None',
+                           zorder= 20, label='masked points')
               plt.title('Flux Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
               plt.ylim((0.995*xfit1[:, iobj].min(), 1.005*xfit1[:, iobj].max()))
               plt.xlabel('Spectral Pixel')
               plt.ylabel('Spatial Pixel')
+              plt.legend()
               plt.show()
 
-    xfit2 = xfit1
+    xfit2 = np.copy(xfit1)
 
     # Iterate Gaussian weighted centroiding
     for iiter in range(niter):
-        xpos2, xerr2 = trace_gweight(image*inmask,xfit2, invvar = invvar*inmask, sigma = FWHM/2.3548)
+        xpos2, xerr2 = trace_slits.trace_gweight(image*inmask,xfit2, invvar = invvar*inmask, sigma = FWHM/2.3548)
         # Do not do any kind of masking based on xerr2. Trace fitting is much more robust when masked pixels are simply
         # replaced by the tracing crutch
         # Mask out anything that left the image. 0 = good, 1 = masked (convention from robust_polyfit)
@@ -1392,11 +1410,12 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
         # trace_gweight returns 999 for pixels that had large offsets. Mask these explicitly
         #mask_999 = (xerr2 > 900.0)
         #tracemask[mask_999] = 1
-        xind = (np.fmax(np.fmin(np.rint(xpos2),nspat-1),0)).astype(int)
+        #xind = (np.fmax(np.fmin(np.rint(xpos2),nspat-1),0)).astype(int)
         for iobj in range(nobj_reg):
           # Mask out anything that has left the slit/order.
-          tracemask2[:,iobj] = tracemask2[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
+          #tracemask2[:,iobj] = tracemask2[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
           # ToDO add maxdev functionality?
+          tracemask2[:,iobj] = tracemask2[:, iobj] | ((xpos2[:,iobj] < slit_left) | (xpos2[:,iobj] > slit_righ)).astype(int)
           polymask, coeff_fit2 = utils.robust_polyfit(spec_vec,xpos2[:,iobj], ncoeff
                                                       , function = 'legendre',initialmask = tracemask2[:,iobj],forceimask=True)
           xfit2[:,iobj] = utils.func_val(coeff_fit2, spec_vec, 'legendre')
@@ -1417,6 +1436,8 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
                   plt.xlabel('Spectral Pixel')
                   plt.ylabel('Spatial Pixel')
                   plt.show()
+
+
 
 
 
@@ -1546,9 +1567,9 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
         ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = sobjs[0].slitid)
         for iobj in range(nobj):
             if sobjs[iobj].HAND_EXTRACT_FLAG == False:
-                color = 'green'
-            else:
                 color = 'orange'
+            else:
+                color = 'blue'
             ginga.show_trace(viewer, ch,sobjs[iobj].trace_spat, trc_name = sobjs[iobj].idx, color=color)
 
 
@@ -1814,7 +1835,7 @@ def obj_profiles(det, specobjs, sciframe, varframe, crmask,
                 fdict['flux_val'] = flux_val
                 scitrace[sl]['opt_profile'].append(copy.deepcopy(fdict))
                 specobjs[sl][o].optimal['fwhm'] = fdict['param'][1]  # Pixels
-                if False: #msgs._debug['obj_profile']:
+                if False:
                     gdp = mask == 0
                     mn = np.min(slit_val[gdp])
                     mx = np.max(slit_val[gdp])
@@ -1841,7 +1862,7 @@ def obj_profiles(det, specobjs, sciframe, varframe, crmask,
                 scitrace[sl]['opt_profile'].append({})
                 continue
     # QA
-    if doqa: #not msgs._debug['no_qa'] and doqa:
+    if doqa:
         msgs.info("Preparing QA for spatial object profiles")
 #        qa.obj_profile_qa(slf, specobjs, scitrace, det)
         debugger.set_trace()  # Need to avoid slf
@@ -2014,11 +2035,6 @@ def optimal_extract(specobjs, sciframe, varframe,
             # Update object model
             counts_image = np.outer(opt_flux, np.ones(prof_img.shape[1]))
             obj_model += prof_img * counts_image
-            '''
-            if 'OPTIMAL' in msgs._debug:
-                debugger.set_trace()
-                debugger.xplot(opt_wave, opt_flux, np.sqrt(opt_var))
-            '''
 
     # KBW: Using variance_frame here produces a circular import.  I've
     # changed this function to return the object model, then this last

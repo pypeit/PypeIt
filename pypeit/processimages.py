@@ -399,10 +399,8 @@ class ProcessImages(object):
             msgs.error('No bpm for {0}'.format(self.spectrograph.spectrograph))
 
         # Flat-field the data and return the result
-        self.stack = flat.flatfield(self.stack, self.pixel_flat, self.bpm,
-                                      slitprofile=self.slitprof)
+        self.stack = flat.flatfield(self.stack, self.pixel_flat, self.bpm, slitprofile=self.slitprof)
         return self.stack
-
 
     def process(self, bias_subtract=None, apply_gain=False, trim=True, overwrite=False,
                 pixel_flat=None, bpm=None, slitprof=None):
@@ -417,12 +415,16 @@ class ProcessImages(object):
           Apply gain to the various amplifier regions
         trim : bool, optional
         overwrite :
+        pixel_flat : ndarray or None
+          This is the normalized pixel flat (i.e. no blaze, no slit illumination profile).
+          The values of this array should have a scatter about 1.0
 
         Returns
         -------
         self.stack : ndarray
 
         """
+
         # Over-write?
         if (inspect.stack()[0][3] in self.steps) & (not overwrite):
             msgs.warn("Images already combined.  Use overwrite=True to do it again.")

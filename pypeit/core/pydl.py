@@ -326,6 +326,7 @@ class bspline(object):
             else:
                 self.funcname = 'legendre'
 
+
     def to_dict(self):
         """Write bspline parameters to a dict.
 

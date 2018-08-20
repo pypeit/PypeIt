@@ -1,20 +1,19 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-import os
-import time
 import inspect
 
 import numpy as np
-from matplotlib import pyplot as plt
 from matplotlib import gridspec
-
-from pypeit.core import parse
+from matplotlib import pyplot as plt
+from pypeit import ararclines
+from pypeit import debugger
 from pypeit import msgs
 from pypeit import utils
-from pypeit import ararclines
-from pypeit.core import qa
+from pypeit.core import parse
 from pypeit.core import pixels
-from pypeit import debugger
+from pypeit.core import qa
+from pypeit.core.wavecal import autoid
+
 
 # TODO: This should not be a core algorithm
 def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
@@ -54,6 +53,8 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
     # Instrument/disperser specific
     disperser = fitstbl["dispname"][arc_idx]
     binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
+    # ToDo JFH: Why is the arcparam being modified in place instead of being passed back from the spectrograh class.
+    # This code looks rather sloppy.
     modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl,
                                                arc_idx=arc_idx, binspatial=binspatial,
                                                binspectral=binspectral, msarc_shape=msarc_shape)
@@ -75,6 +76,7 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
 
     # Return
     return arcparam
+
 
 def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, gen_satmask=False):
     """ Extract a simple spectrum down the center of each slit
@@ -171,17 +173,14 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, ge
 
     return arccen, maskslit, satsnd
 
-def detect_lines(censpec, nfitpix=5, nonlinear=None):
+
+def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
 
     Parameters
     ----------
-    det : int
-      Index of the detector
-    msarc : ndarray
-      Calibration frame that will be used to identify slit traces (in most cases, the slit edge)
     censpec : ndarray, optional
       A 1D spectrum to be searched for significant detections
 
@@ -215,7 +214,6 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None):
     # Detect the location of the arc lines
     msgs.info("Detecting the strongest, nonsaturated lines")
 
-    fitp = nfitpix # settings.argflag['arc']['calibrate']['nfitpix']
     if len(censpec.shape) == 3:
         detns = censpec[:, 0].flatten()
     else:
@@ -231,14 +229,14 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None):
                     (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3)))[0]
 #                    (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)) & # )[0]
 #                    (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
-    tampl, tcent, twid = fit_arcspec(xrng, detns, pixt, fitp)
+    tampl, tcent, twid = fit_arcspec(xrng, detns, pixt, nfitpix)
     w = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
-    # Check the results
-    #plt.clf()
-    #plt.plot(xrng,detns,'k-')
-    #plt.plot(tcent,tampl,'ro')
-    #plt.show()
-    # Return
+    if debug:
+        # Check the results
+        plt.clf()
+        plt.plot(xrng, detns, 'k-')
+        plt.plot(tcent, tampl, 'ro')
+        plt.show()
     return tampl, tcent, twid, w, detns
 
 
@@ -273,8 +271,18 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     return ampl, cent, widt
 
 
+def simple_calib_driver(msarc, aparm, censpec, ok_mask, nfitpix=5, get_poly=False,
+                        IDpixels=None, IDwaves=None):
+    wv_calib = {}
+    for slit in ok_mask:
+        iwv_calib = simple_calib(msarc, aparm, censpec[:, slit], nfitpix=nfitpix,
+                                 get_poly=get_poly, IDpixels=IDpixels, IDwaves=IDwaves)
+        wv_calib[str(slit)] = iwv_calib.copy()
+    return wv_calib
+
+
 def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
-                 IDpixels=None, IDwaves=None):
+                 IDpixels=None, IDwaves=None, debug=False):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -388,7 +396,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
         gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
         msgs.info('Found {:d} lines within the dispersion threshold'.format(len(gd_str)))
         if len(gd_str) < 5:
-            if msgs._debug['arc']:
+            if debug:
                 msgs.warn('You should probably try your best to ID lines now.')
                 debugger.set_trace()
                 debugger.plot1d(yprep)
@@ -423,7 +431,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
             mn = np.min(np.abs(iwave-llist['wave']))
             if mn/aparm['disp'] < aparm['match_toler']:
                 imn = np.argmin(np.abs(iwave-llist['wave']))
-                #if msgs._debug['arc']:
+                #if debug:
                 #    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
                 # Update and append
                 all_ids[ss] = llist['wave'][imn]
@@ -431,7 +439,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
                 ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit,dtype=int))
-        #if msgs._debug['arc']:
+        #if debug:
         #    debugger.set_trace()
         # Increment order
         if n_order < aparm['n_final']:
@@ -443,7 +451,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     # Final fit (originals can now be rejected)
     fmin, fmax = 0., 1.
     xfit, yfit = tcent[ifit]/(msarc.shape[0]-1), all_ids[ifit]
-    mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)#, debug=True)
+    mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)
     irej = np.where(mask==1)[0]
     if len(irej) > 0:
         xrej = xfit[irej]
@@ -458,7 +466,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     ions = all_idsion[ifit][mask==0]
     #
     '''
-    if msgs._debug['arc']:
+    if debug:
         wave = utils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
             'legendre', minv=fmin, maxv=fmax)
         debugger.set_trace()
@@ -496,7 +504,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     return final_fit
 
 
-def calib_with_arclines(aparm, spec, use_method="general"):
+def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
     """Holy grail algorithms for wavelength calibration
 
     Uses arcparam to guide the analysis
@@ -512,20 +520,25 @@ def calib_with_arclines(aparm, spec, use_method="general"):
     final_fit : dict
       Dict of fit info
     """
-    import arclines.holy.grail
-    # Extract the arc
-    #msgs.work("Detecting lines")
-    #tampl, tcent, twid, w, satsnd, spec = detect_lines( slf, det, msarc, censpec=censpec)
+    if ok_mask is None:
+        ok_mask = np.arange(spec.shape[1])
 
     if use_method == "semi-brute":
-        best_dict, final_fit = arclines.holy.grail.semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+        final_fit = {}
+        for slit in ok_mask:
+            best_dict, ifinal_fit = autoid.semi_brute(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'],
+                                                      fit_parm=aparm, min_ampl=aparm['min_ampl'])
+            final_fit[str(slit)] = ifinal_fit.copy()
     elif use_method == "basic":
-        stuff = arclines.holy.grail.basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
-        status, ngd_match, match_idx, scores, final_fit = stuff
+        final_fit = {}
+        for slit in ok_mask:
+            status, ngd_match, match_idx, scores, ifinal_fit =\
+                autoid.basic(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'])
+            final_fit[str(slit)] = ifinal_fit.copy()
     else:
         # Now preferred
-        best_dict, final_fit = arclines.holy.grail.general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
-    #
+        best_dict, final_fit = autoid.general(spec, aparm['lamps'], ok_mask=ok_mask,
+                                              fit_parm=aparm, min_ampl=aparm['min_ampl'])
     return final_fit
 
 
@@ -608,7 +621,8 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None):
 
     Parameters
     ----------
-    fit : Wavelength fit
+    fit : dict
+      Wavelength fit for this slit
     arc_spec : ndarray
       Arc spectrum
     outfile : str, optional
