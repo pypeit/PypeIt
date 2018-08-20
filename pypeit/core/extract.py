@@ -1409,6 +1409,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
         tracemask2[off_image] = 1
         pos_set2 = trace.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos2.T, ncoeff = 5)
         xfit2 = pos_set2.yfit.T
+        # Now upon the last iteration set the final trace
         if (iiter == niter - 1):
             for iobj in range(nobj_reg):
                 sobjs[iobj].trace_spat = xfit2[:, iobj]
