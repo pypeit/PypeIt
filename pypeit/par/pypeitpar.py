@@ -1335,7 +1335,7 @@ class WaveTiltsPar(ParSet):
             self.data['params'] = [self.data['params']]
         pass
 
-
+# TODO: JFH. These need to be updated to use the new object finding
 # TODO: Should these be added?:
 # From artrace.trace_objects_in_slit
 #       trim=2, triml=None, trimr=None, sigmin=2.0, bgreg=None
@@ -1538,6 +1538,100 @@ class ExtractObjectsPar(ParSet):
         Return the list of valid functions to use for object tracing.
         """
         return [ 'gaussian', 'gaussfunc', 'moffat', 'moffatfunc' ]
+
+    def validate(self):
+        pass
+
+# ToDO place holder to be updated by JFH
+class ScienceImagePar(ParSet):
+    """
+    The parameter set used to hold arguments for sky subtraction, object finding and extraction in the ScienceImage class
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+
+    def __init__(self, pixelmap=None, pixelwidth=None, reuse=None, profile=None, maxnumber=None,
+                 manual=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Check the manual input
+        if manual is not None:
+            if not isinstance(manual, (ParSet, dict, list)):
+                raise TypeError('Manual extraction input must be a ParSet, dictionary, or list.')
+            _manual = [manual] if isinstance(manual, (ParSet, dict)) else manual
+            pars['manual'] = _manual
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+        dtypes['pixelmap'] = str
+        descr['pixelmap'] = 'If desired, a fits file can be specified (of the appropriate form)' \
+                            'to specify the locations of the pixels on the detector (in ' \
+                            'physical space).  TODO: Where is "appropriate form" specified?'
+
+        defaults['pixelwidth'] = 2.5
+        dtypes['pixelwidth'] = [int, float]
+        descr['pixelwidth'] = 'The size of the extracted pixels (as an scaled number of Arc ' \
+                              'FWHM), -1 will not resample'
+
+        defaults['reuse'] = False
+        dtypes['reuse'] = bool
+        descr['reuse'] = 'If the extraction has previously been performed and saved, load the ' \
+                         'previous result'
+
+        defaults['profile'] = 'gaussian'
+        options['profile'] = ExtractObjectsPar.valid_profiles()
+        dtypes['profile'] = str
+        descr['profile'] = 'Fitting function used to extract science data, only if the ' \
+                           'extraction is 2D.  NOTE: options with suffix \'func\' fits a ' \
+                           'function to the pixels whereas those without this suffix take into ' \
+                           'account the integration of the function over the pixel (and is ' \
+                           'closer to truth).   ' \
+                           'Options are: {0}'.format(', '.join(options['profile']))
+
+        dtypes['maxnumber'] = int
+        descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
+                             'None for no limit.'
+
+        dtypes['manual'] = list
+        descr['manual'] = 'List of manual extraction parameter sets'
+
+        # Instantiate the parameter set
+        super(ExtractObjectsPar, self).__init__(list(pars.keys()),
+                                                values=list(pars.values()),
+                                                defaults=list(defaults.values()),
+                                                options=list(options.values()),
+                                                dtypes=list(dtypes.values()),
+                                                descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+        parkeys = ['pixelmap', 'pixelwidth', 'reuse', 'profile', 'maxnumber']
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        kwargs['manual'] = util.get_parset_list(cfg, 'manual', ManualExtractionPar)
+        return cls(**kwargs)
+
+    @staticmethod
+    def valid_profiles():
+        """
+        Return the list of valid functions to use for object tracing.
+        """
+        return ['gaussian', 'gaussfunc', 'moffat', 'moffatfunc']
 
     def validate(self):
         pass
