@@ -15,6 +15,7 @@ from pypeit import specobjs
 from pypeit.core import procimg
 from pypeit.core import skysub
 from pypeit.core import extract
+from pypeit import utils
 from pypeit import artrace
 from pypeit import ginga
 
@@ -97,64 +98,66 @@ class ScienceImage(processimages.ProcessImages):
     # Frametype is a class attribute
     frametype = 'science'
 
-    # TODO: Consider removing bpm and datasec_img from this argument
-    # list.  Can be obtained from Spectrograph class directly
-    def __init__(self, spectrograph, file_list=[], frame_par=None, trace_objects_par=None,
-                 extract_objects_par=None, tslits_dict=None, tilts=None, det=None, setup=None,
-                 datasec_img=None, bpm=None, maskslits=None, pixlocn=None, fitstbl=None, scidx=0,
-                 objtype='science'):
+    # TODO: Merge into a single parset, one for procing, and one for scienceimage
+    def __init__(self, spectrograph, file_list, det = None, objtype='science', scidx =0, setup = None,par = None, frame_par = None):
 
-        # Parameters
+        # Instantiation attributes for this object
+        self.spectrograph = spectrograph
+        self.file_list = file_list
+        self.det = det
+        self.objtype = objtype
+        self.scidx = scidx
+        self.setup = setup
+
+        # Setup the parameters sets for this object
         # NOTE: This uses objtype, not frametype!
+        self.par = pypeitpar.ScienceImagePar() if par is None else par
         self.frame_par = pypeitpar.FrameGroupPar(objtype) if frame_par is None else frame_par
-        self.trace_objects_par = pypeitpar.TraceObjectsPar() \
-                                        if trace_objects_par is None else trace_objects_par
-        self.extract_objects_par = pypeitpar.ExtractObjectsPar() \
-                                        if extract_objects_par is None else extract_objects_par
 
-        # Start us up
+        # Start up by reading in the relevant science files
         processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
                                              par=self.frame_par['process'])
 
-        # Parameters unique to this Object
-        self.setup = setup
-        self.tslits_dict = tslits_dict
-        self.tilts = tilts
-        self.maskslits = maskslits
-        self.pixlocn = pixlocn
-        self.objtype = objtype
-        self.fitstbl = fitstbl
-        self.scidx = scidx
-        self.datasec_img = datasec_img
-        self.bpm = bpm
+        # Set atrributes for this file and detector using spectrograph class
+        self.datasec_img = spectrograph.get_datasec_img(file_list[0], det = det)
+        self.bpm = spectrograph.bpm
 
-        self.exptime = self.fitstbl['exptime'][self.scidx]
-        self.binning = self.fitstbl['binning'][self.scidx]
 
-        # Key outputs/internals
-        self.sciframe = None
-        self.rawvarframe = None
-        self.modelvarframe = None
-        self.obj_model = None
+        # Other attributes that will be set later during object finding, sky-subtraction, and extraction
+        self.fitstbl = None  # Set and used in init_time_names below
+        self.tslits_dict = None # used by find_object
+        self.tilts = None # used by extract
+        self.mswave = None # used by extract
+        self.maskslits = None # used in find_object and extract
+
+        # Key outputs images for extraction
+        self.sciimg = None
+        self.sciivar = None
+        self.modelivar = None
+        self.objimage = None
+        self.skyimage = None
+        self.outmask = None
         self.global_sky = None
-        self.skycorr_box = None
-        self.finalvar = None
-        self.finalsky = None
-        self.trcmask = None
-        self.tracelist = []
+        self.skymask = None
+        self.objmask = None
+        # SpecObjs object
+        self.sobjs_obj # Only object finding but no extraction
+        self.sobjs = None  # Final extracted object list with trace corrections applied
 
+
+        # Other bookeeping internals
+        self.exptime = None
+        self.binning = None
         self.time = None
         self.inst_name = None
         self.target_name = None
         self.basename = None
 
-        self.specobjs = []
-
         # Child-specific Internals
         #    See ProcessImages
         self.crmask = None
 
-    def init_time_names(self, camera, timeunit='mjd'):
+    def init_time_names(self, fitstbl):
         """
         Setup the basename (for file output mainly)
         and time objects (for heliocentric)
@@ -172,6 +175,18 @@ class ScienceImage(processimages.ProcessImages):
         self.basename : str
 
         """
+
+        timeunit = self.spectrograph.timeunit
+        camera = self.spectrograph.camera
+
+        self.fitstbl =fitstbl
+        # ToDo: Given that we just read the file header to get the datasec_img in the init function above, I don't see why
+        # I need to access the fits table for exptime and binning. This information is also in the headers. By simply
+        # pulling the stuff from the header, we would remove the fitstbl entirely. Another option would be to put the
+        # datasec_img stuff in the fitstbl for each detector
+        self.exptime = self.fitstbl['exptime'][self.scidx]
+        self.binning = self.fitstbl['binning'][self.scidx]
+
         tbname = None
         try:
             if 'T' in self.fitstbl['date'][self.scidx]:
@@ -202,283 +217,222 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.time, self.basename
 
-    def _build_specobj(self):
+
+    def find_objects(self, tslits_dict, maskslits = None, SKYSUB = True, SHOW_PEAKS= True, SHOW_FITS = True, SHOW_TRACE=True):
         """
-        Initialize the specobjs for all slits
-        Key input is self.tracelist
+        Find objects in the slits. This is currently setup only for ARMS
 
-        Wrapper to arspecobj.init_exp
-
-        Returns
-        -------
-        self.specobjs : list
-
-        """
-        self.specobjs = specobjs.init_exp(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
-                                           self.sciframe.shape, self.maskslits, self.det,
-                                           self.scidx, self.fitstbl, self.tracelist,
-                                           binning=self.binning, objtype=self.objtype)
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        # Return
-        return self.specobjs
-
-    def _build_modelvar(self, skyframe=None, objframe=None):
-        """
-        Generate a model variance image using the sky model
-        and (optional) object model
-
-        Wrapper to arprocimg.variance_frame
+        Wrapper to extract.objfind
 
         Parameters
         ----------
-        skyframe : ndarray
-          Sky model
-        objframe : ndarray
-          Object model
+        tslits_dict: dict
+           Dictionary containing information on the slits traced for this image
+
+        Optional Parameters
+        -------------------
+        SHOW_PEAKS:  bool
+          Generate QA showing peaks identified by object finding
+
+        SHOW_FITS:  bool
+          Generate QA  showing fits to traces
+
+        SHOW_TRACE:  bool
+          Generate QA  showing traces identified. Requires an open ginga RC modules window
 
         Returns
         -------
-        self.modelvarframe : ndarray
-          Model variance image
+        self.specobjs : Specobjs object
+                Container holding Specobj objects
+        self.skymask : ndarray
+                Boolean image indicating which pixels are useful for global sky subtraction
+        self.objmask : ndarray
+                Boolean image indicating which pixels have object flux on them
 
         """
-        if skyframe is None:
-            skyframe = self.global_sky
-        self.modelvarframe = procimg.variance_frame(self.datasec_img, self.sciframe,
-                            self.spectrograph.detector[self.det-1]['gain'],
-                            self.spectrograph.detector[self.det-1]['ronoise'],
-                            numamplifiers=self.spectrograph.detector[self.det-1]['numamplifiers'],
-                            darkcurr=self.spectrograph.detector[self.det-1]['darkcurr'],
-                            exptime=self.exptime, skyframe=skyframe, objframe=objframe)
-        return self.modelvarframe
 
-    def boxcar(self, mswave):
-        """
-        Perform boxcar extraction
-
-        Wrapper to arextract.boxcar
-
-        Parameters
-        ----------
-        mswave : ndarray
-          Wavelength image
-
-        Returns
-        -------
-        self.skycorr_box : ndarray
-          Local corrections to the sky model
-
-        Extractions are ingested within self.specobjs
-
-        """
-        msgs.info("Performing boxcar extraction")
-        self.skycorr_box = extract.boxcar(self.specobjs, self.sciframe,
-                                            self.modelvarframe, self.bpm,
-                                            self.global_sky, self.crmask,
-                                            self.tracelist, mswave,
-                                            self.maskslits, self.tslits_dict['slitpix'])
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        # Return
-        return self.skycorr_box
-
-    def original_optimal(self, mswave):
-        """
-        Perform optimal extraction using the 'original' PYPIT algorithm
-
-        Wrapper to arextract.obj_profiles and arextract.optimal_extract
-
-        Parameters
-        ----------
-        mswave : ndarray
-          Wavelength image
-
-        Returns
-        -------
-        self.obj_model : ndarray
-          Model of the object flux; used for improving the variance estimate
-
-        """
-        msgs.info("Attempting optimal extraction with model profile")
-        # Profile
-        extract.obj_profiles(self.det, self.specobjs,
-                               self.sciframe-self.global_sky-self.skycorr_box,
-                               self.modelvarframe, self.crmask, self.tracelist, self.tilts,
-                               self.maskslits, self.tslits_dict['slitpix'], doqa=False)
-        # Extract
-        self.obj_model = extract.optimal_extract(self.specobjs,
-                                                   self.sciframe-self.global_sky-self.skycorr_box,
-                                                   self.modelvarframe, self.crmask,
-                                                   self.tracelist, self.tilts, mswave,
-                                                   self.maskslits, self.tslits_dict['slitpix'])
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        # Return
-        return self.obj_model
-
-    def extraction(self, mswave):
-        """
-        Perform the extraction
-          Boxcar and optimal (as desired)
-
-        Code flow:
-          1. Instantiate the specobjs list -- This should be done when finding objects
-          2. Boxcar extraction
-            i. Update sky model
-          3. Optimal extraction
-            i. Iterative
-            ii. With an update to the variance image
-          4. One last update to the variance image
-
-        Parameters
-        ----------
-        mswave : ndarray
-          Wavelength image
-
-        Returns
-        -------
-        self.specobjs
-        self.finalvar
-        self.finalsky
-
-        """
-        # Init specobjs
-        #  Nested -- self.specobjs[slit][object]
-        self.specobjs = self._build_specobj()
-
-        # Boxcar -- Fills specobj.boxcar in place
-        self.skycorr_box = self.boxcar(mswave)
-        self.finalsky = self.global_sky+self.skycorr_box
-
-        if self.objtype != 'standard':
-            # Optimal (original recipe)
-            self.obj_model = self.original_optimal(mswave)
-            #
-            msgs.info("Update model variance image (and trace?) and repeat")
-            _ = self._build_modelvar(skyframe=self.finalsky, objframe=self.obj_model)
-            self.obj_model = self.original_optimal(mswave)
-
-            # Final variance image
-            self.finalvar = self._build_modelvar(skyframe=self.finalsky, objframe=self.obj_model)
-        else:
-            self.finalvar = self.rawvarframe
-
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        # Return
-        return self.specobjs, self.finalvar, self.finalsky
-
-    def find_objects(self, doqa=False):
-        """
-        Find objects in the slits
-        This is currently setup only for ARMS
-
-        Wrapper to artrace.trace_objects_in_slit
-
-        Parameters
-        ----------
-        doqa : bool, optional
-          Generate QA?
-
-        Returns
-        -------
-        self.tracelist : list
-          List of tracedict objects genreated by object finding (to be Refactored)
-        self.nobj : int
-          Total number of objects in all slits
-
-        """
-        # Grab the 'best' variance frame
-        varframe = self.rawvarframe
-
-        # Prepare to loop on slits
-        nslit = len(self.maskslits)
+        self.tslits_dict = tslits_dict
+        self.maskslits = self._get_goodslits(maskslits)
         gdslits = np.where(~self.maskslits)[0]
-        self.tracelist = []
-        # Loop on good slits
-        for slit in range(nslit):
-            if slit not in gdslits:
-                self.tracelist.append({})
-                continue
-            msgs.info("Finding objects in slit: {}".format(slit))
 
-            tlist = artrace.trace_objects_in_slit(self.det, slit, self.tslits_dict, self.sciframe,
-                                                  self.global_sky, varframe, self.crmask,
-                                                  self.trace_objects_par['function'],
-                                                  self.trace_objects_par['order'],
-                                                  self.trace_objects_par['find'],
-                                                  self.trace_objects_par['nsmooth'],
-                                                  xedge=self.trace_objects_par['xedge'],
-                                                  manual=self.extract_objects_par['manual'],
-                                                  maxnumber=self.extract_objects_par['maxnumber'])
-            # Append
-            self.tracelist += tlist
+        # create the ouptut images skymask and objmask
+        self.skymask = np.zeros_like(self.sciimg,type=bool)
+        self.objmask = np.zeros_like(self.sciimg,type=bool)
 
+        # If we are object finding on the sky subtracted image, then check that the global sky exists
+        if SKYSUB is True:
+            if self.global_sky is None:
+                msgs.error('Object finding on sky subtracted image requested, but global_sky is not set. Run global_skysub() first')
+            image = self.sciimg - self.global_sky
+        else:
+            image = self.sciimg
+
+        # Build and assign the input mask
+        self.inmask = self._build_inmask()
+        # Instantiate the specobjs container
+        sobjs = specobjs.SpecObjs()
+
+        # Loop on slits
+        for slit in gdslits:
+            msgs.info("Finding objects on slit: {:d}".format(slit))
+            thismask = (self.tslits_dict['slitpix'] == slit + 1)
+            inmask = self.inmask & thismask
+            # Find objects
+            specobj_dict = {'setup': self.setup, 'slitid': slit+1, 'scidx': self.scidx, 'det': self.det, 'objtype': self.objtype}
+            # TODO we need to add QA paths and QA hooks. QA should be done through objfind where all the relevant information is. This will
+            # be a png file(s) per slit.
+            sobjs_slit, self.skymask[thismask], self.objmask[thismask] = extract.objfind(image, self.sciivar, thismask,
+                                                                                    self.tslits_dict['lcen'][:,slit], self.tslits_dict[:,'rcen'],
+                                                                                    inmask = inmask, HAND_EXTRACT_DICT=self.hand_extract_par.data,
+                                                                                    specobj_dict=specobj_dict,SHOW_PEAKS=SHOW_PEAKS, SHOW_FITS = SHOW_FITS,
+                                                                                    SHOW_TRACE=SHOW_TRACE)
+            sobjs.add_sobj(sobjs_slit)
+
+        self.sobjs_obj = sobjs
         # Finish
-        self.nobj = np.sum([tdict['nobj'] for tdict in self.tracelist if 'nobj' in tdict.keys()])
-        '''
-        if doqa:  # QA?
-            obj_trace_qa(slf, sciframe, det, tracelist, root="object_trace", normalize=False)
-        '''
+        self.nobj = len(sobjs)
+
         # Steps
         self.steps.append(inspect.stack()[0][3])
         # Return
-        return self.tracelist, self.nobj
+        return self.sobjs_obj, self.nobj
 
-    # TODO: This default needs to be kept in sync with default in
-    # bg_subtraction_slit()
-    def global_skysub(self, bspline_spacing=0.6, use_tracemask=False):
+    def global_skysub(self, tslits_dict, tilts, USE_SKYMASK=True, maskslits = None):
         """
         Perform global sky subtraction, slit by slit
 
-        Wrapper to arskysub.bg_subtraction_slit
+        Wrapper to skysub.global_skysub
 
-        Args:
-            bspline_spaceing (float):
-                Break-point spacing for bspline
-            use_tracemask (:`obj`:bool, optional):
-                Mask objects (requires they were found previously)
+        Parameters
+        ----------
+        tslits_dict: dict
+           Dictionary containing information on the slits traced for this image
+
+        Optional Parameters
+        -------------------
+        bspline_spaceing: (float):
+           Break-point spacing for bspline
+
+        use_skymask: (bool, optional):
+           Mask objects using self.skymask if object finding has been run
+           (This requires they were found previously, i.e. that find_objects was already run)
 
         Returns:
-            numpy.ndarray: Two `numpy.ndarray`s, the first with the
-            global sky and the second with the variance frame based on
-            the sky model.
+            global_sky: (numpy.ndarray) image of the the global sky model
         """
-        # Prep
-        self.global_sky = np.zeros_like(self.sciframe)
+
+
+        self.tslits_dict = tslits_dict
+        self.tilts = tilts
+        self.maskslits = self._get_goodslits(maskslits)
         gdslits = np.where(~self.maskslits)[0]
 
-        # Grab the currently 'best' variance frame
-        # JFH does not quite approve of this..
-        varframe = self.rawvarframe if self.modelvarframe is None else self.modelvarframe
+        # Prep
+        self.global_sky = np.zeros_like(self.sciimg)
 
-        # Mask objects?
-        tracemask = self._build_tracemask() if use_tracemask else None
+        # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
+        skymask = self.skymask if ((self.skymask is not None) & USE_SKYMASK) else np.ones_like(self.sciimg,dtype=bool)
 
+        # Build and assign the input mask
+        self.inmask = self._build_inmask()
         # Loop on slits
-        #gdslits = [gdslits[-1]]
         for slit in gdslits:
             msgs.info("Working on slit: {:d}".format(slit))
+            thismask = (self.tslits_dict['slitpix'] == slit + 1)
+            inmask = self.inmask & thismask & skymask
             # Find sky
-            slit_bgframe = skysub.bg_subtraction_slit(slit+1, self.tslits_dict['slitpix'],
-                                                        self.tslits_dict['edge_mask'],
-                                                        self.sciframe, varframe, self.tilts,
-                                                        bpm=self.bpm, crmask=self.crmask,
-                                                        tracemask=tracemask, bsp=bspline_spacing)
-            # Mask?
-            if np.sum(slit_bgframe) == 0.:
+            self.global_sky[thismask] =  skysub.global_skysub(self.sciimg, self.sciivar, self.tilts, thismask,
+                                                              self.tslits_dict['lcen'][:, slit], self.tslits_dict[:, 'rcen'],
+                                                              inmask=inmask, bsp=self.par['bspline_spacing'], PLOT_FIT=PLOT_FIT)
+            # Mask if something went wrong
+            if np.sum(global_sky[thismask]) == 0.:
                 self.maskslits[slit] = True
-            else:
-                self.global_sky += slit_bgframe
 
-        # Build model variance
-        msgs.info("Building model variance from the Sky frame")
-        self.modelvarframe = self._build_modelvar()
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
-        return self.global_sky, self.modelvarframe
+        return self.global_sky
+
+    def local_skysub_extract(self, waveimg, maskslits=None, SHOW_RESIDS = True):
+        """
+        Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
+
+        Wrapper to skysub.local_skysub_extract
+
+        Parameters
+        ----------
+
+        Optional Parameters
+        -------------------
+        bspline_spaceing: (float):
+           Break-point spacing for bspline
+
+        Returns:
+            global_sky: (numpy.ndarray) image of the the global sky model
+        """
+
+        self.waveimg = waveimg
+        # get the good slits and assign self.maskslits
+        self.maskslits = self._get_goodslits(maskslits)
+        gdslits = np.where(~self.maskslits)[0]
+
+
+        if not self._chk_objs(['sciimg','sciivar','rn2_img',     # Did they run process?
+                               'sobjs_obj',  #Did they run object finding, self.find_objects() ?
+                               'global_sky', # Did they run global sky subtraction, self.global_skysub()?
+                               'tilts', 'waveimg', 'tslits_dict']): # Did the input the right calibrations in prev steps?
+
+        # Build and assign the input mask
+        self.inmask = self._build_inmask()
+
+        # Allocate the images that are needed
+        self.outmask = self.inmask                 # Initialize to input mask in case no objects were found
+        self.objmodel = np.zeros_like(sciimg)      # Initialize to zero in case no objects were found
+        self.skymodel  = np.copy(self.global_sky)  # Set initially to global sky in case no objects were found
+        self.ivarmodel = np.copy(sciivar)          # Set initially to sciivar in case no obects were found.
+                                                   # Could actually create a model anyway here,
+                                                   # but probalby overkill since nothing is extracted
+        # ToDO sort ouf the maksing here so that we get a bitmask indicating the reason for masking
+
+
+        self.sobjs = self.sobjs_obj.copy()
+        # Loop on slits
+        for slit in gdslits:
+            msgs.info("Working on slit: {:d}".format(slit))
+            thisobj = (self.sobjs.slitid == slit + 1) # indices of objects for this slit
+            if np.any(thisobj):
+                thismask = (self.tslits_dict['slitpix'] == slit + 1) # pixels for this slit
+                inmask = self.inmask & thismask
+                # Local sky subtraction and extraction
+                self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.outmask[thismask] = \
+                    local_skysub_extract(self.sciimg, self.sciivar, self.tilts,self.waveimg, self.global_sky, self.rn2_img,
+                                         thismask, self.tslits_dict['lcen'][:, slit], self.tslits_dict[:, 'rcen'],
+                                         self.sobjs[thisobj],bsp=self.par['bspline_spacing'], inmask = inmask,SHOW_RESIDS=SHOW_RESIDS)
+
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+
+    # Chk attributest for running local_skysub_extract
+    def _chk_objs(self, items):
+        for obj in items:
+            if getattr(self, obj) is None:
+                msgs.warn("You need to generate {:s} prior to this calibration..".format(obj))
+                if obj in ['sciimg', 'sciivar', 'rn2_img']:
+                    msgs.warn("Run the process() method")
+                else if obj in ['sobjs_obj']:
+                    msgs.warn("Run the find_objects() method")
+                else if obj in['global_sky']:
+                    msgs.warn("Run the global_skysub() method")
+                else if obj in ['tilts', 'tslits_dict'] :
+                    msgs.warn("Calibraitons missing: these were required to run find_objects() and global_skysub()")
+                else if obj in ['waveimg']:
+                    msgs.warn("Calibraitons missing: waveimg must be input as a parameter. Try running calibrations")
+
+            return False
+
+        return True
 
     def process(self, bias_subtract, pixel_flat, apply_gain=True, trim=True):
         """ Process the image
@@ -495,63 +449,62 @@ class ScienceImage(processimages.ProcessImages):
 
         """
         # Process
-        self.sciframe = super(ScienceImage, self).process(bias_subtract=bias_subtract,
+        self.sciimg = super(ScienceImage, self).process(bias_subtract=bias_subtract,
                                                           apply_gain=apply_gain,
                                                           pixel_flat=pixel_flat, bpm=self.bpm,
                                                           trim=trim)
-        # Construct raw variance image
-        self.rawvarframe = self.build_rawvarframe(trim=trim)
 
+        # Construct raw variance image
+        rawvarframe = self.build_rawvarframe(trim=trim)
+        self.sciivar = utils.calc_ivar(rawvarframe)
+        # Build read noise squared image
+        self.rn2img = self.build_rn2img()
         # Build CR mask
         self.crmask = self.build_crmask()
 
-        return self.sciframe, self.rawvarframe, self.crmask
+        return self.sciimg, self.sciivar, self.rn2img, self.crmask
 
-    '''
-    def _grab_varframe(self):
+
+    def _build_inmask(self):
         """
-        Simple algorithm to grab the currently 'best' variance image
-
-        Order of priority --
-          finalvar
-          modelvarframe
-          rawvarframe
+        Create the input mask for various extraction routines.
 
         Returns
         -------
-        varframe : ndarray
+        inmask
 
         """
-        # Make the choice
-        if self.finalvar is not None:
-            varframe = self.finalvar
-        elif self.modelvarframe is not None:
-            varframe = self.modelvarframe
-        else:
-            varframe = self.rawvarframe
-        # Return it
-        return varframe
-    '''
 
-    def _build_tracemask(self):
-        """
-        Create a tracemask for the object
-        Used in sky subtraction
-
-        Returns
-        -------
-        self.trcmask
-
-        """
-        self.trcmask = np.zeros_like(self.sciframe)
-        # Create a trace mask of the object
-        for sl in range(len(self.tracelist)):
-            if 'nobj' in self.tracelist[sl].keys():
-                if self.tracelist[sl]['nobj'] > 0:
-                    self.trcmask += self.tracelist[sl]['object'].sum(axis=2)
-        self.trcmask[np.where(self.trcmask > 0.0)] = 1.0
+        # Create and assign the inmask
+        SATURATION = self.spectrograph.detector[self.det - 1]['saturation']
+        MINCOUNTS    = self.spectrograph.detector[self.det - 1]['mincounts']
+        # Assign inmask, True = Good Pixel, False = Bad Pixel
+        inmask = (self.bpm == False) & (self.crmask == False) & \
+                 (self.sciivar > 0.0) & np.isfinite(self.sciivar) & \
+                 np.isfinite(self.sciimg) & (self.sciimg < SATURATION) & (self.sciimg > MINCOUNTS)
         # Return
-        return self.trcmask
+        return inmask
+
+    def _get_goodslits(self, maskslits):
+        """
+        Return the slits to be reduce by going through the maskslits logic below. If the input maskslits is None it
+        uses previously assigned maskslits
+
+        Returns
+        -------
+        gdslits
+            numpy array of slit numbers to be reduced
+        """
+
+        # Identify the slits that we want to consider.
+        if maskslits is not None:  # If maskslits was passed in use it, and update self
+            self.maskslits = maskslits
+        else if (self.maskslits is None):  # If maskslits was not passed, and it does not exist in self, reduce all slits
+            self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
+        else: # Otherwise, if self.maskslits exists, use the previously set maskslits
+            pass
+        return self.maskslits
+
 
     def show(self, attr, image=None, display='ginga'):
         """
@@ -608,3 +561,200 @@ class ScienceImage(processimages.ProcessImages):
         txt += '>'
         return txt
 
+
+    # TODO Everything below here is deprecated
+    def _build_modelvar(self, skyframe=None, objframe=None):
+        """
+        Generate a model variance image using the sky model
+        and (optional) object model
+
+        Wrapper to arprocimg.variance_frame
+
+        Parameters
+        ----------
+        skyframe : ndarray
+          Sky model
+        objframe : ndarray
+          Object model
+
+        Returns
+        -------
+        self.modelvarframe : ndarray
+          Model variance image
+
+        """
+        if skyframe is None:
+            skyframe = self.global_sky
+        self.modelvarframe = procimg.variance_frame(self.datasec_img, self.sciframe,
+                                                    self.spectrograph.detector[self.det - 1]['gain'],
+                                                    self.spectrograph.detector[self.det - 1]['ronoise'],
+                                                    numamplifiers=self.spectrograph.detector[self.det - 1]['numamplifiers'],
+                                                    darkcurr=self.spectrograph.detector[self.det - 1]['darkcurr'],
+                                                    exptime=self.exptime, skyframe=skyframe, objframe=objframe)
+        return self.modelvarframe
+
+
+    def boxcar(self, mswave):
+        """
+        Perform boxcar extraction
+
+        Wrapper to arextract.boxcar
+
+        Parameters
+        ----------
+        mswave : ndarray
+          Wavelength image
+
+        Returns
+        -------
+        self.skycorr_box : ndarray
+          Local corrections to the sky model
+
+        Extractions are ingested within self.specobjs
+
+        """
+        msgs.info("Performing boxcar extraction")
+        self.skycorr_box = extract.boxcar(self.specobjs, self.sciframe,
+                                          self.modelvarframe, self.bpm,
+                                          self.global_sky, self.crmask,
+                                          self.tracelist, mswave,
+                                          self.maskslits, self.tslits_dict['slitpix'])
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.skycorr_box
+
+
+    def original_optimal(self, mswave):
+        """
+        Perform optimal extraction using the 'original' PYPIT algorithm
+
+        Wrapper to arextract.obj_profiles and arextract.optimal_extract
+
+        Parameters
+        ----------
+        mswave : ndarray
+          Wavelength image
+
+        Returns
+        -------
+        self.obj_model : ndarray
+          Model of the object flux; used for improving the variance estimate
+
+        """
+        msgs.info("Attempting optimal extraction with model profile")
+        # Profile
+        extract.obj_profiles(self.det, self.specobjs,
+                             self.sciframe - self.global_sky - self.skycorr_box,
+                             self.modelvarframe, self.crmask, self.tracelist, self.tilts,
+                             self.maskslits, self.tslits_dict['slitpix'], doqa=False)
+        # Extract
+        self.obj_model = extract.optimal_extract(self.specobjs,
+                                                 self.sciframe - self.global_sky - self.skycorr_box,
+                                                 self.modelvarframe, self.crmask,
+                                                 self.tracelist, self.tilts, mswave,
+                                                 self.maskslits, self.tslits_dict['slitpix'])
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.obj_model
+
+
+    def extraction(self, mswave):
+        """
+        Perform the extraction
+          Boxcar and optimal (as desired)
+
+        Code flow:
+          1. Instantiate the specobjs list -- This should be done when finding objects
+          2. Boxcar extraction
+            i. Update sky model
+          3. Optimal extraction
+            i. Iterative
+            ii. With an update to the variance image
+          4. One last update to the variance image
+
+        Parameters
+        ----------
+        mswave : ndarray
+          Wavelength image
+
+        Returns
+        -------
+        self.specobjs
+        self.finalvar
+        self.finalsky
+
+        """
+        # Init specobjs
+        #  Nested -- self.specobjs[slit][object]
+        self.specobjs = self._build_specobj()
+
+        # Boxcar -- Fills specobj.boxcar in place
+        self.skycorr_box = self.boxcar(mswave)
+        self.finalsky = self.global_sky + self.skycorr_box
+
+        if self.objtype != 'standard':
+            # Optimal (original recipe)
+            self.obj_model = self.original_optimal(mswave)
+            #
+            msgs.info("Update model variance image (and trace?) and repeat")
+            _ = self._build_modelvar(skyframe=self.finalsky, objframe=self.obj_model)
+            self.obj_model = self.original_optimal(mswave)
+
+            # Final variance image
+            self.finalvar = self._build_modelvar(skyframe=self.finalsky, objframe=self.obj_model)
+        else:
+            self.finalvar = self.rawvarframe
+
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.specobjs, self.finalvar, self.finalsky
+
+    def _build_specobj(self):
+        """
+        Initialize the specobjs for all slits
+        Key input is self.tracelist
+
+        Wrapper to arspecobj.init_exp
+
+        Returns
+        -------
+        self.specobjs : list
+
+        """
+        self.specobjs = specobjs.init_exp(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
+                                          self.sciframe.shape, self.maskslits, self.det,self.scidx, self.fitstbl, self.tracelist,
+                                          binning=self.binning, objtype=self.objtype)
+            # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.specobjs
+
+
+    '''
+    def _grab_varframe(self):
+        """
+        Simple algorithm to grab the currently 'best' variance image
+    
+        Order of priority --
+          finalvar
+          modelvarframe
+          rawvarframe
+    
+        Returns
+        -------
+        varframe : ndarray
+    
+        """
+        # Make the choice
+        if self.finalvar is not None:
+            varframe = self.finalvar
+        elif self.modelvarframe is not None:
+            varframe = self.modelvarframe
+        else:
+            varframe = self.rawvarframe
+        # Return it
+        return varframe
+    '''
