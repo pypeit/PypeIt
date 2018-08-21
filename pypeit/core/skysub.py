@@ -377,7 +377,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         # These values are hard wired for the case where no inmask is provided
         FULLWELL = 5e5
         MINWELL = -1000.0,
-        inmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & (sciimg < FULLWELL) & (sciimg > MINWELL)
+        inmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & np.isfinite(sciivar) & (sciimg < FULLWELL) & (sciimg > MINWELL)
 
     # Create the images that will be returned
     outmask = np.copy(inmask)
