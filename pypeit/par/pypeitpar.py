@@ -746,6 +746,79 @@ class ManualExtractionPar(ParSet):
     Args:
         frame (:obj:`str`):
             The name of the fits file for a manual extraction
+        spec = List of spectral positions to hand extract
+        spat = List of spatial positions to hand extract
+        det = List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer
+             which will be used for all members of that list
+        fwhm = List of FWHM for hand extraction. This must be a list aligned with spec and spat lists, or a single number which will
+             be used for all members of that list'
+
+
+    """
+    def __init__(self, frame=None, spec=None, spat = None, det = None, fwhm = None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+        dtypes['frame'] = str
+        descr['frame'] = 'The name of the fits file for a manual extraction'
+
+        dtypes['spec'] = [list, float, int]
+        descr['spec'] = 'List of spectral positions to hand extract '
+
+        dtypes['spat'] = [list, float, int]
+        descr['spat'] = 'List of spatial positions to hand extract '
+
+        dtypes['det'] = [list, int]
+        descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer which will be used for all members of that list'
+        dtypes['fwhm'] = [list, int,float]
+        descr['fwhm'] = 'List of FWHM for hand extraction. This must be a list aligned with spec and spat lists, or a single number which will be used for all members of that list'
+
+        # Instantiate the parameter set
+        super(ManualExtractionPar, self).__init__(list(pars.keys()),
+                                                  values=list(pars.values()),
+                                                  dtypes=list(dtypes.values()),
+                                                  descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+        parkeys = [ 'frame', 'spec','spat','det','fwhm']
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        pass
+
+
+
+class ManualExtractionParOld(ParSet):
+    """
+    A parameter set holding the arguments for how to perform the
+    manual extraction of a spectrum.
+
+    A list of these objects can be included in an instance of
+    :class:`ExtractObjectsPar` to perform a set of user-defined
+    extractions.
+
+    For an example of how to define a series of manual extractions in
+    the pypeit input file, see :ref:`pypeit_file`.
+
+    Args:
+        frame (:obj:`str`):
+            The name of the fits file for a manual extraction
 
         params (:obj:`list`):
             Parameters of the manual extraction.  For example, params =
@@ -806,6 +879,7 @@ class ManualExtractionPar(ParSet):
         if self.data['frame'] is not None and not os.path.isfile(self.data['frame']):
             raise FileNotFoundError('Manual extraction frame does not exist: {0}'.format(
                                     self.data['frame']))
+
 
 
 class ReducePar(ParSet):
@@ -1608,7 +1682,7 @@ class ScienceImagePar(ParSet):
         descr['manual'] = 'List of manual extraction parameter sets'
 
         # Instantiate the parameter set
-        super(ExtractObjectsPar, self).__init__(list(pars.keys()),
+        super(ScienceImagePar, self).__init__(list(pars.keys()),
                                                 values=list(pars.values()),
                                                 defaults=list(defaults.values()),
                                                 options=list(options.values()),
@@ -1619,19 +1693,13 @@ class ScienceImagePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
+        #ToDO change to updated param list
         parkeys = ['pixelmap', 'pixelwidth', 'reuse', 'profile', 'maxnumber']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         kwargs['manual'] = util.get_parset_list(cfg, 'manual', ManualExtractionPar)
         return cls(**kwargs)
-
-    @staticmethod
-    def valid_profiles():
-        """
-        Return the list of valid functions to use for object tracing.
-        """
-        return ['gaussian', 'gaussfunc', 'moffat', 'moffatfunc']
 
     def validate(self):
         pass
