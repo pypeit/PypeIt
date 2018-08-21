@@ -333,8 +333,8 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     return (sky_bmodel, obj_bmodel, outmask)
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs, bsp,
-    TRIM_EDG = (3,3), STD = False, PROF_NSIGMA = None, niter=4, box_rad = 7, sigrej = 3.5, skysample = False,
-    FULLWELL = 5e5,MINWELL = -1000.0, SN_GAUSS = 3.0, COADD_2D = False, SHOW_RESIDS=False):
+                         inmask = None, TRIM_EDG = (3,3), STD = False, PROF_NSIGMA = None, niter=4, box_rad = 7, sigrej = 3.5,
+                         skysample = False,FULLWELL = 5e5,MINWELL = -1000.0, SN_GAUSS = 3.0, COADD_2D = False, SHOW_RESIDS=False):
 
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
@@ -373,10 +373,14 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     nspat = sciimg.shape[1]
     nspec = sciimg.shape[0]
 
-    # Create the imagews that will be returned
-    # ToDO Would it be more transparent to pass in this mask as an inmask, i.e. via optional keyword argument?
-    outmask_orig = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & (sciimg < FULLWELL) & (sciimg > MINWELL)
-    outmask = np.copy(outmask_orig)
+    if inmask is None:
+        # These values are hard wired for the case where no inmask is provided
+        FULLWELL = 5e5
+        MINWELL = -1000.0,
+        inmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & (sciimg < FULLWELL) & (sciimg > MINWELL)
+
+    # Create the images that will be returned
+    outmask = np.copy(inmask)
     modelivar = np.copy(sciivar)
     objimage = np.zeros_like(sciimg)
     skyimage = np.copy(global_sky)
@@ -627,14 +631,14 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
 
         # These are the pixels that were masked by the extraction
-        spec_mask, spat_mask = np.where((outmask == False) & (outmask_orig == True))
+        spec_mask, spat_mask = np.where((outmask == False) & (inmask == True))
         nmask = len(spec_mask)
         # note: must cast numpy floats to regular python floats to pass the remote interface
         points_mask = [dict(type='point', args=(float(spat_mask[i]), float(spec_mask[i]), 2),
                             kwargs=dict(style='plus', color='red')) for i in range(nmask)]
 
         # These are the pixels that were originally masked
-        spec_omask, spat_omask = np.where((outmask_orig == False) & (thismask == True))
+        spec_omask, spat_omask = np.where((inmask == False) & (thismask == True))
         nomask = len(spec_omask)
         # note: must cast numpy floats to regular python floats to pass the remote interface
         points_omask = [dict(type='point', args=(float(spat_omask[i]), float(spec_omask[i]), 2),
