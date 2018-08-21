@@ -264,7 +264,7 @@ class SpecObjs(object):
     def copy(self):
         sobj_copy = SpecObjs()
         for sobj in self.specobjs:
-            sobj_copy.specobjs += [sobj.copy()]s
+            sobj_copy.specobjs += [sobj.copy()]
 
         sobj_copy.build_summary()
         return sobj_copy

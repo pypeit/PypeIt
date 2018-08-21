@@ -381,6 +381,7 @@ class ScienceImage(processimages.ProcessImages):
                                'sobjs_obj',  #Did they run object finding, self.find_objects() ?
                                'global_sky', # Did they run global sky subtraction, self.global_skysub()?
                                'tilts', 'waveimg', 'tslits_dict']): # Did the input the right calibrations in prev steps?
+            msgs.error('Dont have all the quantities set necessary to run local_skysub_extract()')
 
         # Build and assign the input mask
         self.inmask = self._build_inmask()
@@ -421,13 +422,13 @@ class ScienceImage(processimages.ProcessImages):
                 msgs.warn("You need to generate {:s} prior to this calibration..".format(obj))
                 if obj in ['sciimg', 'sciivar', 'rn2_img']:
                     msgs.warn("Run the process() method")
-                else if obj in ['sobjs_obj']:
+                elif obj in ['sobjs_obj']:
                     msgs.warn("Run the find_objects() method")
-                else if obj in['global_sky']:
+                elif obj in['global_sky']:
                     msgs.warn("Run the global_skysub() method")
-                else if obj in ['tilts', 'tslits_dict'] :
+                elif obj in ['tilts', 'tslits_dict'] :
                     msgs.warn("Calibraitons missing: these were required to run find_objects() and global_skysub()")
-                else if obj in ['waveimg']:
+                elif obj in ['waveimg']:
                     msgs.warn("Calibraitons missing: waveimg must be input as a parameter. Try running calibrations")
 
             return False
@@ -499,7 +500,7 @@ class ScienceImage(processimages.ProcessImages):
         # Identify the slits that we want to consider.
         if maskslits is not None:  # If maskslits was passed in use it, and update self
             self.maskslits = maskslits
-        else if (self.maskslits is None):  # If maskslits was not passed, and it does not exist in self, reduce all slits
+        elif (self.maskslits is None):  # If maskslits was not passed, and it does not exist in self, reduce all slits
             self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
         else: # Otherwise, if self.maskslits exists, use the previously set maskslits
             pass
