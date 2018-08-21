@@ -1100,11 +1100,10 @@ def parse_hand_dict(HAND_EXTRACT_DICT):
 specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 'science'}
 
 
-
 def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
             HAND_EXTRACT_DICT = None, std_trace = None, ncoeff = 5, nperslit = 10,  BG_SMTH = 5.0, PKWDTH = 3.0,
             SIG_THRESH = 5.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, TRIM_EDG = (3,3), OBJMASK_NTHRESH = 2.0,
-            SHOW_TRACE = False, SHOW_FITS = False, SHOW_PEAKS = True, specobj_dict=specobj_dict):
+            specobj_dict=specobj_dict, SHOW_PEAKS=True, SHOW_FITS = False, SHOW_TRACE = False):
 
     """ DOCS COMING SOON
 
