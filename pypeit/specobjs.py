@@ -146,12 +146,11 @@ class SpecObj(object):
             return False
 
     def copy(self):
-        slf = SpecObj(self.shape, self.slit_spat_pos, self.slit_spec_pos, det=self.det,
-                      setup=self.setup, slitid = self.slitid, scidx=self.scidx,
-                      objtype=self.objtype, spat_pixpos=self.spat_pixpos)
-        slf.boxcar = self.boxcar.copy()
-        slf.optimal = self.optimal.copy()
-        return slf
+        sobj_copy = SpecObj(self.shape, self.slit_spat_pos, self.slit_spec_pos) # Instantiate
+        sobj_copy.__dict__ = self.__dict__.copy() # Copy over all attributes
+        sobj_copy.boxcar = self.boxcar.copy() # Copy boxcar and optimal dicts
+        sobj_copy.optimal = self.optimal.copy()
+        return sobj_copy
 
     def __getitem__(self, key):
         """ Access the DB groups
@@ -261,6 +260,16 @@ class SpecObjs(object):
         self.specobjs.pop(index)
         self.build_summary()
 
+
+    def copy(self):
+        sobj_copy = SpecObjs()
+        for sobj in self.specobjs:
+            sobj_copy.specobjs += [sobj.copy()]
+
+        sobj_copy.build_summary()
+        return sobj_copy
+
+
     def __getitem__(self, item):
         """ Overload to allow one to pull an attribute
         or a portion of the SpecObjs list
@@ -285,7 +294,7 @@ class SpecObjs(object):
             # is produced by np.where, as in t[np.where(t['a'] > 2)]
             # For all, a new table is constructed with slice of all columns
             sobjs_new = np.array(self.specobjs,dtype=object)
-            return SpecObjs(specobjs=sobjs_new[item])
+            return SpecObjs(specobjs=sobjs_new[item].tolist())
 
 
     def __getattr__(self, k):
