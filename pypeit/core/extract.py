@@ -1256,11 +1256,15 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
 
 
     if SHOW_PEAKS:
-        plt.plot(np.arange(nsamp), fluxsub, color ='cornflowerblue',linestyle=':', label='Collapsed Slit profile')
-        plt.plot(np.arange(nsamp), fluxconv, color='black', label = 'FWHM Convolved Profile')
-        plt.plot(xcen, ypeak, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
+        spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
+        spat_approx = slit_left[specmid] + xsize[specmid]*xcen/nsamp
+        plt.plot(spat_approx_vec, fluxsub, color ='cornflowerblue',linestyle=':', label='Collapsed Slit profile')
+        plt.plot(spat_approx_vec, fluxconv, color='black', label = 'FWHM Convolved Profile')
+        plt.plot(spat_approx, ypeak, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
                  linestyle='None', zorder = 10,label='Object Found')
         plt.legend()
+        plt.xlabel('Approximate Spatial Position (pixels)')
+        plt.ylabel('Collapsed Flux (counts)')
         plt.show()
 
 
