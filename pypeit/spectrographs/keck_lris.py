@@ -206,7 +206,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['slits']['sigdetect'] = 30.
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypeitpar.SkySubtractionPar()
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
