@@ -9,6 +9,7 @@
 - Turn off 2.7 Travis testing
 - Integrated arclines into PypeIt
 - Modified debug/developer modes
+- Update SpecObjs class; ndarray instead of list;  set() method
 
 
 0.8.1

@@ -47,3 +47,10 @@ def test_add_rm():
     sobjs.remove_sobj(2)
     assert len(sobjs.specobjs) == 2
     assert len(sobjs.summary) == 2
+
+def test_set():
+    sobjs = specobjs.SpecObjs([sobj1,sobj2,sobj3])
+    sobjs.set(0, 'det', 3)
+    sobjs.set(slice(1,2), 'det', 2)
+    # Test
+    assert np.all(sobjs[:].det == np.array([3,2,1]))
