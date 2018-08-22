@@ -352,7 +352,7 @@ class ScienceImage(processimages.ProcessImages):
                                                               self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:,slit],
                                                               inmask=inmask, bsp=self.par['bspline_spacing'], PLOT_FIT=PLOT_FIT)
             # Mask if something went wrong
-            if np.sum(global_sky[thismask]) == 0.:
+            if np.sum(self.global_sky[thismask]) == 0.:
                 self.maskslits[slit] = True
 
         # Step
@@ -384,20 +384,20 @@ class ScienceImage(processimages.ProcessImages):
         gdslits = np.where(~self.maskslits)[0]
 
 
-        if not self._chk_objs(['sciimg','sciivar','rn2_img',     # Did they run process?
+        if not self._chk_objs(['sciimg','sciivar','rn2img',     # Did they run process?
                                'sobjs_obj',  #Did they run object finding, self.find_objects() ?
                                'global_sky', # Did they run global sky subtraction, self.global_skysub()?
                                'tilts', 'waveimg', 'tslits_dict']): # Did the input the right calibrations in prev steps?
-            msgs.error('Dont have all the quantities set necessary to run local_skysub_extract()')
+            msgs.error('You do not have all the quantities set necessary to run local_skysub_extract()')
 
         # Build and assign the input mask
         self.inmask = self._build_inmask()
 
         # Allocate the images that are needed
         self.outmask = self.inmask                 # Initialize to input mask in case no objects were found
-        self.objmodel = np.zeros_like(sciimg)      # Initialize to zero in case no objects were found
+        self.objmodel = np.zeros_like(self.sciimg)      # Initialize to zero in case no objects were found
         self.skymodel  = np.copy(self.global_sky)  # Set initially to global sky in case no objects were found
-        self.ivarmodel = np.copy(sciivar)          # Set initially to sciivar in case no obects were found.
+        self.ivarmodel = np.copy(self.sciivar)          # Set initially to sciivar in case no obects were found.
                                                    # Could actually create a model anyway here,
                                                    # but probalby overkill since nothing is extracted
         # ToDO sort ouf the maksing here so that we get a bitmask indicating the reason for masking
@@ -413,7 +413,7 @@ class ScienceImage(processimages.ProcessImages):
                 inmask = self.inmask & thismask
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.outmask[thismask] = \
-                    local_skysub_extract(self.sciimg, self.sciivar, self.tilts,self.waveimg, self.global_sky, self.rn2_img,
+                    skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts,self.waveimg, self.global_sky, self.rn2_img,
                                          thismask, self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:, slit],
                                          self.sobjs[thisobj],bsp=self.par['bspline_spacing'], inmask = inmask,SHOW_RESIDS=SHOW_RESIDS)
 
@@ -437,9 +437,7 @@ class ScienceImage(processimages.ProcessImages):
                     msgs.warn("Calibraitons missing: these were required to run find_objects() and global_skysub()")
                 elif obj in ['waveimg']:
                     msgs.warn("Calibraitons missing: waveimg must be input as a parameter. Try running calibrations")
-
-            return False
-
+                return False
         return True
 
     def process(self, bias_subtract, pixel_flat, bpm, apply_gain=True, trim=True):

@@ -222,7 +222,7 @@ class SpecObjs(object):
         elif isinstance(sobj, list):
             self.specobjs += sobj
         elif isinstance(sobj,SpecObjs):
-            self.specobjs += sobj.tolist()
+            self.specobjs += sobj.specobjs
 
         # Rebuild summary table
         self.build_summary()
