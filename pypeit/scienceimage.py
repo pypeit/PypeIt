@@ -114,13 +114,18 @@ class ScienceImage(processimages.ProcessImages):
         self.par = pypeitpar.ScienceImagePar() if par is None else par
         self.frame_par = pypeitpar.FrameGroupPar(objtype) if frame_par is None else frame_par
 
-        # Start up by reading in the relevant science files
+        # These attributes will be sert when the image(s) are processed
+        self.bpm = None
+        self.bias = None
+        self.pixflat = None
+
+        # Start up by instantiating the process images class for reading in the relevant science files
         processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
                                              par=self.frame_par['process'])
 
         # Set atrributes for this file and detector using spectrograph class
         self.datasec_img = spectrograph.get_datasec_img(file_list[0], det = det)
-        self.bpm = spectrograph.bpm
+
 
 
         # Other attributes that will be set later during object finding, sky-subtraction, and extraction
@@ -141,7 +146,7 @@ class ScienceImage(processimages.ProcessImages):
         self.skymask = None
         self.objmask = None
         # SpecObjs object
-        self.sobjs_obj # Only object finding but no extraction
+        self.sobjs_obj = None # Only object finding but no extraction
         self.sobjs = None  # Final extracted object list with trace corrections applied
 
 
@@ -256,8 +261,8 @@ class ScienceImage(processimages.ProcessImages):
         gdslits = np.where(~self.maskslits)[0]
 
         # create the ouptut images skymask and objmask
-        self.skymask = np.zeros_like(self.sciimg,type=bool)
-        self.objmask = np.zeros_like(self.sciimg,type=bool)
+        self.skymask = np.zeros_like(self.sciimg,dtype=bool)
+        self.objmask = np.zeros_like(self.sciimg,dtype=bool)
 
         # If we are object finding on the sky subtracted image, then check that the global sky exists
         if SKYSUB is True:
@@ -282,10 +287,12 @@ class ScienceImage(processimages.ProcessImages):
             # TODO we need to add QA paths and QA hooks. QA should be done through objfind where all the relevant information is. This will
             # be a png file(s) per slit.
             sobjs_slit, self.skymask[thismask], self.objmask[thismask] = extract.objfind(image, self.sciivar, thismask,
-                                                                                    self.tslits_dict['lcen'][:,slit], self.tslits_dict[:,'rcen'],
-                                                                                    inmask = inmask, HAND_EXTRACT_DICT=self.hand_extract_par.data,
-                                                                                    specobj_dict=specobj_dict,SHOW_PEAKS=SHOW_PEAKS, SHOW_FITS = SHOW_FITS,
-                                                                                    SHOW_TRACE=SHOW_TRACE)
+                                                                                    self.tslits_dict['lcen'][:,slit],
+                                                                                    self.tslits_dict['rcen'][:,slit],
+                                                                                    inmask = inmask,
+                                                                                    HAND_EXTRACT_DICT=self.par['manual'],
+                                                                                    specobj_dict=specobj_dict,SHOW_PEAKS=SHOW_PEAKS,
+                                                                                    SHOW_FITS = SHOW_FITS,SHOW_TRACE=SHOW_TRACE)
             sobjs.add_sobj(sobjs_slit)
 
         self.sobjs_obj = sobjs
@@ -297,7 +304,7 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.sobjs_obj, self.nobj
 
-    def global_skysub(self, tslits_dict, tilts, USE_SKYMASK=True, maskslits = None):
+    def global_skysub(self, tslits_dict, tilts, USE_SKYMASK=True, maskslits = None, PLOT_FIT = True):
         """
         Perform global sky subtraction, slit by slit
 
@@ -342,7 +349,7 @@ class ScienceImage(processimages.ProcessImages):
             inmask = self.inmask & thismask & skymask
             # Find sky
             self.global_sky[thismask] =  skysub.global_skysub(self.sciimg, self.sciivar, self.tilts, thismask,
-                                                              self.tslits_dict['lcen'][:, slit], self.tslits_dict[:, 'rcen'],
+                                                              self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:,slit],
                                                               inmask=inmask, bsp=self.par['bspline_spacing'], PLOT_FIT=PLOT_FIT)
             # Mask if something went wrong
             if np.sum(global_sky[thismask]) == 0.:
@@ -407,7 +414,7 @@ class ScienceImage(processimages.ProcessImages):
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.outmask[thismask] = \
                     local_skysub_extract(self.sciimg, self.sciivar, self.tilts,self.waveimg, self.global_sky, self.rn2_img,
-                                         thismask, self.tslits_dict['lcen'][:, slit], self.tslits_dict[:, 'rcen'],
+                                         thismask, self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:, slit],
                                          self.sobjs[thisobj],bsp=self.par['bspline_spacing'], inmask = inmask,SHOW_RESIDS=SHOW_RESIDS)
 
         # Step
@@ -435,7 +442,7 @@ class ScienceImage(processimages.ProcessImages):
 
         return True
 
-    def process(self, bias_subtract, pixel_flat, apply_gain=True, trim=True):
+    def process(self, bias_subtract, pixel_flat, bpm, apply_gain=True, trim=True):
         """ Process the image
 
         Wrapper to ProcessImages.process()
@@ -450,6 +457,10 @@ class ScienceImage(processimages.ProcessImages):
 
         """
         # Process
+        self.bpm = bpm
+        self.bias = bias_subtract
+        self.pixflat = pixel_flat
+
         self.sciimg = super(ScienceImage, self).process(bias_subtract=bias_subtract,
                                                           apply_gain=apply_gain,
                                                           pixel_flat=pixel_flat, bpm=self.bpm,

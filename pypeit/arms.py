@@ -79,8 +79,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
     _par = _spectrograph.default_pypeit_par() if par is None else par
     if not isinstance(_par, pypeitpar.PypeItPar):
         raise TypeError('Input parameters must be a PypitPar instance.')
-    required = [ 'rdx', 'calibrations', 'scienceframe', 'objects', 'extract', 'skysubtract',
-                 'flexure', 'fluxcalib' ]
+    required = [ 'rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib' ]
     can_be_None = [ 'skysubtract', 'flexure', 'fluxcalib' ]
     _par.validate_keys(required=required, can_be_None=can_be_None)
 
@@ -172,7 +171,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                 basenames[sc] = basename
 
             # Process images (includes inverse variance image, rn2 image, and CR mask)
-            sciimg, sciivar, rn2img, crmask = sciI.process(msbias, mspixflatnrm, apply_gain=True,trim=caliBrate.par['trim'])
+            sciimg, sciivar, rn2img, crmask = sciI.process(msbias, mspixflatnrm, msbpm, apply_gain=True,trim=caliBrate.par['trim'])
 
             # Object finding, first pass on frame without sky subtraction
             sobjs_obj0, nobj0 = sciI.find_objects(tslits_dict, SKYSUB = False, maskslits=maskslits)

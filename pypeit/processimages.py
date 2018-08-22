@@ -467,7 +467,7 @@ class ProcessImages(object):
         # Done
         return self.stack.copy()
 
-    def build_rn2img(self):
+    def build_rn2img(self, trim=True):
         """
         Generate the model read noise squared image
 
@@ -480,16 +480,14 @@ class ProcessImages(object):
         self.rn2img : ndarray
 
         """
-        msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
+        msgs.info("Generating read noise image from detector properties and amplifier layout)")
         datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
         if trim:
             datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)
         detector = self.spectrograph.detector[self.det-1]
         self.rn2img = procimg.rn_frame(datasec_img, detector['gain'], detector['ronoise'], numamplifiers=detector['numamplifiers'])
 
-        # ToDO JFH should we add a step here?
-        # Step
-        # self.steps.append(inspect.stack()[0][3])
+        self.steps.append(inspect.stack()[0][3])
         # Return
         return self.rn2img
 
@@ -506,7 +504,7 @@ class ProcessImages(object):
         self.rawvarframe : ndarray
 
         """
-        msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
+        msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
         datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
         if trim:
             datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)

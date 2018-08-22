@@ -652,6 +652,7 @@ class FluxCalibrationPar(ParSet):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
 
+# JFH TODO this parset is now deprecated
 # TODO: What other parameters should there be?
 class SkySubtractionPar(ParSet):
     """
@@ -1409,8 +1410,7 @@ class WaveTiltsPar(ParSet):
             self.data['params'] = [self.data['params']]
         pass
 
-# TODO: JFH. These need to be updated to use the new object finding
-# TODO: Should these be added?:
+# TODO: JFH. This parameter class is now deprecated
 # From artrace.trace_objects_in_slit
 #       trim=2, triml=None, trimr=None, sigmin=2.0, bgreg=None
 class TraceObjectsPar(ParSet):
@@ -1522,7 +1522,7 @@ class TraceObjectsPar(ParSet):
             self.data['params'] = [self.data['params']]
         pass
 
-
+# TODO JFH This parset is now deprecated.
 class ExtractObjectsPar(ParSet):
     """
     The parameter set used to hold arguments for extracting object
@@ -1625,8 +1625,7 @@ class ScienceImagePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, pixelmap=None, pixelwidth=None, reuse=None, profile=None, maxnumber=None,
-                 manual=None):
+    def __init__(self, bspline_spacing=None, maxnumber=None,manual=None, nodding = None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1649,34 +1648,19 @@ class ScienceImagePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        dtypes['pixelmap'] = str
-        descr['pixelmap'] = 'If desired, a fits file can be specified (of the appropriate form)' \
-                            'to specify the locations of the pixels on the detector (in ' \
-                            'physical space).  TODO: Where is "appropriate form" specified?'
 
-        defaults['pixelwidth'] = 2.5
-        dtypes['pixelwidth'] = [int, float]
-        descr['pixelwidth'] = 'The size of the extracted pixels (as an scaled number of Arc ' \
-                              'FWHM), -1 will not resample'
-
-        defaults['reuse'] = False
-        dtypes['reuse'] = bool
-        descr['reuse'] = 'If the extraction has previously been performed and saved, load the ' \
-                         'previous result'
-
-        defaults['profile'] = 'gaussian'
-        options['profile'] = ExtractObjectsPar.valid_profiles()
-        dtypes['profile'] = str
-        descr['profile'] = 'Fitting function used to extract science data, only if the ' \
-                           'extraction is 2D.  NOTE: options with suffix \'func\' fits a ' \
-                           'function to the pixels whereas those without this suffix take into ' \
-                           'account the integration of the function over the pixel (and is ' \
-                           'closer to truth).   ' \
-                           'Options are: {0}'.format(', '.join(options['profile']))
+        defaults['bspline_spacing'] = 0.6
+        dtypes['bspline_spacing'] = [int, float]
+        descr['bspline_spacing'] = 'Break-point spacing for the bspline fit'
 
         dtypes['maxnumber'] = int
         descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
                              'None for no limit.'
+
+        # Place holder for NIR maybe in the future
+        defaults['nodding'] = False
+        dtypes['nodding'] = bool
+        descr['nodding'] = 'Use the nodded frames to perform the sky subtraction'
 
         dtypes['manual'] = list
         descr['manual'] = 'List of manual extraction parameter sets'
@@ -1694,7 +1678,7 @@ class ScienceImagePar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['pixelmap', 'pixelwidth', 'reuse', 'profile', 'maxnumber']
+        parkeys = ['bspline_spacing', 'maxnumber', 'nodding']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1896,8 +1880,7 @@ class PypeItPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, rdx=None, calibrations=None, scienceframe=None, objects=None, extract=None,
-                 skysubtract=None, flexure=None, fluxcalib=None):
+    def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None, flexure=None, fluxcalib=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1928,21 +1911,26 @@ class PypeItPar(ParSet):
         dtypes['scienceframe'] = [ ParSet, dict ]
         descr['scienceframe'] = 'The frames and combination rules for the science observations'
 
-        defaults['objects'] = TraceObjectsPar()
-        dtypes['objects'] = [ ParSet, dict ]
-        descr['objects'] = 'Define how to tract the slit tilts using the trace frames'
+        defaults['scienceimage'] = ScienceImagePar()
+        dtypes['scienceimage'] = [ParSet, dict]
+        descr['scienceimage'] = 'Parameters determining sky-subtraction, object finding, and extraction'
 
-        defaults['extract'] = ExtractObjectsPar()
-        dtypes['extract'] = [ ParSet, dict ]
-        descr['extract'] = 'Define how to extract 1D object spectra'
+## JFH commented out objects, extract, and skysubtract below. These parsets are all deprecated now
+#        defaults['objects'] = TraceObjectsPar()
+#        dtypes['objects'] = [ ParSet, dict ]
+#        descr['objects'] = 'Define how to tract the slit tilts using the trace frames'
+
+#        defaults['extract'] = ExtractObjectsPar()
+#        dtypes['extract'] = [ ParSet, dict ]
+#        descr['extract'] = 'Define how to extract 1D object spectra'
 
         # Sky subtraction is turned OFF by default
-        dtypes['skysubtract'] = [ ParSet, dict ]
-        descr['skysubtract'] = 'Parameters used by the sky-subtraction procedure.  Sky ' \
-                               'subtraction is not performed by default.  To turn on, either' \
-                               'set the parameters in the \'skysubtract\' parameter group or ' \
-                               'set \'skysubtract = True\' in the \'rdx\' parameter group ' \
-                               'to use the default sky-subtraction parameters.'
+#        dtypes['skysubtract'] = [ ParSet, dict ]
+#        descr['skysubtract'] = 'Parameters used by the sky-subtraction procedure.  Sky ' \
+#                               'subtraction is not performed by default.  To turn on, either' \
+#                               'set the parameters in the \'skysubtract\' parameter group or ' \
+#                               'set \'skysubtract = True\' in the \'rdx\' parameter group ' \
+#                               'to use the default sky-subtraction parameters.'
 
 
         # Flexure is turned OFF by default
@@ -2179,6 +2167,11 @@ class PypeItPar(ParSet):
         pk = 'scienceframe'
         kwargs[pk] = FrameGroupPar.from_dict('science', cfg[pk]) if pk in k else None
 
+        pk = 'scienceimage'
+        kwargs[pk] = ScienceImagePar.from_dict(cfg[pk]) if pk in k else None
+
+        # JFH These lines here below are deprecated now
+        '''
         pk = 'objects'
         kwargs[pk] = TraceObjectsPar.from_dict(cfg[pk]) if pk in k else None
 
@@ -2190,7 +2183,7 @@ class PypeItPar(ParSet):
         default = SkySubtractionPar() \
                         if pk in cfg['rdx'].keys() and cfg['rdx']['skysubtract'] else None
         kwargs[pk] = SkySubtractionPar.from_dict(cfg[pk]) if pk in k else default
-
+        '''
         # Allow flexure to be turned on using cfg['rdx']
         pk = 'flexure'
         default = FlexurePar() if pk in cfg['rdx'].keys() and cfg['rdx']['flexure'] else None
@@ -2291,7 +2284,7 @@ class DetectorPar(ParSet):
     :ref:`instruments`.
     """
     def __init__(self, dataext=None, dispaxis=None, xgap=None, ygap=None, ysize=None,
-                 platescale=None, darkcurr=None, saturation=None, nonlinear=None,
+                 platescale=None, darkcurr=None, saturation=None, mincounts = None, nonlinear=None,
                  numamplifiers=None, gain=None, ronoise=None, datasec=None, oscansec=None,
                  suffix=None):
 
@@ -2346,6 +2339,11 @@ class DetectorPar(ParSet):
         defaults['saturation'] = 65535.0
         dtypes['saturation'] = [ int, float ]
         descr['saturation'] = 'The detector saturation level'
+
+        defaults['mincounts'] = -1000.0
+        dtypes['mincounts'] = [ int, float ]
+        descr['mincounts'] = 'Counts in a pixel below this value will be ignored as being unphysical'
+
 
         defaults['nonlinear'] = 0.86
         dtypes['nonlinear'] = [ int, float ]
@@ -2403,7 +2401,7 @@ class DetectorPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = [ 'dataext', 'dispaxis', 'xgap', 'ygap', 'ysize', 'platescale', 'darkcurr',
-                    'saturation', 'nonlinear', 'numamplifiers', 'gain', 'ronoise', 'datasec',
+                    'saturation', 'mincounts','nonlinear', 'numamplifiers', 'gain', 'ronoise', 'datasec',
                     'oscansec', 'suffix' ]
         kwargs = {}
         for pk in parkeys:
