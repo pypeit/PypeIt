@@ -192,25 +192,9 @@ class TraceSlits(masterframe.MasterFrame):
         else:
             binbpx = None
 
-        # TODO: (KBW) The writing/reading of the parameters needs to be
-        # updated to use ParSets.
-        slit_settings = ts_dict['settings']['trace']['slits']
+        # Instantiate from file
         slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], binbpx=binbpx,
-                  par=pypeitpar.TraceSlitsPar(function=slit_settings['function'],
-                                             polyorder=slit_settings['polyorder'],
-                                             medrep=slit_settings['medrep'],
-                                             number=slit_settings['number'],
-                                             maxgap=slit_settings['maxgap'],
-                                             pad=int(slit_settings['pad']),
-                                             sigdetect=slit_settings['sigdetect'],
-                                             fracignore=slit_settings['fracignore'],
-                                             diffpolyorder=slit_settings['diffpolyorder'],
-                                             single=slit_settings['single'],
-                                             sobel_mode=slit_settings['sobel']['mode'],
-                                             pcatype=slit_settings['pca']['type'],
-                                             pcapar=slit_settings['pca']['params'],
-                                            pcaextrap=[slit_settings['pca']['extrapolate']['neg'],
-                                                slit_settings['pca']['extrapolate']['pos']]))
+                  par=pypeitpar.TraceSlitsPar.from_dict(ts_dict['settings']))
 
         # Fill in a bit more (Attributes)
         slf.steps = ts_dict['steps']

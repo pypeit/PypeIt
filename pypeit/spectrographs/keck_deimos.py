@@ -499,6 +499,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                                                                   central_wave=central_wave)
         return self.grating
 
+    def get_detector_map(self):
+        if self.detector_map is None:
+            self.detector_map = DEIMOSDetectorMap()
+        return self.detector_map
+
     @staticmethod
     def _grating_orientation(slider, ruling, tilt):
         """
@@ -632,8 +637,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             self.optical_model.reset_grating(self.grating)
 
         # Instantiate the detector map, if necessary
-        if self.detector_map is None:
-            self.detector_map = DEIMOSDetectorMap()
+        self.get_detector_map()
 
         # Compute the detector image plane coordinates (mm)
         x_img, y_img = self.optical_model.mask_to_imaging_coordinates(_x, _y, wave=wave,
