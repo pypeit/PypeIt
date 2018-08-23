@@ -17,7 +17,7 @@ import numpy as np
 import pickle
 
 
-@nb.jit(nopython=True, cache=False)
+@nb.jit(nopython=True, cache=True)
 def trigon(linelist, numsrch, maxlin):
     """
     linelist : list of wavelength calibration lines (must be sorted by ascending wavelength)
@@ -27,12 +27,13 @@ def trigon(linelist, numsrch, maxlin):
 
     sz_l = linelist.shape[0]
 
-    # Count the number of linelist patterns that will be created
+    # Count the number of patterns that will be created
     cnt = 0
     for l in range(0, sz_l - nptn + 1):
         nup = (l + nptn - 1) + numsrch
         if nup > sz_l: nup = sz_l
         for ll in range(l + nptn - 1, nup):
+            if (linelist[ll] - linelist[l]) > maxlin: continue
             for x in range(l + 1, ll - 1):
                 cnt += 1
 
@@ -47,19 +48,16 @@ def trigon(linelist, numsrch, maxlin):
         for ll in range(l + nptn - 1, nup):
             if (linelist[ll] - linelist[l]) > maxlin: continue
             # Create a pattern with these two endpoints
-            for x in range(l + 1, ll - 2):
-                for xx in range(x + 1, ll - 1):
-                    index[cnt, 0] = l
-                    index[cnt, 1] = x
-                    index[cnt, 2] = xx
-                    index[cnt, 3] = ll
-                    pattern[cnt, 0] = (linelist[x] - linelist[l]) / (linelist[ll] - linelist[l])
-                    pattern[cnt, 1] = (linelist[xx] - linelist[l]) / (linelist[ll] - linelist[l])
-                    cnt += 1
+            for x in range(l + 1, ll - 1):
+                index[cnt, 0] = l
+                index[cnt, 1] = x
+                index[cnt, 2] = ll
+                pattern[cnt, 0] = (linelist[x] - linelist[l]) / (linelist[ll] - linelist[l])
+                cnt += 1
     return pattern, index
 
 
-@nb.jit(nopython=True, cache=False)
+@nb.jit(nopython=True, cache=True)
 def tetragon(linelist, numsrch, maxlin):
     """
     linelist : list of wavelength calibration lines (must be sorted by ascending wavelength)
@@ -102,7 +100,7 @@ def tetragon(linelist, numsrch, maxlin):
     return pattern, index
 
 
-@nb.jit(nopython=True, cache=False)
+@nb.jit(nopython=True, cache=True)
 def pentagon(linelist, numsrch, maxlin):
     """
     linelist : list of wavelength calibration lines (must be sorted by ascending wavelength)
@@ -149,7 +147,7 @@ def pentagon(linelist, numsrch, maxlin):
     return pattern, index
 
 
-@nb.jit(nopython=True, cache=False)
+@nb.jit(nopython=True, cache=True)
 def hexagon(linelist, numsrch, maxlin):
     """
     linelist : list of wavelength calibration lines (must be sorted by ascending wavelength)
@@ -245,7 +243,7 @@ def main(polygon, numsearch=8, maxlinear=15.0, use_unknowns=True, leafsize=30):
         print("Patterns can only be generated with 3 <= polygon <= 6")
         return None
 
-    outname = '../../data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.kdtree'
+    outname = '../../data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.kdtree'.format(polygon, numsearch)
 
     print("Generating Tree")
     tree = cKDTree(pattern, leafsize=leafsize)
@@ -287,5 +285,6 @@ if __name__ == '__main__':
     Then, the values (a-ll)/(r-ll) and (b-ll)/(r-ll) are in the same
     coordinate system for both detlines and linelist.
     """
-    polygon = 3
-    main(polygon)
+    polygon = 4
+    numsearch = 20
+    main(polygon, numsearch=numsearch)
