@@ -413,7 +413,7 @@ class ScienceImage(processimages.ProcessImages):
                 inmask = self.inmask & thismask
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.outmask[thismask] = \
-                    skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts,self.waveimg, self.global_sky, self.rn2_img,
+                    skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts,self.waveimg, self.global_sky, self.rn2img,
                                          thismask, self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:, slit],
                                          self.sobjs[thisobj],bsp=self.par['bspline_spacing'], inmask = inmask,SHOW_RESIDS=SHOW_RESIDS)
 
