@@ -3,9 +3,11 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 from scipy.ndimage.filters import gaussian_filter
+from scipy.spatial import cKDTree
 import numpy as np
 import pdb
 
+from pypeit.core.wavecal import kdtree_generator
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import patterns
 from pypeit.core.wavecal import fitting
@@ -708,38 +710,14 @@ def kdtree(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
     from astropy.table import vstack
     from linetools import utils as ltu
 
-    # Load the linelist KD Tree
-
-
-
-    from pypeit.core.wavecal.patterns import triangles, quadrangles
-
     npix, nslit = spec.shape
-
     detsrch, lstsrch = 14, 6
 
     if ok_mask is None:
         ok_mask = np.arange(nslit)
 
-    # Load line lists
-    if islinelist:
-        line_lists = lines
-        unknwns = lines[:0].copy()
-    else:
-        if 'ThAr' in lines:
-            line_lists_all = waveio.load_line_lists(lines)
-            line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-            unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
-        else:
-            line_lists = waveio.load_line_lists(lines)
-            unknwns = waveio.load_unknown_list(lines)
-
-    if use_unknowns:
-        tot_list = vstack([line_lists, unknwns])
-    else:
-        tot_list = line_lists
-    wvdata = np.array(tot_list['wave'].data)  # Removes mask if any
-    wvdata.sort()
+    # Load the linelist KD Tree
+    lsttree = waveio.load_tree(polygon=polygon)
 
     # Setup grid parameters
     #ngridw, ngridd = 1000, 1000  # Longslit
@@ -780,6 +758,25 @@ def kdtree(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
             msgs.warn("No lines to identify in slit {0:d}!".format(slit))
             bestlist[cnt].append([None]*6)
             continue
+
+        # Create a detlines KD Tree
+        if polygon == 3:
+            print("Generating patterns for a trigon")
+            pattern, index = kdtree_generator.trigon(use_tcent, numsearch, maxlinear)
+        elif polygon == 4:
+            print("Generating patterns for a tetragon")
+            pattern, index = kdtree_generator.tetragon(use_tcent, numsearch, maxlinear)
+        elif polygon == 5:
+            print("Generating patterns for a pentagon")
+            pattern, index = kdtree_generator.pentagon(use_tcent, numsearch, maxlinear)
+        elif polygon == 6:
+            print("Generating patterns for a hexagon")
+            pattern, index = kdtree_generator.hexagon(use_tcent, numsearch, maxlinear)
+        else:
+            print("Patterns can only be generated with 3 <= polygon <= 6")
+            return None
+
+        dettree = cKDTree(pattern, leafsize=30)
 
         # Loop on pix_tol
         # TODO: Allow for different pixel tolerance?
