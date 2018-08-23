@@ -188,6 +188,16 @@ def test_wavecalib_general():
     fidxs += [0]
     scores += [dict(rms=0.1, nxfit=20, nmatch=20)]
 
+    # Keck DEIMOS
+    names += ['keck_deimos_830g_l']
+    spec_files += ['keck_deimos_830g_l_PYPIT.json']
+    all_lines += [['ArI', 'NeI', 'KrI', 'XeI']]
+    all_wvcen += [7450.]
+    all_disp += [0.467]
+    fidxs += [0]
+    scores += [dict(rms=0.1, nxfit=20, nmatch=20)]
+
+
     # Favored parameters (should match those in the defaults)
     min_ampl = 1000.
 

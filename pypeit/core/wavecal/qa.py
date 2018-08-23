@@ -11,7 +11,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from pypeit import utils
 
 
-def arc_fit_qa(slf, fit, outfile, ids_only=False, title=None):
+def arc_fit_qa(fit, outfile, ids_only=False, title=None):
     """
     QA for Arc spectrum
 
