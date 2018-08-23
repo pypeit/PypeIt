@@ -9,7 +9,7 @@ from collections import OrderedDict
 
 from pypeit import msgs
 from pypeit.core import load
-from pypeit import utils
+from pypeit import specobjs
 from pypeit.core import save
 from pypeit.core import wave
 from pypeit.core import pypsetup
@@ -187,16 +187,16 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                 # Global sky subtraction second pass. Uses skymask from object finding
                 global_sky = sciI.global_skysub(tslits_dict, mstilts, USE_SKYMASK=True, maskslits = maskslits)
 
-                skymodel, objmodel, ivarmodel, outmask, specobjs = sciI.local_skysub_extract(mswave, maskslits=maskslits)
+                skymodel, objmodel, ivarmodel, outmask, sobjs = sciI.local_skysub_extract(mswave, maskslits=maskslits)
 
                 # Flexure correction?
                 if _par['flexure'] is not None and _par['flexure']['method'] is not None:
                     sky_file, sky_spectrum = _spectrograph.archive_sky_spectrum()
-                    flex_list = wave.flexure_obj(specobjs, maskslits, _par['flexure']['method'],
+                    flex_list = wave.flexure_obj(sobjs, maskslits, _par['flexure']['method'],
                                                  sky_spectrum, sky_file=sky_file,
                                                  mxshft=_par['flexure']['maxshift'])
                     # QA
-                    wave.flexure_qa(specobjs, maskslits, basename, det, flex_list)
+                    wave.flexure_qa(sobjs, maskslits, basename, det, flex_list)
 
                 # Helio
                 # Correct Earth's motion
@@ -210,11 +210,11 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
 #                        msgs.warn('{0} correction'.format(caliBrate.par['wavelengths']['frame'])
 #                                  + 'will not be applied if an extracted science frame exists, '
 #                                  + 'and is used')
-                    if specobjs is not None:
+                    if sobjs is not None:
                         msgs.info("Performing a {0} correction".format(
                             caliBrate.par['wavelengths']['frame']))
 
-                        vel, vel_corr = wave.geomotion_correct(specobjs, maskslits, fitstbl, scidx,
+                        vel, vel_corr = wave.geomotion_correct(sobjs, maskslits, fitstbl, scidx,
                                                                obstime,
                                                                _spectrograph.telescope['longitude'],
                                                                _spectrograph.telescope['latitude'],
@@ -233,7 +233,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                 objmodel = np.zeros_like(sciimg)
                 ivarmodel = np.copy(sciivar) # Set to sciivar. Could create a model but what is the point?
                 outmask = sciI.inmask # Set to inmask in case on objects were found
-                specobjs = sobjs_obj # empty specobjs object from object finding
+                sobjs = sobjs_obj # empty specobjs object from object finding
 
 
             # Save for outputing (after all detectors are done)
@@ -243,7 +243,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             sci_dict[det]['objmodel'] = objmodel
             sci_dict[det]['ivarmodel'] = ivarmodel
             sci_dict[det]['outmask'] = outmask
-            sci_dict[det]['specobjs'] = utils.unravel_specobjs([specobjs])
+            sci_dict[det]['specobjs'] =  sobjs   #utils.unravel_specobjs([specobjs])
             if vel_corr > -999999.9:
                 sci_dict['meta']['vel_corr'] = vel_corr
             #-----------------------------------------------------------
@@ -312,13 +312,14 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
         # Write the output for this exposure
         #---------------------------------------------------------------
         # Build the final list of specobjs and vel_corr
-        all_specobjs = []
+        all_specobjs = specobjs.SpecObjs()
+
         for key in sci_dict:
             if key in ['meta']:
                 continue
             #
             try:
-                all_specobjs += sci_dict[key]['specobjs']
+                all_specobjs.add_sobj(sci_dict[key]['specobjs'])
             except KeyError:  # No object extracted
                 continue
 
