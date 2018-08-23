@@ -514,7 +514,7 @@ def fit_profile_qa(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
             y50[i] = yclose[s[int(np.rint((nclose - 1)*0.5))]]
             y80[i] = yclose[s[int(np.rint((nclose - 1)*0.8))]]
             y20[i] = yclose[s[int(np.rint((nclose - 1)*0.2))]]
-            ax.plot([plot_mid[i],plot_mid[i]], [y20[i],y80[i]], linewidth=1.0, color='cornflowerblue')
+            ax.plot([plot_mid[i],plot_mid[i]], [y20[i],y80[i]], linewidth=1.2, color='orange')
 
     icl = nbin > 3
     if icl.any():
@@ -528,9 +528,9 @@ def fit_profile_qa(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
 
 
     if l_limit is not None:
-        ax.axvline(x =l_limit, color='orange',linewidth=1.0)
+        ax.axvline(x =l_limit, color='cornflowerblue',linewidth=1.0)
     if r_limit is not None:
-        ax.axvline(x=r_limit, color='orange',linewidth=1.0)
+        ax.axvline(x=r_limit, color='cornflowerblue',linewidth=1.0)
 
     ax.set_xlim(xlimit)
     ax.set_ylim(ylim)
@@ -1104,7 +1104,7 @@ specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 
 
 def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
             HAND_EXTRACT_DICT = None, std_trace = None, ncoeff = 5, nperslit = 10,  BG_SMTH = 5.0, PKWDTH = 3.0,
-            SIG_THRESH = 5.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, TRIM_EDG = (3,3), OBJMASK_NTHRESH = 2.0,
+            SIG_THRESH = 7.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, TRIM_EDG = (3,3), OBJMASK_NTHRESH = 2.0,
             specobj_dict=specobj_dict, SHOW_PEAKS=True, SHOW_FITS = False, SHOW_TRACE = False):
 
     """ DOCS COMING SOON
