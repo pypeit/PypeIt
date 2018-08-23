@@ -8,7 +8,7 @@ from scipy.ndimage.morphology import generate_binary_structure, binary_erosion
 import numba as nb
 
 
-def detect_peaks(image):
+def detect_2Dpeaks(image):
     """
     Takes a 2D image and returns 1 if a local maximum is found, and 0 otherwise
 
