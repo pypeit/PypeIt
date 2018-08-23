@@ -7,6 +7,7 @@ import copy
 import inspect
 
 import numpy as np
+import scipy
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec, font_manager
@@ -347,7 +348,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
         oprof_bad = badwvs & ((oprof_smash <= 0.0) | (np.isfinite(oprof_smash) == False) | (wave_opt <= 0.0) | (np.isfinite(wave_opt) == False))
         if oprof_bad.any():
             # For pixels with completely bad profile values, interpolate from trace.
-            f_wave = RectBivariateSpline(spec_vec,spat_vec, waveimg)
+            f_wave = scipy.interpolate.RectBivariateSpline(spec_vec,spat_vec, waveimg)
             wave_opt[oprof_bad] = f_wave(specobj.trace_spec[oprof_bad], specobj.trace_spat[oprof_bad],grid=False)
 
     flux_model = np.outer(flux_opt,np.ones(nsub))*oprof_sub
@@ -386,7 +387,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     bad_box = (wave_box <= 0.0) | (np.isfinite(wave_box) == False) | (box_denom == 0.0)
     # interpolate bad wavelengths over masked pixels
     if bad_box.any():
-        f_wave = RectBivariateSpline(spec_vec, spat_vec, waveimg)
+        f_wave = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, waveimg)
         wave_box[bad_box] = f_wave(specobj.trace_spec[bad_box], specobj.trace_spat[bad_box],grid=False)
 
     ivar_box = 1.0/(var_box + (var_box == 0.0))
@@ -528,9 +529,9 @@ def fit_profile_qa(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
 
 
     if l_limit is not None:
-        ax.axvline(x =l_limit, color='cornflowerblue',linewidth=1.0)
+        ax.axvline(x =l_limit, color='cornflowerblue',linewidth=1.5)
     if r_limit is not None:
-        ax.axvline(x=r_limit, color='cornflowerblue',linewidth=1.0)
+        ax.axvline(x=r_limit, color='cornflowerblue',linewidth=1.5)
 
     ax.set_xlim(xlimit)
     ax.set_ylim(ylim)
@@ -604,13 +605,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                value of the reduced chi^2
      """
 
-    from scipy.interpolate import interp1d
-    from scipy.ndimage.filters import median_filter
-    #from pypeit.core.pydl import bspline
-    #from pypeit.core.pydl import iterfit as  bspline_iterfit
-    #from pypeit.core.pydl import djs_maskinterp
-    #from pypeit.utils import bspline_profile
-    from scipy.special import erfcinv
+
 
     if hwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
     if PROF_NSIGMA is not None:
@@ -633,8 +628,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     spline_sub = np.zeros((nspec,nspat))
 
 
-    flux_sm = median_filter(flux, size=5, mode = 'reflect')
-    fluxivar_sm =  median_filter(fluxivar, size = 5, mode = 'reflect')
+    flux_sm = scipy.ndimage.filters.median_filter(flux, size=5, mode = 'reflect')
+    fluxivar_sm =  scipy.ndimage.filters.median_filter(fluxivar, size = 5, mode = 'reflect')
 #    flux_sm = djs_median(flux, width = 5, boundary = 'reflect')
     #    fluxivar_sm =  djs_median(fluxivar, width = 5, boundary = 'reflect')
     fluxivar_sm = fluxivar_sm*(fluxivar > 0.0)
@@ -656,13 +651,13 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     if(nonzero >0):
         (mean, med_sn2, stddev) = sigma_clipped_stats(sn2,sigma_lower=3.0,sigma_upper=5.0)
     else: med_sn2 = 0.0
-    sn2_med = median_filter(sn2, size=9, mode='reflect')
+    sn2_med = scipy.ndimage.filters.median_filter(sn2, size=9, mode='reflect')
     #sn2_med = djs_median(sn2, width = 9, boundary = 'reflect')
     igood = (ivar > 0.0)
     ngd = np.sum(igood)
     if(ngd > 0):
         isrt = np.argsort(wave[indsp])
-        sn2_interp = interp1d((wave[indsp])[isrt],sn2_med[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
+        sn2_interp = scipy.interpolate.interp1d((wave[indsp])[isrt],sn2_med[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
         sn2_sub[igood] = sn2_interp(sub_wave[igood])
     msgs.info('sqrt(med(S/N)^2) = ' + "{:5.2f}".format(np.sqrt(med_sn2)))
 
@@ -676,7 +671,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     spline_flux1[ispline] = spline_tmp
     cont_tmp, _ = c_answer.value(wave[ispline])
     cont_flux1[ispline] = cont_tmp
-    s2_1_interp = interp1d((wave[indsp])[isrt], sn2[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
+    s2_1_interp = scipy.interpolate.interp1d((wave[indsp])[isrt], sn2[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
     sn2_1[ispline] = s2_1_interp(wave[ispline])
     bmask = np.zeros(nspec,dtype='bool')
     bmask[indsp] = bmask2
@@ -705,11 +700,11 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         if((nbad2 > 0) or (ngood0 > 0)):
             spline_flux1[indbad2] = np.median(spline_flux1[~badpix])
         # take a 5-pixel median to filter out some hot pixels
-        spline_flux1 = median_filter(spline_flux1,size=5,mode ='reflect')
+        spline_flux1 = scipy.ndimage.filters.median_filter(spline_flux1,size=5,mode ='reflect')
         # Create the normalized object image
         if(ngd > 0):
             isrt = np.argsort(wave)
-            spline_sub_interp = interp1d(wave[isrt],spline_flux1[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
+            spline_sub_interp = scipy.interpolate.interp1d(wave[isrt],spline_flux1[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
             spline_sub[igood] = spline_sub_interp(sub_wave[igood])
         else:
             spline_sub[igood] = np.fmax(sigma1, 0)
@@ -777,7 +772,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     mask = np.full(nspec*nspat, False, dtype=bool)
 
     # The following lines set the limits for the b-spline fit
-    limit = erfcinv(0.1/np.sqrt(med_sn2))*np.sqrt(2.0)
+    limit = scipy.special.erfcinv(0.1/np.sqrt(med_sn2))*np.sqrt(2.0)
     if(PROF_NSIGMA is None):
         sinh_space = 0.25*np.log10(np.fmax((1000./np.sqrt(med_sn2)),10.))
         abs_sigma = np.fmin((np.abs(sigma_x.flat[good])).max(),2.0*limit)
@@ -1125,7 +1120,6 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     from pypeit.utils import find_nminima
     from pypeit.core import trace_slits
     from pypeit import specobjs
-    import scipy
 
     # Check that PEAK_THRESH values make sense
     if ((PEAK_THRESH >=0.0) & (PEAK_THRESH <=1.0)) == False:
@@ -1278,9 +1272,11 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
             x_trace = np.interp(specmid, spec_vec, std_trace)
             shift = slit_left + xsize*sobjs[iobj].spat_fracpos - x_trace
             sobjs[iobj].trace_spat = std_trace + shift
+            sobjs[iobj].trace_spec = spec_vec
         else:    # If no standard is provided shift left slit boundary over to be initial trace
             # ToDO make this the average left and right boundary instead. That would be more robust.
             sobjs[iobj].trace_spat = slit_left  + xsize*sobjs[iobj].spat_fracpos
+            sobjs[iobj].trace_spec = spec_vec
 
         sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
@@ -1505,6 +1501,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
             spat_0 = np.interp(thisobj.HAND_EXTRACT_SPEC, spec_vec, trace_model)
             shift = thisobj.HAND_EXTRACT_SPAT - spat_0
             thisobj.trace_spat = trace_model + shift
+            thisobj.trace_spec = spec_vec
             thisobj.spat_pixpos = thisobj.trace_spat[specmid]
             thisobj.set_idx()
             if HAND_EXTRACT_FWHM[iobj] is not None: # If a HAND_EXTRACT_FWHM was input use that for the FWHM
