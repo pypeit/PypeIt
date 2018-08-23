@@ -177,6 +177,13 @@ def load_source_table():
     return sources
 
 
+def load_tree(polygon=4, numsearch=20):
+    import pickle
+    filename = pypeit.__path__[0] +\
+               '/data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.kdtree'.format(polygon, numsearch)
+    return pickle.load(open(filename, 'rb'))
+
+
 def load_nist(ion):
     """Parse a NIST ASCII table.  Note that the long ---- should have
     been commented out and also the few lines at the start.

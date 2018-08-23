@@ -250,6 +250,8 @@ def main(polygon, numsearch=8, maxlinear=15.0, use_unknowns=True, leafsize=30):
     print("Saving Tree")
     pickle.dump(tree, open(outname, 'wb'))
     print("Written KD Tree file:\n{0:s}".format(outname))
+    #_ = pickle.load(open(outname, 'rb'))
+    #print("loaded successfully")
 
 
 # Test
@@ -286,5 +288,5 @@ if __name__ == '__main__':
     coordinate system for both detlines and linelist.
     """
     polygon = 4
-    numsearch = 20
+    numsearch = 8
     main(polygon, numsearch=numsearch)
