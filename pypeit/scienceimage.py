@@ -141,10 +141,12 @@ class ScienceImage(processimages.ProcessImages):
         self.modelivar = None
         self.objimage = None
         self.skyimage = None
-        self.outmask = None
         self.global_sky = None
         self.skymask = None
         self.objmask = None
+        self.outmask = None
+        self.bitmask = None
+        self.extractmask = None
         # SpecObjs object
         self.sobjs_obj = None # Only object finding but no extraction
         self.sobjs = None  # Final extracted object list with trace corrections applied
@@ -273,7 +275,7 @@ class ScienceImage(processimages.ProcessImages):
             image = self.sciimg
 
         # Build and assign the input mask
-        self.inmask = self._build_inmask()
+        self.bitmask = self._build_bitmask()
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
 
@@ -281,7 +283,7 @@ class ScienceImage(processimages.ProcessImages):
         for slit in gdslits:
             msgs.info("Finding objects on slit: {:d}".format(slit))
             thismask = (self.tslits_dict['slitpix'] == slit + 1)
-            inmask = self.inmask & thismask
+            inmask = (self.bitmask == 0) & thismask
             # Find objects
             specobj_dict = {'setup': self.setup, 'slitid': slit+1, 'scidx': self.scidx, 'det': self.det, 'objtype': self.objtype}
             # TODO we need to add QA paths and QA hooks. QA should be done through objfind where all the relevant information is. This will
@@ -341,12 +343,12 @@ class ScienceImage(processimages.ProcessImages):
         skymask = self.skymask if ((self.skymask is not None) & USE_SKYMASK) else np.ones_like(self.sciimg,dtype=bool)
 
         # Build and assign the input mask
-        self.inmask = self._build_inmask()
+        self.bitmask = self._build_bitmask()
         # Loop on slits
         for slit in gdslits:
             msgs.info("Working on slit: {:d}".format(slit))
             thismask = (self.tslits_dict['slitpix'] == slit + 1)
-            inmask = self.inmask & thismask & skymask
+            inmask = (self.bitmask == 0) & thismask & skymask
             # Find sky
             self.global_sky[thismask] =  skysub.global_skysub(self.sciimg, self.sciivar, self.tilts, thismask,
                                                               self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:,slit],
@@ -391,10 +393,11 @@ class ScienceImage(processimages.ProcessImages):
             msgs.error('You do not have all the quantities set necessary to run local_skysub_extract()')
 
         # Build and assign the input mask
-        self.inmask = self._build_inmask()
+        self.bitmask = self._build_bitmask()
 
         # Allocate the images that are needed
-        self.outmask = self.inmask                 # Initialize to input mask in case no objects were found
+        self.outmask = np.copy(self.bitmask) # Initialize to bitmask in case no objects were found
+        self.extractmask = (self.bitmask == 0)   # Initialize to input mask in case no objects were found
         self.objmodel = np.zeros_like(self.sciimg)      # Initialize to zero in case no objects were found
         self.skymodel  = np.copy(self.global_sky)  # Set initially to global sky in case no objects were found
         self.ivarmodel = np.copy(self.sciivar)          # Set initially to sciivar in case no obects were found.
@@ -410,13 +413,17 @@ class ScienceImage(processimages.ProcessImages):
             thisobj = (self.sobjs.slitid == slit + 1) # indices of objects for this slit
             if np.any(thisobj):
                 thismask = (self.tslits_dict['slitpix'] == slit + 1) # pixels for this slit
-                inmask = self.inmask & thismask
+                # True  = Good, False = Bad for inmask
+                inmask = (self.bitmask == 0) & thismask
                 # Local sky subtraction and extraction
-                self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.outmask[thismask] = \
+                self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.extractmask[thismask] = \
                     skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts,self.waveimg, self.global_sky, self.rn2img,
                                          thismask, self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:, slit],
                                          self.sobjs[thisobj],bsp=self.par['bspline_spacing'], inmask = inmask,SHOW_RESIDS=SHOW_RESIDS)
 
+        # Set the bit for pixels which were masked by the extraction
+        iextract = (self.bitmask == 0) & (self.extractmask == False) # For extractmask, True = Good, False = Bad
+        self.outmask[iextract] += np.uint64(2**8)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -475,9 +482,30 @@ class ScienceImage(processimages.ProcessImages):
         return self.sciimg, self.sciivar, self.rn2img, self.crmask
 
 
-    def _build_inmask(self):
+    def _build_bitmask(self):
         """
-        Create the input mask for various extraction routines.
+        Create the input mask for various extraction routines. Here is the bitwise key for interpreting masks
+
+        Bit Key
+        ---
+        BPM            0
+        CR             1
+        SATURATION     2
+        MINCOUNTS      3
+        NOSLITS        4
+        IS_NAN         5
+        IVAR0          6
+        IVAR_NAN       7
+        EXTRACT        8
+
+        inmask = 0, inmask > 0 has been masked.
+
+        To figure out why it has been masked for example you can type
+
+        bpm = (inmask & np.uint64(2**0)) > 0
+        crmask = (inmask & np.uint64(2**1)) > 0
+
+        etc.
 
         Returns
         -------
@@ -488,12 +516,22 @@ class ScienceImage(processimages.ProcessImages):
         # Create and assign the inmask
         SATURATION = self.spectrograph.detector[self.det - 1]['saturation']
         MINCOUNTS    = self.spectrograph.detector[self.det - 1]['mincounts']
-        # Assign inmask, True = Good Pixel, False = Bad Pixel
-        inmask = (self.bpm == False) & (self.crmask == False) & \
-                 (self.sciivar > 0.0) & np.isfinite(self.sciivar) & \
-                 np.isfinite(self.sciimg) & (self.sciimg < SATURATION) & (self.sciimg > MINCOUNTS)
-        # Return
-        return inmask
+
+        bitmask = np.zeros_like(self.sciimg,dtype=np.uint64)
+        bitmask[self.bpm == True] += np.uint64(2**0)
+        bitmask[self.crmask == True] += np.uint64(2**1)
+        bitmask[self.sciimg >= SATURATION] += np.uint64(2**2)
+        bitmask[self.sciimg <= MINCOUNTS] += np.uint64(2**3)
+        bitmask[self.tslits_dict['slitpix'] == 0] += np.uint64(2**4)
+        bitmask[np.isfinite(self.sciimg) == False] += np.uint64(2**5)
+        bitmask[self.sciivar <= 0.0] += np.uint64(2**6)
+        bitmask[np.isfinite(self.sciivar) == False] += np.uint64(2**7)
+
+        #inmask = (self.bpm == False) & (self.crmask == False) & \
+        #         (self.sciivar > 0.0) & np.isfinite(self.sciivar) & \
+        #         np.isfinite(self.sciimg) & (self.sciimg < SATURATION) & (self.sciimg > MINCOUNTS)
+
+        return bitmask
 
     def _get_goodslits(self, maskslits):
         """
