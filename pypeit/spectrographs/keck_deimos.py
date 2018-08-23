@@ -190,10 +190,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_deimos'
-
         # Use the ARMS pipeline
         par['rdx']['pipeline'] = 'ARMS'
-
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['polyorder'] = 3
@@ -207,10 +205,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
-        # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypeitpar.SkySubtractionPar()
+        # Scienceimage default parameters
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = None  #  pypeitpar.FluxCalibrationPar()
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         return par
