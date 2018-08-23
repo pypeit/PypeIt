@@ -356,13 +356,13 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     chi2 = chi2_num/chi2_denom
 
     # Fill in the optimally extraction tags
-    specobj.optimal['WAVE_OPT'] = wave_opt    # Optimally extracted wavelengths
-    specobj.optimal['COUNTS_OPT'] = flux_opt    # Optimally extracted flux
-    specobj.optimal['COUNTS_IVAR_OPT'] = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
-    specobj.optimal['COUNTS_NIVAR_OPT'] = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
-    specobj.optimal['MASK_OPT'] = mask_opt    # Mask for optimally extracted flux
-    specobj.optimal['COUNTS_SKY_OPT'] = sky_opt      # Optimally extracted sky
-    specobj.optimal['COUNTS_RN_OPT'] = rn_opt        # Square root of optimally extracted read noise squared
+    specobj.optimal['WAVE'] = wave_opt    # Optimally extracted wavelengths
+    specobj.optimal['COUNTS'] = flux_opt    # Optimally extracted flux
+    specobj.optimal['COUNTS_IVAR'] = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
+    specobj.optimal['COUNTS_NIVAR'] = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
+    specobj.optimal['MASK'] = mask_opt    # Mask for optimally extracted flux
+    specobj.optimal['COUNTS_SKY'] = sky_opt      # Optimally extracted sky
+    specobj.optimal['COUNTS_RN'] = rn_opt        # Square root of optimally extracted read noise squared
     specobj.optimal['FRAC_USE'] = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     specobj.optimal['CHI2'] = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
@@ -392,13 +392,13 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
 
-    specobj.boxcar['WAVE_BOX'] = wave_box
-    specobj.boxcar['COUNTS_BOX'] = flux_box*mask_box
-    specobj.boxcar['COUNTS_IVAR_BOX'] = ivar_box*mask_box
-    specobj.boxcar['COUNTS_NIVAR_BOX'] = nivar_box*mask_box
-    specobj.boxcar['MASK_BOX'] = mask_box
-    specobj.boxcar['COUNTS_SKY_BOX'] = sky_box
-    specobj.boxcar['COUNTS_RN_BOX'] = rn_box
+    specobj.boxcar['WAVE'] = wave_box
+    specobj.boxcar['COUNTS'] = flux_box*mask_box
+    specobj.boxcar['COUNTS_IVAR'] = ivar_box*mask_box
+    specobj.boxcar['COUNTS_NIVAR'] = nivar_box*mask_box
+    specobj.boxcar['MASK'] = mask_box
+    specobj.boxcar['COUNTS_SKY'] = sky_box
+    specobj.boxcar['COUNTS_RN'] = rn_box
 
     return None
 
