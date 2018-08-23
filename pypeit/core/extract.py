@@ -399,6 +399,8 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     specobj.boxcar['MASK'] = mask_box
     specobj.boxcar['COUNTS_SKY'] = sky_box
     specobj.boxcar['COUNTS_RN'] = rn_box
+    specobj.boxcar['BOX_RADIUS'] = box_radius
+
 
     return None
 
