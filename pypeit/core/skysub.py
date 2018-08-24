@@ -625,7 +625,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         # Overplot the traces
         for spec in sobjs:
             if spec.HAND_EXTRACT_FLAG == False:
-                color = 'green'
+                color = 'magenta'
             else:
                 color = 'orange'
             ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
