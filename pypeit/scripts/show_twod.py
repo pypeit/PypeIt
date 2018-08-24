@@ -51,7 +51,7 @@ def main(args):
     from astropy.stats import sigma_clipped_stats
 
     from pypeit import msgs
-    import pypeit.ginga
+    from pypeit import ginga
     from pypeit.core import masters
     from pypeit.core.parse import get_dnum
     from pypeit.core import trace_slits
@@ -134,7 +134,7 @@ def main(args):
     # Show Image
     cwd = os.getcwd()
     wcs_img = cwd+'/'+head0['PYPMFDIR']+'/MasterWave_'+'{:s}_{:02d}_{:s}.fits'.format(head0['PYPCNFIG'], args.det, head0['PYPCALIB'])
-    viewer, ch = pypeit.ginga.show_image(image, chname='DET{:s}'.format(sdet), wcs_img=wcs_img)
+    viewer, ch = ginga.show_image(image, chname='DET{:s}'.format(sdet), wcs_img=wcs_img)
     canvas = viewer.canvas(ch._chname)
     # These commands set up the viewer. They can be found at ginga/ginga/ImageView.py
     out = canvas.clear()
@@ -155,7 +155,7 @@ def main(args):
     # Get slit ids
     #stup = (Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen)
     slit_ids = [trace_slits.get_slitid(Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen, ii)[0] for ii in range(Tslits.lcen.shape[1])]
-    pypeit.ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
+    ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
 
     # Object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')
@@ -166,7 +166,7 @@ def main(args):
             tbl = Table(hdu.data)
             trace = tbl['TRACE']
             obj_id = hdu.name.split('-')[0]
-            pypeit.ginga.show_trace(viewer, ch, trace, obj_id, color='orange') #hdu.name)
+            ginga.show_trace(viewer, ch, trace, obj_id, color='orange') #hdu.name)
 
 
     if args.showmask:
