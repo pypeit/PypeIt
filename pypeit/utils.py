@@ -237,7 +237,9 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
             # we'll do the fit right here..............
             if error != 0:
                 bf1, laction, uaction = sset.action(xdata)
-                if(bf1.size !=nx*nord):
+                if(bf1==-2):
+                    msgs.error("BSPLINE_ACTION failed!")
+                elif:
                     msgs.error("BSPLINE_ACTION failed!")
                 action = np.copy(action_multiple)
                 for ipoly in range(npoly):
