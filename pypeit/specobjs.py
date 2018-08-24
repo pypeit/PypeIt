@@ -356,8 +356,6 @@ class SpecObjs(object):
         -------
         numpy array
         """
-        # JFH I think the summary needs to be rebuilt every time the user tries to slice, since otherwise,
-        # newly changed things don't make it into the summary
         self.build_summary()
         # Special case(s)
         if k in self.summary.keys():  # _data
