@@ -112,16 +112,16 @@ class SpecObj(object):
         # Generate a unique index for this exposure
         #self.idx = '{:02d}'.format(self.setup)
         if self.spat_pixpos is None:
-            self.idx = 'O----'
+            self.idx = 'SPAT----'
         else:
-            self.idx = 'O{:04d}'.format(int(np.rint(self.spat_pixpos)))
+            self.idx = 'SPAT{:04d}'.format(int(np.rint(self.spat_pixpos)))
         if self.slitid is None:
-            self.idx += '-S---'
+            self.idx += '-SLIT----'
         else:
-            self.idx += '-S{:03d}'.format(self.slitid)
+            self.idx += '-SLIT{:04d}'.format(self.slitid)
         sdet = parse.get_dnum(self.det, prefix=False)
-        self.idx += '-D{:s}'.format(sdet)
-        self.idx += '-I{:04d}'.format(self.scidx)
+        self.idx += '-DET{:s}'.format(sdet)
+        self.idx += '-SCI{:03d}'.format(self.scidx)
 
     def check_trace(self, trace, toler=1.):
         """Check that the input trace matches the defined specobjexp
