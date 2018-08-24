@@ -580,7 +580,7 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
 
     """
     # Lists for a Table
-    slits, names, boxsize, opt_fwhm, s2n = [], [], [], [], []
+    slits, names, spat_pixpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], []
     # Loop on detectors
     #for kk in range(settings.spect['mosaic']['ndet']):
     #    det = kk+1
@@ -596,6 +596,7 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
         # Append
         names.append(specobj.idx)
         slits.append(specobj.slitid)
+        spat_pixpos.append(specobj.spat_pixpos)
         # Boxcar width
         if 'BOX_RADIUS' in specobj.boxcar.keys():
             slit_pix = 2.0*specobj.boxcar['BOX_RADIUS']
@@ -620,6 +621,8 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
         obj_tbl['slit'] = slits
         obj_tbl['slit'].format = 'd'
         obj_tbl['name'] = names
+        obj_tbl['spat_pixpos'] = spat_pixpos
+        obj_tbl['spat_pixpos'].format = '.1f'
         obj_tbl['box_width'] = boxsize
         obj_tbl['box_width'].format = '.2f'
         obj_tbl['box_width'].unit = units.arcsec
@@ -690,7 +693,7 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         else:
             det = key
         sdet = parse.get_dnum(det, caps=True)  # e.g. DET02
-        if 'sciframe' not in sci_output[det]:
+        if 'sciimg' not in sci_output[det]:
             continue
         # Specified detector number?
         #if settings.argflag['reduce']['detnum'] is not None:
@@ -710,7 +713,7 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         # Raw Inverse Variance
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = '{:s}-Ivar'.format(sdet)
+        prihdu.header[keywd] = '{:s}-IVARRAW'.format(sdet)
         hdu = fits.ImageHDU(sci_output[det]['sciivar']) #slf._modelvarframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
@@ -718,7 +721,7 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         # Background model
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = '{:s}-Sky'.format(sdet)
+        prihdu.header[keywd] = '{:s}-SKY'.format(sdet)
         hdu = fits.ImageHDU(sci_output[det]['skymodel']) #slf._modelvarframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
@@ -726,7 +729,7 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         # Object model
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = '{:s}-Obj'.format(sdet)
+        prihdu.header[keywd] = '{:s}-OBJ'.format(sdet)
         hdu = fits.ImageHDU(sci_output[det]['objmodel']) #slf._modelvarframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
@@ -734,7 +737,7 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         # Inverse Variance model
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = '{:s}-IvarModel'.format(sdet)
+        prihdu.header[keywd] = '{:s}-IVARMODEL'.format(sdet)
         hdu = fits.ImageHDU(sci_output[det]['ivarmodel'])  # slf._modelvarframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
@@ -742,7 +745,7 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         # Inverse Variance model
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = '{:s}-Mask'.format(sdet)
+        prihdu.header[keywd] = '{:s}-MASK'.format(sdet)
         hdu = fits.ImageHDU(sci_output[det]['outmask'])  # slf._modelvarframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
