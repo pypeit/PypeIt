@@ -208,6 +208,17 @@ class SpecObjs(object):
         # Internal summary Table
         self.build_summary()
 
+    @property
+    def nobj(self):
+        """
+        Return the number of SpecObj objects
+
+        Returns:
+            nobj : int
+
+        """
+        return self.specobjs.size
+
     def add_sobj(self, sobj):
         """
         Add one or more SpecObj
@@ -291,6 +302,19 @@ class SpecObjs(object):
             #sobjs_new = np.array(self.specobjs,dtype=object)
             return SpecObjs(specobjs=self.specobjs[item])
 
+    def __setitem__(self, name, value):
+        """
+        Over-load set item using our custom set() method
+
+        Args:
+            name: str
+            value: anything
+
+        Returns:
+
+        """
+        self.set(slice(0,self.nobj), name, value)
+
     def set(self, islice, attr, value):
         """
         Set the attribute for a slice of the specobjs
@@ -332,8 +356,6 @@ class SpecObjs(object):
         -------
         numpy array
         """
-        # JFH I think the summary needs to be rebuilt every time the user tries to slice, since otherwise,
-        # newly changed things don't make it into the summary
         self.build_summary()
         # Special case(s)
         if k in self.summary.keys():  # _data
