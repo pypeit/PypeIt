@@ -30,7 +30,6 @@ def parser(options=None):
         args = parser.parse_args(options)
     return args
 
-# ToDO why not use the RC interface for this rather than writing these kludge files??
 def main(args):
 
     import subprocess
