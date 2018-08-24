@@ -28,7 +28,8 @@ def parser(options=None):
                         action = "store_true",)
     parser.add_argument('--sky_resid', default=False, help="Set to show sky subtraction residuals map : chi = (image - sky)/noise",
                         action = "store_true")
-    parser.add_argument('--showmask', default=True, help="Overplot masked pixels", action = "store_false")
+    parser.add_argument('--showmask', default=False, help="Overplot masked pixels", action = "store_true")
+    parser.add_argument('--embed', default=False, help="Upong completetion embed in ipython shell", action = "store_true")
 
 
     if options is None:
@@ -43,6 +44,7 @@ def main(args):
     import os
     import numpy as np
     import pdb as debugger
+    import IPython
 
     from astropy.io import fits
     from astropy.table import Table
@@ -79,14 +81,14 @@ def main(args):
 
     try:
         exten = names.index('DET{:s}-PROCESSED'.format(sdet))
-    except ValueError:  # Backwards compatability
-        msgs.error("Requested detector {:s} was not processed.\n Maybe you chose the wrong one to view?\n" +
-        "Set with --det= or check file contents with --list".format(sdet))
+    except:  # Backwards compatability
+        msgs.error("Requested detector {:s} was not processed.\n Maybe you chose the wrong one to view? "
+                   "Set with --det= or check file contents with --list".format(sdet))
     sciimg = hdu[exten].data
     try:
         exten = names.index('DET{:s}-SKY'.format(sdet))
-    except ValueError:  # Backwards compatability
-        msgs.error("Requested detector {:s} has no sky model.\n Maybe you chose the wrong one to view?\n" +
+    except:  # Backwards compatability
+        msgs.error("Requested detector {:s} has no sky model.\n Maybe you chose the wrong one to view? "
                    "Set with --det= or check file contents with --list".format(sdet))
     skymodel = hdu[exten].data
     try:
@@ -217,3 +219,7 @@ def main(args):
 
         canvas_list = points_bpm + points_cr + points_ext + points_oth + text_bpm + text_cr + text_ext + text_oth
         canvas.add('constructedcanvas', canvas_list)
+
+    if args.embed:
+        IPython.embed()
+

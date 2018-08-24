@@ -1606,7 +1606,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
 
     # If requested display the resulting traces on top of the image
     if (nobj > 0) & (SHOW_TRACE):
-        viewer, ch = ginga.show_image(image*(thismask==True))
+        viewer, ch = ginga.show_image(image*(thismask*inmask))
         ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = sobjs[0].slitid)
         for iobj in range(nobj):
             if sobjs[iobj].HAND_EXTRACT_FLAG == False:

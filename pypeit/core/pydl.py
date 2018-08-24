@@ -9,7 +9,7 @@ from warnings import warn
 
 from pypeit import msgs
 from pypeit import debugger
-
+import copy
 
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
@@ -232,8 +232,11 @@ class bspline(object):
         """Init creates an object whose attributes are similar to the
         structure returned by the create_bspline function.
         """
+        # JFH added this to enforce immutability of these input arguments, as this code modifies bkpt and fullbkpt
+        # as it goes
+        fullbkpt1 = copy.copy(fullbkpt)
+        bkpt1 = copy.copy(bkpt)
         #ToDO Consider refactoring the argument list so that there are no kwargs
-
         if from_dict is not None:
             self.nord=from_dict['nord'],
             self.npoly=from_dict['npoly'],
@@ -248,29 +251,29 @@ class bspline(object):
             #
             # Set the breakpoints.
             #
-            if fullbkpt is None:
-                if bkpt is None:
+            if fullbkpt1 is None:
+                if bkpt1 is None:
                     startx = x.min()
                     rangex = x.max() - startx
                     if 'placed' in kwargs:
                         w = ((kwargs['placed'] >= startx) &
                              (kwargs['placed'] <= startx+rangex))
                         if w.sum() < 2:
-                            bkpt = np.arange(2, dtype='f') * rangex + startx
+                            bkpt1 = np.arange(2, dtype='f') * rangex + startx
                         else:
-                            bkpt = kwargs['placed'][w]
+                            bkpt1 = kwargs['placed'][w]
                     elif 'bkspace' in kwargs:
                         nbkpts = int(rangex/kwargs['bkspace']) + 1
                         if nbkpts < 2:
                             nbkpts = 2
                         tempbkspace = rangex/float(nbkpts-1)
-                        bkpt = np.arange(nbkpts, dtype='f')*tempbkspace + startx
+                        bkpt1 = np.arange(nbkpts, dtype='f')*tempbkspace + startx
                     elif 'nbkpts' in kwargs:
                         nbkpts = kwargs['nbkpts']
                         if nbkpts < 2:
                             nbkpts = 2
                         tempbkspace = rangex/float(nbkpts-1)
-                        bkpt = np.arange(nbkpts, dtype='f') * tempbkspace + startx
+                        bkpt1 = np.arange(nbkpts, dtype='f') * tempbkspace + startx
                     elif 'everyn' in kwargs:
                         nx = x.size
                         nbkpts = max(nx/kwargs['everyn'], 1)
@@ -281,38 +284,53 @@ class bspline(object):
                             # JFH This was a bug. Made fixes
                             #xspot = int(nx/(nbkpts-1)) * np.arange(nbkpts, dtype='i4')
                         #bkpt = x[xspot].astype('f')
-                        bkpt = np.interp(xspot,np.arange(nx),x)
+                        bkpt1 = np.interp(xspot,np.arange(nx),x)
                     else:
                         raise ValueError('No information for bkpts.')
-                imin = bkpt.argmin()
-                imax = bkpt.argmax()
-                if x.min() < bkpt[imin]:
-                    if verbose:
-                        print('Lowest breakpoint does not cover lowest x value: changing.')
-                    bkpt[imin] = x.min()
-                if x.max() > bkpt[imax]:
-                    if verbose:
-                        print('Highest breakpoint does not cover highest x value: changing.')
-                    bkpt[imax] = x.max()
-                nshortbkpt = bkpt.size
-                fullbkpt = bkpt.copy()
+                # JFH added this new code, because bkpt.size = 1 implies fullbkpt has only 2*(nord-1) + 1 elements.
+                # This will cause a crash in action because nbkpt < 2*nord, i.e. for bkpt = 1, nord = 7 fullbkpt has
+                # seven elements which is less than 2*nord = 8. The codes above seem to require nbkpt >=2, so I'm implementing
+                # this requirement. Note that the previous code before this fix simply sets bkpt to bkpt[imax] =x.max()
+                # which is equally arbitrary, but still results in a crash. By requiring at least 2 bkpt, fullbkpt will
+                # have 8 elements preventing action from crashing
+                if (bkpt1.size < 2):
+                    bkpt1 = np.zeros(2,dtype=float)
+                    bkpt1[0] = x.min()
+                    bkpt1[1] = x.max()
+                else:
+                    imin = bkpt1.argmin()
+                    imax = bkpt1.argmax()
+                    if x.min() < bkpt1[imin]:
+                        if verbose:
+                            print('Lowest breakpoint does not cover lowest x value: changing.')
+                        bkpt1[imin] = x.min()
+                    if x.max() > bkpt1[imax]:
+                        if verbose:
+                            print('Highest breakpoint does not cover highest x value: changing.')
+                        bkpt1[imax] = x.max()
+
+                nshortbkpt = bkpt1.size
+                fullbkpt1 = bkpt1.copy()
+                # Note that with the JFH change above, this nshortbkpt ==1 is never realized beacause above I forced
+                # bkpt to have at least two elements. Not sure why this was even allowed, since bkpt.size = 1
+                #  basically results in action crashing as described above.
                 if nshortbkpt == 1:
                     bkspace = np.float32(bkspread)
                 else:
-                    bkspace = (bkpt[1] - bkpt[0]) * np.float32(bkspread)
+                    bkspace = (bkpt1[1] - bkpt1[0]) * np.float32(bkspread)
                 for i in np.arange(1, nord, dtype=np.float32):
-                    fullbkpt = np.insert(fullbkpt, 0, bkpt[0]-bkspace*i)
-                    fullbkpt = np.insert(fullbkpt, fullbkpt.shape[0],
-                                         bkpt[nshortbkpt-1] + bkspace*i)
+                    fullbkpt1 = np.insert(fullbkpt1, 0, bkpt1[0]-bkspace*i)
+                    fullbkpt1 = np.insert(fullbkpt1, fullbkpt1.shape[0],
+                                         bkpt1[nshortbkpt-1] + bkspace*i)
 
             #
             # Set the attributes
             #
-            nc = fullbkpt.size - nord
-            self.breakpoints = fullbkpt
+            nc = fullbkpt1.size - nord
+            self.breakpoints = fullbkpt1
             self.nord = nord
             self.npoly = npoly
-            self.mask = np.ones((fullbkpt.size,), dtype='bool')
+            self.mask = np.ones((fullbkpt1.size,), dtype='bool')
             if npoly > 1:
                 self.coeff = np.zeros((npoly, nc), dtype='d')
                 self.icoeff = np.zeros((npoly, nc), dtype='d')
@@ -454,6 +472,8 @@ class bspline(object):
         nx = x.size
         nbkpt = self.mask.sum()
         if nbkpt < 2*self.nord:
+            msgs.warn('Order chosen nord = {:d}'.format(self.nord) +
+                         ' is too low for the number of breakpoints nbkpt = {:d}'.format(nbkpt))
             return (-2, 0, 0)
         n = nbkpt - self.nord
         gb = self.breakpoints[self.mask]

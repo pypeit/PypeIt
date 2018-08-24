@@ -346,7 +346,7 @@ class ScienceImage(processimages.ProcessImages):
         self.bitmask = self._build_bitmask()
         # Loop on slits
         for slit in gdslits:
-            msgs.info("Working on slit: {:d}".format(slit))
+            msgs.info("Working on slit: {:d}".format(slit +1))
             thismask = (self.tslits_dict['slitpix'] == slit + 1)
             inmask = (self.bitmask == 0) & thismask & skymask
             # Find sky
