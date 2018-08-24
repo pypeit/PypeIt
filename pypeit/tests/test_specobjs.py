@@ -55,9 +55,12 @@ def test_set():
     assert np.all(sobjs[:].det == np.array([3,3,3]))
     # Slice
     sobjs[1:2]['det'] = 2
-    sobjs.det[1] = 2
+    assert sobjs.det[1] == 2
     # Under the hood
     sobjs.set(0, 'det', 3)
     sobjs.set(slice(1,2), 'det', 2)
     # Test
     assert np.all(sobjs[:].det == np.array([3,2,3]))
+    # Hennawi test
+    idx = sobjs.det == 3
+    sobjs[idx]['det'] = 1
