@@ -977,10 +977,17 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
 
     left_bool = (((full_bsp[ss] < (min_level+median_fit)) & (sigma_x.flat[ss] < peak_x)) | (sigma_x.flat[ss] < (peak_x-limit)))[::-1]
     ind_left, = np.where(left_bool)
-    lp = np.fmax(ind_left.min(), 0)
+    if ind_left.size == 0:
+        lp = 0
+    else:
+        lp = np.fmax(ind_left.min(), 0)
     righ_bool = ((full_bsp[ss] < (min_level+median_fit)) & (sigma_x.flat[ss] > peak_x))  | (sigma_x.flat[ss] > (peak_x+limit))
     ind_righ, = np.where(righ_bool)
-    rp = np.fmax(ind_righ.min(), 0)
+    if ind_righ.size == 0:
+        rp = 0
+    else:
+        rp = np.fmax(ind_righ.min(), 0)
+
     l_limit = ((sigma_x.flat[ss])[::-1])[lp] - 0.1
     r_limit = sigma_x.flat[ss[rp]] + 0.1
 
