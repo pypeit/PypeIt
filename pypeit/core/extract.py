@@ -529,9 +529,9 @@ def fit_profile_qa(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
 
 
     if l_limit is not None:
-        ax.axvline(x =l_limit, color='cornflowerblue',linewidth=1.5)
+        ax.axvline(x =l_limit, color='cornflowerblue',linewidth=2.0)
     if r_limit is not None:
-        ax.axvline(x=r_limit, color='cornflowerblue',linewidth=1.5)
+        ax.axvline(x=r_limit, color='cornflowerblue',linewidth=2.0)
 
     ax.set_xlim(xlimit)
     ax.set_ylim(ylim)
@@ -1177,19 +1177,26 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
 
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, FWHM/2.3548,mode='nearest')
 
-    xcen, sigma_pk, ledg, redg = find_nminima(-fluxconv,nfind=nperslit, width = PKWDTH, minsep = np.fmax(FWHM, PKWDTH))
+    xcen, sigma_pk, ledg, redg = find_nminima(-fluxconv,nfind=nperslit, width = PKWDTH,
+                                              minsep = np.fmax(FWHM, PKWDTH))
     xcen_neg,sigma_pk_neg,ledg_neg,redg_neg = find_nminima(fluxconv,nfind=nperslit, width = PKWDTH,
                                                            minsep = np.fmax(FWHM, PKWDTH))
     ypeak = np.interp(xcen,np.arange(nsamp),fluxconv)
+    ypeak_neg = np.interp(xcen_neg,np.arange(nsamp),fluxconv)
+    # Only mask the strong peaks
+    (mean0, med0, sigma0)     = sigma_clipped_stats(fluxconv, sigma=2.5)
     # Create a mask for pixels to use for a background flucutation level estimate. Mask spatial pixels that hit an object
     imask_pos = np.ones(int(nsamp), dtype=bool)
     imask_neg = np.ones(int(nsamp), dtype=bool)
     xvec = np.arange(nsamp)
-    for zz in range(len(xcen)):
-        ibad = (np.abs(xvec - xcen[zz]) <= 2.0*FWHM)
+    xcen_pos_top = xcen[ypeak > (med0 + SIG_THRESH*sigma0)]
+    xcen_neg_top = xcen_neg[ypeak_neg < (med0 - SIG_THRESH*sigma0)]
+
+    for xx in xcen_pos_top:
+        ibad = (np.abs(xvec - xx) <= 2.0*FWHM)
         imask_pos[ibad] = False
-    for zz in range(len(xcen_neg)):
-        ibad = (np.abs(xvec - xcen_neg[zz]) <= 2.0*FWHM)
+    for xx in xcen_neg_top:
+        ibad = (np.abs(xvec - xx) <= 2.0*FWHM)
         imask_neg[ibad] = False
 
     # Good pixels for flucutation level estimate. Omit edge pixels and pixels within a FWHM of a candidate object
@@ -1197,8 +1204,8 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     if np.any(igd) == False:
         igd = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
 
-    (mean, med_sn2, skythresh) = sigma_clipped_stats(fluxconv[igd], sigma=1.5)
-    (mean, med_sn2, sigma)     = sigma_clipped_stats(fluxconv[igd], sigma=2.5)
+    (mean, med, skythresh) = sigma_clipped_stats(fluxconv[igd], sigma=1.5)
+    (mean, med, sigma)     = sigma_clipped_stats(fluxconv[igd], sigma=2.5)
     if(skythresh == 0.0) & (sigma != 0.0):
         skythresh = sigma
     elif(skythresh == 0.0) & (sigma==0.0):  # if both SKYTHRESH and sigma are zero mask out the zero pixels and reavaluate
@@ -1232,7 +1239,15 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
         # Possible thresholds    [significance,  fraction of brightest, absolute]
         threshvec = np.array([SIG_THRESH*sigma, PEAK_THRESH*ypeak.max(), ABS_THRESH])
         threshold = threshvec.max()
-        msgs.info('Using object finding threshold of: {:5.2f}'.format(threshold))
+        if threshvec.argmax() == 0:
+            msgs.info('Used SIGNIFICANCE threshold: SIG_THRESH = {:3.1f}'.format(SIG_THRESH) +
+                      ' * sigma = {:5.2f}'.format(sigma))
+        elif threshvec.argmax() == 1:
+            msgs.info('Used FRACTION of BRIGHTEST threshold: PEAK_THRESH = {:3.1f}'.format(PEAK_THRESH) +
+                      ' * ypeak_max = {:5.2f}'.format(ypeak.max()))
+        elif threshvec.argmax() == 2:
+            msgs.info('Used ABSOLUTE threshold of ABS_THRESH = {:5.2f}'.format(ABS_THRESH))
+        msgs.info('Object finding threshold of: {:5.2f}'.format(threshold))
         # Trim to only objects above this threshold
         ikeep = (ypeak >= threshold)
         xcen = xcen[ikeep]
@@ -1256,6 +1271,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
         spat_approx = slit_left[specmid] + xsize[specmid]*xcen/nsamp
         plt.plot(spat_approx_vec, fluxsub, color ='cornflowerblue',linestyle=':', label='Collapsed Slit profile')
         plt.plot(spat_approx_vec, fluxconv, color='black', label = 'FWHM Convolved Profile')
+        plt.hlines(threshold,spat_approx_vec.min(),spat_approx_vec.max(), color='red',linestyle='--', label='Threshold')
         plt.plot(spat_approx, ypeak, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
                  linestyle='None', zorder = 10,label='Object Found')
         plt.legend()
