@@ -492,24 +492,24 @@ class ScienceImage(processimages.ProcessImages):
         CR             1
         SATURATION     2
         MINCOUNTS      3
-        NOSLITS        4
+        OFFSLITS        4
         IS_NAN         5
         IVAR0          6
         IVAR_NAN       7
         EXTRACT        8
 
-        inmask = 0, inmask > 0 has been masked.
+        bitmask = 0 is good, inmask > 0 has been masked.
 
         To figure out why it has been masked for example you can type
 
-        bpm = (inmask & np.uint64(2**0)) > 0
-        crmask = (inmask & np.uint64(2**1)) > 0
+        bpm = (bitmask & np.uint64(2**0)) > 0
+        crmask = (bitmask & np.uint64(2**1)) > 0
 
         etc.
 
         Returns
         -------
-        inmask
+        bitmask
 
         """
 
@@ -781,28 +781,52 @@ class ScienceImage(processimages.ProcessImages):
         return self.specobjs
 
 
-    '''
-    def _grab_varframe(self):
-        """
-        Simple algorithm to grab the currently 'best' variance image
+
+def unpack_bitmask(bitmask):
+    """
+    Utility function to unpack the bitmask into its respective masks.
+
+    Parameters
+    ----------
+    bitmask  - ndarray dtype = uint64 created following _build_bitmask() method above
+
+    Returns
+    -------
+        mask_tuple  = (bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask,ivarnanmask, extractmask)
+
+        tuple of 8 masks corresponding to each bit that can be set in the bitmask
+
+
+        Bit Key
+        ---
+        BPM            0
+        CR             1
+        SATURATION     2
+        MINCOUNTS      3
+        OFFSLITS        4
+        IS_NAN         5
+        IVAR0          6
+        IVAR_NAN       7
+        EXTRACT        8
+
+        bitmask = 0 is good, bitmask > 0 has been masked.
+
+        To figure out why it has been masked for example you can type
+
+
+        crmask = (inmask & np.uint64(2**1)) > 0
+
+        etc.
     
-        Order of priority --
-          finalvar
-          modelvarframe
-          rawvarframe
-    
-        Returns
-        -------
-        varframe : ndarray
-    
-        """
-        # Make the choice
-        if self.finalvar is not None:
-            varframe = self.finalvar
-        elif self.modelvarframe is not None:
-            varframe = self.modelvarframe
-        else:
-            varframe = self.rawvarframe
-        # Return it
-        return varframe
-    '''
+    """
+    bpm         = (bitmask & np.uint64(2 ** 0)) > 0
+    crmask      = (bitmask & np.uint64(2 ** 1)) > 0
+    satmask     = (bitmask & np.uint64(2 ** 2)) > 0
+    minmask     = (bitmask & np.uint64(2 ** 3)) > 0
+    offslitmask    = (bitmask & np.uint64(2 ** 4)) > 0
+    nanmask     = (bitmask & np.uint64(2 ** 5)) > 0
+    ivar0mask   = (bitmask & np.uint64(2 ** 6)) > 0
+    ivarnanmask = (bitmask & np.uint64(2 ** 7)) > 0
+    extractmask = (bitmask & np.uint64(2 ** 8)) > 0
+
+    return (bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask,ivarnanmask, extractmask)
