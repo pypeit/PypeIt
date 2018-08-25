@@ -58,7 +58,7 @@ def test_user_redo():
     waveCalib.arcparam['min_ampl'] = 1000.
     new_wv_calib = waveCalib.calibrate_spec(0)
     # Test
-    assert new_wv_calib['rms'] < 0.035
+    assert new_wv_calib['0']['rms'] < 0.035
 
 
 def test_step_by_step():
@@ -83,7 +83,7 @@ def test_step_by_step():
                                     sci_ID=1, det=1)
     # Extract arcs
     arccen, maskslits = waveCalib._extract_arcs(TSlits.lcen, TSlits.rcen, TSlits.pixlocn)
-    assert arccen.shape == (2048,1)
+    assert arccen.shape == (2048, 1)
     # Arcparam
     arcparam = waveCalib._load_arcparam()
     assert isinstance(arcparam, dict)
@@ -218,7 +218,11 @@ def test_wavecalib_general():
         if exten == 'json':
             with open(data_path(spec_file), 'r') as f:
                 pypit_fit = json.load(f)
-            spec = np.array(pypit_fit['spec'])
+            try:
+                # Old format
+                spec = np.array(pypit_fit['spec'])
+            except KeyError:
+                spec = np.array(pypit_fit['0']['spec'])
         elif exten == 'hdf5':
             hdf = h5py.File(data_path(spec_file), 'r')
             spec = hdf['arcs/{:d}/spec'.format(fidx)].value
