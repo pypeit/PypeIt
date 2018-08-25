@@ -298,7 +298,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
 
 class General:
 
-    def __init__(self, spec, lines, ok_mask=None, min_ampl=200., islinelist=False,
+    def __init__(self, spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
               outroot=None, debug=False, verbose=False,
               fit_parm=None, lowest_ampl=200., rms_threshold=0.1,
               binw=None, bind=None, nstore=1, use_unknowns=True):
