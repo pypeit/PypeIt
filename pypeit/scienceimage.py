@@ -288,7 +288,7 @@ class ScienceImage(processimages.ProcessImages):
             specobj_dict = {'setup': self.setup, 'slitid': slit+1, 'scidx': self.scidx, 'det': self.det, 'objtype': self.objtype}
             # TODO we need to add QA paths and QA hooks. QA should be done through objfind where all the relevant information is. This will
             # be a png file(s) per slit.
-            sobjs_slit, self.skymask[thismask], self.objmask[thismask] = extract.objfind(image, self.sciivar, thismask,
+            sobjs_slit, self.skymask[thismask], self.objmask[thismask] = extract.objfind(image, thismask,
                                                                                     self.tslits_dict['lcen'][:,slit],
                                                                                     self.tslits_dict['rcen'][:,slit],
                                                                                     inmask = inmask,
