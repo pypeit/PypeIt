@@ -9,8 +9,8 @@
 - Turn off 2.7 Travis testing
 - Integrated arclines into PypeIt
 - Modified debug/developer modes
-- Implemented new object finding, global sky subtraction, local sky subtraction, profile fitting, and optimal extraction. Significant
-changes were made to many parts of codes, and new parameter sets were introduced. 
+- Update SpecObjs class; ndarray instead of list;  set() method
+
 
 0.8.1
 -----

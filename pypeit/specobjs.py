@@ -10,6 +10,7 @@ import numpy as np
 from astropy import units
 from astropy.table import Table
 from astropy.units import Quantity
+from astropy.utils import isiterable
 
 from pypeit import msgs
 from pypeit.core import parse
@@ -188,7 +189,9 @@ class SpecObjs(object):
     Object to hold a set of SpecObj objects
 
     Parameters:
-        specobjs : list
+        specobjs : ndarray or list, optional
+
+    Internals:
         summary : Table
     """
 
@@ -196,17 +199,28 @@ class SpecObjs(object):
         """
 
         Args:
-            specobjs: list, optional
+            specobjs: ndarray, optional
         """
-
-        # ToDo Should we just be using numpy object arrays here instead of lists? Seems like that would be easier
         if specobjs is None:
-            self.specobjs = []
+            self.specobjs = np.array([])
         else:
+            if isinstance(specobjs, list):
+                specobjs = np.array(specobjs)
             self.specobjs = specobjs
 
         # Internal summary Table
         self.build_summary()
+
+    @property
+    def nobj(self):
+        """
+        Return the number of SpecObj objects
+
+        Returns:
+            nobj : int
+
+        """
+        return self.specobjs.size
 
     def add_sobj(self, sobj):
         """
@@ -215,18 +229,18 @@ class SpecObjs(object):
         The summary table is rebuilt
 
         Args:
-            sobj: SpecObj or list
+            sobj: SpecObj or list or ndarray
 
         Returns:
 
 
         """
         if isinstance(sobj, SpecObj):
-            self.specobjs += [sobj]
-        elif isinstance(sobj, list):
-            self.specobjs += sobj
-        elif isinstance(sobj,SpecObjs):
-            self.specobjs += sobj.specobjs
+            self.specobjs = np.append(self.specobjs, [sobj])
+        elif isinstance(sobj, (np.ndarray,list)):
+            self.specobjs = np.append(self.specobjs, sobj)
+        elif isinstance(sobj, SpecObjs):
+            self.specobjs = np.append(self.specobjs, sobj)
 
         # Rebuild summary table
         self.build_summary()
@@ -261,7 +275,11 @@ class SpecObjs(object):
         Returns:
 
         """
-        self.specobjs.pop(index)
+        msk = np.ones(self.specobjs.size, dtype=bool)
+        msk[index] = False
+        # Do it
+        self.specobjs = self.specobjs[msk]
+        # Update
         self.build_summary()
 
 
@@ -297,8 +315,47 @@ class SpecObjs(object):
             # here for the many ways to give a slice; a tuple of ndarray
             # is produced by np.where, as in t[np.where(t['a'] > 2)]
             # For all, a new table is constructed with slice of all columns
-            sobjs_new = np.array(self.specobjs,dtype=object)
-            return SpecObjs(specobjs=sobjs_new[item].tolist())
+            #sobjs_new = np.array(self.specobjs,dtype=object)
+            return SpecObjs(specobjs=self.specobjs[item])
+
+    def __setitem__(self, name, value):
+        """
+        Over-load set item using our custom set() method
+
+        Args:
+            name: str
+            value: anything
+
+        Returns:
+
+        """
+        self.set(slice(0,self.nobj), name, value)
+
+    def set(self, islice, attr, value):
+        """
+        Set the attribute for a slice of the specobjs
+
+        Args:
+            islice: int, ndarray of bool, slice
+            attr: str
+            value: anything
+
+        Returns:
+
+        """
+        sub_sobjs = self.specobjs[islice]
+        if isiterable(value):
+            if sub_sobjs.size == len(value):  # Assume you want each paired up
+                for kk,sobj in enumerate(sub_sobjs):
+                    setattr(sobj, attr, value[kk])
+                    return
+        # Assuming scalar assignment
+        if isinstance(sub_sobjs, SpecObj):
+            setattr(sub_sobjs, attr, value)
+        else:
+            for sobj in sub_sobjs:
+                setattr(sobj, attr, value)
+        return
 
 
     def __getattr__(self, k):
@@ -315,8 +372,6 @@ class SpecObjs(object):
         -------
         numpy array
         """
-        # JFH I think the summary needs to be rebuilt every time the user tries to slice, since otherwise,
-        # newly changed things don't make it into the summary
         self.build_summary()
         # Special case(s)
         if k in self.summary.keys():  # _data
