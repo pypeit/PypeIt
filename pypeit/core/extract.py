@@ -1110,7 +1110,7 @@ def parse_hand_dict(HAND_EXTRACT_DICT):
 specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 'science'}
 
 
-def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
+def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
             HAND_EXTRACT_DICT = None, std_trace = None, ncoeff = 5, nperslit = 10,  BG_SMTH = 5.0, PKWDTH = 3.0,
             MASKWIDTH = 3.0, SIG_THRESH = 10.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, TRIM_EDG = (3,3), OBJMASK_NTHRESH = 2.0,
             specobj_dict=specobj_dict, SHOW_PEAKS=True, SHOW_FITS = False, SHOW_TRACE = False):
@@ -1126,10 +1126,6 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
         Object finding works best on sky-subtracted images, but often one runs on the frame with sky first to identify the brightest
         objects which are then masked (see skymask below) in sky subtraction.
 
-    invvar: float ndarray
-        Inverse variance image which defines the noise for image. This could be made optional and the code could just use the guess
-        ivar = 1/image
-
     thismask:  boolean ndarray
         Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
         The convention is: True = on the slit/order, False  = off the slit/order
@@ -1139,8 +1135,6 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
 
     slit_righ:  float ndarray
         Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec)
-
-
 
 
     Optional Parameters
@@ -1199,10 +1193,10 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
 
     # If a mask was not passed in, create it
     if inmask is None:
-        inmask = thismask & (invvar > 0.0)
+        inmask = thismask
 
 
-    thisimg =image*((thismask == True) & (invvar > 0.0) & (inmask == True) & (edgmask == False))
+    thisimg =image*(thismask & inmask & (edgmask == False))
     #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
     xsize = slit_righ - slit_left
     nsamp = np.ceil(np.median(xsize))
@@ -1421,31 +1415,28 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     #ypos = np.outer(spec_vec, np.ones(nobj_reg))
     #yind = np.arange(nspec,dtype=int)
     for iiter in range(niter):
-        xpos1, xerr1 = trace_slits.trace_fweight(image*inmask,xfit1, invvar = invvar*inmask, radius = fwhm_vec[iiter])
+        xpos1, xerr1 = trace_slits.trace_fweight(image*inmask,xfit1, invvar = inmask.astype(float), radius = fwhm_vec[iiter])
         # Do not do any kind of masking based on xerr1. Trace fitting is much more robust when masked pixels are simply
         # replaced by the tracing crutch
-        xerr1 =np.ones_like(xerr1)
-        # Mask out anything that left the image. 0 = good, 1 = masked (convention from robust_polyfit)
-        tracemask1 = np.zeros_like(xpos0,dtype=int)
-        off_image = (xpos1 < -0.2*nspat) | (xpos1 > 1.2*nspat)
-        tracemask1[off_image] = 1
-        # Trying with traceset2xy
+        # ToDO add maxdev functionality by adding kwargs_reject to xy2traceset
         pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos1.T, ncoeff = 5)
         xfit1 = pos_set1.yfit.T
-        ''' OLD CODE IS BELOW USING ROBUST_POLYFIT
-        for iobj in range(nobj_reg):
-          # Mask out anything that has left the slit/order.
-          tracemask1[:,iobj] = tracemask1[:, iobj] | ((xpos1[:,iobj] < slit_left) | (xpos1[:,iobj] > slit_righ)).astype(int)
-          # ToDO add maxdev functionality?
-          # ToDO need to pass in an error vector for robust_polyfit such that it will be able to assign all pixels the same
-          # weight. Right now it is always converging to the slit boundary initial guess becuae that is from a polynomial
-          # fit. It is rejecting a huge number of pixels. Need some maximum number of pixels per iteration to reject.
-          # I would say get rid of robust_polyfit altogether and port xy2traceset which was much more robust.
-          weight = np.ones_like(xpos1)
-          polymask, coeff_fit1 = utils.robust_polyfit(spec_vec,xpos1[:,iobj], ncoeff
-                                                      , function = 'legendre',initialmask = tracemask1[:,iobj],forceimask=True)
-          xfit1[:,iobj] = utils.func_val(coeff_fit1, spec_vec, 'legendre')
-          '''
+        # OLD CODE IS BELOW USING ROBUST_POLYFIT
+        #xerr1 =np.ones_like(xerr1)
+        # Mask out anything that left the image. 0 = good, 1 = masked (convention from robust_polyfit)
+        #tracemask1[off_image] = 1
+        #tracemask1 = np.zeros_like(xpos0,dtype=int)
+        #off_image = (xpos1 < -0.2*nspat) | (xpos1 > 1.2*nspat)
+        #for iobj in range(nobj_reg):
+        #  # Mask out anything that has left the slit/order.
+        #  tracemask1[:,iobj] = tracemask1[:, iobj] | ((xpos1[:,iobj] < slit_left) | (xpos1[:,iobj] > slit_righ)).astype(int)
+        #  weight = np.ones_like(xpos1)
+        #  polymask, coeff_fit1 = utils.robust_polyfit(spec_vec,xpos1[:,iobj], ncoeff
+        #                                              , function = 'legendre',initialmask = tracemask1[:,iobj],forceimask=True)
+        #  xfit1[:,iobj] = utils.func_val(coeff_fit1, spec_vec, 'legendre')
+
+        # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
+        tracemask1 = xerr1 > 990.0 # bad pixels have errors set to 999 and are returned to lie on the input trace
         # Plot all the points that were not masked initially
         if(SHOW_FITS == True) & (iiter == niter - 1):
             for iobj in range(nobj_reg):
@@ -1455,8 +1446,8 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
                 plt.plot(spec_vec,xpos0[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
                 plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
                 if np.any(~nomask):
-                    plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=4.0,linestyle='None',
-                             zorder= 20, label='masked points')
+                    plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=5.0,linestyle='None',
+                             zorder= 20, label='masked points, set to init guess')
                 plt.title('Flux Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
                 plt.ylim((0.995*xfit1[:, iobj].min(), 1.005*xfit1[:, iobj].max()))
                 plt.xlabel('Spectral Pixel')
@@ -1468,15 +1459,14 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
 
     # Iterate Gaussian weighted centroiding
     for iiter in range(niter):
-        xpos2, xerr2 = trace_slits.trace_gweight(image*inmask,xfit2, invvar = invvar*inmask, sigma = FWHM/2.3548)
+        xpos2, xerr2 = trace_slits.trace_gweight(image*inmask,xfit2, invvar = inmask.astype(float), sigma = FWHM/2.3548)
         # Do not do any kind of masking based on xerr2. Trace fitting is much more robust when masked pixels are simply
         # replaced by the tracing crutch
         # Mask out anything that left the image. 0 = good, 1 = masked (convention from robust_polyfit)
-        tracemask2 = np.zeros_like(xpos0,dtype=int)
-        off_image = (xpos2 < -0.2*nspat) | (xpos2 > 1.2*nspat)
-        tracemask2[off_image] = 1
         pos_set2 = pydl.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos2.T, ncoeff = 5)
         xfit2 = pos_set2.yfit.T
+        # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
+        tracemask2 = xerr2 > 990.0
         # Now upon the last iteration set the final trace
         if (iiter == niter - 1):
             for iobj in range(nobj_reg):
@@ -1492,41 +1482,14 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
                              label='initial guess from flux weighting')
                     plt.plot(spec_vec, xfit2[:, iobj], c='red', zorder=10, linewidth=2.0, label='final fit to trace')
                     if np.any(~nomask):
-                        plt.plot(spec_vec[~nomask], xfit2[~nomask, iobj], c='blue', marker='+', markersize=4.0,
-                                 linestyle='None',zorder=20, label='masked points')
+                        plt.plot(spec_vec[~nomask], xfit2[~nomask, iobj], c='blue', marker='+', markersize=5.0,
+                                 linestyle='None',zorder=20, label='masked points, set to init guess')
                     plt.title('Gaussian Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
                     plt.ylim((0.995 * xfit2[:, iobj].min(), 1.005 * xfit2[:, iobj].max()))
                     plt.xlabel('Spectral Pixel')
                     plt.ylabel('Spatial Pixel')
                     plt.legend()
                     plt.show()
-        ''' OLD CODE USING ROBUST_POLYFIT
-        for iobj in range(nobj_reg):
-          # Mask out anything that has left the slit/order.
-          #tracemask2[:,iobj] = tracemask2[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
-          # ToDO add maxdev functionality?
-          tracemask2[:,iobj] = tracemask2[:, iobj] | ((xpos2[:,iobj] < slit_left) | (xpos2[:,iobj] > slit_righ)).astype(int)
-          polymask, coeff_fit2 = utils.robust_polyfit(spec_vec,xpos2[:,iobj], ncoeff
-                                                      , function = 'legendre',initialmask = tracemask2[:,iobj],forceimask=True)
-          xfit2[:,iobj] = utils.func_val(coeff_fit2, spec_vec, 'legendre')
-          ## Accept the last iteration of this Gaussian centroiding as the final fit. Update some other things
-          if (iiter == niter-1):
-              sobjs[iobj].trace_spat = xfit2[:,iobj]
-              sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
-              sobjs[iobj].set_idx()
-              # Plot all the points that were not masked initially
-              if(SHOW_FITS == True):
-                  nomask = (tracemask2[:,iobj]==0)
-                  plt.errorbar(spec_vec[nomask],xpos2[nomask,iobj],yerr=xerr2[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
-                  plt.plot(spec_vec,xfit2[:,iobj],c='red',zorder=10,linewidth = 2.0)
-                  if np.any(~nomask):
-                      plt.plot(spec_vec[~nomask],xfit2[~nomask,iobj], c='blue',marker='+',markersize=4.0,linestyle='None', zorder= 20)
-                  plt.title('Gaussian Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
-                  plt.ylim((0.995*xfit2[:,iobj].min(),1.005*xfit2[:,iobj].max()))
-                  plt.xlabel('Spectral Pixel')
-                  plt.ylabel('Spatial Pixel')
-                  plt.show()
-        '''
 
     # Now deal with the hand apertures if a HAND_EXTRACT_DICT was passed in. Add these to the SpecObj objects
     if HAND_EXTRACT_DICT is not None:
