@@ -133,7 +133,7 @@ def main(args):
 
     # Show Image
     cwd = os.getcwd()
-    wcs_img = cwd+'/'+head0['PYPMFDIR']+'/MasterWave_'+'{:s}_{:02d}_{:s}.fits'.format(head0['PYPCNFIG'], args.det, head0['PYPCALIB'])
+    wcs_img = cwd+'/'+ os.path.basename(os.path.normpath(head0['PYPMFDIR'])) +'/MasterWave_'+'{:s}_{:02d}_{:s}.fits'.format(head0['PYPCNFIG'], args.det, head0['PYPCALIB'])
     viewer, ch = ginga.show_image(image, chname='DET{:s}'.format(sdet), wcs_img=wcs_img)
     canvas = viewer.canvas(ch._chname)
     # These commands set up the viewer. They can be found at ginga/ginga/ImageView.py
