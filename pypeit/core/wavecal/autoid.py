@@ -413,7 +413,7 @@ class General:
         if self._binw is None:
             # Ideally, you want binw to roughly sample the A/pix of the spectrograph
             self._ngridw = 200
-            self._binw = np.linspace(np.min(self._wvdata), np.max(self._wvdata), ngridw)
+            self._binw = np.linspace(np.min(self._wvdata), np.max(self._wvdata), self._ngridw)
         else:
             self._ngridw = self._binw.size
         # Set the dispersion grid
@@ -427,9 +427,11 @@ class General:
     def run(self):
         """Run through the parameter space and determine the best solution
         """
-        all_patt_dict = [None for all in range(self._nslit)]
-        all_final_fit = [None for all in range(self._nslit)]
-        for slit in range(self._ok_mask):
+        self._all_patt_dict = {}
+        self._all_final_fit = {}
+        for slit in range(self._nslit):
+            if slit not in self._ok_mask:
+                continue
             # Detect lines, and decide which tcent to use
             self._all_tcent, self._cut_tcent, self._icut =\
                 utils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._min_ampl)
@@ -440,21 +442,47 @@ class General:
                 continue
             best_patt_dict, best_final_fit = None, None
             # Loop through parameter space
-            for poly in [3]:
+            for poly in [3, 4]:
                 for lstsrch in range(4, 10):
                     for detsrch in range(4, 10):
                         for pix_tol in [0.5]:
                             patt_dict, final_fit = \
                                 self.solve_slit(slit, poly=poly, pix_tol=pix_tol, detsrch=detsrch, lstsrch=lstsrch)
+                            if final_fit is None:
+                                # This is not a good solution
+                                continue
                             # Test if this solution is better than the currently favoured solution
                             if best_patt_dict is None:
                                 # First time a fit is found
                                 best_patt_dict, best_final_fit = patt_dict.copy(), final_fit.copy()
                                 continue
-                            elif final_fit[slit]['rms'] < self._rms_threshold:
+                            elif final_fit['rms'] < self._rms_threshold:
                                 # Has a better fit been identified (i.e. more lines identified)?
-                                if len(final_fit['xfit']) < len(final_fit['xfit']):
+                                if len(final_fit['xfit']) > len(best_final_fit['xfit']):
                                     best_patt_dict, best_final_fit = patt_dict.copy(), final_fit.copy()
+            # Report on the best result
+            if best_final_fit is None:
+                msgs.info('---------------------------------------------------' + msgs.newline() +
+                          'Final report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
+                          '  No matches! Try another algorithm' + msgs.newline() +
+                          '---------------------------------------------------')
+                return None
+            else:
+                if best_patt_dict['sign'] == +1:
+                    signtxt = 'correlate'
+                else:
+                    signtxt = 'anitcorrelate'
+                # Report
+                msgs.info('---------------------------------------------------' + msgs.newline() +
+                          'Final report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
+                          '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
+                          '  Number of lines recovered    = {:d}'.format(self._all_tcent.size) + msgs.newline() +
+                          '  Number of lines analyzed     = {:d}'.format(len(best_final_fit['xfit'])) + msgs.newline() +
+                          '  Number of pattern matches    = {:d}'.format(best_patt_dict['nmatch']) + msgs.newline() +
+                          '  Best central wavelength      = {:g}A'.format(best_patt_dict['bwv']) + msgs.newline() +
+                          '  Best dispersion              = {:g}A/pix'.format(best_patt_dict['bdisp']) + msgs.newline() +
+                          '  Final RMS of fit             = {:g}'.format(best_final_fit['rms']) + msgs.newline() +
+                          '---------------------------------------------------')
 
             # Save the QA for the best solution
             slittxt = '_Slit{0:03d}'.format(slit)
@@ -473,9 +501,9 @@ class General:
                 msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
             # Perform the final fit for the best solution
             best_final_fit = self.fit_slit(slit, best_patt_dict, outroot=self._outroot, slittxt=slittxt)
-            all_patt_dict.append(best_patt_dict.copy())
-            all_final_fit.append(best_final_fit.copy())
-        return all_patt_dict, all_final_fit
+            self._all_patt_dict[str(slit)] = best_patt_dict.copy()
+            self._all_final_fit[str(slit)] = best_final_fit.copy()
+        self._all_patt_dict, self._all_final_fit
 
     def get_use_tcent(self, corr, weak=False):
         """Set if pixels correlate with wavelength (corr==1) or anticorrelate (corr=-1)
@@ -502,7 +530,8 @@ class General:
             msgs.warn("Pattern matching is only available for trigons and tetragons.")
             return None, None
 
-        msgs.info("Begin pattern matching")
+        if self._verbose:
+            msgs.info("Begin pattern matching")
         # First run pattern recognition assuming pixels correlate with wavelength
         use_tcent = self.get_use_tcent(1)
         dindexp, lindexp, wvcenp, dispsp = generate_patterns(use_tcent, self._wvdata, self._npix,
@@ -528,8 +557,8 @@ class General:
         wvcenm = wvcenm[ww]
 
         # Construct the histograms
-        histimgp, xed, yed = np.histogram2d(wvcenp, np.log10(dispsp), bins=[binw, bind])
-        histimgm, xed, yed = np.histogram2d(wvcenm, np.log10(dispsm), bins=[binw, bind])
+        histimgp, xed, yed = np.histogram2d(wvcenp, np.log10(dispsp), bins=[self._binw, self._bind])
+        histimgm, xed, yed = np.histogram2d(wvcenm, np.log10(dispsm), bins=[self._binw, self._bind])
         #histimgp = gaussian_filter(histimgp, 3)
         #histimgm = gaussian_filter(histimgm, 3)
         histimg = histimgp - histimgm
@@ -566,10 +595,10 @@ class General:
         bestlist = []
         for idx in range(nstore):
             # Select all solutions around the best solution within a square of side 2*nsel
-            wlo = binw[max(0, bidx[0][idx] - nselw)]
-            whi = binw[min(ngridw - 1, bidx[0][idx] + nselw)]
-            dlo = 10.0 ** bind[max(0, bidx[1][idx] - nseld)]
-            dhi = 10.0 ** bind[min(ngridd - 1, bidx[1][idx] + nseld)]
+            wlo = self._binw[max(0, bidx[0][idx] - nselw)]
+            whi = self._binw[min(self._ngridw - 1, bidx[0][idx] + nselw)]
+            dlo = 10.0 ** self._bind[max(0, bidx[1][idx] - nseld)]
+            dhi = 10.0 ** self._bind[min(self._ngridd - 1, bidx[1][idx] + nseld)]
             if histimgp[bidx][idx] > histimgm[bidx][idx]:
                 wgd = np.where((wvcenp > wlo) & (wvcenp < whi) & (dispsp > dlo) & (dispsp < dhi))
                 dindex = dindexp[wgd[0], :].flatten()
@@ -583,24 +612,28 @@ class General:
             # Store relevant values in an array to solve for best solution
             bestlist.append([allwcen[idx], alldisp[idx], allhnum[idx], sign, dindex, lindex])
 
-        msgs.info("Fitting the wavelength solution for each slit")
+        if self._verbose:
+            msgs.info("Fitting the wavelength solution for each slit")
         patt_dict, final_dict = None, None
         for idx in range(nstore):
             # Solve the patterns
             tpatt_dict = self.solve_patterns(bestlist[idx])
             if tpatt_dict is None:
-                # This patterns weren't good enough
+                # This pattern wasn't good enough
                 continue
             # Fit the full set of lines with the derived patterns
             tfinal_dict = self.fit_slit(slit, tpatt_dict)
+            if tfinal_dict is None:
+                # This pattern wasn't good enough
+                continue
             # Check if this solution is better than the last
             if patt_dict is None:
                 # First time a fit is found
                 patt_dict, final_dict = tpatt_dict, tfinal_dict
                 continue
-            elif tfinal_fit[slit]['rms'] < self._rms_threshold:
-                # Has a better fit been identified?
-                if len(tfinal_fit['xfit']) < len(final_fit['xfit']):
+            elif tfinal_fit['rms'] < self._rms_threshold:
+                # Has a better fit been identified (i.e. more lines ID)?
+                if len(tfinal_fit['xfit']) > len(final_fit['xfit']):
                     patt_dict, final_dict = tpatt_dict.copy(), tfinal_dict.copy()
         return patt_dict, final_dict
 
@@ -663,10 +696,14 @@ class General:
         # Allow for weaker lines in the fit
         use_weak_tcent = self.get_use_tcent(patt_dict['sign'], weak=True)
         # Fit
-        final_fit = fitting.iterative_fitting(self._spec[:, slit], use_weak_tcent, ifit,
-                                              np.array(patt_dict['IDs'])[ifit], self._line_lists[NIST_lines],
-                                              patt_dict['bdisp'], plot_fil=plot_fil, verbose=self._verbose,
-                                              aparm=self._fit_parm)
+        try:
+            final_fit = fitting.iterative_fitting(self._spec[:, slit], use_weak_tcent, ifit,
+                                                  np.array(patt_dict['IDs'])[ifit], self._line_lists[NIST_lines],
+                                                  patt_dict['bdisp'], plot_fil=plot_fil, verbose=self._verbose,
+                                                  aparm=self._fit_parm)
+        except TypeError:
+            # A poor fitting result, this can be ignored.
+            return None
 
         if plot_fil is not None:
             print("Wrote: {:s}".format(plot_fil))

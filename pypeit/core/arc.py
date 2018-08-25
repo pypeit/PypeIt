@@ -538,7 +538,7 @@ def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
     else:
         # Now preferred
         arcfitter = autoid.General(spec, aparm['lamps'], ok_mask=ok_mask, fit_parm=aparm, min_ampl=aparm['min_ampl'])
-        best_dict, final_fit = arcfitter.run()
+        final_fit = arcfitter._all_final_fit
     return final_fit
 
 
