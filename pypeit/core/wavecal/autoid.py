@@ -362,7 +362,6 @@ class General:
         else:
             self._ok_mask = ok_mask
 
-        msgs.error(str(min_ampl))
         self._min_ampl = min_ampl
         self._lowest_ampl = lowest_ampl
 
