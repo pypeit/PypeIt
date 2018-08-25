@@ -206,7 +206,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['slits']['sigdetect'] = 30.
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypeitpar.SkySubtractionPar()
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
@@ -314,7 +314,29 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         self.numhead = 5
         # Uses default timeunit
         # Uses default primary_hdrext
+        # TODO why isn't there a sky file set here?
         # self.sky_file ?
+
+    @staticmethod
+    def default_pypeit_par():
+        """
+        Set default parameters for Keck LRISr reductions.
+        """
+        par = pypeitpar.PypeItPar()
+        par['rdx']['spectrograph'] = 'keck_lris_red'
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+        # Set wave tilts order
+        par['calibrations']['slits']['sigdetect'] = 30.
+        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+        # Always sky subtract, starting with default parameters
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypeitpar.FlexurePar()
+        return par
+
 
     def header_keys(self):
         head_keys = self.lris_header_keys()

@@ -44,8 +44,8 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['number'] = 1
         # Set wave tilts order
         par['calibrations']['tilts']['order'] = 2
-        # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypeitpar.SkySubtractionPar()
+        # Scienceimage default parameters
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters

@@ -332,9 +332,9 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
 
     return (sky_bmodel, obj_bmodel, outmask)
 
-def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs, bsp,
-    TRIM_EDG = (3,3), STD = False, PROF_NSIGMA = None, niter=4, box_rad = 7, sigrej = 3.5, skysample = False,
-    FULLWELL = 5e5,MINWELL = -1000.0, SN_GAUSS = 3.0, COADD_2D = False, SHOW_RESIDS=False):
+def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
+                         bsp = 0.6, inmask = None, TRIM_EDG = (3,3), STD = False, PROF_NSIGMA = None, niter=4,
+                         box_rad = 7, sigrej = 3.5,skysample = False, SN_GAUSS = 3.0, COADD_2D = False, SHOW_RESIDS=False):
 
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
@@ -373,8 +373,14 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     nspat = sciimg.shape[1]
     nspec = sciimg.shape[0]
 
-    # Create the imagews that will be returned
-    outmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & (sciimg < FULLWELL) & (sciimg > MINWELL)
+    if inmask is None:
+        # These values are hard wired for the case where no inmask is provided
+        FULLWELL = 5e5
+        MINWELL = -1000.0,
+        inmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & np.isfinite(sciivar) & (sciimg < FULLWELL) & (sciimg > MINWELL)
+
+    # Create the images that will be returned
+    outmask = np.copy(inmask)
     modelivar = np.copy(sciivar)
     objimage = np.zeros_like(sciimg)
     skyimage = np.copy(global_sky)
@@ -396,7 +402,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     while i1 < nobj:
         group = []
         group.append(i1)
-        # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in long_objfind with a log(S/N) correction for bright objects
+        # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in objfind with a log(S/N) correction for bright objects
         mincols = np.maximum(sobjs[i1].trace_spat - sobjs[i1].maskwidth - 1, slit_left)
         maxcols = np.minimum(sobjs[i1].trace_spat + sobjs[i1].maskwidth + 1, slit_righ)
         for i2 in range(i1 + 1, nobj):
@@ -465,10 +471,10 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     extract.extract_optimal(sciimg, modelivar, (outmask & objmask), waveimg, skyimage, rn2_img, last_profile,
                                     box_rad, sobjs[iobj])
                     # If the extraction is bad do not update
-                    if sobjs[iobj].optimal['MASK_OPT'].any():
-                        flux = sobjs[iobj].optimal['COUNTS_OPT']
-                        fluxivar = sobjs[iobj].optimal['COUNTS_IVAR_OPT']
-                        wave = sobjs[iobj].optimal['WAVE_OPT']
+                    if sobjs[iobj].optimal['MASK'].any():
+                        flux = sobjs[iobj].optimal['COUNTS']
+                        fluxivar = sobjs[iobj].optimal['COUNTS_IVAR']
+                        wave = sobjs[iobj].optimal['WAVE']
 
                 if wave.any():
                     (profile_model, xnew, fwhmfit, med_sn2) = extract.fit_profile(img_minsky[ipix], (modelivar * outmask)[ipix],
@@ -492,7 +498,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                         sobjs[iobj].maskwidth = sobjs[iobj].prof_nsigma * (sobjs[iobj].fwhm / 2.3548)
 
                 else:
-                    msgs.warn("Bad extracted wavelengths in local_skysub")
+                    msgs.warn("Bad extracted wavelengths in local_skysub_extract")
                     msgs.warn("Skipping this profile fit and continuing.....")
 
             sky_bmodel = np.array(0.0)
@@ -607,6 +613,48 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     color = 'orange'
                 ginga.show_trace(viewer, ch, sobjs[iobj].trace_spat, sobjs[iobj].idx, color=color)
         '''
+
+    # If requested display the model fits for this slit
+    if SHOW_RESIDS == True:
+        viewer, ch = ginga.show_image((sciimg - skyimage - objimage) * np.sqrt(modelivar) * thismask)
+        # TODO add error checking here to see if ginga exists
+        canvas = viewer.canvas(ch._chname)
+        out1 = canvas.clear()
+        out2 = ch.cut_levels(-5.0, 5.0)
+        out3 = ch.set_color_algorithm('linear')
+        # Overplot the traces
+        for spec in sobjs:
+            if spec.HAND_EXTRACT_FLAG == False:
+                color = 'magenta'
+            else:
+                color = 'orange'
+            ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
+
+        # These are the pixels that were masked by the extraction
+        spec_mask, spat_mask = np.where((outmask == False) & (inmask == True))
+        nmask = len(spec_mask)
+        # note: must cast numpy floats to regular python floats to pass the remote interface
+        points_mask = [dict(type='point', args=(float(spat_mask[i]), float(spec_mask[i]), 2),
+                            kwargs=dict(style='plus', color='red')) for i in range(nmask)]
+
+        # These are the pixels that were originally masked
+        spec_omask, spat_omask = np.where((inmask == False) & (thismask == True))
+        nomask = len(spec_omask)
+        # note: must cast numpy floats to regular python floats to pass the remote interface
+        points_omask = [dict(type='point', args=(float(spat_omask[i]), float(spec_omask[i]), 2),
+                             kwargs=dict(style='plus', color='cyan')) for i in range(nomask)]
+
+        # Labels for the points
+        text_mask = [dict(type='text', args=(nspat / 2, nspec / 2, 'masked by extraction'),
+                          kwargs=dict(color='red', fontsize=20))]
+        text_omask = [dict(type='text', args=(nspat / 2, nspec / 2 + 30, 'masked initially'),
+                           kwargs=dict(color='cyan', fontsize=20))]
+
+        canvas_list = points_mask + points_omask + text_mask + text_omask
+        canvas.add('constructedcanvas', canvas_list)
+
+
+
     # If requested display the model fits for this slit
     if SHOW_RESIDS == True:
         # TODO add error checking here to see if ginga exists
@@ -614,7 +662,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         # TODO figure out a way to overplot the pixels that were masked in red like as a scatter plot
         for spec in sobjs:
             if spec.HAND_EXTRACT_FLAG == False:
-                color = 'green'
+                color = 'blue'
             else:
                 color = 'orange'
             ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
