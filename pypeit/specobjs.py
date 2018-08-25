@@ -85,6 +85,8 @@ class SpecObj(object):
         self.maskwidth = None
         self.mincol = None
         self.maxcol = None
+        self.prof_nsigma = None
+
 
         # Attributes for HAND apertures, which are object added to the extraction by hand
         self.HAND_EXTRACT_SPEC = None
