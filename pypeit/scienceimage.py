@@ -225,7 +225,7 @@ class ScienceImage(processimages.ProcessImages):
         return self.time, self.basename
 
 
-    def find_objects(self, tslits_dict, maskslits = None, SKYSUB = True, SHOW_PEAKS= False, SHOW_FITS = False, SHOW_TRACE=True):
+    def find_objects(self, tslits_dict, maskslits = None, SKYSUB = True, SHOW_PEAKS= False, SHOW_FITS = False, SHOW_TRACE=False):
         """
         Find objects in the slits. This is currently setup only for ARMS
 
@@ -403,8 +403,6 @@ class ScienceImage(processimages.ProcessImages):
         self.ivarmodel = np.copy(self.sciivar)          # Set initially to sciivar in case no obects were found.
                                                    # Could actually create a model anyway here,
                                                    # but probalby overkill since nothing is extracted
-        # ToDO sort ouf the maksing here so that we get a bitmask indicating the reason for masking
-
 
         self.sobjs = self.sobjs_obj.copy()
         # Loop on slits
