@@ -29,7 +29,8 @@ def mk_specobj(flux=5, objid=500):
     specobj.boxcar = dict(wave=np.arange(npix)*units.AA, counts=np.ones(npix)*flux)
     specobj.optimal = dict(wave=np.arange(npix)*units.AA, counts=np.ones(npix)*flux-0.5)
     specobj.objid = objid
-    specobj.trace = np.arange(npix) / npix
+    specobj.trace_spat = np.arange(npix) / npix
+    specobj.fwhmfit = np.arange(npix) / npix
     # Return
     return specobj
 
@@ -67,10 +68,10 @@ def test_save2d_fits():
 def test_save1d_fits():
     """ save1d to FITS and HDF5
     """
-    #settings.dummy_settings()
+    # Init
     fitstbl = fsort.dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
-    # Dummy self
-    specObjs = [mk_specobj()]
+    sobj = mk_specobj()
+    specObjs = specobjs.SpecObjs([sobj])
     # Write to FITS
     save.save_1d_spectra_fits(specObjs, fitstbl[5], data_path('tst.fits'))
 

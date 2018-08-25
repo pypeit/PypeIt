@@ -53,6 +53,17 @@ class SpecObj(object):
        Identifier for the slit (max=9999)
     objid: int
        Identifier for the object (max=999)
+
+    Extraction dict's
+        'WAVE' : wave_opt  # Optimally extracted wavelengths
+        'COUNTS' : flux_opt  # Optimally extracted flux
+        'COUNTS_IVAR' : mivar_opt  # Inverse variance of optimally extracted flux using modelivar image
+        'COUNTS_NIVAR' : nivar_opt  # Optimally extracted noise variance (sky + read noise) only
+        'MASK' : mask_opt  # Mask for optimally extracted flux
+        'COUNTS_SKY' : sky_opt  # Optimally extracted sky
+        'COUNTS_RN' : rn_opt  # Square root of optimally extracted read noise squared
+        'FRAC_USE' : frac_use  # Fraction of pixels in the object profile subimage used for this extraction
+        'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
     """
     # Attributes
     # Init
@@ -102,6 +113,7 @@ class SpecObj(object):
         # Dictionaries holding boxcar and optimal extraction parameters
         self.boxcar = {}   # Boxcar extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
         self.optimal = {}  # Optimal extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
+
 
 
         # Generate IDs
@@ -615,6 +627,8 @@ def dummy_specobj(fitstbl, det=1, extraction=True):
     fitstbl : Table
       Expecting the fitsdict from dummy_fitsdict
     Returns
+    sobj_list: list
+      Pair of SpecObj objects
     -------
 
     """
@@ -624,20 +638,21 @@ def dummy_specobj(fitstbl, det=1, extraction=True):
     xslit = (0.3,0.7) # Center of the detector
     ypos = 0.5
     xobjs = [0.4, 0.6]
-    specobjs = []
-    for xobj in xobjs:
+    sobj_list = []
+    for jj,xobj in enumerate(xobjs):
         specobj = SpecObj(shape, 1240, xslit, spat_pixpos=900, det=det, config=config)
+        specobj.slitid = jj+1
         #specobj = SpecObj(shape, config, scidx, det, xslit, ypos, xobj)
         # Dummy extraction?
         if extraction:
             npix = 2001
-            specobj.boxcar['wave'] = np.linspace(4000., 6000., npix)*units.AA
-            specobj.boxcar['counts'] = 50.*(specobj.boxcar['wave'].value/5000.)**-1.
-            specobj.boxcar['var']  = specobj.boxcar['counts'].copy()
+            specobj.boxcar['WAVE'] = np.linspace(4000., 6000., npix)*units.AA
+            specobj.boxcar['COUNTS'] = 50.*(specobj.boxcar['WAVE'].value/5000.)**-1.
+            specobj.boxcar['COUNTS_IVAR']  = 1./specobj.boxcar['COUNTS'].copy()
         # Append
-        specobjs.append(specobj)
+        sobj_list.append(specobj)
     # Return
-    return specobjs
+    return sobj_list
 
 #TODO We need a method to write these objects to a fits file
 

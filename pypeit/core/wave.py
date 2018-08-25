@@ -430,13 +430,13 @@ def geomotion_calculate(fitstbl, idx, time, longitude, latitude, altitude, reffr
     return geomotion_velocity(obstime, radec, frame=refframe)
 
 
-def geomotion_correct(specobjs, maskslits, fitstbl, scidx, time, longitude, latitude, elevation,
+def geomotion_correct(specObjs, maskslits, fitstbl, scidx, time, longitude, latitude, elevation,
                       refframe):
     """ Correct the wavelength of every pixel to a barycentric/heliocentric frame.
 
     Parameters
     ----------
-    specobjs
+    specObjs : SpecObjs object
     maskslits
     fitstbl : Table
       Containing the properties of every fits file
@@ -462,8 +462,8 @@ def geomotion_correct(specobjs, maskslits, fitstbl, scidx, time, longitude, lati
     gdslits = np.where(~maskslits)[0]
     # Loop on slits to apply
     for slit in gdslits:
-        indx = (specobjs.slitid-1) == slit
-        this_specobjs = specobjs[indx]
+        indx = (specObjs.slitid-1) == slit
+        this_specobjs = specObjs[indx]
         # Loop on objects
         for specobj in this_specobjs:
             if specobj is None:
