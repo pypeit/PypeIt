@@ -129,6 +129,15 @@ def test_wavecalib_general():
     fidxs = [0]
     scores = [dict(rms=0.13, nxfit=13, nmatch=10)]
 
+    # LRISb 400/3400 with the longslit
+    names += ['LRISb_400_3400_longslit']
+    spec_files += ['lrisb_400_3400_PYPIT.json']
+    all_lines += [['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']]
+    all_wvcen += [4400.]
+    all_disp += [1.26]
+    fidxs += [0]
+    scores += [dict(rms=0.13, nxfit=13, nmatch=10)]
+
     '''
     # LRISb off-center
     # NeI lines are seen beyond the dicrhoic but are ignored
@@ -177,7 +186,7 @@ def test_wavecalib_general():
     all_wvcen += [4400.]
     all_disp += [1.02]
     fidxs += [0]
-    scores += [dict(rms=0.1, nxfit=13, nmatch=10)]
+    scores += [dict(rms=0.1, nxfit=13, nmatch=8)]
 
     # Kastr 600/7500 grating
     names += ['KASTr_600_7500_standard']
@@ -186,7 +195,7 @@ def test_wavecalib_general():
     all_wvcen += [6800.]
     all_disp += [2.345]
     fidxs += [0]
-    scores += [dict(rms=0.1, nxfit=20, nmatch=20)]
+    scores += [dict(rms=0.1, nxfit=10, nmatch=8)]
 
     # Keck DEIMOS
     names += ['keck_deimos_830g_l']
@@ -214,7 +223,8 @@ def test_wavecalib_general():
             hdf = h5py.File(data_path(spec_file), 'r')
             spec = hdf['arcs/{:d}/spec'.format(fidx)].value
 
-        patt_dict, final_fit = autoid.general(spec.reshape((spec.size, 1)), lines, min_ampl=min_ampl)
+        arcfitter = autoid.General(spec.reshape((spec.size, 1)), lines, min_ampl=min_ampl)
+        patt_dict, final_fit = arcfitter.run()
 
         # Score
         grade = True

@@ -552,7 +552,7 @@ def curved_quadrangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixto
                     if dm == da:
                         continue
                     # Create the test pattern
-                    dbval = (detlines[da]-detlines[dl])/(detlines[dr]-detlines[dl])
+                    daval = (detlines[da]-detlines[dl])/(detlines[dr]-detlines[dl])
                     # Search through all possible patterns in the linelist
                     for ll in range(0, sz_l-nptn+1):  # ll is the start point of the linelist pattern
                         lup = ll + lstsrch
