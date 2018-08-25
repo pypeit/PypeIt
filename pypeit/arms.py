@@ -203,13 +203,6 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                 vel_corr = -999999.9
                 if (caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) and \
                         (caliBrate.par['wavelengths']['reference'] != 'pixel'):
-# TODO JFH commented out this rese functionality below. The extract parset no longer exists. Furthermore, there are no master
-# files for extraction so I'm not even sure what reuse means or why this was an option. The geomotion takes a second
-# to compute, so not sure why we would need to load it from a master file??
-#                    if _par['extract']['reuse']:
-#                        msgs.warn('{0} correction'.format(caliBrate.par['wavelengths']['frame'])
-#                                  + 'will not be applied if an extracted science frame exists, '
-#                                  + 'and is used')
                     if sobjs is not None:
                         msgs.info("Performing a {0} correction".format(
                             caliBrate.par['wavelengths']['frame']))
