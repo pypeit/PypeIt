@@ -1066,8 +1066,14 @@ def parse_hand_dict(HAND_EXTRACT_DICT):
     Returns
     -------
     hand_spec:  spectral pixel location, numpy float 1-d array with size equal to number of hand aperatures requested
+
     hand_spat:  spatial pixel location, numpy float 1-d array with size equal to number of hand aperatures requested
-    hand_fwhm:  hand aperture fwhm, numpy float 1-d array with size equal to number of hand aperatures requested
+
+    hand_det:   Detector for hand apertures. This should either be ba numpy float 1-d array with size equal to number of hand
+                apertures requested, or a single number which applies to all the hand apertures provied by hand_spec, hand_spat
+
+    hand_fwhm:  hand aperture fwhm for extraction. This should either be ba numpy float 1-d array with size equal to number of hand
+                apertures requested, or a single number which applies to all the hand apertures provied by hand_spec, hand_spat
 
     Revision History
     ----------------
@@ -1109,13 +1115,51 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
             MASKWIDTH = 3.0, SIG_THRESH = 10.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, TRIM_EDG = (3,3), OBJMASK_NTHRESH = 2.0,
             specobj_dict=specobj_dict, SHOW_PEAKS=True, SHOW_FITS = False, SHOW_TRACE = False):
 
-    """ DOCS COMING SOON
+    """ Find the location of objects in a slitmask slit or a echelle order.
+
 
     Parameters
     ----------
+    image :  float ndarray
+        Image to search for objects from. This image has shape (nspec, nspat) image.shape where the first dimension (nspec)
+        is spectral, and second dimension (nspat) is spatial. Note this image can either have the sky background in it, or have already been sky subtracted.
+        Object finding works best on sky-subtracted images, but often one runs on the frame with sky first to identify the brightest
+        objects which are then masked (see skymask below) in sky subtraction.
+
+    invvar: float ndarray
+        Inverse variance image which defines the noise for image. This could be made optional and the code could just use the guess
+        ivar = 1/image
+
+    thismask:  boolean ndarray
+        Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
+        The convention is: True = on the slit/order, False  = off the slit/order
+
+    slit_left:  float ndarray
+        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec)
+
+    slit_righ:  float ndarray
+        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec)
+
+
+
+
+    Optional Parameters
+    -------------------
+    ycen :  float ndarray
+        Y positions corresponding to "Left"  and "Right" (expected as integers). Will be cast to an integer if floats
+        are provided. This needs to have the same shape as left and right broundarys provided above. In other words,
+        either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+
+    weight_image: float ndarray
+        Weight map to be applied to image before boxcar. It is a 2-d array with shape (nspec, nspat)
 
     Returns
     -------
+    fextract:   ndarray
+       Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
+       Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
+       the case of a single trace.
+
 
     Revision History
     ----------------
