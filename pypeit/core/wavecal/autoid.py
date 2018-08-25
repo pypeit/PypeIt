@@ -362,6 +362,7 @@ class General:
         else:
             self._ok_mask = ok_mask
 
+        msgs.error(str(min_ampl))
         self._min_ampl = min_ampl
         self._lowest_ampl = lowest_ampl
 
@@ -466,7 +467,15 @@ class General:
                           'Final report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
                           '  No matches! Try another algorithm' + msgs.newline() +
                           '---------------------------------------------------')
-                return None
+                self._all_patt_dict[str(slit)] = None
+                self._all_final_fit[str(slit)] = None
+            elif best_final_fit['rms'] > self._rms_threshold:
+                msgs.info('---------------------------------------------------' + msgs.newline() +
+                          'Final report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
+                          '  Poor RMS ({0:.3f})! Try another algorithm'.format(best_final_fit['rms']) + msgs.newline() +
+                          '---------------------------------------------------')
+                self._all_patt_dict[str(slit)] = None
+                self._all_final_fit[str(slit)] = None
             else:
                 if best_patt_dict['sign'] == +1:
                     signtxt = 'correlate'
@@ -503,7 +512,6 @@ class General:
             best_final_fit = self.fit_slit(slit, best_patt_dict, outroot=self._outroot, slittxt=slittxt)
             self._all_patt_dict[str(slit)] = best_patt_dict.copy()
             self._all_final_fit[str(slit)] = best_final_fit.copy()
-        self._all_patt_dict, self._all_final_fit
 
     def get_use_tcent(self, corr, weak=False):
         """Set if pixels correlate with wavelength (corr==1) or anticorrelate (corr=-1)
@@ -638,8 +646,6 @@ class General:
         return patt_dict, final_dict
 
     def solve_patterns(self, bestlist):
-        # Initialise the patterns dictionary
-        patt_dict = dict(nmatch=0, ibest=-1, bwv=0., min_ampl=self._min_ampl)
 
         # Obtain a full list of indices that are consistent with the maximum value
         wcen, dcen, sign, dindex, lindex = bestlist[0], bestlist[1], bestlist[3], bestlist[4], bestlist[5]
@@ -651,7 +657,13 @@ class General:
         else:
             signtxt = "anticorrelate"
 
+        # Initialise the patterns dictionary
+        patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_ampl=self._min_ampl,
+                         mask=np.zeros(use_tcent.size, dtype=np.bool))
         patterns.solve_triangles(use_tcent, self._wvdata, dindex, lindex, patt_dict)
+        # Check if a solution was found
+        if not patt_dict['acceptable']:
+            return None
 
         # Fill in the patterns dictionary
         patt_dict['sign'] = sign

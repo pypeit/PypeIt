@@ -607,7 +607,7 @@ def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
     """
     nlines = detlines.size
     if patt_dict is None:
-        patt_dict = dict(nmatch=0, ibest=-1, bwv=0.)
+        patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., mask=np.zeros(nlines, dtype=np.bool))
 
     # Find the best ID of each line
     detids = np.zeros(nlines)
@@ -629,6 +629,7 @@ def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
 
     # Iteratively fit this solution, and ID all lines.
     if ngd_match > patt_dict['nmatch']:
+        patt_dict['acceptable'] = True
         patt_dict['mask'] = mask
         patt_dict['nmatch'] = ngd_match
         patt_dict['scores'] = scores
