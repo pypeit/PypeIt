@@ -225,7 +225,7 @@ class ScienceImage(processimages.ProcessImages):
         return self.time, self.basename
 
 
-    def find_objects(self, tslits_dict, maskslits = None, SKYSUB = True, SHOW_PEAKS= True, SHOW_FITS = True, SHOW_TRACE=True):
+    def find_objects(self, tslits_dict, maskslits = None, SKYSUB = True, SHOW_PEAKS= False, SHOW_FITS = False, SHOW_TRACE=True):
         """
         Find objects in the slits. This is currently setup only for ARMS
 
@@ -306,7 +306,7 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.sobjs_obj, self.nobj
 
-    def global_skysub(self, tslits_dict, tilts, USE_SKYMASK=True, maskslits = None, PLOT_FIT = True):
+    def global_skysub(self, tslits_dict, tilts, USE_SKYMASK=True, maskslits = None, PLOT_FIT = False):
         """
         Perform global sky subtraction, slit by slit
 
