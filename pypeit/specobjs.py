@@ -216,7 +216,7 @@ class SpecObjs(object):
         if specobjs is None:
             self.specobjs = np.array([])
         else:
-            if isinstance(specobjs, list):
+            if isinstance(specobjs, (list, np.ndarray)):
                 specobjs = np.array(specobjs)
             self.specobjs = specobjs
 
@@ -298,8 +298,7 @@ class SpecObjs(object):
     def copy(self):
         sobj_copy = SpecObjs()
         for sobj in self.specobjs:
-            sobj_copy.specobjs += [sobj.copy()]
-
+            sobj_copy.add_sobj(sobj)
         sobj_copy.build_summary()
         return sobj_copy
 
