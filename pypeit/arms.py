@@ -80,7 +80,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
     if not isinstance(_par, pypeitpar.PypeItPar):
         raise TypeError('Input parameters must be a PypitPar instance.')
     required = [ 'rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib' ]
-    can_be_None = [ 'skysubtract', 'flexure', 'fluxcalib' ]
+    can_be_None = [ 'flexure', 'fluxcalib' ]
     _par.validate_keys(required=required, can_be_None=can_be_None)
 
     # Init calib dict
