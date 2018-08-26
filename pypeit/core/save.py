@@ -355,7 +355,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 '''
 
-def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=None, clobber=True):
+def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=None, clobber=True):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
@@ -370,7 +370,7 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
     outfile : str
     """
     # Repackage as necessary (some backwards compatability)
-    all_specobj = utils.unravel_specobjs(specObjs.specobjs)
+    all_specobj = utils.unravel_specobjs(specobjs.specobjs)
     # Primary hdu
     prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
