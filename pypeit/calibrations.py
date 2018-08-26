@@ -571,7 +571,7 @@ class Calibrations(object):
         if self.wv_calib is None:
             self.wv_calib, _ = self.waveCalib.run(self.tslits_dict['lcen'],
                                                   self.tslits_dict['rcen'], self.pixlocn,
-                                                  nonlinear=nonlinear, skip_QA=(~self.write_qa))
+                                                  nonlinear=nonlinear, skip_QA=(not self.write_qa))
             # Save to Masters
             if self.save_masters:
                 self.waveCalib.save_master(self.waveCalib.wv_calib)
