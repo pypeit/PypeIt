@@ -200,7 +200,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
 
                 # Helio
                 # Correct Earth's motion
-                vel_corr = -999999.9
+                #vel_corr = -999999.9
                 if (caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) and \
                         (caliBrate.par['wavelengths']['reference'] != 'pixel'):
                     if sobjs is not None:
@@ -225,9 +225,9 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                 skymodel = global_sky0  # set to first pass global sky
                 objmodel = np.zeros_like(sciimg)
                 ivarmodel = np.copy(sciivar) # Set to sciivar. Could create a model but what is the point?
-                outmask = sciI.inmask # Set to inmask in case on objects were found
+                outmask = sciI.bitmask # Set to inmask in case on objects were found
                 sobjs = sobjs_obj # empty specobjs object from object finding
-
+                vel_corr = None
 
             # Save for outputing (after all detectors are done)
             sci_dict[det]['sciimg'] = sciimg
@@ -237,8 +237,10 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             sci_dict[det]['ivarmodel'] = ivarmodel
             sci_dict[det]['outmask'] = outmask
             sci_dict[det]['specobjs'] =  sobjs   #utils.unravel_specobjs([specobjs])
-            if vel_corr > -999999.9:
+            if vel_corr is not None:
                 sci_dict['meta']['vel_corr'] = vel_corr
+#            if vel_corr > -999999.9:
+#                sci_dict['meta']['vel_corr'] = vel_corr
             #-----------------------------------------------------------
 
             '''
