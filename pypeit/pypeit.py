@@ -63,7 +63,8 @@ def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_fr
                 - 2: All output
         use_masters (:obj:`bool`, optional):
             Use the master frames if available (same as setting
-            par['calibrations']['masters'] = 'reuse'.  NOT IMPLEMENTED.
+            par['calibrations']['masters'] = 'reuse'.
+            TODO JFH Now trying to implement
         logname (:obj:`str`, optional):
           The name of an ascii log file with the details of the
           reduction
@@ -90,6 +91,13 @@ def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_fr
                                                        calibration_check=calibration_check,
                                                        use_header_frametype=use_header_frametype,
                                                        sort_dir=sort_dir)
+
+    # TODO This --use_masters flag should probably be passed as an argument to setup instead of modifying the parset here
+    # If the --use_masters flag was set change the parset to make this so
+    if(use_masters):
+        par['calibrations']['masters'] = 'reuse'
+        msgs.info('PypeIt will REUSE master files when they exist')
+
     # Write the fits table
     setup.write_fitstbl()
 
