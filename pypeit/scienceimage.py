@@ -362,7 +362,7 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.global_sky
 
-    def local_skysub_extract(self, waveimg, maskslits=None, SHOW_RESIDS = True):
+    def local_skysub_extract(self, waveimg, maskslits=None, SHOW_PROFILE=False, SHOW_RESIDS = False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -416,8 +416,9 @@ class ScienceImage(processimages.ProcessImages):
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.extractmask[thismask] = \
                     skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts,self.waveimg, self.global_sky, self.rn2img,
-                                         thismask, self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:, slit],
-                                         self.sobjs[thisobj],bsp=self.par['bspline_spacing'], inmask = inmask,SHOW_RESIDS=SHOW_RESIDS)
+                                                thismask, self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:, slit],
+                                                self.sobjs[thisobj],bsp=self.par['bspline_spacing'], inmask = inmask,
+                                                SHOW_PROFILE=SHOW_PROFILE, SHOW_RESIDS=SHOW_RESIDS)
 
         # Set the bit for pixels which were masked by the extraction
         iextract = (self.bitmask == 0) & (self.extractmask == False) # For extractmask, True = Good, False = Bad
