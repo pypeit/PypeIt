@@ -334,7 +334,8 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
                          bsp = 0.6, inmask = None, TRIM_EDG = (3,3), STD = False, PROF_NSIGMA = None, niter=4,
-                         box_rad = 7, sigrej = 3.5,skysample = False, SN_GAUSS = 3.0, COADD_2D = False, SHOW_RESIDS=False):
+                         box_rad = 7, sigrej = 3.5,skysample = False, SN_GAUSS = 3.0, COADD_2D = False, SHOW_PROFILE=False,
+                         SHOW_RESIDS=False):
 
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
@@ -484,7 +485,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                                                                           thisfwhm=sobjs[iobj].fwhm,
                                                                           hwidth=sobjs[iobj].maskwidth,
                                                                           PROF_NSIGMA=sobjs[iobj].prof_nsigma,
-                                                                          SN_GAUSS=SN_GAUSS)
+                                                                          SN_GAUSS=SN_GAUSS, SHOW_PROFILE=SHOW_PROFILE)
                     # Update the object profile and the fwhm and mask parameters
                     obj_profiles[ipix[0], ipix[1], ii] = profile_model
                     sobjs[iobj].trace_spat = xnew + mincol

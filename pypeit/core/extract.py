@@ -452,7 +452,7 @@ def findfwhm(model, sig_x):
 
 
 
-def fit_profile_qa(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind = None,
+def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind = None,
                    title =' ', xtrunc = 1e6, xlim = None, ylim = None, qafile = None):
 
 
@@ -546,7 +546,7 @@ def fit_profile_qa(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
 
 def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                 thisfwhm=4.0, MAX_TRACE_CORR = 2.0, SN_GAUSS = 3.0, wvmnx = [2900.0,30000.0],
-                hwidth = None, PROF_NSIGMA = None, NO_DERIV = False, GAUSS = False):
+                hwidth = None, PROF_NSIGMA = None, NO_DERIV = False, GAUSS = False, SHOW_PROFILE = False):
 
     """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> SN_GAUSS) in which
     fit a simple Gaussian. Port of IDL LOWREDUX long_gprofile.pro
@@ -761,7 +761,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
             title_string = 'No good pixels, showing all'
             indx = None
 
-        fit_profile_qa(sigma_x, norm_obj, profile_model, title = title_string, ind=indx, xtrunc= 7.0)
+        if(SHOW_PROFILE):
+            qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, ind=indx, xtrunc= 7.0)
         return (profile_model, xnew, fwhmfit, med_sn2)
 
 
@@ -875,7 +876,9 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         if(np.sum(norm) > 0.0):
             profile_model = profile_model/norm
 
-        fit_profile_qa(sigma_x, norm_obj, profile_model, l_limit = l_limit, r_limit = r_limit, ind =good, xlim = 7.0)
+        if(SHOW_PROFILE):
+            qa_fit_profile(sigma_x, norm_obj, profile_model, l_limit = l_limit, r_limit = r_limit, ind =good, xlim = 7.0)
+
         return (profile_model, xnew, fwhmfit, med_sn2)
 
     sigma_iter = 3
@@ -1050,10 +1053,11 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     if (np.sum(norm) > 0.0):
         profile_model = profile_model / norm
     msgs.info("FWHM="  + "{:6.2f}".format(thisfwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2)))
-    fit_profile_qa(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp, l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = PROF_NSIGMA)
+    if(SHOW_PROFILE):
+        qa_fit_profile(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp,
+                       l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = PROF_NSIGMA)
 
     return (profile_model, xnew, fwhmfit, med_sn2)
-
 
 
 def parse_hand_dict(HAND_EXTRACT_DICT):
