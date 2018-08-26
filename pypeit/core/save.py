@@ -360,7 +360,7 @@ def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=N
 
     Parameters
     ----------
-    specobjs : list of SpecObjExp objects or list of list of SpecObjExp
+    specobjs : SpecObjs object
     header : dict or Row (dict-like)
     outfile : str
     clobber : bool, optional
@@ -370,7 +370,7 @@ def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=N
     outfile : str
     """
     # Repackage as necessary (some backwards compatability)
-    all_specobj = utils.unravel_specobjs(specobjs)
+    all_specobj = utils.unravel_specobjs(specobjs.specobjs)
     # Primary hdu
     prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
@@ -410,32 +410,34 @@ def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=N
         # Add Spectrum Table
         cols = []
         # Trace
-        cols += [fits.Column(array=specobj.trace, name=str('obj_trace'), format=specobj.trace.dtype)]
+        cols += [fits.Column(array=specobj.trace_spat, name=str('TRACE'), format=specobj.trace_spat.dtype)]
+        # FWHM fit from extraction
+        cols += [fits.Column(array=specobj.fwhmfit, name=str('FWHM'), format=specobj.fwhmfit.dtype)]
         if ext == 1:
-            npix = len(specobj.trace)
+            npix = len(specobj.trace_spat)
         # Boxcar
         for key in specobj.boxcar.keys():
             # Skip some
-            if key in ['size']:
+            if key in ['BOX_RADIUS']:
                 continue
             if isinstance(specobj.boxcar[key], units.Quantity):
                 cols += [fits.Column(array=specobj.boxcar[key].value,
-                                     name=str('box_'+key), format=specobj.boxcar[key].value.dtype)]
+                                     name=str('BOX_'+key), format=specobj.boxcar[key].value.dtype)]
             else:
                 cols += [fits.Column(array=specobj.boxcar[key],
-                                     name=str('box_'+key), format=specobj.boxcar[key].dtype)]
+                                     name=str('BOX_'+key), format=specobj.boxcar[key].dtype)]
         # Optimal
         for key in specobj.optimal.keys():
             # Skip some
-            if key in ['fwhm']:
-                continue
+            #if key in ['fwhm']:
+            #    continue
             # Generate column
             if isinstance(specobj.optimal[key], units.Quantity):
                 cols += [fits.Column(array=specobj.optimal[key].value,
-                                       name=str('opt_'+key), format=specobj.optimal[key].value.dtype)]
+                                       name=str('OPT_'+key), format=specobj.optimal[key].value.dtype)]
             else:
                 cols += [fits.Column(array=specobj.optimal[key],
-                                       name=str('opt_'+key), format=specobj.optimal[key].dtype)]
+                                       name=str('OPT_'+key), format=specobj.optimal[key].dtype)]
         # Finish
         coldefs = fits.ColDefs(cols)
         tbhdu = fits.BinTableHDU.from_columns(coldefs)
@@ -578,7 +580,7 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
 
     """
     # Lists for a Table
-    slits, names, boxsize, opt_fwhm, s2n = [], [], [], [], []
+    slits, names, spat_pixpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], []
     # Loop on detectors
     #for kk in range(settings.spect['mosaic']['ndet']):
     #    det = kk+1
@@ -594,25 +596,23 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
         # Append
         names.append(specobj.idx)
         slits.append(specobj.slitid)
+        spat_pixpos.append(specobj.spat_pixpos)
         # Boxcar width
-        if 'size' in specobj.boxcar.keys():
-            slit_pix = specobj.boxcar['size']
+        if 'BOX_RADIUS' in specobj.boxcar.keys():
+            slit_pix = 2.0*specobj.boxcar['BOX_RADIUS']
             # Convert to arcsec
             binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
             boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.det-1]['platescale'])
         else:
             boxsize.append(0.)
         # Optimal profile (FWHM)
-        if 'fwhm' in specobj.optimal.keys():
-            binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
-            opt_fwhm.append(specobj.optimal['fwhm'] * binspatial
+        binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
+        opt_fwhm.append(np.median(specobj.fwhmfit)* binspatial
                                 * spectrograph.detector[specobj.det-1]['platescale'])
-        else:
-            opt_fwhm.append(0.)
         # S2N -- default to boxcar
-        sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
-        ivar = utils.calc_ivar(sext['var'])
-        is2n = np.median(sext['counts']*np.sqrt(ivar))
+        #sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
+        ivar = specobj.optimal['COUNTS_IVAR']
+        is2n = np.median(specobj.optimal['COUNTS']*np.sqrt(ivar))
         s2n.append(is2n)
 
     # Generate the table, if we have at least one source
@@ -621,6 +621,8 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
         obj_tbl['slit'] = slits
         obj_tbl['slit'].format = 'd'
         obj_tbl['name'] = names
+        obj_tbl['spat_pixpos'] = spat_pixpos
+        obj_tbl['spat_pixpos'].format = '.1f'
         obj_tbl['box_width'] = boxsize
         obj_tbl['box_width'].format = '.2f'
         obj_tbl['box_width'].unit = units.arcsec
@@ -691,7 +693,7 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         else:
             det = key
         sdet = parse.get_dnum(det, caps=True)  # e.g. DET02
-        if 'sciframe' not in sci_output[det]:
+        if 'sciimg' not in sci_output[det]:
             continue
         # Specified detector number?
         #if settings.argflag['reduce']['detnum'] is not None:
@@ -704,25 +706,51 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = '{:s}-Processed'.format(sdet)
-        hdu = fits.ImageHDU(sci_output[det]['sciframe']) #slf._sciframe[det-1])
+        hdu = fits.ImageHDU(sci_output[det]['sciimg']) #slf._sciframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 
-        # Variance
+        # Raw Inverse Variance
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = '{:s}-Var'.format(sdet)
-        hdu = fits.ImageHDU(sci_output[det]['finalvar']) #slf._modelvarframe[det-1])
+        prihdu.header[keywd] = '{:s}-IVARRAW'.format(sdet)
+        hdu = fits.ImageHDU(sci_output[det]['sciivar']) #slf._modelvarframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 
-        # Background subtracted
+        # Background model
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = '{:s}-Skysub'.format(sdet)
-        hdu = fits.ImageHDU(sci_output[det]['sciframe']-sci_output[det]['finalsky'])
+        prihdu.header[keywd] = '{:s}-SKY'.format(sdet)
+        hdu = fits.ImageHDU(sci_output[det]['skymodel']) #slf._modelvarframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
+
+        # Object model
+        ext += 1
+        keywd = 'EXT{:04d}'.format(ext)
+        prihdu.header[keywd] = '{:s}-OBJ'.format(sdet)
+        hdu = fits.ImageHDU(sci_output[det]['objmodel']) #slf._modelvarframe[det-1])
+        hdu.name = prihdu.header[keywd]
+        hdus.append(hdu)
+
+        # Inverse Variance model
+        ext += 1
+        keywd = 'EXT{:04d}'.format(ext)
+        prihdu.header[keywd] = '{:s}-IVARMODEL'.format(sdet)
+        hdu = fits.ImageHDU(sci_output[det]['ivarmodel'])  # slf._modelvarframe[det-1])
+        hdu.name = prihdu.header[keywd]
+        hdus.append(hdu)
+
+        # Inverse Variance model
+        ext += 1
+        keywd = 'EXT{:04d}'.format(ext)
+        prihdu.header[keywd] = '{:s}-MASK'.format(sdet)
+        hdu = fits.ImageHDU(sci_output[det]['outmask'])  # slf._modelvarframe[det-1])
+        hdu.name = prihdu.header[keywd]
+        hdus.append(hdu)
+
+
 
     # Finish
     hdulist = fits.HDUList(hdus)

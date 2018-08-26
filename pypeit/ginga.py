@@ -85,7 +85,6 @@ def show_image(inp, chname='Image', wcs_img=None, **kwargs):
 
     viewer = connect_to_ginga()
     ch = viewer.channel(chname)
-    name='image'
     # Header
     header = {}
     header['NAXIS1'] = img.shape[1]
@@ -94,7 +93,7 @@ def show_image(inp, chname='Image', wcs_img=None, **kwargs):
         header['WCS-XIMG'] = wcs_img
         #header['WCS-XIMG'] = '/home/xavier/REDUX/Keck/LRIS/2017mar20/lris_red_setup_C/MF_lris_red/MasterWave_C_02_aa.fits'
     # Giddy up
-    ch.load_np(name, img, 'fits', header)
+    ch.load_np(chname, img, 'fits', header)
     return viewer, ch
 
 

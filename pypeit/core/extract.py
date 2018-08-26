@@ -7,6 +7,7 @@ import copy
 import inspect
 
 import numpy as np
+import scipy
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec, font_manager
@@ -18,6 +19,7 @@ from astropy.stats import sigma_clipped_stats
 from pypeit import msgs
 from pypeit.core import qa
 from pypeit import artrace
+from pypeit.core import pydl
 from pypeit import utils
 from pypeit.core import pixels
 from pypeit import debugger
@@ -346,7 +348,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
         oprof_bad = badwvs & ((oprof_smash <= 0.0) | (np.isfinite(oprof_smash) == False) | (wave_opt <= 0.0) | (np.isfinite(wave_opt) == False))
         if oprof_bad.any():
             # For pixels with completely bad profile values, interpolate from trace.
-            f_wave = RectBivariateSpline(spec_vec,spat_vec, waveimg)
+            f_wave = scipy.interpolate.RectBivariateSpline(spec_vec,spat_vec, waveimg)
             wave_opt[oprof_bad] = f_wave(specobj.trace_spec[oprof_bad], specobj.trace_spat[oprof_bad],grid=False)
 
     flux_model = np.outer(flux_opt,np.ones(nsub))*oprof_sub
@@ -355,13 +357,13 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     chi2 = chi2_num/chi2_denom
 
     # Fill in the optimally extraction tags
-    specobj.optimal['WAVE_OPT'] = wave_opt    # Optimally extracted wavelengths
-    specobj.optimal['COUNTS_OPT'] = flux_opt    # Optimally extracted flux
-    specobj.optimal['COUNTS_IVAR_OPT'] = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
-    specobj.optimal['COUNTS_NIVAR_OPT'] = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
-    specobj.optimal['MASK_OPT'] = mask_opt    # Mask for optimally extracted flux
-    specobj.optimal['COUNTS_SKY_OPT'] = sky_opt      # Optimally extracted sky
-    specobj.optimal['COUNTS_RN_OPT'] = rn_opt        # Square root of optimally extracted read noise squared
+    specobj.optimal['WAVE'] = wave_opt    # Optimally extracted wavelengths
+    specobj.optimal['COUNTS'] = flux_opt    # Optimally extracted flux
+    specobj.optimal['COUNTS_IVAR'] = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
+    specobj.optimal['COUNTS_NIVAR'] = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
+    specobj.optimal['MASK'] = mask_opt    # Mask for optimally extracted flux
+    specobj.optimal['COUNTS_SKY'] = sky_opt      # Optimally extracted sky
+    specobj.optimal['COUNTS_RN'] = rn_opt        # Square root of optimally extracted read noise squared
     specobj.optimal['FRAC_USE'] = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     specobj.optimal['CHI2'] = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
@@ -385,19 +387,21 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     bad_box = (wave_box <= 0.0) | (np.isfinite(wave_box) == False) | (box_denom == 0.0)
     # interpolate bad wavelengths over masked pixels
     if bad_box.any():
-        f_wave = RectBivariateSpline(spec_vec, spat_vec, waveimg)
+        f_wave = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, waveimg)
         wave_box[bad_box] = f_wave(specobj.trace_spec[bad_box], specobj.trace_spat[bad_box],grid=False)
 
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
 
-    specobj.boxcar['WAVE_BOX'] = wave_box
-    specobj.boxcar['COUNTS_BOX'] = flux_box*mask_box
-    specobj.boxcar['COUNTS_IVAR_BOX'] = ivar_box*mask_box
-    specobj.boxcar['COUNTS_NIVAR_BOX'] = nivar_box*mask_box
-    specobj.boxcar['MASK_BOX'] = mask_box
-    specobj.boxcar['COUNTS_SKY_BOX'] = sky_box
-    specobj.boxcar['COUNTS_RN_BOX'] = rn_box
+    specobj.boxcar['WAVE'] = wave_box
+    specobj.boxcar['COUNTS'] = flux_box*mask_box
+    specobj.boxcar['COUNTS_IVAR'] = ivar_box*mask_box
+    specobj.boxcar['COUNTS_NIVAR'] = nivar_box*mask_box
+    specobj.boxcar['MASK'] = mask_box
+    specobj.boxcar['COUNTS_SKY'] = sky_box
+    specobj.boxcar['COUNTS_RN'] = rn_box
+    specobj.boxcar['BOX_RADIUS'] = box_radius
+
 
     return None
 
@@ -448,7 +452,7 @@ def findfwhm(model, sig_x):
 
 
 
-def fit_profile_qa(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind = None,
+def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind = None,
                    title =' ', xtrunc = 1e6, xlim = None, ylim = None, qafile = None):
 
 
@@ -511,7 +515,7 @@ def fit_profile_qa(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
             y50[i] = yclose[s[int(np.rint((nclose - 1)*0.5))]]
             y80[i] = yclose[s[int(np.rint((nclose - 1)*0.8))]]
             y20[i] = yclose[s[int(np.rint((nclose - 1)*0.2))]]
-            ax.plot([plot_mid[i],plot_mid[i]], [y20[i],y80[i]], linewidth=1.0, color='cornflowerblue')
+            ax.plot([plot_mid[i],plot_mid[i]], [y20[i],y80[i]], linewidth=1.2, color='orange')
 
     icl = nbin > 3
     if icl.any():
@@ -525,9 +529,9 @@ def fit_profile_qa(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
 
 
     if l_limit is not None:
-        ax.axvline(x =l_limit, color='orange',linewidth=1.0)
+        ax.axvline(x =l_limit, color='cornflowerblue',linewidth=2.0)
     if r_limit is not None:
-        ax.axvline(x=r_limit, color='orange',linewidth=1.0)
+        ax.axvline(x=r_limit, color='cornflowerblue',linewidth=2.0)
 
     ax.set_xlim(xlimit)
     ax.set_ylim(ylim)
@@ -542,7 +546,7 @@ def fit_profile_qa(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
 
 def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                 thisfwhm=4.0, MAX_TRACE_CORR = 2.0, SN_GAUSS = 3.0, wvmnx = [2900.0,30000.0],
-                hwidth = None, PROF_NSIGMA = None, NO_DERIV = False, GAUSS = False):
+                hwidth = None, PROF_NSIGMA = None, NO_DERIV = False, GAUSS = False, SHOW_PROFILE = False):
 
     """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> SN_GAUSS) in which
     fit a simple Gaussian. Port of IDL LOWREDUX long_gprofile.pro
@@ -601,13 +605,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                value of the reduced chi^2
      """
 
-    from scipy.interpolate import interp1d
-    from scipy.ndimage.filters import median_filter
-    from pypeit.core.pydl import bspline
-    from pypeit.core.pydl import iterfit as  bspline_iterfit
-    from pypeit.core.pydl import djs_maskinterp
-    from pypeit.utils import bspline_profile
-    from scipy.special import erfcinv
+
 
     if hwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
     if PROF_NSIGMA is not None:
@@ -630,8 +628,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     spline_sub = np.zeros((nspec,nspat))
 
 
-    flux_sm = median_filter(flux, size=5, mode = 'reflect')
-    fluxivar_sm =  median_filter(fluxivar, size = 5, mode = 'reflect')
+    flux_sm = scipy.ndimage.filters.median_filter(flux, size=5, mode = 'reflect')
+    fluxivar_sm =  scipy.ndimage.filters.median_filter(fluxivar, size = 5, mode = 'reflect')
 #    flux_sm = djs_median(flux, width = 5, boundary = 'reflect')
     #    fluxivar_sm =  djs_median(fluxivar, width = 5, boundary = 'reflect')
     fluxivar_sm = fluxivar_sm*(fluxivar > 0.0)
@@ -641,9 +639,9 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
              (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
 
 
-    b_answer, bmask   = bspline_iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    b_answer, bmask2  = bspline_iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask, kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    c_answer, cmask   = bspline_iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,kwargs_bspline={'everyn': 30}, kwargs_reject={'groupbadpix':True,'maxrej':1})
+    b_answer, bmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
+    b_answer, bmask2  = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask, kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
+    c_answer, cmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,kwargs_bspline={'everyn': 30}, kwargs_reject={'groupbadpix':True,'maxrej':1})
     spline_flux, _ = b_answer.value(wave[indsp])
     cont_flux, _ = c_answer.value(wave[indsp])
 
@@ -653,13 +651,13 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     if(nonzero >0):
         (mean, med_sn2, stddev) = sigma_clipped_stats(sn2,sigma_lower=3.0,sigma_upper=5.0)
     else: med_sn2 = 0.0
-    sn2_med = median_filter(sn2, size=9, mode='reflect')
+    sn2_med = scipy.ndimage.filters.median_filter(sn2, size=9, mode='reflect')
     #sn2_med = djs_median(sn2, width = 9, boundary = 'reflect')
     igood = (ivar > 0.0)
     ngd = np.sum(igood)
     if(ngd > 0):
         isrt = np.argsort(wave[indsp])
-        sn2_interp = interp1d((wave[indsp])[isrt],sn2_med[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
+        sn2_interp = scipy.interpolate.interp1d((wave[indsp])[isrt],sn2_med[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
         sn2_sub[igood] = sn2_interp(sub_wave[igood])
     msgs.info('sqrt(med(S/N)^2) = ' + "{:5.2f}".format(np.sqrt(med_sn2)))
 
@@ -673,14 +671,14 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     spline_flux1[ispline] = spline_tmp
     cont_tmp, _ = c_answer.value(wave[ispline])
     cont_flux1[ispline] = cont_tmp
-    s2_1_interp = interp1d((wave[indsp])[isrt], sn2[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
+    s2_1_interp = scipy.interpolate.interp1d((wave[indsp])[isrt], sn2[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
     sn2_1[ispline] = s2_1_interp(wave[ispline])
     bmask = np.zeros(nspec,dtype='bool')
     bmask[indsp] = bmask2
-    spline_flux1 = djs_maskinterp(spline_flux1,(bmask == False))
+    spline_flux1 = pydl.djs_maskinterp(spline_flux1,(bmask == False))
     cmask2 = np.zeros(nspec,dtype='bool')
     cmask2[indsp] = cmask
-    cont_flux1 = djs_maskinterp(cont_flux1,(cmask2 == False))
+    cont_flux1 = pydl.djs_maskinterp(cont_flux1,(cmask2 == False))
 
     (_, _, sigma1) = sigma_clipped_stats(flux[indsp],sigma_lower=3.0,sigma_upper=5.0)
 
@@ -702,11 +700,11 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         if((nbad2 > 0) or (ngood0 > 0)):
             spline_flux1[indbad2] = np.median(spline_flux1[~badpix])
         # take a 5-pixel median to filter out some hot pixels
-        spline_flux1 = median_filter(spline_flux1,size=5,mode ='reflect')
+        spline_flux1 = scipy.ndimage.filters.median_filter(spline_flux1,size=5,mode ='reflect')
         # Create the normalized object image
         if(ngd > 0):
             isrt = np.argsort(wave)
-            spline_sub_interp = interp1d(wave[isrt],spline_flux1[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
+            spline_sub_interp = scipy.interpolate.interp1d(wave[isrt],spline_flux1[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
             spline_sub[igood] = spline_sub_interp(sub_wave[igood])
         else:
             spline_sub[igood] = np.fmax(sigma1, 0)
@@ -763,7 +761,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
             title_string = 'No good pixels, showing all'
             indx = None
 
-        fit_profile_qa(sigma_x, norm_obj, profile_model, title = title_string, ind=indx, xtrunc= 7.0)
+        if(SHOW_PROFILE):
+            qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, ind=indx, xtrunc= 7.0)
         return (profile_model, xnew, fwhmfit, med_sn2)
 
 
@@ -774,7 +773,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     mask = np.full(nspec*nspat, False, dtype=bool)
 
     # The following lines set the limits for the b-spline fit
-    limit = erfcinv(0.1/np.sqrt(med_sn2))*np.sqrt(2.0)
+    limit = scipy.special.erfcinv(0.1/np.sqrt(med_sn2))*np.sqrt(2.0)
     if(PROF_NSIGMA is None):
         sinh_space = 0.25*np.log10(np.fmax((1000./np.sqrt(med_sn2)),10.))
         abs_sigma = np.fmin((np.abs(sigma_x.flat[good])).max(),2.0*limit)
@@ -808,7 +807,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     si = inside[np.argsort(sigma_x.flat[inside])]
     sr = si[::-1]
 
-    bset, bmask = bspline_iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si]
+    bset, bmask = pydl.iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si]
                            , nord = 4, bkpt = bkpt, maxiter = 15, upper = 1, lower = 1)
     mode_fit, _ = bset.value(sigma_x.flat[si])
     median_fit = np.median(norm_obj[norm_ivar > 0.0])
@@ -877,7 +876,9 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         if(np.sum(norm) > 0.0):
             profile_model = profile_model/norm
 
-        fit_profile_qa(sigma_x, norm_obj, profile_model, l_limit = l_limit, r_limit = r_limit, ind =good, xlim = 7.0)
+        if(SHOW_PROFILE):
+            qa_fit_profile(sigma_x, norm_obj, profile_model, l_limit = l_limit, r_limit = r_limit, ind =good, xlim = 7.0)
+
         return (profile_model, xnew, fwhmfit, med_sn2)
 
     sigma_iter = 3
@@ -903,10 +904,10 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         xx = np.sum(xtemp, 1)/nspat
         profile_basis = np.column_stack((mode_zero,mode_shift))
 
-        mode_shift_out = bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis
+        mode_shift_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis
                                       ,maxiter=1,kwargs_bspline= {'nbkpts':nbkpts})
         mode_shift_set = mode_shift_out[0]
-        temp_set = bspline(None, fullbkpt = mode_shift_set.breakpoints,nord=mode_shift_set.nord)
+        temp_set = pydl.bspline(None, fullbkpt = mode_shift_set.breakpoints,nord=mode_shift_set.nord)
         temp_set.coeff = mode_shift_set.coeff[0, :]
         h0, _ = temp_set.value(xx)
         temp_set.coeff = mode_shift_set.coeff[1, :]
@@ -916,10 +917,10 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         trace_corr = trace_corr + delta_trace_corr
 
         profile_basis = np.column_stack((mode_zero,mode_stretch))
-        mode_stretch_out = bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis,
+        mode_stretch_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis,
                                             maxiter=1,fullbkpt = mode_shift_set.breakpoints)
         mode_stretch_set = mode_stretch_out[0]
-        temp_set = bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
+        temp_set = pydl.bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
         temp_set.coeff = mode_stretch_set.coeff[0, :]
         h0, _ = temp_set.value(xx)
         temp_set.coeff = mode_stretch_set.coeff[1, :]
@@ -944,7 +945,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
             keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
             if keep.sum() == 0:
                 keep = np.ones(bkpt.size, type=bool)
-            bset_out = bspline_profile(sigma_x.flat[inside[ss]],norm_obj.flat[inside[ss]],norm_ivar.flat[inside[ss]],pb[ss],
+            bset_out = utils.bspline_profile(sigma_x.flat[inside[ss]],norm_obj.flat[inside[ss]],norm_ivar.flat[inside[ss]],pb[ss],
                                     nord = 4, bkpt=bkpt[keep],maxiter=2)
             bset = bset_out[0] # This updated bset used for the next set of trace corrections
 
@@ -962,7 +963,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                        np.isfinite(norm_obj.flat[ss]) &
                        np.isfinite(norm_ivar.flat[ss]))
     pb = (np.outer(area, np.ones(nspat,dtype=float)))
-    bset_out = bspline_profile(sigma_x.flat[ss[inside]],norm_obj.flat[ss[inside]], norm_ivar.flat[ss[inside]], pb.flat[ss[inside]],
+    bset_out = utils.bspline_profile(sigma_x.flat[ss[inside]],norm_obj.flat[ss[inside]], norm_ivar.flat[ss[inside]], pb.flat[ss[inside]],
                             nord=4, bkpt = bkpt, upper = 10, lower=10)
     bset = bset_out[0]
     outmask = bset_out[1]
@@ -979,10 +980,17 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
 
     left_bool = (((full_bsp[ss] < (min_level+median_fit)) & (sigma_x.flat[ss] < peak_x)) | (sigma_x.flat[ss] < (peak_x-limit)))[::-1]
     ind_left, = np.where(left_bool)
-    lp = np.fmax(ind_left.min(), 0)
+    if ind_left.size == 0:
+        lp = 0
+    else:
+        lp = np.fmax(ind_left.min(), 0)
     righ_bool = ((full_bsp[ss] < (min_level+median_fit)) & (sigma_x.flat[ss] > peak_x))  | (sigma_x.flat[ss] > (peak_x+limit))
     ind_righ, = np.where(righ_bool)
-    rp = np.fmax(ind_righ.min(), 0)
+    if ind_righ.size == 0:
+        rp = 0
+    else:
+        rp = np.fmax(ind_righ.min(), 0)
+
     l_limit = ((sigma_x.flat[ss])[::-1])[lp] - 0.1
     r_limit = sigma_x.flat[ss[rp]] + 0.1
 
@@ -1045,10 +1053,11 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     if (np.sum(norm) > 0.0):
         profile_model = profile_model / norm
     msgs.info("FWHM="  + "{:6.2f}".format(thisfwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2)))
-    fit_profile_qa(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp, l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = PROF_NSIGMA)
+    if(SHOW_PROFILE):
+        qa_fit_profile(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp,
+                       l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = PROF_NSIGMA)
 
     return (profile_model, xnew, fwhmfit, med_sn2)
-
 
 
 def parse_hand_dict(HAND_EXTRACT_DICT):
@@ -1061,8 +1070,14 @@ def parse_hand_dict(HAND_EXTRACT_DICT):
     Returns
     -------
     hand_spec:  spectral pixel location, numpy float 1-d array with size equal to number of hand aperatures requested
+
     hand_spat:  spatial pixel location, numpy float 1-d array with size equal to number of hand aperatures requested
-    hand_fwhm:  hand aperture fwhm, numpy float 1-d array with size equal to number of hand aperatures requested
+
+    hand_det:   Detector for hand apertures. This should either be ba numpy float 1-d array with size equal to number of hand
+                apertures requested, or a single number which applies to all the hand apertures provied by hand_spec, hand_spat
+
+    hand_fwhm:  hand aperture fwhm for extraction. This should either be ba numpy float 1-d array with size equal to number of hand
+                apertures requested, or a single number which applies to all the hand apertures provied by hand_spec, hand_spat
 
     Revision History
     ----------------
@@ -1099,19 +1114,50 @@ def parse_hand_dict(HAND_EXTRACT_DICT):
 specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 'science'}
 
 
-
-def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
+def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
             HAND_EXTRACT_DICT = None, std_trace = None, ncoeff = 5, nperslit = 10,  BG_SMTH = 5.0, PKWDTH = 3.0,
-            SIG_THRESH = 5.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, TRIM_EDG = (3,3), OBJMASK_NTHRESH = 2.0,
-            SHOW_TRACE = False, SHOW_FITS = False, SHOW_PEAKS = True, specobj_dict=specobj_dict):
+            MASKWIDTH = 3.0, SIG_THRESH = 10.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, TRIM_EDG = (3,3), OBJMASK_NTHRESH = 2.0,
+            specobj_dict=specobj_dict, SHOW_PEAKS=True, SHOW_FITS = False, SHOW_TRACE = False):
 
-    """ DOCS COMING SOON
+    """ Find the location of objects in a slitmask slit or a echelle order.
+
 
     Parameters
     ----------
+    image :  float ndarray
+        Image to search for objects from. This image has shape (nspec, nspat) image.shape where the first dimension (nspec)
+        is spectral, and second dimension (nspat) is spatial. Note this image can either have the sky background in it, or have already been sky subtracted.
+        Object finding works best on sky-subtracted images, but often one runs on the frame with sky first to identify the brightest
+        objects which are then masked (see skymask below) in sky subtraction.
+
+    thismask:  boolean ndarray
+        Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
+        The convention is: True = on the slit/order, False  = off the slit/order
+
+    slit_left:  float ndarray
+        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec)
+
+    slit_righ:  float ndarray
+        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec)
+
+
+    Optional Parameters
+    -------------------
+    ycen :  float ndarray
+        Y positions corresponding to "Left"  and "Right" (expected as integers). Will be cast to an integer if floats
+        are provided. This needs to have the same shape as left and right broundarys provided above. In other words,
+        either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+
+    weight_image: float ndarray
+        Weight map to be applied to image before boxcar. It is a 2-d array with shape (nspec, nspat)
 
     Returns
     -------
+    fextract:   ndarray
+       Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
+       Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
+       the case of a single trace.
+
 
     Revision History
     ----------------
@@ -1123,7 +1169,6 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     from pypeit.utils import find_nminima
     from pypeit.core import trace_slits
     from pypeit import specobjs
-    import scipy
 
     # Check that PEAK_THRESH values make sense
     if ((PEAK_THRESH >=0.0) & (PEAK_THRESH <=1.0)) == False:
@@ -1152,10 +1197,10 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
 
     # If a mask was not passed in, create it
     if inmask is None:
-        inmask = thismask & (invvar > 0.0)
+        inmask = thismask
 
 
-    thisimg =image*((thismask == True) & (invvar > 0.0) & (inmask == True) & (edgmask == False))
+    thisimg =image*(thismask & inmask & (edgmask == False))
     #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
     xsize = slit_righ - slit_left
     nsamp = np.ceil(np.median(xsize))
@@ -1181,19 +1226,26 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
 
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, FWHM/2.3548,mode='nearest')
 
-    xcen, sigma_pk, ledg, redg = find_nminima(-fluxconv,nfind=nperslit, width = PKWDTH, minsep = np.fmax(FWHM, PKWDTH))
+    xcen, sigma_pk, ledg, redg = find_nminima(-fluxconv,nfind=nperslit, width = PKWDTH,
+                                              minsep = np.fmax(FWHM, PKWDTH))
     xcen_neg,sigma_pk_neg,ledg_neg,redg_neg = find_nminima(fluxconv,nfind=nperslit, width = PKWDTH,
                                                            minsep = np.fmax(FWHM, PKWDTH))
     ypeak = np.interp(xcen,np.arange(nsamp),fluxconv)
+    ypeak_neg = np.interp(xcen_neg,np.arange(nsamp),fluxconv)
+    # Only mask the strong peaks
+    (mean0, med0, sigma0)     = sigma_clipped_stats(fluxconv, sigma=2.5)
     # Create a mask for pixels to use for a background flucutation level estimate. Mask spatial pixels that hit an object
     imask_pos = np.ones(int(nsamp), dtype=bool)
     imask_neg = np.ones(int(nsamp), dtype=bool)
     xvec = np.arange(nsamp)
-    for zz in range(len(xcen)):
-        ibad = (np.abs(xvec - xcen[zz]) <= 2.0*FWHM)
+    xcen_pos_top = xcen[ypeak > (med0 + SIG_THRESH*sigma0)]
+    xcen_neg_top = xcen_neg[ypeak_neg < (med0 - SIG_THRESH*sigma0)]
+
+    for xx in xcen_pos_top:
+        ibad = (np.abs(xvec - xx) <= 2.0*FWHM)
         imask_pos[ibad] = False
-    for zz in range(len(xcen_neg)):
-        ibad = (np.abs(xvec - xcen_neg[zz]) <= 2.0*FWHM)
+    for xx in xcen_neg_top:
+        ibad = (np.abs(xvec - xx) <= 2.0*FWHM)
         imask_neg[ibad] = False
 
     # Good pixels for flucutation level estimate. Omit edge pixels and pixels within a FWHM of a candidate object
@@ -1201,8 +1253,8 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     if np.any(igd) == False:
         igd = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
 
-    (mean, med_sn2, skythresh) = sigma_clipped_stats(fluxconv[igd], sigma=1.5)
-    (mean, med_sn2, sigma)     = sigma_clipped_stats(fluxconv[igd], sigma=2.5)
+    (mean, med, skythresh) = sigma_clipped_stats(fluxconv[igd], sigma=1.5)
+    (mean, med, sigma)     = sigma_clipped_stats(fluxconv[igd], sigma=2.5)
     if(skythresh == 0.0) & (sigma != 0.0):
         skythresh = sigma
     elif(skythresh == 0.0) & (sigma==0.0):  # if both SKYTHRESH and sigma are zero mask out the zero pixels and reavaluate
@@ -1236,7 +1288,15 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
         # Possible thresholds    [significance,  fraction of brightest, absolute]
         threshvec = np.array([SIG_THRESH*sigma, PEAK_THRESH*ypeak.max(), ABS_THRESH])
         threshold = threshvec.max()
-        msgs.info('Using object finding threshold of: {:5.2f}'.format(threshold))
+        if threshvec.argmax() == 0:
+            msgs.info('Used SIGNIFICANCE threshold: SIG_THRESH = {:3.1f}'.format(SIG_THRESH) +
+                      ' * sigma = {:5.2f}'.format(sigma))
+        elif threshvec.argmax() == 1:
+            msgs.info('Used FRACTION of BRIGHTEST threshold: PEAK_THRESH = {:3.1f}'.format(PEAK_THRESH) +
+                      ' * ypeak_max = {:5.2f}'.format(ypeak.max()))
+        elif threshvec.argmax() == 2:
+            msgs.info('Used ABSOLUTE threshold of ABS_THRESH = {:5.2f}'.format(ABS_THRESH))
+        msgs.info('Object finding threshold of: {:5.2f}'.format(threshold))
         # Trim to only objects above this threshold
         ikeep = (ypeak >= threshold)
         xcen = xcen[ikeep]
@@ -1256,11 +1316,16 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
 
 
     if SHOW_PEAKS:
-        plt.plot(np.arange(nsamp), fluxsub, color ='cornflowerblue',linestyle=':', label='Collapsed Slit profile')
-        plt.plot(np.arange(nsamp), fluxconv, color='black', label = 'FWHM Convolved Profile')
-        plt.plot(xcen, ypeak, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
+        spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
+        spat_approx = slit_left[specmid] + xsize[specmid]*xcen/nsamp
+        plt.plot(spat_approx_vec, fluxsub, color ='cornflowerblue',linestyle=':', label='Collapsed Slit profile')
+        plt.plot(spat_approx_vec, fluxconv, color='black', label = 'FWHM Convolved Profile')
+        plt.hlines(threshold,spat_approx_vec.min(),spat_approx_vec.max(), color='red',linestyle='--', label='Threshold')
+        plt.plot(spat_approx, ypeak, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
                  linestyle='None', zorder = 10,label='Object Found')
         plt.legend()
+        plt.xlabel('Approximate Spatial Position (pixels)')
+        plt.ylabel('Collapsed Flux (counts)')
         plt.show()
 
 
@@ -1272,9 +1337,11 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
             x_trace = np.interp(specmid, spec_vec, std_trace)
             shift = slit_left + xsize*sobjs[iobj].spat_fracpos - x_trace
             sobjs[iobj].trace_spat = std_trace + shift
+            sobjs[iobj].trace_spec = spec_vec
         else:    # If no standard is provided shift left slit boundary over to be initial trace
             # ToDO make this the average left and right boundary instead. That would be more robust.
             sobjs[iobj].trace_spat = slit_left  + xsize*sobjs[iobj].spat_fracpos
+            sobjs[iobj].trace_spec = spec_vec
 
         sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
@@ -1333,7 +1400,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     skymask = np.copy(thismask)
     if (len(sobjs) == 0) & (HAND_EXTRACT_DICT == None):
         msgs.info('No objects found')
-        return (None, objmask[thismask], skymask[thismask])
+        return (None, skymask[thismask], objmask[thismask])
 
 
     msgs.info('Fitting the object traces')
@@ -1352,95 +1419,81 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     #ypos = np.outer(spec_vec, np.ones(nobj_reg))
     #yind = np.arange(nspec,dtype=int)
     for iiter in range(niter):
-        xpos1, xerr1 = trace_slits.trace_fweight(image*inmask,xfit1, invvar = invvar*inmask, radius = fwhm_vec[iiter])
+        xpos1, xerr1 = trace_slits.trace_fweight(image*inmask,xfit1, invvar = inmask.astype(float), radius = fwhm_vec[iiter])
         # Do not do any kind of masking based on xerr1. Trace fitting is much more robust when masked pixels are simply
         # replaced by the tracing crutch
-        xerr1 =np.ones_like(xerr1)
+        # ToDO add maxdev functionality by adding kwargs_reject to xy2traceset
+        pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos1.T, ncoeff = 5)
+        xfit1 = pos_set1.yfit.T
+        # OLD CODE IS BELOW USING ROBUST_POLYFIT
+        #xerr1 =np.ones_like(xerr1)
         # Mask out anything that left the image. 0 = good, 1 = masked (convention from robust_polyfit)
-        tracemask1 = np.zeros_like(xpos0,dtype=int)
-        off_image = (xpos1 < -0.2*nspat) | (xpos1 > 1.2*nspat)
-        tracemask1[off_image] = 1
-        # trace_fweight returns 999 for pixels that had large offsets. Mask these explicitly
-        #mask_999 = (xerr1 > 900.0)
-        #tracemask[mask_999] = 1
-        #xind = (np.fmax(np.fmin(np.rint(xpos1),nspat-1),0)).astype(int)
-        for iobj in range(nobj_reg):
-          # Mask out anything that has left the slit/order.
-          #tracemask1[:,iobj] = tracemask1[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
-          tracemask1[:,iobj] = tracemask1[:, iobj] | ((xpos1[:,iobj] < slit_left) | (xpos1[:,iobj] > slit_righ)).astype(int)
-          # ToDO add maxdev functionality?
-          # ToDO need to pass in an error vector for robust_polyfit such that it will be able to assign all pixels the same
-          # weight. Right now it is always converging to the slit boundary initial guess becuae that is from a polynomial
-          # fit. It is rejecting a huge number of pixels. Need some maximum number of pixels per iteration to reject.
-          # I would say get rid of robust_polyfit altogether and port xy2traceset which was much more robust.
-          weight = np.ones_like(xpos1)
-          polymask, coeff_fit1 = utils.robust_polyfit(spec_vec,xpos1[:,iobj], ncoeff
-                                                      , function = 'legendre',initialmask = tracemask1[:,iobj],forceimask=True)
-          xfit1[:,iobj] = utils.func_val(coeff_fit1, spec_vec, 'legendre')
+        #tracemask1[off_image] = 1
+        #tracemask1 = np.zeros_like(xpos0,dtype=int)
+        #off_image = (xpos1 < -0.2*nspat) | (xpos1 > 1.2*nspat)
+        #for iobj in range(nobj_reg):
+        #  # Mask out anything that has left the slit/order.
+        #  tracemask1[:,iobj] = tracemask1[:, iobj] | ((xpos1[:,iobj] < slit_left) | (xpos1[:,iobj] > slit_righ)).astype(int)
+        #  weight = np.ones_like(xpos1)
+        #  polymask, coeff_fit1 = utils.robust_polyfit(spec_vec,xpos1[:,iobj], ncoeff
+        #                                              , function = 'legendre',initialmask = tracemask1[:,iobj],forceimask=True)
+        #  xfit1[:,iobj] = utils.func_val(coeff_fit1, spec_vec, 'legendre')
 
-          # Plot all the points that were not masked initially
-          if(SHOW_FITS == True) & (iiter == niter - 1):
-              nomask = (tracemask1[:,iobj]==0)
-              # plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
-              plt.plot(spec_vec[nomask],xpos1[nomask,iobj],marker='o', c='k', markersize=4.0,linestyle='None',
-                       label='flux weighted centroid')
-              plt.plot(spec_vec,xpos0[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
-              plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
-              if np.any(~nomask):
-                  plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=4.0,linestyle='None',
-                           zorder= 20, label='masked points')
-              plt.title('Flux Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
-              plt.ylim((0.995*xfit1[:, iobj].min(), 1.005*xfit1[:, iobj].max()))
-              plt.xlabel('Spectral Pixel')
-              plt.ylabel('Spatial Pixel')
-              plt.legend()
-              plt.show()
+        # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
+        tracemask1 = xerr1 > 990.0 # bad pixels have errors set to 999 and are returned to lie on the input trace
+        # Plot all the points that were not masked initially
+        if(SHOW_FITS) & (iiter == niter - 1):
+            for iobj in range(nobj_reg):
+                nomask = (tracemask1[:,iobj]==0)
+                # plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
+                plt.plot(spec_vec[nomask],xpos1[nomask,iobj],marker='o', c='k', markersize=3.0,linestyle='None',label='flux weighted centroid')
+                plt.plot(spec_vec,xpos0[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
+                plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
+                if np.any(~nomask):
+                    plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=5.0,linestyle='None',
+                             zorder= 20, label='masked points, set to init guess')
+                plt.title('Flux Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
+                plt.ylim((0.995*xfit1[:, iobj].min(), 1.005*xfit1[:, iobj].max()))
+                plt.xlabel('Spectral Pixel')
+                plt.ylabel('Spatial Pixel')
+                plt.legend()
+                plt.show()
 
     xfit2 = np.copy(xfit1)
 
     # Iterate Gaussian weighted centroiding
     for iiter in range(niter):
-        xpos2, xerr2 = trace_slits.trace_gweight(image*inmask,xfit2, invvar = invvar*inmask, sigma = FWHM/2.3548)
+        xpos2, xerr2 = trace_slits.trace_gweight(image*inmask,xfit2, invvar = inmask.astype(float), sigma = FWHM/2.3548)
         # Do not do any kind of masking based on xerr2. Trace fitting is much more robust when masked pixels are simply
         # replaced by the tracing crutch
         # Mask out anything that left the image. 0 = good, 1 = masked (convention from robust_polyfit)
-        tracemask2 = np.zeros_like(xpos0,dtype=int)
-        off_image = (xpos2 < -0.2*nspat) | (xpos2 > 1.2*nspat)
-        tracemask2[off_image] = 1
-        # trace_gweight returns 999 for pixels that had large offsets. Mask these explicitly
-        #mask_999 = (xerr2 > 900.0)
-        #tracemask[mask_999] = 1
-        #xind = (np.fmax(np.fmin(np.rint(xpos2),nspat-1),0)).astype(int)
-        for iobj in range(nobj_reg):
-          # Mask out anything that has left the slit/order.
-          #tracemask2[:,iobj] = tracemask2[:, iobj] | (thismask[yind, xind[:,iobj]] == False).astype(int)
-          # ToDO add maxdev functionality?
-          tracemask2[:,iobj] = tracemask2[:, iobj] | ((xpos2[:,iobj] < slit_left) | (xpos2[:,iobj] > slit_righ)).astype(int)
-          polymask, coeff_fit2 = utils.robust_polyfit(spec_vec,xpos2[:,iobj], ncoeff
-                                                      , function = 'legendre',initialmask = tracemask2[:,iobj],forceimask=True)
-          xfit2[:,iobj] = utils.func_val(coeff_fit2, spec_vec, 'legendre')
-          ## Accept the last iteration of this Gaussian centroiding as the final fit. Update some other things
-          if (iiter == niter-1):
-              sobjs[iobj].trace_spat = xfit2[:,iobj]
-              sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
-              sobjs[iobj].set_idx()
-              # Plot all the points that were not masked initially
-              if(SHOW_FITS == True):
-                  nomask = (tracemask2[:,iobj]==0)
-                  plt.errorbar(spec_vec[nomask],xpos2[nomask,iobj],yerr=xerr2[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
-                  plt.plot(spec_vec,xfit2[:,iobj],c='red',zorder=10,linewidth = 2.0)
-                  if np.any(~nomask):
-                      plt.plot(spec_vec[~nomask],xfit2[~nomask,iobj], c='blue',marker='+',markersize=4.0,linestyle='None', zorder= 20)
-                  plt.title('Gaussian Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
-                  plt.ylim((0.995*xfit2[:,iobj].min(),1.005*xfit2[:,iobj].max()))
-                  plt.xlabel('Spectral Pixel')
-                  plt.ylabel('Spatial Pixel')
-                  plt.show()
-
-
-
-
-
+        pos_set2 = pydl.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos2.T, ncoeff = 5)
+        xfit2 = pos_set2.yfit.T
+        # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
+        tracemask2 = xerr2 > 990.0
+        # Now upon the last iteration set the final trace
+        if (iiter == niter - 1):
+            for iobj in range(nobj_reg):
+                sobjs[iobj].trace_spat = xfit2[:, iobj]
+                sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
+                sobjs[iobj].set_idx()
+                # Plot all the points that were not masked initially
+                if SHOW_FITS:
+                    nomask = (tracemask2[:, iobj] == 0)
+                    plt.plot(spec_vec[nomask], xpos2[nomask, iobj], marker='o', c='k', markersize=3.0, linestyle='None',
+                             label='gauss. weighted centroid')
+                    plt.plot(spec_vec, xfit1[:, iobj], c='g', zorder=20, linewidth=2.0, linestyle='--',
+                             label='initial guess from flux weighting')
+                    plt.plot(spec_vec, xfit2[:, iobj], c='red', zorder=10, linewidth=2.0, label='final fit to trace')
+                    if np.any(~nomask):
+                        plt.plot(spec_vec[~nomask], xfit2[~nomask, iobj], c='blue', marker='+', markersize=5.0,
+                                 linestyle='None',zorder=20, label='masked points, set to init guess')
+                    plt.title('Gaussian Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
+                    plt.ylim((0.995 * xfit2[:, iobj].min(), 1.005 * xfit2[:, iobj].max()))
+                    plt.xlabel('Spectral Pixel')
+                    plt.ylabel('Spatial Pixel')
+                    plt.legend()
+                    plt.show()
 
     # Now deal with the hand apertures if a HAND_EXTRACT_DICT was passed in. Add these to the SpecObj objects
     if HAND_EXTRACT_DICT is not None:
@@ -1482,6 +1535,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
             spat_0 = np.interp(thisobj.HAND_EXTRACT_SPEC, spec_vec, trace_model)
             shift = thisobj.HAND_EXTRACT_SPAT - spat_0
             thisobj.trace_spat = trace_model + shift
+            thisobj.trace_spec = spec_vec
             thisobj.spat_pixpos = thisobj.trace_spat[specmid]
             thisobj.set_idx()
             if HAND_EXTRACT_FWHM[iobj] is not None: # If a HAND_EXTRACT_FWHM was input use that for the FWHM
@@ -1540,9 +1594,9 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
     qobj = np.zeros_like(xtmp)
     for iobj in range(nobj):
         if skythresh > 0.0:
-            sobjs[iobj].maskwidth = 3.0*sobjs[iobj].fwhm*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
+            sobjs[iobj].maskwidth = MASKWIDTH*sobjs[iobj].fwhm*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
         else:
-            sobjs[iobj].maskwidth = 3.0 * sobjs[iobj].fwhm
+            sobjs[iobj].maskwidth = MASKWIDTH*sobjs[iobj].fwhm
         sep = np.abs(xtmp-sobjs[iobj].spat_fracpos)
         sep_inc = sobjs[iobj].maskwidth/nsamp
         close = sep <= sep_inc
@@ -1563,7 +1617,7 @@ def objfind(image, invvar, thismask, slit_left, slit_righ, inmask = None, FWHM =
 
     # If requested display the resulting traces on top of the image
     if (nobj > 0) & (SHOW_TRACE):
-        viewer, ch = ginga.show_image(image*(thismask==True))
+        viewer, ch = ginga.show_image(image*(thismask*inmask))
         ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = sobjs[0].slitid)
         for iobj in range(nobj):
             if sobjs[iobj].HAND_EXTRACT_FLAG == False:
