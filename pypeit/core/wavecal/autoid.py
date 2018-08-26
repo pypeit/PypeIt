@@ -301,7 +301,7 @@ class General:
     def __init__(self, spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
               outroot=None, debug=False, verbose=False,
               fit_parm=None, lowest_ampl=200., rms_threshold=0.1,
-              binw=None, bind=None, nstore=5, use_unknowns=True):
+              binw=None, bind=None, nstore=1, use_unknowns=True):
         """ General algorithm to wavelength calibrate spectroscopic data
 
         Parameters
@@ -569,9 +569,10 @@ class General:
         #histimgp = gaussian_filter(histimgp, 3)
         #histimgm = gaussian_filter(histimgm, 3)
         histimg = histimgp - histimgm
-        sm_histimg = gaussian_filter(histimg, [3, 15])
+        #sm_histimg = gaussian_filter(histimg, [3, 15])
 
-        histpeaks = patterns.detect_2Dpeaks(np.abs(sm_histimg))
+        #histpeaks = patterns.detect_2Dpeaks(np.abs(sm_histimg))
+        histpeaks = patterns.detect_2Dpeaks(np.abs(histimg))
 
         # Find the indices of the nstore largest peaks
         bidx = np.unravel_index(np.argpartition(np.abs(histpeaks*histimg), -nstore, axis=None)[-nstore:], histimg.shape)
