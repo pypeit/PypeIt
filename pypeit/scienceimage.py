@@ -306,7 +306,7 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.sobjs_obj, self.nobj
 
-    def global_skysub(self, tslits_dict, tilts, USE_SKYMASK=True, maskslits = None, PLOT_FIT = False):
+    def global_skysub(self, tslits_dict, tilts, USE_SKYMASK=True, maskslits = None, SHOW_FIT = False):
         """
         Perform global sky subtraction, slit by slit
 
@@ -352,7 +352,7 @@ class ScienceImage(processimages.ProcessImages):
             # Find sky
             self.global_sky[thismask] =  skysub.global_skysub(self.sciimg, self.sciivar, self.tilts, thismask,
                                                               self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:,slit],
-                                                              inmask=inmask, bsp=self.par['bspline_spacing'], PLOT_FIT=PLOT_FIT)
+                                                              inmask=inmask, bsp=self.par['bspline_spacing'], SHOW_FIT=SHOW_FIT)
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
                 self.maskslits[slit] = True

@@ -141,7 +141,8 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
 
 
 # ToDO Fix masking logic. This code should also take an ivar for consistency with rest of extraction
-def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3., TRIM_EDG = (3,3), POS_MASK=True, PLOT_FIT=False):
+def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3., TRIM_EDG = (3,3),
+                  POS_MASK=True, SHOW_FIT=False):
     """
     Perform global sky subtraction on an input slit
 
@@ -205,17 +206,6 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
 
             # Init bspline to get the sky breakpoints (kludgy)
             tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
-
-            #skybkpt = bspline_bkpts(wsky[pos_sky], nord=4, bkspace=bsp $
-            #, / silent)
-            if False:
-                plt.clf()
-                ax = plt.gca()
-                ax.scatter(wsky[pos_sky], lsky)
-                #ax.scatter(wsky[~full_out], sky[~full_out], color='red')
-                #ax.plot(wsky, yfit, color='green')
-                plt.show()
-                #debugger.set_trace()
             lskyset, outmask, lsky_fit, red_chi = utils.bspline_profile(
                 wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
                 fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
@@ -234,7 +224,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     bgframe, _ = skyset.value(piximg[thismask])
 
     # Debugging/checking
-    if PLOT_FIT:
+    if SHOW_FIT:
         goodbk = skyset.mask
         yfit_bkpt = np.interp(skyset.breakpoints[goodbk], wsky,yfit)
         plt.clf()
@@ -616,7 +606,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         '''
 
     # If requested display the model fits for this slit
-    if SHOW_RESIDS == True:
+    if SHOW_RESIDS:
         viewer, ch = ginga.show_image((sciimg - skyimage - objimage) * np.sqrt(modelivar) * thismask)
         # TODO add error checking here to see if ginga exists
         canvas = viewer.canvas(ch._chname)

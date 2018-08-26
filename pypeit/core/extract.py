@@ -1442,7 +1442,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
         # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
         tracemask1 = xerr1 > 990.0 # bad pixels have errors set to 999 and are returned to lie on the input trace
         # Plot all the points that were not masked initially
-        if(SHOW_FITS == True) & (iiter == niter - 1):
+        if(SHOW_FITS) & (iiter == niter - 1):
             for iobj in range(nobj_reg):
                 nomask = (tracemask1[:,iobj]==0)
                 # plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
@@ -1478,7 +1478,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
                 sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
                 sobjs[iobj].set_idx()
                 # Plot all the points that were not masked initially
-                if (SHOW_FITS == True):
+                if SHOW_FITS:
                     nomask = (tracemask2[:, iobj] == 0)
                     plt.plot(spec_vec[nomask], xpos2[nomask, iobj], marker='o', c='k', markersize=3.0, linestyle='None',
                              label='gauss. weighted centroid')
