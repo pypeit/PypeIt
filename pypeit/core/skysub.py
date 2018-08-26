@@ -615,7 +615,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         out3 = ch.set_color_algorithm('linear')
         # Overplot the traces
         for spec in sobjs:
-            if spec.HAND_EXTRACT_FLAG == False:
+            if spec.HAND_EXTRACT_FLAG is False:
                 color = 'magenta'
             else:
                 color = 'orange'
