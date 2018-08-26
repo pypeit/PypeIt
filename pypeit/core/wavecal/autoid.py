@@ -301,7 +301,7 @@ class General:
     def __init__(self, spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
               outroot=None, debug=False, verbose=False,
               fit_parm=None, lowest_ampl=200., rms_threshold=0.1,
-              binw=None, bind=None, nstore=1, use_unknowns=True):
+              binw=None, bind=None, nstore=5, use_unknowns=True):
         """ General algorithm to wavelength calibrate spectroscopic data
 
         Parameters
@@ -462,14 +462,14 @@ class General:
                                     best_patt_dict, best_final_fit = patt_dict.copy(), final_fit.copy()
             # Report on the best result
             if best_final_fit is None:
-                msgs.info('---------------------------------------------------' + msgs.newline() +
+                msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Final report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
                           '  No matches! Try another algorithm' + msgs.newline() +
                           '---------------------------------------------------')
                 self._all_patt_dict[str(slit)] = None
                 self._all_final_fit[str(slit)] = None
             elif best_final_fit['rms'] > self._rms_threshold:
-                msgs.info('---------------------------------------------------' + msgs.newline() +
+                msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Final report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Try another algorithm'.format(best_final_fit['rms']) + msgs.newline() +
                           '---------------------------------------------------')

@@ -23,6 +23,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
                     nsig_rej=2.,         # Number of sigma for rejection
                     nsig_rej_final=3.0)  # Number of sigma for rejection (final fit)
     npix = spec.size
+    aparm['disp'] = disp
 
     # Setup for fitting
     sv_ifit = list(ifit) # Keep the originals
