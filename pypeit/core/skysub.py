@@ -655,21 +655,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         canvas.add('constructedcanvas', canvas_list)
 
 
-
-    # If requested display the model fits for this slit
-    if SHOW_RESIDS == True:
-        # TODO add error checking here to see if ginga exists
-        viewer, ch = ginga.show_image((sciimg - skyimage - objimage) * np.sqrt(modelivar)*thismask)
-        # TODO figure out a way to overplot the pixels that were masked in red like as a scatter plot
-        for spec in sobjs:
-            if spec.HAND_EXTRACT_FLAG == False:
-                color = 'blue'
-            else:
-                color = 'orange'
-            ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
-        # TODO figure out a way to set the cuts of the ginga viewer to go from -5 to 5
-
-
     return (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
 
 def order_pixels(pixlocn, lord, rord):
