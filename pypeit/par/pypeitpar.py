@@ -1142,6 +1142,7 @@ class TraceSlitsPar(ParSet):
     """
     def __init__(self, function=None, polyorder=None, medrep=None, number=None, trim=None,
                  maxgap=None, maxshift=None, pad=None, sigdetect=None, fracignore=None,
+                 min_slit_width = None,
                  diffpolyorder=None, single=None, sobel_mode=None, pcatype=None, pcapar=None,
                  pcaextrap=None):
 
@@ -1216,6 +1217,13 @@ class TraceSlitsPar(ParSet):
                               'of the detector, it will be ignored (and reconstructed when/if ' \
                               'an \'order\' PCA analysis is performed).'
 
+        defaults['min_slit_width'] = 6.0  # arcseconds!
+        dtypes['min_slit_width'] = float
+        descr['min_slit_width'] = 'If a slit spans less than this number of arcseconds over the spatial ' \
+                                  'direction of the detector, it will be ignored. Use this option to prevent the ' \
+                                  'of alignment (box) slits from multislit reductions, which typically cannot be reduced ' \
+                                  'without a significant struggle'
+
         defaults['diffpolyorder'] = 2
         dtypes['diffpolyorder'] = int
         descr['diffpolyorder'] = 'Order of the 2D function used to fit the 2d solution for the ' \
@@ -1270,7 +1278,7 @@ class TraceSlitsPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
-                    'pad', 'sigdetect', 'fracignore', 'diffpolyorder', 'single', 'sobel_mode',
+                    'pad', 'sigdetect', 'fracignore', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
                     'pcatype', 'pcapar', 'pcaextrap' ]
         kwargs = {}
         for pk in parkeys:
