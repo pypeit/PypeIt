@@ -18,6 +18,7 @@ from pypeit.core import extract
 from pypeit import utils
 from pypeit import artrace
 from pypeit import ginga
+from astropy.stats import sigma_clipped_stats
 
 from pypeit.par import pypeitpar
 
@@ -553,7 +554,7 @@ class ScienceImage(processimages.ProcessImages):
         return self.maskslits
 
 
-    def show(self, attr, image=None, display='ginga'):
+    def show(self, attr, image=None, showmask = False):
         """
         Show one of the internal images
           Should probably put some of these in ProcessImages
@@ -577,17 +578,39 @@ class ScienceImage(processimages.ProcessImages):
 
         """
         if attr == 'global':
-            if self.global_sky is not None:
-                ginga.show_image(self.global_sky, chname='Global')
-        elif attr == 'sci':
-            if self.sciframe is not None:
-                ginga.show_image(self.sciframe)
-        elif attr == 'rawvar':
-            if self.rawvarframe is not None:
-                ginga.show_image(self.rawvarframe)
-        elif attr == 'modelvar':
-            if self.modelvarframe is not None:
-                ginga.show_image(self.modelvarframe)
+            if self.sciimg is not None and self.global_sky is not None and self.bitmask is not None:
+                image = (sciimg - self.global_sky)*(bitmask == 0)  # sky subtracted image
+                (mean, med, sigma) = sigma_clipped_stats(image[bitmask == 0], sigma_lower=5.0, sigma_upper=5.0)
+                cut_min = mean - 1.0 * sigma
+                cut_max = mean + 4.0 * sigma
+                if showmask:
+                    bitmask_in = self.bitmask
+                else:
+                    bitmask_in = None
+                viewer, ch = ginga.show_image(image, chname='Global', cuts=(cut_min, cut_max), bitmask=bitmask_in)
+        elif attr == 'local':
+            if self.sciimg is not None and self.skymodel is not None and self.bitmask is not None:
+                image = (sciimg - self.skymodel)*(bitmask == 0)  # sky subtracted image
+                (mean, med, sigma) = sigma_clipped_stats(image[bitmask == 0], sigma_lower=5.0, sigma_upper=5.0)
+                cut_min = mean - 1.0 * sigma
+                cut_max = mean + 4.0 * sigma
+                if showmask:
+                    bitmask_in = self.bitmask
+                else:
+                    bitmask_in = None
+                viewer, ch = ginga.show_image(image, chname='Global', cuts=(cut_min, cut_max), bitmask=bitmask_in)
+        elif attr == 'sky_resid':
+            if self.sciimg is not None and self.skymodel is not None and
+                self.objmodel is not None and self.modelivar is not None self.bitmask is not None:
+        elif attr == 'sciimg':
+            if self.sciimg is not None:
+                ginga.show_image(self.sciimg)
+        elif attr == 'sciivar':
+            if self.sciivar is not None:
+                ginga.show_image(self.sciivar)
+        elif attr == 'modeilvar':
+            if self.modelivar is not None:
+                ginga.show_image(self.modelivar)
         elif attr == 'crmasked':
             ginga.show_image(self.sciframe*(1-self.crmask), chname='CR')
         elif attr == 'skysub':
