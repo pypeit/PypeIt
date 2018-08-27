@@ -5,6 +5,7 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 from scipy.ndimage.filters import gaussian_filter
 from linetools import utils as ltu
 from astropy.table import vstack
+import copy
 import numpy as np
 import pdb
 
@@ -198,7 +199,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
         tot_list = vstack([line_lists,unknwns])
     wvdata = np.array(tot_list['wave'].data) # Removes mask if any
     wvdata.sort()
-    tmp_dict = best_dict.copy()
+    tmp_dict = copy.deepcopy(best_dict)
     tmp_dict['nmatch'] = 0
     patterns.scan_for_matches(best_dict['bwv'], disp, npix, cut_tcent, wvdata,
                               best_dict=tmp_dict, pix_tol=best_dict['pix_tol'],
@@ -297,57 +298,57 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
 
 
 class General:
+    """ General algorithm to wavelength calibrate spectroscopic data
+
+    Parameters
+    ----------
+    spec : ndarray
+      Extracted 1D Arc Spectrum
+    lines : list
+      List of arc lamps on
+    ok_mask : ndarray
+
+    min_ampl : float
+      Minimum amplitude of the arc lines that will be used in the fit
+    islinelist : bool
+      Is lines a linelist (True), or a list of ions (False)
+    outroot : str, optional
+      Name of output file
+    debug : bool
+      Used to debug the algorithm
+    verbose : bool
+      If True, the final fit will print out more detail as the RMS is refined,
+      and lines are rejected. This is mostly helpful for developing the algorithm.
+    fit_parm : dict
+      Fitting parameter dictionary (see fitting.iterative_fitting)
+    lowest_ampl : float
+      Lowest amplitude of an arc line that will be used in teh final fit
+    rms_threshold : float
+      Maximum RMS dispersion that is considered acceptable for a good solution
+    binw : ndarray, optional
+      Set the wavelength grid when identifying the best solution
+    bind : ndarray, optional
+      Set the dispersion grid when identifying the best solution
+    nstore : int
+      The number of "best" initial solutions to consider
+    use_unknowns : bool
+      If True, arc lines that are known to be present in the spectra, but
+      have not been attributed to an element+ion, will be included in the fit.
+
+    Returns
+    -------
+    all_patt_dict : list of dicts
+      A list of dictionaries, which contain the results from the preliminary
+      pattern matching algorithm providing the first guess at the ID lines
+    all_final_fit : list of dicts
+      A list of dictionaries, which contain the full fitting results and
+      final best guess of the line IDs
+    """
 
     def __init__(self, spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
               outroot=None, debug=False, verbose=False,
               fit_parm=None, lowest_ampl=200., rms_threshold=0.1,
               binw=None, bind=None, nstore=1, use_unknowns=True):
-        """ General algorithm to wavelength calibrate spectroscopic data
-
-        Parameters
-        ----------
-        spec : ndarray
-          Extracted 1D Arc Spectrum
-        lines : list
-          List of arc lamps on
-        ok_mask : ndarray
-
-        min_ampl : float
-          Minimum amplitude of the arc lines that will be used in the fit
-        islinelist : bool
-          Is lines a linelist (True), or a list of ions (False)
-        outroot : str, optional
-          Name of output file
-        debug : bool
-          Used to debug the algorithm
-        verbose : bool
-          If True, the final fit will print out more detail as the RMS is refined,
-          and lines are rejected. This is mostly helpful for developing the algorithm.
-        fit_parm : dict
-          Fitting parameter dictionary (see fitting.iterative_fitting)
-        lowest_ampl : float
-          Lowest amplitude of an arc line that will be used in teh final fit
-        rms_threshold : float
-          Maximum RMS dispersion that is considered acceptable for a good solution
-        binw : ndarray, optional
-          Set the wavelength grid when identifying the best solution
-        bind : ndarray, optional
-          Set the dispersion grid when identifying the best solution
-        nstore : int
-          The number of "best" initial solutions to consider
-        use_unknowns : bool
-          If True, arc lines that are known to be present in the spectra, but
-          have not been attributed to an element+ion, will be included in the fit.
-
-        Returns
-        -------
-        all_patt_dict : list of dicts
-          A list of dictionaries, which contain the results from the preliminary
-          pattern matching algorithm providing the first guess at the ID lines
-        all_final_fit : list of dicts
-          A list of dictionaries, which contain the full fitting results and
-          final best guess of the line IDs
-        """
 
         # Set some default parameters
         self._spec = spec
@@ -427,8 +428,16 @@ class General:
     def run(self):
         """Run through the parameter space and determine the best solution
         """
+
+        # Set the parameter space that gets searched
+        rng_poly = [3, 4]            # Range of algorithms to check (only trigons+tetragons are supported)
+        rng_list = range(4, 10)      # Number of lines to search over for the linelist
+        rng_detn = range(4, 10)      # Number of lines to search over for the detected lines
+        rng_pixt = [0.5]             # Pixel tolerance
+
         self._all_patt_dict = {}
         self._all_final_fit = {}
+        good_fit = np.zeros(self._nslit, dtype=np.bool)
         for slit in range(self._nslit):
             if slit not in self._ok_mask:
                 continue
@@ -442,10 +451,10 @@ class General:
                 continue
             best_patt_dict, best_final_fit = None, None
             # Loop through parameter space
-            for poly in [3, 4]:
-                for lstsrch in range(4, 10):
-                    for detsrch in range(4, 10):
-                        for pix_tol in [0.5]:
+            for poly in rng_poly:
+                for lstsrch in rng_list:
+                    for detsrch in rng_detn:
+                        for pix_tol in rng_pixt:
                             patt_dict, final_fit = \
                                 self.solve_slit(slit, poly=poly, pix_tol=pix_tol, detsrch=detsrch, lstsrch=lstsrch)
                             if final_fit is None:
@@ -454,23 +463,23 @@ class General:
                             # Test if this solution is better than the currently favoured solution
                             if best_patt_dict is None:
                                 # First time a fit is found
-                                best_patt_dict, best_final_fit = patt_dict.copy(), final_fit.copy()
+                                best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
                                 continue
                             elif final_fit['rms'] < self._rms_threshold:
                                 # Has a better fit been identified (i.e. more lines identified)?
                                 if len(final_fit['xfit']) > len(best_final_fit['xfit']):
-                                    best_patt_dict, best_final_fit = patt_dict.copy(), final_fit.copy()
+                                    best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
             # Report on the best result
             if best_final_fit is None:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Final report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
+                          'Preliminary report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
                           '  No matches! Try another algorithm' + msgs.newline() +
                           '---------------------------------------------------')
                 self._all_patt_dict[str(slit)] = None
                 self._all_final_fit[str(slit)] = None
             elif best_final_fit['rms'] > self._rms_threshold:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Final report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
+                          'Preliminary report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Try another algorithm'.format(best_final_fit['rms']) + msgs.newline() +
                           '---------------------------------------------------')
                 self._all_patt_dict[str(slit)] = None
@@ -482,7 +491,7 @@ class General:
                     signtxt = 'anitcorrelate'
                 # Report
                 msgs.info('---------------------------------------------------' + msgs.newline() +
-                          'Final report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
+                          'Preliminary report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
                           '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                           '  Number of lines recovered    = {:d}'.format(self._all_tcent.size) + msgs.newline() +
                           '  Number of lines analyzed     = {:d}'.format(len(best_final_fit['xfit'])) + msgs.newline() +
@@ -491,9 +500,12 @@ class General:
                           '  Best dispersion              = {:g}A/pix'.format(best_patt_dict['bdisp']) + msgs.newline() +
                           '  Final RMS of fit             = {:g}'.format(best_final_fit['rms']) + msgs.newline() +
                           '---------------------------------------------------')
+        # Now that all slits have been inspected, cross match to generate a
+        # master list of all lines in every slit, and refit all spectra
 
+        for slit in range(self._nslit):
             # Save the QA for the best solution
-            slittxt = '_Slit{0:03d}'.format(slit)
+            slittxt = '_Slit{0:03d}'.format(slit+1)
             if self._outroot is not None:
                 # Write IDs
                 use_tcent = self.get_use_tcent(best_patt_dict['sign'])
@@ -509,8 +521,8 @@ class General:
                 msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
             # Perform the final fit for the best solution
             best_final_fit = self.fit_slit(slit, best_patt_dict, outroot=self._outroot, slittxt=slittxt)
-            self._all_patt_dict[str(slit)] = best_patt_dict.copy()
-            self._all_final_fit[str(slit)] = best_final_fit.copy()
+            self._all_patt_dict[str(slit)] = copy.deepcopy(best_patt_dict)
+            self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
 
     def get_use_tcent(self, corr, weak=False):
         """Set if pixels correlate with wavelength (corr==1) or anticorrelate (corr=-1)
@@ -537,10 +549,16 @@ class General:
             msgs.warn("Pattern matching is only available for trigons and tetragons.")
             return None, None
 
+        # Test if there are enough lines to generate a solution
+        use_tcent = self.get_use_tcent(1)
+        if use_tcent.size < lstsrch or use_tcent.size < detsrch:
+            if self._verbose:
+                msgs.info("Not enough lines to test this solution, will attempt another.")
+            return None, None
+
         if self._verbose:
             msgs.info("Begin pattern matching")
         # First run pattern recognition assuming pixels correlate with wavelength
-        use_tcent = self.get_use_tcent(1)
         dindexp, lindexp, wvcenp, dispsp = generate_patterns(use_tcent, self._wvdata, self._npix,
                                                              detsrch, lstsrch, pix_tol)
         # Remove any invalid results
@@ -569,7 +587,7 @@ class General:
         #histimgp = gaussian_filter(histimgp, 3)
         #histimgm = gaussian_filter(histimgm, 3)
         histimg = histimgp - histimgm
-        #sm_histimg = gaussian_filter(histimg, [3, 15])
+        sm_histimg = gaussian_filter(histimg, [3, 15])
 
         #histpeaks = patterns.detect_2Dpeaks(np.abs(sm_histimg))
         histpeaks = patterns.detect_2Dpeaks(np.abs(histimg))
@@ -642,7 +660,7 @@ class General:
             elif tfinal_fit['rms'] < self._rms_threshold:
                 # Has a better fit been identified (i.e. more lines ID)?
                 if len(tfinal_fit['xfit']) > len(final_fit['xfit']):
-                    patt_dict, final_dict = tpatt_dict.copy(), tfinal_dict.copy()
+                    patt_dict, final_dict = copy.deepcopy(tpatt_dict), copy.deepcopy(tfinal_dict)
         return patt_dict, final_dict
 
     def solve_patterns(self, bestlist):
@@ -693,7 +711,10 @@ class General:
     def fit_slit(self, slit, patt_dict, outroot=None, slittxt="Slit"):
         # Perform final fit to the line IDs
         NIST_lines = self._line_lists['NIST'] > 0
-        ifit = np.where(patt_dict['mask'])[0]
+        try:
+            ifit = np.where(patt_dict['mask'])[0]
+        except:
+            pdb.set_trace()
 
         if outroot is not None:
             plot_fil = outroot + slittxt + '_fit.pdf'
@@ -1079,8 +1100,8 @@ def kdtree(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
                 print("Wrote: {:s}".format(plot_fil))
 
         # Append the results to the full list
-        all_patt_dict[str(slit)] = patt_dict.copy()
-        all_final_fit[str(slit)] = final_fit.copy()
+        all_patt_dict[str(slit)] = copy.deepcopy(patt_dict)
+        all_final_fit[str(slit)] = copy.deepcopy(final_fit)
 
     # Return
     return all_patt_dict, all_final_fit
