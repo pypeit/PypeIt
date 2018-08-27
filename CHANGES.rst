@@ -9,6 +9,7 @@
 - Turn off 2.7 Travis testing
 - Integrated arclines into PypeIt
 - Modified debug/developer modes
+- Overhaul of general algorithm for wavelength calibration
 
 
 0.8.1

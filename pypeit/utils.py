@@ -913,7 +913,7 @@ def rebin(frame, newshape):
 
 def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
                    function="polynomial", initialmask=None, forceimask=False,
-                   minv=None, maxv=None, guesses=None, bspline_par=None):
+                   minv=None, maxv=None, guesses=None, bspline_par=None, verbose=True):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -955,10 +955,8 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
         yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
         if xarray.size-np.sum(mask) <= order+2:
-            try:
+            if verbose:
                 msgs.warn("More parameters than data points - fit might be undesirable")
-            except AttributeError:
-                print("More parameters than data points - fit might be undesirable")
             break  # More data was masked than allowed by order
         if maxone:  # Only remove the most deviant point
             tst = np.abs(yarray[w]-yrng[w])
