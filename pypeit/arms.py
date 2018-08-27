@@ -89,7 +89,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                                                    save_masters=True, write_qa=True)
 
     # TESTING
-    EXTRACT_QA = True
+    EXTRACT_QA = False
     # Loop on science exposure first
     #  calib frames, e.g. arcs)
     for sc in range(numsci):
