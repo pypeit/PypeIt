@@ -180,6 +180,8 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pste
       Allow for a rotated image
     pstep : int
       Show every pstep point of the edges
+    clear: bool
+      Clear the canvas?
     """
 
     # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
