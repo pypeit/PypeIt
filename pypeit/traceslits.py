@@ -793,7 +793,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _trim_slits(self, usefracpix=True):
+    def _trim_slits(self, trim_short_slits=True, plate_scale = None):
         """
         Trim slits
           Mainly those that fell off the detector
@@ -812,7 +812,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         nslit = self.lcen.shape[1]
         mask = np.zeros(nslit)
-        fracpix = int(self.par['fracignore']*self.mstrace.shape[1])
+        #fracpix = int(self.par['fracignore']*self.mstrace.shape[1])
         for o in range(nslit):
             if np.min(self.lcen[:, o]) > self.mstrace.shape[1]:
                 mask[o] = 1
@@ -820,10 +820,12 @@ class TraceSlits(masterframe.MasterFrame):
             elif np.max(self.rcen[:, o]) < 0:
                 mask[o] = 1
                 msgs.info("Slit {0:d} is off the detector - ignoring this slit".format(o + 1))
-            if usefracpix:
-                if np.median(self.rcen[:,o]-self.lcen[:,o]) < fracpix:
+            if trim_short_slits:
+                if np.median(self.rcen[:,o]-self.lcen[:,o])*plate_scale < self.par['min_slit_width']:
                     mask[o] = 1
-                    msgs.info("Slit {0:d} is less than fracignore - ignoring this slit".format(o + 1))
+                    msgs.info("Slit {0:d}".format(o + 1) +
+                              " is less than min_slit_width={:}".format(self.par['min_slit_width']) +
+                              " - ignoring this slit")
         # Trim
         wok = np.where(mask == 0)[0]
         self.lcen = self.lcen[:, wok]
@@ -969,7 +971,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Return
         return loaded
 
-    def run(self, arms=True, ignore_orders=False, add_user_slits=None):
+    def run(self, arms=True, ignore_orders=False, add_user_slits=None, plate_scale = None):
         """ Main driver for tracing slits.
 
           Code flow
@@ -1080,7 +1082,7 @@ class TraceSlits(masterframe.MasterFrame):
 
             # Remove any slits that are completely off the detector
             #   Also remove short slits here for multi-slit and long-slit (aligntment stars)
-            self._trim_slits(usefracpix=arms)
+            self._trim_slits(trim_short_slits=arms, plate_scale = plate_scale)
 
         # Generate pixel arrays
         self._make_pixel_arrays()
