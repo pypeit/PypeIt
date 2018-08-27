@@ -824,7 +824,7 @@ class TraceSlits(masterframe.MasterFrame):
                 if np.median(self.rcen[:,o]-self.lcen[:,o])*plate_scale < self.par['min_slit_width']:
                     mask[o] = 1
                     msgs.info("Slit {0:d}".format(o + 1) +
-                              " is less than min_slit_width={:}".format(self.par['min_slit_width']) +
+                              " is less than min_slit_width = {:} arcseconds".format(self.par['min_slit_width']) +
                               " - ignoring this slit")
         # Trim
         wok = np.where(mask == 0)[0]
