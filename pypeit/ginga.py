@@ -54,7 +54,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     return viewer
 
 
-def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0):
+def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cuts = None):
     """ Displays input image in Ginga viewer
     Supersedes method in xastropy
 
@@ -82,8 +82,8 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0):
         if '.fits' in inp:
             hdu = fits.open(inp)
             img = hdu[exten].data
-        else:
-            img = inp
+    else:
+        img = inp
 # TODO implement instrument specific reading
 
     viewer = connect_to_ginga()
@@ -164,11 +164,10 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0):
         canvas_list = points_bpm + points_cr + points_ext + points_oth + text_bpm + text_cr + text_ext + text_oth
         canvas.add('constructedcanvas', canvas_list)
 
-
     return viewer, ch
 
 
-def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pstep=1):
+def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pstep=1, clear = False):
     """ Overplot slits on image in Ginga
     Parameters
     ----------
@@ -203,7 +202,8 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pste
 
     # Canvas
     canvas = viewer.canvas(ch._chname)
-    canvas.clear()
+    if clear:
+        canvas.clear()
     # y-axis
     y = (np.arange(lordloc.shape[0])).tolist()
     #ohf = lordloc.shape[0] // 2
