@@ -463,10 +463,18 @@ def generate_sensfunc(
         BALM_MASK_WID=5.,
         nresln=None):
     """ Function to generate the sensitivity function.
-    This takes as input the option 'telluric'.
-    If telluric=False, the code sets nresln=20.0 and mask telluric regions.
-    If telluric=True, the code sets nresln=1.5 and the sens_dict will also
-    contains the correction for telluric lines.
+    This can work in different regimes:
+    - If telluric=False and RA=None and Dec=None
+      the code creates a sintetic standard star spectrum using the Kurucz models,
+      and from this it generates a sens func using nresln=20.0 and masking out
+      telluric regions.
+    - If telluric=False and RA and Dec are assigned
+      the standard star spectrum is extracted from the archive, and a sens func 
+      is generated using nresln=20.0 and masking out telluric regions.
+    - If telluric=True
+      the code creates a sintetic standard star spectrum using the Kurucz models,
+      the sens func is created setting nresln=1.5 it contains the correction for
+      telluric lines.
 
     Parameters:
     ----------
@@ -480,7 +488,7 @@ def generate_sensfunc(
       Airmass
     exptime : float
       Exposure time in seconds
-    setting_spect : dict
+    spectrograph : dict
       Instrument specific dict
       Used for extinction correction
     telluric : bool
@@ -490,15 +498,20 @@ def generate_sensfunc(
     star_mag : float
       Apparent magnitude of telluric star (used if telluric=True)
     RA : float
-      deg
+      deg, RA of the telluric star
+      if assigned, the standard star spectrum will be extracted from
+      the archive
     DEC : float
-      deg
+      deg, DEC of the telluric star
+      if assigned, the standard star spectrum will be extracted from
+      the archive
     BALM_MASK_WID : float
       Mask parameter for Balmer absorption. A region equal to
       BALM_MASK_WID*resln is masked wher resln is the estimate
       for the spectral resolution.
     nresln : float
-      Number of resolution elements for break-point placement
+      Number of resolution elements for break-point placement.
+      If assigned, overwrites the settings imposed by the code.
 
     Returns:
     -------
@@ -511,14 +524,16 @@ def generate_sensfunc(
     flux_star = flux.copy()
     var_star = var.copy()
 
+    # ToDo
     # This should be changed. At the moment the extinction correction procedure
-    # require the spectra to be in the optical. For the NIR is probably enough
+    # requires the spectra to be in the optical. For the NIR is probably enough
     # to extend the tables to longer wavelength setting the extinction to 0.0mag.
     msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
     # Apply Extinction if optical bands
     if np.max(wave_star) < 10000. * units.AA:
         msgs.info("Applying extinction correction")
-        extinct = flux.load_extinction_data(spectrograph.telescope['longitude'], spectrograph.telescope['latitude'])  # Observatory specific
+        extinct = flux.load_extinction_data(spectrograph.telescope['longitude'],
+                                            spectrograph.telescope['latitude'])
         ext_corr = arflux.extinction_correction(wave_star, airmass, extinct)
         # Correct for extinction and convert to electrons / s
         flux_corr = flux_star * ext_corr / exptime
@@ -529,27 +544,8 @@ def generate_sensfunc(
         flux_corr = flux_star / exptime
         var_corr = var_star / exptime ** 2
 
-    # Set parameters for telluric=True/False
-    if telluric:
-        # Create star spectral model
-        msgs.info("Creating telluric model")
-        # Generate a dict
-        star_loglam, star_flux, std_dict = telluric_sed(star_mag, star_type)
-        star_lam = 10 ** star_loglam
-        std_xspec = XSpectrum1D.from_tuple((star_lam, star_flux))
-        xspec = std_xspec.rebin(wave_star)  # Conserves flambda
-        flux_true = xspec.flux.value
-        std_dict = dict(file='KuruczTelluricModel', name=star_type, fmt=1,
-                        ra='00:00:00.0', dec='00:00:00.0')
-        std_dict['wave'] = star_lam*units.AA
-        std_dict['flux'] = star_flux*units.erg/units.s/units.cm**2/units.AA
-        if np.min(flux_true) == 0.:
-            msgs.warn('Your spectrum extends beyond calibrated standard star.')
-        if nresln == None:
-            nresln = 1.5
-            msgs.info("Set nresln to 1.5")
-
-    else:
+    # Create star model
+    if (RA is not None) and (DEC is not None):
         # Pull star spectral model from archive
         msgs.info("Get standard model")
         # Grab closest standard within a tolerance
@@ -558,15 +554,37 @@ def generate_sensfunc(
         load_standard_file(std_dict)
         # Interpolate onto observed wavelengths
         std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
-        xspec = std_xspec.rebin(wave)  # Conserves flambda
+        xspec = std_xspec.rebin(wave_star)  # Conserves flambda
         flux_true = xspec.flux.value
         if np.min(flux_true) == 0.:
             msgs.warn('Your spectrum extends beyond calibrated standard star.')
-        if nresln == None:
-            # Set nresln
+    else:
+        # Create star spectral model
+        msgs.info("Creating standard model")
+        # Create star model
+        star_loglam, star_flux, std_dict = telluric_sed(star_mag, star_type)
+        star_lam = 10 ** star_loglam
+        # Generate a dict matching the output of find_standard_file
+        std_dict = dict(file='KuruczTelluricModel', name=star_type, fmt=1,
+                        ra='00:00:00.0', dec='00:00:00.0')
+        std_dict['wave'] = star_lam*units.AA
+        std_dict['flux'] = star_flux*units.erg/units.s/units.cm**2/units.AA
+        std_xspec = XSpectrum1D.from_tuple((star_lam, star_flux))
+        xspec = std_xspec.rebin(wave_star)  # Conserves flambda
+        flux_true = xspec.flux.value
+        if np.min(flux_true) == 0.:
+            msgs.warn('Your spectrum extends beyond calibrated standard star.')
+
+    # Set nresln
+    if nresln == None:
+        if telluric:
             nresln = 20.0
             msgs.info("Set nresln to 20.0")
+        else:
+            nresln = 1.5
+            msgs.info("Set nresln to 1.5")
 
+    # ToDo
     # Compute an effective resolution for the standard. This could be improved
     # to setup an array of breakpoints based on the resolution. At the
     # moment we are using only one number
@@ -662,9 +680,9 @@ def generate_sensfunc(
     # Fit in magnitudes
     kwargs_bspline = {'bkspace': resln.value * nresln}
     kwargs_reject = {'maxrej': 5}
-    mag_set = bspline_magfit_new(wave_star.value, flux_corr, var_corr,
-                                 flux_true, kwargs_bspline=kwargs_bspline,
-                                 kwargs_reject=kwargs_reject)
+    mag_set = bspline_magfit(wave_star.value, flux_corr, var_corr,
+                             flux_true, kwargs_bspline=kwargs_bspline,
+                             kwargs_reject=kwargs_reject)
 
     # Creating the dict
     msgs.work("Is min, max and wave_min, wave_max a duplicate?")
@@ -687,7 +705,7 @@ def generate_sensfunc(
 
 
 
-"""
+'''
 def generate_sensfunc(std_obj, RA, DEC, exptime, extinction, BALM_MASK_WID=5., nresln=20):
     """
     Generate sensitivity function from current standard star
@@ -786,7 +804,7 @@ def generate_sensfunc(std_obj, RA, DEC, exptime, extinction, BALM_MASK_WID=5., n
     sens_dict['wave_min'] = np.min(wave)
     sens_dict['wave_max'] = np.max(wave)
     return sens_dict
-"""
+'''
 
 
 def telluric_params(sptype):
