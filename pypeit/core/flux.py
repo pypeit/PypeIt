@@ -10,8 +10,10 @@ import scipy
 from pkg_resources import resource_filename
 
 from astropy import units
+from astropy import constants
 from astropy import coordinates
 from astropy.table import Table, Column
+from astropy.io import ascii
 from astropy.io import fits
 
 try:
@@ -543,7 +545,6 @@ def generate_sensfunc(std_obj, RA, DEC, exptime, extinction, BALM_MASK_WID=5., n
     sens_dict['wave_max'] = np.max(wave)
     return sens_dict
 
-
 def telluric_params(sptype):
     """Compute physical parameters for a given stellar type.
     This is used by telluric_sed(V, sptype) to create the
@@ -564,9 +565,8 @@ def telluric_params(sptype):
     logg_sol = np.log10(6.67259e-8) + np.log10(1.989e33) - 2.0 * np.log10(6.96e10)
 
     # Load Schmidt-Kaler (1982) table
-    sk82_file = resource_filename('pypit', 'data/standards/kurucz93/schmidt-kaler_table.txt')
-    sk82_tab = ascii.read(sk82_file,
-                          names=('Sp', 'logTeff', 'Teff', '(B-V)_0', 'M_V', 'B.C.', 'M_bol', 'L/L_sol'))
+    sk82_file = resource_filename('pypeit', 'data/standards/kurucz93/schmidt-kaler_table.txt')
+    sk82_tab = ascii.read(sk82_file, names=('Sp', 'logTeff', 'Teff', '(B-V)_0', 'M_V', 'B.C.', 'M_bol', 'L/L_sol'))
 
     # Match input type
     mti = np.where(sptype == sk82_tab['Sp'])[0]
@@ -612,8 +612,8 @@ def telluric_sed(V, sptype):
 
     # Flux factor (absolute/apparent V mag)
     # Constants
-    parsec = const.pc.cgs  # 3.086e18
-    R_sol = const.R_sun.cgs  # 6.96e10
+    parsec = constants.pc.cgs  # 3.086e18
+    R_sol = constants.R_sun.cgs  # 6.96e10
     # distance modulus
     logd = 0.2 * (V - tell_param['M_V']) + 1.0
     D = parsec * 10. ** logd
@@ -635,7 +635,7 @@ def telluric_sed(V, sptype):
     indg = np.argmin(np.abs(loggk - tell_param['logg']))
 
     # Grab Kurucz filename
-    std_file = resource_filename('pypit', '/data/standards/kurucz93/kp00/kp00_{:d}.fits.gz'.format(int(Tk[indT])))
+    std_file = resource_filename('pypeit', '/data/standards/kurucz93/kp00/kp00_{:d}.fits.gz'.format(int(Tk[indT])))
     std = Table.read(std_file)
 
     # Grab specific spectrum
