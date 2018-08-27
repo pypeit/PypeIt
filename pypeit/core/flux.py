@@ -542,3 +542,110 @@ def generate_sensfunc(std_obj, RA, DEC, exptime, extinction, BALM_MASK_WID=5., n
     sens_dict['wave_min'] = np.min(wave)
     sens_dict['wave_max'] = np.max(wave)
     return sens_dict
+
+
+def telluric_params(sptype):
+    """Compute physical parameters for a given stellar type.
+    This is used by telluric_sed(V, sptype) to create the
+    model spectrum.
+
+    Parameters:
+    ----------
+    sptype: str
+      Spectral type of telluric star
+
+    Returns:
+    ----------
+    tell_param: dict
+      Star parameters
+    """
+
+    # log(g) of the Sun
+    logg_sol = np.log10(6.67259e-8) + np.log10(1.989e33) - 2.0 * np.log10(6.96e10)
+
+    # Load Schmidt-Kaler (1982) table
+    sk82_file = resource_filename('pypit', 'data/standards/kurucz93/schmidt-kaler_table.txt')
+    sk82_tab = ascii.read(sk82_file,
+                          names=('Sp', 'logTeff', 'Teff', '(B-V)_0', 'M_V', 'B.C.', 'M_bol', 'L/L_sol'))
+
+    # Match input type
+    mti = np.where(sptype == sk82_tab['Sp'])[0]
+    if len(mti) != 1:
+        raise ValueError('Not ready to interpolate yet.')
+
+    # Calculate final quantities
+    # relation between radius, temp, and bolometric luminosity
+    logR = 0.2 * (42.26 - sk82_tab['M_bol'][mti[0]] - 10.0 * sk82_tab['logTeff'][mti[0]])
+
+    # mass-bolometric luminosity relation 
+    # from schimdt-kaler p28 valid for M_bol < 7.5
+    logM = 0.46 - 0.10 * sk82_tab['M_bol'][mti[0]]
+    logg = logM - 2.0 * logR + logg_sol
+    M_V = sk82_tab['M_V'][mti[0]]
+    tell_param = dict(logR=logR, logM=logM, logg=logg, M_V=M_V,
+                      T=sk82_tab['Teff'][mti[0]])
+
+    # Return
+    return tell_param
+
+def telluric_sed(V, sptype):
+    """Parse Kurucz SED given T and g
+    Also convert absolute/apparent magnitudes
+
+    Parameters:
+    ----------
+    V: float
+      Apparent magnitude of telluric star
+    sptype: str
+      Spectral type of telluric star
+
+    Returns:
+    ----------
+    loglam: ndarray
+      log wavelengths
+    flux: ndarray
+      SED f_lambda (cgs units, I think, probably per Ang)
+    """
+
+    # Grab Telluric star parameters
+    tell_param = telluric_params(sptype)
+
+    # Flux factor (absolute/apparent V mag)
+    # Constants
+    parsec = const.pc.cgs  # 3.086e18
+    R_sol = const.R_sun.cgs  # 6.96e10
+    # distance modulus
+    logd = 0.2 * (V - tell_param['M_V']) + 1.0
+    D = parsec * 10. ** logd
+    R = R_sol * 10. ** tell_param['logR']
+    # factor converts the kurucz surface flux densities to flux observed on Earth
+    flux_factor = (R / D.value) ** 2
+
+    # Grab closest T in Kurucz SEDs
+    T1 = 3000. + np.arange(28) * 250
+    T2 = 10000. + np.arange(6) * 500
+    T3 = 13000. + np.arange(22) * 1000
+    T4 = 35000. + np.arange(7) * 2500
+
+    Tk = np.concatenate([T1, T2, T3, T4])
+    indT = np.argmin(np.abs(Tk - tell_param['T']))
+
+    # Grab closest g in Kurucz SEDs
+    loggk = np.arange(11) * 0.5
+    indg = np.argmin(np.abs(loggk - tell_param['logg']))
+
+    # Grab Kurucz filename
+    std_file = resource_filename('pypit', '/data/standards/kurucz93/kp00/kp00_{:d}.fits.gz'.format(int(Tk[indT])))
+    std = Table.read(std_file)
+
+    # Grab specific spectrum
+    loglam = np.array(np.log10(std['WAVELENGTH']))
+    gdict = {0: 'g00', 1: 'g05', 2: 'g10', 3: 'g15', 4: 'g20',
+             5: 'g25', 6: 'g30', 7: 'g35', 8: 'g40', 9: 'g45', 10: 'g50'}
+    flux = std[gdict[indg]]
+
+    # Generate the standard star dict
+    std_dict = dict(stellar_type=sptype, Vmag=V)
+
+    # Return
+    return loglam, flux.data * flux_factor, std_dict
