@@ -56,7 +56,6 @@ def main(args):
     from pypeit.core.parse import get_dnum
     from pypeit.core import trace_slits
     from pypeit import traceslits
-    from pypeit import scienceimage
 
     # Check that arguments make sense
     if (args.resid is True & args.sky_resid is True):
@@ -133,17 +132,16 @@ def main(args):
 
     # Show Image
     cwd = os.getcwd()
-    wcs_img = cwd+'/'+ os.path.basename(os.path.normpath(head0['PYPMFDIR'])) +'/MasterWave_'+'{:s}_{:02d}_{:s}.fits'.format(head0['PYPCNFIG'], args.det, head0['PYPCALIB'])
-    viewer, ch = ginga.show_image(image, chname='DET{:s}'.format(sdet), wcs_img=wcs_img)
-    canvas = viewer.canvas(ch._chname)
-    # These commands set up the viewer. They can be found at ginga/ginga/ImageView.py
-    out = canvas.clear()
-    out = ch.cut_levels(cut_min, cut_max)
-    out = ch.set_color_map('ramp')
-    out = ch.set_intensity_map('ramp')
-    out = ch.set_color_algorithm('linear')
-    out = ch.restore_contrast()
-    out = ch.restore_cmap()
+    wcs_img = cwd+'/'+ os.path.basename(os.path.normpath(head0['PYPMFDIR'])) +\
+              '/MasterWave_'+'{:s}_{:02d}_{:s}.fits'.format(head0['PYPCNFIG'], args.det, head0['PYPCALIB'])
+
+
+    if args.showmask:
+        bitmask_in = bitmask
+    else:
+        bitmask_in = None
+    viewer, ch = ginga.show_image(image, chname='DET{:s}'.format(sdet), wcs_img=wcs_img,
+                                  cuts = (cut_min, cut_max), bitmask = bitmask_in)
 
     mdir = head0['PYPMFDIR']+'/'
     setup = '{:s}_{:s}_{:s}'.format(head0['PYPCNFIG'], sdet, head0['PYPCALIB'])
@@ -168,57 +166,6 @@ def main(args):
             obj_id = hdu.name.split('-')[0]
             ginga.show_trace(viewer, ch, trace, obj_id, color='orange') #hdu.name)
 
-
-    if args.showmask:
-        # Unpack the bitmask
-        (bpm, crmask, satmask, minmask, offslitmask,
-         nanmask, ivar0mask, ivarnanmask, extractmask) = scienceimage.unpack_bitmask(bitmask)
-
-        # These are the pixels that were masked by the bpm
-        spec_bpm, spat_bpm = np.where(bpm & ~offslitmask)
-        nbpm = len(spec_bpm)
-        # note: must cast numpy floats to regular python floats to pass the remote interface
-        points_bpm = [dict(type='point', args=(float(spat_bpm[i]), float(spec_bpm[i]), 2),
-                           kwargs=dict(style='plus', color='magenta')) for i in range(nbpm)]
-
-        # These are the pixels that were masked by LACOSMICS
-        spec_cr, spat_cr = np.where(crmask & ~offslitmask)
-        ncr = len(spec_cr)
-        # note: must cast numpy floats to regular python floats to pass the remote interface
-        points_cr = [dict(type='point', args=(float(spat_cr[i]), float(spec_cr[i]), 2),
-                             kwargs=dict(style='plus', color='cyan')) for i in range(ncr)]
-
-        # These are the pixels that were masked by the extraction
-        spec_ext, spat_ext = np.where(extractmask & ~offslitmask)
-        next = len(spec_ext)
-        # note: must cast numpy floats to regular python floats to pass the remote interface
-        points_ext = [dict(type='point', args=(float(spat_ext[i]), float(spec_ext[i]), 2),
-                            kwargs=dict(style='plus', color='red')) for i in range(next)]
-
-        # These are the pixels that were masked for any other reason
-        spec_oth, spat_oth = np.where(satmask | minmask | nanmask | ivar0mask | ivarnanmask & ~offslitmask)
-        noth = len(spec_oth)
-        # note: must cast numpy floats to regular python floats to pass the remote interface
-        points_oth = [dict(type='point', args=(float(spat_oth[i]), float(spec_oth[i]), 2),
-                            kwargs=dict(style='plus', color='yellow')) for i in range(noth)]
-
-        nspat = sciimg.shape[1]
-        nspec = sciimg.shape[0]
-        # Labels for the points
-        text_bpm = [dict(type='text', args=(nspat / 2 -40, nspec / 2, 'BPM'),
-                           kwargs=dict(color='magenta', fontsize=20))]
-
-        text_cr = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 30, 'CR'),
-                           kwargs=dict(color='cyan', fontsize=20))]
-
-        text_ext = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 60, 'EXTRACT'),
-                          kwargs=dict(color='red', fontsize=20))]
-
-        text_oth = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 90, 'OTHER'),
-                          kwargs=dict(color='yellow', fontsize=20))]
-
-        canvas_list = points_bpm + points_cr + points_ext + points_oth + text_bpm + text_cr + text_ext + text_oth
-        canvas.add('constructedcanvas', canvas_list)
 
     if args.embed:
         IPython.embed()
