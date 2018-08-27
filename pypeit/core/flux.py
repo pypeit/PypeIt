@@ -552,12 +552,6 @@ def generate_sensfunc(
         std_dict = find_standard_file((RA, DEC))
         # Load standard
         load_standard_file(std_dict)
-        # Interpolate onto observed wavelengths
-        std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
-        xspec = std_xspec.rebin(wave_star)  # Conserves flambda
-        flux_true = xspec.flux.value
-        if np.min(flux_true) == 0.:
-            msgs.warn('Your spectrum extends beyond calibrated standard star.')
     else:
         # Create star spectral model
         msgs.info("Creating standard model")
@@ -568,12 +562,14 @@ def generate_sensfunc(
         std_dict = dict(file='KuruczTelluricModel', name=star_type, fmt=1,
                         ra='00:00:00.0', dec='00:00:00.0')
         std_dict['wave'] = star_lam*units.AA
-        std_dict['flux'] = star_flux*units.erg/units.s/units.cm**2/units.AA
-        std_xspec = XSpectrum1D.from_tuple((star_lam, star_flux))
-        xspec = std_xspec.rebin(wave_star)  # Conserves flambda
-        flux_true = xspec.flux.value
-        if np.min(flux_true) == 0.:
-            msgs.warn('Your spectrum extends beyond calibrated standard star.')
+        std_dict['flux'] = 1e17*star_flux*units.erg/units.s/units.cm**2/units.AA
+
+    # Interpolate onto observed wavelengths
+    std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
+    xspec = std_xspec.rebin(wave_star)  # Conserves flambda
+    flux_true = xspec.flux.value
+    if np.min(flux_true) == 0.:
+        msgs.warn('Your spectrum extends beyond calibrated standard star.')
 
     # Set nresln
     if nresln == None:
