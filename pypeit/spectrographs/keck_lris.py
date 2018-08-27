@@ -392,9 +392,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             arcparam is modified in place
 
         """
-        arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
+        #arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
         # Should set according to the lamps that were on
         arcparam['lamps'] = ['ArI','NeI','HgI','KrI','XeI']
+        '''
         if disperser == '600/7500':
             arcparam['n_first']=3 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
@@ -419,7 +420,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-
+        '''
 
 def read_lris(raw_file, det=None, TRIM=False):
     """
