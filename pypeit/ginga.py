@@ -111,7 +111,7 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0):
 
     #ToDO I would prefer to change the color map to indicate these pixels rather than overplot points. Because for
     # large numbers of masked pixels, this is super slow. Need to ask ginga folks how to do that.
-    
+
     # If bitmask was passed in, expand it into the constituent masks and plot them
     if bitmask is not None:
         # Unpack the bitmask
