@@ -88,6 +88,8 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                                                    par=_par['calibrations'],
                                                    save_masters=True, write_qa=True)
 
+    # TESTING
+    EXTRACT_QA = True
     # Loop on science exposure first
     #  calib frames, e.g. arcs)
     for sc in range(numsci):
@@ -174,20 +176,25 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             sciimg, sciivar, rn2img, crmask = sciI.process(msbias, mspixflatnrm, msbpm, apply_gain=True,trim=caliBrate.par['trim'])
 
             # Object finding, first pass on frame without sky subtraction
-            sobjs_obj0, nobj0 = sciI.find_objects(tslits_dict, SKYSUB = False, maskslits=maskslits)
+            sobjs_obj0, nobj0 = sciI.find_objects(tslits_dict, SKYSUB = False, maskslits=maskslits,
+                                                  SHOW_PEAKS=EXTRACT_QA, SHOW_FITS = EXTRACT_QA)
 
             # Global sky subtraction, first pass. Uses skymask from object finding
             global_sky0 = sciI.global_skysub(tslits_dict, mstilts, USE_SKYMASK=True, maskslits = maskslits)
 
             # Object finding, second pass on frame *with* sky subtraction
-            sobjs_obj, nobj = sciI.find_objects(tslits_dict, SKYSUB = True, maskslits=maskslits)
+            sobjs_obj, nobj = sciI.find_objects(tslits_dict, SKYSUB = True, maskslits=maskslits,
+                                                SHOW_PEAKS=EXTRACT_QA, SHOW_FITS=EXTRACT_QA)
 
             # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
             if nobj > 0:
                 # Global sky subtraction second pass. Uses skymask from object finding
-                global_sky = sciI.global_skysub(tslits_dict, mstilts, USE_SKYMASK=True, maskslits = maskslits)
+                global_sky = sciI.global_skysub(tslits_dict, mstilts, USE_SKYMASK=True, maskslits = maskslits,
+                                                SHOW_FIT = EXTRACT_QA)
 
-                skymodel, objmodel, ivarmodel, outmask, sobjs = sciI.local_skysub_extract(mswave, maskslits=maskslits)
+                skymodel, objmodel, ivarmodel, outmask, sobjs = sciI.local_skysub_extract(mswave, maskslits=maskslits,
+                                                                                          SHOW_PROFILE=EXTRACT_QA,
+                                                                                          SHOW_RESIDS=EXTRACT_QA)
 
                 # Flexure correction?
                 if _par['flexure'] is not None and _par['flexure']['method'] is not None:
