@@ -502,6 +502,9 @@ class General:
                           '  Best dispersion              = {:g}A/pix'.format(best_patt_dict['bdisp']) + msgs.newline() +
                           '  Final RMS of fit             = {:g}'.format(best_final_fit['rms']) + msgs.newline() +
                           '---------------------------------------------------')
+        # Now that all slits have been inspected, cross match to generate a
+        # master list of all lines in every slit, and refit all spectra
+        #self.cross_match(good_fit)
 
         # With the updates to the fits of each slit, determine the final fit, and save the QA
         for slit in range(self._nslit):
@@ -524,6 +527,23 @@ class General:
             best_final_fit = self.fit_slit(slit, best_patt_dict, outroot=self._outroot, slittxt=slittxt)
             self._all_patt_dict[str(slit)] = copy.deepcopy(best_patt_dict)
             self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
+
+    def cross_match(self, good_fit):
+        """Cross-correlate the spectra across all slits to ID all of the lines.
+        good_fit : ndarray (bool)
+          Indicates which slits are deemed to be a good fit (although, they need not necessarily be a good fit).
+        """
+        # First cross correlate all spectra
+        corr = signal.correlate(self._spec[:, 0], self._spec[:, 4], mode='same')
+        amax = np.argmax(corr)
+        print(amax)
+        from matplotlib import pyplot as plt
+        xplt = np.arange(self._spec.shape[0])
+        plt.plot(xplt, self._spec[:, 0], 'k-', drawstyle='steps')
+        plt.plot(xplt+(amax-self._spec.shape[0]//2), self._spec[:, 4], 'r-', drawstyle='steps')
+        plt.show()
+        pdb.set_trace()
+        return
 
     def get_use_tcent(self, corr, weak=False):
         """Set if pixels correlate with wavelength (corr==1) or anticorrelate (corr=-1)
