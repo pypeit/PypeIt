@@ -578,43 +578,49 @@ class ScienceImage(processimages.ProcessImages):
 
         """
         if attr == 'global':
+            # global sky subtraction
             if self.sciimg is not None and self.global_sky is not None and self.bitmask is not None:
-                image = (sciimg - self.global_sky)*(bitmask == 0)  # sky subtracted image
-                (mean, med, sigma) = sigma_clipped_stats(image[bitmask == 0], sigma_lower=5.0, sigma_upper=5.0)
+                image = (self.sciimg - self.global_sky)*(self.bitmask == 0)  # sky subtracted image
+                (mean, med, sigma) = sigma_clipped_stats(image[self.bitmask == 0], sigma_lower=5.0, sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
                 if showmask:
                     bitmask_in = self.bitmask
                 else:
                     bitmask_in = None
-                viewer, ch = ginga.show_image(image, chname='Global', cuts=(cut_min, cut_max), bitmask=bitmask_in)
+                viewer, ch = ginga.show_image(image, chname='global_sky', cuts=(cut_min, cut_max), bitmask=bitmask_in)
         elif attr == 'local':
+            # local sky subtraction
             if self.sciimg is not None and self.skymodel is not None and self.bitmask is not None:
-                image = (sciimg - self.skymodel)*(bitmask == 0)  # sky subtracted image
-                (mean, med, sigma) = sigma_clipped_stats(image[bitmask == 0], sigma_lower=5.0, sigma_upper=5.0)
+                image = (self.sciimg - self.skymodel)*(self.bitmask == 0)  # sky subtracted image
+                (mean, med, sigma) = sigma_clipped_stats(image[self.bitmask == 0], sigma_lower=5.0, sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
                 if showmask:
                     bitmask_in = self.bitmask
                 else:
                     bitmask_in = None
-                viewer, ch = ginga.show_image(image, chname='Global', cuts=(cut_min, cut_max), bitmask=bitmask_in)
+                viewer, ch = ginga.show_image(image, chname='local_sky', cuts=(cut_min, cut_max), bitmask=bitmask_in)
         elif attr == 'sky_resid':
-            if self.sciimg is not None and self.skymodel is not None and
-                self.objmodel is not None and self.modelivar is not None self.bitmask is not None:
-        elif attr == 'sciimg':
-            if self.sciimg is not None:
-                ginga.show_image(self.sciimg)
-        elif attr == 'sciivar':
-            if self.sciivar is not None:
-                ginga.show_image(self.sciivar)
-        elif attr == 'modeilvar':
-            if self.modelivar is not None:
-                ginga.show_image(self.modelivar)
-        elif attr == 'crmasked':
-            ginga.show_image(self.sciframe*(1-self.crmask), chname='CR')
-        elif attr == 'skysub':
-            ginga.show_image(self.sciframe-self.global_sky, chname='SkySub')
+            # sky residual map with object included
+            if self.sciimg is not None and self.skymodel is not None and \
+                    self.objmodel is not None and self.modelivar is not None and self.bitmask is not None:
+                image = (self.sciimg - self.skymodel) * np.sqrt(self.ivarmodel) * (self.bitmask == 0)
+                if showmask:
+                    bitmask_in = self.bitmask
+                else:
+                    bitmask_in = None
+                viewer, ch = ginga.show_image(image, chname='sky_resid', cuts=(-5.0, 5.0), bitmask=bitmask_in)
+        elif attr == 'resid':
+            # full residual map with object model subtractede
+            if self.sciimg is not None and self.skymodel is not None and \
+                    self.objmodel is not None and self.modelivar is not None and self.bitmask is not None:
+                image = (self.sciimg - self.skymodel) * np.sqrt(self.ivarmodel) * (self.bitmask == 0)  # full model residual map
+                if showmask:
+                    bitmask_in = self.bitmask
+                else:
+                    bitmask_in = None
+                viewer, ch = ginga.show_image(image, chname='sky_resid', cuts=(-5.0, 5.0), bitmask=bitmask_in)
         elif attr == 'image':
             ginga.show_image(image)
         else:
