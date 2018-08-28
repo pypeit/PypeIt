@@ -15,6 +15,7 @@ from pypeit import specobjs
 from pypeit.core import procimg
 from pypeit.core import skysub
 from pypeit.core import extract
+from pypeit.core import trace_slits
 from pypeit import utils
 from pypeit import artrace
 from pypeit import ginga
@@ -309,7 +310,7 @@ class ScienceImage(processimages.ProcessImages):
         self.steps.append(inspect.stack()[0][3])
 
         if SHOW:
-            self.show('image',image = image*(self.bitmask == 0), chname = 'objfind', sobjs =self.sobjs_obj)
+            self.show('image',image = image*(self.bitmask == 0), chname = 'objfind', sobjs =self.sobjs_obj, slits = True)
 
         # Return
         return self.sobjs_obj, self.nobj
@@ -370,7 +371,7 @@ class ScienceImage(processimages.ProcessImages):
         self.steps.append(inspect.stack()[0][3])
 
         if SHOW:
-            self.show('global')
+            self.show('global', slits=True)
 
         # Return
         return self.global_sky
@@ -440,9 +441,8 @@ class ScienceImage(processimages.ProcessImages):
         self.steps.append(inspect.stack()[0][3])
 
         if SHOW:
-            self.show('local', sobjs = self.sobjs)
-            time.sleep(3) # Ginga chokes if you run these commands too fast
-            self.show('resid') #, sobjs = self.sobjs)
+            self.show('local', sobjs = self.sobjs, slits= True)
+            self.show('resid', sobjs = self.sobjs, slits= True)
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
@@ -572,7 +572,7 @@ class ScienceImage(processimages.ProcessImages):
         return self.maskslits
 
 
-    def show(self, attr, image=None, showmask = False, sobjs = None, chname = None):
+    def show(self, attr, image=None, showmask = False, sobjs = None, chname = None, slits = False):
         """
         Show one of the internal images
           Should probably put some of these in ProcessImages
@@ -608,7 +608,8 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'global_sky'
-                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(cut_min, cut_max), bitmask=bitmask_in)
+                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask = bitmask_in)
+                #cuts=(cut_min, cut_max)
         elif attr == 'local':
             # local sky subtraction
             if self.sciimg is not None and self.skymodel is not None and self.bitmask is not None:
@@ -621,7 +622,8 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'local_sky'
-                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(cut_min, cut_max), bitmask=bitmask_in)
+                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in)
+                #cuts=(cut_min, cut_max),
         elif attr == 'sky_resid':
             # sky residual map with object included
             if self.sciimg is not None and self.skymodel is not None and \
@@ -637,7 +639,7 @@ class ScienceImage(processimages.ProcessImages):
             # full residual map with object model subtractede
             if self.sciimg is not None and self.skymodel is not None and \
                     self.objmodel is not None and self.ivarmodel is not None and self.bitmask is not None:
-                image = (self.sciimg - self.skymodel) * np.sqrt(self.ivarmodel) * (self.bitmask == 0)  # full model residual map
+                image = (self.sciimg - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel) * (self.bitmask == 0)  # full model residual map
                 if showmask:
                     bitmask_in = self.bitmask
                 else:
@@ -658,6 +660,12 @@ class ScienceImage(processimages.ProcessImages):
                     color = 'orange'
                 ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
 
+        if slits:
+            if self.tslits_dict is not None:
+                slit_ids = [trace_slits.get_slitid(self.sciimg.shape, self.tslits_dict['lcen'], self.tslits_dict['rcen'], ii)[0] for ii in
+                            range(self.tslits_dict['lcen'].shape[1])]
+
+                ginga.show_slits(viewer, ch,self.tslits_dict['lcen'], self.tslits_dict['rcen'], slit_ids)  # , args.det)
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,
