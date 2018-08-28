@@ -386,7 +386,13 @@ class General:
         self.set_grids()
 
         # Find the wavelength solution!
-        self.run()
+        # KD Tree algorithm only works for ThAr - check first that this is what is being used
+        if 'ThAr' in lines and len(lines) == 1:
+            msgs.info("Using KD Tree pattern matching algorithm to wavelength calibrate")
+            self.run_kdtree()
+        else:
+            msgs.info("Using brute force pattern matching algorithm to wavelength calibrate")
+            self.run_brute()
 
     def load_linelist(self):
         # Load line lists
@@ -428,7 +434,7 @@ class General:
             self._ngridd = self._bind.size
         return
 
-    def run(self):
+    def run_brute(self):
         """Run through the parameter space and determine the best solution
         """
 
@@ -529,6 +535,299 @@ class General:
             best_final_fit = self.fit_slit(slit, best_patt_dict, outroot=self._outroot, slittxt=slittxt)
             self._all_patt_dict[str(slit)] = copy.deepcopy(best_patt_dict)
             self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
+
+    def run_kdtree(self, polygon=4, detsrch=4):
+        """ KD Tree algorithm to wavelength calibrate spectroscopic data.
+        Currently, this is only designed for ThAr lamp spectra. See the
+        'run_brute' function if you want to calibrate longslit spectra.
+        """
+
+        # Load the linelist KD Tree
+        lsttree = waveio.load_tree(polygon=polygon)
+
+        # Set the search error to be 1 pixel
+        err = 1.0 / self._npix
+
+        self._all_patt_dict = {}
+        self._all_final_fit = {}
+        good_fit = np.zeros(self._nslit, dtype=np.bool)
+        for slit in range(self._nslit):
+            if slit not in self._ok_mask:
+                continue
+            # Detect lines, and decide which tcent to use
+            self._all_tcent, self._cut_tcent, self._icut =\
+                utils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._min_ampl)
+            self._all_tcent_weak, self._cut_tcent_weak, self._icut_weak =\
+                utils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._lowest_ampl)
+            if self._all_tcent.size == 0:
+                msgs.warn("No lines to identify in slit {0:d}!".format(slit))
+                continue
+            best_patt_dict, best_final_fit = None, None
+
+            use_tcentp = self.get_use_tcent(1)
+            use_tcentm = self.get_use_tcent(-1)
+            if use_tcentp.size < detsrch:
+                if self._verbose:
+                    msgs.info("Not enough lines to test this solution, will attempt another.")
+                return None, None
+
+            # Create a detlines KD Tree
+            if polygon == 3:
+                print("Generating patterns for a trigon")
+                patternp, indexp = kdtree_generator.trigon(use_tcentp, detsrch, maxlinear)
+                patternm, indexm = kdtree_generator.trigon(use_tcentm, detsrch, maxlinear)
+            elif polygon == 4:
+                print("Generating patterns for a tetragon")
+                patternp, indexp = kdtree_generator.tetragon(use_tcentp, detsrch, maxlinear)
+                patternm, indexm = kdtree_generator.tetragon(use_tcentm, detsrch, maxlinear)
+            elif polygon == 5:
+                print("Generating patterns for a pentagon")
+                patternp, indexp = kdtree_generator.pentagon(use_tcentp, detsrch, maxlinear)
+                patternm, indexm = kdtree_generator.pentagon(use_tcentm, detsrch, maxlinear)
+            elif polygon == 6:
+                print("Generating patterns for a hexagon")
+                patternp, indexp = kdtree_generator.hexagon(use_tcentp, detsrch, maxlinear)
+                patternm, indexm = kdtree_generator.hexagon(use_tcentm, detsrch, maxlinear)
+            else:
+                print("Patterns can only be generated with 3 <= polygon <= 6")
+                return None
+
+            dettreep = cKDTree(patternp, leafsize=30)
+            dettreem = cKDTree(patternm, leafsize=30)
+
+            # Query the detections tree
+            msgs.info("Querying KD tree patterns (slit {0:d}/{1:d})".format(slit+1, self._nslit))
+            resultp = dettreep.query_ball_tree(lsttree, r=err)
+            resultm = dettreem.query_ball_tree(lsttree, r=err)
+
+            wvdisp, wvcent, wvindx = kdtree_results(resultp, indexp)
+            wvdisp, wvcent, wvindx = kdtree_results(resultm, indexm)
+
+
+
+
+
+
+
+
+
+            # Loop on pix_tol
+            # TODO: Allow for different pixel tolerance?
+            msgs.info("Begin pattern matching")
+            for pix_tol in [0.5]:
+                # First run pattern recognition assuming pixels correlate with wavelength
+
+                # Triangle pattern matching
+                #            dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, detsrch, lstsrch, pix_tol)
+                dindexp, lindexp, wvcenp, dispsp = quadrangles(use_tcent, wvdata, npix, detsrch, lstsrch, pix_tol)
+                # Remove any invalid results
+                ww = np.where((binw[0] < wvcenp) & (wvcenp < binw[-1]) &
+                              (10.0 ** bind[0] < dispsp) & (dispsp < 10.0 ** bind[-1]))
+                dindexp = dindexp[ww[0], :]
+                lindexp = lindexp[ww[0], :]
+                dispsp = dispsp[ww]
+                wvcenp = wvcenp[ww]
+
+                # Now run pattern recognition assuming pixels correlate with wavelength
+                use_tcent = (npix - 1.0) - all_tcent.copy()[::-1]
+                # Triangle pattern matching
+                #            dindexm, lindexm, wvcenm, dispsm = triangles(use_tcent, wvdata, npix, detsrch, lstsrch, pix_tol)
+                dindexm, lindexm, wvcenm, dispsm = quadrangles(use_tcent, wvdata, npix, detsrch, lstsrch, pix_tol)
+                # Remove any invalid results
+                ww = np.where((binw[0] < wvcenm) & (wvcenm < binw[-1]) &
+                              (10.0 ** bind[0] < dispsm) & (dispsm < 10.0 ** bind[-1]))
+                dindexm = dindexm[ww[0], :]
+                lindexm = lindexm[ww[0], :]
+                dispsm = dispsm[ww]
+                wvcenm = wvcenm[ww]
+                # Construct the histograms
+                histimgp, xed, yed = np.histogram2d(wvcenp, np.log10(dispsp), bins=[binw, bind])
+                histimgm, xed, yed = np.histogram2d(wvcenm, np.log10(dispsm), bins=[binw, bind])
+                # histimgp = gaussian_filter(histimgp, 3)
+                # histimgm = gaussian_filter(histimgm, 3)
+                histimg = histimgp - histimgm
+                histimg = gaussian_filter(histimg, 3)
+
+                histpeaks = patterns.detect_2Dpeaks(np.abs(histimg))
+
+                # Find the indices of the nstore largest peaks
+                bidx = np.unravel_index(np.argpartition(np.abs(histpeaks * histimg), -nstore, axis=None)[-nstore:],
+                                        histimg.shape)
+
+                debug = True
+                if debug:
+                    from matplotlib import pyplot as plt
+                    plt.clf()
+                    plt.imshow((np.abs(histimg[:, ::-1].T)), extent=[binw[0], binw[-1], bind[0], bind[-1]],
+                               aspect='auto')
+                    # plt.imshow(histimg[:, ::-1].T, extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
+                    plt.plot(binw[bidx[0]], bind[bidx[1]], 'r+')
+                    # plt.axvline(binw[bidx[0]], color='r', linestyle='--')
+                    # plt.axhline(bind[bidx[1]], color='r', linestyle='--')
+                    plt.show()
+                    if False:
+                        pdb.set_trace()
+                        plt.clf()
+                        plt.imshow(histimgp[:, ::-1].T, extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
+                        plt.show()
+                # Get the peak value of central wavelength and dispersion
+                wcenval = binw[bidx[0]]
+                dispval = bind[bidx[1]]
+                histnum = np.abs(histimg[bidx])
+
+                # Find all good solutions
+                for idx in range(nstore):
+                    # Select all solutions around the best solution within a square of side 2*nsel
+                    wlo = binw[max(0, bidx[0][idx] - nselw)]
+                    whi = binw[min(ngridw - 1, bidx[0][idx] + nselw)]
+                    dlo = 10.0 ** bind[max(0, bidx[1][idx] - nseld)]
+                    dhi = 10.0 ** bind[min(ngridd - 1, bidx[1][idx] + nseld)]
+                    if histimgp[bidx][idx] > histimgm[bidx][idx]:
+                        wgd = np.where((wvcenp > wlo) & (wvcenp < whi) & (dispsp > dlo) & (dispsp < dhi))
+                        dindex = dindexp[wgd[0], :].flatten()
+                        lindex = lindexp[wgd[0], :].flatten()
+                        sign = +1.0
+                    else:
+                        wgd = np.where((wvcenm > wlo) & (wvcenm < whi) & (dispsm > dlo) & (dispsm < dhi))
+                        dindex = dindexm[wgd[0], :].flatten()
+                        lindex = lindexm[wgd[0], :].flatten()
+                        sign = -1.0
+                    # Store relevant values in an array to solve for best solution
+                    bestlist[cnt].append([wcenval[idx], dispval[idx], histnum[idx], sign, dindex, lindex])
+                allwcen = np.append(allwcen, wcenval)
+                alldisp = np.append(alldisp, dispval)
+                allhnum = np.append(allhnum, histnum)
+
+        # Using the results from all slits, decide on the best solutions (assume all slits have the same dispersion)
+        dhist, dedge = np.histogram(alldisp, bins=bind, weights=allhnum)
+        dhmax = np.argmax(dhist)
+        if debug:
+            from matplotlib import pyplot as plt
+            null = plt.hist(alldisp, bins=bind, weights=allhnum, normed=False)
+            plt.show()
+        msgs.info("Best initial guess for spectrograph dispersion: {0:.4f}A/pixel".format(
+            10.0 ** np.mean(dedge[dhmax:dhmax + 2])))
+        msgs.info("Fitting the wavelength solution for each slit")
+
+        # Fit the wavelength solution for each slit
+        all_patt_dict, all_final_fit = {}, {}
+        for cnt, slit in enumerate(ok_mask):
+            # patt_dict
+            patt_dict = dict(nmatch=0, ibest=-1, bwv=0., min_ampl=min_ampl)
+
+            # Check there are lines in this slit
+            if slit_tcent[cnt].size == 0:
+                msgs.warn("No lines to identify in slit {0:d}!".format(slit))
+                all_patt_dict[str(slit)] = None
+                all_final_fit[str(slit)] = None
+                continue
+
+            # Obtain a full list of indices that are consistent with the maximum value
+            dindex, lindex, allsgn = np.array([]), np.array([]), np.array([])
+            dcen, wcen = np.array([]), np.array([])
+            for ss in range(len(bestlist[cnt])):
+                if dedge[dhmax - nseld] <= bestlist[cnt][ss][1] <= dedge[dhmax + 1 + nseld]:
+                    wcen = np.append(wcen, bestlist[cnt][ss][0])
+                    dcen = np.append(dcen, bestlist[cnt][ss][1])
+                    allsgn = np.append(allsgn, bestlist[cnt][ss][3] * np.ones(bestlist[cnt][ss][4].size))
+                    dindex = np.append(dindex, bestlist[cnt][ss][4])
+                    lindex = np.append(lindex, bestlist[cnt][ss][5])
+            # Find the favoured sign and only use those values
+            if np.sum(allsgn) > 0.0:
+                use_tcent = slit_tcent[cnt].copy()
+                sign = +1.0
+                signtxt = "correlate"
+            else:
+                use_tcent = (npix - 1.0) - slit_tcent[cnt].copy()[::-1]
+                sign = -1.0
+                signtxt = "anticorrelate"
+            dindex = dindex[np.where(allsgn == sign)]
+            lindex = lindex[np.where(allsgn == sign)]
+            patterns.solve_triangles(use_tcent, wvdata, dindex, lindex, patt_dict)
+
+            # Fill in the patterns dictionary
+            patt_dict['bwv'] = np.mean(wcen)
+            patt_dict['bdisp'] = 10.0 ** np.mean(dcen)
+
+            # Check that a solution has been found
+            if patt_dict['nmatch'] == 0:
+                msgs.info('---------------------------------------------------' + msgs.newline() +
+                          'Initial report for slit {0:d}/{1:d}:'.format(slit + 1, nslit) + msgs.newline() +
+                          '  No matches! Try another algorithm' + msgs.newline() +
+                          '---------------------------------------------------')
+                all_patt_dict[str(slit)] = None
+                all_final_fit[str(slit)] = None
+                continue
+
+            # Report
+            msgs.info('---------------------------------------------------' + msgs.newline() +
+                      'Initial report for slit {0:d}/{1:d}:'.format(slit + 1, nslit) + msgs.newline() +
+                      '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
+                      '  Number of lines recovered    = {:d}'.format(all_tcent.size) + msgs.newline() +
+                      '  Number of lines analyzed     = {:d}'.format(use_tcent.size) + msgs.newline() +
+                      '  Number of acceptable matches = {:d}'.format(patt_dict['nmatch']) + msgs.newline() +
+                      '  Best central wavelength      = {:g}A'.format(patt_dict['bwv']) + msgs.newline() +
+                      '  Best dispersion              = {:g}A/pix'.format(patt_dict['bdisp']) + msgs.newline() +
+                      '  Best solution had unknown    = {}'.format(use_unknowns) + msgs.newline() +
+                      '---------------------------------------------------')
+
+            slittxt = '_Slit{0:03d}'.format(slit)
+            if outroot is not None:
+                # Write IDs
+                out_dict = dict(pix=use_tcent, IDs=patt_dict['IDs'])
+                jdict = ltu.jsonify(out_dict)
+                ltu.savejson(outroot + slittxt + '.json', jdict, easy_to_read=True, overwrite=True)
+                msgs.info("Wrote: {:s}".format(outroot + slittxt + '.json'))
+
+                # Plot
+                tmp_list = vstack([line_lists, unknwns])
+                qa.match_qa(spec, use_tcent, tmp_list,
+                            patt_dict['IDs'], patt_dict['scores'], outroot + slittxt + '.pdf')
+                msgs.info("Wrote: {:s}".format(outroot + slittxt + '.pdf'))
+
+            # Perform final fit to the line IDs
+            final_fit = dict()
+            if do_fit:
+                NIST_lines = line_lists['NIST'] > 0
+                ifit = np.where(patt_dict['mask'])[0]
+                if outroot is not None:
+                    plot_fil = outroot + slittxt + '_fit.pdf'
+                else:
+                    plot_fil = None
+                # Purge UNKNOWNS from ifit
+                imsk = np.ones(len(ifit), dtype=np.bool)
+                for kk, idwv in enumerate(np.array(patt_dict['IDs'])[ifit]):
+                    if np.min(np.abs(line_lists['wave'][NIST_lines] - idwv)) > 0.01:
+                        imsk[kk] = False
+                ifit = ifit[imsk]
+                # Allow for weaker lines in the fit
+                all_tcent, weak_cut_tcent, icut = utils.arc_lines_from_spec(spec[:, slit], min_ampl=lowest_ampl)
+                use_weak_tcent = all_tcent.copy()
+                add_weak = []
+                for weak in use_weak_tcent:
+                    if np.min(np.abs(all_tcent - weak)) > 5.:
+                        add_weak += [weak]
+                if len(add_weak) > 0:
+                    if sign == +1.0:
+                        use_weak = np.array(add_weak)
+                    else:
+                        use_weak = (npix - 1.0) - np.array(add_weak)[::-1]
+                    use_tcent = np.concatenate([use_tcent, use_weak])
+                # Fit
+                final_fit = fitting.iterative_fitting(spec, use_tcent, ifit,
+                                                      np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
+                                                      patt_dict['bdisp'], plot_fil=plot_fil, verbose=verbose,
+                                                      aparm=fit_parm)
+
+                if plot_fil is not None:
+                    print("Wrote: {:s}".format(plot_fil))
+
+            # Append the results to the full list
+            all_patt_dict[str(slit)] = copy.deepcopy(patt_dict)
+            all_final_fit[str(slit)] = copy.deepcopy(final_fit)
+
+        # Return
+        return all_patt_dict, all_final_fit
 
     def cross_match(self, good_fit):
         """Cross-correlate the spectra across all slits to ID all of the lines.
@@ -731,6 +1030,42 @@ class General:
                       '---------------------------------------------------')
         return patt_dict
 
+    def kdtree_results(self, use_tcent, res, dindex, lindex):
+        # Assign wavelengths to each pixel
+        print("Identifying wavelengths")
+        waveid = [np.array([]) for xx in use_tcent]
+        nrows = len(res)
+        ncols = sum(map(len, res))
+        nindx = dindex.shape[1]
+        wvdisp = np.zeros(ncols)
+        wvcent = np.zeros(ncols)
+        wvindx = -1 * np.ones((ncols * nindx, 3))
+        cnt = 0
+        for x in range(nrows):
+            if (x + 1) % 100 == 0: print(x + 1, "/", nrows)
+            for y in range(len(res[x])):
+                dx = use_tcent[dindex[x, -1]] - use_tcent[dindex[x, 0]]
+                dp = self._wvdata[lstidx[res[x][y], -1]] - self._wvdata[lstidx[res[x][y], 0]]
+                try:
+                    null, cgrad = robust_polyfit(use_tcent[detidx[x, :]], self._wvdata[lstidx[res[x][y], :]], 1,
+                                                 sigma=2.0)
+                    wvdisp[cnt] = cgrad[1]
+                except:
+                    wvdisp[cnt] = (dp / dx)
+                # wvcent[cnt] = (dp/dx)*(npixels/2.0) + (linelist[lstidx[res[x][y]][-1]] - (dp/dx)*use_tcent[detidx[x,-1]])
+                coeff = np.polyfit(use_tcent[dindex[x, :]], self._wvdata[lstidx[res[x][y]]], ordfit)
+                wvcent[cnt] = np.polyval(coeff, self._npix / 2.0)
+                for i in range(nindx):
+                    # try:
+                    # waveid[detidx[x,i]] = np.append(waveid[detidx[x,i]], linelist[lstidx[res[x][y]][i]])
+                    # except:
+                    #	pdb.set_trace()
+                    wvindx[cnt * nindx + i, 0] = cnt
+                    wvindx[cnt * nindx + i, 1] = dindex[x, i]
+                    wvindx[cnt * nindx + i, 2] = lstidx[res[x][y], i]
+                cnt += 1
+        return wvdisp, wvcent, wvindx
+
     def fit_slit(self, slit, patt_dict, outroot=None, slittxt="Slit"):
         # Perform final fit to the line IDs
         NIST_lines = self._line_lists['NIST'] > 0
@@ -766,357 +1101,3 @@ class General:
 
         # Return
         return final_fit
-
-
-def kdtree(spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
-           outroot=None, debug=False, do_fit=True, verbose=False,
-           fit_parm=None, lowest_ampl=200.,
-           binw=None, bind=None, polygon=4, nstore=1, use_unknowns=True):
-    """ KD Tree algorithm to wavelength calibrate spectroscopic data.
-    Currently, this is only designed for ThAr lamp spectra. See the
-    "general" algorithm if you want to calibrate longslit spectra.
-
-    Parameters
-    ----------
-    spec : ndarray
-      Extracted 1D Arc Spectrum
-    lines : list
-      List of arc lamps on
-    ok_mask : ndarray
-
-    min_ampl : float
-      Minimum amplitude of the arc lines that will be used in the fit
-    islinelist : bool
-      Is lines a linelist (True), or a list of ions (False)
-    outroot : str, optional
-      Name of output file
-    debug : bool
-      Used to debug the algorithm
-    do_fit : bool
-      If True, a fit and iterative identification of arc lines will be performed.
-      If False, the final fit will not be computed, and only the initial IDs will
-      be returned (as well as a blank list of empty dicts for the final fit).
-    verbose : bool
-      If True, the final fit will print out more detail as the RMS is refined,
-      and lines are rejected. This is mostly helpful for developing the algorithm.
-    fit_parm : dict
-      Fitting parameter dictionary (see fitting.iterative_fitting)
-    lowest_ampl : float
-    binw : ndarray, optional
-      Set the wavelength grid when identifying the best solution
-    bind : ndarray, optional
-      Set the dispersion grid when identifying the best solution
-    polygon : int
-      How many sides are used for the pattern matching polygon.
-      Allowed values include: [4]
-    nstore : int
-      The number of "best" initial solutions to consider
-    use_unknowns : bool
-      If True, arc lines that are known to be present in the spectra, but
-      have not been attributed to an element+ion, will be included in the fit.
-
-    Returns
-    -------
-    all_patt_dict : list of dicts
-      A list of dictionaries, which contain the results from the preliminary
-      pattern matching algorithm providing the first guess at the ID lines
-    all_final_fit : list of dicts
-      A list of dictionaries, which contain the full fitting results and
-      final best guess of the line IDs
-    """
-
-    # KD Tree algorithm only works for ThAr - check first that this is what is being used
-    if 'ThAr' in lines and len(lines) == 1:
-        msgs.info("Using KD Tree pattern matching algorithm to wavelength calibrate")
-    else:
-        msgs.warn("KD Tree wavelength calibration algorithm only works for ThAr")
-        msgs.warn("Unable to use KD Tree algorithm with your linelist:" + msgs.newline() +
-                  ",".join(lines) + msgs.newline() +
-                  "Passing your parameters into the general algorithm.")
-        general(spec, lines, ok_mask=ok_mask, min_ampl=min_ampl, islinelist=islinelist,
-                outroot=outroot, debug=debug, do_fit=do_fit, verbose=verbose,
-                fit_parm=fit_parm, lowest_ampl=lowest_ampl,
-                binw=binw, bind=bind, nstore=nstore, use_unknowns=use_unknowns)
-
-    npix, nslit = spec.shape
-    detsrch, lstsrch = 14, 6
-
-    if ok_mask is None:
-        ok_mask = np.arange(nslit)
-
-    # Load the linelist KD Tree
-    lsttree = waveio.load_tree(polygon=polygon)
-
-    # Setup grid parameters
-    #ngridw, ngridd = 1000, 1000  # Longslit
-    #ngridw, ngridd = 100000, 100  # Echelle
-
-    #nselw, nseld = 5, 25  # Longslit
-    nselw, nseld = 3, 3  # Echelle
-
-    # The wavelength grid (i.e. the binw size) should depend on the dispersion.
-
-    # Set the wavelength grid
-    if binw is None:
-        # Ideally, you want binw to roughly sample the A/pix of the spectrograph
-        ngridw = 200
-        binw = np.linspace(np.min(wvdata), np.max(wvdata), ngridw)
-    else:
-        ngridw = binw.size
-    # Set the dispersion grid
-    if bind is None:
-        ngridd = 2000
-        bind = np.linspace(-3.0, 1.0, ngridd)
-    else:
-        ngridd = bind.size
-
-    bestlist = []
-    allwcen, alldisp, allhnum = np.array([]), np.array([]), np.array([])
-    slit_tcent = []
-    for cnt, slit in enumerate(ok_mask):
-        bestlist.append([])
-        # Lines
-        all_tcent, cut_tcent, icut = utils.arc_lines_from_spec(spec[:, slit], min_ampl=min_ampl)
-
-        # Decide which tcent to use (either all_tcent or cut_tcent)
-        use_tcent = all_tcent.copy()
-        slit_tcent.append(use_tcent.copy())
-
-        if use_tcent.size == 0:
-            msgs.warn("No lines to identify in slit {0:d}!".format(slit))
-            bestlist[cnt].append([None]*6)
-            continue
-
-        # Create a detlines KD Tree
-        if polygon == 3:
-            print("Generating patterns for a trigon")
-            pattern, index = kdtree_generator.trigon(use_tcent, numsearch, maxlinear)
-        elif polygon == 4:
-            print("Generating patterns for a tetragon")
-            pattern, index = kdtree_generator.tetragon(use_tcent, numsearch, maxlinear)
-        elif polygon == 5:
-            print("Generating patterns for a pentagon")
-            pattern, index = kdtree_generator.pentagon(use_tcent, numsearch, maxlinear)
-        elif polygon == 6:
-            print("Generating patterns for a hexagon")
-            pattern, index = kdtree_generator.hexagon(use_tcent, numsearch, maxlinear)
-        else:
-            print("Patterns can only be generated with 3 <= polygon <= 6")
-            return None
-
-        dettree = cKDTree(pattern, leafsize=30)
-
-        # Loop on pix_tol
-        # TODO: Allow for different pixel tolerance?
-        msgs.info("Begin pattern matching")
-        for pix_tol in [0.5]:
-            # First run pattern recognition assuming pixels correlate with wavelength
-
-            # Triangle pattern matching
-#            dindexp, lindexp, wvcenp, dispsp = triangles(use_tcent, wvdata, npix, detsrch, lstsrch, pix_tol)
-            dindexp, lindexp, wvcenp, dispsp = quadrangles(use_tcent, wvdata, npix, detsrch, lstsrch, pix_tol)
-            # Remove any invalid results
-            ww = np.where((binw[0] < wvcenp) & (wvcenp < binw[-1]) &
-                          (10.0**bind[0] < dispsp) & (dispsp < 10.0**bind[-1]))
-            dindexp = dindexp[ww[0], :]
-            lindexp = lindexp[ww[0], :]
-            dispsp = dispsp[ww]
-            wvcenp = wvcenp[ww]
-
-            # Now run pattern recognition assuming pixels correlate with wavelength
-            use_tcent = (npix - 1.0) - all_tcent.copy()[::-1]
-            # Triangle pattern matching
-#            dindexm, lindexm, wvcenm, dispsm = triangles(use_tcent, wvdata, npix, detsrch, lstsrch, pix_tol)
-            dindexm, lindexm, wvcenm, dispsm = quadrangles(use_tcent, wvdata, npix, detsrch, lstsrch, pix_tol)
-            # Remove any invalid results
-            ww = np.where((binw[0] < wvcenm) & (wvcenm < binw[-1]) &
-                          (10.0**bind[0] < dispsm) & (dispsm < 10.0**bind[-1]))
-            dindexm = dindexm[ww[0], :]
-            lindexm = lindexm[ww[0], :]
-            dispsm = dispsm[ww]
-            wvcenm = wvcenm[ww]
-            # Construct the histograms
-            histimgp, xed, yed = np.histogram2d(wvcenp, np.log10(dispsp), bins=[binw, bind])
-            histimgm, xed, yed = np.histogram2d(wvcenm, np.log10(dispsm), bins=[binw, bind])
-            #histimgp = gaussian_filter(histimgp, 3)
-            #histimgm = gaussian_filter(histimgm, 3)
-            histimg = histimgp - histimgm
-            histimg = gaussian_filter(histimg, 3)
-
-            histpeaks = patterns.detect_2Dpeaks(np.abs(histimg))
-
-            # Find the indices of the nstore largest peaks
-            bidx = np.unravel_index(np.argpartition(np.abs(histpeaks*histimg), -nstore, axis=None)[-nstore:], histimg.shape)
-
-            debug = True
-            if debug:
-                from matplotlib import pyplot as plt
-                plt.clf()
-                plt.imshow((np.abs(histimg[:, ::-1].T)), extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
-                #plt.imshow(histimg[:, ::-1].T, extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
-                plt.plot(binw[bidx[0]], bind[bidx[1]], 'r+')
-                #plt.axvline(binw[bidx[0]], color='r', linestyle='--')
-                #plt.axhline(bind[bidx[1]], color='r', linestyle='--')
-                plt.show()
-                if False:
-                    pdb.set_trace()
-                    plt.clf()
-                    plt.imshow(histimgp[:, ::-1].T, extent=[binw[0], binw[-1], bind[0], bind[-1]], aspect='auto')
-                    plt.show()
-            # Get the peak value of central wavelength and dispersion
-            wcenval = binw[bidx[0]]
-            dispval = bind[bidx[1]]
-            histnum = np.abs(histimg[bidx])
-
-            # Find all good solutions
-            for idx in range(nstore):
-                # Select all solutions around the best solution within a square of side 2*nsel
-                wlo = binw[max(0, bidx[0][idx] - nselw)]
-                whi = binw[min(ngridw - 1, bidx[0][idx] + nselw)]
-                dlo = 10.0 ** bind[max(0, bidx[1][idx] - nseld)]
-                dhi = 10.0 ** bind[min(ngridd - 1, bidx[1][idx] + nseld)]
-                if histimgp[bidx][idx] > histimgm[bidx][idx]:
-                    wgd = np.where((wvcenp > wlo) & (wvcenp < whi) & (dispsp > dlo) & (dispsp < dhi))
-                    dindex = dindexp[wgd[0], :].flatten()
-                    lindex = lindexp[wgd[0], :].flatten()
-                    sign = +1.0
-                else:
-                    wgd = np.where((wvcenm > wlo) & (wvcenm < whi) & (dispsm > dlo) & (dispsm < dhi))
-                    dindex = dindexm[wgd[0], :].flatten()
-                    lindex = lindexm[wgd[0], :].flatten()
-                    sign = -1.0
-                # Store relevant values in an array to solve for best solution
-                bestlist[cnt].append([wcenval[idx], dispval[idx], histnum[idx], sign, dindex, lindex])
-            allwcen = np.append(allwcen, wcenval)
-            alldisp = np.append(alldisp, dispval)
-            allhnum = np.append(allhnum, histnum)
-
-    # Using the results from all slits, decide on the best solutions (assume all slits have the same dispersion)
-    dhist, dedge = np.histogram(alldisp, bins=bind, weights=allhnum)
-    dhmax = np.argmax(dhist)
-    if debug:
-        from matplotlib import pyplot as plt
-        null = plt.hist(alldisp, bins=bind, weights=allhnum, normed=False)
-        plt.show()
-    msgs.info("Best initial guess for spectrograph dispersion: {0:.4f}A/pixel".format(10.0**np.mean(dedge[dhmax:dhmax+2])))
-    msgs.info("Fitting the wavelength solution for each slit")
-
-    # Fit the wavelength solution for each slit
-    all_patt_dict, all_final_fit = {}, {}
-    for cnt, slit in enumerate(ok_mask):
-        # patt_dict
-        patt_dict = dict(nmatch=0, ibest=-1, bwv=0., min_ampl=min_ampl)
-
-        # Check there are lines in this slit
-        if slit_tcent[cnt].size == 0:
-            msgs.warn("No lines to identify in slit {0:d}!".format(slit))
-            all_patt_dict[str(slit)] = None
-            all_final_fit[str(slit)] = None
-            continue
-
-        # Obtain a full list of indices that are consistent with the maximum value
-        dindex, lindex, allsgn = np.array([]), np.array([]), np.array([])
-        dcen, wcen = np.array([]), np.array([])
-        for ss in range(len(bestlist[cnt])):
-            if dedge[dhmax-nseld] <= bestlist[cnt][ss][1] <= dedge[dhmax+1+nseld]:
-                wcen = np.append(wcen, bestlist[cnt][ss][0])
-                dcen = np.append(dcen, bestlist[cnt][ss][1])
-                allsgn = np.append(allsgn, bestlist[cnt][ss][3]*np.ones(bestlist[cnt][ss][4].size))
-                dindex = np.append(dindex, bestlist[cnt][ss][4])
-                lindex = np.append(lindex, bestlist[cnt][ss][5])
-        # Find the favoured sign and only use those values
-        if np.sum(allsgn) > 0.0:
-            use_tcent = slit_tcent[cnt].copy()
-            sign = +1.0
-            signtxt = "correlate"
-        else:
-            use_tcent = (npix - 1.0) - slit_tcent[cnt].copy()[::-1]
-            sign = -1.0
-            signtxt = "anticorrelate"
-        dindex = dindex[np.where(allsgn == sign)]
-        lindex = lindex[np.where(allsgn == sign)]
-        patterns.solve_triangles(use_tcent, wvdata, dindex, lindex, patt_dict)
-
-        # Fill in the patterns dictionary
-        patt_dict['bwv'] = np.mean(wcen)
-        patt_dict['bdisp'] = 10.0**np.mean(dcen)
-
-        # Check that a solution has been found
-        if patt_dict['nmatch'] == 0:
-            msgs.info('---------------------------------------------------' + msgs.newline() +
-                      'Initial report for slit {0:d}/{1:d}:'.format(slit+1, nslit) + msgs.newline() +
-                      '  No matches! Try another algorithm' + msgs.newline() +
-                      '---------------------------------------------------')
-            all_patt_dict[str(slit)] = None
-            all_final_fit[str(slit)] = None
-            continue
-
-        # Report
-        msgs.info('---------------------------------------------------' + msgs.newline() +
-                  'Initial report for slit {0:d}/{1:d}:'.format(slit+1, nslit) + msgs.newline() +
-                  '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
-                  '  Number of lines recovered    = {:d}'.format(all_tcent.size) + msgs.newline() +
-                  '  Number of lines analyzed     = {:d}'.format(use_tcent.size) + msgs.newline() +
-                  '  Number of acceptable matches = {:d}'.format(patt_dict['nmatch']) + msgs.newline() +
-                  '  Best central wavelength      = {:g}A'.format(patt_dict['bwv']) + msgs.newline() +
-                  '  Best dispersion              = {:g}A/pix'.format(patt_dict['bdisp']) + msgs.newline() +
-                  '  Best solution had unknown    = {}'.format(use_unknowns) + msgs.newline() +
-                  '---------------------------------------------------')
-
-        slittxt = '_Slit{0:03d}'.format(slit)
-        if outroot is not None:
-            # Write IDs
-            out_dict = dict(pix=use_tcent, IDs=patt_dict['IDs'])
-            jdict = ltu.jsonify(out_dict)
-            ltu.savejson(outroot + slittxt + '.json', jdict, easy_to_read=True, overwrite=True)
-            msgs.info("Wrote: {:s}".format(outroot + slittxt + '.json'))
-
-            # Plot
-            tmp_list = vstack([line_lists, unknwns])
-            qa.match_qa(spec, use_tcent, tmp_list,
-                        patt_dict['IDs'], patt_dict['scores'], outroot + slittxt + '.pdf')
-            msgs.info("Wrote: {:s}".format(outroot + slittxt + '.pdf'))
-
-        # Perform final fit to the line IDs
-        final_fit = dict()
-        if do_fit:
-            NIST_lines = line_lists['NIST'] > 0
-            ifit = np.where(patt_dict['mask'])[0]
-            if outroot is not None:
-                plot_fil = outroot + slittxt + '_fit.pdf'
-            else:
-                plot_fil = None
-            # Purge UNKNOWNS from ifit
-            imsk = np.ones(len(ifit), dtype=np.bool)
-            for kk, idwv in enumerate(np.array(patt_dict['IDs'])[ifit]):
-                if np.min(np.abs(line_lists['wave'][NIST_lines]-idwv)) > 0.01:
-                    imsk[kk] = False
-            ifit = ifit[imsk]
-            # Allow for weaker lines in the fit
-            all_tcent, weak_cut_tcent, icut = utils.arc_lines_from_spec(spec[:, slit], min_ampl=lowest_ampl)
-            use_weak_tcent = all_tcent.copy()
-            add_weak = []
-            for weak in use_weak_tcent:
-                if np.min(np.abs(all_tcent-weak)) > 5.:
-                    add_weak += [weak]
-            if len(add_weak) > 0:
-                if sign == +1.0:
-                    use_weak = np.array(add_weak)
-                else:
-                    use_weak = (npix - 1.0) - np.array(add_weak)[::-1]
-                use_tcent = np.concatenate([use_tcent, use_weak])
-            # Fit
-            final_fit = fitting.iterative_fitting(spec, use_tcent, ifit,
-                                                  np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
-                                                  patt_dict['bdisp'], plot_fil=plot_fil, verbose=verbose,
-                                                  aparm=fit_parm)
-
-            if plot_fil is not None:
-                print("Wrote: {:s}".format(plot_fil))
-
-        # Append the results to the full list
-        all_patt_dict[str(slit)] = copy.deepcopy(patt_dict)
-        all_final_fit[str(slit)] = copy.deepcopy(final_fit)
-
-    # Return
-    return all_patt_dict, all_final_fit

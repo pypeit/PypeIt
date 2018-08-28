@@ -11,6 +11,8 @@ from astropy.io import fits
 
 from linetools import utils as ltu
 
+from pypeit import msgs
+
 import pypeit  # For path
 from pypeit.core.wavecal import defs
 line_path = pypeit.__path__[0]+'/data/arc_lines/lists/'
@@ -181,7 +183,11 @@ def load_tree(polygon=4, numsearch=20):
     import pickle
     filename = pypeit.__path__[0] +\
                '/data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.kdtree'.format(polygon, numsearch)
-    return pickle.load(open(filename, 'rb'))
+    try:
+        file_load = pickle.load(open(filename, 'rb'))
+    except IOError:
+        msgs.error("Could not load KD Tree patterns")
+    return file_load
 
 
 def load_nist(ion):
