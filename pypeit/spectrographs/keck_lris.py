@@ -244,7 +244,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             arcparam is modified in place
 
         """
-        arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'CdI', 'HgI']
+        arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         if disperser == '600/4000':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.63 # Ang per pixel (unbinned)
@@ -252,19 +252,22 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 6000.
             arcparam['wv_cen'] = 4000.
+            arcparam['min_ampl'] = 1000.0
         elif disperser == '400/3400':
+            pass
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=1.02
             arcparam['b1']= 2.72694493e-04
             arcparam['b2']= -5.30717321e-09
             arcparam['wvmnx'][1] = 6000.
+            arcparam['min_ampl'] = 1000.0
         elif disperser == '300/5000':
             arcparam['n_first'] = 2
             arcparam['wv_cen'] = 4500.
             arcparam['disp'] = 1.43
+            arcparam['min_ampl'] = 1000.0
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-
 
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """

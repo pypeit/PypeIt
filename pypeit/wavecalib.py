@@ -172,7 +172,7 @@ class WaveCalib(masterframe.MasterFrame):
         if method == 'simple':
             iwv_calib = arc.simple_calib(self.msarc, self.arcparam, self.arccen[:, slit])
         elif method == 'arclines':
-            iwv_calib = arc.calib_with_arclines(self.arcparam, spec)
+            iwv_calib = arc.calib_with_arclines(self.arcparam, spec.reshape((spec.size, 1)))
         else:
             msgs.error("Not an allowed method")
         return iwv_calib
