@@ -226,7 +226,8 @@ class ScienceImage(processimages.ProcessImages):
         return self.time, self.basename
 
 
-    def find_objects(self, tslits_dict, maskslits = None, SKYSUB = True, SHOW_PEAKS= False, SHOW_FITS = False, SHOW_TRACE=False):
+    def find_objects(self, tslits_dict, maskslits = None, SKYSUB = True, SHOW_PEAKS= False, SHOW_FITS = False,
+                     SHOW_TRACE=False, SHOW = False):
         """
         Find objects in the slits. This is currently setup only for ARMS
 
@@ -304,10 +305,15 @@ class ScienceImage(processimages.ProcessImages):
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
+
+        if SHOW:
+            self.show('image',image = image, sobjs =self.sobjs_obj)
+
         # Return
         return self.sobjs_obj, self.nobj
 
-    def global_skysub(self, tslits_dict, tilts, USE_SKYMASK=True, maskslits = None, SHOW_FIT = False):
+    def global_skysub(self, tslits_dict, tilts, USE_SKYMASK=True, maskslits = None, SHOW_FIT = False,
+                      SHOW = False):
         """
         Perform global sky subtraction, slit by slit
 
@@ -360,10 +366,14 @@ class ScienceImage(processimages.ProcessImages):
 
         # Step
         self.steps.append(inspect.stack()[0][3])
+
+        if SHOW:
+            self.show('global')
+
         # Return
         return self.global_sky
 
-    def local_skysub_extract(self, waveimg, maskslits=None, SHOW_PROFILE=False, SHOW_RESIDS = False):
+    def local_skysub_extract(self, waveimg, maskslits=None, SHOW_PROFILE=False, SHOW_RESIDS = False, SHOW = False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -419,13 +429,17 @@ class ScienceImage(processimages.ProcessImages):
                     skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts,self.waveimg, self.global_sky, self.rn2img,
                                                 thismask, self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:, slit],
                                                 self.sobjs[thisobj],bsp=self.par['bspline_spacing'], inmask = inmask,
-                                                SHOW_PROFILE=SHOW_PROFILE, SHOW_RESIDS=SHOW_RESIDS)
+                                                SHOW_PROFILE=SHOW_PROFILE, SHOW_RESIDS = SHOW_RESIDS)
 
         # Set the bit for pixels which were masked by the extraction
         iextract = (self.bitmask == 0) & (self.extractmask == False) # For extractmask, True = Good, False = Bad
         self.outmask[iextract] += np.uint64(2**8)
         # Step
         self.steps.append(inspect.stack()[0][3])
+
+        if SHOW:
+            self.show('sky_resid')
+
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
@@ -554,7 +568,7 @@ class ScienceImage(processimages.ProcessImages):
         return self.maskslits
 
 
-    def show(self, attr, image=None, showmask = False):
+    def show(self, attr, image=None, showmask = False, sobjs = None):
         """
         Show one of the internal images
           Should probably put some of these in ProcessImages
@@ -625,6 +639,15 @@ class ScienceImage(processimages.ProcessImages):
             ginga.show_image(image)
         else:
             msgs.warn("Not an option for show")
+
+        if sobjs is not None:
+            for spec in sobjs:
+                if spec.HAND_EXTRACT_FLAG is False:
+                    color = 'magenta'
+                else:
+                    color = 'orange'
+                ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
+
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,
