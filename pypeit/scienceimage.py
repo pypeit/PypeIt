@@ -19,6 +19,8 @@ from pypeit import utils
 from pypeit import artrace
 from pypeit import ginga
 from astropy.stats import sigma_clipped_stats
+import time
+
 
 from pypeit.par import pypeitpar
 
@@ -139,7 +141,7 @@ class ScienceImage(processimages.ProcessImages):
         # Key outputs images for extraction
         self.sciimg = None
         self.sciivar = None
-        self.modelivar = None
+        self.ivarmodel = None
         self.objimage = None
         self.skyimage = None
         self.global_sky = None
@@ -307,7 +309,7 @@ class ScienceImage(processimages.ProcessImages):
         self.steps.append(inspect.stack()[0][3])
 
         if SHOW:
-            self.show('image',image = image, sobjs =self.sobjs_obj)
+            self.show('image',image = image*(self.bitmask == 0), chname = 'objfind', sobjs =self.sobjs_obj)
 
         # Return
         return self.sobjs_obj, self.nobj
@@ -438,7 +440,9 @@ class ScienceImage(processimages.ProcessImages):
         self.steps.append(inspect.stack()[0][3])
 
         if SHOW:
-            self.show('sky_resid')
+            self.show('local', sobjs = self.sobjs)
+            time.sleep(3) # Ginga chokes if you run these commands too fast
+            self.show('resid') #, sobjs = self.sobjs)
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
@@ -568,7 +572,7 @@ class ScienceImage(processimages.ProcessImages):
         return self.maskslits
 
 
-    def show(self, attr, image=None, showmask = False, sobjs = None):
+    def show(self, attr, image=None, showmask = False, sobjs = None, chname = None):
         """
         Show one of the internal images
           Should probably put some of these in ProcessImages
@@ -591,6 +595,7 @@ class ScienceImage(processimages.ProcessImages):
         -------
 
         """
+
         if attr == 'global':
             # global sky subtraction
             if self.sciimg is not None and self.global_sky is not None and self.bitmask is not None:
@@ -602,7 +607,8 @@ class ScienceImage(processimages.ProcessImages):
                     bitmask_in = self.bitmask
                 else:
                     bitmask_in = None
-                viewer, ch = ginga.show_image(image, chname='global_sky', cuts=(cut_min, cut_max), bitmask=bitmask_in)
+                ch_name = chname if chname is not None else 'global_sky'
+                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(cut_min, cut_max), bitmask=bitmask_in)
         elif attr == 'local':
             # local sky subtraction
             if self.sciimg is not None and self.skymodel is not None and self.bitmask is not None:
@@ -614,35 +620,39 @@ class ScienceImage(processimages.ProcessImages):
                     bitmask_in = self.bitmask
                 else:
                     bitmask_in = None
-                viewer, ch = ginga.show_image(image, chname='local_sky', cuts=(cut_min, cut_max), bitmask=bitmask_in)
+                ch_name = chname if chname is not None else 'local_sky'
+                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(cut_min, cut_max), bitmask=bitmask_in)
         elif attr == 'sky_resid':
             # sky residual map with object included
             if self.sciimg is not None and self.skymodel is not None and \
-                    self.objmodel is not None and self.modelivar is not None and self.bitmask is not None:
+                    self.objmodel is not None and self.ivarmodel is not None and self.bitmask is not None:
                 image = (self.sciimg - self.skymodel) * np.sqrt(self.ivarmodel) * (self.bitmask == 0)
                 if showmask:
                     bitmask_in = self.bitmask
                 else:
                     bitmask_in = None
-                viewer, ch = ginga.show_image(image, chname='sky_resid', cuts=(-5.0, 5.0), bitmask=bitmask_in)
+                ch_name = chname if chname is not None else 'sky_resid'
+                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0), bitmask=bitmask_in)
         elif attr == 'resid':
             # full residual map with object model subtractede
             if self.sciimg is not None and self.skymodel is not None and \
-                    self.objmodel is not None and self.modelivar is not None and self.bitmask is not None:
+                    self.objmodel is not None and self.ivarmodel is not None and self.bitmask is not None:
                 image = (self.sciimg - self.skymodel) * np.sqrt(self.ivarmodel) * (self.bitmask == 0)  # full model residual map
                 if showmask:
                     bitmask_in = self.bitmask
                 else:
                     bitmask_in = None
-                viewer, ch = ginga.show_image(image, chname='sky_resid', cuts=(-5.0, 5.0), bitmask=bitmask_in)
+                ch_name = chname if chname is not None else 'resid'
+                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0), bitmask=bitmask_in)
         elif attr == 'image':
-            ginga.show_image(image)
+            ch_name = chname if chname is not None else 'image'
+            viewer, ch = ginga.show_image(image, chname = ch_name)
         else:
             msgs.warn("Not an option for show")
 
         if sobjs is not None:
             for spec in sobjs:
-                if spec.HAND_EXTRACT_FLAG is False:
+                if spec.HAND_EXTRACT_FLAG is True:
                     color = 'magenta'
                 else:
                     color = 'orange'

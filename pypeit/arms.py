@@ -181,7 +181,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None, show = False):
 
             # Object finding, second pass on frame *with* sky subtraction
             sobjs_obj, nobj = sciI.find_objects(tslits_dict, SKYSUB = True, maskslits=maskslits,
-                                                SHOW_PEAKS=show, SHOW=show)
+                                                SHOW_PEAKS=show)
 
             # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
             if nobj > 0:
@@ -190,8 +190,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None, show = False):
                                                 SHOW = show)
 
                 skymodel, objmodel, ivarmodel, outmask, sobjs = sciI.local_skysub_extract(mswave, maskslits=maskslits,
-                                                                                          SHOW_PROFILE=show,
-                                                                                          SHOW=show)
+                                                                                          SHOW_PROFILE=show,SHOW=show)
 
                 # Flexure correction?
                 if _par['flexure'] is not None and _par['flexure']['method'] is not None:
