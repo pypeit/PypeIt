@@ -27,7 +27,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit import debugger
 
 
-def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
+def ARMS(fitstbl, setup_dict, par=None, spectrograph=None, show = False):
     """
     Automatic Reduction of Multislit Data
 
@@ -88,8 +88,6 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
                                                    par=_par['calibrations'],
                                                    save_masters=True, write_qa=True)
 
-    # TESTING
-    SHOW = True
     # Loop on science exposure first
     #  calib frames, e.g. arcs)
     for sc in range(numsci):
@@ -183,17 +181,17 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
 
             # Object finding, second pass on frame *with* sky subtraction
             sobjs_obj, nobj = sciI.find_objects(tslits_dict, SKYSUB = True, maskslits=maskslits,
-                                                SHOW_PEAKS=SHOW, SHOW=SHOW)
+                                                SHOW_PEAKS=show, SHOW=show)
 
             # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
             if nobj > 0:
                 # Global sky subtraction second pass. Uses skymask from object finding
                 global_sky = sciI.global_skysub(tslits_dict, mstilts, USE_SKYMASK=True, maskslits = maskslits,
-                                                SHOW = SHOW)
+                                                SHOW = show)
 
                 skymodel, objmodel, ivarmodel, outmask, sobjs = sciI.local_skysub_extract(mswave, maskslits=maskslits,
-                                                                                          SHOW_PROFILE=SHOW,
-                                                                                          SHOW=SHOW)
+                                                                                          SHOW_PROFILE=show,
+                                                                                          SHOW=show)
 
                 # Flexure correction?
                 if _par['flexure'] is not None and _par['flexure']['method'] is not None:

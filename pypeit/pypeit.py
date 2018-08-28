@@ -18,7 +18,7 @@ from pypeit import debugger
 
 def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False,
           sort_dir=None, quick=False, ncpus=1, overwrite=True, verbosity=2,
-          use_masters=False, logname=None):
+          use_masters=False, show = False, logname=None):
     """
     Execute PYPIT.
 
@@ -64,7 +64,9 @@ def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_fr
         use_masters (:obj:`bool`, optional):
             Use the master frames if available (same as setting
             par['calibrations']['masters'] = 'reuse'.
-            TODO JFH Now trying to implement
+        show: (:obj:`bool`, optional):
+            Show reduction steps via plots (which will block further execution until clicked on) and
+            outputs to ginga. Requires remote control ginga session via "ginga --modules=RC &"
         logname (:obj:`str`, optional):
           The name of an ascii log file with the details of the
           reduction
@@ -120,7 +122,7 @@ def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_fr
     if par['rdx']['pipeline'] == 'ARMS':
         msgs.info('Data reduction will be performed using PYPIT-ARMS')
         #status = arms.ARMS(fitstbl, setup_dict, sciexp=sciexp)
-        status = arms.ARMS(fitstbl, setup_dict, par=par, spectrograph=spectrograph)
+        status = arms.ARMS(fitstbl, setup_dict, par=par, spectrograph=spectrograph, show = show)
     elif par['rdx']['pipeline'] == 'ARMED':
         import pdb; pdb.set_trace()
         msgs.error('ARMED is currently broken.')
