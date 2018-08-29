@@ -624,21 +624,7 @@ class General:
                     if pdiff[bst] < 2.0:
                         bs_ids[dd] = np.append(bs_ids[dd], wave)
                 pdb.set_trace()
-                np.savetxt("blah.dat", np.transpose((spec1,spec2))
-                af = scipy.fft(spec1)
-                bf = scipy.fft(spec2)
-                cc = scipy.ifft(af * scipy.conj(bf))
-                shift = np.argmax(np.abs(cc))
 
-                spec1 = gaussian_filter(self._spec[:, bs], 5)
-                spec2 = gaussian_filter(self._spec[:, gs], 5)
-                corr = scipy.signal.correlate(spec1, spec2, mode='same')
-                amax = np.argmax(corr)
-                shift = (amax - self._spec.shape[0]//2)
-                xplt = np.arange(self._spec.shape[0])
-                plt.plot(xplt, self._spec[:, bs], 'k-', drawstyle='steps')
-                plt.plot(xplt+shift, self._spec[:, gs], 'r-', drawstyle='steps')
-                plt.show()
         return
 
     def get_use_tcent(self, corr, weak=False):
