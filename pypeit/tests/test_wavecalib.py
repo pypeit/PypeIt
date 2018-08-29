@@ -127,7 +127,7 @@ def test_wavecalib_general():
     all_wvcen = [4400.]
     all_disp = [1.26]
     fidxs = [0]
-    scores = [dict(rms=0.13, nxfit=13, nmatch=10)]
+    scores = [dict(rms=0.1, nxfit=13, nmatch=10)]
 
     # LRISb 400/3400 with the longslit
     names += ['LRISb_400_3400_longslit']
@@ -136,7 +136,7 @@ def test_wavecalib_general():
     all_wvcen += [4400.]
     all_disp += [1.26]
     fidxs += [0]
-    scores += [dict(rms=0.13, nxfit=13, nmatch=10)]
+    scores += [dict(rms=0.1, nxfit=13, nmatch=10)]
 
     '''
     # LRISb off-center
@@ -177,7 +177,7 @@ def test_wavecalib_general():
     all_disp += [2.382]
     all_lines += [['ArI', 'HgI', 'KrI', 'NeI', 'XeI']]
     fidxs += [-1]
-    scores += [dict(rms=0.12, nxfit=40, nmatch=40)]
+    scores += [dict(rms=0.1, nxfit=40, nmatch=40)]
 
     # Kastb 600 grism
     names += ['KASTb_600_standard']
@@ -227,7 +227,7 @@ def test_wavecalib_general():
             hdf = h5py.File(data_path(spec_file), 'r')
             spec = hdf['arcs/{:d}/spec'.format(fidx)].value
 
-        arcfitter = autoid.General(spec.reshape((spec.size, 1)), lines, min_ampl=min_ampl)
+        arcfitter = autoid.General(spec.reshape((spec.size, 1)), lines, min_ampl=min_ampl, rms_threshold=score['rms'])
         final_fit = arcfitter._all_final_fit
 
         # Score

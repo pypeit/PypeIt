@@ -3,6 +3,7 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 from scipy.ndimage.filters import gaussian_filter
+from scipy import signal
 from linetools import utils as ltu
 from astropy.table import vstack
 import copy
@@ -431,9 +432,9 @@ class General:
 
         # Set the parameter space that gets searched
         rng_poly = [3, 4]            # Range of algorithms to check (only trigons+tetragons are supported)
-        rng_list = range(4, 10)      # Number of lines to search over for the linelist
-        rng_detn = range(4, 10)      # Number of lines to search over for the detected lines
-        rng_pixt = [0.5]             # Pixel tolerance
+        rng_list = range(3, 10)      # Number of lines to search over for the linelist
+        rng_detn = range(3, 10)      # Number of lines to search over for the detected lines
+        rng_pixt = [1.0]             # Pixel tolerance
 
         self._all_patt_dict = {}
         self._all_final_fit = {}
@@ -469,7 +470,7 @@ class General:
                                 # Has a better fit been identified (i.e. more lines identified)?
                                 if len(final_fit['xfit']) > len(best_final_fit['xfit']):
                                     best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
-            # Report on the best result
+            # Report on the best preliminary result
             if best_final_fit is None:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Preliminary report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
@@ -485,6 +486,7 @@ class General:
                 self._all_patt_dict[str(slit)] = None
                 self._all_final_fit[str(slit)] = None
             else:
+                good_fit[slit] = True
                 if best_patt_dict['sign'] == +1:
                     signtxt = 'correlate'
                 else:
@@ -500,9 +502,8 @@ class General:
                           '  Best dispersion              = {:g}A/pix'.format(best_patt_dict['bdisp']) + msgs.newline() +
                           '  Final RMS of fit             = {:g}'.format(best_final_fit['rms']) + msgs.newline() +
                           '---------------------------------------------------')
-        # Now that all slits have been inspected, cross match to generate a
-        # master list of all lines in every slit, and refit all spectra
 
+        # With the updates to the fits of each slit, determine the final fit, and save the QA
         for slit in range(self._nslit):
             # Save the QA for the best solution
             slittxt = '_Slit{0:03d}'.format(slit+1)
