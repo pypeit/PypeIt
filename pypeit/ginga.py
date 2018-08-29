@@ -9,6 +9,7 @@ except NameError:
 
 import os
 import numpy as np
+import time
 
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
 #from pypeit import ardebug as debugger
@@ -97,7 +98,6 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cut
         #header['WCS-XIMG'] = '/home/xavier/REDUX/Keck/LRIS/2017mar20/lris_red_setup_C/MF_lris_red/MasterWave_C_02_aa.fits'
     # Giddy up
     ch.load_np(chname, img, 'fits', header)
-
     canvas = viewer.canvas(ch._chname)
     # These commands set up the viewer. They can be found at ginga/ginga/ImageView.py
     out = canvas.clear()

@@ -144,9 +144,8 @@ def main(args):
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 4.0 * sigma
     viewer, ch = ginga.show_image(image, chname='skysub-det{:s}'.format(sdet).format(sdet), wcs_img=wcs_img,
-                                  bitmask=bitmask_in) #cuts=(cut_min, cut_max),
+                                  bitmask=bitmask_in) #, cuts=(cut_min, cut_max))
                                   # JFH For some reason Ginga crashes when I try to put cuts in here.
-
     show_trace(hdulist_1d, det_nm, viewer, ch)
     ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
 
@@ -163,6 +162,10 @@ def main(args):
                                   cuts = (-5.0, 5.0), bitmask = bitmask_in)
     show_trace(hdulist_1d, det_nm, viewer, ch)
     ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
+
+    # After displaying all the images since up the images with WCS_MATCH
+
+
 
     if args.embed:
         IPython.embed()
