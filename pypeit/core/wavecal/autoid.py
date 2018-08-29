@@ -615,15 +615,18 @@ class General:
                 spec_gs_adj, xval1, xval2, shift = utils.match_peaks(self._spec[:, bs], self._spec[:, gs])
                 # For each peak in the gs spectrum, identify the corresponding peaks in the
                 # Get the peaks to use, and shift
+                pdb.set_trace()
+                sign = self._all_patt_dict[str(gs)]['sign']
                 use_tcent = shift + self.get_use_tcent(sign)
                 gsdet = self._detections[str(gs)]
                 for dd in range(bsdet.size):
+                    # This doesn't work... need to first translate all of the gsdet into xval2, then to xval1.... I think...
                     pdiff = np.abs(bsdet[dd]-gsdet)
                     bst = np.argmin(pdiff)
                     # If a match is found within 2 pixels, consider this a successful match
                     if pdiff[bst] < 2.0:
                         bs_ids[dd] = np.append(bs_ids[dd], wave)
-                pdb.set_trace()
+                        pdb.set_trace()
 
         return
 
