@@ -58,15 +58,16 @@ def test_geocorrect(fitstbl):
 #    spectrograph = load_spectrograph(spectrograph='keck_lris_blue')
 
     # Specobjs (wrap in a list to mimic a slit)
-    specObjs = [specobjs.dummy_specobj(fitstbl, extraction=True)]
+    sobj_list = specobjs.dummy_specobj(fitstbl, extraction=True)
+    specObjs = specobjs.SpecObjs(sobj_list)
     scidx = 5
     tbname = fitstbl['date'][scidx]
     obstime = Time(tbname, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
-    maskslits = np.array([False]*len(specObjs))
+    maskslits = np.array([False]*specObjs.nobj)
 
     helio, hel_corr = wave.geomotion_correct(specObjs, maskslits, fitstbl, scidx, obstime,
                                                lon, lat, alt, 'heliocentric')
     assert np.isclose(helio, -9.17461338, rtol=1e-5)  # Checked against x_keckhelio
     #assert np.isclose(helio, -9.3344957, rtol=1e-5)  # Original
-    assert np.isclose(specObjs[0][0].boxcar['wave'][0].value, 3999.877589008, rtol=1e-8)
+    assert np.isclose(specObjs[0].boxcar['WAVE'][0].value, 3999.877589008, rtol=1e-8)
 

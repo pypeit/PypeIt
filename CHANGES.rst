@@ -9,6 +9,8 @@
 - Turn off 2.7 Travis testing
 - Integrated arclines into PypeIt
 - Modified debug/developer modes
+- Update SpecObjs class; ndarray instead of list;  set() method
+- Fixed bug whereby -m --use_master was not being used by run_pypeit script.
 - Overhaul of general algorithm for wavelength calibration
 
 

@@ -8,6 +8,7 @@ import numpy as np
 from pypeit import utils
 from pypeit.core.wavecal import qa
 
+from pypeit import debugger
 
 def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
                       verbose=False, aparm=None):

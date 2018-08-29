@@ -659,7 +659,9 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None):
     ymin, ymax = 0., np.max(arc_spec)
     ysep = ymax*0.03
     for kk, x in enumerate(fit['xfit']*fit['xnorm']):
-        yline = np.max(arc_spec[int(x)-2:int(x)+2])
+        ind_left = np.fmax(int(x)-2, 0)
+        ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
+        yline = np.max(arc_spec[ind_left:ind_righ])
         # Tick mark
         ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
         # label
