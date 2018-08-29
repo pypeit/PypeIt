@@ -286,7 +286,7 @@ class ScienceImage(processimages.ProcessImages):
 
         # Loop on slits
         for slit in gdslits:
-            msgs.info("Finding objects on slit: {:d}".format(slit))
+            msgs.info("Finding objects on slit: {:d}".format(slit +1))
             thismask = (self.tslits_dict['slitpix'] == slit + 1)
             inmask = (self.bitmask == 0) & thismask
             # Find objects
@@ -308,7 +308,6 @@ class ScienceImage(processimages.ProcessImages):
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
-
         if SHOW:
             self.show('image',image = image*(self.bitmask == 0), chname = 'objfind', sobjs =self.sobjs_obj, slits = True)
 
@@ -356,7 +355,7 @@ class ScienceImage(processimages.ProcessImages):
         self.bitmask = self._build_bitmask()
         # Loop on slits
         for slit in gdslits:
-            msgs.info("Working on slit: {:d}".format(slit +1))
+            msgs.info("Global sky subtraction for slit: {:d}".format(slit +1))
             thismask = (self.tslits_dict['slitpix'] == slit + 1)
             inmask = (self.bitmask == 0) & thismask & skymask
             # Find sky
@@ -421,7 +420,7 @@ class ScienceImage(processimages.ProcessImages):
         self.sobjs = self.sobjs_obj.copy()
         # Loop on slits
         for slit in gdslits:
-            msgs.info("Working on slit: {:d}".format(slit))
+            msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit+1))
             thisobj = (self.sobjs.slitid == slit + 1) # indices of objects for this slit
             if np.any(thisobj):
                 thismask = (self.tslits_dict['slitpix'] == slit + 1) # pixels for this slit
