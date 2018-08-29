@@ -3,7 +3,7 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 from scipy.ndimage.filters import gaussian_filter
-from scipy import signal
+import scipy
 from linetools import utils as ltu
 from astropy.table import vstack
 import copy
@@ -439,6 +439,7 @@ class General:
         self._all_patt_dict = {}
         self._all_final_fit = {}
         good_fit = np.zeros(self._nslit, dtype=np.bool)
+        self._detections = {}
         for slit in range(self._nslit):
             if slit not in self._ok_mask:
                 continue
@@ -504,6 +505,7 @@ class General:
                           '---------------------------------------------------')
                 self._all_patt_dict[str(slit)] = copy.deepcopy(best_patt_dict)
                 self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
+                self._detections[str(slit)] = self._all_tcent_weak.copy()
 
         # Now that all slits have been inspected, cross match to generate a
         # master list of all lines in every slit, and refit all spectra
@@ -531,7 +533,7 @@ class General:
             self._all_patt_dict[str(slit)] = copy.deepcopy(best_patt_dict)
             self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
 
-    def cross_match(self, good_fit):
+    def cross_match(self, good_fit, debug=False):
         """Cross-correlate the spectra across all slits to ID all of the lines.
         good_fit : ndarray (bool)
           Indicates which slits are deemed to be a good fit (although, they need not necessarily be a good fit).
@@ -559,30 +561,84 @@ class General:
         sort_wvc = wvc_gd[srt]
         sort_dsp = dsp_gd[srt]
 
-        # Cross correlate all good spectra, in order of wavelength
-        ccor_val = np.zeros(sort_idx.size)
-        dwvc_val = np.zeros(sort_idx.size)
-        for gd in range(1, sort_idx.size):
-            corr = signal.correlate(self._spec[:, sort_idx[gd-1]], self._spec[:, sort_idx[gd]], mode='same')
-            amax = np.argmax(corr)
-            ccor_val[gd] = ccor_val[gd-1] + (amax - self._spec.shape[0] // 2)
-            dwvc_val[gd] = (sort_wvc[gd]-sort_wvc[gd-1]) / (0.5*(sort_dsp[gd]+sort_dsp[gd-1]))
+        # Cross correlate all good spectra with each other, in order of wavelength
+        ncrco = np.arange(sort_idx.size).sum()
+        #ccor_val = np.zeros(ncrco)
+        dwvc_val = np.zeros(ncrco)
+        slit_ids = np.zeros((ncrco, 2), dtype=np.int)
+        cntr = 0
+        for gd in range(0, sort_idx.size-1):
+            for gc in range(gd+1, sort_idx.size):
+                corr = scipy.signal.correlate(self._spec[:, sort_idx[gd]], self._spec[:, sort_idx[gc]], mode='same')
+                amax = np.argmax(corr)
+                #ccor_val[cntr] = (amax - self._spec.shape[0] // 2)
+                dwvc_val[cntr] = (sort_wvc[gc]-sort_wvc[gd]) / (0.5*(sort_dsp[gc]+sort_dsp[gd])) - (amax - self._spec.shape[0] // 2)
+                slit_ids[cntr, 0] = gd
+                slit_ids[cntr, 1] = gc
+                cntr += 1
 
-        from matplotlib import pyplot as plt
-        plt.plot(ccor_val, dwvc_val, 'rx')
-        plt.show()
-        pdb.set_trace()
+        # Identify the good orders
+        sigrej = 3.0
+        mad = 1.4826 * np.median(np.abs(dwvc_val))
+        gdmsk = np.where(np.abs(dwvc_val) < sigrej * mad)[0]
+        while True:
+            ogdmsk = gdmsk.copy()
+            mad = 1.4826 * np.median(np.abs(dwvc_val[gdmsk]))
+            gdmsk = np.where(np.abs(dwvc_val) < sigrej*mad)[0]
+            if np.array_equal(gdmsk, ogdmsk):
+                break
 
-        # First cross correlate all spectra
-        corr = signal.correlate(self._spec[:, 0], self._spec[:, 4], mode='same')
-        amax = np.argmax(corr)
-        print(amax)
-        from matplotlib import pyplot as plt
-        xplt = np.arange(self._spec.shape[0])
-        plt.plot(xplt, self._spec[:, 0], 'k-', drawstyle='steps')
-        plt.plot(xplt+(amax-self._spec.shape[0]//2), self._spec[:, 4], 'r-', drawstyle='steps')
-        plt.show()
+        debug = False
+        if debug:
+            from matplotlib import pyplot as plt
+            xplt = np.arange(dwvc_val.size)
+            plt.plot(xplt, dwvc_val, 'rx')
+            plt.plot(xplt[gdmsk], dwvc_val[gdmsk], 'bo')
+            plt.plot([0.0,1000.0],[0.0,0.0], 'b-')
+            plt.show()
 
+        # Catalogue the good and bad slits
+        good_slits = np.sort(sort_idx[np.unique(slit_ids[gdmsk, :].flatten())])
+        bad_slits = np.setdiff1d(np.arange(self._nslit), good_slits, assume_unique=True)
+
+        # For all of the bad slits, estimate some line wavelengths
+        for bs in bad_slits:
+            if bs not in self._ok_mask:
+                continue
+            bsdet = self._detections[str(bs)]
+            bs_ids = [np.array([]) for xx in bsdet]
+            for gs in good_slits:
+                # Match the peaks between the two spectra.
+                # spec_gs_adj is the stretched spectrum
+                # xval1 provides the direct match to spec_bs
+                # xval2 provides the corresponding match to spec_gs
+                spec_gs_adj, xval1, xval2, shift = utils.match_peaks(self._spec[:, bs], self._spec[:, gs])
+                # For each peak in the gs spectrum, identify the corresponding peaks in the
+                # Get the peaks to use, and shift
+                use_tcent = shift + self.get_use_tcent(sign)
+                gsdet = self._detections[str(gs)]
+                for dd in range(bsdet.size):
+                    pdiff = np.abs(bsdet[dd]-gsdet)
+                    bst = np.argmin(pdiff)
+                    # If a match is found within 2 pixels, consider this a successful match
+                    if pdiff[bst] < 2.0:
+                        bs_ids[dd] = np.append(bs_ids[dd], wave)
+                pdb.set_trace()
+                np.savetxt("blah.dat", np.transpose((spec1,spec2))
+                af = scipy.fft(spec1)
+                bf = scipy.fft(spec2)
+                cc = scipy.ifft(af * scipy.conj(bf))
+                shift = np.argmax(np.abs(cc))
+
+                spec1 = gaussian_filter(self._spec[:, bs], 5)
+                spec2 = gaussian_filter(self._spec[:, gs], 5)
+                corr = scipy.signal.correlate(spec1, spec2, mode='same')
+                amax = np.argmax(corr)
+                shift = (amax - self._spec.shape[0]//2)
+                xplt = np.arange(self._spec.shape[0])
+                plt.plot(xplt, self._spec[:, bs], 'k-', drawstyle='steps')
+                plt.plot(xplt+shift, self._spec[:, gs], 'r-', drawstyle='steps')
+                plt.show()
         return
 
     def get_use_tcent(self, corr, weak=False):
