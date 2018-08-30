@@ -9,10 +9,12 @@ except NameError:
 
 import os
 import numpy as np
+import time
 
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
 #from pypeit import ardebug as debugger
 import pdb as debugger
+from pypeit import scienceimage
 
 from ginga.util import grc
 
@@ -53,7 +55,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     return viewer
 
 
-def show_image(inp, chname='Image', wcs_img=None, **kwargs):
+def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cuts = None):
     """ Displays input image in Ginga viewer
     Supersedes method in xastropy
 
@@ -61,8 +63,17 @@ def show_image(inp, chname='Image', wcs_img=None, **kwargs):
     ----------
     inp : str or ndarray (2D)
       If str, assumes the image is written to disk
+
+    Optional Parameters
+    ----------
     wcs_img : str, optional
       If included, use this in WCS.  Mainly to show wavelength array
+
+    bitmask: ndarray (2D)
+      bitmask produced by PypeIt extraction illustrating which pixels were masked and why
+
+    exten: int, optional
+      extension of image in fits file. Only passed in if inp is a file
 
     Returns
     -------
@@ -70,22 +81,14 @@ def show_image(inp, chname='Image', wcs_img=None, **kwargs):
     """
     if isinstance(inp, basestring):
         if '.fits' in inp:
-            if 'raw_lris' in kwargs.keys():
-#                img, head, _ = arlris.read_lris(inp)
-                raise NotImplementedError('ginga.show_image() cannot yet show lris images.')
-            else:
-                hdu = fits.open(inp)
-                try:
-                    exten = kwargs['exten']
-                except KeyError:
-                    exten = 0
-                img = hdu[exten].data
+            hdu = fits.open(inp)
+            img = hdu[exten].data
     else:
         img = inp
+# TODO implement instrument specific reading
 
     viewer = connect_to_ginga()
     ch = viewer.channel(chname)
-    name='image'
     # Header
     header = {}
     header['NAXIS1'] = img.shape[1]
@@ -94,11 +97,77 @@ def show_image(inp, chname='Image', wcs_img=None, **kwargs):
         header['WCS-XIMG'] = wcs_img
         #header['WCS-XIMG'] = '/home/xavier/REDUX/Keck/LRIS/2017mar20/lris_red_setup_C/MF_lris_red/MasterWave_C_02_aa.fits'
     # Giddy up
-    ch.load_np(name, img, 'fits', header)
+    ch.load_np(chname, img, 'fits', header)
+    canvas = viewer.canvas(ch._chname)
+    # These commands set up the viewer. They can be found at ginga/ginga/ImageView.py
+    out = canvas.clear()
+    if cuts is not None:
+        out = ch.cut_levels(cuts[0], cuts[1])
+    out = ch.set_color_map('ramp')
+    out = ch.set_intensity_map('ramp')
+    out = ch.set_color_algorithm('linear')
+    out = ch.restore_contrast()
+    out = ch.restore_cmap()
+
+    #ToDO I would prefer to change the color map to indicate these pixels rather than overplot points. Because for
+    # large numbers of masked pixels, this is super slow. Need to ask ginga folks how to do that.
+
+    # If bitmask was passed in, expand it into the constituent masks and plot them
+    if bitmask is not None:
+        # Unpack the bitmask
+        (bpm, crmask, satmask, minmask, offslitmask,
+         nanmask, ivar0mask, ivarnanmask, extractmask) = scienceimage.unpack_bitmask(bitmask)
+
+        # These are the pixels that were masked by the bpm
+        spec_bpm, spat_bpm = np.where(bpm & ~offslitmask)
+        nbpm = len(spec_bpm)
+        # note: must cast numpy floats to regular python floats to pass the remote interface
+        points_bpm = [dict(type='point', args=(float(spat_bpm[i]), float(spec_bpm[i]), 2),
+                           kwargs=dict(style='plus', color='magenta')) for i in range(nbpm)]
+
+        # These are the pixels that were masked by LACOSMICS
+        spec_cr, spat_cr = np.where(crmask & ~offslitmask)
+        ncr = len(spec_cr)
+        # note: must cast numpy floats to regular python floats to pass the remote interface
+        points_cr = [dict(type='point', args=(float(spat_cr[i]), float(spec_cr[i]), 2),
+                             kwargs=dict(style='plus', color='cyan')) for i in range(ncr)]
+
+        # These are the pixels that were masked by the extraction
+        spec_ext, spat_ext = np.where(extractmask & ~offslitmask)
+        next = len(spec_ext)
+        # note: must cast numpy floats to regular python floats to pass the remote interface
+        points_ext = [dict(type='point', args=(float(spat_ext[i]), float(spec_ext[i]), 2),
+                            kwargs=dict(style='plus', color='red')) for i in range(next)]
+
+        # These are the pixels that were masked for any other reason
+        spec_oth, spat_oth = np.where(satmask | minmask | nanmask | ivar0mask | ivarnanmask & ~offslitmask)
+        noth = len(spec_oth)
+        # note: must cast numpy floats to regular python floats to pass the remote interface
+        points_oth = [dict(type='point', args=(float(spat_oth[i]), float(spec_oth[i]), 2),
+                            kwargs=dict(style='plus', color='yellow')) for i in range(noth)]
+
+        nspat = img.shape[1]
+        nspec = img.shape[0]
+        # Labels for the points
+        text_bpm = [dict(type='text', args=(nspat / 2 -40, nspec / 2, 'BPM'),
+                           kwargs=dict(color='magenta', fontsize=20))]
+
+        text_cr = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 30, 'CR'),
+                           kwargs=dict(color='cyan', fontsize=20))]
+
+        text_ext = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 60, 'EXTRACT'),
+                          kwargs=dict(color='red', fontsize=20))]
+
+        text_oth = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 90, 'OTHER'),
+                          kwargs=dict(color='yellow', fontsize=20))]
+
+        canvas_list = points_bpm + points_cr + points_ext + points_oth + text_bpm + text_cr + text_ext + text_oth
+        canvas.add('constructedcanvas', canvas_list)
+
     return viewer, ch
 
 
-def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pstep=1):
+def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pstep=1, clear = False):
     """ Overplot slits on image in Ginga
     Parameters
     ----------
@@ -111,6 +180,8 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pste
       Allow for a rotated image
     pstep : int
       Show every pstep point of the edges
+    clear: bool
+      Clear the canvas?
     """
 
     # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
@@ -133,7 +204,8 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pste
 
     # Canvas
     canvas = viewer.canvas(ch._chname)
-    canvas.clear()
+    if clear:
+        canvas.clear()
     # y-axis
     y = (np.arange(lordloc.shape[0])).tolist()
     #ohf = lordloc.shape[0] // 2

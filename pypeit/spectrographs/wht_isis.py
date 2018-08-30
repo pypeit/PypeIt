@@ -70,8 +70,8 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'simple'
-        # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypeitpar.SkySubtractionPar()
+        # Scienceimage default parameters
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = None  #  pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters

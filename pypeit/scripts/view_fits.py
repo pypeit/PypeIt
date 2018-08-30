@@ -30,7 +30,6 @@ def parser(options=None):
         args = parser.parse_args(options)
     return args
 
-
 def main(args):
 
     import subprocess
@@ -38,6 +37,7 @@ def main(args):
     from astropy.io import fits
 
     from pypeit import msgs
+    from pypeit import ginga
     from pypeit.spectrographs import keck_lris
     from pypeit.spectrographs import keck_deimos
 
@@ -47,7 +47,6 @@ def main(args):
         print(hdu.info())
         return
 
-    kludge_fil = 'tmp_ginga.fits'
 
     # Setup for PYPIT imports
     msgs.reset(verbosity=2)
@@ -57,42 +56,19 @@ def main(args):
         hdu = fits.open(args.file)
         img = hdu[args.exten].data
         # Write
-        msgs.warn('Writing kludge file to {:s}'.format(kludge_fil))
-        hdunew = fits.PrimaryHDU(img)
-        hdulist = fits.HDUList([hdunew])
-        hdulist.writeto(kludge_fil,clobber=True)
-        #
-        args.file = kludge_fil
+        ginga.show_image(img)
 
     # RAW_LRIS??
     if args.raw_lris:
         # 
         img, head, _ = keck_lris.read_lris(args.file)
-        # Generate hdu
-        hdu = fits.PrimaryHDU(img)
-        hdulist = fits.HDUList([hdu])
-        # Write
-        msgs.warn('Writing kludge file to {:s}'.format(kludge_fil))
-        hdulist.writeto(kludge_fil,clobber=True)
-        args.file = kludge_fil
+        ginga.show_image(img)
 
     # RAW_DEIMOS??
     if args.raw_deimos:
         #
         img, head, _ = keck_deimos.read_deimos(args.file)
-        # Generate hdu
-        hdu = fits.PrimaryHDU(img)
-        hdulist = fits.HDUList([hdu])
-        # Write
-        msgs.warn('Writing kludge file to {:s}'.format(kludge_fil))
-        hdulist.writeto(kludge_fil,clobber=True)
-        args.file = kludge_fil
+        ginga.show_image(img)
 
-    # Spawn ginga
-    subprocess.call(["ginga", args.file])
-
-    if args.raw_lris or args.raw_deimos:
-        msgs.warn('Removing kludge file {:s}'.format(kludge_fil))
-        subprocess.call(["rm", args.file])
 
 

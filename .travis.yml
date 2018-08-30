@@ -152,7 +152,6 @@ install:
     - git clone git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/linetools/linetools.git; fi
-    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/PYPIT/arclines.git; fi
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/profxj/ginga.git; fi
     - conda install numpy
     - conda install configobj
