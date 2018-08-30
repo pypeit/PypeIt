@@ -96,7 +96,7 @@ def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_fr
 
     # TODO This --use_masters flag should probably be passed as an argument to setup instead of modifying the parset here
     # If the --use_masters flag was set change the parset to make this so
-    if(use_masters):
+    if use_masters:
         par['calibrations']['masters'] = 'reuse'
         msgs.info('PypeIt will REUSE master files when they exist')
 
