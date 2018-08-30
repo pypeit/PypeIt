@@ -229,8 +229,7 @@ class ScienceImage(processimages.ProcessImages):
         return self.time, self.basename
 
 
-    def find_objects(self, tslits_dict, maskslits = None, skysub = True, show_peak= False, show_fits = False,
-                     show_trace=False, show = False):
+    def find_objects(self, tslits_dict, maskslits = None, skysub = True, show_peaks= False, show_fits = False,show_trace=False, show = False):
         """
         Find objects in the slits. This is currently setup only for ARMS
 
@@ -272,7 +271,7 @@ class ScienceImage(processimages.ProcessImages):
         self.objmask = np.zeros_like(self.sciimg,dtype=bool)
 
         # If we are object finding on the sky subtracted image, then check that the global sky exists
-        if SKYSUB is True:
+        if skysub is True:
             if self.global_sky is None:
                 msgs.error('Object finding on sky subtracted image requested, but global_sky is not set. Run global_skysub() first')
             image = self.sciimg - self.global_sky
@@ -298,7 +297,7 @@ class ScienceImage(processimages.ProcessImages):
                                                                                     self.tslits_dict['rcen'][:,slit],
                                                                                     inmask = inmask,
                                                                                     hand_extract_dict=self.par['manual'],
-                                                                                    specobj_dict=specobj_dict,show_peak=show_peak,
+                                                                                    specobj_dict=specobj_dict,show_peaks=show_peaks,
                                                                                     show_fits = show_fits,show_trace=show_trace)
             sobjs.add_sobj(sobjs_slit)
 
@@ -314,7 +313,7 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.sobjs_obj, self.nobj
 
-    def global_skysub(self, tslits_dict, tilts, USE_SKYMASK=True, maskslits = None, show_fit = False,
+    def global_skysub(self, tslits_dict, tilts, use_skymask=True, maskslits = None, show_fit = False,
                       show = False):
         """
         Perform global sky subtraction, slit by slit
@@ -349,7 +348,7 @@ class ScienceImage(processimages.ProcessImages):
         self.global_sky = np.zeros_like(self.sciimg)
 
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
-        skymask = self.skymask if ((self.skymask is not None) & USE_SKYMASK) else np.ones_like(self.sciimg,dtype=bool)
+        skymask = self.skymask if ((self.skymask is not None) & use_skymask) else np.ones_like(self.sciimg,dtype=bool)
 
         # Build and assign the input mask
         self.bitmask = self._build_bitmask()
@@ -531,7 +530,7 @@ class ScienceImage(processimages.ProcessImages):
         """
 
         # Create and assign the inmask
-        sautration = self.spectrograph.detector[self.det - 1]['saturation']
+        saturation = self.spectrograph.detector[self.det - 1]['saturation']
         mincounts    = self.spectrograph.detector[self.det - 1]['mincounts']
 
         bitmask = np.zeros_like(self.sciimg,dtype=np.uint64)
