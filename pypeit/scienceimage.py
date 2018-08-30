@@ -531,14 +531,14 @@ class ScienceImage(processimages.ProcessImages):
         """
 
         # Create and assign the inmask
-        SATURATION = self.spectrograph.detector[self.det - 1]['saturation']
-        MINCOUNTS    = self.spectrograph.detector[self.det - 1]['mincounts']
+        sautration = self.spectrograph.detector[self.det - 1]['saturation']
+        mincounts    = self.spectrograph.detector[self.det - 1]['mincounts']
 
         bitmask = np.zeros_like(self.sciimg,dtype=np.uint64)
         bitmask[self.bpm == True] += np.uint64(2**0)
         bitmask[self.crmask == True] += np.uint64(2**1)
-        bitmask[self.sciimg >= SATURATION] += np.uint64(2**2)
-        bitmask[self.sciimg <= MINCOUNTS] += np.uint64(2**3)
+        bitmask[self.sciimg >= saturation] += np.uint64(2**2)
+        bitmask[self.sciimg <= mincounts] += np.uint64(2**3)
         bitmask[self.tslits_dict['slitpix'] == 0] += np.uint64(2**4)
         bitmask[np.isfinite(self.sciimg) == False] += np.uint64(2**5)
         bitmask[self.sciivar <= 0.0] += np.uint64(2**6)
@@ -653,7 +653,7 @@ class ScienceImage(processimages.ProcessImages):
 
         if sobjs is not None:
             for spec in sobjs:
-                if spec.HAND_EXTRACT_FLAG is True:
+                if spec.hand_extract_flag is True:
                     color = 'magenta'
                 else:
                     color = 'orange'
