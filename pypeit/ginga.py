@@ -14,7 +14,6 @@ import time
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
 #from pypeit import ardebug as debugger
 import pdb as debugger
-from pypeit import scienceimage
 
 from ginga.util import grc
 
@@ -79,6 +78,8 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cut
     -------
 
     """
+
+    from pypeit import scienceimage
     if isinstance(inp, basestring):
         if '.fits' in inp:
             hdu = fits.open(inp)
