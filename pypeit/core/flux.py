@@ -116,6 +116,256 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
                                        (scale/fitsdict['exptime'][scidx])**2)
 '''
 
+def bspline_magfit(
+        wave,
+        flux,
+        var,
+        flux_std,
+        maxiter=10,
+        upper=2,
+        lower=2,
+        kwargs_bspline={},
+        kwargs_reject={}):
+    """
+    Perform a bspline fit to the flux ratio of standard to
+    observed counts. Used to generate a sensitivity function.
+
+    Parameters
+    ----------
+    wave : ndarray
+      wavelength as observed
+    flux : ndarray
+      counts/s as observed
+    var : ndarray
+      variance
+    flux_std : Quantity array
+      standard star true flux (erg/s/cm^2/A)
+    maxiter : integer
+      maximum number of iterations for bspline_iterfit
+    upper : integer
+      number of sigma for rejection in bspline_iterfit
+    lower : integer
+      number of sigma for rejection in bspline_iterfit
+    kwargs_bspline : dict, optional
+      keywords for bspline_iterfit
+    kwargs_reject : dict, optional
+      keywords for bspline_iterfit
+
+    Returns
+    -------
+    bset_log1 : 
+    """
+
+    # Create copy of the arrays to avoid modification
+    wave_obs = wave.copy()
+    flux_obs = flux.copy()
+    var_obs = var.copy()
+
+    from pypit.core.pydl import bspline
+    from pypit.core.pydl import iterfit as bspline_iterfit
+
+    """
+    # OLD
+    from pydl.pydlutils.bspline import bspline
+    from pydl.pydlutils.bspline import iterfit as bspline_iterfit
+    """
+
+    # preparing arrays to run in bspline_iterfit
+
+    """
+    EPF: this line somehow was not working 
+     invvar = (var_obs > 0.) / (np.max(var_obs, 0))
+    changed to the less elegant, but effective:
+     invvar = 1/var_obs
+    """
+
+    from pypit.arutils import calc_ivar
+    invvar = calc_ivar(var_obs)
+    if (np.all(~np.isfinite(invvar))):
+        msgs.warn("NaN are present in the inverse variance")
+
+    """
+    # maskregions
+    invvar[np.where(var_obs ==  0.0)] = 0.0
+    invvar[np.where(var_obs == -1.0)] = 0.0
+    """
+
+    # Removing 10sigma outliners
+    nx = wave_obs.size
+    pos_error = 1. / np.sqrt(np.maximum(invvar, 0.) + (invvar == 0))
+    pos_mask = (flux_obs > pos_error / 10.0) & (invvar > 0) & (flux_std > 0.0)
+
+    fluxlog = 2.5 * np.log10(np.maximum(flux_obs, pos_error / 10))
+    
+    """
+    Ema: Old logivar
+    logivar = invvar * flux_obs ** 2 * pos_mask * 1.08574
+    """
+    
+    """
+    1.08574 converts Log_10 into ln
+    """
+    logivar = invvar * np.power(flux_obs,2.) * pos_mask * np.power(1.08574,-2.)
+
+
+
+    # Exclude extreme values of magfunc
+    flux_stdlog = 2.5 * np.log10(np.maximum(flux_std, 1.0e-20))
+    magfunc = flux_stdlog - fluxlog
+    magfunc = np.minimum(magfunc, 25.)
+    sensfunc = 10.0 ** (0.4 * magfunc) * pos_mask
+
+    msgs.info("Initialize bspline for flux calibration")
+
+    init_bspline = bspline(wave_obs, bkspace=kwargs_bspline['bkspace'])
+    fullbkpt = init_bspline.breakpoints
+    # remove masked regions
+    msk_obs = np.ones_like(wave_obs).astype(bool)
+    msk_obs[var_obs <= 0.] = False
+    import scipy.interpolate as interpolate
+    msk_bkpt = interpolate.interp1d(wave_obs, msk_obs, kind='nearest', fill_value='extrapolate')(fullbkpt)
+
+    init_breakpoints = fullbkpt[msk_bkpt == 1.]
+
+    msgs.info("Bspline fit: step 1")
+
+    # Check for magfunc
+    
+    import matplotlib.pyplot as plt
+    plt.figure(1)
+    plt.ylim(np.min(logivar),np.max(logivar))
+    plt.plot(wave_obs, logivar, label='logivar')
+    plt.legend()
+    plt.xlabel('Wavelength [ang]')
+    plt.show()
+    plt.close()
+
+
+
+    #  First round of the fit:
+    bset1, bmask = bspline_iterfit(wave_obs, magfunc, invvar=logivar,
+                                   upper=upper, lower=lower,
+                                   maxiter=maxiter,
+                                   fullbkpt=init_breakpoints,
+                                   kwargs_bspline=kwargs_bspline,
+                                   kwargs_reject=kwargs_reject)
+
+    """
+    # OLD
+    bset1, bmask = bspline_iterfit(wave_obs, magfunc, invvar=logivar,
+                                   fullbkpt=init_breakpoints,
+                                   maxiter=maxiter,
+                                   upper=upper, lower=lower, kwargs_bspline=kwargs_bspline,
+                                   kwargs_reject=kwargs_reject)
+    """
+
+    # Calculate residuals
+    logfit1, _ = bset1.value(wave_obs)
+    modelfit1 = 10.0 ** (0.4 * logfit1)
+    residual = sensfunc / (modelfit1 + (modelfit1 == 0)) - 1.
+    new_mask = pos_mask & (sensfunc > 0)
+
+    residual_ivar = (modelfit1 * flux_obs / (sensfunc + (sensfunc == 0.0))) ** 2 * invvar
+    residual_ivar = residual_ivar * new_mask
+
+    """
+    # Check for magfunc
+    import matplotlib.pyplot as plt
+    plt.figure(1)
+    plt.ylim(np.min(magfunc),np.max(magfunc))
+    plt.plot(wave_obs, magfunc, label='magfunc')
+    plt.plot(wave_obs, logfit1, label='logfit1')
+    plt.legend()
+    plt.xlabel('Wavelength [ang]')
+    plt.show()
+    plt.close()
+
+    # Check for calibration
+    import matplotlib.pyplot as plt
+    plt.figure(1)
+    plt.plot(wave_obs, sensfunc*flux_obs, label='scaled')
+    plt.plot(wave_obs, flux_std, label='model')
+    plt.legend()
+    plt.xlabel('Wavelength [ang]')
+    plt.show()
+    plt.close()
+    """
+
+    msgs.info("Bspline fit: step 2")
+
+    #  Now do one more fit to the ratio of data/model - 1.
+    bset_residual, bmask2 = bspline_iterfit(wave_obs, residual, invvar=residual_ivar,
+                                            fullbkpt=bset1.breakpoints, maxiter=maxiter, upper=upper,
+                                            lower=lower, kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject)
+    """
+    OLD
+    bset_residual, bmask2 = bspline_iterfit(wave_obs, residual, invvar=residual_ivar,
+                                            fullbkpt=bset1.breakpoints,
+                                            maxiter=maxiter,
+                                            upper=upper, lower=lower, kwargs_bspline=kwargs_bspline,
+                                            kwargs_reject=kwargs_reject)
+    """
+
+    # Create sensitivity function
+    bset_log1 = bset1
+    bset_log1.coeff = bset_log1.coeff + bset_residual.coeff
+    newlogfit, _ = bset_log1.value(wave_obs)
+    sensfit = np.power(10.0, 0.4 * newlogfit)
+
+    ## print(bset_log1)
+
+    bspline_dict={}
+
+    print(bspline_dict)
+
+    # Write the sens_dict to a json file
+    msgs.info("Writing bspline_dict into .json file")
+    with open('bspline_dict.json', 'w') as fp:
+        json.dump(bspline_dict, fp, sort_keys=True, indent=4)
+
+
+    # bspline_func = bspline_fromdict(wave_obs, from_dict=bspline_dict)
+
+
+    """
+    # Check for calibration
+    import matplotlib.pyplot as plt
+    plt.figure(1)
+    plt.plot(wave_obs, sensfit*flux_obs, label='scaled')
+    plt.plot(wave_obs, flux_std, label='model')
+    plt.legend()
+    plt.xlabel('Wavelength [ang]')
+    plt.show()
+    plt.close()
+    """
+
+    # Check quality of the fit
+    absdev = np.median(np.abs(sensfit / modelfit1 - 1))
+    msgs.info('Difference between fits is {:g}'.format(absdev))
+
+    """
+    # Check for residual of the fit
+    import matplotlib.pyplot as plt
+    plt.figure(1)
+    plt.plot(wave_obs, sensfit / modelfit1 - 1, label='residual')
+    plt.legend()
+    plt.xlabel('Wavelength [ang]')
+    plt.show()
+    plt.close()
+    """
+
+    # QA
+    msgs.work("Add QA for sensitivity function")
+    """
+    bspline_magfit_new_qa(wave_obs, magfunc, logfit1,
+                          newlogfit, bset1.breakpoints,
+                          outfile=None, title=None)
+    """
+
+    return bset_log1
+
+
+'''
 # Old version
 def bspline_magfit(wave, flux, var, flux_std, bspline_par=None):
     """
@@ -152,7 +402,7 @@ def bspline_magfit(wave, flux, var, flux_std, bspline_par=None):
     magfunc = np.minimum(magfunc,25.0)
     sensfunc = 10.0**(0.4*magfunc)*pos_mask
 
-    ''' Ported from LowRedux but this is a bad idea (and wasn't used there anyhow)
+    """ Ported from LowRedux but this is a bad idea (and wasn't used there anyhow)
     # Interpolate over masked pixels
     if not nointerp:
         bad = logivar <= 0.
@@ -161,7 +411,7 @@ def bspline_magfit(wave, flux, var, flux_std, bspline_par=None):
             magfunc[bad] = f(wave[bad])
             fi = scipy.interpolate.InterpolatedUnivariateSpline(wave[~bad], logivar[~bad], k=2)
             logivar[bad] = fi(wave[bad])
-    '''
+    """
 
     #  First iteration
     mask, tck = utils.robust_polyfit(wave, magfunc, 3, function='bspline', weights=np.sqrt(logivar),
@@ -174,7 +424,7 @@ def bspline_magfit(wave, flux, var, flux_std, bspline_par=None):
     residual_ivar = (modelfit1*flux/(sensfunc + (sensfunc == 0.0)))**2*invvar
     residual_ivar = residual_ivar*new_mask
 
-    ''' Ported from LowRedux but this is a bad idea (and wasn't used there anyhow)
+    """ Ported from LowRedux but this is a bad idea (and wasn't used there anyhow)
     # Interpolate over masked pixels
     if not nointerp:
         if np.sum(bad) > 0:
@@ -182,7 +432,7 @@ def bspline_magfit(wave, flux, var, flux_std, bspline_par=None):
             residual[bad] = f(wave[bad])
             fi = scipy.interpolate.InterpolatedUnivariateSpline(wave[~bad], residual_ivar[~bad], k=2)
             residual_ivar[bad] = fi(wave[bad])
-    '''
+    """
 
     #  Now do one more fit to the ratio of data/model - 1.
     # Fuss with the knots first ()
@@ -209,6 +459,7 @@ def bspline_magfit(wave, flux, var, flux_std, bspline_par=None):
     msgs.work("Add QA for sensitivity function")
 
     return tck_log1
+'''
 
 def extinction_correction(wave, airmass, extinct):
     """
@@ -534,7 +785,7 @@ def generate_sensfunc(
         msgs.info("Applying extinction correction")
         extinct = flux.load_extinction_data(spectrograph.telescope['longitude'],
                                             spectrograph.telescope['latitude'])
-        ext_corr = arflux.extinction_correction(wave_star, airmass, extinct)
+        ext_corr = extinction_correction(wave_star, airmass, extinct)
         # Correct for extinction and convert to electrons / s
         flux_corr = flux_star * ext_corr / exptime
         var_corr = var_star * ext_corr ** 2 / exptime ** 2
@@ -574,11 +825,11 @@ def generate_sensfunc(
     # Set nresln
     if nresln == None:
         if telluric:
-            nresln = 20.0
-            msgs.info("Set nresln to 20.0")
-        else:
             nresln = 1.5
             msgs.info("Set nresln to 1.5")
+        else:
+            nresln = 20.0
+            msgs.info("Set nresln to 20.0")
 
     # ToDo
     # Compute an effective resolution for the standard. This could be improved
