@@ -399,49 +399,49 @@ def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=N
     # Loop on detectors
     npix = 0
     ext = 0
-    for spec in specobjs:
-        if spec is None:
+    for sobj in specobjs.specobjs:
+        if sobj is None:
             continue
         ext += 1
         # Add header keyword
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = spec.idx
+        prihdu.header[keywd] = sobj.idx
 
         # Add Spectrum Table
         cols = []
         # Trace
-        cols += [fits.Column(array=spec.trace_spat, name=str('TRACE'), format=spec.trace_spat.dtype)]
+        cols += [fits.Column(array=sobj.trace_spat, name=str('TRACE'), format=sobj.trace_spat.dtype)]
         # FWHM fit from extraction
-        cols += [fits.Column(array=spec.fwhmfit, name=str('FWHM'), format=spec.fwhmfit.dtype)]
+        cols += [fits.Column(array=sobj.fwhmfit, name=str('FWHM'), format=sobj.fwhmfit.dtype)]
         if ext == 1:
-            npix = len(spec.trace_spat)
+            npix = len(sobj.trace_spat)
         # Boxcar
-        for key in spec.boxcar.keys():
+        for key in sobj.boxcar.keys():
             # Skip some
             if key in ['BOX_RADIUS']:
                 continue
-            if isinstance(spec.boxcar[key], units.Quantity):
-                cols += [fits.Column(array=spec.boxcar[key].value,
-                                     name=str('BOX_'+key), format=spec.boxcar[key].value.dtype)]
+            if isinstance(sobj.boxcar[key], units.Quantity):
+                cols += [fits.Column(array=sobj.boxcar[key].value,
+                                     name=str('BOX_'+key), format=sobj.boxcar[key].value.dtype)]
             else:
-                cols += [fits.Column(array=spec.boxcar[key],
-                                     name=str('BOX_'+key), format=spec.boxcar[key].dtype)]
+                cols += [fits.Column(array=sobj.boxcar[key],
+                                     name=str('BOX_'+key), format=sobj.boxcar[key].dtype)]
         # Optimal
-        for key in spec.optimal.keys():
+        for key in sobj.optimal.keys():
             # Skip some
             #if key in ['fwhm']:
             #    continue
             # Generate column
-            if isinstance(spec.optimal[key], units.Quantity):
-                cols += [fits.Column(array=spec.optimal[key].value,
-                                       name=str('OPT_'+key), format=spec.optimal[key].value.dtype)]
+            if isinstance(sobj.optimal[key], units.Quantity):
+                cols += [fits.Column(array=sobj.optimal[key].value,
+                                       name=str('OPT_'+key), format=sobj.optimal[key].value.dtype)]
             else:
-                cols += [fits.Column(array=spec.optimal[key],
-                                       name=str('OPT_'+key), format=spec.optimal[key].dtype)]
+                cols += [fits.Column(array=sobj.optimal[key],
+                                       name=str('OPT_'+key), format=sobj.optimal[key].dtype)]
         # Finish
         coldefs = fits.ColDefs(cols)
         tbhdu = fits.BinTableHDU.from_columns(coldefs)
-        tbhdu.name = spec.idx
+        tbhdu.name = sobj.idx
         hdus += [tbhdu]
     # A few more for the header
     prihdu.header['NSPEC'] = ext
