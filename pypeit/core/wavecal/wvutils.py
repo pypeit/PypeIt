@@ -44,15 +44,16 @@ def match_peaks(inspec1, inspec2, smooth=5.0, debug=False):
     # Initial estimate
     p0 = np.array([0.0])
     specs = (inspec1, inspec2, smooth,)
-    res = curve_fit(shift_stretch, specs, np.array([0.0]), p0, epsfcn=1.0)
-    bestpar = res[0][0]
-
-    inspec2_adj = resample(inspec2, int(inspec1.size + bestpar))
-    _, shift = shift_stretch(specs, bestpar, retshift=True)
-    xval1 = np.arange(inspec2_adj.shape[0]) + shift
-    xval2 = np.linspace(0.0, inspec2.size-1, inspec2_adj.shape[0])
+    try:
+        res = curve_fit(shift_stretch, specs, np.array([0.0]), p0, epsfcn=1.0)
+    except ValueError:
+        # Probably no overlap of the two spectra
+        return None, None
+    stretch = res[0][0]
+    _, shift = shift_stretch(specs, stretch, retshift=True)
 
     if debug:
+        inspec2_adj = resample(inspec2, int(inspec1.size + stretch))
         x1 = np.arange(inspec1.shape[0])
         x2 = np.arange(inspec2_adj.shape[0]) + shift
         from matplotlib import pyplot as plt
@@ -60,7 +61,7 @@ def match_peaks(inspec1, inspec2, smooth=5.0, debug=False):
         plt.plot(x2, inspec2_adj, 'r-', drawstyle='steps')
         plt.show()
 
-    return inspec2_adj, xval1, xval2, shift
+    return stretch, shift
 
 
 def shift_stretch(specs, p, retshift=False):

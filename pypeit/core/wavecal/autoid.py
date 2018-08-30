@@ -3,6 +3,7 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 from scipy.ndimage.filters import gaussian_filter
+from scipy import stats
 import scipy
 from linetools import utils as ltu
 from astropy.table import vstack
@@ -13,8 +14,9 @@ import pdb
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import patterns
 from pypeit.core.wavecal import fitting
-from pypeit.core.wavecal import utils
+from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import qa
+from pypeit import utils
 
 from pypeit import msgs
 
@@ -61,7 +63,7 @@ def basic(spec, lines, wv_cen, disp, min_ampl=300.,
     wvdata = wvdata[isrt]
 
     # Find peaks
-    all_tcent, cut_tcent, icut = utils.arc_lines_from_spec(spec, min_ampl=min_ampl)
+    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=min_ampl)
 
     # Matching
     match_idx, scores = patterns.run_quad_match(cut_tcent, wave, wvdata,
@@ -146,7 +148,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
     npix = spec.size
 
     # Lines
-    all_tcent, cut_tcent, icut = utils.arc_lines_from_spec(spec, min_ampl=min_ampl)
+    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=min_ampl)
 
     # Best
     best_dict = dict(nmatch=0, ibest=-1, bwv=0., min_ampl=min_ampl, unknown=False,
@@ -180,7 +182,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
                 ampl /= 2.
                 if ampl < lowest_ampl:
                     break
-                all_tcent, cut_tcent, icut = utils.arc_lines_from_spec(spec, min_ampl=ampl)
+                all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=ampl)
                 patterns.scan_for_matches(wv_cen, disp, npix, cut_tcent, wvdata,
                                           best_dict=best_dict, pix_tol=pix_tol, ampl=ampl)
 
@@ -280,7 +282,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
                 imsk[kk] = False
         ifit = ifit[imsk]
         # Allow for weaker lines in the fit
-        all_tcent, weak_cut_tcent, icut = utils.arc_lines_from_spec(spec, min_ampl=lowest_ampl)
+        all_tcent, weak_cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=lowest_ampl)
         add_weak = []
         for weak in weak_cut_tcent:
             if np.min(np.abs(cut_tcent-weak)) > 5.:
@@ -445,12 +447,13 @@ class General:
                 continue
             # Detect lines, and decide which tcent to use
             self._all_tcent, self._cut_tcent, self._icut =\
-                utils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._min_ampl)
+                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_ampl=self._min_ampl)
             self._all_tcent_weak, self._cut_tcent_weak, self._icut_weak =\
-                utils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._lowest_ampl)
+                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_ampl=self._lowest_ampl)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit))
                 continue
+            self._detections[str(slit)] = self._all_tcent_weak.copy()
             best_patt_dict, best_final_fit = None, None
             # Loop through parameter space
             for poly in rng_poly:
@@ -475,14 +478,14 @@ class General:
             if best_final_fit is None:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Preliminary report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
-                          '  No matches! Try another algorithm' + msgs.newline() +
+                          '  No matches! Attempting to cross match.' + msgs.newline() +
                           '---------------------------------------------------')
                 self._all_patt_dict[str(slit)] = None
                 self._all_final_fit[str(slit)] = None
             elif best_final_fit['rms'] > self._rms_threshold:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Preliminary report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
-                          '  Poor RMS ({0:.3f})! Try another algorithm'.format(best_final_fit['rms']) + msgs.newline() +
+                          '  Poor RMS ({0:.3f})! Attempting to cross match.'.format(best_final_fit['rms']) + msgs.newline() +
                           '---------------------------------------------------')
                 self._all_patt_dict[str(slit)] = None
                 self._all_final_fit[str(slit)] = None
@@ -505,7 +508,6 @@ class General:
                           '---------------------------------------------------')
                 self._all_patt_dict[str(slit)] = copy.deepcopy(best_patt_dict)
                 self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
-                self._detections[str(slit)] = self._all_tcent_weak.copy()
 
         # Now that all slits have been inspected, cross match to generate a
         # master list of all lines in every slit, and refit all spectra
@@ -600,49 +602,99 @@ class General:
         # Catalogue the good and bad slits
         good_slits = np.sort(sort_idx[np.unique(slit_ids[gdmsk, :].flatten())])
         bad_slits = np.setdiff1d(np.arange(self._nslit), good_slits, assume_unique=True)
+        # Get the sign (i.e. if pixels correlate/anticorrelate with wavelength)
+        # and dispersion (A/pix). Assume these are the same for all slits
+        sign = self._all_patt_dict[str(good_slits[0])]['sign']
+        disp = self._all_patt_dict[str(good_slits[0])]['bdisp']
 
         # For all of the bad slits, estimate some line wavelengths
         for bs in bad_slits:
             if bs not in self._ok_mask:
                 continue
-            bsdet = self._detections[str(bs)]
-            bs_ids = [np.array([]) for xx in bsdet]
-            for gs in good_slits:
+            bsdet = self.get_use_tcent(sign, arr=self._detections[str(bs)])
+            lindex = np.array([], dtype=np.int)
+            dindex = np.array([], dtype=np.int)
+            wcen = np.zeros(good_slits.size)
+            for cntr, gs in enumerate(good_slits):
                 # Match the peaks between the two spectra.
                 # spec_gs_adj is the stretched spectrum
-                # xval1 provides the direct match to spec_bs
-                # xval2 provides the corresponding match to spec_gs
-                spec_gs_adj, xval1, xval2, shift = utils.match_peaks(self._spec[:, bs], self._spec[:, gs])
-                # For each peak in the gs spectrum, identify the corresponding peaks in the
-                # Get the peaks to use, and shift
-                pdb.set_trace()
-                sign = self._all_patt_dict[str(gs)]['sign']
-                use_tcent = shift + self.get_use_tcent(sign)
-                gsdet = self._detections[str(gs)]
+                stretch, shift = wvutils.match_peaks(self._spec[:, bs], self._spec[:, gs])
+                if stretch is None:
+                    continue
+                # Estimate wcen for this slit
+                wcen[cntr] = self._all_patt_dict[str(gs)]['bwv'] - shift*disp
+                # For each peak in the gs spectrum, identify the corresponding peaks in the bs spectrum
+                strfact = (self._npix + stretch - 1)/(self._npix - 1)
+                gsdet = self.get_use_tcent(sign, arr=self._detections[str(gs)])
+                gsdet_ss = shift + gsdet * strfact
+                debug=False
+                if debug:
+                    from matplotlib import pyplot as plt
+                    xplt = np.arange(self._npix)
+                    plt.plot(xplt, self._spec[:, bs], 'k-', drawstyle='steps')
+                    plt.plot(bsdet, np.zeros(bsdet.size), 'ro')
+                    plt.plot(gsdet_ss, 0.01*np.max(self._spec[:, bs])*np.ones(gsdet_ss.size), 'bo')
+                    plt.show()
+                    pdb.set_trace()
+                # Calculate wavelengths for the gsdet detections
+                fitc = self._all_final_fit[str(gs)]['fitc']
+                xfit = gsdet/(self._npix - 1)
+                fitfunc = self._all_final_fit[str(gs)]['function']
+                fmin, fmax = 0.0, 1.0
+                wvval = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
                 for dd in range(bsdet.size):
-                    # This doesn't work... need to first translate all of the gsdet into xval2, then to xval1.... I think...
-                    pdiff = np.abs(bsdet[dd]-gsdet)
-                    bst = np.argmin(pdiff)
+                    pdiff = np.abs(bsdet[dd]-gsdet_ss)
+                    bstpx = np.argmin(pdiff)
                     # If a match is found within 2 pixels, consider this a successful match
-                    if pdiff[bst] < 2.0:
-                        bs_ids[dd] = np.append(bs_ids[dd], wave)
-                        pdb.set_trace()
+                    if pdiff[bstpx] < 2.0:
+                        bstwv = np.abs(self._wvdata - wvval[bstpx])
+                        if bstwv[np.argmin(bstwv)] > 2.0*disp:
+                            # This is probably not a good match
+                            continue
+                        lindex = np.append(lindex, np.argmin(bstwv))
+                        dindex = np.append(dindex, dd)
+            # Finalize the best guess of each line
+            # Initialise the patterns dictionary
+            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_ampl=self._min_ampl,
+                             mask=np.zeros(bsdet.size, dtype=np.bool))
+            patt_dict['sign'] = sign
+            patt_dict['bwv'] = np.median(wcen[np.where(wcen != 0.0)])
+            patt_dict['bdisp'] = disp
+            patterns.solve_triangles(bsdet, self._wvdata, dindex, lindex, patt_dict)
+            # Check if a solution was found
+            if not patt_dict['acceptable']:
+                return None
+            final_dict = self.fit_slit(bs, patt_dict, tcent=bsdet)
+            if final_dict is None:
+                # This pattern wasn't good enough
+                continue
+            debug = True
+            if debug:
+                from matplotlib import pyplot as plt
+                xplt = np.linspace(0.0,1.0,1000)
+                yplt = utils.func_val(final_dict['fitc'], xplt, 'legendre', minv=0.0, maxv=1.0)
+                plt.plot(final_dict['xfit'], final_dict['yfit'], 'bx')
+                plt.plot(xplt, yplt, 'r-')
+                plt.show()
+                pdb.set_trace()
+
 
         return
 
-    def get_use_tcent(self, corr, weak=False):
+    def get_use_tcent(self, corr, arr=None, weak=False):
         """Set if pixels correlate with wavelength (corr==1) or anticorrelate (corr=-1)
         """
+        # Decide which array to use
+        if arr is None:
+            if weak:
+                arr = self._all_tcent_weak.copy()
+            else:
+                arr = self._all_tcent.copy()
+        # Return the appropriate tcent
         if corr == 1:
-            if weak:
-                return self._all_tcent_weak.copy()
-            else:
-                return self._all_tcent.copy()
+            return arr
         else:
-            if weak:
-                return (self._npix - 1.0) - self._all_tcent_weak.copy()[::-1]
-            else:
-                return (self._npix - 1.0) - self._all_tcent.copy()[::-1]
+            return (self._npix - 1.0) - arr[::-1]
 
     def solve_slit(self, slit, poly=3, pix_tol=0.5, detsrch=5, lstsrch=5, nstore=1,
                    nselw=3, nseld=3):
@@ -814,7 +866,7 @@ class General:
                       '---------------------------------------------------')
         return patt_dict
 
-    def fit_slit(self, slit, patt_dict, outroot=None, slittxt="Slit"):
+    def fit_slit(self, slit, patt_dict, outroot=None, slittxt="Slit", tcent=None):
         # Perform final fit to the line IDs
         NIST_lines = self._line_lists['NIST'] > 0
         ifit = np.where(patt_dict['mask'])[0]
@@ -830,10 +882,11 @@ class General:
                 imsk[kk] = False
         ifit = ifit[imsk]
         # Allow for weaker lines in the fit
-        use_weak_tcent = self.get_use_tcent(patt_dict['sign'], weak=True)
+        if tcent is None:
+            tcent = self.get_use_tcent(patt_dict['sign'], weak=True)
         # Fit
         try:
-            final_fit = fitting.iterative_fitting(self._spec[:, slit], use_weak_tcent, ifit,
+            final_fit = fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
                                                   np.array(patt_dict['IDs'])[ifit], self._line_lists[NIST_lines],
                                                   patt_dict['bdisp'], plot_fil=plot_fil, verbose=self._verbose,
                                                   aparm=self._fit_parm)

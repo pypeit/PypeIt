@@ -13,6 +13,7 @@ from pypeit.core import parse
 from pypeit.core import pixels
 from pypeit.core import qa
 from pypeit.core.wavecal import autoid
+from scipy.ndimage.filters import gaussian_filter
 
 
 # TODO: This should not be a core algorithm
@@ -221,23 +222,33 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False):
     detns = detns.astype(np.float)
     xrng = np.arange(detns.size, dtype=np.float)
 
+    #detns_smth = gaussian_filter(detns, 1)
+    if debug:
+        import pdb
+        from matplotlib import pyplot as plt
+        pdb.set_trace()
+        plt.plot(xrng, detns, 'k-', drawstyle='steps')
+        plt.plot(xrng, detns_smth, 'r-', drawstyle='steps')
+        plt.show()
+
+
     # Find all significant detections
     # TODO -- Need to add nonlinear back in here
     pixt = np.where((detns > 0.0) &  # (detns < slf._nonlinear[det-1]) &
                     (detns > np.roll(detns, 1)) & (detns >= np.roll(detns, -1)) &
                     (np.roll(detns, 1) > np.roll(detns, 2)) & (np.roll(detns, -1) > np.roll(detns, -2)) &#)[0]
                     (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3)))[0]
-#                    (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)) & # )[0]
+#                    (np.roll(detns_smth, 3) > np.roll(detns_smth, 4)) & (np.roll(detns_smth, -3) > np.roll(detns_smth, -4)) & # )[0]
 #                    (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
     tampl, tcent, twid = fit_arcspec(xrng, detns, pixt, nfitpix)
-    w = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
+    ww = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
     if debug:
         # Check the results
         plt.clf()
         plt.plot(xrng, detns, 'k-')
         plt.plot(tcent, tampl, 'ro')
         plt.show()
-    return tampl, tcent, twid, w, detns
+    return tampl, tcent, twid, ww, detns
 
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
