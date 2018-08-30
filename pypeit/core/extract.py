@@ -545,10 +545,10 @@ def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
 
 
 def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
-                thisfwhm=4.0, MAX_TRACE_CORR = 2.0, SN_GAUSS = 3.0, wvmnx = [2900.0,30000.0],
-                hwidth = None, PROF_NSIGMA = None, NO_DERIV = False, GAUSS = False, SHOW_PROFILE = False):
+                thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 3.0, wvmnx = [2900.0,30000.0],
+                hwidth = None, prof_nsigma = None, no_deriv = False, gauss = False, show_profile = False):
 
-    """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> SN_GAUSS) in which
+    """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> sn_gauss) in which
     fit a simple Gaussian. Port of IDL LOWREDUX long_gprofile.pro
 
      Parameters
@@ -573,21 +573,21 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     ----------
     thisfwhm : float
          fwhm of the object trace
-    MAX_TRACE_CORR : float [default = 2.0]
+    max_trace_corr : float [default = 2.0]
          maximum trace correction to apply
-    SN_GAUSS : float [default = 3.0]
+    sn_gauss : float [default = 3.0]
          S/N ratio below which code just uses a Gaussian
     wvmnx : float [default = [2900.0,30000.0]
          wavelength range of usable part of spectrum
     hwidth : float [default = None]
          object maskwidth determined from object finding algorithm. If = None,
          code defaults to use 3.0*(np.max(thisfwhm) + 1.0)
-    PROF_NSIGMA : float [default = None]
+    prof_nsigma : float [default = None]
          Number of sigma to include in the profile fitting. This option is only needed for bright objects that are not
          point sources, which allows the profile fitting to fit the high S/N wings (rather than the default behavior
          which truncates exponentially). This allows for extracting all the flux and results in better sky-subtraction
          for bright extended objects.
-    NO_DERIV : boolean [default = False]
+    no_deriv : boolean [default = False]
          disables determination of derivatives and exponential tr
 
      Returns
@@ -608,8 +608,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
 
 
     if hwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
-    if PROF_NSIGMA is not None:
-        NO_DERIV = True
+    if prof_nsigma is not None:
+        no_deriv = True
 
     thisfwhm = np.fmax(thisfwhm,1.0) # require the FWHM to be greater than 1 pixel
 
@@ -734,8 +734,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     # TODO Clean up the logic below. It is formally correct but
     # redundant since no trace correction has been created or applied yet.  I'm only postponing doing it
     # to preserve this syntax for later when it is needed
-    if((ngood < 10) or (med_sn2 < SN_GAUSS**2) or (GAUSS is True)):
-        msgs.info("Too few good pixels or S/N <" + "{:5.1f}".format(SN_GAUSS) + " or GAUSS flag set")
+    if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
+        msgs.info("Too few good pixels or S/N <" + "{:5.1f}".format(sn_gauss) + " or gauss flag set")
         msgs.info("Returning Gaussian profile")
         sigma_x = norm_x/(np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr,np.ones(nspat)))
         profile_model = np.exp(-0.5*sigma_x**2)/np.sqrt(2.0*np.pi)*(sigma_x**2 < 25.)
@@ -761,7 +761,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
             title_string = 'No good pixels, showing all'
             indx = None
 
-        if(SHOW_PROFILE):
+        if(show_profile):
             qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, ind=indx, xtrunc= 7.0)
         return (profile_model, xnew, fwhmfit, med_sn2)
 
@@ -774,18 +774,18 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
 
     # The following lines set the limits for the b-spline fit
     limit = scipy.special.erfcinv(0.1/np.sqrt(med_sn2))*np.sqrt(2.0)
-    if(PROF_NSIGMA is None):
+    if(prof_nsigma is None):
         sinh_space = 0.25*np.log10(np.fmax((1000./np.sqrt(med_sn2)),10.))
         abs_sigma = np.fmin((np.abs(sigma_x.flat[good])).max(),2.0*limit)
         min_sigma = np.fmax(sigma_x.flat[good].min(), (-abs_sigma))
         max_sigma = np.fmin(sigma_x.flat[good].max(), (abs_sigma))
         nb = (np.arcsinh(abs_sigma)/sinh_space).astype(int) + 1
     else:
-        msgs.info("Using PROF_NSIGMA= " + "{:6.2f}".format(PROF_NSIGMA) + " for extended/bright objects")
-        nb = np.round(PROF_NSIGMA > 10)
-        max_sigma = PROF_NSIGMA
-        min_sigma = -1*PROF_NSIGMA
-        sinh_space = np.arcsinh(PROF_NSIGMA)/nb
+        msgs.info("Using prof_nsigma= " + "{:6.2f}".format(prof_nsigma) + " for extended/bright objects")
+        nb = np.round(prof_nsigma > 10)
+        max_sigma = prof_nsigma
+        min_sigma = -1*prof_nsigma
+        sinh_space = np.arcsinh(prof_nsigma)/nb
 
     rb = np.sinh((np.arange(nb) + 0.5) * sinh_space)
     bkpt = np.concatenate([(-rb)[::-1], rb])
@@ -793,7 +793,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     bkpt = bkpt[keep]
 
     # Attempt B-spline first
-    GOOD_PIX = (sn2_sub > SN_GAUSS**2) & (norm_ivar > 0)
+    GOOD_PIX = (sn2_sub > sn_gauss**2) & (norm_ivar > 0)
     IN_PIX   = (sigma_x >= min_sigma) & (sigma_x <= max_sigma) & (norm_ivar > 0)
     ngoodpix = np.sum(GOOD_PIX)
     ninpix     = np.sum(IN_PIX)
@@ -876,7 +876,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         if(np.sum(norm) > 0.0):
             profile_model = profile_model/norm
 
-        if(SHOW_PROFILE):
+        if(show_profile):
             qa_fit_profile(sigma_x, norm_obj, profile_model, l_limit = l_limit, r_limit = r_limit, ind =good, xlim = 7.0)
 
         return (profile_model, xnew, fwhmfit, med_sn2)
@@ -950,7 +950,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
             bset = bset_out[0] # This updated bset used for the next set of trace corrections
 
     # Apply trace corrections only if they are small (added by JFH)
-    if np.median(np.abs(trace_corr*sigma)) < MAX_TRACE_CORR:
+    if np.median(np.abs(trace_corr*sigma)) < max_trace_corr:
         xnew = trace_corr * sigma + trace_in
     else:
         xnew = trace_in
@@ -1012,14 +1012,14 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
 
 
     # JXP kludge
-    if PROF_NSIGMA is not None:
+    if prof_nsigma is not None:
        #By setting them to zero we ensure QA won't plot them in the profile QA.
        l_limit = 0.0
        r_limit = 0.0
 
 
     # Hack to fix degenerate profiles which have a positive derivative
-    if (l_deriv < 0) and (r_deriv > 0) and NO_DERIV is False:
+    if (l_deriv < 0) and (r_deriv > 0) and no_deriv is False:
         left = sigma_x.flatten() < l_limit
         full_bsp[left] =  np.exp(-(sigma_x.flat[left]-l_limit)*l_deriv) * l_fit
         right = sigma_x.flatten() > r_limit
@@ -1053,19 +1053,19 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     if (np.sum(norm) > 0.0):
         profile_model = profile_model / norm
     msgs.info("FWHM="  + "{:6.2f}".format(thisfwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2)))
-    if(SHOW_PROFILE):
+    if(show_profile):
         qa_fit_profile(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp,
-                       l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = PROF_NSIGMA)
+                       l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = prof_nsigma)
 
     return (profile_model, xnew, fwhmfit, med_sn2)
 
 
-def parse_hand_dict(HAND_EXTRACT_DICT):
-    """ Utility routine for objfind to parase the HAND_EXTRACT_DICT dictionary for hand selected apertures
+def parse_hand_dict(hand_extract_dict):
+    """ Utility routine for objfind to parase the hand_extract_dict dictionary for hand selected apertures
 
     Parameters
     ----------
-    HAND_EXTRACT_DICT:   dictionary
+    hand_extract_dict:   dictionary
 
     Returns
     -------
@@ -1085,17 +1085,17 @@ def parse_hand_dict(HAND_EXTRACT_DICT):
     """
 
 
-    if ('HAND_EXTRACT_SPEC' not in HAND_EXTRACT_DICT.keys() | 'HAND_EXTRACT_SPAT' not in HAND_EXTRACT_DICT.keys()):
-        raise ValueError('HAND_EXTRACT_SPEC and HAND_EXTRACT_SPAT must be set in the HAND_EXTRACT_DICT')
+    if ('HAND_EXTRACT_SPEC' not in hand_extract_dict.keys() | 'HAND_EXTRACT_SPAT' not in hand_extract_dict.keys()):
+        raise ValueError('HAND_EXTRACT_SPEC and HAND_EXTRACT_SPAT must be set in the hand_extract_dict')
 
-    HAND_EXTRACT_SPEC=np.asarray(HAND_EXTRACT_DICT['HAND_EXTRACT_SPEC'])
-    HAND_EXTRACT_SPAT=np.asarray(HAND_EXTRACT_DICT['HAND_EXTRACT_SPAT'])
-    HAND_EXTRACT_DET = np.asarray(HAND_EXTRACT_DICT['HAND_EXTRACT_DET'])
+    HAND_EXTRACT_SPEC=np.asarray(hand_extract_dict['HAND_EXTRACT_SPEC'])
+    HAND_EXTRACT_SPAT=np.asarray(hand_extract_dict['HAND_EXTRACT_SPAT'])
+    HAND_EXTRACT_DET = np.asarray(hand_extract_dict['HAND_EXTRACT_DET'])
     if(HAND_EXTRACT_SPEC.size == HAND_EXTRACT_SPAT.size == HAND_EXTRACT_DET.size) == False:
-        raise ValueError('HAND_EXTRACT_SPEC, HAND_EXTRACT_SPAT, and HAND_EXTRACT_DET must have the same size in the HAND_EXTRACT_DICT')
+        raise ValueError('HAND_EXTRACT_SPEC, HAND_EXTRACT_SPAT, and HAND_EXTRACT_DET must have the same size in the hand_extract_dict')
     nhand = HAND_EXTRACT_SPEC.size
 
-    HAND_EXTRACT_FWHM = HAND_EXTRACT_DICT.get('HAND_EXTRACT_FWHM')
+    HAND_EXTRACT_FWHM = hand_extract_dict.get('HAND_EXTRACT_FWHM')
     if HAND_EXTRACT_FWHM is not None:
         HAND_EXTRACT_FWHM = np.asarray(HAND_EXTRACT_FWHM)
         if(HAND_EXTRACT_FWHM.size==HAND_EXTRACT_SPEC.size):
@@ -1115,9 +1115,9 @@ specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 
 
 
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
-            HAND_EXTRACT_DICT = None, std_trace = None, ncoeff = 5, nperslit = 10,  BG_SMTH = 5.0, PKWDTH = 3.0,
-            MASKWIDTH = 3.0, SIG_THRESH = 10.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, TRIM_EDG = (3,3), OBJMASK_NTHRESH = 2.0,
-            specobj_dict=specobj_dict, SHOW_PEAKS=True, SHOW_FITS = False, SHOW_TRACE = False):
+            hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit = 10,  bg_smth = 5.0, pkwdth = 3.0,
+            maskwidth = 3.0, sig_thresh = 10.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (3,3), objmask_nthresh = 2.0,
+            specobj_dict=specobj_dict, show_peaks=True, show_fits = False, show_trace = False):
 
     """ Find the location of objects in a slitmask slit or a echelle order.
 
@@ -1170,9 +1170,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     from pypeit.core import trace_slits
     from pypeit import specobjs
 
-    # Check that PEAK_THRESH values make sense
-    if ((PEAK_THRESH >=0.0) & (PEAK_THRESH <=1.0)) == False:
-        msgs.error('Invalid value of PEAK_THRESH. It must be between 0.0 and 1.0')
+    # Check that peak_thresh values make sense
+    if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
+        msgs.error('Invalid value of peak_thresh. It must be between 0.0 and 1.0')
 
     frameshape = image.shape
     nspec = frameshape[0]
@@ -1193,7 +1193,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     #    thismask = (slitpix > 0)
 
 #    if (ximg is None) | (edgmask is None):
-    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
+    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = trim_edg)
 
     # If a mask was not passed in, create it
     if inmask is None:
@@ -1213,7 +1213,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     if (nsamp < 9.0*FWHM):
         fluxsub = flux_mean.data - np.median(flux_mean.data)
     else:
-        kernel_size= int(np.ceil(BG_SMTH*FWHM) // 2 * 2 + 1) # This ensure kernel_size is odd
+        kernel_size= int(np.ceil(bg_smth*FWHM) // 2 * 2 + 1) # This ensure kernel_size is odd
         fluxsub = flux_mean.data - scipy.signal.medfilt(flux_mean.data, kernel_size=kernel_size)
         # This little bit below deals with degenerate cases for which the slit gets brighter toward the edge, i.e. when
         # alignment stars saturate and bleed over into other slits. In this case the median smoothed profile is the nearly
@@ -1226,10 +1226,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
 
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, FWHM/2.3548,mode='nearest')
 
-    xcen, sigma_pk, ledg, redg = find_nminima(-fluxconv,nfind=nperslit, width = PKWDTH,
-                                              minsep = np.fmax(FWHM, PKWDTH))
-    xcen_neg,sigma_pk_neg,ledg_neg,redg_neg = find_nminima(fluxconv,nfind=nperslit, width = PKWDTH,
-                                                           minsep = np.fmax(FWHM, PKWDTH))
+    xcen, sigma_pk, ledg, redg = find_nminima(-fluxconv,nfind=nperslit, width = pkwdth,
+                                              minsep = np.fmax(FWHM, pkwdth))
+    xcen_neg,sigma_pk_neg,ledg_neg,redg_neg = find_nminima(fluxconv,nfind=nperslit, width = pkwdth,
+                                                           minsep = np.fmax(FWHM, pkwdth))
     ypeak = np.interp(xcen,np.arange(nsamp),fluxconv)
     ypeak_neg = np.interp(xcen_neg,np.arange(nsamp),fluxconv)
     # Only mask the strong peaks
@@ -1238,8 +1238,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     imask_pos = np.ones(int(nsamp), dtype=bool)
     imask_neg = np.ones(int(nsamp), dtype=bool)
     xvec = np.arange(nsamp)
-    xcen_pos_top = xcen[ypeak > (med0 + SIG_THRESH*sigma0)]
-    xcen_neg_top = xcen_neg[ypeak_neg < (med0 - SIG_THRESH*sigma0)]
+    xcen_pos_top = xcen[ypeak > (med0 + sig_thresh*sigma0)]
+    xcen_neg_top = xcen_neg[ypeak_neg < (med0 - sig_thresh*sigma0)]
 
     for xx in xcen_pos_top:
         ibad = (np.abs(xvec - xx) <= 2.0*FWHM)
@@ -1249,7 +1249,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
         imask_neg[ibad] = False
 
     # Good pixels for flucutation level estimate. Omit edge pixels and pixels within a FWHM of a candidate object
-    igd = imask_pos & imask_neg & (xvec > TRIM_EDG[0]) & (xvec <= (nsamp-TRIM_EDG[1]))
+    igd = imask_pos & imask_neg & (xvec > trim_edg[0]) & (xvec <= (nsamp-trim_edg[1]))
     if np.any(igd) == False:
         igd = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
 
@@ -1267,14 +1267,14 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     else:
         pass
 
-    # Get rid of peaks within TRIM_EDG of slit edge which are almost always spurious, this should have been handled
+    # Get rid of peaks within trim_edg of slit edge which are almost always spurious, this should have been handled
     # with the edgemask, but we do it here anyway
-    not_near_edge = (xcen > TRIM_EDG[0]) & (xcen < (nsamp - TRIM_EDG[1]))
+    not_near_edge = (xcen > trim_edg[0]) & (xcen < (nsamp - trim_edg[1]))
     if np.any(~not_near_edge):
         msgs.warn('Discarding {:d}'.format(np.sum(~not_near_edge)) + ' at spatial pixels spat = {:}'.format(xcen[~not_near_edge]) +
-                  ' which land within TRIM_EDG = {:5.2f}'.format(TRIM_EDG) +
+                  ' which land within trim_edg = {:5.2f}'.format(trim_edg) +
                   ' pixels from the slit boundary for this nsamp = {:5.2f}'.format(nsamp) + ' wide slit')
-        msgs.warn('You must decrease from the current value of TRIM_EDG in order to keep them')
+        msgs.warn('You must decrease from the current value of trim_edg in order to keep them')
         msgs.warn('Such edge objects are often spurious')
 
     xcen = xcen[not_near_edge]
@@ -1286,16 +1286,16 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     # Choose which ones to keep and discard based on threshold params. Create SpecObj objects
     if npeak > 0:
         # Possible thresholds    [significance,  fraction of brightest, absolute]
-        threshvec = np.array([SIG_THRESH*sigma, PEAK_THRESH*ypeak.max(), ABS_THRESH])
+        threshvec = np.array([sig_thresh*sigma, peak_thresh*ypeak.max(), abs_thresh])
         threshold = threshvec.max()
         if threshvec.argmax() == 0:
-            msgs.info('Used SIGNIFICANCE threshold: SIG_THRESH = {:3.1f}'.format(SIG_THRESH) +
+            msgs.info('Used SIGNIFICANCE threshold: sig_thresh = {:3.1f}'.format(sig_thresh) +
                       ' * sigma = {:5.2f}'.format(sigma))
         elif threshvec.argmax() == 1:
-            msgs.info('Used FRACTION of BRIGHTEST threshold: PEAK_THRESH = {:3.1f}'.format(PEAK_THRESH) +
+            msgs.info('Used FRACTION of BRIGHTEST threshold: peak_thresh = {:3.1f}'.format(peak_thresh) +
                       ' * ypeak_max = {:5.2f}'.format(ypeak.max()))
         elif threshvec.argmax() == 2:
-            msgs.info('Used ABSOLUTE threshold of ABS_THRESH = {:5.2f}'.format(ABS_THRESH))
+            msgs.info('Used ABSOLUTE threshold of abs_thresh = {:5.2f}'.format(abs_thresh))
         msgs.info('Object finding threshold of: {:5.2f}'.format(threshold))
         # Trim to only objects above this threshold
         ikeep = (ypeak >= threshold)
@@ -1315,7 +1315,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
         nobj_reg = 0
 
 
-    if SHOW_PEAKS:
+    if show_peaks:
         spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
         spat_approx = slit_left[specmid] + xsize[specmid]*xcen/nsamp
         plt.plot(spat_approx_vec, fluxsub, color ='cornflowerblue',linestyle=':', label='Collapsed Slit profile')
@@ -1398,7 +1398,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
 
     objmask = np.zeros_like(thismask, dtype=bool)
     skymask = np.copy(thismask)
-    if (len(sobjs) == 0) & (HAND_EXTRACT_DICT == None):
+    if (len(sobjs) == 0) & (hand_extract_dict == None):
         msgs.info('No objects found')
         return (None, skymask[thismask], objmask[thismask])
 
@@ -1442,7 +1442,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
         # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
         tracemask1 = xerr1 > 990.0 # bad pixels have errors set to 999 and are returned to lie on the input trace
         # Plot all the points that were not masked initially
-        if(SHOW_FITS) & (iiter == niter - 1):
+        if(show_fits) & (iiter == niter - 1):
             for iobj in range(nobj_reg):
                 nomask = (tracemask1[:,iobj]==0)
                 # plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
@@ -1478,7 +1478,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
                 sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
                 sobjs[iobj].set_idx()
                 # Plot all the points that were not masked initially
-                if SHOW_FITS:
+                if show_fits:
                     nomask = (tracemask2[:, iobj] == 0)
                     plt.plot(spec_vec[nomask], xpos2[nomask, iobj], marker='o', c='k', markersize=3.0, linestyle='None',
                              label='gauss. weighted centroid')
@@ -1495,10 +1495,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
                     plt.legend()
                     plt.show()
 
-    # Now deal with the hand apertures if a HAND_EXTRACT_DICT was passed in. Add these to the SpecObj objects
-    if HAND_EXTRACT_DICT is not None:
+    # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
+    if hand_extract_dict is not None:
         # First Parse the hand_dict
-        HAND_EXTRACT_SPEC, HAND_EXTRACT_SPAT, HAND_EXTRACT_DET, HAND_EXTRACT_FWHM = parse_hand_dict(HAND_EXTRACT_DICT)
+        HAND_EXTRACT_SPEC, HAND_EXTRACT_SPAT, HAND_EXTRACT_DET, HAND_EXTRACT_FWHM = parse_hand_dict(hand_extract_dict)
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = thismask[int(np.rint(HAND_EXTRACT_SPEC)),int(np.rint(HAND_EXTRACT_SPAT))]
         HAND_EXTRACT_SPEC = HAND_EXTRACT_SPEC[hand_on_slit]
@@ -1553,7 +1553,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     #    return (None, skymask, objmask)
 
     ## Okay now loop over all the regular aps and exclude any which within a FWHM of the HAND_EXTRACT_APERTURES
-    if nobj_reg > 0 and HAND_EXTRACT_DICT is not None:
+    if nobj_reg > 0 and hand_extract_dict is not None:
         spat_pixpos = sobjs.spat_pixpos
         hand_flag = sobjs.HAND_EXTRACT_FLAG
         spec_fwhm = sobjs.fwhm
@@ -1594,16 +1594,16 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     qobj = np.zeros_like(xtmp)
     for iobj in range(nobj):
         if skythresh > 0.0:
-            sobjs[iobj].maskwidth = MASKWIDTH*sobjs[iobj].fwhm*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
+            sobjs[iobj].maskwidth = maskwidth*sobjs[iobj].fwhm*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
         else:
-            sobjs[iobj].maskwidth = MASKWIDTH*sobjs[iobj].fwhm
+            sobjs[iobj].maskwidth = maskwidth*sobjs[iobj].fwhm
         sep = np.abs(xtmp-sobjs[iobj].spat_fracpos)
         sep_inc = sobjs[iobj].maskwidth/nsamp
         close = sep <= sep_inc
         qobj[close] += sobjs[iobj].smash_peakflux*np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].fwhm**2,-9.0))
 
     # Create an objmask
-    objmask[thismask] = np.interp(ximg[thismask],xtmp,qobj) > (OBJMASK_NTHRESH*threshold)
+    objmask[thismask] = np.interp(ximg[thismask],xtmp,qobj) > (objmask_nthresh*threshold)
 
     # Still have to make the skymask
     all_fwhm = sobjs.fwhm
@@ -1616,7 +1616,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
 
 
     # If requested display the resulting traces on top of the image
-    if (nobj > 0) & (SHOW_TRACE):
+    if (nobj > 0) & (show_trace):
         viewer, ch = ginga.show_image(image*(thismask*inmask))
         ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = sobjs[0].slitid)
         for iobj in range(nobj):
