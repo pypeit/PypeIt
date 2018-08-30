@@ -229,8 +229,8 @@ class ScienceImage(processimages.ProcessImages):
         return self.time, self.basename
 
 
-    def find_objects(self, tslits_dict, maskslits = None, SKYSUB = True, SHOW_PEAKS= False, SHOW_FITS = False,
-                     SHOW_TRACE=False, SHOW = False):
+    def find_objects(self, tslits_dict, maskslits = None, skysub = True, show_peak= False, show_fits = False,
+                     show_trace=False, show = False):
         """
         Find objects in the slits. This is currently setup only for ARMS
 
@@ -297,9 +297,9 @@ class ScienceImage(processimages.ProcessImages):
                                                                                     self.tslits_dict['lcen'][:,slit],
                                                                                     self.tslits_dict['rcen'][:,slit],
                                                                                     inmask = inmask,
-                                                                                    HAND_EXTRACT_DICT=self.par['manual'],
-                                                                                    specobj_dict=specobj_dict,SHOW_PEAKS=SHOW_PEAKS,
-                                                                                    SHOW_FITS = SHOW_FITS,SHOW_TRACE=SHOW_TRACE)
+                                                                                    hand_extract_dict=self.par['manual'],
+                                                                                    specobj_dict=specobj_dict,show_peak=show_peak,
+                                                                                    show_fits = show_fits,show_trace=show_trace)
             sobjs.add_sobj(sobjs_slit)
 
         self.sobjs_obj = sobjs
@@ -308,14 +308,14 @@ class ScienceImage(processimages.ProcessImages):
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
-        if SHOW:
+        if show:
             self.show('image',image = image*(self.bitmask == 0), chname = 'objfind', sobjs =self.sobjs_obj, slits = True)
 
         # Return
         return self.sobjs_obj, self.nobj
 
-    def global_skysub(self, tslits_dict, tilts, USE_SKYMASK=True, maskslits = None, SHOW_FIT = False,
-                      SHOW = False):
+    def global_skysub(self, tslits_dict, tilts, USE_SKYMASK=True, maskslits = None, show_fit = False,
+                      show = False):
         """
         Perform global sky subtraction, slit by slit
 
@@ -361,7 +361,7 @@ class ScienceImage(processimages.ProcessImages):
             # Find sky
             self.global_sky[thismask] =  skysub.global_skysub(self.sciimg, self.sciivar, self.tilts, thismask,
                                                               self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:,slit],
-                                                              inmask=inmask, bsp=self.par['bspline_spacing'], SHOW_FIT=SHOW_FIT)
+                                                              inmask=inmask, bsp=self.par['bspline_spacing'], show_fit = show_fit)
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
                 self.maskslits[slit] = True
@@ -369,13 +369,13 @@ class ScienceImage(processimages.ProcessImages):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-        if SHOW:
+        if show:
             self.show('global', slits=True)
 
         # Return
         return self.global_sky
 
-    def local_skysub_extract(self, waveimg, maskslits=None, SHOW_PROFILE=False, SHOW_RESIDS = False, SHOW = False):
+    def local_skysub_extract(self, waveimg, maskslits=None, show_profile=False, show_resids = False, show = False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -431,7 +431,7 @@ class ScienceImage(processimages.ProcessImages):
                     skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts,self.waveimg, self.global_sky, self.rn2img,
                                                 thismask, self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:, slit],
                                                 self.sobjs[thisobj],bsp=self.par['bspline_spacing'], inmask = inmask,
-                                                SHOW_PROFILE=SHOW_PROFILE, SHOW_RESIDS = SHOW_RESIDS)
+                                                show_profile=show_profile, show_resids = show_resids)
 
         # Set the bit for pixels which were masked by the extraction
         iextract = (self.bitmask == 0) & (self.extractmask == False) # For extractmask, True = Good, False = Bad
@@ -439,7 +439,7 @@ class ScienceImage(processimages.ProcessImages):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-        if SHOW:
+        if show:
             self.show('local', sobjs = self.sobjs, slits= True)
             self.show('resid', sobjs = self.sobjs, slits= True)
 
@@ -678,6 +678,57 @@ class ScienceImage(processimages.ProcessImages):
         return txt
 
 
+
+def unpack_bitmask(bitmask):
+    """
+    Utility function to unpack the bitmask into its respective masks.
+
+    Parameters
+    ----------
+    bitmask  - ndarray dtype = uint64 created following _build_bitmask() method above
+
+    Returns
+    -------
+        mask_tuple  = (bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask,ivarnanmask, extractmask)
+
+        tuple of 8 masks corresponding to each bit that can be set in the bitmask
+
+
+        Bit Key
+        ---
+        BPM            0
+        CR             1
+        SATURATION     2
+        MINCOUNTS      3
+        OFFSLITS        4
+        IS_NAN         5
+        IVAR0          6
+        IVAR_NAN       7
+        EXTRACT        8
+
+        bitmask = 0 is good, bitmask > 0 has been masked.
+
+        To figure out why it has been masked for example you can type
+
+
+        crmask = (inmask & np.uint64(2**1)) > 0
+
+        etc.
+    
+    """
+    bpm         = (bitmask & np.uint64(2 ** 0)) > 0
+    crmask      = (bitmask & np.uint64(2 ** 1)) > 0
+    satmask     = (bitmask & np.uint64(2 ** 2)) > 0
+    minmask     = (bitmask & np.uint64(2 ** 3)) > 0
+    offslitmask    = (bitmask & np.uint64(2 ** 4)) > 0
+    nanmask     = (bitmask & np.uint64(2 ** 5)) > 0
+    ivar0mask   = (bitmask & np.uint64(2 ** 6)) > 0
+    ivarnanmask = (bitmask & np.uint64(2 ** 7)) > 0
+    extractmask = (bitmask & np.uint64(2 ** 8)) > 0
+
+    return (bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask,ivarnanmask, extractmask)
+
+'''
     # TODO Everything below here is deprecated
     def _build_modelvar(self, skyframe=None, objframe=None):
         """
@@ -704,10 +755,12 @@ class ScienceImage(processimages.ProcessImages):
         self.modelvarframe = procimg.variance_frame(self.datasec_img, self.sciframe,
                                                     self.spectrograph.detector[self.det - 1]['gain'],
                                                     self.spectrograph.detector[self.det - 1]['ronoise'],
-                                                    numamplifiers=self.spectrograph.detector[self.det - 1]['numamplifiers'],
+                                                    numamplifiers=self.spectrograph.detector[self.det - 1][
+                                                        'numamplifiers'],
                                                     darkcurr=self.spectrograph.detector[self.det - 1]['darkcurr'],
                                                     exptime=self.exptime, skyframe=skyframe, objframe=objframe)
         return self.modelvarframe
+
 
 
     def boxcar(self, mswave):
@@ -740,7 +793,7 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.skycorr_box
 
-
+    # ToDO this code is deprecated
     def original_optimal(self, mswave):
         """
         Perform optimal extraction using the 'original' PYPIT algorithm
@@ -775,7 +828,7 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.obj_model
 
-
+    # ToDO this code is deprecated
     def extraction(self, mswave):
         """
         Perform the extraction
@@ -828,6 +881,7 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.specobjs, self.finalvar, self.finalsky
 
+    # JFH This code is deprecated
     def _build_specobj(self):
         """
         Initialize the specobjs for all slits
@@ -841,60 +895,11 @@ class ScienceImage(processimages.ProcessImages):
 
         """
         self.specobjs = specobjs.init_exp(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
-                                          self.sciframe.shape, self.maskslits, self.det,self.scidx, self.fitstbl, self.tracelist,
+                                          self.sciframe.shape, self.maskslits, self.det, self.scidx, self.fitstbl,
+                                          self.tracelist,
                                           binning=self.binning, objtype=self.objtype)
-            # Step
+        # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
         return self.specobjs
-
-
-
-def unpack_bitmask(bitmask):
-    """
-    Utility function to unpack the bitmask into its respective masks.
-
-    Parameters
-    ----------
-    bitmask  - ndarray dtype = uint64 created following _build_bitmask() method above
-
-    Returns
-    -------
-        mask_tuple  = (bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask,ivarnanmask, extractmask)
-
-        tuple of 8 masks corresponding to each bit that can be set in the bitmask
-
-
-        Bit Key
-        ---
-        BPM            0
-        CR             1
-        SATURATION     2
-        MINCOUNTS      3
-        OFFSLITS        4
-        IS_NAN         5
-        IVAR0          6
-        IVAR_NAN       7
-        EXTRACT        8
-
-        bitmask = 0 is good, bitmask > 0 has been masked.
-
-        To figure out why it has been masked for example you can type
-
-
-        crmask = (inmask & np.uint64(2**1)) > 0
-
-        etc.
-    
-    """
-    bpm         = (bitmask & np.uint64(2 ** 0)) > 0
-    crmask      = (bitmask & np.uint64(2 ** 1)) > 0
-    satmask     = (bitmask & np.uint64(2 ** 2)) > 0
-    minmask     = (bitmask & np.uint64(2 ** 3)) > 0
-    offslitmask    = (bitmask & np.uint64(2 ** 4)) > 0
-    nanmask     = (bitmask & np.uint64(2 ** 5)) > 0
-    ivar0mask   = (bitmask & np.uint64(2 ** 6)) > 0
-    ivarnanmask = (bitmask & np.uint64(2 ** 7)) > 0
-    extractmask = (bitmask & np.uint64(2 ** 8)) > 0
-
-    return (bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask,ivarnanmask, extractmask)
+'''

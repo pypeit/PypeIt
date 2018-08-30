@@ -345,9 +345,9 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     return (sky_bmodel, obj_bmodel, outmask)
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
-                         bsp = 0.6, inmask = None, trim_edg = (3,3), STD = False, PROF_NSIGMA = None, niter=4,
-                         box_rad = 7, sigrej = 3.5,skysample = False, SN_GAUSS = 3.0, COADD_2D = False, SHOW_PROFILE=False,
-                         SHOW_RESIDS=False):
+                         bsp = 0.6, inmask = None, trim_edg = (3,3), std = False, prof_nsigma = None, niter=4,
+                         box_rad = 7, sigrej = 3.5,skysample = False, sn_gauss = 3.0, coadd_2d = False, show_profile=False,
+                         show_resids=False):
 
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = trim_edg)
@@ -360,18 +360,18 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     nobj = len(sobjs)
     # specobjs = copy.deepcopy(specobjs_in)
 
-    if (PROF_NSIGMA is None):
+    if (prof_nsigma is None):
         prof_nsigma1 = np.full(len(sobjs), None)
-    elif len(PROF_NSIGMA) == 1:
-        prof_nsigma1 = np.full(nobj, PROF_NSIGMA)
-    elif len(PROF_NSIGMA) == nobj:
-        prof_nsigma1 = PROF_NSIGMA
+    elif len(prof_nsigma) == 1:
+        prof_nsigma1 = np.full(nobj, prof_nsigma)
+    elif len(prof_nsigma) == nobj:
+        prof_nsigma1 = prof_nsigma
     else:
-        raise ValueError('Invalid size for PROF_NSIGMA.')
+        raise ValueError('Invalid size for prof_nsigma.')
 
-    # Set some rejection parameters based on whether this is a STD or not. Only reject extreme outliers for standards
+    # Set some rejection parameters based on whether this is a standard or not. Only reject extreme outliers for standards
     # since super high S/N and low order profile models imply we will always have large outliers
-    if STD is True:
+    if std is True:
         chi2_sigrej = 100.0
         sigrej_ceil = 1e10
     else:
@@ -496,8 +496,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                                                                           wave, flux, fluxivar,
                                                                           thisfwhm=sobjs[iobj].fwhm,
                                                                           hwidth=sobjs[iobj].maskwidth,
-                                                                          PROF_NSIGMA=sobjs[iobj].prof_nsigma,
-                                                                          SN_GAUSS=SN_GAUSS, SHOW_PROFILE=SHOW_PROFILE)
+                                                                          prof_nsigma=sobjs[iobj].prof_nsigma,
+                                                                          sn_gauss=sn_gauss, show_profile=show_profile)
                     # Update the object profile and the fwhm and mask parameters
                     obj_profiles[ipix[0], ipix[1], ii] = profile_model
                     sobjs[iobj].trace_spat = xnew + mincol
@@ -567,7 +567,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 #  For weighted co-adds, the variance of the image is no longer equal to the image, and so the modelivar
                 #  eqn. below is not valid. However, co-adds already have the model noise propagated correctly in sciivar,
                 #  so no need to re-model the variance
-                if COADD_2D is False:
+                if coadd_2d is False:
                     modelivar.flat[isub] = (var > 0.0) / (var + (var == 0.0))
                     varnoobj.flat[isub] = var_no
                 # Now do some masking based on this round of model fits
@@ -628,7 +628,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         '''
 
     # If requested display the model fits for this slit
-    if SHOW_RESIDS:
+    if show_resids:
         viewer, ch = ginga.show_image((sciimg - skyimage - objimage) * np.sqrt(modelivar) * thismask)
         # TODO add error checking here to see if ginga exists
         canvas = viewer.canvas(ch._chname)
