@@ -280,10 +280,13 @@ class ProcessImages(object):
         # Reset proc_images -- Is there any reason we wouldn't??
         numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
         for kk,image in enumerate(self.raw_images):
-
             # Bias subtract (move here from procimg)
+
             if isinstance(msbias, np.ndarray):
                 msgs.info("Subtracting bias image from raw frame")
+                # Trim?
+                if trim:
+                    image = procimg.trim_frame(image, datasec_img < 1)
                 temp = image-msbias
             elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
@@ -291,12 +294,11 @@ class ProcessImages(object):
                                                    self.oscansec,
                                                    method=self.proc_par['overscan'],
                                                    params=self.proc_par['overscan_par'])
+                # Trim?
+                if trim:
+                    temp = procimg.trim_frame(temp, datasec_img < 1)
             else:
                 msgs.error('Could not subtract bias level with the input bias approach.')
-
-            # Trim?
-            if trim:
-                temp = procimg.trim_frame(temp, datasec_img < 1)
 
             # Save
             if kk==0:
