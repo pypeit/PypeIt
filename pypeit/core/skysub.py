@@ -140,49 +140,73 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
     return bgframe
 
 
-# ToDO Fix masking logic. This code should also take an ivar for consistency with rest of extraction
-def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3., TRIM_EDG = (3,3),
-                  POS_MASK=True, SHOW_FIT=False):
+def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3., trim_edg = (3,3),
+                  pos_mask=True, show_fit=False):
     """
     Perform global sky subtraction on an input slit
 
     Parameters
     ----------
-    image : ndarray
+    image: float ndarray, shape (nspec, nspat)
           Frame to be sky subtracted
 
-    thismask : numpy boolean array
+    ivar: float ndarray, shape (nspec, nspat)
+          Inverse variance image
+
+    tilts: float ndarray, shape (nspec, nspat)
+          Tilgs indicating how wavelengths move across the slit
+
+    thismask : numpy boolean array, shape (nspec, nspat)
       Specifies pixels in the slit in question
-    edgemask : ndarray
-      Mask edges of the slit
-    sciframe : ndarray
-      science frame
-    varframe : ndarray
-      Variance array
-    tilts : ndarray
-      Tilts of the wavelengths
-    bpm : ndarray, optional
-      Bad pixel mask
-    crmask : ndarray
-      Cosmic ray mask
-    tracemask : ndarray
-      Object mask
-    bsp : float
-      Break point spacing
-    sigrej : float
-      rejection
+
+    slit_left: ndarray of shape (nspec, 1) or (nspec)
+      Left slit boundary in floating point pixels.
+
+    slit_righ: ndarray of shape (nspec, 1) or (nspec)
+      Right slit boundary in floating point pixels.
+
+
+    Optional Parameters
+    --------------------
+
+    inmask: boolean ndarray, shape (nspec, nspat), default inmask = None
+      Input mask for pixels not to be included in sky subtraction fits. True = Good (not masked), False = Bad (masked)
+
+    bsp: float, default bsp = 0.6
+      break point spacing in pixel units
+
+    sigrej : float, default sigrej = 3.0
+      sigma rejection threshold
+
+    trim_edg: tuple of floats  (left_edge, right_edge), default (3,3)
+      indicates how many pixels to trim from left and right slit edges for creating the edgemask. These pixels are
+      excluded from sky subtraction fits.
+
+    pos_mask: boolean, defualt pos_mask = True
+      First do a prelimnary fit to the log of the sky (i.e. positive pixels only). Then use this fit to create an input
+      mask from the residuals lmask = (res < 5.0) & (res > -4.0) for the full fit.
+      NOTE: pos_mask should be False for near-IR sky residual subtraction, since fitting the log(sky) requires that the
+      counts are positive which will not be the case for i.e. an A-B image. Thus the routine will fail if pos_mask is not
+      set to False.
+
+    show_fit: boolean, default show_fit = False
+       Plot a fit of the sky pixels and model fit to the screen. This feature will block further execution until the screen is closed.
 
     Returns
     -------
     bgframe : ndarray
-      Sky background image
+      Returns the model sky background at the pixels where thismask is True.
+
+     >>>  skyframe = np.zeros_like(image)
+     >>>  thismask = slitpix == thisslit
+     >>>  skyframe[thismask] = global_skysub(image,ivar, tilts, thismask, slit_left, slit_righ)
 
     """
 
     # Synthesize ximg, and edgmask  from slit boundaries. Doing this outside this
     # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
 
-    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=TRIM_EDG)
+    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
 
     # Init
     nspec = image.shape[0]
@@ -198,18 +222,16 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     sky_ivar = ivar[fit_sky][isrt]
 
     # Restrict fit to positive pixels only and mask out large outliers via a pre-fit to the log
-    if (POS_MASK==True):
+    if (pos_mask is True):
         pos_sky = (sky > 1.0) & (sky_ivar > 0.0)
         if np.sum(pos_sky) > nspec:
             lsky = np.log(sky[pos_sky])
-            lsky_ivar = lsky * 0. + 0.1
-
+            lsky_ivar = np.full(lsky.shape, 0.1)
             # Init bspline to get the sky breakpoints (kludgy)
             tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
-            lskyset, outmask, lsky_fit, red_chi = utils.bspline_profile(
-                wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
-                fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
-                kwargs_reject={'groupbadpix': True, 'maxrej': 10})
+            lskyset, outmask, lsky_fit, red_chi = utils.bspline_profile(wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
+                                                                        fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
+                                                                        kwargs_reject={'groupbadpix': True, 'maxrej': 10})
             res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
             lmask = (res < 5.0) & (res > -4.0)
             sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
@@ -224,7 +246,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     bgframe, _ = skyset.value(piximg[thismask])
 
     # Debugging/checking
-    if SHOW_FIT:
+    if show_fit:
         goodbk = skyset.mask
         yfit_bkpt = np.interp(skyset.breakpoints[goodbk], wsky,yfit)
         plt.clf()
@@ -240,7 +262,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     # Return
     # ToDO worth thinking about whether we want to return a mask here. It makese no sense to return outmask
     # in its present form though since that does not refer to the whole image.
-#    return bgframe, outmask
+    # return bgframe, outmask
     return bgframe
 
 
@@ -323,12 +345,12 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     return (sky_bmodel, obj_bmodel, outmask)
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
-                         bsp = 0.6, inmask = None, TRIM_EDG = (3,3), STD = False, PROF_NSIGMA = None, niter=4,
+                         bsp = 0.6, inmask = None, trim_edg = (3,3), STD = False, PROF_NSIGMA = None, niter=4,
                          box_rad = 7, sigrej = 3.5,skysample = False, SN_GAUSS = 3.0, COADD_2D = False, SHOW_PROFILE=False,
                          SHOW_RESIDS=False):
 
 
-    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
+    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = trim_edg)
 
     nspat = sciimg.shape[1]
     nspec = sciimg.shape[0]
