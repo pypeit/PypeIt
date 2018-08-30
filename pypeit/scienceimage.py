@@ -12,12 +12,10 @@ from astropy.time import Time
 from pypeit import msgs
 from pypeit import processimages
 from pypeit import specobjs
-from pypeit.core import procimg
 from pypeit.core import skysub
 from pypeit.core import extract
 from pypeit.core import trace_slits
 from pypeit import utils
-from pypeit import artrace
 from pypeit import ginga
 from astropy.stats import sigma_clipped_stats
 import time
