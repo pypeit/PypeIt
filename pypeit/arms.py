@@ -179,7 +179,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None, show = False):
             # Global sky subtraction, first pass. Uses skymask from object finding
             global_sky0 = sciI.global_skysub(tslits_dict, mstilts, use_skymask=True, maskslits = maskslits)
 
-            # Object finding, second pass on frame *with* sky subtraction
+            # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             sobjs_obj, nobj = sciI.find_objects(tslits_dict, skysub = True, maskslits=maskslits,show_peaks=show)
 
             # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion

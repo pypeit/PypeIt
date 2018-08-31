@@ -227,7 +227,8 @@ class ScienceImage(processimages.ProcessImages):
         return self.time, self.basename
 
 
-    def find_objects(self, tslits_dict, maskslits = None, skysub = True, show_peaks= False, show_fits = False,show_trace=False, show = False):
+    def find_objects(self, tslits_dict, maskslits = None, skysub = True, show_peaks= False, show_fits = False,show_trace=False,
+                     show = False):
         """
         Find objects in the slits. This is currently setup only for ARMS
 
@@ -367,7 +368,9 @@ class ScienceImage(processimages.ProcessImages):
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            self.show('global', slits=True)
+            # Global skysub is the first step in a new extraction so clear the channels here
+            self.show('global', slits=True, sobjs =self.sobjs_obj, clear=True)
+
 
         # Return
         return self.global_sky
@@ -568,7 +571,7 @@ class ScienceImage(processimages.ProcessImages):
         return self.maskslits
 
 
-    def show(self, attr, image=None, showmask = False, sobjs = None, chname = None, slits = False):
+    def show(self, attr, image=None, showmask = False, sobjs = None, chname = None, slits = False, clear=False):
         """
         Show one of the internal images
           Should probably put some of these in ProcessImages
@@ -604,7 +607,7 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'global_sky'
-                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask = bitmask_in)
+                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask = bitmask_in, clear = clear, wcs_match=True)
                 #cuts=(cut_min, cut_max)
         elif attr == 'local':
             # local sky subtraction
@@ -618,7 +621,7 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'local_sky'
-                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in)
+                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in, clear=clear, wcs_match=True)
                 #cuts=(cut_min, cut_max),
         elif attr == 'sky_resid':
             # sky residual map with object included
@@ -630,7 +633,8 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'sky_resid'
-                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0), bitmask=bitmask_in)
+                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0), bitmask=bitmask_in, clear=clear,
+                                              wcs_match=True)
         elif attr == 'resid':
             # full residual map with object model subtractede
             if self.sciimg is not None and self.skymodel is not None and \
@@ -641,10 +645,11 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'resid'
-                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0), bitmask=bitmask_in)
+                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0), bitmask=bitmask_in, clear=clear,
+                                              wcs_match=True)
         elif attr == 'image':
             ch_name = chname if chname is not None else 'image'
-            viewer, ch = ginga.show_image(image, chname = ch_name)
+            viewer, ch = ginga.show_image(image, chname = ch_name, clear=clear, wcs_match=True)
         else:
             msgs.warn("Not an option for show")
 
