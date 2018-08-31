@@ -54,7 +54,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     return viewer
 
 
-def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cuts = None):
+def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cuts = None, clear=False):
     """ Displays input image in Ginga viewer
     Supersedes method in xastropy
 
@@ -89,6 +89,13 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cut
 # TODO implement instrument specific reading
 
     viewer = connect_to_ginga()
+    # Should we clear all the channels?
+    if clear:
+        shell = viewer.shell()
+        chnames = shell.get_channel_names()
+        for ch in chnames:
+            shell.delete_channel(ch)
+
     ch = viewer.channel(chname)
     # Header
     header = {}
