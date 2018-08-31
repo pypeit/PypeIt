@@ -527,8 +527,8 @@ class General:
             slittxt = '_Slit{0:03d}'.format(slit+1)
             if self._outroot is not None:
                 # Write IDs
-                use_tcent = self.get_use_tcent(best_patt_dict['sign'])
-                out_dict = dict(pix=use_tcent, IDs=best_patt_dict['IDs'])
+                use_tcent = self.get_use_tcent(self._all_patt_dict[str(slit)]['sign'], arr=self._detections[str(slit)])
+                out_dict = dict(pix=use_tcent, IDs=self._all_patt_dict[str(slit)]['IDs'])
                 jdict = ltu.jsonify(out_dict)
                 ltu.savejson(self._outroot + slittxt + '.json', jdict, easy_to_read=True, overwrite=True)
                 msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.json'))
@@ -536,15 +536,16 @@ class General:
                 # Plot
                 tmp_list = vstack([self._line_lists, self._unknwns])
                 qa.match_qa(self._spec[:, slit], use_tcent, tmp_list,
-                            best_patt_dict['IDs'], best_patt_dict['scores'], self._outroot + slittxt + '.pdf')
+                            self._all_patt_dict[str(slit)]['IDs'], self._all_patt_dict[str(slit)]['scores'],
+                            self._outroot + slittxt + '.pdf')
                 msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
             # Perform the final fit for the best solution
-            best_final_fit = self.fit_slit(slit, best_patt_dict, outroot=self._outroot, slittxt=slittxt)
-            self._all_patt_dict[str(slit)] = copy.deepcopy(best_patt_dict)
+            best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], outroot=self._outroot, slittxt=slittxt)
             self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
 
         # Print the final report of all lines
         self.final_report()
+        return
 
     def cross_match(self, good_fit, debug=False):
         """Cross-correlate the spectra across all slits to ID all of the lines.
@@ -924,7 +925,7 @@ class General:
 
     def final_report(self):
         """Print out the final report of the wavelength calibration"""
-        msgs.indent('###################################################')
+        msgs.info('###################################################')
         for slit in range(self._nslit):
             if slit not in self._ok_mask:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
@@ -950,6 +951,6 @@ class General:
                       '  Central wavelength           = {:g}A'.format(centwave) + msgs.newline() +
                       '  Central dispersion           = {:g}A/pix'.format(centdisp) + msgs.newline() +
                       '  Final RMS of fit             = {:g}'.format(self._all_final_fit[st]['rms']))
-        msgs.indent('###################################################')
+        msgs.info('###################################################')
         pdb.set_trace()
         return
