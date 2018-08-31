@@ -522,27 +522,33 @@ class General:
                 obad_slits = bad_slits.copy()
 
         # With the updates to the fits of each slit, determine the final fit, and save the QA
-        for slit in range(self._nslit):
-            # Save the QA for the best solution
-            slittxt = '_Slit{0:03d}'.format(slit+1)
-            if self._outroot is not None:
-                # Write IDs
-                use_tcent = self.get_use_tcent(self._all_patt_dict[str(slit)]['sign'], arr=self._detections[str(slit)])
-                out_dict = dict(pix=use_tcent, IDs=self._all_patt_dict[str(slit)]['IDs'])
-                jdict = ltu.jsonify(out_dict)
-                ltu.savejson(self._outroot + slittxt + '.json', jdict, easy_to_read=True, overwrite=True)
-                msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.json'))
+        try:
+            for slit in range(self._nslit):
+                if slit not in self._ok_mask:
+                    continue
+                # Save the QA for the best solution
+                slittxt = '_Slit{0:03d}'.format(slit+1)
+                use_tcent = self.get_use_tcent(self._all_patt_dict[str(slit)]['sign'],
+                                               arr=self._detections[str(slit)], weak=True)
+                if self._outroot is not None:
+                    # Write IDs
+                    out_dict = dict(pix=use_tcent, IDs=self._all_patt_dict[str(slit)]['IDs'])
+                    jdict = ltu.jsonify(out_dict)
+                    ltu.savejson(self._outroot + slittxt + '.json', jdict, easy_to_read=True, overwrite=True)
+                    msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.json'))
 
-                # Plot
-                tmp_list = vstack([self._line_lists, self._unknwns])
-                qa.match_qa(self._spec[:, slit], use_tcent, tmp_list,
-                            self._all_patt_dict[str(slit)]['IDs'], self._all_patt_dict[str(slit)]['scores'],
-                            self._outroot + slittxt + '.pdf')
-                msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
-            # Perform the final fit for the best solution
-            best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], outroot=self._outroot, slittxt=slittxt)
-            self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
-
+                    # Plot
+                    tmp_list = vstack([self._line_lists, self._unknwns])
+                    qa.match_qa(self._spec[:, slit], use_tcent, tmp_list,
+                                self._all_patt_dict[str(slit)]['IDs'], self._all_patt_dict[str(slit)]['scores'],
+                                self._outroot + slittxt + '.pdf')
+                    msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
+                # Perform the final fit for the best solution
+                best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], tcent=use_tcent,
+                                               outroot=self._outroot, slittxt=slittxt)
+                self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
+        except:
+            pdb.set_trace()
         # Print the final report of all lines
         self.final_report()
         return
@@ -624,7 +630,7 @@ class General:
         for bs in bad_slits:
             if bs not in self._ok_mask:
                 continue
-            bsdet = self.get_use_tcent(sign, arr=self._detections[str(bs)])
+            bsdet = self.get_use_tcent(sign, arr=self._detections[str(bs)], weak=True)
             lindex = np.array([], dtype=np.int)
             dindex = np.array([], dtype=np.int)
             wcen = np.zeros(good_slits.size)
@@ -638,7 +644,7 @@ class General:
                 wcen[cntr] = self._all_patt_dict[str(gs)]['bwv'] - shift*disp
                 # For each peak in the gs spectrum, identify the corresponding peaks in the bs spectrum
                 strfact = (self._npix + stretch - 1)/(self._npix - 1)
-                gsdet = self.get_use_tcent(sign, arr=self._detections[str(gs)])
+                gsdet = self.get_use_tcent(sign, arr=self._detections[str(gs)], weak=True)
                 gsdet_ss = shift + gsdet * strfact
                 debug = False
                 if debug:
