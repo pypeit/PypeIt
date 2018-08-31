@@ -963,5 +963,4 @@ class General:
                       '  Central dispersion           = {:g}A/pix'.format(centdisp) + msgs.newline() +
                       '  Final RMS of fit             = {:g}'.format(self._all_final_fit[st]['rms']))
         msgs.info('###################################################')
-        pdb.set_trace()
         return
