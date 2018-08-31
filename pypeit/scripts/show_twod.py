@@ -118,7 +118,7 @@ def main(args):
     objmodel = hdu[exten].data
     # Get waveimg
     cwd = os.getcwd()
-    wcs_img = cwd+'/'+ os.path.basename(os.path.normpath(head0['PYPMFDIR'])) +\
+    waveimg = cwd+'/'+ os.path.basename(os.path.normpath(head0['PYPMFDIR'])) +\
               '/MasterWave_'+'{:s}_{:02d}_{:s}.fits'.format(head0['PYPCNFIG'], args.det, head0['PYPCALIB'])
     # Load Tslits
     mdir = head0['PYPMFDIR']+'/'
@@ -145,7 +145,7 @@ def main(args):
     cut_max = mean + 4.0 * sigma
     chname_skysub='skysub-det{:s}'.format(sdet)
     # Clear all channels at the beginning
-    viewer, ch = ginga.show_image(image, chname=chname_skysub, wcs_img=wcs_img,
+    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
                                   bitmask=bitmask_in, clear=True) #, cuts=(cut_min, cut_max))
                                   # JFH For some reason Ginga crashes when I try to put cuts in here.
     show_trace(hdulist_1d, det_nm, viewer, ch)
@@ -154,7 +154,7 @@ def main(args):
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
     image = (sciimg - skymodel) * np.sqrt(ivarmodel) * (bitmask == 0)  # sky residual map
-    viewer, ch = ginga.show_image(image, chname_skyresids, wcs_img=wcs_img,
+    viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=waveimg,
                                   cuts=(-5.0, 5.0), bitmask = bitmask_in)
     show_trace(hdulist_1d, det_nm, viewer, ch)
     ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
@@ -162,7 +162,7 @@ def main(args):
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
     image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * (bitmask == 0)  # full model residual map
-    viewer, ch = ginga.show_image(image, chname=chname_resids, wcs_img=wcs_img,
+    viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=waveimg,
                                   cuts = (-5.0, 5.0), bitmask = bitmask_in)
     show_trace(hdulist_1d, det_nm, viewer, ch)
     ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
