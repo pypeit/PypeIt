@@ -619,7 +619,7 @@ class General:
         disp = self._all_patt_dict[str(good_slits[0])]['bdisp']
 
         # For all of the bad slits, estimate some line wavelengths
-        new_bad_slits = np.array([])
+        new_bad_slits = np.array([], dtype=np.int)
         for bs in bad_slits:
             if bs not in self._ok_mask:
                 continue
@@ -682,7 +682,7 @@ class General:
                 # This pattern wasn't good enough
                 new_bad_slits = np.append(new_bad_slits, bs)
                 continue
-            if final_fit['rms'] < self._rms_threshold:
+            if final_fit['rms'] > self._rms_threshold:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Cross-match report for slit {0:d}/{1:d}:'.format(bs + 1, self._nslit) + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Will try cross matching iteratively'.format(final_fit['rms']) + msgs.newline() +
