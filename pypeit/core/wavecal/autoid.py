@@ -522,33 +522,33 @@ class General:
                 obad_slits = bad_slits.copy()
 
         # With the updates to the fits of each slit, determine the final fit, and save the QA
-        try:
-            for slit in range(self._nslit):
-                if slit not in self._ok_mask:
-                    continue
-                # Save the QA for the best solution
-                slittxt = '_Slit{0:03d}'.format(slit+1)
-                use_tcent = self.get_use_tcent(self._all_patt_dict[str(slit)]['sign'],
-                                               arr=self._detections[str(slit)], weak=True)
-                if self._outroot is not None:
-                    # Write IDs
-                    out_dict = dict(pix=use_tcent, IDs=self._all_patt_dict[str(slit)]['IDs'])
-                    jdict = ltu.jsonify(out_dict)
-                    ltu.savejson(self._outroot + slittxt + '.json', jdict, easy_to_read=True, overwrite=True)
-                    msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.json'))
+        for slit in range(self._nslit):
+            if slit not in self._ok_mask:
+                continue
+            if self._all_patt_dict[str(slit)] is None:
+                continue
+            # Save the QA for the best solution
+            slittxt = '_Slit{0:03d}'.format(slit+1)
+            use_tcent = self.get_use_tcent(self._all_patt_dict[str(slit)]['sign'],
+                                           arr=self._detections[str(slit)], weak=True)
+            if self._outroot is not None:
+                # Write IDs
+                out_dict = dict(pix=use_tcent, IDs=self._all_patt_dict[str(slit)]['IDs'])
+                jdict = ltu.jsonify(out_dict)
+                ltu.savejson(self._outroot + slittxt + '.json', jdict, easy_to_read=True, overwrite=True)
+                msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.json'))
 
-                    # Plot
-                    tmp_list = vstack([self._line_lists, self._unknwns])
-                    qa.match_qa(self._spec[:, slit], use_tcent, tmp_list,
-                                self._all_patt_dict[str(slit)]['IDs'], self._all_patt_dict[str(slit)]['scores'],
-                                self._outroot + slittxt + '.pdf')
-                    msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
-                # Perform the final fit for the best solution
-                best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], tcent=use_tcent,
-                                               outroot=self._outroot, slittxt=slittxt)
-                self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
-        except:
-            pdb.set_trace()
+                # Plot
+                tmp_list = vstack([self._line_lists, self._unknwns])
+                qa.match_qa(self._spec[:, slit], use_tcent, tmp_list,
+                            self._all_patt_dict[str(slit)]['IDs'], self._all_patt_dict[str(slit)]['scores'],
+                            self._outroot + slittxt + '.pdf')
+                msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
+            # Perform the final fit for the best solution
+            best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], tcent=use_tcent,
+                                           outroot=self._outroot, slittxt=slittxt)
+            self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
+
         # Print the final report of all lines
         self.final_report()
         return
@@ -933,10 +933,15 @@ class General:
         """Print out the final report of the wavelength calibration"""
         msgs.info('###################################################')
         for slit in range(self._nslit):
+            # Prepare a message for bad wavelength solutions
+            badmsg = '---------------------------------------------------' + msgs.newline() +\
+                     'Final report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +\
+                     '  Wavelength calibration not performed!'
             if slit not in self._ok_mask:
-                msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Final report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
-                          '  Wavelength calibration not performed!')
+                msgs.warn(badmsg)
+                continue
+            if self._all_patt_dict[str(slit)] is None:
+                msgs.warn(badmsg)
                 continue
             st = str(slit)
             if self._all_patt_dict[st]['sign'] == +1:
