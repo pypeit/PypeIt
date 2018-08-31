@@ -373,7 +373,8 @@ class Calibrations(object):
             # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
             self.slitprof = np.ones_like(self.mspixflatnrm)
 
-        if self.mspixflatnrm is None:
+        # ToDO JFH think about this logic
+        if self.mspixflatnrm is None and len(pixflat_image_files)!=0:
             # TODO -- Consider turning the following back on.  I'm regenerating the flat for now
             # Use mstrace if the indices are identical
             #if np.all(sort.ftype_indices(fitstbl,'trace',1) ==
@@ -390,8 +391,15 @@ class Calibrations(object):
                                            steps=self.flatField.steps,
                                            outfile=masters.master_name('slitprof', self.setup,
                                                         self.master_dir))
-        elif self.slitprof is None:
+        else:
+            self.mspixflatnrm = np.ones_like(self.mstilts)
+            msgs.warn('You are not pixel flat fielding your data!')
+
+        if self.slitprof is None:
             self.slitprof, _, _ = self.flatField.load_master_slitprofile()
+            if self.slitprof is None:
+                self.slitprof = np.ones_like(self.mstilts)
+                msgs.warn('You are not illumination flat fielding your data!')
 
         # Save & return
         self.calib_dict[self.setup]['normpixelflat'] = self.mspixflatnrm

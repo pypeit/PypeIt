@@ -1272,7 +1272,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     not_near_edge = (xcen > trim_edg[0]) & (xcen < (nsamp - trim_edg[1]))
     if np.any(~not_near_edge):
         msgs.warn('Discarding {:d}'.format(np.sum(~not_near_edge)) + ' at spatial pixels spat = {:}'.format(xcen[~not_near_edge]) +
-                  ' which land within trim_edg = {:5.2f}'.format(trim_edg) +
+                  ' which land within trim_edg = (left, right) = {:}'.format(trim_edg) +
                   ' pixels from the slit boundary for this nsamp = {:5.2f}'.format(nsamp) + ' wide slit')
         msgs.warn('You must decrease from the current value of trim_edg in order to keep them')
         msgs.warn('Such edge objects are often spurious')
