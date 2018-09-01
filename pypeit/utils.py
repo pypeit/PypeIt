@@ -204,6 +204,8 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
     if not maskwork.any():
         msgs.error('No valid data points in bspline_profile!.')
     else:
+        #from IPython import embed
+        #embed()
         # Init bspline class
         sset = pydl.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
                        funcname='Bspline longslit special', **kwargs_bspline)
@@ -237,7 +239,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
             # we'll do the fit right here..............
             if error != 0:
                 bf1, laction, uaction = sset.action(xdata)
-                if(bf1.size !=nx*nord):
+                if((bf1 == -2) or (bf1.size !=nx*nord)):
                     msgs.error("BSPLINE_ACTION failed!")
                 action = np.copy(action_multiple)
                 for ipoly in range(npoly):

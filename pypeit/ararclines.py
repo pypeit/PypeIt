@@ -21,7 +21,7 @@ def parse_nist(ion):
     ion : str
       Name of ion
     """
-    nist_path = resource_filename('arclines', 'data/NIST/')
+    nist_path = resource_filename('pypeit', 'data/arc_lines/NIST/')
     line_file = nist_path+'{:s}_vacuum.ascii'.format(ion)
     nist_tbl = waveio.load_line_list(line_file, NIST=True)
 

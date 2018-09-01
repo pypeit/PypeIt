@@ -8,6 +8,7 @@ import numpy as np
 from pypeit import utils
 from pypeit.core.wavecal import qa
 
+from pypeit import debugger
 
 def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
                       verbose=False, aparm=None):
@@ -26,7 +27,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
     aparm['disp'] = disp
 
     # Setup for fitting
-    sv_ifit = list(ifit) # Keep the originals
+    sv_ifit = list(ifit)  # Keep the originals
     all_ids = -999.*np.ones(len(tcent))
     all_idsion = np.array(['UNKNWN']*len(tcent))
     all_ids[ifit] = IDs

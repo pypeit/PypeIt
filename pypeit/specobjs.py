@@ -10,6 +10,7 @@ import numpy as np
 from astropy import units
 from astropy.table import Table
 from astropy.units import Quantity
+from astropy.utils import isiterable
 
 from pypeit import msgs
 from pypeit.core import parse
@@ -52,6 +53,17 @@ class SpecObj(object):
        Identifier for the slit (max=9999)
     objid: int
        Identifier for the object (max=999)
+
+    Extraction dict's
+        'WAVE' : wave_opt  # Optimally extracted wavelengths
+        'COUNTS' : flux_opt  # Optimally extracted flux
+        'COUNTS_IVAR' : mivar_opt  # Inverse variance of optimally extracted flux using modelivar image
+        'COUNTS_NIVAR' : nivar_opt  # Optimally extracted noise variance (sky + read noise) only
+        'MASK' : mask_opt  # Mask for optimally extracted flux
+        'COUNTS_SKY' : sky_opt  # Optimally extracted sky
+        'COUNTS_RN' : rn_opt  # Square root of optimally extracted read noise squared
+        'FRAC_USE' : frac_use  # Fraction of pixels in the object profile subimage used for this extraction
+        'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
     """
     # Attributes
     # Init
@@ -85,6 +97,10 @@ class SpecObj(object):
         self.maskwidth = None
         self.mincol = None
         self.maxcol = None
+        self.prof_nsigma = None
+        self.fwhmfit = None
+
+
 
         # Attributes for HAND apertures, which are object added to the extraction by hand
         self.HAND_EXTRACT_SPEC = None
@@ -97,6 +113,7 @@ class SpecObj(object):
         # Dictionaries holding boxcar and optimal extraction parameters
         self.boxcar = {}   # Boxcar extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
         self.optimal = {}  # Optimal extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
+
 
 
         # Generate IDs
@@ -112,16 +129,16 @@ class SpecObj(object):
         # Generate a unique index for this exposure
         #self.idx = '{:02d}'.format(self.setup)
         if self.spat_pixpos is None:
-            self.idx = 'O----'
+            self.idx = 'SPAT----'
         else:
-            self.idx = 'O{:04d}'.format(int(np.rint(self.spat_pixpos)))
+            self.idx = 'SPAT{:04d}'.format(int(np.rint(self.spat_pixpos)))
         if self.slitid is None:
-            self.idx += '-S---'
+            self.idx += '-SLIT----'
         else:
-            self.idx += '-S{:03d}'.format(self.slitid)
+            self.idx += '-SLIT{:04d}'.format(self.slitid)
         sdet = parse.get_dnum(self.det, prefix=False)
-        self.idx += '-D{:s}'.format(sdet)
-        self.idx += '-I{:04d}'.format(self.scidx)
+        self.idx += '-DET{:s}'.format(sdet)
+        self.idx += '-SCI{:03d}'.format(self.scidx)
 
     def check_trace(self, trace, toler=1.):
         """Check that the input trace matches the defined specobjexp
@@ -146,12 +163,11 @@ class SpecObj(object):
             return False
 
     def copy(self):
-        slf = SpecObj(self.shape, self.slit_spat_pos, self.slit_spec_pos, det=self.det,
-                      setup=self.setup, slitid = self.slitid, scidx=self.scidx,
-                      objtype=self.objtype, spat_pixpos=self.spat_pixpos)
-        slf.boxcar = self.boxcar.copy()
-        slf.optimal = self.optimal.copy()
-        return slf
+        sobj_copy = SpecObj(self.shape, self.slit_spat_pos, self.slit_spec_pos) # Instantiate
+        sobj_copy.__dict__ = self.__dict__.copy() # Copy over all attributes
+        sobj_copy.boxcar = self.boxcar.copy() # Copy boxcar and optimal dicts
+        sobj_copy.optimal = self.optimal.copy()
+        return sobj_copy
 
     def __getitem__(self, key):
         """ Access the DB groups
@@ -185,7 +201,9 @@ class SpecObjs(object):
     Object to hold a set of SpecObj objects
 
     Parameters:
-        specobjs : list
+        specobjs : ndarray or list, optional
+
+    Internals:
         summary : Table
     """
 
@@ -193,17 +211,28 @@ class SpecObjs(object):
         """
 
         Args:
-            specobjs: list, optional
+            specobjs: ndarray, optional
         """
-
-        # ToDo Should we just be using numpy object arrays here instead of lists? Seems like that would be easier
         if specobjs is None:
-            self.specobjs = []
+            self.specobjs = np.array([])
         else:
+            if isinstance(specobjs, (list, np.ndarray)):
+                specobjs = np.array(specobjs)
             self.specobjs = specobjs
 
         # Internal summary Table
         self.build_summary()
+
+    @property
+    def nobj(self):
+        """
+        Return the number of SpecObj objects
+
+        Returns:
+            nobj : int
+
+        """
+        return self.specobjs.size
 
     def add_sobj(self, sobj):
         """
@@ -212,16 +241,19 @@ class SpecObjs(object):
         The summary table is rebuilt
 
         Args:
-            sobj: SpecObj or list
+            sobj: SpecObj or list or ndarray
 
         Returns:
 
 
         """
         if isinstance(sobj, SpecObj):
-            self.specobjs += [sobj]
-        elif isinstance(sobj, list):
-            self.specobjs += sobj
+            self.specobjs = np.append(self.specobjs, [sobj])
+        elif isinstance(sobj, (np.ndarray,list)):
+            self.specobjs = np.append(self.specobjs, sobj)
+        elif isinstance(sobj, SpecObjs):
+            self.specobjs = np.append(self.specobjs, sobj)
+
         # Rebuild summary table
         self.build_summary()
 
@@ -255,8 +287,21 @@ class SpecObjs(object):
         Returns:
 
         """
-        self.specobjs.pop(index)
+        msk = np.ones(self.specobjs.size, dtype=bool)
+        msk[index] = False
+        # Do it
+        self.specobjs = self.specobjs[msk]
+        # Update
         self.build_summary()
+
+
+    def copy(self):
+        sobj_copy = SpecObjs()
+        for sobj in self.specobjs:
+            sobj_copy.add_sobj(sobj)
+        sobj_copy.build_summary()
+        return sobj_copy
+
 
     def __getitem__(self, item):
         """ Overload to allow one to pull an attribute
@@ -281,8 +326,47 @@ class SpecObjs(object):
             # here for the many ways to give a slice; a tuple of ndarray
             # is produced by np.where, as in t[np.where(t['a'] > 2)]
             # For all, a new table is constructed with slice of all columns
-            sobjs_new = np.array(self.specobjs,dtype=object)
-            return SpecObjs(specobjs=sobjs_new[item])
+            #sobjs_new = np.array(self.specobjs,dtype=object)
+            return SpecObjs(specobjs=self.specobjs[item])
+
+    def __setitem__(self, name, value):
+        """
+        Over-load set item using our custom set() method
+
+        Args:
+            name: str
+            value: anything
+
+        Returns:
+
+        """
+        self.set(slice(0,self.nobj), name, value)
+
+    def set(self, islice, attr, value):
+        """
+        Set the attribute for a slice of the specobjs
+
+        Args:
+            islice: int, ndarray of bool, slice
+            attr: str
+            value: anything
+
+        Returns:
+
+        """
+        sub_sobjs = self.specobjs[islice]
+        if isiterable(value):
+            if sub_sobjs.size == len(value):  # Assume you want each paired up
+                for kk,sobj in enumerate(sub_sobjs):
+                    setattr(sobj, attr, value[kk])
+                    return
+        # Assuming scalar assignment
+        if isinstance(sub_sobjs, SpecObj):
+            setattr(sub_sobjs, attr, value)
+        else:
+            for sobj in sub_sobjs:
+                setattr(sobj, attr, value)
+        return
 
 
     def __getattr__(self, k):
@@ -299,8 +383,6 @@ class SpecObjs(object):
         -------
         numpy array
         """
-        # JFH I think the summary needs to be rebuilt every time the user tries to slice, since otherwise,
-        # newly changed things don't make it into the summary
         self.build_summary()
         # Special case(s)
         if k in self.summary.keys():  # _data
@@ -544,6 +626,8 @@ def dummy_specobj(fitstbl, det=1, extraction=True):
     fitstbl : Table
       Expecting the fitsdict from dummy_fitsdict
     Returns
+    sobj_list: list
+      Pair of SpecObj objects
     -------
 
     """
@@ -553,20 +637,21 @@ def dummy_specobj(fitstbl, det=1, extraction=True):
     xslit = (0.3,0.7) # Center of the detector
     ypos = 0.5
     xobjs = [0.4, 0.6]
-    specobjs = []
-    for xobj in xobjs:
+    sobj_list = []
+    for jj,xobj in enumerate(xobjs):
         specobj = SpecObj(shape, 1240, xslit, spat_pixpos=900, det=det, config=config)
+        specobj.slitid = jj+1
         #specobj = SpecObj(shape, config, scidx, det, xslit, ypos, xobj)
         # Dummy extraction?
         if extraction:
             npix = 2001
-            specobj.boxcar['wave'] = np.linspace(4000., 6000., npix)*units.AA
-            specobj.boxcar['counts'] = 50.*(specobj.boxcar['wave'].value/5000.)**-1.
-            specobj.boxcar['var']  = specobj.boxcar['counts'].copy()
+            specobj.boxcar['WAVE'] = np.linspace(4000., 6000., npix)*units.AA
+            specobj.boxcar['COUNTS'] = 50.*(specobj.boxcar['WAVE'].value/5000.)**-1.
+            specobj.boxcar['COUNTS_IVAR']  = 1./specobj.boxcar['COUNTS'].copy()
         # Append
-        specobjs.append(specobj)
+        sobj_list.append(specobj)
     # Return
-    return specobjs
+    return sobj_list
 
 #TODO We need a method to write these objects to a fits file
 

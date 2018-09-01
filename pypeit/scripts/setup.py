@@ -70,6 +70,7 @@ def main(args):
     root = args.spectrograph+'_'+date
     pypeit_file = outdir+'/'+root+'.pypeit'
 
+
     # Generate
     dfname = "{:s}*{:s}*".format(args.files_root, args.extension)
     # configuration lines
@@ -79,15 +80,20 @@ def main(args):
     make_pypeit_file(pypeit_file, args.spectrograph, [dfname], cfg_lines=cfg_lines, setup_mode=True)
     msgs.info('Wrote template pypeit file: {0}'.format(pypeit_file))
 
+
     # Parser
-    pinp = [pypeit_file, '-p', '-s {0}'.format(root) ]
+    pinp = [pypeit_file, '-p', '-r {0}'.format(root) ]
     if args.overwrite:
         pinp += ['-o']
+
     pargs = run_pypeit.parser(pinp)
     sorted_file = pypeit_file.replace('.pypeit', '.sorted')
 
     # Run
     run_pypeit.main(pargs)
+
+
+
 
     # #####################
     # Generate custom .pypeit files
