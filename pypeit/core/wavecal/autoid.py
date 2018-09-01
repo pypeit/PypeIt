@@ -1203,7 +1203,7 @@ class General:
                       '---------------------------------------------------')
         return patt_dict
 
-    def kdtree_results(self, use_tcent, res, dindex, lindex):
+    def kdtree_results(self, use_tcent, res, dindex, lindex, ordfit=2):
         # Assign wavelengths to each pixel
         print("Identifying wavelengths")
         waveid = [np.array([]) for xx in use_tcent]
@@ -1215,31 +1215,27 @@ class General:
         wvindx = -1 * np.ones((ncols * nindx, 3))
         cnt = 0
         for x in range(nrows):
-            if (x + 1) % 100 == 0: print(x + 1, "/", nrows)
             for y in range(len(res[x])):
                 dx = use_tcent[dindex[x, -1]] - use_tcent[dindex[x, 0]]
-                dp = self._wvdata[lstidx[res[x][y], -1]] - self._wvdata[lstidx[res[x][y], 0]]
+                dp = self._wvdata[lindex[res[x][y], -1]] - self._wvdata[lindex[res[x][y], 0]]
                 try:
-                    null, cgrad = robust_polyfit(use_tcent[detidx[x, :]], self._wvdata[lstidx[res[x][y], :]], 1,
-                                                 sigma=2.0)
+                    null, cgrad = utils.robust_polyfit(use_tcent[dindex[x, :]], self._wvdata[lindex[res[x][y], :]],
+                                                       1, sigma=2.0)
                     wvdisp[cnt] = cgrad[1]
                 except:
                     wvdisp[cnt] = (dp / dx)
-                # wvcent[cnt] = (dp/dx)*(npixels/2.0) + (linelist[lstidx[res[x][y]][-1]] - (dp/dx)*use_tcent[detidx[x,-1]])
-                coeff = np.polyfit(use_tcent[dindex[x, :]], self._wvdata[lstidx[res[x][y]]], ordfit)
+
+                coeff = np.polyfit(use_tcent[dindex[x, :]], self._wvdata[lindex[res[x][y]]], ordfit)
                 wvcent[cnt] = np.polyval(coeff, self._npix / 2.0)
                 for i in range(nindx):
-                    # try:
-                    # waveid[detidx[x,i]] = np.append(waveid[detidx[x,i]], linelist[lstidx[res[x][y]][i]])
-                    # except:
-                    #	pdb.set_trace()
                     wvindx[cnt * nindx + i, 0] = cnt
                     wvindx[cnt * nindx + i, 1] = dindex[x, i]
-                    wvindx[cnt * nindx + i, 2] = lstidx[res[x][y], i]
+                    wvindx[cnt * nindx + i, 2] = lindex[res[x][y], i]
                 cnt += 1
+        pdb.set_trace()
         return wvdisp, wvcent, wvindx
 
-    def fit_slit(self, slit, patt_dict, outroot=None, slittxt="Slit"):
+    def fit_slit(self, slit, patt_dict, outroot=None, slittxt="Slit", tcent=None):
         # Perform final fit to the line IDs
         NIST_lines = self._line_lists['NIST'] > 0
         ifit = np.where(patt_dict['mask'])[0]
