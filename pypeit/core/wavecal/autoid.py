@@ -513,6 +513,7 @@ class General:
         # master list of all lines in every slit, and refit all spectra
         if self._nslit > 1:
             obad_slits = self.cross_match(good_fit)
+            cntr = 0  # Introduce a counter to stop the while loop, just in case the loop gets stuck
             while obad_slits.size > 0:
                 good_fit = np.ones(self._nslit, dtype=np.bool)
                 good_fit[obad_slits] = False
@@ -520,6 +521,9 @@ class General:
                 if np.array_equal(bad_slits, obad_slits):
                     break
                 obad_slits = bad_slits.copy()
+                cntr += 1
+                if cntr > 100:
+                    break
 
         # With the updates to the fits of each slit, determine the final fit, and save the QA
         for slit in range(self._nslit):
@@ -601,7 +605,7 @@ class General:
         sigrej = 3.0
         mad = 1.4826 * np.median(np.abs(dwvc_val))
         gdmsk = np.where(np.abs(dwvc_val) < sigrej * mad)[0]
-        while True:
+        for ii in range(100):  # Limit to 100 iterations - this will likely never be reached...
             ogdmsk = gdmsk.copy()
             mad = 1.4826 * np.median(np.abs(dwvc_val[gdmsk]))
             gdmsk = np.where(np.abs(dwvc_val) < sigrej*mad)[0]
@@ -677,7 +681,7 @@ class General:
             patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_ampl=self._min_ampl,
                              mask=np.zeros(bsdet.size, dtype=np.bool))
             patt_dict['sign'] = sign
-            patt_dict['bwv'] = np.median(wcen[np.where(wcen != 0.0)])
+            patt_dict['bwv'] = np.median(wcen[wcen != 0.0])
             patt_dict['bdisp'] = disp
             patterns.solve_triangles(bsdet, self._wvdata, dindex, lindex, patt_dict)
             # Check if a solution was found
