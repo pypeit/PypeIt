@@ -488,40 +488,8 @@ class General:
                                 # Has a better fit been identified (i.e. more lines identified)?
                                 if len(final_fit['xfit']) > len(best_final_fit['xfit']):
                                     best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
-            # Report on the best preliminary result
-            if best_final_fit is None:
-                msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Preliminary report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
-                          '  No matches! Attempting to cross match.' + msgs.newline() +
-                          '---------------------------------------------------')
-                self._all_patt_dict[str(slit)] = None
-                self._all_final_fit[str(slit)] = None
-            elif best_final_fit['rms'] > self._rms_threshold:
-                msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Preliminary report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
-                          '  Poor RMS ({0:.3f})! Attempting to cross match.'.format(best_final_fit['rms']) + msgs.newline() +
-                          '---------------------------------------------------')
-                self._all_patt_dict[str(slit)] = None
-                self._all_final_fit[str(slit)] = None
-            else:
-                good_fit[slit] = True
-                if best_patt_dict['sign'] == +1:
-                    signtxt = 'correlate'
-                else:
-                    signtxt = 'anitcorrelate'
-                # Report
-                msgs.info('---------------------------------------------------' + msgs.newline() +
-                          'Preliminary report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
-                          '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
-                          '  Number of lines recovered    = {:d}'.format(self._all_tcent.size) + msgs.newline() +
-                          '  Number of lines analyzed     = {:d}'.format(len(best_final_fit['xfit'])) + msgs.newline() +
-                          '  Number of pattern matches    = {:d}'.format(best_patt_dict['nmatch']) + msgs.newline() +
-                          '  Best central wavelength      = {:g}A'.format(best_patt_dict['bwv']) + msgs.newline() +
-                          '  Best dispersion              = {:g}A/pix'.format(best_patt_dict['bdisp']) + msgs.newline() +
-                          '  Final RMS of fit             = {:g}'.format(best_final_fit['rms']) + msgs.newline() +
-                          '---------------------------------------------------')
-                self._all_patt_dict[str(slit)] = copy.deepcopy(best_patt_dict)
-                self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
+            # Print preliminary report
+            good_fit[slit] = self.report_prelim(slit, best_patt_dict, best_final_fit)
 
         # Now that all slits have been inspected, cross match to generate a
         # master list of all lines in every slit, and refit all spectra
@@ -642,10 +610,18 @@ class General:
             msols = self.results_kdtree(use_tcentm, resultm, indexm, lindex)
             patt_dict, final_fit = self.solve_slit(slit, psols, msols)
 
-            pdb.set_trace()
+            # Print preliminary report
+            good_fit[slit] = self.report_prelim(slit, patt_dict, final_fit)
 
-        # Return
-        return all_patt_dict, all_final_fit
+
+
+
+
+        pdb.set_trace()
+
+        # Print the final report of all lines
+        self.final_report()
+        return
 
     def cross_match(self, good_fit):
         """Cross-correlate the spectra across all slits to ID all of the lines.
@@ -1060,7 +1036,46 @@ class General:
         # Return
         return final_fit
 
-    def final_report(self):
+    def report_prelim(self, slit, best_patt_dict, best_final_fit):
+
+        good_fit = False
+        # Report on the best preliminary result
+        if best_final_fit is None:
+            msgs.warn('---------------------------------------------------' + msgs.newline() +
+                      'Preliminary report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
+                      '  No matches! Attempting to cross match.' + msgs.newline() +
+                      '---------------------------------------------------')
+            self._all_patt_dict[str(slit)] = None
+            self._all_final_fit[str(slit)] = None
+        elif best_final_fit['rms'] > self._rms_threshold:
+            msgs.warn('---------------------------------------------------' + msgs.newline() +
+                      'Preliminary report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
+                      '  Poor RMS ({0:.3f})! Attempting to cross match.'.format(best_final_fit['rms']) + msgs.newline() +
+                      '---------------------------------------------------')
+            self._all_patt_dict[str(slit)] = None
+            self._all_final_fit[str(slit)] = None
+        else:
+            good_fit = True
+            if best_patt_dict['sign'] == +1:
+                signtxt = 'correlate'
+            else:
+                signtxt = 'anitcorrelate'
+            # Report
+            msgs.info('---------------------------------------------------' + msgs.newline() +
+                      'Preliminary report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
+                      '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
+                      '  Number of lines recovered    = {:d}'.format(self._all_tcent.size) + msgs.newline() +
+                      '  Number of lines analyzed     = {:d}'.format(len(best_final_fit['xfit'])) + msgs.newline() +
+                      '  Number of pattern matches    = {:d}'.format(best_patt_dict['nmatch']) + msgs.newline() +
+                      '  Best central wavelength      = {:g}A'.format(best_patt_dict['bwv']) + msgs.newline() +
+                      '  Best dispersion              = {:g}A/pix'.format(best_patt_dict['bdisp']) + msgs.newline() +
+                      '  Final RMS of fit             = {:g}'.format(best_final_fit['rms']) + msgs.newline() +
+                      '---------------------------------------------------')
+            self._all_patt_dict[str(slit)] = copy.deepcopy(best_patt_dict)
+            self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
+        return good_fit
+
+    def report_final(self):
         """Print out the final report of the wavelength calibration"""
         msgs.info('###################################################')
         for slit in range(self._nslit):
