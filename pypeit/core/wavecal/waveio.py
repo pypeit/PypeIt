@@ -183,11 +183,14 @@ def load_tree(polygon=4, numsearch=20):
     import pickle
     filename = pypeit.__path__[0] +\
                '/data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.kdtree'.format(polygon, numsearch)
+    fileindx = pypeit.__path__[0] +\
+               '/data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.index.npy'.format(polygon, numsearch)
     try:
         file_load = pickle.load(open(filename, 'rb'))
+        index = np.load(fileindx)
     except IOError:
         msgs.error("Could not load KD Tree patterns")
-    return file_load
+    return file_load, index
 
 
 def load_nist(ion):
