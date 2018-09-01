@@ -398,6 +398,9 @@ class General:
             msgs.info("Using brute force pattern matching algorithm to wavelength calibrate")
             self.run_brute()
 
+    def get_results(self):
+        return copy.deepcopy(self._all_patt_dict), copy.deepcopy(self._all_final_fit)
+
     def load_linelist(self):
         # Load line lists
         if self._islinelist:
