@@ -199,7 +199,7 @@ def hexagon(linelist, numsrch, maxlin):
     return pattern, index
 
 
-def main(polygon, numsearch=8, maxlinear=15.0, use_unknowns=True, leafsize=30):
+def main(polygon, numsearch=8, maxlinear=15.0, use_unknowns=True, leafsize=30, verbose=False):
     """Driving method for generating the KD Tree
 
     Parameters
@@ -228,28 +228,30 @@ def main(polygon, numsearch=8, maxlinear=15.0, use_unknowns=True, leafsize=30):
     wvdata.sort()
 
     if polygon == 3:
-        print("Generating patterns for a trigon")
+        if verbose: print("Generating patterns for a trigon")
         pattern, index = trigon(wvdata, numsearch, maxlinear)
     elif polygon == 4:
-        print("Generating patterns for a tetragon")
+        if verbose: print("Generating patterns for a tetragon")
         pattern, index = tetragon(wvdata, numsearch, maxlinear)
     elif polygon == 5:
-        print("Generating patterns for a pentagon")
+        if verbose: print("Generating patterns for a pentagon")
         pattern, index = pentagon(wvdata, numsearch, maxlinear)
     elif polygon == 6:
-        print("Generating patterns for a hexagon")
+        if verbose: print("Generating patterns for a hexagon")
         pattern, index = hexagon(wvdata, numsearch, maxlinear)
     else:
-        print("Patterns can only be generated with 3 <= polygon <= 6")
+        if verbose: print("Patterns can only be generated with 3 <= polygon <= 6")
         return None
 
     outname = '../../data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.kdtree'.format(polygon, numsearch)
-
+    outindx = outname.replace('.kdtree', '.index')
     print("Generating Tree")
     tree = cKDTree(pattern, leafsize=leafsize)
     print("Saving Tree")
     pickle.dump(tree, open(outname, 'wb'))
     print("Written KD Tree file:\n{0:s}".format(outname))
+    np.save(outindx, index)
+    print("Written index file:\n{0:s}".format(outindx))
     #_ = pickle.load(open(outname, 'rb'))
     #print("loaded successfully")
 
@@ -288,5 +290,5 @@ if __name__ == '__main__':
     coordinate system for both detlines and linelist.
     """
     polygon = 4
-    numsearch = 8
-    main(polygon, numsearch=numsearch)
+    numsearch = 20
+    main(polygon, numsearch=numsearch, verbose=True)
