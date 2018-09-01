@@ -509,32 +509,7 @@ class General:
                     break
 
         # With the updates to the fits of each slit, determine the final fit, and save the QA
-        for slit in range(self._nslit):
-            if slit not in self._ok_mask:
-                continue
-            if self._all_patt_dict[str(slit)] is None:
-                continue
-            # Save the QA for the best solution
-            slittxt = '_Slit{0:03d}'.format(slit+1)
-            use_tcent = self.get_use_tcent(self._all_patt_dict[str(slit)]['sign'],
-                                           arr=self._detections[str(slit)], weak=True)
-            if self._outroot is not None:
-                # Write IDs
-                out_dict = dict(pix=use_tcent, IDs=self._all_patt_dict[str(slit)]['IDs'])
-                jdict = ltu.jsonify(out_dict)
-                ltu.savejson(self._outroot + slittxt + '.json', jdict, easy_to_read=True, overwrite=True)
-                msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.json'))
-
-                # Plot
-                tmp_list = vstack([self._line_lists, self._unknwns])
-                qa.match_qa(self._spec[:, slit], use_tcent, tmp_list,
-                            self._all_patt_dict[str(slit)]['IDs'], self._all_patt_dict[str(slit)]['scores'],
-                            self._outroot + slittxt + '.pdf')
-                msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
-            # Perform the final fit for the best solution
-            best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], tcent=use_tcent,
-                                           outroot=self._outroot, slittxt=slittxt)
-            self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
+        self.finalize_fit()
 
         # Print the final report of all lines
         self.final_report()
@@ -613,14 +588,17 @@ class General:
             # Print preliminary report
             good_fit[slit] = self.report_prelim(slit, patt_dict, final_fit)
 
+        # Now that all slits have been inspected, attempt to find a better
+        # solution for orders that were not fit well, by estimating the
+        # wavelength coverage of that slit
+        # TODO - This step has not yet been completed
 
-
-
-
-        pdb.set_trace()
+        # With the updates to the fits of each slit, determine the final fit, and save the QA
+        self.finalize_fit()
 
         # Print the final report of all lines
         self.final_report()
+        pdb.set_trace()
         return
 
     def cross_match(self, good_fit):
@@ -1035,6 +1013,34 @@ class General:
 
         # Return
         return final_fit
+
+    def finalize_fit(self):
+        for slit in range(self._nslit):
+            if slit not in self._ok_mask:
+                continue
+            if self._all_patt_dict[str(slit)] is None:
+                continue
+            # Save the QA for the best solution
+            slittxt = '_Slit{0:03d}'.format(slit+1)
+            use_tcent = self.get_use_tcent(self._all_patt_dict[str(slit)]['sign'],
+                                           arr=self._detections[str(slit)], weak=True)
+            if self._outroot is not None:
+                # Write IDs
+                out_dict = dict(pix=use_tcent, IDs=self._all_patt_dict[str(slit)]['IDs'])
+                jdict = ltu.jsonify(out_dict)
+                ltu.savejson(self._outroot + slittxt + '.json', jdict, easy_to_read=True, overwrite=True)
+                msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.json'))
+
+                # Plot
+                tmp_list = vstack([self._line_lists, self._unknwns])
+                qa.match_qa(self._spec[:, slit], use_tcent, tmp_list,
+                            self._all_patt_dict[str(slit)]['IDs'], self._all_patt_dict[str(slit)]['scores'],
+                            self._outroot + slittxt + '.pdf')
+                msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
+            # Perform the final fit for the best solution
+            best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], tcent=use_tcent,
+                                           outroot=self._outroot, slittxt=slittxt)
+            self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
 
     def report_prelim(self, slit, best_patt_dict, best_final_fit):
 
