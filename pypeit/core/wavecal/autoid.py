@@ -512,17 +512,17 @@ class General:
         self.finalize_fit()
 
         # Print the final report of all lines
-        self.final_report()
+        self.report_final()
         return
 
-    def run_kdtree(self, polygon=4, detsrch=4):
+    def run_kdtree(self, polygon=4, detsrch=6, lstsrch=8):
         """ KD Tree algorithm to wavelength calibrate spectroscopic data.
         Currently, this is only designed for ThAr lamp spectra. See the
         'run_brute' function if you want to calibrate longslit spectra.
         """
 
         # Load the linelist KD Tree
-        lsttree, lindex = waveio.load_tree(polygon=polygon)
+        lsttree, lindex = waveio.load_tree(polygon=polygon, numsearch=lstsrch)
 
         # Set the search error to be 1 pixel
         err = 1.0 / self._npix
@@ -597,7 +597,7 @@ class General:
         self.finalize_fit()
 
         # Print the final report of all lines
-        self.final_report()
+        self.report_final()
         pdb.set_trace()
         return
 
