@@ -4,19 +4,51 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import time
+from abc import ABCMeta
 
 from pypeit import msgs
-# TODO: (KBW) Can archeck code be put in pypeit/__init__.py ?
-from pypeit import check_requirements  # THIS IMPORT DOES THE CHECKING.  KEEP IT
 from pypeit.core import fsort
 from pypeit.core import qa
 from pypeit import arms
 
 from pypeit import pypeitsetup
+from pypeit.spectrographs import keck_lris
 
 from pypeit import debugger
 
-def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False,
+
+class PypeIt(object):
+    """
+    This class is designed to run PypeIt
+
+    .. todo::
+        Improve docstring...
+
+    Parameters
+    ----------
+
+    Attributes
+    ----------
+
+    Inherited Attributes
+    --------------------
+    """
+    __metaclass__ = ABCMeta
+
+    def __init__(self, spectrograph):
+
+        # Init
+        self.spectrograph = spectrograph
+
+
+class LRISb(PypeIt):
+    def __init__(self):
+        spectrograph = keck_lris.KeckLRISBSpectrograph()
+        PypeIt.__init__(self, spectrograph)
+
+
+
+def pypeit_method(pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False,
           sort_dir=None, quick=False, ncpus=1, overwrite=True, verbosity=2,
           use_masters=False, logname=None):
     """

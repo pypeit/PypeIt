@@ -468,9 +468,10 @@ class Spectrograph(object):
 
 
     def __repr__(self):
-        # Generate sets string
+        # Generate string
         txt = '<{:s}: '.format(self.__class__.__name__)
         txt += ' spectrograph={:s},'.format(self.spectrograph)
+        txt += ' telescope={:s},'.format(self.telescope['name'])
         txt += ' camera={:s}'.format(self.camera)
         txt += '>'
         return txt

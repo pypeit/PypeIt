@@ -1,4 +1,4 @@
-""" Class for guiding calibration object generation in PYPIT
+""" Class for guiding calibration object generation in PypeIt
 """
 from __future__ import absolute_import, division, print_function
 
@@ -724,6 +724,10 @@ class Calibrations(object):
         return txt
 
 class MultiSlitCalibrations(Calibrations):
+    """
+    Child of Calibrations class for performing multi-slit (and longslit)
+    calibrations.
+    """
     def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None, save_masters=True,
                  write_qa=True, steps=None):
         Calibrations.__init__(self, fitstbl, spectrograph=spectrograph, par=par,
