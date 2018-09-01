@@ -524,6 +524,7 @@ class General:
                 obad_slits = bad_slits.copy()
                 cntr += 1
                 if cntr > 100:
+                    msgs.warn("Breaking while loop before convergence. Check the wavelength solution!")
                     break
 
         # With the updates to the fits of each slit, determine the final fit, and save the QA
