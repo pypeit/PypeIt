@@ -17,6 +17,7 @@ from pypeit.par.util import make_pypeit_file, parse_pypeit_file
 from pypeit import pypeitsetup
 from pypeit.spectrographs import keck_lris
 from pypeit.scripts import run_pypeit
+from pypeit.core import pypsetup
 
 from pypeit import debugger
 
@@ -62,14 +63,44 @@ class PypeIt(object):
 
         pargs, sort_dir, self.pypeit_file = self._make_setup_pypeit_file(files_root,
                                                                          redux_path=redux_path)
-
         self._setup(setup_only=True, calibration_check=False, sort_dir=sort_dir)
 
         self.print_end_time()
 
-    def build_custom_pypeitfile(self):
+    def build_custom_pypeitfiles(self):
 
         msgs.reset(verbosity=2)
+
+        # Read master file
+        _, data_files, frametype, setups = parse_pypeit_file(self.pypeit_file)
+        sorted_file = self.pypeit_file.replace('pypeit', 'sorted')
+
+        # Get paths
+        paths = []
+        for data_file in data_files:
+            islsh = data_file.rfind('/')
+            path = data_file[:islsh+1]
+            if path not in paths:
+                paths.append(path)
+
+        # Generate .pypeit files and sub-folders
+        all_setups, all_setuplines, all_setupfiles = pypsetup.load_sorted(sorted_file)
+        for setup, setup_lines, sorted_files in zip(all_setups, all_setuplines, all_setupfiles):
+            root = args.spectrograph+'_setup_'
+            # Make the dir
+            newdir = os.path.join(redux_path, root+setup)
+            if not os.path.exists(newdir):
+                os.mkdir(newdir)
+            # Now the file
+            pypeit_file = os.path.join(newdir, root+setup+'.pypeit')
+            # Modify parlines
+            for kk in range(len(cfg_lines)):
+                if 'sortroot' in cfg_lines[kk]:
+                    cfg_lines[kk] = '    sortroot = {0}'.format(root+setup)
+
+            make_pypeit_file(pypeit_file, args.spectrograph, [], cfg_lines=cfg_lines,
+                             setup_lines=setup_lines, sorted_files=sorted_files, paths=paths)
+            print("Wrote {:s}".format(pypeit_file))
 
     def _make_setup_pypeit_file(self, files_root, extension='.fits', redux_path=None,
                         overwrite=False):

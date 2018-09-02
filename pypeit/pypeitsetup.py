@@ -199,6 +199,7 @@ class PypeItSetup(object):
 
         # TODO: Move this to a method that writes the sorted file
         # Write .sorted file
+        debugger.set_trace()
         if len(self.group_dict) > 0:
             group_file = 'tmp.sorted' if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.sorted')

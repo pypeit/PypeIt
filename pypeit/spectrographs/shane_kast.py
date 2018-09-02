@@ -109,6 +109,15 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         return def_keys
 
     def kast_cond_dict(self, ftype):
+        """
+        Create dict for image typing (from header)
+
+        Args:
+            ftype: str
+
+        Returns:
+
+        """
         cond_dict = {}
 
         if ftype == 'science':
@@ -142,6 +151,16 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         return cond_dict
 
     def check_ftype(self, ftype, fitstbl):
+        """
+        Check the frame type
+
+        Args:
+            ftype:
+            fitstbl:
+
+        Returns:
+
+        """
         # Load up
         cond_dict = self.kast_cond_dict(ftype)
 
