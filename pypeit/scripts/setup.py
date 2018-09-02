@@ -41,7 +41,6 @@ def parser(options=None):
 def main(args):
 
     import os
-    import datetime
     import pdb as debugger
 
     from pypeit import msgs
@@ -58,43 +57,7 @@ def main(args):
                          + '\tSelect an available instrument or consult the documentation '
                          + 'on how to add a new instrument.')
 
-    # setup_files dir
-    redux_path = os.getcwd() if args.redux_path is None else args.redux_path
-    outdir = os.path.join(redux_path, 'setup_files')
-    msgs.info('Setup files will be written to: {0}'.format(outdir))
-    if not os.path.isdir(outdir):
-        os.mkdir(outdir)
 
-    # Generate a dummy .pypeit file
-    date = str(datetime.date.today().strftime('%Y-%b-%d'))
-    root = args.spectrograph+'_'+date
-    pypeit_file = outdir+'/'+root+'.pypeit'
-
-    # Generate
-    dfname = "{:s}*{:s}*".format(args.files_root, args.extension)
-    # configuration lines
-    cfg_lines = ['[rdx]']
-    cfg_lines += ['    spectrograph = {0}'.format(args.spectrograph)]
-    cfg_lines += ['    sortroot = {0}'.format(root)]
-    make_pypeit_file(pypeit_file, args.spectrograph, [dfname], cfg_lines=cfg_lines, setup_mode=True)
-    msgs.info('Wrote template pypeit file: {0}'.format(pypeit_file))
-
-    # Parser
-    pinp = [pypeit_file, '-p', '-s {0}'.format(root) ]
-    if args.overwrite:
-        pinp += ['-o']
-    pargs = run_pypeit.parser(pinp)
-    sorted_file = pypeit_file.replace('.pypeit', '.sorted')
-
-    # Run
-    run_pypeit.main(pargs)
-
-    # #####################
-    # Generate custom .pypeit files
-    if not args.custom:
-        return
-
-    msgs.reset(verbosity=2)
 
     # Read master file
     _, data_files, frametype, setups = parse_pypeit_file(pypeit_file)
