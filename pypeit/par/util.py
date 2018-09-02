@@ -422,9 +422,11 @@ def parse_pypeit_file(ifile, file_check=True):
             exist, and fault if they do not.
 
     Returns:
-        :obj:`lists`: Four lists are provided: (1) the list of
-        configuration lines, (2) the list of datafiles to read, (3) the
-        list of frametypes for each file, and (4) the list of setup
+        :obj:`lists`: Four lists are provided:
+        (1) the list of configuration lines,
+        (2) the list of datafiles to read,
+        (3) the list of frametypes for each file, and
+        (4) the list of setup
         lines.
     """
     # Read in the pypeit reduction file

@@ -44,25 +44,28 @@ class PypeIt(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, spectrograph, verbosity=2, overwrite=True, logname=None):
+    def __init__(self, spectrograph, redux_path=None, verbosity=2, overwrite=True, logname=None):
 
         # Init
         self.spectrograph = spectrograph
         self.verbosity = verbosity
         self.overwrite = overwrite
+        if redux_path is None:
+            self.redux_path = os.getcwd()
+        else:
+            self.redux_path = redux_path
 
         # Internals
         self.pypeit_file = ''
         self.logname = logname
 
 
-    def build_setup_files(self, files_root, redux_path=None):
+    def build_setup_files(self, files_root):
 
         # Record the starting time
         self.tstart = time.time()
 
-        pargs, sort_dir, self.pypeit_file = self._make_setup_pypeit_file(files_root,
-                                                                         redux_path=redux_path)
+        pargs, sort_dir, self.pypeit_file = self._make_setup_pypeit_file(files_root)
         self._setup(setup_only=True, calibration_check=False, sort_dir=sort_dir)
 
         self.print_end_time()
@@ -72,7 +75,7 @@ class PypeIt(object):
         msgs.reset(verbosity=2)
 
         # Read master file
-        _, data_files, frametype, setups = parse_pypeit_file(self.pypeit_file)
+        cfg_lines, data_files, frametype, setups = parse_pypeit_file(self.pypeit_file)
         sorted_file = self.pypeit_file.replace('pypeit', 'sorted')
 
         # Get paths
@@ -86,9 +89,9 @@ class PypeIt(object):
         # Generate .pypeit files and sub-folders
         all_setups, all_setuplines, all_setupfiles = pypsetup.load_sorted(sorted_file)
         for setup, setup_lines, sorted_files in zip(all_setups, all_setuplines, all_setupfiles):
-            root = args.spectrograph+'_setup_'
+            root = self.spectrograph.spectrograph+'_setup_'
             # Make the dir
-            newdir = os.path.join(redux_path, root+setup)
+            newdir = os.path.join(self.redux_path, root+setup)
             if not os.path.exists(newdir):
                 os.mkdir(newdir)
             # Now the file
@@ -98,16 +101,14 @@ class PypeIt(object):
                 if 'sortroot' in cfg_lines[kk]:
                     cfg_lines[kk] = '    sortroot = {0}'.format(root+setup)
 
-            make_pypeit_file(pypeit_file, args.spectrograph, [], cfg_lines=cfg_lines,
+            make_pypeit_file(pypeit_file, self.spectrograph.spectrograph, [], cfg_lines=cfg_lines,
                              setup_lines=setup_lines, sorted_files=sorted_files, paths=paths)
             print("Wrote {:s}".format(pypeit_file))
 
-    def _make_setup_pypeit_file(self, files_root, extension='.fits', redux_path=None,
-                        overwrite=False):
+    def _make_setup_pypeit_file(self, files_root, extension='.fits', overwrite=False):
 
         # setup_files dir
-        redux_path = os.getcwd() if redux_path is None else redux_path
-        outdir = os.path.join(redux_path, 'setup_files')
+        outdir = os.path.join(self.redux_path, 'setup_files')
         msgs.info('Setup files will be written to: {0}'.format(outdir))
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
@@ -288,9 +289,9 @@ class PypeIt(object):
         return txt
 
 class LRISb(PypeIt):
-    def __init__(self):
+    def __init__(self, **kwargs):
         spectrograph = keck_lris.KeckLRISBSpectrograph()
-        PypeIt.__init__(self, spectrograph)
+        PypeIt.__init__(self, spectrograph, **kwargs)
 
 
 
