@@ -36,6 +36,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['hatch'] = 'TRAPDOOR'
 
         # TODO: Should do something with the lamps
+        # Lamp names and statuses
+        for kk,lamp_name in enumerate(['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON',
+                          'XENON', 'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']):
+            #def_keys[0]['lampname{:02d}'.format(kk+1)] = lamp_name
+            def_keys[0]['lampstat{:02d}'.format(kk+1)] = lamp_name
 
         return def_keys
 
@@ -161,15 +166,18 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             cond_dict['condition2'] = 'hatch=open'
             cond_dict['condition2'] = 'exptime>29'
         elif ftype == 'bias':
-            cond_dict['condition1'] = 'exptime<1'
-            cond_dict['condition2'] = 'hatch=closed'
+            cond_dict['condition1'] = 'lampstat01=off&lampstat02=off&lampstat03=off' \
+                                      '&lampstat04=off&lampstat05=off&lampstat06=off' \
+                                      '&lampstat07=off&lampstat08=off&lampstat09=off' \
+                                      '&lampstat10=off&lampstat11=off&lampstat12=off'
+            cond_dict['condition2'] = 'exptime<1'
         elif ftype == 'pixelflat':
-            cond_dict['condition1'] = 'exptime<30'
+            cond_dict['condition1'] = 'exptime<30&exptime>1'
             cond_dict['condition2'] = 'hatch=open'  # Dome, not internal
         elif ftype == 'pinhole':
             cond_dict['condition1'] = 'exptime>99999999'
         elif ftype == 'trace':
-            cond_dict['condition1'] = 'exptime<30'
+            cond_dict['condition1'] = 'exptime<30&exptime>1'
             cond_dict['condition2'] = 'hatch=open'  # Dome, not internal
         elif ftype == 'arc':
             cond_dict['condition1'] = 'lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on' \
