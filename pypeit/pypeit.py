@@ -56,17 +56,22 @@ class PypeIt(object):
 
 
     def build_setup_files(self, files_root, redux_path=None):
-        pargs, _ = self.make_setup_file(files_root, redux_path=redux_path)
 
-        self._setup(setup_only=True, calibration_check=False)
+        # Record the starting time
+        self.tstart = time.time()
+
+        pargs, sort_dir, self.pypeit_file = self._make_setup_pypeit_file(files_root,
+                                                                         redux_path=redux_path)
+
+        self._setup(setup_only=True, calibration_check=False, sort_dir=sort_dir)
+
+        self.print_end_time()
 
     def build_custom_pypeitfile(self):
 
         msgs.reset(verbosity=2)
 
-
-
-    def make_setup_file(self, files_root, extension='.fits', redux_path=None,
+    def _make_setup_pypeit_file(self, files_root, extension='.fits', redux_path=None,
                         overwrite=False):
 
         # setup_files dir
@@ -95,9 +100,8 @@ class PypeIt(object):
         if overwrite:
             pinp += ['-o']
         pargs = run_pypeit.parser(pinp)
-        self.sorted_file = pypeit_file.replace('.pypeit', '.sorted')
         # Return
-        return pargs, self.sorted_file
+        return pargs, outdir, pypeit_file
 
     def msgs_reset(self):
         # Reset the global logger
@@ -185,9 +189,14 @@ class PypeIt(object):
         else:
             msgs.error('Data reduction failed with status ID {0:d}'.format(status))
 
+        self.print_end_time()
+
+        return status
+
+    def print_end_time(self):
         # Capture the end time and print it to user
         tend = time.time()
-        codetime = tend-tstart
+        codetime = tend-self.tstart
         if codetime < 60.0:
             msgs.info('Data reduction execution time: {0:.2f}s'.format(codetime))
         elif codetime/60.0 < 60.0:
@@ -200,7 +209,6 @@ class PypeIt(object):
             scs = codetime - 60.0*mns - 3600.0*hrs
             msgs.info('Data reduction execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs))
 
-        return status
 
     def _setup(self, setup_only=False, calibration_check=False, use_header_frametype=False, sort_dir=None):
         """
@@ -232,9 +240,6 @@ class PypeIt(object):
         # Msgs
         self.msgs_reset()
 
-        # Record the starting time
-        tstart = time.time()
-
         # Perform the setup
         self.setup = pypeitsetup.PypeItSetup.from_pypeit_file(self.pypeit_file)
         par, _, self.fitstbl, self.setup_dict = self.setup.run(setup_only=setup_only,
@@ -243,6 +248,13 @@ class PypeIt(object):
                                                            sort_dir=sort_dir)
         # Write the fits table
         self.setup.write_fitstbl()
+
+    def __repr__(self):
+        # Generate sets string
+        txt = '<{:s}: pypeit_file={}'.format(self.__class__.__name__,
+                                                          self.pypeit_file)
+        txt += '>'
+        return txt
 
 class LRISb(PypeIt):
     def __init__(self):
