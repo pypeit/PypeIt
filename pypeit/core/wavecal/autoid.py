@@ -10,6 +10,7 @@ import scipy
 from linetools import utils as ltu
 from astropy.table import vstack
 import copy
+import numba as nb
 import numpy as np
 import pdb
 
@@ -386,15 +387,16 @@ class General:
         # Load the linelist to be used for pattern matching
         self.load_linelist()
 
-        # Set up the grids to be used for pattern matching
-        self.set_grids()
-
         # Find the wavelength solution!
         # KD Tree algorithm only works for ThAr - check first that this is what is being used
         if 'ThAr' in lines and len(lines) == 1:
+            # Set up the grids to be used for pattern matching
+            self.set_grids(ngridw=5000, ngridd=1000)
             msgs.info("Using KD Tree pattern matching algorithm to wavelength calibrate")
             self.run_kdtree()
         else:
+            # Set up the grids to be used for pattern matching
+            self.set_grids()
             msgs.info("Using brute force pattern matching algorithm to wavelength calibrate")
             self.run_brute()
 
@@ -425,17 +427,17 @@ class General:
         self._wvdata.sort()
         return
 
-    def set_grids(self):
+    def set_grids(self, ngridw=200, ngridd=2000):
         # Set the wavelength grid
         if self._binw is None:
             # Ideally, you want binw to roughly sample the A/pix of the spectrograph
-            self._ngridw = 200
+            self._ngridw = ngridw
             self._binw = np.linspace(np.min(self._wvdata), np.max(self._wvdata), self._ngridw)
         else:
             self._ngridw = self._binw.size
         # Set the dispersion grid
         if self._bind is None:
-            self._ngridd = 2000
+            self._ngridd = ngridd
             self._bind = np.linspace(-3.0, 1.0, self._ngridd)
         else:
             self._ngridd = self._bind.size
@@ -515,7 +517,7 @@ class General:
         self.report_final()
         return
 
-    def run_kdtree(self, polygon=4, detsrch=6, lstsrch=8):
+    def run_kdtree(self, polygon=4, detsrch=6, lstsrch=20):
         """ KD Tree algorithm to wavelength calibrate spectroscopic data.
         Currently, this is only designed for ThAr lamp spectra. See the
         'run_brute' function if you want to calibrate longslit spectra.
@@ -525,11 +527,12 @@ class General:
         lsttree, lindex = waveio.load_tree(polygon=polygon, numsearch=lstsrch)
 
         # Set the search error to be 1 pixel
-        err = 1.0 / self._npix
+        err = 2.0 / self._npix
 
         self._all_patt_dict = {}
         self._all_final_fit = {}
         good_fit = np.zeros(self._nslit, dtype=np.bool)
+        self._detections = {}
         for slit in range(self._nslit):
             if slit not in self._ok_mask:
                 continue
@@ -580,9 +583,13 @@ class General:
             resultp = dettreep.query_ball_tree(lsttree, r=err)
             resultm = dettreem.query_ball_tree(lsttree, r=err)
 
-            msgs.info("Identifying wavelengths")
-            psols = self.results_kdtree(use_tcentp, resultp, indexp, lindex)
-            msols = self.results_kdtree(use_tcentm, resultm, indexm, lindex)
+            msgs.info("Identifying wavelengths for each pattern")
+            # psols = self.results_kdtree(use_tcentp, resultp, indexp, lindex)
+            # msols = self.results_kdtree(use_tcentm, resultm, indexm, lindex)
+            psols = results_kdtree_nb(use_tcentp, self._wvdata, resultp, indexp, lindex, indexp.shape[1], len(resultp), sum(map(len, resultp)), self._npix)
+            msols = results_kdtree_nb(use_tcentm, self._wvdata, resultm, indexm, lindex, indexm.shape[1], len(resultm), sum(map(len, resultm)), self._npix)
+
+            msgs.info("Identifying the best solution")
             patt_dict, final_fit = self.solve_slit(slit, psols, msols)
 
             # Print preliminary report
@@ -598,7 +605,6 @@ class General:
 
         # Print the final report of all lines
         self.report_final()
-        pdb.set_trace()
         return
 
     def cross_match(self, good_fit):
@@ -804,7 +810,6 @@ class General:
 
     def results_kdtree(self, use_tcent, res, dindex, lindex, ordfit=2):
         # Assign wavelengths to each pixel
-        waveid = [np.array([]) for xx in use_tcent]
         nrows = len(res)
         ncols = sum(map(len, res))
         nindx = dindex.shape[1]
@@ -815,17 +820,18 @@ class General:
         cnt = 0
         for x in range(nrows):
             for y in range(len(res[x])):
-                dx = use_tcent[dindex[x, -1]] - use_tcent[dindex[x, 0]]
-                dp = self._wvdata[lindex[res[x][y], -1]] - self._wvdata[lindex[res[x][y], 0]]
-                try:
-                    null, cgrad = utils.robust_polyfit(use_tcent[dindex[x, :]], self._wvdata[lindex[res[x][y], :]],
-                                                       1, sigma=2.0)
-                    wvdisp[cnt] = cgrad[1]
-                except:
-                    wvdisp[cnt] = (dp / dx)
-
+                # dx = use_tcent[dindex[x, -1]] - use_tcent[dindex[x, 0]]
+                # dp = self._wvdata[lindex[res[x][y], -1]] - self._wvdata[lindex[res[x][y], 0]]
+                # try:
+                #     null, cgrad = utils.robust_polyfit(use_tcent[dindex[x, :]], self._wvdata[lindex[res[x][y], :]],
+                #                                        1, sigma=2.0, verbose=False)
+                #     wvdisp[cnt] = cgrad[1]
+                # except:
+                #     wvdisp[cnt] = (dp / dx)
+                #
                 coeff = np.polyfit(use_tcent[dindex[x, :]], self._wvdata[lindex[res[x][y]]], ordfit)
                 wvcent[cnt] = np.polyval(coeff, self._npix / 2.0)
+                wvdisp[cnt] = abs(np.polyval(coeff, (self._npix+1) / 2.0) - wvcent[cnt])
                 dind[cnt, :] = dindex[x, :]
                 lind[cnt, :] = lindex[res[x][y], :]
                 cnt += 1
@@ -859,7 +865,7 @@ class General:
         #histimgp = gaussian_filter(histimgp, 3)
         #histimgm = gaussian_filter(histimgm, 3)
         histimg = histimgp - histimgm
-        sm_histimg = gaussian_filter(histimg, [3, 15])
+        sm_histimg = gaussian_filter(histimg, [30, 15])
 
         #histpeaks = patterns.detect_2Dpeaks(np.abs(sm_histimg))
         histpeaks = patterns.detect_2Dpeaks(np.abs(histimg))
@@ -872,9 +878,17 @@ class General:
             from matplotlib import pyplot as plt
             plt.clf()
             extent = [self._binw[0], self._binw[-1], self._bind[0], self._bind[-1]]
-            plt.imshow((np.abs(sm_histimg[:, ::-1].T)), extent=extent, aspect='auto')
-            #plt.imshow(histimg[:, ::-1].T, extent=extent, aspect='auto')
-            plt.plot(self._binw[bidx[0]], self._bind[bidx[1]], 'r+')
+            # plt.subplot(221)
+            # plt.imshow((np.abs(histimg[:, ::-1].T)), extent=extent, aspect='auto')
+            # plt.subplot(222)
+            # plt.imshow((np.abs(sm_histimg[:, ::-1].T)), extent=extent, aspect='auto')
+            # plt.subplot(223)
+            # plt.imshow((np.abs(histimgp[:, ::-1].T)), extent=extent, aspect='auto')
+            # plt.subplot(224)
+            # plt.imshow((np.abs(histimgm[:, ::-1].T)), extent=extent, aspect='auto')
+            #plt.imshow((np.abs(sm_histimg[:, ::-1].T)), extent=extent, aspect='auto')
+            plt.imshow(histimg[:, ::-1].T, extent=extent, aspect='auto')
+            #plt.plot(self._binw[bidx[0]], self._bind[bidx[1]], 'r+')
             #plt.axvline(self._binw[self._bidx[0]], color='r', linestyle='--')
             #plt.axhline(self._bind[self._bidx[1]], color='r', linestyle='--')
             plt.show()
@@ -1116,3 +1130,33 @@ class General:
                       '  Final RMS of fit             = {:g}'.format(self._all_final_fit[st]['rms']))
         msgs.info('###################################################')
         return
+
+@nb.jit(nopython=False, cache=True)
+def results_kdtree_nb(use_tcent, wvdata, res, dindex, lindex, nindx, nrows, ncols, npix):
+    # Assign wavelengths to each pixel
+    wvdisp = np.zeros(ncols, dtype=nb.types.ulong)
+    wvcent = np.zeros(ncols, dtype=nb.types.ulong)
+    dind = np.zeros((ncols, nindx), dtype=nb.types.uint64)
+    lind = np.zeros((ncols, nindx), dtype=nb.types.uint64)
+    cnt = 0
+    for x in range(nrows):
+        for y in range(len(res[x])):
+            # dx = use_tcent[dindex[x, -1]] - use_tcent[dindex[x, 0]]
+            # dp = self._wvdata[lindex[res[x][y], -1]] - self._wvdata[lindex[res[x][y], 0]]
+            # try:
+            #     null, cgrad = utils.robust_polyfit(use_tcent[dindex[x, :]], self._wvdata[lindex[res[x][y], :]],
+            #                                        1, sigma=2.0, verbose=False)
+            #     wvdisp[cnt] = cgrad[1]
+            # except:
+            #     wvdisp[cnt] = (dp / dx)
+            #
+            # coeff = np.polyfit(use_tcent[dindex[x, :]], wvdata[lindex[res[x][y]]], ordfit)
+            dx = use_tcent[dindex[x, -1]] - use_tcent[dindex[x, 0]]
+            dp = wvdata[lindex[res[x][y], -1]] - wvdata[lindex[res[x][y], 0]]
+            p0 = wvdata[lindex[res[x][y], 0]] - use_tcent[dindex[x, 0]]*dp/dx
+            wvdisp[cnt] = abs(dp/dx)
+            wvcent[cnt] = (npix/2.0)*(dp/dx) + p0
+            dind[cnt, :] = dindex[x, :]
+            lind[cnt, :] = lindex[res[x][y], :]
+            cnt += 1
+    return dind, lind, wvcent, wvdisp

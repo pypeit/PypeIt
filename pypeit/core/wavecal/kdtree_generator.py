@@ -289,6 +289,6 @@ if __name__ == '__main__':
     Then, the values (a-ll)/(r-ll) and (b-ll)/(r-ll) are in the same
     coordinate system for both detlines and linelist.
     """
-    polygon = 4
-    numsearch = 20
+    polygon = 3
+    numsearch = 10
     main(polygon, numsearch=numsearch, verbose=True)
