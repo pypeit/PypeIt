@@ -369,7 +369,7 @@ class ScienceImage(processimages.ProcessImages):
 
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here
-            self.show('global', slits=True, sobjs =self.sobjs_obj, clear=True)
+            self.show('global', slits=True, sobjs =self.sobjs_obj, clear=False)
 
 
         # Return
@@ -464,7 +464,7 @@ class ScienceImage(processimages.ProcessImages):
                 return False
         return True
 
-    def process(self, bias_subtract, pixel_flat, bpm, illum_flat = None, apply_gain=True, trim=True):
+    def process(self, bias_subtract, pixel_flat, bpm, illum_flat = None, apply_gain=True, trim=True, show=False):
         """ Process the image
 
         Wrapper to ProcessImages.process()
@@ -498,6 +498,9 @@ class ScienceImage(processimages.ProcessImages):
         # Build CR mask
         self.crmask = self.build_crmask()
 
+        # Show the science image if an interactive run
+        if show:
+            self.show('image', image=self.sciimg, chname='sciimg', clear=True)
         return self.sciimg, self.sciivar, self.rn2img, self.crmask
 
 
