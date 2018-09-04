@@ -126,7 +126,7 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
 
     log_flat = np.log(np.fmax(flat, 1.0))
     inmask_log = ((flat > 1.0) & inmask)
-    log_ivar = inmask_log.astype(float) # set errors to just be 1.0
+    log_ivar = inmask_log.astype(float)/0.5**2 # set errors to just be 0.5 in the log
 
     # Flat field pixels for fitting spectral direction
     fit_spec = thismask & inmask & (edgmask == False)
@@ -253,7 +253,10 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
 
     # Determine the breakpoint spacing from the sampling of the ximg
     ximg_samp = np.median(ximg_fit - np.roll(ximg_fit,1))
-    bsp_set = pydl.bspline(ximg_in,nord=4, bkspace=ximg_samp*100.0)
+    ximg_1pix = 1.0/slitwidth
+    # Use breakpoints at a spacing of a 1/10th of a pixel, but do not allow a bsp smaller than the typical sampling
+    ximg_bsp  = np.fmax(ximg_1pix/10.0, ximg_samp*1.2)
+    bsp_set = pydl.bspline(ximg_in,nord=4, bkspace=ximg_bsp)
     fullbkpt = bsp_set.breakpoints
     spat_set, outmask_spat, spatfit, _ = utils.bspline_profile(ximg_in, normin, np.ones_like(normin),np.ones_like(normin),
                                                                nord=4,upper=5.0, lower=5.0,fullbkpt = fullbkpt)
@@ -284,7 +287,7 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
     illumflat[thismask], _ = spat_set.value(ximg[thismask])
     norm_spec_spat = np.ones_like(flat)
     norm_spec_spat[thismask] = flat[thismask]/np.fmax(spec_model[thismask], 1.0)/np.fmax(illumflat[thismask],0.01)
-    msgs.info('Performing illumination +scattered light flat field fit')
+    msgs.info('Performing illumination + scattered light flat field fit')
 
     # Flat field pixels for fitting spectral direction
     isrt_spec = np.argsort(piximg[thismask])
@@ -297,7 +300,7 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
     # This guess is somewhat aribtrary. We then set the rejection threshold with sigrej_illum
     var_value = 0.01
     norm_twod_ivar = fitmask.astype(float)/(var_value**2)
-    sigrej_illum = 3.0
+    sigrej_illum = 4.0
 
     poly_basis = pydl.fpoly(2.0*ximg_twod - 1.0, npoly).T
 

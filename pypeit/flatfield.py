@@ -213,7 +213,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Return
         return modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit
 
-    def run(self, armed=False, debug = False, show = False):
+    def run(self, armed=False, debug = True, show = False):
         """
         Main driver to generate normalized flat field and illumination flats
 
@@ -260,7 +260,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             # Fit flats for a single slit
             self.mspixelflat[thismask], self.msillumflat[thismask], self.flat_model[thismask] = \
                 flat.fit_flat(self.rawflatimg, self.tilts, thismask,self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:,slit],
-                              inmask = inmask, debug = debug)
+                              inmask = inmask, debug = show)
 
 
         if show:

@@ -293,6 +293,32 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
     ispec, ispat = np.where(oprof > 0.0)
+
+    # Exit gracefully if we have no positive object profiles, since that means something was wrong with object fitting
+    if bool(np.any(oprof > 0.0)) is False:
+        junk = np.zeros(nspec)
+        # Fill in the optimally extraction tags
+        specobj.optimal['WAVE'] = junk
+        specobj.optimal['COUNTS'] = junk
+        specobj.optimal['COUNTS_IVAR'] = junk
+        specobj.optimal['COUNTS_NIVAR'] = junk
+        specobj.optimal['MASK'] = junk
+        specobj.optimal['COUNTS_SKY'] = junk
+        specobj.optimal['COUNTS_RN'] = junk
+        specobj.optimal['FRAC_USE'] = junk
+        specobj.optimal['CHI2'] = junk
+        # Fill in the boxcar tags
+        specobj.boxcar['WAVE'] = junk
+        specobj.boxcar['COUNTS'] = junk
+        specobj.boxcar['COUNTS_IVAR'] = junk
+        specobj.boxcar['COUNTS_NIVAR'] = junk
+        specobj.boxcar['MASK'] = junk
+        specobj.boxcar['COUNTS_SKY'] = junk
+        specobj.boxcar['COUNTS_RN'] = junk
+        specobj.boxcar['BOX_RADIUS'] = 0.0
+
+        return None
+
     mincol = np.min(ispat)
     maxcol = np.max(ispat) + 1
     nsub = maxcol - mincol
