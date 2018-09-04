@@ -25,10 +25,10 @@ PypeIt depends on the following list of Python packages.
 We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to install and/or update these packages.
 
 * `python <http://www.python.org/>`_ versions 2.7, or 3.5 or later (2.7 will be deprecated)
-* `numpy <http://www.numpy.org/>`_ version 1.13 or later
+* `numpy <http://www.numpy.org/>`_ version 1.14 or later
 * `astropy <http://www.astropy.org/>`_ version 2.0.5 or later
 * `scipy <http://www.scipy.org/>`_ version 0.18.1 or later
-* `matplotlib <http://matplotlib.org/>`_  version 1.5.3 or later
+* `matplotlib <http://matplotlib.org/>`_  version 2.1 or later
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later (optional - some speed ups, inc. wavecal)
 * `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)
 * `h5py <https://www.h5py.org/>`_ version 2.6 (for data I/O)
