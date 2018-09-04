@@ -1135,10 +1135,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
         The convention is: True = on the slit/order, False  = off the slit/order
 
     slit_left:  float ndarray
-        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec)
+        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
+        or (nspec)
 
     slit_righ:  float ndarray
-        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec)
+        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
+        or (nspec)
 
 
     Optional Parameters
