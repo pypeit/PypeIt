@@ -185,16 +185,17 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
     nfit_spat = np.sum(fit_spat)
 
     ximg_resln = spat_samp/slitwidth
-    isamp = (np.arange(nfit_spat//10)*10.0).astype(int)
-    samp_width = (np.ceil(isamp.size*ximg_resln)).astype(int)
-
-    illumquick1 = utils.fast_running_median(norm_spec_fit[isamp], samp_width)
-    #illumquick1 = scipy.ndimage.filters.median_filter(norm_spec_fit[isamp], size=samp_width, mode = 'reflect')
-    statinds = (ximg_fit[isamp] > 0.1) & (ximg_fit[isamp] < 0.9)
-    mean = np.mean(illumquick1[statinds])
     npad = 10000
-    no_illum=False
+    no_illum = False
 
+#    isamp = (np.arange(nfit_spat//10)*10.0).astype(int)
+#    samp_width = (np.ceil(isamp.size*ximg_resln)).astype(int)
+
+#    illumquick1 = utils.fast_running_median(norm_spec_fit[isamp], samp_width)
+
+#    illumquick1 = scipy.ndimage.filters.median_filter(norm_spec_fit[isamp], size=samp_width, mode = 'reflect')
+#    statinds = (ximg_fit[isamp] > 0.1) & (ximg_fit[isamp] < 0.9)
+#    mean = np.mean(illumquick1[statinds])
 #    illum_max_quick = (np.abs(illumquick1[statinds]/mean-1.0)).max()
 #    imed = None
 #    if(illum_max_quick <= spat_illum_thresh/3.0):
@@ -207,22 +208,25 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
 #        no_illum=True
 #    else:
 
-    illumquick = np.interp(ximg_fit,ximg_fit[isamp],illumquick1)
-    chi_illum = (norm_spec_fit - illumquick)*np.sqrt(norm_spec_ivar)
-    imed = np.abs(chi_illum) < 10.0 # 10*spat_illum_thresh ouliters, i.e. 30%
+    #illumquick = np.interp(ximg_fit,ximg_fit[isamp],illumquick1)
+
+    med_width0 = (np.ceil(nfit_spat*ximg_resln)).astype(int)
+    normimg_raw0 = utils.fast_running_median(norm_spec_fit,med_width0)
+    chi_illum = (norm_spec_fit - normimg_raw0)*np.sqrt(norm_spec_ivar)
+    imed = np.abs(chi_illum) < 10.0 # 10*spat_illum_thresh ouliters, i.e. 10%
     nmed = np.sum(imed)
     med_width = (np.ceil(nmed*ximg_resln)).astype(int)
     normimg_raw = utils.fast_running_median(norm_spec_fit[imed],med_width)
     #normimg_raw = scipy.ndimage.filters.median_filter(norm_spec_fit[imed], size=med_width, mode='reflect')
-    sig_res = np.fmax(med_width/15.0,0.5)
+    sig_res = np.fmax(med_width/20.0,0.5)
     normimg = scipy.ndimage.filters.gaussian_filter1d(normimg_raw,sig_res, mode='nearest')
     statinds = (ximg_fit[imed] > 0.1) & (ximg_fit[imed] < 0.9)
     mean = np.mean(normimg[statinds])
     normimg = normimg/mean
     # compute median value of normimg edge pixels
-    if(normimg.size > 12):
-        lmed = np.median(normimg[0:10])
-        rmed = np.median(normimg[-1:-11:-1])
+    if(normimg.size > 6):
+        lmed = np.median(normimg[0:5])
+        rmed = np.median(normimg[-1:-6:-1])
     else:
         lmed = normimg[0]
         rmed = normimg[-1]
