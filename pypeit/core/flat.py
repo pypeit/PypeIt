@@ -28,9 +28,68 @@ from matplotlib import pyplot as plt
 import scipy
 
 
-def fit_flat(flat, mstilts, slit_left, slit_righ, thismask, inmask = None,spec_samp_fine = 0.8,  spec_samp_coarse = 50,
-             spat_samp = 5.0, spat_illum_thresh = 0.02, npoly = None, trim_edg = (3.0,3.0), spat_bkpt = None, debug = False):
+def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_samp_fine = 1.2,  spec_samp_coarse = 50.0,
+             spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0), spat_bkpt = None, debug = False):
 
+
+    """ Compute pixelflat and illumination flat from a flat field image.
+
+    Parameters
+    ----------
+    flat :  float ndarray, shape (nspec, nspat)
+        Flat field image.
+
+
+    mstilts: float ndarray, shape (nspec, nspat)
+          Tilts indicating how wavelengths move across the slit
+
+    thismask:  boolean ndarray, shape (nspec, nspat)
+        Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
+        The convention is: True = on the slit/order, False  = off the slit/order
+
+    slit_left:  float ndarray, shape  (nspec, 1) or (nspec)
+        Left boundary of slit/order to be extracted (given as floating pt pixels).
+
+    slit_righ:  float ndarray, shape  (nspec, 1) or (nspec)
+        Right boundary of slit/order to be extracted (given as floating pt pixels).
+
+
+    Optional Parameters
+    -------------------
+    inmask: boolean ndarray, shape (nspec, nspat), default inmask = None
+      Input mask for pixels not to be included in sky subtraction fits. True = Good (not masked), False = Bad (masked)
+
+    spec_samp_fine: float, default = 1.2
+      bspline break point spacing in units of pixels for spectral fit to flat field blaze function.
+
+    spec_samp_coarse: float, default = 50.0
+      bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to flat field image. This should be
+      a large number unless you are trying to fit a sky flat with lots of features.
+
+    spat_samp: float, default = 5.0
+      Spatial sampling for spatial slit illumination function. This is the width of the median filter in pixels used to
+      determine the slit illumination function, and thus sets the minimum scale on which the illumination function will
+      have features.
+
+    spat_illum_thresh: float, default = 0.01
+      Spatial illumination function threshold. If the slits have
+
+
+
+    Returns
+    -------
+    fextract:   ndarray
+       Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
+       Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
+       the case of a single trace.
+
+
+    Revision History
+    ----------------
+    10-Mar-2005  First version written by D. Schlegel, LBL
+    2005-2018    Improved by J. F. Hennawi and J. X. Prochaska
+    23-June-2018 Ported to python by J. F. Hennawi and significantly improved
+    """
 
     nspec = flat.shape[0]
     nspat = flat.shape[1]
@@ -115,54 +174,55 @@ def fit_flat(flat, mstilts, slit_left, slit_righ, thismask, inmask = None,spec_s
     #illumquick1 = scipy.ndimage.filters.median_filter(norm_spec_fit[isamp], size=samp_width, mode = 'reflect')
     statinds = (ximg_fit[isamp] > 0.1) & (ximg_fit[isamp] < 0.9)
     mean = np.mean(illumquick1[statinds])
-    illum_max_quick = (np.abs(illumquick1[statinds]/mean-1.0)).max()
     npad = 10000
-
-    imed = None
     no_illum=False
-    if(illum_max_quick <= spat_illum_thresh/3.0):
-        ximg_in = np.concatenate((-0.2 + 0.2*np.arange(npad)/(npad - 1), ximg_fit, 1.0 + 0.2*np.arange(npad)/(npad - 1)))
-        normin = np.ones(2*npad + nfit_spat)
-        #msgs.info('illum_max={:7.3f}'.format(illum_max_quick))
-        msgs.info('Subsampled illum fluctuations = {:7.3f}'.format(illum_max_quick) +
-                  '% < spat_illum_thresh/3={:4.2f}'.format(100.0*spat_illum_thresh/3.0) +'%')
-        msgs.info('Slit illumination function set to unity for this slit')
-        no_illum=True
+
+#    illum_max_quick = (np.abs(illumquick1[statinds]/mean-1.0)).max()
+#    imed = None
+#    if(illum_max_quick <= spat_illum_thresh/3.0):
+#        ximg_in = np.concatenate((-0.2 + 0.2*np.arange(npad)/(npad - 1), ximg_fit, 1.0 + 0.2*np.arange(npad)/(npad - 1)))
+#        normin = np.ones(2*npad + nfit_spat)
+#        #msgs.info('illum_max={:7.3f}'.format(illum_max_quick))
+#        msgs.info('Subsampled illum fluctuations = {:7.3f}'.format(illum_max_quick) +
+#                  '% < spat_illum_thresh/3={:4.2f}'.format(100.0*spat_illum_thresh/3.0) +'%')
+#        msgs.info('Slit illumination function set to unity for this slit')
+#        no_illum=True
+#    else:
+
+    illumquick = np.interp(ximg_fit,ximg_fit[isamp],illumquick1)
+    chi_illum = (norm_spec_fit - illumquick)*np.sqrt(norm_spec_ivar)
+    imed = np.abs(chi_illum) < 10.0 # 10*spat_illum_thresh ouliters, i.e. 30%
+    nmed = np.sum(imed)
+    med_width = (np.ceil(nmed*ximg_resln)).astype(int)
+    normimg_raw = utils.fast_running_median(norm_spec_fit[imed],med_width)
+    #normimg_raw = scipy.ndimage.filters.median_filter(norm_spec_fit[imed], size=med_width, mode='reflect')
+    sig_res = np.fmax(med_width/15.0,0.5)
+    normimg = scipy.ndimage.filters.gaussian_filter1d(normimg_raw,sig_res, mode='nearest')
+    statinds = (ximg_fit[imed] > 0.1) & (ximg_fit[imed] < 0.9)
+    mean = np.mean(normimg[statinds])
+    normimg = normimg/mean
+    # compute median value of normimg edge pixels
+    if(normimg.size > 12):
+        lmed = np.median(normimg[0:10])
+        rmed = np.median(normimg[-1:-11:-1])
     else:
-        illumquick = np.interp(ximg_fit,ximg_fit[isamp],illumquick1)
-        chi_illum = (norm_spec_fit - illumquick)*np.sqrt(norm_spec_ivar)
-        imed = np.abs(chi_illum) < 10.0 # 10*spat_illum_thresh ouliters, i.e. 30%
-        nmed = np.sum(imed)
-        med_width = (np.ceil(nmed*ximg_resln)).astype(int)
-        normimg_raw = utils.fast_running_median(norm_spec_fit[imed],med_width)
-        #normimg_raw = scipy.ndimage.filters.median_filter(norm_spec_fit[imed], size=med_width, mode='reflect')
-        sig_res = np.fmax(med_width/15.0,0.5)
-        normimg = scipy.ndimage.filters.gaussian_filter1d(normimg_raw,sig_res, mode='nearest')
-        statinds = (ximg_fit[imed] > 0.1) & (ximg_fit[imed] < 0.9)
-        mean = np.mean(normimg[statinds])
-        normimg = normimg/mean
-        # compute median value of normimg edge pixels
-        if(normimg.size > 12):
-            lmed = np.median(normimg[0:10])
-            rmed = np.median(normimg[-1:-11:-1])
-        else:
-            lmed = normimg[0]
-            rmed = normimg[-1]
-        # Bmask regions where illumination function takes on extreme values
-        if np.any(~np.isfinite(normimg)):
-            msgs.error('Inifinities in slit illumination function computation normimg')
-        illum_max = (np.abs(normimg[statinds]/mean - 1.0)).max()
-        if (illum_max <= spat_illum_thresh):
-            ximg_in = np.concatenate((-0.2 + 0.2*np.arange(npad)/(npad - 1), ximg_fit,1.0 + 0.2*np.arange(npad)/(npad-1)))
-            normin = np.ones(2*npad + nfit_spat)
-            #msgs.info('illum_max={:7.3f}'.format(illum_max))
-            msgs.info('Illum fluctuations = {:7.3f}'.format(illum_max*100) +
-                      ' < spat_illum_thresh={:4.2f}'.format(100.0*spat_illum_thresh)+'%')
-            msgs.info('Slit illumination function set to unity for this slit%')
-            no_illum = True
-        else:
-            ximg_in = np.concatenate((-0.2 + 0.2*np.arange(npad)/(npad-1), ximg_fit[imed], 1.0 + 0.2*np.arange(npad)/(npad-1)))
-            normin =  np.concatenate((np.full(npad, lmed), normimg, np.full(npad,rmed)))
+        lmed = normimg[0]
+        rmed = normimg[-1]
+    # mask regions where illumination function takes on extreme values
+    if np.any(~np.isfinite(normimg)):
+        msgs.error('Inifinities in slit illumination function computation normimg')
+    illum_max = (np.abs(normimg[statinds]/mean - 1.0)).max()
+    if (illum_max <= spat_illum_thresh):
+        ximg_in = np.concatenate((-0.2 + 0.2*np.arange(npad)/(npad - 1), ximg_fit,1.0 + 0.2*np.arange(npad)/(npad-1)))
+        normin = np.ones(2*npad + nfit_spat)
+        #msgs.info('illum_max={:7.3f}'.format(illum_max))
+        msgs.info('Illum fluctuations = {:7.3f}'.format(illum_max*100) +
+                  '% < spat_illum_thresh={:4.2f}'.format(100.0*spat_illum_thresh)+'%')
+        msgs.info('Slit illumination function set to unity for this slit%')
+        no_illum = True
+    else:
+        ximg_in = np.concatenate((-0.2 + 0.2*np.arange(npad)/(npad-1), ximg_fit[imed], 1.0 + 0.2*np.arange(npad)/(npad-1)))
+        normin =  np.concatenate((np.full(npad, lmed), normimg, np.full(npad,rmed)))
 
     if spat_bkpt is not None:
         fullbkpt = spatbkpt
@@ -170,6 +230,7 @@ def fit_flat(flat, mstilts, slit_left, slit_righ, thismask, inmask = None,spec_s
         ximg_samp = np.median(ximg_fit - np.roll(ximg_fit,1))
         bsp_set = pydl.bspline(ximg_in,nord=4, bkspace=ximg_samp*100.0)
         fullbkpt = bsp_set.breakpoints
+
     spat_set, outmask_spat, spatfit, _ = utils.bspline_profile(ximg_in, normin, np.ones_like(normin),np.ones_like(normin),
                                                                nord=4,upper=5.0, lower=5.0,fullbkpt = fullbkpt)
 
