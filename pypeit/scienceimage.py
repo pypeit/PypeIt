@@ -489,8 +489,6 @@ class ScienceImage(processimages.ProcessImages):
                                                         bpm=self.bpm,
                                                         trim=trim)
 
-        # ToDo at the moment we are not propagating the flat field into the variance frame. This is kind of important
-        # if slit illumination corrections are large
 
         # Construct raw variance image
         rawvarframe = self.build_rawvarframe(trim=trim)
@@ -671,6 +669,9 @@ class ScienceImage(processimages.ProcessImages):
                             range(self.tslits_dict['lcen'].shape[1])]
 
                 ginga.show_slits(viewer, ch,self.tslits_dict['lcen'], self.tslits_dict['rcen'], slit_ids)  # , args.det)
+
+
+
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,

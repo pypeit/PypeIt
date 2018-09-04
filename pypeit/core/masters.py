@@ -33,12 +33,12 @@ def master_name(ftype, setup, mdir):
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, setup),
                      trace='{:s}/MasterTrace_{:s}'.format(mdir, setup),   # Just a root as FITS+JSON are generated
                      pinhole='{:s}/MasterPinhole_{:s}.fits'.format(mdir, setup),
-                     pixelflat='{:s}/MasterFlatField_{:s}.fits'.format(mdir, setup),
+                     pixelflat='{:s}/MasterPixelFlat_{:s}.fits'.format(mdir, setup),
+                     illumflat='{:s}/MasterIllumFlat_{:s}.fits'.format(mdir, setup),
                      arc='{:s}/MasterArc_{:s}.fits'.format(mdir, setup),
                      wave='{:s}/MasterWave_{:s}.fits'.format(mdir, setup),
                      wv_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, setup),
                      tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir, setup),
-                     slitprof='{:s}/MasterSlitProfile_{:s}.fits'.format(mdir, setup),
                      sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.yaml'.format(mdir, setup[0], setup[-2:]),
                      )
     return name_dict[ftype]
