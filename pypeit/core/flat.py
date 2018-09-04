@@ -188,14 +188,9 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
     npad = 10000
     no_illum = False
 
-#    Code could be made faster by doing this quick sub-sampled illum first instead of the full thing below
 
-#    isamp = (np.arange(nfit_spat//10)*10.0).astype(int)
-#    samp_width = (np.ceil(isamp.size*ximg_resln)).astype(int)
-
-#    illumquick1 = utils.fast_running_median(norm_spec_fit[isamp], samp_width)
 #    illumquick1 = scipy.ndimage.filters.median_filter(norm_spec_fit[isamp], size=samp_width, mode = 'reflect')
-#    statinds = (ximg_fit[isamp] > 0.1) & (ximg_fit[isamp] < 0.9)
+#   statinds = (ximg_fit[isamp] > 0.1) & (ximg_fit[isamp] < 0.9)
 #    mean = np.mean(illumquick1[statinds])
 #    illum_max_quick = (np.abs(illumquick1[statinds]/mean-1.0)).max()
 #    imed = None
@@ -208,11 +203,17 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
 #        msgs.info('Slit illumination function set to unity for this slit')
 #        no_illum=True
 #    else:
-    #illumquick = np.interp(ximg_fit,ximg_fit[isamp],illumquick1)
 
-    med_width0 = (np.ceil(nfit_spat*ximg_resln)).astype(int)
-    normimg_raw0 = utils.fast_running_median(norm_spec_fit,med_width0)
-    chi_illum = (norm_spec_fit - normimg_raw0)*np.sqrt(norm_spec_ivar)
+    isamp = (np.arange(nfit_spat//10)*10.0).astype(int)
+    samp_width = (np.ceil(isamp.size*ximg_resln)).astype(int)
+    illumquick1 = utils.fast_running_median(norm_spec_fit[isamp], samp_width)
+    illumquick = np.interp(ximg_fit,ximg_fit[isamp],illumquick1)
+    chi_illum = (norm_spec_fit - illumquick)*np.sqrt(norm_spec_ivar)
+
+    #med_width0 = (np.ceil(nfit_spat*ximg_resln)).astype(int)
+    #normimg_raw0 = utils.fast_running_median(norm_spec_fit,med_width0)
+    # chi_illum = (norm_spec_fit - normimg_raw0)*np.sqrt(norm_spec_ivar)
+
     imed = np.abs(chi_illum) < 10.0 # 10*spat_illum_thresh ouliters, i.e. 10%
     nmed = np.sum(imed)
     med_width = (np.ceil(nmed*ximg_resln)).astype(int)
