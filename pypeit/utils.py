@@ -13,6 +13,12 @@ from astropy import units
 from astropy.io import fits
 from astropy.convolution import convolve, Gaussian1DKernel
 
+
+# Imports for fast_running_median
+from collections import deque
+from itertools import islice
+from bisect import insort, bisect_left
+
 #from pydl.pydlutils import math
 #from pydl.pydlutils import bspline
 
