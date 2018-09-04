@@ -44,20 +44,22 @@ class PypeIt(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, spectrograph, redux_path=None, verbosity=2, overwrite=True, logname=None):
+    def __init__(self, spectrograph, setups_path=None, verbosity=2, overwrite=True, logname=None):
 
         # Init
         self.spectrograph = spectrograph
         self.verbosity = verbosity
         self.overwrite = overwrite
-        if redux_path is None:
-            self.redux_path = os.getcwd()
+        if setups_path is None:
+            self.setups_path = os.getcwd()
         else:
-            self.redux_path = redux_path
+            self.setups_path = setups_path
 
         # Internals
         self.pypeit_file = ''
         self.logname = logname
+        self.setup_pypeit_file = None
+        self.redux_path = None
 
 
     def build_setup_files(self, files_root):
@@ -65,8 +67,8 @@ class PypeIt(object):
         # Record the starting time
         self.tstart = time.time()
 
-        pargs, sort_dir, self.pypeit_file = self._make_setup_pypeit_file(files_root)
-        self._setup(setup_only=True, calibration_check=False, sort_dir=sort_dir)
+        pargs, sort_dir, self.setup_pypeit_file = self._make_setup_pypeit_file(files_root)
+        self._setup(self.setup_pypeit_file, setup_only=True, calibration_check=False, sort_dir=sort_dir)
 
         self.print_end_time()
 
@@ -75,8 +77,8 @@ class PypeIt(object):
         msgs.reset(verbosity=2)
 
         # Read master file
-        cfg_lines, data_files, frametype, setups = parse_pypeit_file(self.pypeit_file)
-        sorted_file = self.pypeit_file.replace('pypeit', 'sorted')
+        cfg_lines, data_files, frametype, setups = parse_pypeit_file(self.setup_pypeit_file)
+        sorted_file = self.setup_pypeit_file.replace('pypeit', 'sorted')
 
         # Get paths
         paths = []
@@ -91,7 +93,7 @@ class PypeIt(object):
         for setup, setup_lines, sorted_files in zip(all_setups, all_setuplines, all_setupfiles):
             root = self.spectrograph.spectrograph+'_setup_'
             # Make the dir
-            newdir = os.path.join(self.redux_path, root+setup)
+            newdir = os.path.join(self.setups_path, root+setup)
             if not os.path.exists(newdir):
                 os.mkdir(newdir)
             # Now the file
@@ -105,10 +107,33 @@ class PypeIt(object):
                              setup_lines=setup_lines, sorted_files=sorted_files, paths=paths)
             print("Wrote {:s}".format(pypeit_file))
 
+    def init_setup(self, pypeit_file, redux_path=None, calibration_check=True):
+        self.pypeit_file = pypeit_file
+
+
+        # This loads the file and sets:
+        #  self.par
+        #  self.fitstbl
+        #  self.setup_dict
+        self._setup(self.pypeit_file, calibration_check=calibration_check)
+
+        # Make the output directories
+        # TODO: Do we want the code to interactively ask for a new
+        # directory?  I think it would be better if it just faulted when a
+        # directory/file exists and overwrite is False.
+        if redux_path is not None:
+            self.par['rdx']['redux_path'] = redux_path
+        else:
+            self.par['rdx']['redux_path'] = os.getcwd()
+        msgs.info("Setting reduction path to {:s}".format(self.par['rdx']['redux_path']))
+        fsort.make_dirs(self.spectrograph.spectrograph, self.par['calibrations']['caldir'],
+                        self.par['rdx']['scidir'], self.par['rdx']['qadir'], overwrite=self.overwrite,
+                        redux_path=self.par['rdx']['redux_path'])
+
     def _make_setup_pypeit_file(self, files_root, extension='.fits', overwrite=False):
 
         # setup_files dir
-        outdir = os.path.join(self.redux_path, 'setup_files')
+        outdir = os.path.join(self.setups_path, 'setup_files')
         msgs.info('Setup files will be written to: {0}'.format(outdir))
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
@@ -191,12 +216,6 @@ class PypeIt(object):
             msgs.info('Calcheck complete')
             return 2
 
-        # Make the output directories
-        # TODO: Do we want the code to interactively ask for a new
-        # directory?  I think it would be better if it just faulted when a
-        # directory/file exists and overwrite is False.
-        fsort.make_dirs(spectrograph.spectrograph, par['calibrations']['caldir'],
-                        par['rdx']['scidir'], par['rdx']['qadir'], overwrite=overwrite)
 
         # Just do it (sponsored by Nike)
         if par['rdx']['pipeline'] == 'ARMS':
@@ -242,7 +261,7 @@ class PypeIt(object):
             msgs.info('Data reduction execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs))
 
 
-    def _setup(self, setup_only=False, calibration_check=False, use_header_frametype=False, sort_dir=None):
+    def _setup(self, pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False, sort_dir=None):
         """
 
         Args:
@@ -273,8 +292,8 @@ class PypeIt(object):
         self.msgs_reset()
 
         # Perform the setup
-        self.setup = pypeitsetup.PypeItSetup.from_pypeit_file(self.pypeit_file)
-        par, _, self.fitstbl, self.setup_dict = self.setup.run(setup_only=setup_only,
+        self.setup = pypeitsetup.PypeItSetup.from_pypeit_file(pypeit_file)
+        self.par, _, self.fitstbl, self.setup_dict = self.setup.run(setup_only=setup_only,
                                                            calibration_check=calibration_check,
                                                            use_header_frametype=use_header_frametype,
                                                            sort_dir=sort_dir)
