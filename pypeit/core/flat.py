@@ -29,7 +29,7 @@ import scipy
 
 
 def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_samp_fine = 1.2,  spec_samp_coarse = 50.0,
-             spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0), spat_bkpt = None, debug = False):
+             spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0),debug = False):
 
 
     """ Compute pixelflat and illumination flat from a flat field image.
@@ -37,7 +37,7 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
     Parameters
     ----------
     flat :  float ndarray, shape (nspec, nspat)
-        Flat field image.
+        Flat field image in units of electrons.
 
 
     mstilts: float ndarray, shape (nspec, nspat)
@@ -63,8 +63,8 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
       bspline break point spacing in units of pixels for spectral fit to flat field blaze function.
 
     spec_samp_coarse: float, default = 50.0
-      bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to flat field image. This should be
-      a large number unless you are trying to fit a sky flat with lots of features.
+      bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to flat field image residuals.
+      This should be a large number unless you are trying to fit a sky flat with lots of features.
 
     spat_samp: float, default = 5.0
       Spatial sampling for spatial slit illumination function. This is the width of the median filter in pixels used to
@@ -74,21 +74,39 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
     spat_illum_thresh: float, default = 0.01
       Spatial illumination function threshold. If the slits have
 
+    trim_edg: tuple of floats  (left_edge, right_edge), default (3,3)
+      indicates how many pixels to trim from left and right slit edges for creating the edgemask, which is used to mask
+      the edges from the initial (fine) spectroscopic fit to the blaze function.
+
+    npoly: int, default = None
+      Order of polynomial for 2-d bspline-polynomial fit to flat field image residuals. The code determines the order of
+      these polynomials to each slit automatically depending on the slit width, which is why the default is None.
+      Do not attempt to set this paramter unless you know what you are doing.
+
+    debug: bool, default = False
+      Show plots useful for debugging. This will block further execution of the code until the plot windows are closed.
 
 
     Returns
     -------
-    fextract:   ndarray
-       Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
-       Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
-       the case of a single trace.
+    pixeflat:   ndarray with size = np.sum(thismask)
+      Pixelflat gives pixel-to-pixel variations of detector response. Values are centered about unity and
+      are returned at the locations where thismask == True
+
+    illumflat:   ndarray with size = np.sum(thismask)
+      Illumination flat gives variations of the slit illumination function across the spatial direction of the detect.
+      Values are centered about unity and are returned at the locations where thismask == True. The slit illumination
+      function is computed by dividing out the spectral response and collapsing out the spectral direction.
+
+    flat_model:  ndarray with size = np.sum(thismask)
+      Full 2-d model image of the input flat image in units of electrons.  The pixelflat is defined to be flat/flat_model.
 
 
     Revision History
     ----------------
-    10-Mar-2005  First version written by D. Schlegel, LBL
+    11-Mar-2005  First version written by Scott Burles.
     2005-2018    Improved by J. F. Hennawi and J. X. Prochaska
-    23-June-2018 Ported to python by J. F. Hennawi and significantly improved
+    3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
     nspec = flat.shape[0]
@@ -224,13 +242,14 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
         ximg_in = np.concatenate((-0.2 + 0.2*np.arange(npad)/(npad-1), ximg_fit[imed], 1.0 + 0.2*np.arange(npad)/(npad-1)))
         normin =  np.concatenate((np.full(npad, lmed), normimg, np.full(npad,rmed)))
 
-    if spat_bkpt is not None:
-        fullbkpt = spatbkpt
-    else:
-        ximg_samp = np.median(ximg_fit - np.roll(ximg_fit,1))
-        bsp_set = pydl.bspline(ximg_in,nord=4, bkspace=ximg_samp*100.0)
-        fullbkpt = bsp_set.breakpoints
+    #    if spat_bkpt is not None:
+    #        fullbkpt = spatbkpt
+    #    else:
 
+    # Determine the breakpoint spacing from the sampling of the ximg
+    ximg_samp = np.median(ximg_fit - np.roll(ximg_fit,1))
+    bsp_set = pydl.bspline(ximg_in,nord=4, bkspace=ximg_samp*100.0)
+    fullbkpt = bsp_set.breakpoints
     spat_set, outmask_spat, spatfit, _ = utils.bspline_profile(ximg_in, normin, np.ones_like(normin),np.ones_like(normin),
                                                                nord=4,upper=5.0, lower=5.0,fullbkpt = fullbkpt)
 
