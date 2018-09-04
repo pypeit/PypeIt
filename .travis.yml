@@ -107,10 +107,10 @@ matrix:
         #- os: linux
         #  env: PYTHON_VERSION=3.5 NUMPY_VERSION=1.10
         - os: linux
-          env: NUMPY_VERSION=1.13
+          env: NUMPY_VERSION=1.14
 
         - os: linux
-          env: NUMPY_VERSION=1.14
+          env: NUMPY_VERSION=1.15
         # Try numpy pre-release
         - os: linux
           env: NUMPY_VERSION=prerelease
