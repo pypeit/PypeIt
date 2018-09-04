@@ -15,6 +15,7 @@
 - Improved pypeit_show_spec2d script. 
 - Fixed bug whereby -m --use_master was not being used by run_pypeit script.
 - Overhaul of general algorithm for wavelength calibration
+- Hot fix for bspline + requirements update
 
 
 0.8.1
