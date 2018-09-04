@@ -464,7 +464,7 @@ class ScienceImage(processimages.ProcessImages):
                 return False
         return True
 
-    def process(self, bias_subtract, pixel_flat, bpm, apply_gain=True, trim=True):
+    def process(self, bias_subtract, pixel_flat, bpm, illum_flat = None, apply_gain=True, trim=True):
         """ Process the image
 
         Wrapper to ProcessImages.process()
@@ -484,9 +484,13 @@ class ScienceImage(processimages.ProcessImages):
         self.pixflat = pixel_flat
 
         self.sciimg = super(ScienceImage, self).process(bias_subtract=bias_subtract,
-                                                          apply_gain=apply_gain,
-                                                          pixel_flat=pixel_flat, bpm=self.bpm,
-                                                          trim=trim)
+                                                        apply_gain=apply_gain,
+                                                        pixel_flat=pixel_flat, illum_flat = illum_flat,
+                                                        bpm=self.bpm,
+                                                        trim=trim)
+
+        # ToDo at the moment we are not propagating the flat field into the variance frame. This is kind of important
+        # if slit illumination corrections are large
 
         # Construct raw variance image
         rawvarframe = self.build_rawvarframe(trim=trim)
