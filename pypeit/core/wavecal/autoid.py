@@ -19,6 +19,7 @@ from pypeit.core.wavecal import qa
 from pypeit import utils
 
 from pypeit import msgs
+from pypeit import debugger
 
 
 def basic(spec, lines, wv_cen, disp, min_ampl=300.,

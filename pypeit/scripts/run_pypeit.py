@@ -27,7 +27,7 @@ def parser(options=None):
     parser.add_argument('-t', '--hdrframetype', default=False, action='store_true',
                         help='Use file headers and the instument-specific keywords to determine'
                              'the type of each frame')
-    parser.add_argument('-s', '--sort_dir', default=None,
+    parser.add_argument('-r', '--sort_dir', default=None,
                         help='Directory used to store the sorted files.  Default is to omit '
                              'writing these files.')
     parser.add_argument('-m', '--use_masters', default=False, action='store_true',
@@ -36,6 +36,9 @@ def parser(options=None):
 #                        help='Running development tests')
     parser.add_argument('--debug_arc', default=False, action='store_true',
                         help='Turn wavelength/arc debugging on')
+    parser.add_argument('-s', '--show', default=False, action='store_true',
+                        help='Show reduction steps via plots (which will block further execution until clicked on) '
+                             'and outputs to ginga. Requires remote control ginga session via "ginga --modules=RC &"')
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
     group = parser.add_mutually_exclusive_group()
@@ -82,7 +85,7 @@ def main(args):
 
     pypeit.PypeIt(args.pypeit_file, setup_only=args.prep_setup, calibration_check=args.calcheck,
                   use_header_frametype=args.hdrframetype, sort_dir=args.sort_dir, overwrite=args.overwrite,
-                  verbosity=args.verbosity, use_masters=args.use_masters, logname=logname)
+                  verbosity=args.verbosity, use_masters=args.use_masters, show = args.show, logname=logname)
 
     return 0
 

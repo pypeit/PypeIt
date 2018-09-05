@@ -25,6 +25,8 @@ from pypeit import waveimage
 from pypeit.core import fsort
 from pypeit.core import masters
 from pypeit.core import procimg
+from pypeit.core import parse
+
 
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
@@ -447,8 +449,13 @@ class Calibrations(object):
             self.traceSlits.mstrace = traceImage.process(bias_subtract=self.msbias,
                                                          trim=self.par['trim'], apply_gain=True)
             _ = self.traceSlits.make_binarr()
+
+            # Compute the plate scale in arcsec which is needed to trim short slits
+            scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
+            binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
+            plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
             # Now we go forth
-            self.tslits_dict = self.traceSlits.run(arms=arms)
+            self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale)
              # No slits?
             if self.tslits_dict is None:
                 self.maskslits = None
@@ -571,7 +578,7 @@ class Calibrations(object):
         if self.wv_calib is None:
             self.wv_calib, _ = self.waveCalib.run(self.tslits_dict['lcen'],
                                                   self.tslits_dict['rcen'], self.pixlocn,
-                                                  nonlinear=nonlinear, skip_QA=(~self.write_qa))
+                                                  nonlinear=nonlinear, skip_QA=(not self.write_qa))
             # Save to Masters
             if self.save_masters:
                 self.waveCalib.save_master(self.waveCalib.wv_calib)

@@ -396,7 +396,9 @@ class Spectrograph(object):
             if strict:
                 msgs.error("Error reading header from extension {0} of file:".format(filename))
             else:
-                msgs.warn("Bad header in extension {0:d} of file:".format(filename))
+                msgs.warn("Bad header in extension of file:{:}".format(filename))
+                # TODO JFH Not following the logic of this error message which caused a crash. Changing to above.
+#               msgs.warn("Bad header in extension {0:d} of file:".format(filename))
                 msgs.warn("Proceeding on the hopes this was a calibration file, otherwise consider removing.")
         return headarr
 
