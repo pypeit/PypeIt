@@ -16,6 +16,7 @@
 - Fixed bug whereby -m --use_master was not being used by run_pypeit script.
 - Overhaul of general algorithm for wavelength calibration
 - Hot fix for bspline + requirements update
+- Fixed issue with biases being written to disk as untrimmed. 
 - Completely reworked flat fielding algorithm. 
 
 
