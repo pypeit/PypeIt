@@ -287,6 +287,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                             for ii in range(self.tslits_dict['lcen'].shape[1])]
                 ginga.show_slits(viewer, ch, self.tslits_dict['lcen'], self.tslits_dict['rcen'], slit_ids)
 
+
 '''
     def show_old(self, attr='norm', display='ginga'):
         """
