@@ -584,10 +584,14 @@ class General:
             resultm = dettreem.query_ball_tree(lsttree, r=err)
 
             msgs.info("Identifying wavelengths for each pattern")
-            # psols = self.results_kdtree(use_tcentp, resultp, indexp, lindex)
-            # msols = self.results_kdtree(use_tcentm, resultm, indexm, lindex)
-            psols = results_kdtree_nb(use_tcentp, self._wvdata, resultp, indexp, lindex, indexp.shape[1], len(resultp), sum(map(len, resultp)), self._npix)
-            msols = results_kdtree_nb(use_tcentm, self._wvdata, resultm, indexm, lindex, indexm.shape[1], len(resultm), sum(map(len, resultm)), self._npix)
+            # psols = results_kdtree_nb(use_tcentp, self._wvdata, resultp, indexp, lindex, indexp.shape[1], len(resultp), sum(map(len, resultp)), self._npix)
+            # msols = results_kdtree_nb(use_tcentm, self._wvdata, resultm, indexm, lindex, indexm.shape[1], len(resultm), sum(map(len, resultm)), self._npix)
+            flatresp = [item for sublist in resultp for item in sublist]
+            flatresm = [item for sublist in resultm for item in sublist]
+            flatidxp = [ii for ii, sublist in enumerate(resultp) for item in sublist]
+            flatidxm = [ii for ii, sublist in enumerate(resultm) for item in sublist]
+            psols = results_kdtree_nb(use_tcentp, self._wvdata, flatresp, flatidxp, indexp, lindex, indexp.shape[1], self._npix)
+            msols = results_kdtree_nb(use_tcentm, self._wvdata, flatresm, flatidxm, indexm, lindex, indexm.shape[1], self._npix)
 
             msgs.info("Identifying the best solution")
             patt_dict, final_fit = self.solve_slit(slit, psols, msols)
@@ -1131,32 +1135,46 @@ class General:
         msgs.info('###################################################')
         return
 
-@nb.jit(nopython=False, cache=True)
-def results_kdtree_nb(use_tcent, wvdata, res, dindex, lindex, nindx, nrows, ncols, npix):
+
+@nb.jit(nopython=True, cache=True)
+def results_kdtree_nb(use_tcent, wvdata, res, residx, dindex, lindex, nindx, npix, ordfit=2):
     # Assign wavelengths to each pixel
-    wvdisp = np.zeros(ncols, dtype=nb.types.ulong)
-    wvcent = np.zeros(ncols, dtype=nb.types.ulong)
+    ncols = len(res)
+    wvdisp = np.zeros(ncols, dtype=nb.types.float64)
+    wvcent = np.zeros(ncols, dtype=nb.types.float64)
     dind = np.zeros((ncols, nindx), dtype=nb.types.uint64)
     lind = np.zeros((ncols, nindx), dtype=nb.types.uint64)
-    cnt = 0
-    for x in range(nrows):
-        for y in range(len(res[x])):
-            # dx = use_tcent[dindex[x, -1]] - use_tcent[dindex[x, 0]]
-            # dp = self._wvdata[lindex[res[x][y], -1]] - self._wvdata[lindex[res[x][y], 0]]
-            # try:
-            #     null, cgrad = utils.robust_polyfit(use_tcent[dindex[x, :]], self._wvdata[lindex[res[x][y], :]],
-            #                                        1, sigma=2.0, verbose=False)
-            #     wvdisp[cnt] = cgrad[1]
-            # except:
-            #     wvdisp[cnt] = (dp / dx)
-            #
-            # coeff = np.polyfit(use_tcent[dindex[x, :]], wvdata[lindex[res[x][y]]], ordfit)
-            dx = use_tcent[dindex[x, -1]] - use_tcent[dindex[x, 0]]
-            dp = wvdata[lindex[res[x][y], -1]] - wvdata[lindex[res[x][y], 0]]
-            p0 = wvdata[lindex[res[x][y], 0]] - use_tcent[dindex[x, 0]]*dp/dx
-            wvdisp[cnt] = abs(dp/dx)
-            wvcent[cnt] = (npix/2.0)*(dp/dx) + p0
-            dind[cnt, :] = dindex[x, :]
-            lind[cnt, :] = lindex[res[x][y], :]
-            cnt += 1
+    # wvdisp = np.zeros(ncols, dtype=np.float)
+    # wvcent = np.zeros(ncols, dtype=np.float)
+    # dind = np.zeros((ncols, nindx), dtype=np.int)
+    # lind = np.zeros((ncols, nindx), dtype=np.int)
+    for x in range(ncols):
+#        for ii in range(ordfit, -1, -1):
+#        lindex = np.vstack((lindex, np.array([[ll, la, lb, lr]], dtype=nb.types.uint64)))
+        # Xmat = np.vstack(tuple([np.power(use_tcent[dindex[residx[x], :]], ii) for ii in range(ordfit, -1, -1)])).T
+        if ordfit == 2:
+            Xmat = np.transpose(np.vstack((np.power(use_tcent[dindex[residx[x], :]], 2),
+                                           np.power(use_tcent[dindex[residx[x], :]], 1),
+                                           np.power(use_tcent[dindex[residx[x], :]], 0))))
+        coeff = np.linalg.lstsq(Xmat, wvdata[lindex[res[x]]])[0]
+        sumv = 0.0
+        for ii in range(ordfit, -1, -1):
+            wvcent[x] += coeff[ordfit-ii]*((npix/2.0)**ii)
+            sumv += coeff[ordfit-ii]*(((npix+1)/2.0)**ii)
+        wvdisp[x] = abs(sumv - wvcent[x])
+        # coeffb = np.polyfit(use_tcent[dindex[residx[x], :]], wvdata[lindex[res[x]]], ordfit)
+        # centb = np.polyval(coeff, npix / 2.0)
+        # dispb = abs(np.polyval(coeff, (npix + 1) / 2.0) - wvcent[x])
+        # if centb != wvcent[x] and dispb != wvdisp[x]:
+        #     pdb.set_trace()
+        dind[x, :] = dindex[residx[x], :]
+        lind[x, :] = lindex[res[x], :]
+        ##############
+        # dx = use_tcent[dindex[residx[x], -1]] - use_tcent[dindex[residx[x], 0]]
+        # dp = wvdata[lindex[res[x], -1]] - wvdata[lindex[res[x], 0]]
+        # p0 = wvdata[lindex[res[x], 0]] - use_tcent[dindex[residx[x], 0]]*dp/dx
+        # wvdisp[x] = abs(dp/dx)
+        # wvcent[x] = (npix/2.0)*(dp/dx) + p0
+        # dind[x, :] = dindex[residx[x], :]
+        # lind[x, :] = lindex[res[x], :]
     return dind, lind, wvcent, wvdisp
