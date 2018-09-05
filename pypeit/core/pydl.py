@@ -814,9 +814,18 @@ def cholesky_band(l, mininf=0.0):
     bw, nn = lower.shape
     n = nn - bw
     negative = lower[0, 0:n] <= mininf
-    if negative.any() or not np.all(np.isfinite(lower)):
-        msgs.warn('Bad entries: ' + str(negative.nonzero()[0]))
+    # JFH changed this below to make it more consistent with IDL version. Not sure
+    # why the np.all(np.isfinite(lower)) was added. The code could return an empty
+    # list for negative.nonzero() and crash if all elements in lower are NaN.
+    if negative.any():
+        msgs.warn('Found {:d}'.format(len(negative.nonzero()[0])) +
+                  ' bad entries: ' + str(negative.nonzero()[0]))
         return (negative.nonzero()[0], l)
+#    negative = (lower[0, 0:n] <= mininf)
+#    if negative.any() or not np.all(np.isfinite(lower)):
+#        msgs.warn('Found {:d}'.format(len(negative.nonzero()[0])) +
+#                  ' bad entries: ' + str(negative.nonzero()[0]))
+#        return (negative.nonzero()[0], l)
     kn = bw - 1
     spot = np.arange(kn, dtype='i4') + 1
     bi = np.arange(kn, dtype='i4')
