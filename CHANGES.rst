@@ -11,11 +11,12 @@
 - Modified debug/developer modes
 - Update SpecObjs class; ndarray instead of list;  set() method
 - Completely revamped object finding, global sky subtraction and local sky subtraction with new algorithms.
-- Added -s optiont to run_pypeit for interactive outputs.
+- Added -s option to run_pypeit for interactive outputs.
 - Improved pypeit_show_spec2d script. 
 - Fixed bug whereby -m --use_master was not being used by run_pypeit script.
 - Overhaul of general algorithm for wavelength calibration
 - Hot fix for bspline + requirements update
+- Completely reworked flat fielding algorithm. 
 
 
 0.8.1
