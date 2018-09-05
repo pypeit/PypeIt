@@ -517,7 +517,7 @@ class General:
         self.report_final()
         return
 
-    def run_kdtree(self, polygon=4, detsrch=6, lstsrch=20):
+    def run_kdtree(self, polygon=4, detsrch=6, lstsrch=20, pixtol=5):
         """ KD Tree algorithm to wavelength calibrate spectroscopic data.
         Currently, this is only designed for ThAr lamp spectra. See the
         'run_brute' function if you want to calibrate longslit spectra.
@@ -526,8 +526,8 @@ class General:
         # Load the linelist KD Tree
         lsttree, lindex = waveio.load_tree(polygon=polygon, numsearch=lstsrch)
 
-        # Set the search error to be 1 pixel
-        err = 2.0 / self._npix
+        # Set the search error to be 5 pixels
+        err = pixtol / self._npix
 
         self._all_patt_dict = {}
         self._all_final_fit = {}
@@ -598,7 +598,7 @@ class General:
                                       lindex, indexm.shape[1], self._npix)
 
             msgs.info("Identifying the best solution")
-            patt_dict, final_fit = self.solve_slit(slit, psols, msols)
+            patt_dict, final_fit = self.solve_slit(slit, psols, msols, nseld=30)
 
             # Print preliminary report
             good_fit[slit] = self.report_prelim(slit, patt_dict, final_fit)
@@ -606,8 +606,7 @@ class General:
         # Now that all slits have been inspected, attempt to find a better
         # solution for orders that were not fit well, by estimating the
         # wavelength coverage of that slit
-        # TODO - This step has not yet been completed
-        pdb.set_trace()
+        self.cross_match_order(good_fit)
 
         # With the updates to the fits of each slit, determine the final fit, and save the QA
         self.finalize_fit()
@@ -771,6 +770,22 @@ class General:
                 plt.plot(xplt, yplt, 'r-')
                 plt.show()
                 pdb.set_trace()
+        return new_bad_slits
+
+    def cross_match_order(self, good_fit):
+        pdb.set_trace()
+        xplt, yplt, dplt = np.array([]), np.array([]), np.array([])
+        for slit in range(self._nslit):
+            if good_fit[slit]:
+                xplt = np.append(xplt, slit)
+                yplt = np.append(yplt, self._all_patt_dict[str(slit)]['bwv'])
+                dplt = np.append(dplt, self._all_patt_dict[str(slit)]['bdisp'])
+        plt.subplot(211)
+        plt.plot(xplt, yplt, 'bx')
+        plt.subplot(212)
+        plt.plot(xplt, dplt, 'bx')
+        plt.show()
+        # First determine the central wavelength and dispersion of every slit, using the known good solutions
         return new_bad_slits
 
     def get_use_tcent(self, corr, arr=None, weak=False):
@@ -1142,7 +1157,7 @@ class General:
 
 
 @nb.jit(nopython=True, cache=True)
-def results_kdtree_nb(use_tcent, wvdata, res, residx, dindex, lindex, nindx, npix, ordfit=2):
+def results_kdtree_nb(use_tcent, wvdata, res, residx, dindex, lindex, nindx, npix, ordfit=1):
     # Assign wavelengths to each pixel
     ncols = len(res)
     wvdisp = np.zeros(ncols, dtype=nb.types.float64)
