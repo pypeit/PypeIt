@@ -295,7 +295,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     ispec, ispat = np.where(oprof > 0.0)
 
     # Exit gracefully if we have no positive object profiles, since that means something was wrong with object fitting
-    if bool(np.any(oprof > 0.0)) is False:
+    if not np.any(oprof > 0.0):
         junk = np.zeros(nspec)
         # Fill in the optimally extraction tags
         specobj.optimal['WAVE'] = junk
