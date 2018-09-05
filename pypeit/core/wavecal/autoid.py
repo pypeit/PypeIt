@@ -1144,37 +1144,16 @@ def results_kdtree_nb(use_tcent, wvdata, res, residx, dindex, lindex, nindx, npi
     wvcent = np.zeros(ncols, dtype=nb.types.float64)
     dind = np.zeros((ncols, nindx), dtype=nb.types.uint64)
     lind = np.zeros((ncols, nindx), dtype=nb.types.uint64)
-    # wvdisp = np.zeros(ncols, dtype=np.float)
-    # wvcent = np.zeros(ncols, dtype=np.float)
-    # dind = np.zeros((ncols, nindx), dtype=np.int)
-    # lind = np.zeros((ncols, nindx), dtype=np.int)
+    Xmat = np.ones((nindx, ordfit+1), dtype=nb.types.float64)
     for x in range(ncols):
-#        for ii in range(ordfit, -1, -1):
-#        lindex = np.vstack((lindex, np.array([[ll, la, lb, lr]], dtype=nb.types.uint64)))
-        # Xmat = np.vstack(tuple([np.power(use_tcent[dindex[residx[x], :]], ii) for ii in range(ordfit, -1, -1)])).T
-        if ordfit == 2:
-            Xmat = np.transpose(np.vstack((np.power(use_tcent[dindex[residx[x], :]], 2),
-                                           np.power(use_tcent[dindex[residx[x], :]], 1),
-                                           np.power(use_tcent[dindex[residx[x], :]], 0))))
+        for ii in range(ordfit, -1, -1):
+            Xmat[:, ii] = np.power(use_tcent[dindex[residx[x], :]], ordfit-ii)
         coeff = np.linalg.lstsq(Xmat, wvdata[lindex[res[x]]])[0]
         sumv = 0.0
         for ii in range(ordfit, -1, -1):
             wvcent[x] += coeff[ordfit-ii]*((npix/2.0)**ii)
             sumv += coeff[ordfit-ii]*(((npix+1)/2.0)**ii)
         wvdisp[x] = abs(sumv - wvcent[x])
-        # coeffb = np.polyfit(use_tcent[dindex[residx[x], :]], wvdata[lindex[res[x]]], ordfit)
-        # centb = np.polyval(coeff, npix / 2.0)
-        # dispb = abs(np.polyval(coeff, (npix + 1) / 2.0) - wvcent[x])
-        # if centb != wvcent[x] and dispb != wvdisp[x]:
-        #     pdb.set_trace()
         dind[x, :] = dindex[residx[x], :]
         lind[x, :] = lindex[res[x], :]
-        ##############
-        # dx = use_tcent[dindex[residx[x], -1]] - use_tcent[dindex[residx[x], 0]]
-        # dp = wvdata[lindex[res[x], -1]] - wvdata[lindex[res[x], 0]]
-        # p0 = wvdata[lindex[res[x], 0]] - use_tcent[dindex[residx[x], 0]]*dp/dx
-        # wvdisp[x] = abs(dp/dx)
-        # wvcent[x] = (npix/2.0)*(dp/dx) + p0
-        # dind[x, :] = dindex[residx[x], :]
-        # lind[x, :] = lindex[res[x], :]
     return dind, lind, wvcent, wvdisp
