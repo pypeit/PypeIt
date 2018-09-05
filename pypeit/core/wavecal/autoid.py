@@ -544,7 +544,9 @@ class General:
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit))
                 continue
-            best_patt_dict, best_final_fit = None, None
+
+            # Save the detections
+            self._detections[str(slit)] = self._all_tcent_weak.copy()
 
             use_tcentp = self.get_use_tcent(1)
             use_tcentm = self.get_use_tcent(-1)
@@ -584,14 +586,16 @@ class General:
             resultm = dettreem.query_ball_tree(lsttree, r=err)
 
             msgs.info("Identifying wavelengths for each pattern")
-            # psols = results_kdtree_nb(use_tcentp, self._wvdata, resultp, indexp, lindex, indexp.shape[1], len(resultp), sum(map(len, resultp)), self._npix)
-            # msols = results_kdtree_nb(use_tcentm, self._wvdata, resultm, indexm, lindex, indexm.shape[1], len(resultm), sum(map(len, resultm)), self._npix)
+            # First flatten the KD Tree query results so numba can handle the input array
             flatresp = [item for sublist in resultp for item in sublist]
             flatresm = [item for sublist in resultm for item in sublist]
             flatidxp = [ii for ii, sublist in enumerate(resultp) for item in sublist]
             flatidxm = [ii for ii, sublist in enumerate(resultm) for item in sublist]
-            psols = results_kdtree_nb(use_tcentp, self._wvdata, flatresp, flatidxp, indexp, lindex, indexp.shape[1], self._npix)
-            msols = results_kdtree_nb(use_tcentm, self._wvdata, flatresm, flatidxm, indexm, lindex, indexm.shape[1], self._npix)
+            # Obtain the correlate and anti-correlate solutions
+            psols = results_kdtree_nb(use_tcentp, self._wvdata, flatresp, flatidxp, indexp,
+                                      lindex, indexp.shape[1], self._npix)
+            msols = results_kdtree_nb(use_tcentm, self._wvdata, flatresm, flatidxm, indexm,
+                                      lindex, indexm.shape[1], self._npix)
 
             msgs.info("Identifying the best solution")
             patt_dict, final_fit = self.solve_slit(slit, psols, msols)
@@ -603,6 +607,7 @@ class General:
         # solution for orders that were not fit well, by estimating the
         # wavelength coverage of that slit
         # TODO - This step has not yet been completed
+        pdb.set_trace()
 
         # With the updates to the fits of each slit, determine the final fit, and save the QA
         self.finalize_fit()
