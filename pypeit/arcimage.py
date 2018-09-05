@@ -91,7 +91,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         if self.nfiles == 0:
             self.file_list = fsort.list_of_files(self.fitstbl, self.frametype, self.sci_ID)
         # Combine
-        self.stack = self.process(bias_subtract=self.msbias, overwrite=False, trim=True)
+        self.stack = self.process(bias_subtract=self.msbias, overwrite=overwrite, trim=True)
         #
         return self.stack
 
