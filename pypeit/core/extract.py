@@ -1346,14 +1346,17 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     if show_peaks:
         spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
         spat_approx = slit_left[specmid] + xsize[specmid]*xcen/nsamp
-        plt.plot(spat_approx_vec, fluxsub, color ='cornflowerblue',linestyle=':', label='Collapsed Slit profile')
-        plt.plot(spat_approx_vec, fluxconv, color='black', label = 'FWHM Convolved Profile')
-        plt.hlines(threshold,spat_approx_vec.min(),spat_approx_vec.max(), color='red',linestyle='--', label='Threshold')
-        plt.plot(spat_approx, ypeak, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
+        plt.plot(spat_approx_vec, fluxsub/sigma, color ='cornflowerblue',linestyle=':', label='Collapsed Flux')
+        plt.plot(spat_approx_vec, fluxconv/sigma, color='black', label = 'FWHM Convolved')
+        plt.hlines(threshold/sigma,spat_approx_vec.min(),spat_approx_vec.max(), color='red',linestyle='--', label='Threshold')
+        plt.hlines(1.0,spat_approx_vec.min(),spat_approx_vec.max(), color='green',linestyle=':', label='+- 1 sigma')
+        plt.hlines(-1.0,spat_approx_vec.min(),spat_approx_vec.max(), color='green',linestyle=':')
+
+        plt.plot(spat_approx, ypeak/sigma, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
                  linestyle='None', zorder = 10,label='Object Found')
         plt.legend()
         plt.xlabel('Approximate Spatial Position (pixels)')
-        plt.ylabel('Collapsed Flux (counts)')
+        plt.ylabel('F/sigma (significance)')
         plt.show()
 
 
