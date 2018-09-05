@@ -8,7 +8,7 @@ from scipy.ndimage.morphology import generate_binary_structure, binary_erosion
 import numba as nb
 
 
-def detect_peaks(image):
+def detect_2Dpeaks(image):
     """
     Takes a 2D image and returns 1 if a local maximum is found, and 0 otherwise
 
@@ -552,7 +552,7 @@ def curved_quadrangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixto
                     if dm == da:
                         continue
                     # Create the test pattern
-                    dbval = (detlines[da]-detlines[dl])/(detlines[dr]-detlines[dl])
+                    daval = (detlines[da]-detlines[dl])/(detlines[dr]-detlines[dl])
                     # Search through all possible patterns in the linelist
                     for ll in range(0, sz_l-nptn+1):  # ll is the start point of the linelist pattern
                         lup = ll + lstsrch
@@ -607,7 +607,7 @@ def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
     """
     nlines = detlines.size
     if patt_dict is None:
-        patt_dict = dict(nmatch=0, ibest=-1, bwv=0.)
+        patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., mask=np.zeros(nlines, dtype=np.bool))
 
     # Find the best ID of each line
     detids = np.zeros(nlines)
@@ -629,6 +629,7 @@ def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
 
     # Iteratively fit this solution, and ID all lines.
     if ngd_match > patt_dict['nmatch']:
+        patt_dict['acceptable'] = True
         patt_dict['mask'] = mask
         patt_dict['nmatch'] = ngd_match
         patt_dict['scores'] = scores

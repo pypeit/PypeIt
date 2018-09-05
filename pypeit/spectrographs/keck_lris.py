@@ -206,7 +206,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['slits']['sigdetect'] = 30.
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypeitpar.SkySubtractionPar()
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
@@ -244,7 +244,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             arcparam is modified in place
 
         """
-        arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'CdI', 'HgI']
+        arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         if disperser == '600/4000':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.63 # Ang per pixel (unbinned)
@@ -252,19 +252,22 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 6000.
             arcparam['wv_cen'] = 4000.
+            arcparam['min_ampl'] = 1000.0
         elif disperser == '400/3400':
+            pass
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=1.02
             arcparam['b1']= 2.72694493e-04
             arcparam['b2']= -5.30717321e-09
             arcparam['wvmnx'][1] = 6000.
+            arcparam['min_ampl'] = 1000.0
         elif disperser == '300/5000':
             arcparam['n_first'] = 2
             arcparam['wv_cen'] = 4500.
             arcparam['disp'] = 1.43
+            arcparam['min_ampl'] = 1000.0
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-
 
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
@@ -314,7 +317,29 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         self.numhead = 5
         # Uses default timeunit
         # Uses default primary_hdrext
+        # TODO why isn't there a sky file set here?
         # self.sky_file ?
+
+    @staticmethod
+    def default_pypeit_par():
+        """
+        Set default parameters for Keck LRISr reductions.
+        """
+        par = pypeitpar.PypeItPar()
+        par['rdx']['spectrograph'] = 'keck_lris_red'
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+        # Set wave tilts order
+        par['calibrations']['slits']['sigdetect'] = 30.
+        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+        # Always sky subtract, starting with default parameters
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypeitpar.FlexurePar()
+        return par
+
 
     def header_keys(self):
         head_keys = self.lris_header_keys()
@@ -367,9 +392,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             arcparam is modified in place
 
         """
-        arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
+        #arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
         # Should set according to the lamps that were on
         arcparam['lamps'] = ['ArI','NeI','HgI','KrI','XeI']
+        '''
         if disperser == '600/7500':
             arcparam['n_first']=3 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
@@ -394,7 +420,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-
+        '''
 
 def read_lris(raw_file, det=None, TRIM=False):
     """
