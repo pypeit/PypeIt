@@ -673,6 +673,12 @@ class Calibrations(object):
         return self.mstilts, self.maskslits
 
     def run_the_steps(self):
+        """
+        Run full the full recipe of calibration steps
+
+        Returns:
+
+        """
         for step in self.steps:
             getattr(self, 'get_{:s}'.format(step))()
 
@@ -729,6 +735,7 @@ class Calibrations(object):
                                                           self.sci_ID)
         txt += '>'
         return txt
+
 
 class MultiSlitCalibrations(Calibrations):
     """

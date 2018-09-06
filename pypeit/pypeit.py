@@ -18,6 +18,7 @@ from pypeit import pypeitsetup
 from pypeit.spectrographs import keck_lris
 from pypeit.scripts import run_pypeit
 from pypeit.core import pypsetup
+from pypeit import calibrations
 
 from pypeit import debugger
 
@@ -107,6 +108,12 @@ class PypeIt(object):
                              setup_lines=setup_lines, sorted_files=sorted_files, paths=paths)
             print("Wrote {:s}".format(pypeit_file))
 
+    def calibrate_det(self, sci_ID, det):
+        pass
+
+    def _init_calibrations(self):
+        pass
+
     def init_setup(self, pypeit_file, redux_path=None, calibration_check=True):
         self.pypeit_file = pypeit_file
 
@@ -129,6 +136,8 @@ class PypeIt(object):
         fsort.make_dirs(self.spectrograph.spectrograph, self.par['calibrations']['caldir'],
                         self.par['rdx']['scidir'], self.par['rdx']['qadir'], overwrite=self.overwrite,
                         redux_path=self.par['rdx']['redux_path'])
+        # Calibrations
+        self._init_calibrations()
 
     def _make_setup_pypeit_file(self, files_root, extension='.fits', overwrite=False):
 
@@ -153,7 +162,7 @@ class PypeIt(object):
         msgs.info('Wrote template pypeit file: {0}'.format(pypeit_file))
 
         # Parser
-        pinp = [pypeit_file, '-p', '-s {0}'.format(root) ]
+        pinp = [pypeit_file, '-p', '-r {0}'.format(root) ]
         if overwrite:
             pinp += ['-o']
         pargs = run_pypeit.parser(pinp)
@@ -164,6 +173,23 @@ class PypeIt(object):
         # Reset the global logger
         msgs.reset(log=self.logname, verbosity=self.verbosity)
         msgs.pypeit_file = self.pypeit_file
+
+    def print_end_time(self):
+        # Capture the end time and print it to user
+        tend = time.time()
+        codetime = tend-self.tstart
+        if codetime < 60.0:
+            msgs.info('Data reduction execution time: {0:.2f}s'.format(codetime))
+        elif codetime/60.0 < 60.0:
+            mns = int(codetime/60.0)
+            scs = codetime - 60.0*mns
+            msgs.info('Data reduction execution time: {0:d}m {1:.2f}s'.format(mns, scs))
+        else:
+            hrs = int(codetime/3600.0)
+            mns = int(60.0*(codetime/3600.0 - hrs))
+            scs = codetime - 60.0*mns - 3600.0*hrs
+            msgs.info('Data reduction execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs))
+
 
     def run(self, quick=False):
         """
@@ -244,22 +270,6 @@ class PypeIt(object):
 
         return status
 
-    def print_end_time(self):
-        # Capture the end time and print it to user
-        tend = time.time()
-        codetime = tend-self.tstart
-        if codetime < 60.0:
-            msgs.info('Data reduction execution time: {0:.2f}s'.format(codetime))
-        elif codetime/60.0 < 60.0:
-            mns = int(codetime/60.0)
-            scs = codetime - 60.0*mns
-            msgs.info('Data reduction execution time: {0:d}m {1:.2f}s'.format(mns, scs))
-        else:
-            hrs = int(codetime/3600.0)
-            mns = int(60.0*(codetime/3600.0 - hrs))
-            scs = codetime - 60.0*mns - 3600.0*hrs
-            msgs.info('Data reduction execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs))
-
 
     def _setup(self, pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False, sort_dir=None):
         """
@@ -300,6 +310,9 @@ class PypeIt(object):
         # Write the fits table
         self.setup.write_fitstbl()
 
+    def show_science(self):
+        print(self.fitstbl[['target','ra','dec','exptime','dispname','sci_ID']][self.fitstbl['science']])
+
     def __repr__(self):
         # Generate sets string
         txt = '<{:s}: pypeit_file={}'.format(self.__class__.__name__,
@@ -307,10 +320,33 @@ class PypeIt(object):
         txt += '>'
         return txt
 
-class LRISb(PypeIt):
+
+class MultiSlit(PypeIt):
+    def __init__(self, spectrograph, **kwargs):
+        PypeIt.__init__(self, spectrograph, **kwargs)
+
+    def calibrate_one(self, sci_ID, det):
+        # Setup
+        setup = pypsetup.instr_setup(sci_ID, det, self.fitstbl, self.setup_dict,
+                                     self.spectrograph.detector[det-1]['numamplifiers'],
+                                     must_exist=True)
+        # Setup
+        self.caliBrate.reset(setup, det, sci_ID, self.par['calibrations'])
+        # Run em
+        self.caliBrate.run_the_steps()
+
+    def _init_calibrations(self):
+        # TODO -- Need to make save_masters and write_qa optional
+        # Init calib dict
+        self.caliBrate = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
+                                                   par=self.par['calibrations'],
+                                                   save_masters=True, write_qa=True)
+
+
+class LRISb(MultiSlit):
     def __init__(self, **kwargs):
         spectrograph = keck_lris.KeckLRISBSpectrograph()
-        PypeIt.__init__(self, spectrograph, **kwargs)
+        MultiSlit.__init__(self, spectrograph, **kwargs)
 
 
 
