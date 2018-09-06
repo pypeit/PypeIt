@@ -19,19 +19,40 @@ from pypeit import utils
 from pypeit.core.flux import find_standard_file
 from pypeit import debugger
 
-# TODO: (KBW) You know my comment about this...
-ftype_list = [     # NOTE:  arc must be listed first!
-    'arc',         # Exposure of one or more arc calibration lamps for wavelength calibration
-    'bias',        # Exposure for assessing detector bias (usually 0s)
-    'dark',        # Exposure for assessing detector dark current
-    'pinhole',     # Exposure for tracing the orders or slits
-    'pixelflat',   # Exposure for assessing pixel-to-pixel variations
-    'science',   # Exposure on one or more science targets
-    'standard',    # Exposure on a 'standard star' used for flux calibration
-    'trace',       # Exposure for tracing slits or echelle orders (usually twilight sky or flat lamp)
-    'unknown',     # Unknown..
-]
+from pypeit.bitmask import BitMask
 
+class FrameTypeBitMask(BitMask):
+    """
+    Define a bitmask to set the frame types.
+
+    Frame types can be arc, bias, dark, pinhole, pixelflat, science,
+    standard, or trace.
+    """
+    def __init__(self):
+        frame_types = {         'arc': 'Arc lamp observation used for wavelength calibration',
+                               'bias': 'Bias readout for detector bias subtraction',
+                               'dark': 'Shuttered exposure to measure dark current',
+                            'pinhole': 'Pinhole observation used for tracing slit centers',
+                          'pixelflat': 'Flat-field exposure used for pixel-to-pixel response',
+                            'science': 'On-sky observation of a primary target',
+                           'standard': 'On-sky observation of a flux calibrator',
+                              'trace': 'High-count exposure used to trace slit positions'
+                      }
+        super(FrameTypeBitMask, self).__init__(list(frame_types.keys()),
+                                               descr=list(frame_types.values()))
+
+## TODO: (KBW) You know my comment about this...
+#ftype_list = [     # NOTE:  arc must be listed first!
+#    'arc',         # Exposure of one or more 
+#    'bias',        # Exposure for assessing detector bias (usually 0s)
+#    'dark',        # Exposure for assessing detector dark current
+#    'pinhole',     # Exposure for tracing the orders or slits
+#    'pixelflat',   # Exposure for assessing pixel-to-pixel variations
+#    'science',   # Exposure on one or more science targets
+#    'standard',    # Exposure on a 'standard star' used for flux calibration
+#    'trace',       # Exposure for tracing slits or echelle orders (usually twilight sky or flat lamp)
+#    'unknown',     # Unknown..
+#]
 
 def ftype_indices(fitstbl, ftype, sci_ID):
     """
@@ -80,122 +101,145 @@ def list_of_files(fitstbl, ftype, sci_ID):
     return file_list
 
 
-def type_data(spectrograph, fitstbl, flag_unknown=False, ftdict=None, useIDname=False):
-    """ Generate a table of filetypes from the input fitsdict object
+def get_type_names(type_bits, bitmask=None):
+    """
+    Use the type bits to get the type names for each frame.
 
-    Parameters
-    ----------
-    fitstbl : Table
-      Contains relevant information from fits header files
-    flag_unknown : bool, optional
-      Instead of crashing out if there are unidentified files,
-      set to 'unknown' and continue
-    useIDname : bool, optional
-      Use ID name in the Header to image type
+    Args:
+        type_bits (int):
+            The bit mask for each frame.
+        bitmask (:class:`pypeit.bitmask.BitMask`, optional):
+            The bit mask used to pull out the bit names.  Uses
+            :class:`FrameTypeBitMask` by default.
 
-    Returns
-    -------
-    filetypes : Table
-      A Table of filetypes
-      Each key is a file type and contains False/True for each datafile
-      This is stacked onto the fitstbl
+    Returns:
+        list: List of the frame types for each frame.  Each frame can
+        have multiple types, meaning the 2nd axis is not necessarily the
+        same length for all frames.
+    """
+    bm = FrameTypeBitMask() if bitmask is None else bitmask
+    out = []
+    for b in type_bits:
+        n = bm.flagged_bits(b)
+        if len(n) == 0:
+            n = ['None']
+        out += [n]
+    return out
+
+
+def get_frame_types(spectrograph, fitstbl, flag_unknown=False, user=None, useIDname=False):
+    """
+    Generate a table of frame types from the input metadata object.
+
+    Args:
+        spectrograph
+            (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The spectrograph used to collect the data save to each file.
+            The class is used to provide the header keyword data to
+            include in the table and specify any validation checks.
+        fitstbl (:obj:`astropy.table.Table`):
+            Table with the fits file metadata.
+        flag_unknown (:obj:`bool`, optional):
+            Instead of crashing out if there are unidentified files,
+            leave without a type and continue.
+        user (:obj:`dict`, optional):
+            A dictionary with the types designated by the user.  The
+            file name and type are expected to be the key and value of
+            the dictionary, respectively.  The number of keys therefore
+            *must* match the number of files in the provided `fitstbl`.
+            For frames that have multiple types, the types should be
+            provided as a string with comma-separated types.
+        useIDname (:obj:`bool`, optional):
+            Use ID name in the Header to image type
+
+    Returns:
+        :obj:`astropy.table.Table`: A Table with two columns, the type
+        names and the type bits.  See :class:`FrameTypeBitMask` for the
+        allowed frame types.
     """
     msgs.info("Typing files")
+
+    # Prep the bits vector
     numfiles = fitstbl['filename'].size
-    # Set the filetype dictionary
-    filetypes = Table()
-    for ftype in ftype_list:
-        filetypes[ftype] = np.zeros(numfiles, dtype=bool)
+    bm = FrameTypeBitMask()
+    type_bits = np.zeros(numfiles, dtype=bm.minimum_dtype())
 
-    # Set all filetypes by hand?  (Typically read from PYPIT file)
-    #if len(settings.ftdict) > 0:
-    if ftdict is not None:
+    # Use the user-defined frame types from the input dictionary
+    if user is not None:
+        if len(user.keys()) != numfiles:
+            raise ValueError('The user-provided dictionary does not match the fitstbl.')
+        msgs.info('Using user-provided frame types.')
         for ifile,ftypes in ftdict.items():
-            idx = fitstbl['filename'] == ifile
-            sptypes = ftypes.split(',')
-            for iftype in sptypes:
-                filetypes[iftype][idx] = True
-        # Sort
-        #for key in filetypesfilesort.keys():
-        #    filetypesfilesort[key].sort()
-        return filetypes
+            indx = fitstbl['filename'] == ifile
+            type_bits[indx] = bm.turn_on(type_bits[indx], flag=ftypes.split(','))
+        return Table({'frametype': get_type_names(type_bits, bitmask=bm), 'framebit': type_bits})
 
-    # Identify the frames:
-    # Loop on file type
-    for i, ftype in enumerate(ftype_list):
-        if ftype == 'unknown':
-            continue
-        # Self identification (typically from Header; not recommended)
-        if useIDname:
-            idx = fitstbl['idname'] == spectrograph.idname(ftype)
-            filetypes[ftype][idx] = True
-            #w = np.where(fitsdict['idname'] == settings.spect[ftype]['idname'])[0]
-        else: # Set all to True!
-            filetypes[ftype] = True
+    # Loop over the frame types
+    for i, ftype in enumerate(bm.keys()):
 
-        # Perform additional checks in order to make sure this identification is true
-        gd_chk = spectrograph.check_ftype(ftype, fitstbl)
-        filetypes[ftype] &= gd_chk
+        # Initialize: Flag frames with the correct ID name or start by
+        # flagging all as true
+        indx = fitstbl['idname'] == spectrograph.idname(ftype) if useIDname \
+                    else np.ones(numfiles, dtype=bool)
 
-    # Identify the standard stars
+        # Include a combination of instrument-specific checks using
+        # combinations of the full set of metadata
+        indx &= spectrograph.check_ftype(ftype, fitstbl)
+
+        # Turn on the relevant bits
+        type_bits[indx] = bm.turn_on(type_bits[indx], flag=ftype)
+
     # Find the nearest standard star to each science frame
-    wscistds = np.where(filetypes['standard'])[0]
-    for wscistd in wscistds:
-        radec = (fitstbl['ra'][wscistd], fitstbl['dec'][wscistd])
-        if fitstbl['ra'][wscistd] == 'None':
-            msgs.warn("No RA and DEC information for file:" + msgs.newline() + fitstbl['filename'][wscistd])
-            msgs.warn("The above file could be a twilight flat frame that was" + msgs.newline() +
-                      "missed by the automatic identification.")
-            filetypes['standard'][wscistd] = False
-            continue
-        # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
-        foundstd = find_standard_file(radec, toler=20.*units.arcmin, check=True)
-        if foundstd:
-            filetypes['science'][wscistd] = False
-        else:
-            filetypes['standard'][wscistd] = False
+    # TODO: Should this be 'standard' or 'science' or both?
+    if 'ra' not in fitstbl.keys() or 'dec' not in fitstbl.keys():
+        msgs.warn('Cannot associate standard with science frames without sky coordinates.')
+    else:
+        indx = bm.flagged(type_bits, flag='standard')
+        for b, f, ra, dec in zip(type_bits[indx], fitstbl['filename'][indx], fitstbl['ra'][indx],
+                                 fitstbl['dec'][indx]):
+            if ra == 'None' or dec == 'None':
+                msgs.warn('RA and DEC must not be None for file:' + msgs.newline() + f)
+                msgs.warn('The above file could be a twilight flat frame that was' + msgs.newline()
+                        + 'missed by the automatic identification.')
+                b = bm.turn_off(b, flag='standard')
+                continue
 
-    '''
-    # Make any forced changes
-    skeys = settings_spect['set'].keys()
-    if len(skeys) > 0:
-        msgs.info("Making forced file identification changes")
-        msgs.warn("Note that the image will have *only* the specified type")
-        for sk in skeys:
-            for jj in settings_spect['set'][sk]:
-                idx = np.where(fitstbl['filename']==jj)[0]
-                # Zero out the others
-                for ftype in ftype_list:
-                    filetypes[ftype][idx] = False
-                # And set
-                filetypes[sk][idx] = True
-    '''
+            # If an object exists within 20 arcmins of a listed standard,
+            # then it is probably a standard star
+            foundstd = find_standard_file(ra, dec, check=True)
+            b = bm.turn_off(b, flag='science' if foundstd else 'standard')
 
-    # Check that all files have an identification
-    chklist = []
-    for ftype in ftype_list:
-        if ftype == 'unknown':
-            continue
-        chklist.append(filetypes[ftype].data)
-    badfiles = ~np.any(chklist,axis=0)
-    if np.any(badfiles):
+#    # Make any forced changes
+#    skeys = settings_spect['set'].keys()
+#    if len(skeys) > 0:
+#        msgs.info("Making forced file identification changes")
+#        msgs.warn("Note that the image will have *only* the specified type")
+#        for sk in skeys:
+#            for jj in settings_spect['set'][sk]:
+#                idx = np.where(fitstbl['filename']==jj)[0]
+#                # Zero out the others
+#                for ftype in ftype_list:
+#                    filetypes[ftype][idx] = False
+#                # And set
+#                filetypes[sk][idx] = True
+
+    # Find the files without any types
+    indx = np.invert(bm.flagged(type_bits))
+    if np.any(indx):
         msgs.info("Couldn't identify the following files:")
-        for ifile in fitstbl['filename'][badfiles]:
-            msgs.info(ifile)
-        if flag_unknown:
-            filetypes['unknown'][badfiles] = True
-        else:
+        for f in fitstbl['filename'][indx]:
+            msgs.info(f)
+        if not flag_unknown:
             msgs.error("Check these files before continuing")
 
     # Now identify the dark frames
-    darks = filetypes['bias'] & (fitstbl['exptime'].data.astype(np.float64) >
-                                 spectrograph.minexp)
-                                   #settings_spect['mosaic']['minexp'])
-    filetypes['dark'] = darks
+    indx = bm.flagged(type_bits, flag='bias') \
+                    & (fitstbl['exptime'].data.astype(float) > spectrograph.minexp)
+    type_bits[indx] = bm.turn_on(type_bits[indx], 'dark')
 
-    # Return filesort!
+    # Finish up (note that this is called above if user is not None!)
     msgs.info("Typing completed!")
-    return filetypes
+    return Table({'frametype': get_type_names(type_bits, bitmask=bm), 'framebit': type_bits})
 
 '''
 def sort_data(fitsdict, flag_unknown=False):

@@ -176,10 +176,19 @@ class PypeItSetup(object):
 
         """
         # Build and sort the table
-        self.fitstbl = load.load_headers(self.file_list, self.spectrograph, strict=strict)
-        self.fitstbl.sort('time')
-        # Step
+        self.fitstbl = load.create_fitstbl(self.file_list, self.spectrograph, strict=strict)
+
+        # Instrument specific
+        self.spectrograph.validate_fitstbl(self.fitstbl)
+
+        # Sort by the time
+        if 'time' in self.fitstbl.keys():
+            self.fitstbl.sort('time')
+
+        # Add this to the completed steps
         self.steps.append(inspect.stack()[0][3])
+
+        # Return the table
         return self.fitstbl
 
     def build_group_dict(self, pypeit_file=None):
@@ -296,40 +305,44 @@ class PypeItSetup(object):
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
 
-    # TODO: This appends the data to fitstbl meaning that it should not
-    # be run multiple times.  Make it a "private" function?
-    def type_data(self, flag_unknown=False, use_header_frametype=False):
+    def _add_frame_types(self, flag_unknown=False, use_header_id=False):
         """
-          Perform image typing on the full set of input files
-          Mainly a wrapper to arsort.type_data()
+        Include the frame types in the metadata table.
 
-        The table (filetypeflags) returned is horizontally stacked
-          onto the fitstbl.
+        This is mainly a wrapper for :func:`fsort.get_frame_types`.
 
-        Parameters
-        ----------
-        flag_unknown: bool, optional
-          Mark a frame as UNKNOWN instead of crashing out
-          Required when doing initial setup
+        .. warning::
+
+            Because this merges the frame types with the existing
+            :attr:`fitstbl` this should only be run once.
+
+        Args:
+            flag_unknown (:obj:`bool`, optional):
+                Allow for frames to have unknown types instead of
+                crashing.  This should be True for initial setup and
+                False otherwise.
 
         Returns
         -------
         self.filetypeflags
-
         """
-        # Allow for input file types from the PYPIT file
-        self.filetypeflags = fsort.type_data(self.spectrograph, self.fitstbl,
-                                              ftdict=self.frametype, flag_unknown=flag_unknown,
-                                              useIDname=use_header_frametype)
+        # Remove existing columns
+        if 'frametype' in self.fitstbl.keys():
+            del self.fitstbl['frametype']
+        if 'framebit' in self.fitstbl.keys():
+            del self.fitstbl['framebit']
 
-        # hstack me -- Might over-write self.fitstbl here
+        # Allow for input file types from the PYPIT file
+        self.filetypeflags = fsort.get_frame_types(self.spectrograph, self.fitstbl,
+                                                   user=self.frametype, flag_unknown=flag_unknown,
+                                                   useIDname=use_header_id)
+
+        # Merge type flags into fitstbl
         msgs.info("Adding file type information to the fitstbl")
         self.fitstbl = hstack([self.fitstbl, self.filetypeflags])
 
-        # Step
+        # Include finished processing step
         self.steps.append(inspect.stack()[0][3])
-        # Return
-        return self.filetypeflags
 
     def load_fitstbl(self, fits_file):
         """
@@ -366,8 +379,7 @@ class PypeItSetup(object):
             outfile = self.pypeit_file.replace('.pypeit', '.fits')
         self.fitstbl.write(outfile, overwrite=overwrite)
 
-    def run(self, setup_only=False, calibration_check=False, use_header_frametype=False,
-            sort_dir=None):
+    def run(self, setup_only=False, calibration_check=False, use_header_id=False, sort_dir=None):
         """
         Once instantiated, this is the main method used to construct the
         object.
@@ -388,7 +400,7 @@ class PypeItSetup(object):
         to do the actual setup before proceeding with the reductions.
 
         Args:
-            setup_only (bool):
+            setup_only (:obj:`bool`, optional):
                 Only this setup will be performed.  Pypit is expected to
                 execute in a way that ends after this class is fully
                 instantiated such that the user can inspect the results
@@ -396,16 +408,17 @@ class PypeItSetup(object):
                 more output describing the success of the setup and how
                 to proceed, and provides warnings (instead of errors)
                 for issues that may cause the reduction itself to fail.
-            calibration_check (bool):
+            calibration_check (obj:`bool`, optional):
                 Only check that the calibration frames are appropriately
                 setup and exist on disk.  Pypit is expected to execute
                 in a way that ends after this class is fully
                 instantiated such that the user can inspect the results
                 before proceeding. 
-            use_header_frametype (bool):
-                Allow setup to use the frame types drawn from the file
-                headers using the instrument specific keywords.
-            sort_dir (str):
+            use_header_id (:obj:`bool`, optional):
+                Allow setup to use the frame types drawn from single,
+                instrument-specific header keywords set to `idname` in
+                the metadata table (:attr:`fitstbl`).
+            sort_dir (:obj:`str`, optional):
                 The directory to put the '.sorted' file.
 
         Returns:
@@ -425,8 +438,10 @@ class PypeItSetup(object):
             self.build_fitstbl(strict=not setup_only)
 
         # File typing
-        self.type_data(flag_unknown=setup_only or calibration_check,
-                       use_header_frametype=use_header_frametype)
+        if 'frametype' not in self.fitstbl.keys():
+            # Add the frame type if it isn't already in the table
+            self._add_frame_types(flag_unknown=setup_only or calibration_check,
+                                  use_header_id=use_header_id)
 
         # Write?
         if sort_dir is not None:

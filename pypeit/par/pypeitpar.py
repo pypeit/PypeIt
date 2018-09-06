@@ -1627,13 +1627,14 @@ class ExtractObjectsPar(ParSet):
 # ToDO place holder to be updated by JFH
 class ScienceImagePar(ParSet):
     """
-    The parameter set used to hold arguments for sky subtraction, object finding and extraction in the ScienceImage class
+    The parameter set used to hold arguments for sky subtraction, object
+    finding and extraction in the ScienceImage class
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, maxnumber=None,manual=None, nodding = None):
+    def __init__(self, bspline_spacing=None, maxnumber=None, manual=None, nodding=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1675,11 +1676,11 @@ class ScienceImagePar(ParSet):
 
         # Instantiate the parameter set
         super(ScienceImagePar, self).__init__(list(pars.keys()),
-                                                values=list(pars.values()),
-                                                defaults=list(defaults.values()),
-                                                options=list(options.values()),
-                                                dtypes=list(dtypes.values()),
-                                                descr=list(descr.values()))
+                                              values=list(pars.values()),
+                                              defaults=list(defaults.values()),
+                                              options=list(options.values()),
+                                              dtypes=list(dtypes.values()),
+                                              descr=list(descr.values()))
         self.validate()
 
     @classmethod
@@ -1888,7 +1889,8 @@ class PypeItPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None, flexure=None, fluxcalib=None):
+    def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None,
+                 flexure=None, fluxcalib=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1921,25 +1923,8 @@ class PypeItPar(ParSet):
 
         defaults['scienceimage'] = ScienceImagePar()
         dtypes['scienceimage'] = [ParSet, dict]
-        descr['scienceimage'] = 'Parameters determining sky-subtraction, object finding, and extraction'
-
-## JFH commented out objects, extract, and skysubtract below. These parsets are all deprecated now
-#        defaults['objects'] = TraceObjectsPar()
-#        dtypes['objects'] = [ ParSet, dict ]
-#        descr['objects'] = 'Define how to tract the slit tilts using the trace frames'
-
-#        defaults['extract'] = ExtractObjectsPar()
-#        dtypes['extract'] = [ ParSet, dict ]
-#        descr['extract'] = 'Define how to extract 1D object spectra'
-
-        # Sky subtraction is turned OFF by default
-#        dtypes['skysubtract'] = [ ParSet, dict ]
-#        descr['skysubtract'] = 'Parameters used by the sky-subtraction procedure.  Sky ' \
-#                               'subtraction is not performed by default.  To turn on, either' \
-#                               'set the parameters in the \'skysubtract\' parameter group or ' \
-#                               'set \'skysubtract = True\' in the \'rdx\' parameter group ' \
-#                               'to use the default sky-subtraction parameters.'
-
+        descr['scienceimage'] = 'Parameters determining sky-subtraction, object finding, and ' \
+                                'extraction'
 
         # Flexure is turned OFF by default
         dtypes['flexure'] = [ ParSet, dict ]
@@ -2178,20 +2163,6 @@ class PypeItPar(ParSet):
         pk = 'scienceimage'
         kwargs[pk] = ScienceImagePar.from_dict(cfg[pk]) if pk in k else None
 
-        # JFH These lines here below are deprecated now
-        '''
-        pk = 'objects'
-        kwargs[pk] = TraceObjectsPar.from_dict(cfg[pk]) if pk in k else None
-
-        pk = 'extract'
-        kwargs[pk] = ExtractObjectsPar.from_dict(cfg[pk]) if pk in k else None
-
-        # Allow sky subtraction to be turned on using cfg['rdx']
-        pk = 'skysubtract'
-        default = SkySubtractionPar() \
-                        if pk in cfg['rdx'].keys() and cfg['rdx']['skysubtract'] else None
-        kwargs[pk] = SkySubtractionPar.from_dict(cfg[pk]) if pk in k else default
-        '''
         # Allow flexure to be turned on using cfg['rdx']
         pk = 'flexure'
         default = FlexurePar() if pk in cfg['rdx'].keys() and cfg['rdx']['flexure'] else None

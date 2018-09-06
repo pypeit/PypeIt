@@ -87,7 +87,7 @@ class Spectrograph(object):
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
 
-    def add_to_fitstbl(self, fitstbl):
+    def validate_fitstbl(self, fitstbl):
         pass
 
     def _check_telescope(self):
@@ -387,19 +387,31 @@ class Spectrograph(object):
         return self.default_header_keys()
 
     def get_headarr(self, filename, strict=True):
-        headarr = ['None' for k in range(self.numhead)]
-        # Try to load em up
+        """
+        Read the header data from all the extensions in the file.
+
+        Args:
+            filename (:obj:`str`):
+                Name of the file to read.
+            strict (:obj:`bool`, optional):
+                Function will fault if :func:`fits.getheader` fails to
+                read any of the headers.  Set to False to report a
+                warning and continue.
+
+        Returns:
+            list: Returns a list of :attr:`numhead` :obj:`fits.Header`
+            objects with the extension headers.
+        """
+        headarr = ['None']*self.numhead
         try:
-            for k in range(self.numhead):
-                headarr[k] = fits.getheader(filename, ext=k)
+            headarr = [fits.getheader(filename, ext=k) for k in range(self.numhead)]
         except:
             if strict:
                 msgs.error("Error reading header from extension {0} of file:".format(filename))
             else:
-                msgs.warn("Bad header in extension of file:{:}".format(filename))
-                # TODO JFH Not following the logic of this error message which caused a crash. Changing to above.
-#               msgs.warn("Bad header in extension {0:d} of file:".format(filename))
-                msgs.warn("Proceeding on the hopes this was a calibration file, otherwise consider removing.")
+                msgs.warn('Bad header in extension of file: {0}'.format(filename) 
+                           + msgs.newline() + 'Proceeding on the hopes this was a '
+                           + 'calibration file, otherwise consider removing.')
         return headarr
 
     def get_match_criteria(self):
@@ -414,14 +426,15 @@ class Spectrograph(object):
         occur in the header indicating it.
 
         Args:
-            ftype: str
-              File type, one of the items in arsort.ftype_list
+            ftype (str):
+                File type, which should be one of the keys in
+                :class:`pypeit.core.fsort.FrameTypeBitMask`.
 
         Returns:
-            idname: str
+            str: The header keywidname: str
 
         """
-        return None
+        raise NotImplementedError('Header keyword with frame type not set for this spectrograph.')
 
     def check_headers(self, headers):
         pass

@@ -1,22 +1,32 @@
 0.8.2dev (unreleased)
 ---------------------
 
-- Major refactor to rename most modules and incorporate the PYPIT -> PypeIt switch
+- Major refactor to rename most modules and incorporate the PYPIT ->
+  PypeIt switch
 - Add SlitMask, OpticalModel, and DetectorMap classes.  Implemented
   DEIMOSOpticalModel based on DEEP2 IDL code.
-- Improved treatment of large offsets in pypeit.core.trace_slits.trace_gweight to be symmetric with trace_fweight. Large outlying pixels were breaking object tracing.
-- Added thresholding in pypeit.core.tracewave to ensure that tilts are never crazy values due to extrapolation of fits which can break sky subtraction. 
+- Improved treatment of large offsets in
+  pypeit.core.trace_slits.trace_gweight to be symmetric with
+  trace_fweight. Large outlying pixels were breaking object tracing.
+- Added thresholding in pypeit.core.tracewave to ensure that tilts are
+  never crazy values due to extrapolation of fits which can break sky
+  subtraction. 
 - Turn off 2.7 Travis testing
 - Integrated arclines into PypeIt
 - Modified debug/developer modes
 - Update SpecObjs class; ndarray instead of list;  set() method
-- Completely revamped object finding, global sky subtraction and local sky subtraction with new algorithms.
+- Completely revamped object finding, global sky subtraction and local
+  sky subtraction with new algorithms.
 - Added -s optiont to run_pypeit for interactive outputs.
 - Improved pypeit_show_spec2d script. 
-- Fixed bug whereby -m --use_master was not being used by run_pypeit script.
+- Fixed bug whereby -m --use_master was not being used by run_pypeit
+  script.
 - Overhaul of general algorithm for wavelength calibration
 - Hot fix for bspline + requirements update
-
+- Include BitMask class from MaNGA DAP.
+- Change the way frame types are include in PypeItSetup.fitstbl
+- Edited KeckLRISSpectrograph header keywords
+- Edited how headers are read from the provided files
 
 0.8.1
 -----

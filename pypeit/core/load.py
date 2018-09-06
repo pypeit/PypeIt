@@ -18,160 +18,205 @@ from pypeit import specobjs
 from pypeit import debugger
 
 
-def load_headers(datlines, spectrograph, strict=True):
-    """ Load the header information for each fits file
-    The cards of interest are specified in the instrument settings file
-    A check of specific cards is performed if specified in settings
-
-    Parameters
-    ----------
-    datlines : list
-      Input (uncommented) lines specified by the user.
-      datlines contains the full data path to every
-      raw exposure provided by the user.
-
-    Returns
-    -------
-    fitstbl : Table
-      The relevant header information of all fits files
+def get_utc(headarr):
     """
-    # FITS dict/table keys
+    Find and return the UTC for a file based on the headers read from
+    all extensions.
+
+    The value returned is the first UT or UTC keyword found any in any
+    header object.
+
+    Args:
+        headarr (list):
+            List of :obj:`astropy.io.fits.Header` objects to search
+            through for a UTC of the observation.
+    Returns:
+        object: The value of the header keyword.
+    """
+    for h in headarr:
+        if h == 'None':
+            continue
+        if 'UTC' in h.keys():
+            return h['UTC']
+        elif 'UT' in h.keys():
+            return h['UT']
+    return None
+
+
+def convert_time(in_time, spectrograph):
+    """
+    Convert the time read from a file header to hours for all
+    spectrographs.
+
+    Args:
+        in_time (str):
+            The time read from the file header
+        spectrograph
+            (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The spectrograph used to collect the data.  The class is
+            used to set the time unit used in the file header.
+
+    Returns:
+        float: The time in hours.
+    """
+    # Convert seconds to hours
+    if spectrograph.timeunit == 's':
+        return float(in_time)/3600.0
+    
+    # Convert minutes to hours
+    if spectrograph.timeunit == 'm':
+        return float(in_time)/60.0
+
+    # Convert from an astropy.Time format
+    if spectrograph.timeunit in Time.FORMATS.keys():
+        ival = float(in_time) if spectrograph.timeunit == 'mjd' else in_time
+        tval = Time(ival, scale='tt', format=spectrograph.timeunit)
+        # Put MJD in hours
+        return tval.mjd * 24.0
+        
+    msgs.error('Bad time unit')
+
+
+def create_fitstbl(file_list, spectrograph, strict=True):
+    """
+    Create a table of relevant fits file metadata used during the
+    reduction.
+
+    The content of the fits table is dictated by the header keywords
+    specified for the provided spectrograph.  It is expected that this
+    table can be used to set the frame type of each file.
+
+    The metadata is validated using checks specified by the provided
+    spectrograph class.
+
+    .. todo::
+        This should get abstracted to be independent of the
+        spectrograph, with all the spectrograph dependent keywords be
+        passed into the function.  The validation of the table would
+        then happen in PypeItSetup.
+
+    Args:
+        file_list (list):
+            The list of files to include in the table.
+        spectrograph
+            (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The spectrograph used to collect the data save to each file.
+            The class is used to provide the header keyword data to
+            include in the table and specify any validation checks.
+            
+    Returns:
+        :class:`astropy.table.Table`: A table with the relevant metadata
+        for the provided fits files.
+    """
+
+    # Get the header keywords specific to the provided spectrograph.
+    # head_keys is a nested dictionary listing the header keywords for
+    # each extension in the file.  The top-level dictionary key is just
+    # the 0-indexed number of the extension
     head_keys = spectrograph.header_keys()
-    all_keys = []
-    for key in head_keys.keys():
-        all_keys += list(head_keys[key].keys())
-    # Init
-    fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
-    headdict = {}
-    for k in range(spectrograph.numhead):
-        headdict[k] = []
-    whddict = dict({})
-    for k in all_keys:
-        fitsdict[k]=[]
-    numfiles = len(datlines)
+
+    # The table is declared based on this input dictionary:
+    # The directory, filename, instrument, utc are always included
+    default_keys = [ 'directory', 'filename', 'instrume', 'utc' ]
+    fitsdict = {k:[] for k in default_keys}
+
+    # Add columns to the output table for each keyword.  The format is
+    # extension.keyword.
+    ext = {}
+    for i in head_keys.keys():
+        for k in head_keys[i].keys():
+            if k in fitsdict.keys():
+                raise ValueError('Keywords are not unique across all extensions!')
+            ext[k] = i
+            fitsdict[k] = []
+
+    # Number of files to read
+    numfiles = len(file_list)
+
     # Loop on files
     for i in range(numfiles):
-        # Try to open the fits file
-        headarr = spectrograph.get_headarr(datlines[i], strict=strict)
-        numhead = len(headarr)
-        # Save the headers into its dict
-        for k in range(numhead):
-            headdict[k].append(headarr[k].copy())
-        # Perform checks on each FITS file
+
+        # Read the fits headers
+        headarr = spectrograph.get_headarr(file_list[i], strict=strict)
+
+        # Check that the header is valid
         # TODO: The check_headers function currently always passes!
         # Needs to be implemented for each instrument.
         # spectrograph.check_headers() should raise an exception with an
         # appropriate message.
         try:
+            # TODO: Move this into spectrograph.validate_fitstbl()
             spectrograph.check_headers(headarr)
-        except:
-            msgs.warn('File:' + msgs.newline() + datlines[i] + msgs.newline()
-                      + ' does not match the expected header format of instrument:'
+        except Exception as e:
+            msgs.warn('Reading of headers from file:' + msgs.newline() + file_list[i]
+                      + msgs.newline() + 'failed with the following exception' + msgs.newline()
+                      + e.__repr__() + msgs.newline() +
+                      'Please check that the file was taken with the provided instrument:'
                       + msgs.newline() + '{0}'.format(spectrograph.spectrograph) + msgs.newline()
-                      + 'The file should be removed or you should pick a different instrument.')
+                      + 'Then either change the instrument or remove/skip the file.'
+                      + msgs.newline()+ 'Continuing by ignoring this file...')
             numfiles -= 1
             continue
-        # Now set the key values for each of the required keywords
-        dspl = datlines[i].split('/')
-        fitsdict['directory'].append('/'.join(dspl[:-1])+'/')
-        fitsdict['filename'].append(dspl[-1])
-        # Attempt to load a UTC
-        utcfound = False
-        for k in range(numhead):
-            if 'UTC' in headarr[k].keys():
-                utc = headarr[k]['UTC']
-                utcfound = True
-                break
-            elif 'UT' in headarr[k].keys():
-                utc = headarr[k]['UT']
-                utcfound = True
-                break
-        if utcfound:
-            fitsdict['utc'].append(utc)
-        else:
-            fitsdict['utc'].append('None') # Changed from None so it writes to disk
-            msgs.warn("UTC is not listed as a header keyword in file:"+msgs.newline()+datlines[i])
-        # Read binning-dependent detector properties here? (maybe read speed too)
+
+        # Add the directory, file name, and instrument to the table
+        d,f = os.path.split(file_list[i])
+        fitsdict['directory'].append(d)
+        fitsdict['filename'].append(f)
+        fitsdict['instrume'].append(spectrograph.spectrograph)
+
+        # Add the time of the observation
+        utc = get_utc(headarr)
+        fitsdict['utc'].append('None' if utc is None else utc)
+        if utc is None:
+            msgs.warn("UTC is not listed as a header keyword in file:" + msgs.newline()
+                      + file_list[i])
+
+        # TODO: Read binning-dependent detector properties here? (maybe read speed too)
+
         # Now get the rest of the keywords
+        for k in fitsdict.keys():
+            if k in default_keys:
+                continue
 
-        for head_idx in head_keys.keys():
-            for kw, hkey in head_keys[head_idx].items():
-                try:
-                    value = headarr[head_idx][hkey]
-                except KeyError: # Keyword not found in header
-                    msgs.warn("{:s} keyword not in header. Setting to None".format(hkey))
-                    value = str('None')
-#                except IndexError:
-#                    debugger.set_trace()
-                # Convert the input time into hours -- Should we really do this here??
-                if kw == 'time':
-                    if spectrograph.timeunit == 's'  : value = float(value)/3600.0    # Convert seconds to hours
-                    elif spectrograph.timeunit == 'm'  : value = float(value)/60.0      # Convert minutes to hours
-                    elif spectrograph.timeunit in Time.FORMATS.keys() : # Astropy time format
-                        if spectrograph.timeunit in ['mjd']:
-                            ival = float(value)
-                        else:
-                            ival = value
-                        tval = Time(ival, scale='tt', format=spectrograph.timeunit)
-                        # dspT = value.split('T')
-                        # dy,dm,dd = np.array(dspT[0].split('-')).astype(np.int)
-                        # th,tm,ts = np.array(dspT[1].split(':')).astype(np.float64)
-                        # r=(14-dm)/12
-                        # s,t=dy+4800-r,dm+12*r-3
-                        # jdn = dd + (153*t+2)/5 + 365*s + s/4 - 32083
-                        # value = jdn + (12.-th)/24 + tm/1440 + ts/86400 - 2400000.5  # THIS IS THE MJD
-                        value = tval.mjd * 24.0 # Put MJD in hours
-                    else:
-                        msgs.error('Bad time unit')
-                # Put the value in the keyword
-                typv = type(value)
-                if typv is int or typv is np.int_:
-                    fitsdict[kw].append(value)
-                elif typv is float or typv is np.float_:
-                    fitsdict[kw].append(value)
-                elif isinstance(value, str) or typv is np.string_:
-                    fitsdict[kw].append(value.strip())
-                elif typv is bool or typv is np.bool_:
-                    fitsdict[kw].append(value)
-                else:
-                    msgs.bug("I didn't expect a useful header ({0:s}) to contain type {1:s}".format(kw, typv).replace('<type ','').replace('>',''))
+            # Try to read the header item
+            try:
+                value = headarr[ext[k]][head_keys[ext[k]][k]]
+            except KeyError:
+                # Keyword not found in header
+                msgs.warn("{:s} keyword not in header. Setting to None".format(k))
+                value = 'None'
 
-        msgs.info("Successfully loaded headers for file:" + msgs.newline() + datlines[i])
+            # Convert the time to hours
+            # TODO: Done here or as a method in Spectrograph?
+            if k == 'time' and value != 'None':
+                value = convert_time(value, spectrograph)
 
-    # Check if any other settings require header values to be loaded
-    msgs.info("Checking spectrograph settings for required header information")
-    '''  # I HOPE THIS IS NO LONGER NEEDED
-    # Just use the header info from the last file
-    keylst = []
-    generate_updates(settings_spect.copy(), keylst, [], whddict, headarr)
-    '''
+            # Set the value
+            vtype = type(value)
+            if np.issubdtype(vtype, str):
+                value = value.strip()
+            if np.issubdtype(vtype, np.integer) or np.issubdtype(vtype, np.floating) \
+                    or np.issubdtype(vtype, str) or np.issubdtype(vtype, np.bool_):
+                fitsdict[k].append(value)
+            else:
+                msgs.bug("I didn't expect a useful header ({0:s}) to contain type {1:s}".format(k,
+                             vtype).replace('<type ','').replace('>',''))
 
-    # Convert the fitsdict arrays into numpy arrays
-    for k in fitsdict.keys():
-        fitsdict[k] = np.array(fitsdict[k])
-    #
+        msgs.info("Successfully loaded headers for file:" + msgs.newline() + file_list[i])
+
+    # Report
     msgs.info("Headers loaded for {0:d} files successfully".format(numfiles))
-    if numfiles != len(datlines):
-        msgs.warn("Headers were not loaded for {0:d} files".format(len(datlines) - numfiles))
+    if numfiles != len(file_list):
+        msgs.warn("Headers were not loaded for {0:d} files".format(len(file_list) - numfiles))
     if numfiles == 0:
         msgs.error("The headers could not be read from the input data files." + msgs.newline() +
                    "Please check that the settings file matches the data.")
-    #  Might have to carry the headers around separately
-    #    as packing them into a table could be problematic..
-    #for key in headdict.keys():
-    #    fitsdict['head{:d}'.format(key)] = headdict[key]
-    # Return after creating a Table
-    fitstbl = Table(fitsdict)
-    fitstbl.sort('time')
 
-    # Add instrument (PYPIT name; mainly for saving late in the game)
-    fitstbl['instrume'] = spectrograph.spectrograph
+    # Check if any other settings require header values to be loaded
+    msgs.info("Checking spectrograph settings for required header information")
 
-    # Instrument specific
-    spectrograph.add_to_fitstbl(fitstbl)
-
-    # Return
-    return fitstbl
+    # Return an astropy.table.Table
+    return Table(fitsdict)
 
 
 def load_extraction(name, frametype='<None>', wave=True):

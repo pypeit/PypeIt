@@ -231,11 +231,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['dispangle'] = 'G3TLTWAV'
         return def_keys
 
-    def add_to_fitstbl(self, fitstbl):
+    def validate_fitstbl(self, fitstbl):
         for gval in [3,4]:
             gmt = fitstbl['gratepos'] == gval
-            fitstbl['dispangle'][gmt] = fitstbl['g3tltwav'][gmt]
-        return
+            fitstbl['dispangle'][gmt] = fitstbl['g{0}tltwav'.format(gval)][gmt]
 
     def cond_dict(self, ftype):
         cond_dict = {}

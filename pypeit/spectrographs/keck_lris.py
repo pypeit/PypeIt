@@ -29,15 +29,43 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.telescope = telescopes.KeckTelescopePar()
 
     def lris_header_keys(self):
-        def_keys = self.default_header_keys()
+#        def_keys = self.default_header_keys()
 
-        def_keys[0]['target'] = 'TARGNAME'
-        def_keys[0]['exptime'] = 'ELAPTIME'
-        def_keys[0]['hatch'] = 'TRAPDOOR'
+        hdr_keys = {}
+        hdr_keys[0] = {}
+        hdr_keys[1] = {}
+        hdr_keys[2] = {}
+        hdr_keys[3] = {}
+        hdr_keys[4] = {}
 
-        # TODO: Should do something with the lamps
+        hdr_keys[0]['target'] = 'TARGNAME'
+        hdr_keys[0]['exptime'] = 'ELAPTIME'
+        hdr_keys[0]['hatch'] = 'TRAPDOOR'
+        hdr_keys[0]['dispname'] = 'GRANAME'
+        hdr_keys[0]['dispangle'] = 'GRANGLE'
+        hdr_keys[0]['wavecen'] = 'WAVELEN'
+        hdr_keys[0]['spectrograph'] = 'INSTRUME'
+        hdr_keys[1]['NAXIS01'] = 'NAXIS'
+        hdr_keys[2]['NAXIS02'] = 'NAXIS'
+        hdr_keys[3]['NAXIS03'] = 'NAXIS'
+        hdr_keys[4]['NAXIS04'] = 'NAXIS'
+        hdr_keys[1]['CCDGEOM'] = 'CCDGEOM'
+        hdr_keys[1]['CCDNAME01'] = 'CCDNAME'
+        hdr_keys[3]['CCDNAME02'] = 'CCDNAME'
 
-        return def_keys
+        hdr_keys[0]['lampstat01'] = 'MERCURY'
+        hdr_keys[0]['lampstat02'] = 'NEON'
+        hdr_keys[0]['lampstat03'] = 'ARGON'
+        hdr_keys[0]['lampstat04'] = 'CADMIUM'
+        hdr_keys[0]['lampstat05'] = 'ZINC'
+        hdr_keys[0]['lampstat06'] = 'KRYPTON'
+        hdr_keys[0]['lampstat07'] = 'XENON'
+        hdr_keys[0]['lampstat08'] = 'FEARGON'
+        hdr_keys[0]['lampstat09'] = 'DEUTERIUM'
+        hdr_keys[0]['lampstat10'] = 'FLAMP1'
+        hdr_keys[0]['lampstat11'] = 'FLAMP2'
+
+        return hdr_keys
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """

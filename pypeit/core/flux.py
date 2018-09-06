@@ -250,37 +250,44 @@ def extinction_correction(wave, airmass, extinct):
     return flux_corr
 
 
-def find_standard_file(radec, toler=20.*units.arcmin, check=False):
+def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     """
     Find a match for the input file to one of the archived
     standard star files (hopefully).  Priority is by order of search.
 
-    Parameters
-    ----------
-    radec : tuple
-      ra, dec in string format ('05:06:36.6','52:52:01.0')
-    toler : Angle
-      Tolerance on matching archived standards to input
-    check : bool
-      If True, the routine will only check to see if a
-      standard star exists within the input ra, dec, and toler range.
+    Args:
+        ra (str):
+            Object right-ascension in hh:mm:ss string format (e.g.,
+            '05:06:36.6').
+        dec (str):
+            Object declination in dd:mm:ss string format (e.g.,
+            52:52:01.0')
+        toler (:class:`astropy.units.quantity.Quantity`, optional):
+            Tolerance on matching archived standards to input.  Expected
+            to be in arcmin.
+        check (:obj:`bool`, optional):
+            If True, the routine will only check to see if a standard
+            star exists within the input ra, dec, and toler range.
 
-    Returns
-    -------
-    sdict : dict
-      'file': str -- Filename
-      'fmt': int -- Format flag
-           1=Calspec style FITS binary table
-      'name': str -- Star name
-      'ra': str -- RA(2000)
-      'dec': str -- DEC(2000)
+    Returns:
+        dict, bool: If check is True, return True or False depending on
+        if the object is matched to a library standard star.  If check
+        is False and no match is found, return None.  Otherwise, return
+        a dictionary with the matching standard star with the following
+        meta data::
+            - 'file': str -- Filename
+            - 'fmt': int -- Format flag 1=Calspec style FITS binary
+              table
+            - 'name': str -- Star name
+            - 'ra': str -- RA(J2000)
+            - 'dec': str -- DEC(J2000)
     """
     # Priority
     std_sets = [load_calspec]
     std_file_fmt = [1]  # 1=Calspec style FITS binary table
 
     # SkyCoord
-    obj_coord = coordinates.SkyCoord(radec[0], radec[1], unit=(units.hourangle, units.deg))
+    obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
     # Loop on standard sets
     closest = dict(sep=999*units.deg)
     for qq,sset in enumerate(std_sets):
@@ -295,22 +302,30 @@ def find_standard_file(radec, toler=20.*units.arcmin, check=False):
                 return True
             else:
                 # Generate a dict
-                std_dict = dict(file=path+star_tbl[int(idx)]['File'], name=star_tbl[int(idx)]['Name'], fmt=std_file_fmt[qq], ra=star_tbl[int(idx)]['RA_2000'], dec=star_tbl[int(idx)]['DEC_2000'])
+                std_dict = dict(file=path+star_tbl[int(idx)]['File'],
+                                name=star_tbl[int(idx)]['Name'], fmt=std_file_fmt[qq],
+                                ra=star_tbl[int(idx)]['RA_2000'],
+                                dec=star_tbl[int(idx)]['DEC_2000'])
                 # Return
                 msgs.info("Using standard star {:s}".format(std_dict['name']))
                 return std_dict
-        else: # Save closest, if it is
+        else:
+            # Save closest found so far
             imind2d = np.argmin(d2d)
             mind2d = d2d[imind2d]
             if mind2d < closest['sep']:
                 closest['sep'] = mind2d
                 closest.update(dict(name=star_tbl[int(idx)]['Name'],
-                    ra=star_tbl[int(idx)]['RA_2000'],
-                    dec=star_tbl[int(idx)]['DEC_2000']))
+                                    ra=star_tbl[int(idx)]['RA_2000'],
+                                    dec=star_tbl[int(idx)]['DEC_2000']))
+
     # Standard star not found
-    if check: return False
+    if check:
+        return False
+
     msgs.warn("No standard star was found within a tolerance of {:g}".format(toler))
-    msgs.info("Closest standard was {:s} at separation {:g}".format(closest['name'],closest['sep'].to('arcmin')))
+    msgs.info("Closest standard was {:s} at separation {:g}".format(closest['name'],
+                                                                    closest['sep'].to('arcmin')))
     msgs.warn("Flux calibration will not be performed")
     return None
 
@@ -482,7 +497,7 @@ def generate_sensfunc(std_obj, RA, DEC, exptime, extinction, BALM_MASK_WID=5., n
     var_corr /= exptime**2
 
     # Grab closest standard within a tolerance
-    std_dict = find_standard_file((RA, DEC))
+    std_dict = find_standard_file(RA, DEC)
     # Load standard
     load_standard_file(std_dict)
     # Interpolate onto observed wavelengths
