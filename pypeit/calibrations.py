@@ -322,6 +322,7 @@ class Calibrations(object):
             # User does not want to flat-field
             self.mspixflatnrm = None
             self.msillumflat = None
+            msgs.warning('Parameter calibrations.flatfield.method is set to None. You are NOT flatfielding your data!!!')
             return self.mspixflatnrm, self.msillumflat
 
         # Check for existing data necessary to build flats
