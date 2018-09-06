@@ -204,15 +204,13 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
 #        no_illum=True
 #    else:
 
+    # Quickly compute a version of the illumination function by downsampling, and use this to mask bad pixels
+    # from the median filter.
     isamp = (np.arange(nfit_spat//10)*10.0).astype(int)
     samp_width = (np.ceil(isamp.size*ximg_resln)).astype(int)
     illumquick1 = utils.fast_running_median(norm_spec_fit[isamp], samp_width)
     illumquick = np.interp(ximg_fit,ximg_fit[isamp],illumquick1)
     chi_illum = (norm_spec_fit - illumquick)*np.sqrt(norm_spec_ivar)
-
-    #med_width0 = (np.ceil(nfit_spat*ximg_resln)).astype(int)
-    #normimg_raw0 = utils.fast_running_median(norm_spec_fit,med_width0)
-    # chi_illum = (norm_spec_fit - normimg_raw0)*np.sqrt(norm_spec_ivar)
 
     imed = np.abs(chi_illum) < 10.0 # 10*spat_illum_thresh ouliters, i.e. 10%
     nmed = np.sum(imed)
