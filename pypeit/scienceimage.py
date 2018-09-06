@@ -12,12 +12,10 @@ from astropy.time import Time
 from pypeit import msgs
 from pypeit import processimages
 from pypeit import specobjs
-from pypeit.core import procimg
 from pypeit.core import skysub
 from pypeit.core import extract
 from pypeit.core import trace_slits
 from pypeit import utils
-from pypeit import artrace
 from pypeit import ginga
 from astropy.stats import sigma_clipped_stats
 import time
@@ -229,7 +227,8 @@ class ScienceImage(processimages.ProcessImages):
         return self.time, self.basename
 
 
-    def find_objects(self, tslits_dict, maskslits = None, skysub = True, show_peaks= False, show_fits = False,show_trace=False, show = False):
+    def find_objects(self, tslits_dict, maskslits = None, skysub = True, show_peaks= False, show_fits = False,show_trace=False,
+                     show = False):
         """
         Find objects in the slits. This is currently setup only for ARMS
 
@@ -369,7 +368,9 @@ class ScienceImage(processimages.ProcessImages):
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            self.show('global', slits=True)
+            # Global skysub is the first step in a new extraction so clear the channels here
+            self.show('global', slits=True, sobjs =self.sobjs_obj, clear=False)
+
 
         # Return
         return self.global_sky
@@ -463,7 +464,7 @@ class ScienceImage(processimages.ProcessImages):
                 return False
         return True
 
-    def process(self, bias_subtract, pixel_flat, bpm, apply_gain=True, trim=True):
+    def process(self, bias_subtract, pixel_flat, bpm, illum_flat = None, apply_gain=True, trim=True, show=False):
         """ Process the image
 
         Wrapper to ProcessImages.process()
@@ -483,9 +484,11 @@ class ScienceImage(processimages.ProcessImages):
         self.pixflat = pixel_flat
 
         self.sciimg = super(ScienceImage, self).process(bias_subtract=bias_subtract,
-                                                          apply_gain=apply_gain,
-                                                          pixel_flat=pixel_flat, bpm=self.bpm,
-                                                          trim=trim)
+                                                        apply_gain=apply_gain,
+                                                        pixel_flat=pixel_flat, illum_flat = illum_flat,
+                                                        bpm=self.bpm,
+                                                        trim=trim)
+
 
         # Construct raw variance image
         rawvarframe = self.build_rawvarframe(trim=trim)
@@ -495,6 +498,9 @@ class ScienceImage(processimages.ProcessImages):
         # Build CR mask
         self.crmask = self.build_crmask()
 
+        # Show the science image if an interactive run
+        if show:
+            self.show('image', image=self.sciimg, chname='sciimg', clear=True)
         return self.sciimg, self.sciivar, self.rn2img, self.crmask
 
 
@@ -570,7 +576,7 @@ class ScienceImage(processimages.ProcessImages):
         return self.maskslits
 
 
-    def show(self, attr, image=None, showmask = False, sobjs = None, chname = None, slits = False):
+    def show(self, attr, image=None, showmask = False, sobjs = None, chname = None, slits = False, clear=False):
         """
         Show one of the internal images
           Should probably put some of these in ProcessImages
@@ -606,7 +612,7 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'global_sky'
-                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask = bitmask_in)
+                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask = bitmask_in, clear = clear, wcs_match=True)
                 #cuts=(cut_min, cut_max)
         elif attr == 'local':
             # local sky subtraction
@@ -620,7 +626,7 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'local_sky'
-                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in)
+                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in, clear=clear, wcs_match=True)
                 #cuts=(cut_min, cut_max),
         elif attr == 'sky_resid':
             # sky residual map with object included
@@ -632,7 +638,8 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'sky_resid'
-                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0), bitmask=bitmask_in)
+                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0), bitmask=bitmask_in, clear=clear,
+                                              wcs_match=True)
         elif attr == 'resid':
             # full residual map with object model subtractede
             if self.sciimg is not None and self.skymodel is not None and \
@@ -643,10 +650,11 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'resid'
-                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0), bitmask=bitmask_in)
+                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0), bitmask=bitmask_in, clear=clear,
+                                              wcs_match=True)
         elif attr == 'image':
             ch_name = chname if chname is not None else 'image'
-            viewer, ch = ginga.show_image(image, chname = ch_name)
+            viewer, ch = ginga.show_image(image, chname = ch_name, clear=clear, wcs_match=True)
         else:
             msgs.warn("Not an option for show")
 
@@ -664,6 +672,9 @@ class ScienceImage(processimages.ProcessImages):
                             range(self.tslits_dict['lcen'].shape[1])]
 
                 ginga.show_slits(viewer, ch,self.tslits_dict['lcen'], self.tslits_dict['rcen'], slit_ids)  # , args.det)
+
+
+
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,

@@ -293,6 +293,32 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
     ispec, ispat = np.where(oprof > 0.0)
+
+    # Exit gracefully if we have no positive object profiles, since that means something was wrong with object fitting
+    if not np.any(oprof > 0.0):
+        junk = np.zeros(nspec)
+        # Fill in the optimally extraction tags
+        specobj.optimal['WAVE'] = junk
+        specobj.optimal['COUNTS'] = junk
+        specobj.optimal['COUNTS_IVAR'] = junk
+        specobj.optimal['COUNTS_NIVAR'] = junk
+        specobj.optimal['MASK'] = junk
+        specobj.optimal['COUNTS_SKY'] = junk
+        specobj.optimal['COUNTS_RN'] = junk
+        specobj.optimal['FRAC_USE'] = junk
+        specobj.optimal['CHI2'] = junk
+        # Fill in the boxcar tags
+        specobj.boxcar['WAVE'] = junk
+        specobj.boxcar['COUNTS'] = junk
+        specobj.boxcar['COUNTS_IVAR'] = junk
+        specobj.boxcar['COUNTS_NIVAR'] = junk
+        specobj.boxcar['MASK'] = junk
+        specobj.boxcar['COUNTS_SKY'] = junk
+        specobj.boxcar['COUNTS_RN'] = junk
+        specobj.boxcar['BOX_RADIUS'] = 0.0
+
+        return None
+
     mincol = np.min(ispat)
     maxcol = np.max(ispat) + 1
     nsub = maxcol - mincol
@@ -1135,10 +1161,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
         The convention is: True = on the slit/order, False  = off the slit/order
 
     slit_left:  float ndarray
-        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec)
+        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
+        or (nspec)
 
     slit_righ:  float ndarray
-        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec)
+        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
+        or (nspec)
 
 
     Optional Parameters
@@ -1272,7 +1300,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     not_near_edge = (xcen > trim_edg[0]) & (xcen < (nsamp - trim_edg[1]))
     if np.any(~not_near_edge):
         msgs.warn('Discarding {:d}'.format(np.sum(~not_near_edge)) + ' at spatial pixels spat = {:}'.format(xcen[~not_near_edge]) +
-                  ' which land within trim_edg = {:5.2f}'.format(trim_edg) +
+                  ' which land within trim_edg = (left, right) = {:}'.format(trim_edg) +
                   ' pixels from the slit boundary for this nsamp = {:5.2f}'.format(nsamp) + ' wide slit')
         msgs.warn('You must decrease from the current value of trim_edg in order to keep them')
         msgs.warn('Such edge objects are often spurious')
@@ -1318,14 +1346,17 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     if show_peaks:
         spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
         spat_approx = slit_left[specmid] + xsize[specmid]*xcen/nsamp
-        plt.plot(spat_approx_vec, fluxsub, color ='cornflowerblue',linestyle=':', label='Collapsed Slit profile')
-        plt.plot(spat_approx_vec, fluxconv, color='black', label = 'FWHM Convolved Profile')
-        plt.hlines(threshold,spat_approx_vec.min(),spat_approx_vec.max(), color='red',linestyle='--', label='Threshold')
-        plt.plot(spat_approx, ypeak, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
+        plt.plot(spat_approx_vec, fluxsub/sigma, color ='cornflowerblue',linestyle=':', label='Collapsed Flux')
+        plt.plot(spat_approx_vec, fluxconv/sigma, color='black', label = 'FWHM Convolved')
+        plt.hlines(threshold/sigma,spat_approx_vec.min(),spat_approx_vec.max(), color='red',linestyle='--', label='Threshold')
+        plt.hlines(1.0,spat_approx_vec.min(),spat_approx_vec.max(), color='green',linestyle=':', label='+- 1 sigma')
+        plt.hlines(-1.0,spat_approx_vec.min(),spat_approx_vec.max(), color='green',linestyle=':')
+
+        plt.plot(spat_approx, ypeak/sigma, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
                  linestyle='None', zorder = 10,label='Object Found')
         plt.legend()
         plt.xlabel('Approximate Spatial Position (pixels)')
-        plt.ylabel('Collapsed Flux (counts)')
+        plt.ylabel('F/sigma (significance)')
         plt.show()
 
 

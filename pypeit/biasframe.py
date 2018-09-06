@@ -84,7 +84,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         self.fitstbl = fitstbl
         self.sci_ID = sci_ID
 
-    def build_image(self, overwrite=False):
+    def build_image(self, overwrite=False, trim=True):
         """
         Grab the bias files (as needed) and then
          process the input bias frames with ProcessImages.process()
@@ -104,7 +104,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         if self.nfiles == 0:
             self.file_list = fsort.list_of_files(self.fitstbl, 'bias', self.sci_ID)
         # Combine
-        self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
+        self.stack = self.process(bias_subtract=None, trim=trim, overwrite=overwrite)
         #
         return self.stack
 

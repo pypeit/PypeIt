@@ -14,7 +14,6 @@ import time
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
 #from pypeit import ardebug as debugger
 import pdb as debugger
-from pypeit import scienceimage
 
 from ginga.util import grc
 
@@ -55,7 +54,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     return viewer
 
 
-def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cuts = None):
+def show_image(inp, chname='Image', waveimg=None, bitmask = None, exten = 0, cuts = None, clear=False, wcs_match = False):
     """ Displays input image in Ginga viewer
     Supersedes method in xastropy
 
@@ -66,7 +65,7 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cut
 
     Optional Parameters
     ----------
-    wcs_img : str, optional
+    waveimg : str, optional
       If included, use this in WCS.  Mainly to show wavelength array
 
     bitmask: ndarray (2D)
@@ -79,6 +78,8 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cut
     -------
 
     """
+
+    from pypeit import scienceimage
     if isinstance(inp, basestring):
         if '.fits' in inp:
             hdu = fits.open(inp)
@@ -88,13 +89,20 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cut
 # TODO implement instrument specific reading
 
     viewer = connect_to_ginga()
+    # Should we clear all the channels?
+    if clear:
+        shell = viewer.shell()
+        chnames = shell.get_channel_names()
+        for ch in chnames:
+            shell.delete_channel(ch)
+
     ch = viewer.channel(chname)
     # Header
     header = {}
     header['NAXIS1'] = img.shape[1]
     header['NAXIS2'] = img.shape[0]
-    if wcs_img is not None:
-        header['WCS-XIMG'] = wcs_img
+    if waveimg is not None:
+        header['WCS-XIMG'] = waveimg
         #header['WCS-XIMG'] = '/home/xavier/REDUX/Keck/LRIS/2017mar20/lris_red_setup_C/MF_lris_red/MasterWave_C_02_aa.fits'
     # Giddy up
     ch.load_np(chname, img, 'fits', header)
@@ -108,6 +116,14 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cut
     out = ch.set_color_algorithm('linear')
     out = ch.restore_contrast()
     out = ch.restore_cmap()
+
+    # WCS Match this to other images with this as the reference image?
+    if wcs_match:
+        # After displaying all the images since up the images with WCS_MATCH
+        shell = viewer.shell()
+        out = shell.start_global_plugin('WCSMatch')
+        out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname], {})
+
 
     #ToDO I would prefer to change the color map to indicate these pixels rather than overplot points. Because for
     # large numbers of masked pixels, this is super slow. Need to ask ginga folks how to do that.
