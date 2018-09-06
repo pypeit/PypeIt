@@ -389,7 +389,9 @@ class General:
 
         # Find the wavelength solution!
         # KD Tree algorithm only works for ThAr - check first that this is what is being used
+        self._thar = False
         if 'ThAr' in lines and len(lines) == 1:
+            self._thar = True
             # Set up the grids to be used for pattern matching
             self.set_grids(ngridw=5000, ngridd=1000)
             msgs.info("Using KD Tree pattern matching algorithm to wavelength calibrate")
@@ -461,9 +463,9 @@ class General:
             if slit not in self._ok_mask:
                 continue
             # Detect lines, and decide which tcent to use
-            self._all_tcent, self._cut_tcent, self._icut =\
+                self._all_tcent, self._all_ecent, self._cut_tcent, self._self._icut =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_ampl=self._min_ampl)
-            self._all_tcent_weak, self._cut_tcent_weak, self._icut_weak =\
+            self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_ampl=self._lowest_ampl)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit))
@@ -517,7 +519,7 @@ class General:
         self.report_final()
         return
 
-    def run_kdtree(self, polygon=4, detsrch=6, lstsrch=20, pixtol=5):
+    def run_kdtree(self, polygon=4, detsrch=7, lstsrch=10, pixtol=5):
         """ KD Tree algorithm to wavelength calibrate spectroscopic data.
         Currently, this is only designed for ThAr lamp spectra. See the
         'run_brute' function if you want to calibrate longslit spectra.
@@ -537,9 +539,9 @@ class General:
             if slit not in self._ok_mask:
                 continue
             # Detect lines, and decide which tcent to use
-            self._all_tcent, self._cut_tcent, self._icut =\
+            self._all_tcent, self._all_ecent, self._cut_tcent, self._icut =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._min_ampl)
-            self._all_tcent_weak, self._cut_tcent_weak, self._icut_weak =\
+            self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._lowest_ampl)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit))
@@ -548,8 +550,8 @@ class General:
             # Save the detections
             self._detections[str(slit)] = self._all_tcent_weak.copy()
 
-            use_tcentp = self.get_use_tcent(1)
-            use_tcentm = self.get_use_tcent(-1)
+            use_tcentp, use_ecentp = self.get_use_tcent(1)
+            use_tcentm, use_ecentm = self.get_use_tcent(-1)
             if use_tcentp.size < detsrch:
                 if self._verbose:
                     msgs.info("Not enough lines to test this solution, will attempt another.")
@@ -598,7 +600,7 @@ class General:
                                       lindex, indexm.shape[1], self._npix)
 
             msgs.info("Identifying the best solution")
-            patt_dict, final_fit = self.solve_slit(slit, psols, msols, nseld=30)
+            patt_dict, final_fit = self.solve_slit(slit, psols, msols, nselw=1, nseld=10)
 
             # Print preliminary report
             good_fit[slit] = self.report_prelim(slit, patt_dict, final_fit)
@@ -692,7 +694,7 @@ class General:
         for bs in bad_slits:
             if bs not in self._ok_mask:
                 continue
-            bsdet = self.get_use_tcent(sign, arr=self._detections[str(bs)], weak=True)
+            bsdet, _ = self.get_use_tcent(sign, arr=self._detections[str(bs)], weak=True)
             lindex = np.array([], dtype=np.int)
             dindex = np.array([], dtype=np.int)
             wcen = np.zeros(good_slits.size)
@@ -706,7 +708,7 @@ class General:
                 wcen[cntr] = self._all_patt_dict[str(gs)]['bwv'] - shift*disp
                 # For each peak in the gs spectrum, identify the corresponding peaks in the bs spectrum
                 strfact = (self._npix + stretch - 1)/(self._npix - 1)
-                gsdet = self.get_use_tcent(sign, arr=self._detections[str(gs)], weak=True)
+                gsdet, _ = self.get_use_tcent(sign, arr=self._detections[str(gs)], weak=True)
                 gsdet_ss = shift + gsdet * strfact
                 debug = False
                 if debug:
@@ -773,20 +775,42 @@ class General:
         return new_bad_slits
 
     def cross_match_order(self, good_fit):
-        pdb.set_trace()
-        xplt, yplt, dplt = np.array([]), np.array([]), np.array([])
+        """Using the solutions of all orders, identify the good solutions, and refit the bad ones!
+        """
+
+        # First determine the central wavelength and dispersion of every slit, using the known good solutions
+        xplt = np.arange(self._nslit)
+        yplt, dplt = np.zeros(self._nslit), np.zeros(self._nslit)
+        imsk = np.ones(self._nslit, dtype=np.int)
         for slit in range(self._nslit):
             if good_fit[slit]:
-                xplt = np.append(xplt, slit)
-                yplt = np.append(yplt, self._all_patt_dict[str(slit)]['bwv'])
-                dplt = np.append(dplt, self._all_patt_dict[str(slit)]['bdisp'])
-        plt.subplot(211)
-        plt.plot(xplt, yplt, 'bx')
-        plt.subplot(212)
-        plt.plot(xplt, dplt, 'bx')
-        plt.show()
-        # First determine the central wavelength and dispersion of every slit, using the known good solutions
-        return new_bad_slits
+                yplt[slit] = self._all_patt_dict[str(slit)]['bwv']
+                dplt[slit] = self._all_patt_dict[str(slit)]['bdisp']
+                imsk[slit] = 0
+
+        mask, fit = utils.robust_polyfit(xplt, yplt, 2, function='polynomial', sigma=2,
+                                         initialmask=imsk, forceimask=True)
+
+        debug = False
+        if debug:
+            from matplotlib import pyplot as plt
+            ymodel = utils.func_val(fit, xplt, 'polynomial')
+            plt.subplot(211)
+            plt.plot(xplt, ymodel, 'r-')
+            ww = np.where(mask==0)
+            plt.plot(xplt[ww], yplt[ww], 'bx')
+            ww = np.where(mask==1)
+            plt.plot(xplt[ww], yplt[ww], 'rx')
+            plt.subplot(212)
+            plt.plot(xplt, dplt, 'bx')
+            plt.show()
+
+        # Get a list of bad slits where the patterns and fit need to be updated
+        bad_slits = np.arange(self._nslit)[mask == 1]
+
+        # Loop through all slits again to find the best solutions
+
+        return
 
     def get_use_tcent(self, corr, arr=None, weak=False):
         """Set if pixels correlate with wavelength (corr==1) or anticorrelate (corr=-1)
@@ -795,13 +819,15 @@ class General:
         if arr is None:
             if weak:
                 arr = self._all_tcent_weak.copy()
+                err = self._all_ecent_weak.copy()
             else:
                 arr = self._all_tcent.copy()
+                err = self._all_ecent.copy()
         # Return the appropriate tcent
         if corr == 1:
-            return arr
+            return arr, err
         else:
-            return (self._npix - 1.0) - arr[::-1]
+            return (self._npix - 1.0) - arr[::-1], err[::-1]
 
     def results_brute(self, poly=3, pix_tol=0.5, detsrch=5, lstsrch=5):
 
@@ -815,7 +841,7 @@ class General:
             return None, None
 
         # Test if there are enough lines to generate a solution
-        use_tcent = self.get_use_tcent(1)
+        use_tcent, _ = self.get_use_tcent(1)
         if use_tcent.size < lstsrch or use_tcent.size < detsrch:
             if self._verbose:
                 msgs.info("Not enough lines to test this solution, will attempt another.")
@@ -827,7 +853,7 @@ class General:
         dindexp, lindexp, wvcenp, dispsp = generate_patterns(use_tcent, self._wvdata, self._npix,
                                                              detsrch, lstsrch, pix_tol)
         # Now run pattern recognition assuming pixels correlate with wavelength
-        use_tcent = self.get_use_tcent(-1)
+        use_tcent, _ = self.get_use_tcent(-1)
         dindexm, lindexm, wvcenm, dispsm = generate_patterns(use_tcent, self._wvdata, self._npix,
                                                              detsrch, lstsrch, pix_tol)
         return (dindexp, lindexp, wvcenp, dispsp,), (dindexm, lindexm, wvcenm, dispsm,)
@@ -979,7 +1005,7 @@ class General:
         wcen, dcen, sign, dindex, lindex = bestlist[0], bestlist[1], bestlist[3], bestlist[4], bestlist[5]
 
         # Find the favoured sign and only use those values
-        use_tcent = self.get_use_tcent(sign)
+        use_tcent, _ = self.get_use_tcent(sign)
         if sign == +1:
             signtxt = "correlate"
         else:
@@ -1018,9 +1044,16 @@ class General:
                       '---------------------------------------------------')
         return patt_dict
 
-    def fit_slit(self, slit, patt_dict, outroot=None, slittxt="Slit", tcent=None):
+    def fit_slit(self, slit, patt_dict, outroot=None, slittxt="Slit", tcent=None, ecent=None):
+        # TODO: DELETE THIS!!!!
+        slittxt = '_Slit{0:03d}'.format(slit + 1)
+        outroot = self._outroot
+
         # Perform final fit to the line IDs
-        NIST_lines = self._line_lists['NIST'] > 0
+        if self._thar:
+            NIST_lines = (self._line_lists['NIST'] > 0) & (np.char.find(self._line_lists['Source'].data, 'MURPHY') >= 0)
+        else:
+            NIST_lines = self._line_lists['NIST'] > 0
         ifit = np.where(patt_dict['mask'])[0]
 
         if outroot is not None:
@@ -1035,13 +1068,18 @@ class General:
         ifit = ifit[imsk]
         # Allow for weaker lines in the fit
         if tcent is None:
-            tcent = self.get_use_tcent(patt_dict['sign'], weak=True)
+            tcent, ecent = self.get_use_tcent(patt_dict['sign'], weak=True)
+            weights = 1.0/ecent
+            #weights = np.ones(tcent.size)
+        else:
+            if ecent is None:
+                weights = np.ones(tcent.size)
         # Fit
         try:
             final_fit = fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
                                                   np.array(patt_dict['IDs'])[ifit], self._line_lists[NIST_lines],
                                                   patt_dict['bdisp'], plot_fil=plot_fil, verbose=self._verbose,
-                                                  aparm=self._fit_parm)
+                                                  aparm=self._fit_parm, weights=weights)
         except TypeError:
             # A poor fitting result, this can be ignored.
             return None
@@ -1060,8 +1098,8 @@ class General:
                 continue
             # Save the QA for the best solution
             slittxt = '_Slit{0:03d}'.format(slit+1)
-            use_tcent = self.get_use_tcent(self._all_patt_dict[str(slit)]['sign'],
-                                           arr=self._detections[str(slit)], weak=True)
+            use_tcent, use_ecent = self.get_use_tcent(self._all_patt_dict[str(slit)]['sign'],
+                                                      arr=self._detections[str(slit)], weak=True)
             if self._outroot is not None:
                 # Write IDs
                 out_dict = dict(pix=use_tcent, IDs=self._all_patt_dict[str(slit)]['IDs'])
@@ -1076,7 +1114,7 @@ class General:
                             self._outroot + slittxt + '.pdf')
                 msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
             # Perform the final fit for the best solution
-            best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], tcent=use_tcent,
+            best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], tcent=use_tcent, ecent=use_ecent,
                                            outroot=self._outroot, slittxt=slittxt)
             self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
 

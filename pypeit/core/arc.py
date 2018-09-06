@@ -175,7 +175,7 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, ge
     return arccen, maskslit, satsnd
 
 
-def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False):
+def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False, return_errors=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -240,7 +240,7 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False):
                     (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3)))[0]
 #                    (np.roll(detns_smth, 3) > np.roll(detns_smth, 4)) & (np.roll(detns_smth, -3) > np.roll(detns_smth, -4)) & # )[0]
 #                    (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
-    tampl, tcent, twid = fit_arcspec(xrng, detns, pixt, nfitpix)
+    tampl, tcent, twid, centerr = fit_arcspec(xrng, detns, pixt, nfitpix)
     ww = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
     if debug:
         # Check the results
@@ -248,7 +248,10 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False):
         plt.plot(xrng, detns, 'k-')
         plt.plot(tcent, tampl, 'ro')
         plt.show()
-    return tampl, tcent, twid, ww, detns
+    if return_errors:
+        return tampl, tcent, twid, centerr, ww, detns
+    else:
+        return tampl, tcent, twid, ww, detns
 
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
@@ -256,9 +259,11 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     # Setup the arrays with fit parameters
     sz_p = pixt.size
     sz_a = yarray.size
-    ampl, cent, widt = -1.0*np.ones(sz_p, dtype=np.float),\
-                       -1.0*np.ones(sz_p, dtype=np.float),\
-                       -1.0*np.ones(sz_p, dtype=np.float)
+    ampl, cent, widt, centerr = -1.0*np.ones(sz_p, dtype=np.float),\
+                                -1.0*np.ones(sz_p, dtype=np.float),\
+                                -1.0*np.ones(sz_p, dtype=np.float), \
+                                -1.0 * np.ones(sz_p, dtype=np.float)
+
 
     for p in range(sz_p):
         pmin = pixt[p]-(fitp-1)//2
@@ -273,13 +278,14 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
             continue  # Probably won't be a good solution
         # Fit the gaussian
         try:
-            popt = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)
+            popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3, return_errors=True)
             ampl[p] = popt[0]
             cent[p] = popt[1]
             widt[p] = popt[2]
+            centerr[p] = pcov[1, 1]
         except RuntimeError:
             pass
-    return ampl, cent, widt
+    return ampl, cent, widt, centerr
 
 
 def simple_calib_driver(msarc, aparm, censpec, ok_mask, nfitpix=5, get_poly=False,

@@ -11,7 +11,7 @@ from pypeit.core.wavecal import qa
 from pypeit import debugger
 
 def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
-                      verbose=False, aparm=None):
+                      verbose=False, aparm=None, weights=None):
 
     if aparm is None:
         aparm = dict(llist='',
@@ -23,6 +23,9 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
                     n_final=4,           # Order of polynomial for final fit
                     nsig_rej=2.,         # Number of sigma for rejection
                     nsig_rej_final=3.0)  # Number of sigma for rejection (final fit)
+    if weights is None:
+        weights = np.ones(tcent.size)
+
     npix = spec.size
     aparm['disp'] = disp
 
@@ -38,16 +41,16 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
     fmin, fmax = -1., 1.
     while (n_order <= aparm['n_final']) and (flg_quit is False):
         # Fit with rejection
-        xfit, yfit = tcent[ifit], all_ids[ifit]
+        xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
         mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej'],
-                                         minv=fmin, maxv=fmax, verbose=verbose)
+                                         minv=fmin, maxv=fmax, verbose=verbose, weights=wfit)
 
-        rms_ang = utils.calc_fit_rms(xfit[mask == 0], yfit[mask == 0],
-                                     fit, aparm['func'], minv=fmin, maxv=fmax)
+        rms_ang = utils.calc_fit_rms(xfit[mask == 0], yfit[mask == 0], fit,
+                                     aparm['func'], minv=fmin, maxv=fmax, weights=wfit[mask == 0])
         rms_pix = rms_ang/disp
         if verbose:
             print("RMS = {:g}".format(rms_pix))
-        # DEBUG
+
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask == 0]) + sv_ifit
         # Find new points (should we allow removal of the originals?)
@@ -73,9 +76,9 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
 
     # Final fit (originals can now be rejected)
     fmin, fmax = 0., 1.
-    xfit, yfit = tcent[ifit]/(npix-1), all_ids[ifit]
+    xfit, yfit, wfit = tcent[ifit]/(npix-1), all_ids[ifit], weights[ifit]
     mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'],
-                                     minv=fmin, maxv=fmax, verbose=verbose)#, debug=True)
+                                     minv=fmin, maxv=fmax, verbose=verbose, weights=wfit)#, debug=True)
     irej = np.where(mask == 1)[0]
     if len(irej) > 0:
         xrej = xfit[irej]
@@ -89,14 +92,15 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
         yrej = []
     xfit = xfit[mask == 0]
     yfit = yfit[mask == 0]
+    wfit = wfit[mask == 0]
     ions = all_idsion[ifit][mask == 0]
     # Final RMS
     rms_ang = utils.calc_fit_rms(xfit, yfit, fit, aparm['func'],
-                                 minv=fmin, maxv=fmax)
+                                 minv=fmin, maxv=fmax, weights=wfit)
     rms_pix = rms_ang/disp
 
     # Pack up fit
-    final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit,
+    final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit, weights=wfit,
                      ions=ions, fmin=fmin, fmax=fmax, xnorm=float(npix),
                      xrej=xrej, yrej=yrej, mask=mask, spec=spec, nrej=aparm['nsig_rej_final'],
                      shift=0., tcent=tcent, rms=rms_pix)

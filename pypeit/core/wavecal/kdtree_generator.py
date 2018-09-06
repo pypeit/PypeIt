@@ -290,5 +290,5 @@ if __name__ == '__main__':
     coordinate system for both detlines and linelist.
     """
     polygon = 3
-    numsearch = 10
+    numsearch = 20
     main(polygon, numsearch=numsearch, verbose=True)

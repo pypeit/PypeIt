@@ -26,9 +26,10 @@ def arc_lines_from_spec(spec, min_ampl=300.):
     """
 
     # Find peaks
-    tampl, tcent, twid, w, yprep = arc.detect_lines(spec, nfitpix=7)
+    tampl, tcent, twid, centerr, w, yprep = arc.detect_lines(spec, nfitpix=7, return_errors=True)
     all_tcent = tcent[w]
     all_tampl = tampl[w]
+    all_ecent = centerr[w]
 
     # Cut on Amplitude
     cut_amp = all_tampl > min_ampl
@@ -36,7 +37,7 @@ def arc_lines_from_spec(spec, min_ampl=300.):
     icut = np.where(cut_amp)[0]
 
     # Return
-    return all_tcent, cut_tcent, icut
+    return all_tcent, all_ecent, cut_tcent, icut
 
 
 def match_peaks(inspec1, inspec2, smooth=5.0, debug=False):
