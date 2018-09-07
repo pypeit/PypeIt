@@ -213,6 +213,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         self.bpm_img = np.zeros(shape, dtype=np.int8)
         self.bpm_img[:, :20] = 1.
         self.bpm_img[:, 1000:] = 1.
+
         return self.bpm_img
 
 class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
@@ -234,6 +235,27 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         par['rdx']['pipeline'] = ARMS
         return par
 
+    def check_header(self, headers):
+        """Validate elements of the header."""
+        chk_dict = {}
+        # chk_dict is 1-indexed!
+        chk_dict[1] = {}
+        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
+        chk_dict[1]['NAXIS'] = 2
+        return chk_dict
+
+    def header_keys(self):
+        """
+        Header keys specific to keck_nirspec
+
+        Returns:
+
+        """
+        head_keys = self.nirspec_header_keys()
+        # Add the name of the filter used
+        head_keys[0]['filter'] = 'FILNAME'
+        return head_keys
+
     def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
                        binspectral=None, **null_kwargs):
         """
@@ -250,7 +272,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
 
         """
         arcparam['lamps'] = ['OH_R24000']
-        if fitstbl['filter1'][arc_idx] == 'NIRSPEC-1':
+        if fitstbl['filter'][arc_idx] == 'NIRSPEC-1':
             arcparam['n_first'] = 2  # Too much curvature for 1st order
             arcparam['disp'] = 2.1093  # Ang per pixel for Low-Res, NIRSPEC-1 filter
             arcparam['b1'] = 1. / arcparam['disp'] / msarc_shape[0]
