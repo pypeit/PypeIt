@@ -300,13 +300,8 @@ def _read_data_file_names(lines, file_check=True):
     read_inp = []
     for l in lines:
         _l = l.split(' ')
-         # JFH I don't see why we need to throw an error here. You can just ignore the extra strings?
-#        if len(_l) > 2:
-#            msgs.error('There can be no more than two strings per line in a data block:'
-#                       + msgs.newline() + l)
 
         if _l[0] == 'skip':
-            # skip_inp += _parse_data_file_name(_l[1], current_path)
             space_ind = l.index(" ")
             path = l[space_ind + 1:]
             skip_inp += _parse_data_file_name(path, current_path)
@@ -315,14 +310,8 @@ def _read_data_file_names(lines, file_check=True):
         if _l[0] == 'path':
             space_ind = l.index(" ")
             current_path = l[space_ind + 1:]
-            #current_path = _l[1]
             continue
 
-#       JFH I don't see why we need to throw an error here. Python and fits.io can handle spaces in path just fine.
-#        if len(_l) > 1:
-#            msgs.error('There must be no spaces when specifying the datafile:'+msgs.newline()+l)
-
-        #read_inp += _parse_data_file_name(_l[0], current_path)
         read_inp += _parse_data_file_name(l, current_path)
 
     # Remove any repeated lines
