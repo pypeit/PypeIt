@@ -8,6 +8,7 @@ from abc import ABCMeta
 import os
 import datetime
 import numpy as np
+from collections import OrderedDict
 
 from pypeit import msgs
 from pypeit.core import fsort
@@ -21,6 +22,9 @@ from pypeit.scripts import run_pypeit
 from pypeit.core import pypsetup
 from pypeit import calibrations
 from pypeit import scienceimage
+from pypeit.core import wave
+from pypeit import specobjs
+from pypeit.core import save
 
 from pypeit import debugger
 
@@ -111,13 +115,131 @@ class PypeIt(object):
                              setup_lines=setup_lines, sorted_files=sorted_files, paths=paths)
             print("Wrote {:s}".format(pypeit_file))
 
-    def calibrate_det(self, sci_ID, det):
+    def calibrate_one(self, sci_ID, det):
+        pass
+
+    def extract_all(self, reuse=False):
+        std_dict = {}
+        all_sci_ID = self.fitstbl['sci_ID'].data[self.fitstbl['science']]  # Binary system: 1,2,4,8, etc.
+        numsci = len(all_sci_ID)
+        basenames = [None]*numsci  # For fluxing at the very end
+
+        # Check par
+        required = [ 'rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib' ]
+        can_be_None = [ 'flexure', 'fluxcalib' ]
+        self.par.validate_keys(required=required, can_be_None=can_be_None)
+
+        for sci_ID in all_sci_ID:
+            sci_dict = self.extract_exposure(sci_ID)
+            self.save_exposure(sci_dict)
+
+
+    def extract_exposure(self, sci_ID, reuse=False):
+        self.sci_ID = sci_ID
+
+
+        if reuse:
+            self.par['calibrations']['masters'] = 'reuse'
+
+        sci_dict = OrderedDict()  # This needs to be ordered
+        sci_dict['meta'] = {}
+        sci_dict['meta']['vel_corr'] = 0.
+        #
+        scidx = np.where((self.fitstbl['sci_ID'] == sci_ID) & self.fitstbl['science'])[0][0]
+        msgs.info("Reducing file {0:s}, target {1:s}".format(self.fitstbl['filename'][scidx],
+                                                             self.fitstbl['target'][scidx]))
+
+        # Loop on Detectors
+        for kk in range(self.spectrograph.ndet):
+            det = kk + 1  # Detectors indexed from 1
+            self.det = det
+            if self.par['rdx']['detnum'] is not None:
+                detnum = [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'],int) else self.par['rdx']['detnum']
+                if det not in map(int, detnum):
+                    msgs.warn("Skipping detector {:d}".format(det))
+                    continue
+                else:
+                    msgs.warn("Restricting the reduction to detector {:d}".format(det))
+            # Setup
+            msgs.info("Working on detector {0}".format(det))
+            sci_dict[det] = {}
+
+            # Calibrate
+            self.calibrate_one(sci_ID, det)
+
+            # Init ScienceImage class
+            self.init_one_science(sci_ID, det)
+            # Extract
+            sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr = self._extract_one()
+
+            # Save for outputing (after all detectors are done)
+            sci_dict[det]['sciimg'] = sciimg
+            sci_dict[det]['sciivar'] = sciivar
+            sci_dict[det]['skymodel'] = skymodel
+            sci_dict[det]['objmodel'] = objmodel
+            sci_dict[det]['ivarmodel'] = ivarmodel
+            sci_dict[det]['outmask'] = outmask
+            sci_dict[det]['specobjs'] = sobjs   #utils.unravel_specobjs([specobjs])
+            if vel_corr is not None:
+                sci_dict['meta']['vel_corr'] = vel_corr
+
+        # Return
+        return sci_dict
+
+    def save_exposure(self, sci_dict):
+
+        scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
+
+        # Build the final list of specobjs and vel_corr
+        all_specobjs = specobjs.SpecObjs()
+
+        for key in sci_dict:
+            if key in ['meta']:
+                continue
+            #
+            try:
+                all_specobjs.add_sobj(sci_dict[key]['specobjs'])
+            except KeyError:  # No object extracted
+                continue
+
+        if len(all_specobjs) == 0:
+            msgs.warn('No objects to save!')
+            return
+
+        # Write 1D spectra
+        save_format = 'fits'
+        if save_format == 'fits':
+            outfile = os.path.join(self.par['rdx']['scidir'], 'spec1d_{:s}.fits'.format(self.basename))
+            helio_dict = dict(refframe='pixel'
+            if self.caliBrate.par['wavelengths']['reference'] == 'pixel'
+            else self.caliBrate.par['wavelengths']['frame'],
+                              vel_correction=sci_dict['meta']['vel_corr'])
+            save.save_1d_spectra_fits(all_specobjs, self.fitstbl[scidx], outfile,
+                                      helio_dict=helio_dict, telescope=self.spectrograph.telescope)
+        #        elif save_format == 'hdf5':
+        #            debugger.set_trace()  # NEEDS REFACTORING
+        #            arsave.save_1d_spectra_hdf5(None)
+        else:
+            msgs.error(save_format + ' is not a recognized output format!')
+        # Obj info
+        save.save_obj_info(all_specobjs, self.fitstbl, self.spectrograph, self.basename,
+                           self.par['rdx']['scidir'])
+        # Write 2D images for the Science Frame
+        save.save_2d_images(sci_dict, self.fitstbl, scidx, self.spectrograph.primary_hdrext,
+                            self.setup, self.caliBrate.master_dir,
+                            self.par['rdx']['scidir'], self.basename)
+        return
+
+    def _extract_one(self):
         pass
 
     def _init_calibrations(self):
         pass
 
     def init_one_science(self, sci_ID, det):
+        self.sci_ID = sci_ID
+        self.det = det
+
         sci_image_files = fsort.list_of_files(self.fitstbl, 'science', sci_ID)
         scidx = np.where((self.fitstbl['sci_ID'] == sci_ID) & self.fitstbl['science'])[0][0]
         self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files,
@@ -128,9 +250,9 @@ class PypeIt(object):
         msgs.sciexp = self.sciI  # For QA on crash
 
         # Names and time
-        obstime, basename = self.sciI.init_time_names(self.fitstbl)
+        self.obstime, self.basename = self.sciI.init_time_names(self.fitstbl)
         # Return
-        return basename  # For fluxing
+        return self.obstime, self.basename  # For fluxing
 
 
     def init_setup(self, pypeit_file, redux_path=None, calibration_check=True):
@@ -365,7 +487,13 @@ class MultiSlit(PypeIt):
             redux_path=self.par['rdx']['redux_path'],
             save_masters=True, write_qa=True)
 
-    def extract_one(self):
+
+    def _extract_one(self):
+        msgs.work("Should check the Calibs were done already")
+
+
+        scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
+
         # Process images (includes inverse variance image, rn2 image, and CR mask)
         sciimg, sciivar, rn2img, crmask = self.sciI.process(
             self.caliBrate.msbias, self.caliBrate.mspixflatnrm, self.caliBrate.msbpm,
@@ -394,33 +522,31 @@ class MultiSlit(PypeIt):
             skymodel, objmodel, ivarmodel, outmask, sobjs = self.sciI.local_skysub_extract(self.caliBrate.mswave, maskslits=maskslits,
                                                                                       show_profile=self.show, show=self.show)
 
-        return sobjs
 
-        '''
             # Flexure correction?
-            if _par['flexure'] is not None and _par['flexure']['method'] is not None:
-                sky_file, sky_spectrum = _spectrograph.archive_sky_spectrum()
-                flex_list = wave.flexure_obj(sobjs, maskslits, _par['flexure']['method'],
+            if self.par['flexure'] is not None and self.par['flexure']['method'] is not None:
+                sky_file, sky_spectrum = self.spectrograph.archive_sky_spectrum()
+                flex_list = wave.flexure_obj(sobjs, maskslits, self.par['flexure']['method'],
                                              sky_spectrum, sky_file=sky_file,
-                                             mxshft=_par['flexure']['maxshift'])
+                                             mxshft=self.par['flexure']['maxshift'])
                 # QA
-                wave.flexure_qa(sobjs, maskslits, basename, det, flex_list)
+                wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list, out_dir=self.par['rdx']['redux_path'])
 
             # Helio
             # Correct Earth's motion
             # vel_corr = -999999.9
-            if (caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) and \
-                    (caliBrate.par['wavelengths']['reference'] != 'pixel'):
+            if (self.caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) and \
+                    (self.caliBrate.par['wavelengths']['reference'] != 'pixel'):
                 if sobjs is not None:
                     msgs.info("Performing a {0} correction".format(
-                        caliBrate.par['wavelengths']['frame']))
+                        self.caliBrate.par['wavelengths']['frame']))
 
-                    vel, vel_corr = wave.geomotion_correct(sobjs, maskslits, fitstbl, scidx,
-                                                           obstime,
-                                                           _spectrograph.telescope['longitude'],
-                                                           _spectrograph.telescope['latitude'],
-                                                           _spectrograph.telescope['elevation'],
-                                                           caliBrate.par['wavelengths']['frame'])
+                    vel, vel_corr = wave.geomotion_correct(sobjs, maskslits, self.fitstbl, scidx,
+                                                           self.obstime,
+                                                           self.spectrograph.telescope['longitude'],
+                                                           self.spectrograph.telescope['latitude'],
+                                                           self.spectrograph.telescope['elevation'],
+                                                           self.caliBrate.par['wavelengths']['frame'])
                 else:
                     msgs.info('There are no objects on detector {0} to perform a '.format(det)
                               + '{1} correction'.format(caliBrate.par['wavelengths']['frame']))
@@ -429,26 +555,15 @@ class MultiSlit(PypeIt):
 
         else:
             msgs.warn('No objects to extract for science frame' + msgs.newline()
-                      + fitstbl['filename'][scidx])
+                      + self.fitstbl['filename'][scidx])
             skymodel = global_sky0  # set to first pass global sky
             objmodel = np.zeros_like(sciimg)
             ivarmodel = np.copy(sciivar)  # Set to sciivar. Could create a model but what is the point?
-            outmask = sciI.bitmask  # Set to inmask in case on objects were found
+            outmask = self.sciI.bitmask  # Set to inmask in case on objects were found
             sobjs = sobjs_obj  # empty specobjs object from object finding
             vel_corr = None
 
-
-        # Save for outputing (after all detectors are done)
-        sci_dict[det]['sciimg'] = sciimg
-        sci_dict[det]['sciivar'] = sciivar
-        sci_dict[det]['skymodel'] = skymodel
-        sci_dict[det]['objmodel'] = objmodel
-        sci_dict[det]['ivarmodel'] = ivarmodel
-        sci_dict[det]['outmask'] = outmask
-        sci_dict[det]['specobjs'] = sobjs  # utils.unravel_specobjs([specobjs])
-        if vel_corr is not None:
-            sci_dict['meta']['vel_corr'] = vel_corr
-        '''
+        return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
 
 
 class LRISb(MultiSlit):
