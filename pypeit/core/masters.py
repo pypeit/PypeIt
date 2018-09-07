@@ -16,11 +16,27 @@ from pypeit import msgs
 from pypeit import debugger
 
 def set_master_dir(redux_path, spectrograph, par):
+    """
+    Set the master directory auto-magically
+
+    Args:
+        redux_path: str or None
+        spectrograph: Spectrograph or None
+        par: ParSet or None
+
+    Returns:
+        master_dir : str
+          Path of the MasterFrame directory
+
+    """
     # Parameters
-    if 'caldir' not in par.keys():
+    if par is None:
         tmppar = pypeitpar.CalibrationsPar()
     else:
-        tmppar = par
+        if 'caldir' not in par.keys():
+            tmppar = pypeitpar.CalibrationsPar()
+        else:
+            tmppar = par
     # Redux path
     if redux_path is None:
         redux_path = os.getcwd()
