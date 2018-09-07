@@ -224,7 +224,6 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
     def __init__(self):
         # Get it started
         super(KeckNIRSPECLowSpectrograph, self).__init__()
-        self.spectrograph = 'keck_nirspec'
 
 
     def default_pypeit_par(self):
