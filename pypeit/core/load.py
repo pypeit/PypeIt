@@ -250,7 +250,10 @@ def load_specobj(fname):
             continue
         # Parse name
         objp = hdu.name.split('-')
-        det = int(objp[-2][1:])
+        if objp[-2][0:3] == 'DET':
+            det = int(objp[-2][3:])
+        else:
+            det = int(objp[-2][1:])
         # Load data
         spec = Table(hdu.data)
         shape = (len(spec), 1024)  # 2nd number is dummy
@@ -260,8 +263,8 @@ def load_specobj(fname):
         #                           float(objp[0][1:])/1000., 'unknown')
         # New and wrong
         try:
-            specobj = specobjs.SpecObj(shape, [float(objp[1][1:])/10000.]*2,
-                                       np.mean([int(objp[-1][1:]), int(objp[-2][1:])]),
+            specobj = specobjs.SpecObj(shape, [float(objp[1][4:])/10000.]*2,
+                                       int(objp[0][4:]),
                                        config='dummy_config',
                                        slitid=1, det=det,
                                        spat_pixpos=100)  # DUMMY
