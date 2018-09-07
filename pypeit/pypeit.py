@@ -73,7 +73,7 @@ class PypeIt(object):
             self.setups_path = setups_path
 
         # Internals
-        self.pypeit_file = ''
+        self.pypeit_file = None
         self.logname = logname
         self.setup_pypeit_file = None
         self.redux_path = None
