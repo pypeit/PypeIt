@@ -18,7 +18,7 @@
 - Hot fix for bspline + requirements update
 - Fixed issue with biases being written to disk as untrimmed. 
 - Completely reworked flat fielding algorithm. 
-
+- Fixed some parsing issues with the .pypeit file for cases where there is a whitepsace in the path.
 
 0.8.1
 -----

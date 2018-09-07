@@ -104,7 +104,8 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None, show = False):
         for kk in range(_spectrograph.ndet):
             det = kk + 1  # Detectors indexed from 1
             if _par['rdx']['detnum'] is not None:
-                if det not in map(int, _par['rdx']['detnum']):
+                detnum = [_par['rdx']['detnum']] if isinstance(_par['rdx']['detnum'],int) else _par['rdx']['detnum']
+                if det not in map(int, detnum):
                     msgs.warn("Skipping detector {:d}".format(det))
                     continue
                 else:

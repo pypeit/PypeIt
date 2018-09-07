@@ -922,7 +922,7 @@ class ReducePar(ParSet):
         descr['pipeline'] = 'Pipeline options that pypeit can use for reductions.  ' \
                             'Options are: {0}'.format(', '.join(options['pipeline']))
 
-        dtypes['detnum'] = [list]
+        dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices'
 
         dtypes['sortroot'] = str
