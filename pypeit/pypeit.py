@@ -117,7 +117,7 @@ class PypeIt(object):
 
         # Read master file
         cfg_lines, data_files, frametype, setups = parse_pypeit_file(self.setup_pypeit_file)
-        sorted_file = self.setup_pypeit_file.replace('pypeit', 'sorted')
+        sorted_file = os.path.splitext(self.setup_pypeit_file)[0]+'.sorted'
 
         # Get paths
         paths = []
@@ -688,7 +688,7 @@ class MultiSlit(PypeIt):
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
 
 
-def instantiate_me(name, spectrograph, **kwargs):
+def instantiate_me(spectrograph, **kwargs):
     """
     Simple wrapper for grabbing the right PypeIt class
 
@@ -701,7 +701,7 @@ def instantiate_me(name, spectrograph, **kwargs):
     Returns:
 
     """
-    if name == 'MultiSlit':
+    if spectrograph.pypeit_class() == 'MultiSlit':
         pypeIt = MultiSlit(spectrograph, **kwargs)
     else:
         msgs.error("NOT READY FOR THIS TYPE OF REDUX")

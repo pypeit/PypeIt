@@ -87,9 +87,8 @@ def main(args):
     # Load PypeIt file (might happen twice but that is ok)
     pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(args.pypeit_file)
 
-    # MULTI-SLIT ONLY FOR RIGHT NOW
-    pypeIt_type = pypeitSetup.spectrograph.pypeit_class()
-    pypeIt = pypeit.instantiate_me(pypeIt_type, pypeitSetup.spectrograph,
+    #
+    pypeIt = pypeit.instantiate_me(pypeitSetup.spectrograph,
                                    verbosity=args.verbosity,
                                    overwrite=args.overwrite, logname=logname, show=args.show)
 

@@ -534,9 +534,9 @@ def generate_sensfunc(std_obj, RA, DEC, exptime, extinction, BALM_MASK_WID=5., n
     msk[atms_cutoff] = False
 
     # Fit in magnitudes
-    var_corr[msk == False] = -1.
+    ivar_corr[msk == False] = -1.
     bspline_par = dict(bkspace=resln.value*nresln)
-    mag_tck = bspline_magfit(wave.value, flux_corr, var_corr, flux_true, bspline_par=bspline_par) #bkspace=resln.value*nresln)
+    mag_tck = bspline_magfit(wave.value, flux_corr, 1./ivar_corr, flux_true, bspline_par=bspline_par) #bkspace=resln.value*nresln)
     sens_dict = dict(c=mag_tck, func='bspline',min=None,max=None, std=std_dict)
     # Add in wavemin,wavemax
     sens_dict['wave_min'] = np.min(wave)
