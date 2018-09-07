@@ -47,7 +47,7 @@ class PypeIt(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, spectrograph, setups_path=None, verbosity=2, overwrite=True, logname=None):
+    def __init__(self, spectrograph, setups_path=None, verbosity=2, overwrite=True, logname=None, show=False):
 
         # Init
         self.spectrograph = spectrograph
@@ -63,6 +63,7 @@ class PypeIt(object):
         self.logname = logname
         self.setup_pypeit_file = None
         self.redux_path = None
+        self.show=show
 
 
     def build_setup_files(self, files_root):
@@ -124,6 +125,12 @@ class PypeIt(object):
                                          scidx=scidx, setup=self.setup,
                                          par=self.par['scienceimage'],
                                          frame_par=self.par['scienceframe'])
+        msgs.sciexp = self.sciI  # For QA on crash
+
+        # Names and time
+        obstime, basename = self.sciI.init_time_names(self.fitstbl)
+        # Return
+        return basename  # For fluxing
 
 
     def init_setup(self, pypeit_file, redux_path=None, calibration_check=True):
@@ -357,6 +364,91 @@ class MultiSlit(PypeIt):
             par=self.par['calibrations'],
             redux_path=self.par['rdx']['redux_path'],
             save_masters=True, write_qa=True)
+
+    def extract_one(self):
+        # Process images (includes inverse variance image, rn2 image, and CR mask)
+        sciimg, sciivar, rn2img, crmask = self.sciI.process(
+            self.caliBrate.msbias, self.caliBrate.mspixflatnrm, self.caliBrate.msbpm,
+            illum_flat=self.caliBrate.msillumflat, apply_gain=True, trim=self.caliBrate.par['trim'],
+            show=self.show)
+
+        # Object finding, first pass on frame without sky subtraction
+        maskslits = self.caliBrate.maskslits.copy()
+        sobjs_obj0, nobj0 = self.sciI.find_objects(self.caliBrate.tslits_dict, skysub=False,
+                                                   maskslits=maskslits)
+
+        # Global sky subtraction, first pass. Uses skymask from object finding
+        global_sky0 = self.sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.mstilts,
+                                              use_skymask=True, maskslits=maskslits, show=self.show)
+
+        # Object finding, second pass on frame *with* sky subtraction. Show here if requested
+        sobjs_obj, nobj = self.sciI.find_objects(self.caliBrate.tslits_dict, skysub=True,
+                                                 maskslits=maskslits, show_peaks=self.show)
+
+        # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
+        if nobj > 0:
+            # Global sky subtraction second pass. Uses skymask from object finding
+            global_sky = self.sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.mstilts,
+                                                 use_skymask=True, maskslits=maskslits, show=self.show)
+
+            skymodel, objmodel, ivarmodel, outmask, sobjs = self.sciI.local_skysub_extract(self.caliBrate.mswave, maskslits=maskslits,
+                                                                                      show_profile=self.show, show=self.show)
+
+        return sobjs
+
+        '''
+            # Flexure correction?
+            if _par['flexure'] is not None and _par['flexure']['method'] is not None:
+                sky_file, sky_spectrum = _spectrograph.archive_sky_spectrum()
+                flex_list = wave.flexure_obj(sobjs, maskslits, _par['flexure']['method'],
+                                             sky_spectrum, sky_file=sky_file,
+                                             mxshft=_par['flexure']['maxshift'])
+                # QA
+                wave.flexure_qa(sobjs, maskslits, basename, det, flex_list)
+
+            # Helio
+            # Correct Earth's motion
+            # vel_corr = -999999.9
+            if (caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) and \
+                    (caliBrate.par['wavelengths']['reference'] != 'pixel'):
+                if sobjs is not None:
+                    msgs.info("Performing a {0} correction".format(
+                        caliBrate.par['wavelengths']['frame']))
+
+                    vel, vel_corr = wave.geomotion_correct(sobjs, maskslits, fitstbl, scidx,
+                                                           obstime,
+                                                           _spectrograph.telescope['longitude'],
+                                                           _spectrograph.telescope['latitude'],
+                                                           _spectrograph.telescope['elevation'],
+                                                           caliBrate.par['wavelengths']['frame'])
+                else:
+                    msgs.info('There are no objects on detector {0} to perform a '.format(det)
+                              + '{1} correction'.format(caliBrate.par['wavelengths']['frame']))
+            else:
+                msgs.info('A wavelength reference-frame correction will not be performed.')
+
+        else:
+            msgs.warn('No objects to extract for science frame' + msgs.newline()
+                      + fitstbl['filename'][scidx])
+            skymodel = global_sky0  # set to first pass global sky
+            objmodel = np.zeros_like(sciimg)
+            ivarmodel = np.copy(sciivar)  # Set to sciivar. Could create a model but what is the point?
+            outmask = sciI.bitmask  # Set to inmask in case on objects were found
+            sobjs = sobjs_obj  # empty specobjs object from object finding
+            vel_corr = None
+
+
+        # Save for outputing (after all detectors are done)
+        sci_dict[det]['sciimg'] = sciimg
+        sci_dict[det]['sciivar'] = sciivar
+        sci_dict[det]['skymodel'] = skymodel
+        sci_dict[det]['objmodel'] = objmodel
+        sci_dict[det]['ivarmodel'] = ivarmodel
+        sci_dict[det]['outmask'] = outmask
+        sci_dict[det]['specobjs'] = sobjs  # utils.unravel_specobjs([specobjs])
+        if vel_corr is not None:
+            sci_dict['meta']['vel_corr'] = vel_corr
+        '''
 
 
 class LRISb(MultiSlit):
