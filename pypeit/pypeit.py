@@ -7,6 +7,7 @@ import time
 from abc import ABCMeta
 import os
 import datetime
+import numpy as np
 
 from pypeit import msgs
 from pypeit.core import fsort
@@ -19,6 +20,7 @@ from pypeit.spectrographs import keck_lris
 from pypeit.scripts import run_pypeit
 from pypeit.core import pypsetup
 from pypeit import calibrations
+from pypeit import scienceimage
 
 from pypeit import debugger
 
@@ -113,6 +115,16 @@ class PypeIt(object):
 
     def _init_calibrations(self):
         pass
+
+    def init_one_science(self, sci_ID, det):
+        sci_image_files = fsort.list_of_files(self.fitstbl, 'science', sci_ID)
+        scidx = np.where((self.fitstbl['sci_ID'] == sci_ID) & self.fitstbl['science'])[0][0]
+        self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files,
+                                         det=det, objtype='science',
+                                         scidx=scidx, setup=self.setup,
+                                         par=self.par['scienceimage'],
+                                         frame_par=self.par['scienceframe'])
+
 
     def init_setup(self, pypeit_file, redux_path=None, calibration_check=True):
         self.pypeit_file = pypeit_file
