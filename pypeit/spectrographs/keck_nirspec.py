@@ -14,7 +14,7 @@ from pypeit import debugger
 
 class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Keck/LRIS specific code
+    Child to handle Keck/NIRSPEC specific code
     """
     def __init__(self):
         # Get it started
@@ -40,9 +40,66 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
                             oscansec        = '[:,:]'
                             )
             ]
+        self.numhead = 1
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
+
+    @staticmethod
+    def nirspec_default_pypeit_par():
+        """
+        Set default parameters for NIRSPEC longslit reductions.
+        """
+        par = pypeitpar.PypeItPar()
+        par['rdx']['spectrograph'] = 'keck_nirspec'
+        # TODO: Make self.spectrograph a class attribute?
+        # Frame numbers
+        par['calibrations']['standardframe']['number'] = 1
+        par['calibrations']['biasframe']['number'] = 0
+        par['calibrations']['pixelflatframe']['number'] = 5
+        par['calibrations']['traceframe']['number'] = 5
+        par['calibrations']['arcframe']['number'] = 0
+        # Set wave tilts order
+        par['calibrations']['tilts']['order'] = 2
+        # Scienceimage default parameters
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypeitpar.FlexurePar()
+        return par
+
+    def nirspec_header_keys(self):
+        """
+        Provide the relevant header keywords
+        """
+        def_keys = self.default_header_keys()
+
+        # A time stamp of the observation; used to find calibrations
+        # proximate to science frames. The units of this value are
+        # specified by fits+timeunit below
+        def_keys[0]['time'] = 'UTC'
+
+        # Image size
+        # TODO: Check ordering
+        def_keys[0]['naxis0'] = 'NAXIS2'
+        def_keys[0]['naxis1'] = 'NAXIS1'
+
+        # Lamp names and statuses
+        def_keys[0]['lampname01'] = 'NEON'
+        def_keys[0]['lampstat01'] = '01.NEON'
+        def_keys[0]['lampname02'] = 'ARGON'
+        def_keys[0]['lampstat02'] = '01.ARGON'
+        def_keys[0]['lampname03'] = 'KRYPTON'
+        def_keys[0]['lampstat03'] = '01.KRYPTON'
+        def_keys[0]['lampname04'] = 'XENON'
+        def_keys[0]['lampstat04'] = '01.XENON'
+        def_keys[0]['lampname05'] = 'ETALON'
+        def_keys[0]['lampstat05'] = '01.ETALON'
+        def_keys[0]['lampname06'] = 'FLAT'
+        def_keys[0]['lampstat06'] = '01.FLAT'
+
+        # Dichroic and decker
+        def_keys[0]['dichroic'] = 'BSPLIT_N'
+        def_keys[0]['decker'] = 'SLIT_N'
 
     # TODO: This function is unstable to shape...
     def bpm(self, shape=None, **null_kwargs):
@@ -66,8 +123,40 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         self.bpm_img[:, 1000:] = 1.
         return self.bpm_img
 
-    def setup_arcparam(self, arcparam, fitstbl=None, arc_idx=None,
-                       msarc_shape=None, **null_kwargs):
+class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
+    """
+    Child to handle NIRSPEC low-dispersion specific code
+    """
+
+    def __init__(self):
+        # Get it started
+        super(KeckNIRSPECLowSpectrograph, self).__init__()
+        self.spectrograph = 'keck_nirspec'
+
+
+    def default_pypeit_par(self):
+        """
+        Set default parameters for NIRSPEC low-dispersion reductions
+        """
+        par = self.nirspec_default_pypeit_par()
+        par['rdx']['pipeline'] = ARMS
+        return par
+
+
+    def header_keys(self):
+        """
+        Header keys specific to keck_nirspec low-dispersion
+
+        Returns:
+
+        """
+        head_keys = self.nirspec_header_keys()
+        # Add the name of the dispersing element
+        head_keys[0]['dispname'] = '01.DISPERS'
+        return head_keys
+
+    def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
+                       binspectral=None, **null_kwargs):
         """
 
         Args:
