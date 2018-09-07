@@ -84,18 +84,110 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['naxis1'] = 'NAXIS1'
 
         # Lamp names and statuses
-        def_keys[0]['lampname01'] = 'NEON'
-        def_keys[0]['lampstat01'] = '01.NEON'
-        def_keys[0]['lampname02'] = 'ARGON'
-        def_keys[0]['lampstat02'] = '01.ARGON'
-        def_keys[0]['lampname03'] = 'KRYPTON'
-        def_keys[0]['lampstat03'] = '01.KRYPTON'
-        def_keys[0]['lampname04'] = 'XENON'
-        def_keys[0]['lampstat04'] = '01.XENON'
-        def_keys[0]['lampname05'] = 'ETALON'
-        def_keys[0]['lampstat05'] = '01.ETALON'
-        def_keys[0]['lampname06'] = 'FLAT'
-        def_keys[0]['lampstat06'] = '01.FLAT'
+        def_keys[0]['lampstat01'] = 'NEON'
+        def_keys[0]['lampstat02'] = 'ARGON'
+        def_keys[0]['lampstat03'] = 'KRYPTON'
+        def_keys[0]['lampstat04'] = 'XENON'
+        def_keys[0]['lampstat05'] = 'ETALON'
+        def_keys[0]['lampstat06'] = 'FLAT'
+
+        def_keys[0]['dispname'] = 'DISPERS'
+        def_keys[0]['hatch'] = 'CALMPOS'
+        def_keys[0]['slitwid'] = 'SLITWIDT'
+        def_keys[0]['slitlen'] = 'SLITLEN'
+        def_keys[0]['imagetype'] = 'IMAGETYP'
+
+    def nirspec_cond_dict(self, ftype):
+        """
+        Create dict for image typing (from header)
+
+        Args:
+            ftype: str
+
+        Returns:
+
+        """
+        cond_dict = {}
+
+        if ftype == 'science':
+            cond_dict['condition1'] = 'lampstat01=0&lampstat02=0&lampstat03=0' \
+                                      '&lampstat04=0&lampstat05=0&lampstat06=0' # 0 is 'off' for NIRSPEC
+            cond_dict['condition2'] = 'exptime>=1'
+            cond_dict['condition3'] = 'hatch=0'
+            cond_dict['condition4'] = 'imagetype=object'
+        elif ftype == 'bias':
+            cond_dict['condition1'] = 'exptime<1'
+            cond_dict['condition2'] = 'hatch=0'
+            cond_dict['condition3'] = 'imagetype=dark'
+        elif ftype == 'pixelflat':
+            cond_dict['condition1'] = 'lampstat06=1' # This is the dome flat lamp for NIRSPEC; 1 is 'on'
+            cond_dict['condition2'] = 'exptime>0'
+            cond_dict['condition3'] = 'hatch=1'
+            cond_dict['condition4'] = 'imagetype=flatlamp'
+            condict
+        elif ftype == 'pinhole':
+            cond_dict['condition1'] = 'exptime>99999999'
+        elif ftype == 'trace':
+            cond_dict['condition1'] = 'lampstat06=1' # This is the dome flat lamp for NIRSPEC; 1 is 'on'
+            cond_dict['condition2'] = 'exptime>0'
+            cond_dict['conditoin3'] = 'hatch=1'
+        elif ftype == 'arc':
+            cond_dict['condition1'] = 'lampstat01=1|lampstat02=1|lampstat03=1|lampstat04=1|lampstat05=1'
+            cond_dict['condition2'] = 'hatch=1'
+            cond_dict['condition3'] = 'imagetype=arclamp'
+        else:
+            pass
+
+        return cond_dict
+
+    def check_ftype(self, ftype, fitstbl):
+        """
+        Check the frame type
+
+        Args:
+            ftype:
+            fitstbl:
+
+        Returns:
+
+        """
+        # Load up
+        cond_dict = self.kast_cond_dict(ftype)
+
+        # Do it
+        gd_chk = fsort.chk_all_conditions(fitstbl, cond_dict)
+
+        return gd_chk
+
+    def get_match_criteria(self):
+        """Set the general matching criteria for Shane Kast."""
+        match_criteria = {}
+        for key in fsort.ftype_list:
+            match_criteria[key] = {}
+
+        match_criteria['standard']['match'] = {}
+        match_criteria['standard']['match']['naxis0'] = '=0'
+        match_criteria['standard']['match']['naxis1'] = '=0'
+
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['naxis0'] = '=0'
+        match_criteria['bias']['match']['naxis1'] = '=0'
+
+        match_criteria['pixelflat']['match'] = {}
+        match_criteria['pixelflat']['match']['naxis0'] = '=0'
+        match_criteria['pixelflat']['match']['naxis1'] = '=0'
+        match_criteria['pixelflat']['match']['dispname'] = ''
+
+        match_criteria['trace']['match'] = {}
+        match_criteria['trace']['match']['naxis0'] = '=0'
+        match_criteria['trace']['match']['naxis1'] = '=0'
+        match_criteria['trace']['match']['dispname'] = ''
+
+        match_criteria['arc']['match'] = {}
+        match_criteria['arc']['match']['naxis0'] = '=0'
+        match_criteria['arc']['match']['naxis1'] = '=0'
+
+        return match_criteria
 
 
     # TODO: This function is unstable to shape...
@@ -138,19 +230,6 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         par = self.nirspec_default_pypeit_par()
         par['rdx']['pipeline'] = ARMS
         return par
-
-
-    def header_keys(self):
-        """
-        Header keys specific to keck_nirspec low-dispersion
-
-        Returns:
-
-        """
-        head_keys = self.nirspec_header_keys()
-        # Add the name of the dispersing element
-        head_keys[0]['dispname'] = '01.DISPERS'
-        return head_keys
 
     def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
                        binspectral=None, **null_kwargs):
