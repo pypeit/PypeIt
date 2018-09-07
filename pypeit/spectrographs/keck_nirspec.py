@@ -48,7 +48,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     @staticmethod
     def nirspec_default_pypeit_par():
         """
-        Set default parameters for NIRSPEC longslit reductions.
+        Set default parameters for NIRSPEC redutions
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_nirspec'
@@ -97,9 +97,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['lampname06'] = 'FLAT'
         def_keys[0]['lampstat06'] = '01.FLAT'
 
-        # Dichroic and decker
-        def_keys[0]['dichroic'] = 'BSPLIT_N'
-        def_keys[0]['decker'] = 'SLIT_N'
 
     # TODO: This function is unstable to shape...
     def bpm(self, shape=None, **null_kwargs):
