@@ -211,7 +211,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Return
         return modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit
 
-    def run(self, armed=False, debug = False, show = False):
+    def run(self, debug = False, show = False):
         """
         Main driver to generate normalized flat field and illumination flats
 

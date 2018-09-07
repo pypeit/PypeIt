@@ -38,7 +38,7 @@ from pypeit import debugger
 class Calibrations(object):
     """
     This class is primarily designed to guide the generation of calibration images
-    and objects in PYPIT
+    and objects in PypeIt
 
     Must be able to instantiate spectrograph.
 
@@ -95,7 +95,7 @@ class Calibrations(object):
             raise TypeError('Input parameters must be a CalibrationsPar instance.')
 
         # Output dirs
-        self.redux_path = self.par['rdx']['redux_path'] if redux_path is None else redux_path
+        self.redux_path = os.getcwd() if redux_path is None else redux_path
         self.master_dir = masters.set_master_dir(self.redux_path, self.spectrograph, self.par)
 
         # Attributes
