@@ -1200,7 +1200,7 @@ def make_dirs(spectrograph, caldir, scidir, qadir, redux_path=None, overwrite=Fa
     # TODO: I'd rather that this still consider overwrite and fault
     # instead of just proceeding
     msgs.info("Creating QA directory")
-    newdir = "{0:s}/{1:s}".format(redux_path, qadir)
+    newdir = os.path.join(redux_path, qadir)
     if os.path.exists(newdir):
         msgs.warn("Pre-existing QA plots will be overwritten")
         '''

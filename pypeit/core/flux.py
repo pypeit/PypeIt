@@ -471,15 +471,15 @@ def generate_sensfunc(std_obj, RA, DEC, exptime, extinction, BALM_MASK_WID=5., n
     sens_dict : dict
       sensitivity function described by a dict
     """
-    wave = std_obj.boxcar['wave']
+    wave = std_obj.boxcar['WAVE']
     # Apply Extinction
 #    extinct = load_extinction_data(settings_spect) # Observatory specific
 #    ext_corr = extinction_correction(wave, airmass, extinction_data)
-    flux_corr = std_obj.boxcar['counts'] * extinction
-    var_corr = std_obj.boxcar['var'] * np.square(extinction)
+    flux_corr = std_obj.boxcar['COUNTS'] * extinction
+    ivar_corr = std_obj.boxcar['COUNTS_IVAR'] * np.square(extinction)
     # Convert to electrons / s
     flux_corr /= exptime
-    var_corr /= exptime**2
+    ivar_corr *= exptime**2
 
     # Grab closest standard within a tolerance
     std_dict = find_standard_file((RA, DEC))
@@ -498,7 +498,7 @@ def generate_sensfunc(std_obj, RA, DEC, exptime, extinction, BALM_MASK_WID=5., n
     # Mask (True = good pixels)
     msk = np.ones_like(flux_true).astype(bool)
     # Mask bad pixels
-    msk[var_corr <= 0.] = False
+    msk[ivar_corr <= 0.] = False
 
     # Mask edges
     msk[flux_true <= 0.] = False

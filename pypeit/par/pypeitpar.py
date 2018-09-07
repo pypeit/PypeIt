@@ -944,7 +944,7 @@ class ReducePar(ParSet):
         descr['qadir'] = 'Directory relative to calling directory to write quality ' \
                          'assessment files.'
 
-        defaults['redux_path'] = ''
+        defaults['redux_path'] = os.getcwd()
         dtypes['redux_path'] = str
         descr['redux_path'] = 'Path to folder for performing reductions.'
 

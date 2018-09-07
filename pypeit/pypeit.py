@@ -13,11 +13,9 @@ from collections import OrderedDict
 from pypeit import msgs
 from pypeit.core import fsort
 from pypeit.core import qa
-from pypeit import arms
 from pypeit.par.util import make_pypeit_file, parse_pypeit_file
 
 from pypeit import pypeitsetup
-from pypeit.spectrographs import keck_lris
 from pypeit.scripts import run_pypeit
 from pypeit.core import pypsetup
 from pypeit import calibrations
