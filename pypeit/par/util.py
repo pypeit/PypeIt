@@ -300,22 +300,19 @@ def _read_data_file_names(lines, file_check=True):
     read_inp = []
     for l in lines:
         _l = l.split(' ')
-        if len(_l) > 2:
-            msgs.error('There can be no more than two strings per line in a data block:'
-                       + msgs.newline() + l)
 
         if _l[0] == 'skip':
-            skip_inp += _parse_data_file_name(_l[1], current_path)
+            space_ind = l.index(" ")
+            path = l[space_ind + 1:]
+            skip_inp += _parse_data_file_name(path, current_path)
             continue
 
         if _l[0] == 'path':
-            current_path = _l[1]
+            space_ind = l.index(" ")
+            current_path = l[space_ind + 1:]
             continue
 
-        if len(_l) > 1:
-            msgs.error('There must be no spaces when specifying the datafile:'+msgs.newline()+l)
-
-        read_inp += _parse_data_file_name(_l[0], current_path)
+        read_inp += _parse_data_file_name(l, current_path)
 
     # Remove any repeated lines
     if len(skip_inp) > 0 and len(skip_inp) != len(set(skip_inp)):
@@ -377,7 +374,8 @@ def _determine_data_format(lines):
 
 def _read_data_file_table(lines, file_check=True):
     """Read the file table format."""
-    path = lines[0].split(' ')[1]
+    space_ind = lines[0].index(" ")
+    path = lines[0][space_ind+1:]
     header = np.array([ l.strip() for l in lines[1].split('|') ])
 
     file_col = np.where(header == 'filename')[0]
