@@ -129,6 +129,7 @@ class PypeIt(object):
 
     def extract_all(self, reuse=False):
 
+        self.tstart = time.time()
         std_dict = {}
         all_sci_ID = self.fitstbl['sci_ID'].data[self.fitstbl['science']]  # Binary system: 1,2,4,8, etc.
         numsci = len(all_sci_ID)
@@ -143,6 +144,7 @@ class PypeIt(object):
             sci_dict = self.extract_exposure(sci_ID, reuse=reuse)
             self.save_exposure(sci_ID, sci_dict)
 
+        self.print_end_time()
 
     def extract_exposure(self, sci_ID, reuse=False):
         self.sci_ID = sci_ID
@@ -341,33 +343,6 @@ class PypeIt(object):
             mns = int(60.0*(codetime/3600.0 - hrs))
             scs = codetime - 60.0*mns - 3600.0*hrs
             msgs.info('Data reduction execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs))
-
-
-        if par['rdx']['pipeline'] == 'ARMS':
-            msgs.info('Data reduction will be performed using PYPIT-ARMS')
-            #status = arms.ARMS(fitstbl, setup_dict, sciexp=sciexp)
-            status = arms.ARMS(fitstbl, setup_dict, par=par, spectrograph=spectrograph)
-        elif par['rdx']['pipeline'] == 'ARMED':
-            import pdb; pdb.set_trace()
-            msgs.error('ARMED is currently broken.')
-            msgs.info('Data reduction will be performed using PYPIT-ARMED')
-            status = armed.ARMED(fitstbl)
-        else:
-            msgs.error('Unrecognized pipeline!')
-
-        # Check for successful reduction
-        if status == 0:
-            msgs.info('Data reduction complete')
-            # QA HTML
-            msgs.info('Generating QA HTML')
-            qa.gen_mf_html(pypeit_file)
-            qa.gen_exp_html()
-        else:
-            msgs.error('Data reduction failed with status ID {0:d}'.format(status))
-
-        self.print_end_time()
-
-        return status
 
 
     def _setup(self, pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False, sort_dir=None):
