@@ -86,11 +86,20 @@ def main(args):
 
     # Load PypeIt file (might happen twice but that is ok)
     pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(args.pypeit_file)
-    debugger.set_trace()
 
-    pypeit.PypeIt(args.pypeit_file, setup_only=args.prep_setup, calibration_check=args.calcheck,
-                  use_header_frametype=args.hdrframetype, sort_dir=args.sort_dir, overwrite=args.overwrite,
-                  verbosity=args.verbosity, use_masters=args.use_masters, show = args.show, logname=logname)
+    # MULTI-SLIT ONLY FOR RIGHT NOW
+    pypeIt = pypeit.MultiSlit(pypeitSetup.spectrograph, verbosity=args.verbosity,
+                              overwrite=args.overwrite, logname=logname,
+                              show=args.show)
+
+    # Init Setup
+    redux_dir = './'
+    pypeIt.init_setup(args.pypeit_file, redux_dir, calibration_check=True)
+    pypeIt.extract_all(reuse=args.use_masters)
+
+    #pypeit.PypeIt(args.pypeit_file, setup_only=args.prep_setup, calibration_check=args.calcheck,
+                  #use_header_frametype=args.hdrframetype, sort_dir=args.sort_dir, overwrite=args.overwrite,
+                  #verbosity=args.verbosity, use_masters=args.use_masters, show = args.show, logname=logname)
 
     return 0
 

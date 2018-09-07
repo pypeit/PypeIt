@@ -51,7 +51,8 @@ class PypeIt(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, spectrograph, setups_path=None, verbosity=2, overwrite=True, logname=None, show=False):
+    def __init__(self, spectrograph, setups_path=None, verbosity=2,
+                 overwrite=True, logname=None, show=False):
 
         # Init
         self.spectrograph = spectrograph
@@ -79,7 +80,8 @@ class PypeIt(object):
         self.tstart = time.time()
 
         pargs, sort_dir, self.setup_pypeit_file = self._make_setup_pypeit_file(files_root)
-        self._setup(self.setup_pypeit_file, setup_only=True, calibration_check=False, sort_dir=sort_dir)
+        self._setup(self.setup_pypeit_file, setup_only=True, calibration_check=False,
+                    sort_dir=sort_dir)
 
         self.print_end_time()
 
