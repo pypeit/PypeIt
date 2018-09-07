@@ -24,7 +24,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         self.camera = 'NIRSPEC'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 0,
+            pypeitpar.DetectorPar(dataext         = 0,
                             dispaxis        = 0,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -65,6 +65,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
+
         return par
 
     def nirspec_header_keys(self):
@@ -96,6 +97,8 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['slitwid'] = 'SLITWIDT'
         def_keys[0]['slitlen'] = 'SLITLEN'
         def_keys[0]['imagetype'] = 'IMAGETYP'
+
+        return def_keys
 
     def nirspec_cond_dict(self, ftype):
         """
@@ -152,7 +155,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
         """
         # Load up
-        cond_dict = self.kast_cond_dict(ftype)
+        cond_dict = self.nirspec_cond_dict(ftype)
 
         # Do it
         gd_chk = fsort.chk_all_conditions(fitstbl, cond_dict)
@@ -160,7 +163,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         return gd_chk
 
     def get_match_criteria(self):
-        """Set the general matching criteria for Shane Kast."""
+        """Set the general matching criteria for Keck NIRSPEC."""
         match_criteria = {}
         for key in fsort.ftype_list:
             match_criteria[key] = {}
