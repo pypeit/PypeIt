@@ -240,7 +240,7 @@ def load_specobj(fname):
     specObjs : list of SpecObjExp
     head0
     """
-    speckeys = ['wave', 'sky', 'mask', 'flam', 'flam_var', 'var', 'counts']
+    speckeys = ['WAVE', 'SKY', 'MASK', 'flam', 'flam_var', 'COUNTS_IVAR', 'COUNTS']
     #
     specObjs = []
     hdulist = fits.open(fname)
@@ -269,27 +269,28 @@ def load_specobj(fname):
                                        slitid=1, det=det,
                                        spat_pixpos=100)  # DUMMY
         except:
+            msgs.error("BUG ME")
             debugger.set_trace()
         # Add trace
-        specobj.trace = spec['obj_trace']
+        specobj.trace = spec['TRACE']
         # Add spectrum
-        if 'box_counts' in spec.keys():
+        if 'BOX_COUNTS' in spec.keys():
             for skey in speckeys:
                 try:
-                    specobj.boxcar[skey] = spec['box_{:s}'.format(skey)].data
+                    specobj.boxcar[skey] = spec['BOX_{:s}'.format(skey)].data
                 except KeyError:
                     pass
             # Add units on wave
-            specobj.boxcar['wave'] = specobj.boxcar['wave'] * units.AA
+            specobj.boxcar['WAVE'] = specobj.boxcar['WAVE'] * units.AA
 
-        if 'opt_counts' in spec.keys():
+        if 'OPT_COUNTS' in spec.keys():
             for skey in speckeys:
                 try:
-                    specobj.optimal[skey] = spec['opt_{:s}'.format(skey)].data
+                    specobj.optimal[skey] = spec['OPT_{:s}'.format(skey)].data
                 except KeyError:
                     pass
             # Add units on wave
-            specobj.optimal['wave'] = specobj.optimal['wave'] * units.AA
+            specobj.optimal['WAVE'] = specobj.optimal['WAVE'] * units.AA
         # Append
         specObjs.append(specobj)
     # Return
@@ -309,7 +310,7 @@ def load_tilts(fname):
     return tilts, satmask
 
 
-def load_1dspec(fname, exten=None, extract='opt', objname=None, flux=False):
+def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
     """
     Parameters
     ----------
@@ -332,13 +333,13 @@ def load_1dspec(fname, exten=None, extract='opt', objname=None, flux=False):
     """
     # Keywords for Table
     rsp_kwargs = {}
-    rsp_kwargs['wave_tag'] = '{:s}_wave'.format(extract)
+    rsp_kwargs['wave_tag'] = '{:s}_WAVE'.format(extract)
     if flux:
         rsp_kwargs['flux_tag'] = '{:s}_flam'.format(extract)
         rsp_kwargs['var_tag'] = '{:s}_flam_var'.format(extract)
     else:
-        rsp_kwargs['flux_tag'] = '{:s}_counts'.format(extract)
-        rsp_kwargs['var_tag'] = '{:s}_var'.format(extract)
+        rsp_kwargs['flux_tag'] = '{:s}_COUNTS'.format(extract)
+        rsp_kwargs['var_tag'] = '{:s}_VAR'.format(extract)
     # Identify extension from objname?
     if objname is not None:
         hdulist = fits.open(fname)
