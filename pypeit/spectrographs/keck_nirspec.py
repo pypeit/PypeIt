@@ -2,13 +2,13 @@
 """
 from __future__ import absolute_import, division, print_function
 
-
 import numpy as np
 
 from pypeit import msgs
-from pypeit.par.pypeitpar import DetectorPar
+from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
+from pypeit.core import fsort
 
 from pypeit import debugger
 
