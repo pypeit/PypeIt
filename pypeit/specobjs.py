@@ -71,7 +71,7 @@ class SpecObj(object):
     # TODO
     def __init__(self, shape, slit_spat_pos, slit_spec_pos, det=1, setup=None,
                  slitid=999, scidx=1, objtype='unknown', spat_pixpos=None, config=None):
-        bj
+
 
         #Assign from init parameters
         self.shape = shape
