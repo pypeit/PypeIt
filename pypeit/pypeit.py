@@ -120,10 +120,15 @@ class PypeIt(object):
                              setup_lines=setup_lines, sorted_files=sorted_files, paths=paths)
             print("Wrote {:s}".format(pypeit_file))
 
+    def build_qa(self):
+        qa.gen_mf_html(self.pypeit_file)
+        qa.gen_exp_html()
+
     def calibrate_one(self, sci_ID, det):
         pass
 
     def extract_all(self, reuse=False):
+
         std_dict = {}
         all_sci_ID = self.fitstbl['sci_ID'].data[self.fitstbl['science']]  # Binary system: 1,2,4,8, etc.
         numsci = len(all_sci_ID)
@@ -135,7 +140,7 @@ class PypeIt(object):
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
         for sci_ID in all_sci_ID:
-            sci_dict = self.extract_exposure(sci_ID)
+            sci_dict = self.extract_exposure(sci_ID, reuse=reuse)
             self.save_exposure(sci_ID, sci_dict)
 
 
@@ -338,59 +343,6 @@ class PypeIt(object):
             msgs.info('Data reduction execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs))
 
 
-    def run(self, quick=False):
-        """
-        Execute PypeIt.
-
-        .. todo::
-            - More description in docstring
-            - Allow the user to just provide a list of files or always
-              require a pypeit file?
-
-        Args:
-            quick (:obj:`bool`, optional):
-                Perform a quick version of the reduction.  NOT IMPLEMENTED.
-            ncpus (:obj:`int`, optional):
-                The number of cpus to use.  NOT IMPLEMENTED.
-            overwrite (:obj:`bool`, optional):
-                Flag to overwrite any existing files/directories.
-            verbosity (:obj:`int`, optional):
-                Verbosity level of system output.  Can be::
-                    - 0: No output
-                    - 1: Minimal output (default)
-                    - 2: All output
-            use_masters (:obj:`bool`, optional):
-                Use the master frames if available (same as setting
-                par['calibrations']['masters'] = 'reuse'.  NOT IMPLEMENTED.
-            logname (:obj:`str`, optional):
-              The name of an ascii log file with the details of the
-              reduction
-
-        Returns:
-            int: The status of the reduction::
-                - 0: Reductions successful
-                - 1: Setup successful (when `setup_only=True`)
-                - 2: Calibration check successful (when `calibration_check=True`)
-        """
-        if quick:
-            raise NotImplementedError('Quick version of pypeit is not yet implemented.')
-
-        # Msgs
-        self.msgs_reset()
-
-        # Setup
-        self.setup()
-
-        # Exit if finished
-        if setup_only:
-            msgs.info('Setup complete')
-            return 1
-        if calibration_check:
-            msgs.info('Calcheck complete')
-            return 2
-
-
-        # Just do it (sponsored by Nike)
         if par['rdx']['pipeline'] == 'ARMS':
             msgs.info('Data reduction will be performed using PYPIT-ARMS')
             #status = arms.ARMS(fitstbl, setup_dict, sciexp=sciexp)

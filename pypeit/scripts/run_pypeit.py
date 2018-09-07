@@ -97,6 +97,11 @@ def main(args):
     pypeIt.init_setup(args.pypeit_file, redux_dir, calibration_check=True)
     pypeIt.extract_all(reuse=args.use_masters)
 
+    msgs.info('Data reduction complete')
+    # QA HTML
+    msgs.info('Generating QA HTML')
+    pypeIt.build_qa()
+
     #pypeit.PypeIt(args.pypeit_file, setup_only=args.prep_setup, calibration_check=args.calcheck,
                   #use_header_frametype=args.hdrframetype, sort_dir=args.sort_dir, overwrite=args.overwrite,
                   #verbosity=args.verbosity, use_masters=args.use_masters, show = args.show, logname=logname)
