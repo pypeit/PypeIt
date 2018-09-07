@@ -13,6 +13,12 @@ from astropy import units
 from astropy.io import fits
 from astropy.convolution import convolve, Gaussian1DKernel
 
+
+# Imports for fast_running_median
+from collections import deque
+from itertools import islice
+from bisect import insort, bisect_left
+
 #from pydl.pydlutils import math
 #from pydl.pydlutils import bspline
 
@@ -41,6 +47,62 @@ def bspline_inner_knots(all_knots):
     i0=pos[0]
     i1=pos[-1]
     return all_knots[i0:i1]
+
+def fast_running_median(seq, window_size):
+    """
+      Compute the median of sequence of numbers with a running window. The boundary conditions are identical to the
+      scipy 'reflect' boundary codition:
+
+         'reflect' (`d c b a | a b c d | d c b a`)
+         The input is extended by reflecting about the edge of the last pixel.
+
+      This code has been confirmed to produce identical results to scipy.ndimage.filters.median_filter with the reflect
+      boundary condition, but is ~ 100 times faster.
+
+      Parameters
+      ----------
+      seq : list or 1-d numpy array of numbers.
+
+      window_size = size of running window.
+
+      Returns
+      -------
+      ndarray of median filtered values
+
+      Code contributed by Peter Otten, made to be consistent with scipy.ndimage.filters.median_filter by Joe Hennawi.
+
+      See discussion at:
+      http://groups.google.com/group/comp.lang.python/browse_thread/thread/d0e011c87174c2d0
+      """
+
+
+
+    # pad the array for the reflection
+    seq_pad = np.concatenate((seq[0:window_size][::-1],seq,seq[-1:(-1-window_size):-1]))
+
+    window_size= int(window_size)
+    seq_pad = iter(seq_pad)
+    d = deque()
+    s = []
+    result = []
+    for item in islice(seq_pad, window_size):
+        d.append(item)
+        insort(s, item)
+        result.append(s[len(d)//2])
+    m = window_size // 2
+    for item in seq_pad:
+        old = d.popleft()
+        d.append(item)
+        del s[bisect_left(s, old)]
+        insort(s, item)
+        result.append(s[m])
+
+    # This takes care of the offset produced by the original code deducec by trial and error comparison with
+    # scipy.ndimage.filters.medfilt
+
+    result = np.roll(result, -window_size//2 + 1)
+    return result[window_size:-window_size]
+
 
 # TODO JFH: This is the old bspline_fit which shoul be deprecated. I think some codes still use it though. We should transtion to pydl everywhere
 def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bkspace=None):
@@ -113,8 +175,9 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
         raise ValueError("Crashing out of bspline fitting")
     return tck
 
-
-def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
+#ToDo consider adding an inmask here as a keyword argument. Also I would prefer to remove the kwargs_bspline and
+# and make them explicit
+def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5, lower=5,
                     maxiter=25, nord = 4, bkpt=None, fullbkpt=None,
                     relative=None, kwargs_bspline={}, kwargs_reject={}):
     """
@@ -200,7 +263,10 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
         outmask = True
     else:
         outmask = np.ones(invvar.shape, dtype='bool')
-    maskwork = outmask & (invvar > 0)
+
+    if inmask is None:
+        inmask = (invvar > 0)
+    maskwork = outmask & inmask & (invvar > 0)
     if not maskwork.any():
         msgs.error('No valid data points in bspline_profile!.')
     else:
@@ -223,7 +289,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
     qdone = False
 
     relative_factor = 1.0
-    tempin = None
+    tempin = np.copy(inmask)
     while (error != 0 or qdone is False) and iiter <= maxiter:
         ngood = maskwork.sum()
         goodbk = sset.mask.nonzero()[0]
@@ -239,7 +305,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
             # we'll do the fit right here..............
             if error != 0:
                 bf1, laction, uaction = sset.action(xdata)
-                #if((bf1 == -2) or (bf1.size !=nx*nord)):
                 if np.any(bf1 == -2) or (bf1.size !=nx*nord):
                     msgs.error("BSPLINE_ACTION failed!")
                 action = np.copy(action_multiple)

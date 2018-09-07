@@ -120,14 +120,14 @@ class Calibrations(object):
         self.shape = None
         self.msarc = None
         self.msbias = None
-        self.mbpm = None
+        self.msbpm = None
         self.pixlocn = None
         self.tslits_dict = None
         self.maskslits = None
         self.wavecalib = None
         self.mstilts = None
         self.mspixflatnrm = None
-        self.slitprof = None
+        self.msillumflat = None
         self.mswave = None
         self.datasec_img = None
 
@@ -302,7 +302,7 @@ class Calibrations(object):
             self.datasec_img = procimg.trim_frame(self.datasec_img, self.datasec_img < 1)
         return self.datasec_img
 
-    def get_pixflatnrm(self):
+    def get_pixflatnrm(self, show=False):
         """
         Load or generate a normalized pixel flat
           and slit profile
@@ -315,31 +315,34 @@ class Calibrations(object):
 
         Returns:
             self.mspixflatnrm: ndarray
-            self.slitprof: ndarray
+            self.msillumflat: ndarray
 
         """
         if self.par['flatfield']['method'] is None:
             # User does not want to flat-field
             self.mspixflatnrm = None
-            self.slitprof = None
-            return self.mspixflatnrm, self.slitprof
+            self.msillumflat = None
+            msgs.warning('Parameter calibrations.flatfield.method is set to None. You are NOT flatfielding your data!!!')
+            return self.mspixflatnrm, self.msillumflat
 
-        # Check for existing data
+        # Check for existing data necessary to build flats
         if not self._chk_objs(['tslits_dict', 'mstilts', 'datasec_img']):
+            msgs.warning('Flats were requested, but there are quantities missing necessary to create flats. ' +
+                         'Proceeding without flat fielding....')
             # User cannot flat-field
             self.mspixflatnrm = None
-            self.slitprof = None
-            return self.mspixflatnrm, self.slitprof
-       
+            self.msillumflat = None
+            return self.mspixflatnrm, self.msillumflat
+
         # Check internals
         self._chk_set(['setup', 'det', 'sci_ID', 'par'])
 
         # Return already generated data
-        if np.all([ k in self.calib_dict[self.setup].keys() 
-                            for k in ['normpixelflat','slitprof']]):
+        if np.all([k in self.calib_dict[self.setup].keys()
+                   for k in ['normpixelflat', 'illumflat']]):
             self.mspixflatnrm = self.calib_dict[self.setup]['normpixelflat']
-            self.slitprof = self.calib_dict[self.setup]['slitprof']
-            return self.mspixflatnrm, self.slitprof
+            self.msillumflat = self.calib_dict[self.setup]['illumflat']
+            return self.mspixflatnrm, self.msillumflat
 
         # Instantiate
         pixflat_image_files = fsort.list_of_files(self.fitstbl, 'pixelflat', self.sci_ID)
@@ -352,7 +355,7 @@ class Calibrations(object):
 
         # Load from disk (MasterFrame)?
         self.mspixflatnrm = self.flatField.master()
-        self.slitprof = None
+        self.msillumflat = None
 
         # Load user supplied flat (e.g. LRISb with pixel flat)?
         if self.par['flatfield']['frame'] not in ['pixelflat', 'trace']:
@@ -361,42 +364,50 @@ class Calibrations(object):
             if os.path.isfile(self.par['flatfield']['frame']):
                 mspixelflat_name = self.par['flatfield']['frame']
             elif os.path.isfile(os.path.join(self.flatField.directory_path,
-                                        self.par['flatfield']['frame'])):
+                                             self.par['flatfield']['frame'])):
                 mspixelflat_name = os.path.join(self.flatField.directory_path,
                                                 self.par['flatfield']['frame'])
             else:
                 raise ValueError('Could not find user-defined flatfield master: {0}'.format(
-                                                self.par['flatfield']['frame']))
+                    self.par['flatfield']['frame']))
             msgs.info('Found user-defined file: {0}'.format(mspixelflat_name))
             self.mspixflatnrm, head, _ = masters._load(mspixelflat_name, exten=self.det,
-                                                         frametype=None, force=True)
+                                                       frametype=None, force=True)
             # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
-            self.slitprof = np.ones_like(self.mspixflatnrm)
+            self.msillumflat = np.ones_like(self.mspixflatnrm)
 
-        if self.mspixflatnrm is None:
+        # ToDO JFH think about this logic
+        if self.mspixflatnrm is None and len(pixflat_image_files) != 0:
             # TODO -- Consider turning the following back on.  I'm regenerating the flat for now
             # Use mstrace if the indices are identical
-            #if np.all(sort.ftype_indices(fitstbl,'trace',1) ==
+            # if np.all(sort.ftype_indices(fitstbl,'trace',1) ==
             #                  sort.ftype_indices(fitstbl, 'pixelflat', 1))
             #            and (traceSlits.mstrace is not None):
             #    flatField.mspixelflat = traceSlits.mstrace.copy()
             # Run
-            self.mspixflatnrm, self.slitprof = self.flatField.run(armed=False)
+            self.mspixflatnrm, self.msillumflat = self.flatField.run(armed=False, show=show)
             # Save to Masters
             if self.save_masters:
                 self.flatField.save_master(self.mspixflatnrm, raw_files=pixflat_image_files,
                                            steps=self.flatField.steps)
-                self.flatField.save_master(self.slitprof, raw_files=pixflat_image_files,
+                self.flatField.save_master(self.msillumflat, raw_files=pixflat_image_files,
                                            steps=self.flatField.steps,
-                                           outfile=masters.master_name('slitprof', self.setup,
-                                                        self.master_dir))
-        elif self.slitprof is None:
-            self.slitprof, _, _ = self.flatField.load_master_slitprofile()
+                                           outfile=masters.master_name('illumflat', self.setup,
+                                                                       self.master_dir))
+        else:
+            self.mspixflatnrm = np.ones_like(self.mstilts)
+            msgs.warn('You are not pixel flat fielding your data!')
+
+        if self.msillumflat is None:
+            self.msillumflat, _, _ = self.flatField.load_master_illumflat()
+            if self.msillumflat is None:
+                self.msillumflat = np.ones_like(self.mstilts)
+                msgs.warn('You are not illumination flat fielding your data!')
 
         # Save & return
         self.calib_dict[self.setup]['normpixelflat'] = self.mspixflatnrm
-        self.calib_dict[self.setup]['slitprof'] = self.slitprof
-        return self.mspixflatnrm, self.slitprof
+        self.calib_dict[self.setup]['illumflat'] = self.msillumflat
+        return self.mspixflatnrm, self.msillumflat
 
     def get_slits(self, arms=True):
         """
@@ -735,6 +746,101 @@ class Calibrations(object):
                                                           self.sci_ID)
         txt += '>'
         return txt
+
+
+
+    def get_pixflatnrm_old(self):
+        """
+        Load or generate a normalized pixel flat
+          and slit profile
+        Requirements:
+           tslits_dict
+           mstilts
+           datasec_img
+           det, sci_ID, par, setup
+        Returns:
+            self.mspixflatnrm: ndarray
+            self.slitprof: ndarray
+        """
+        if self.par['flatfield']['method'] is None:
+            # User does not want to flat-field
+            self.mspixflatnrm = None
+            self.slitprof = None
+            return self.mspixflatnrm, self.slitprof
+
+        # Check for existing data
+        if not self._chk_objs(['tslits_dict', 'mstilts', 'datasec_img']):
+            # User cannot flat-field
+            self.mspixflatnrm = None
+            self.slitprof = None
+            return self.mspixflatnrm, self.slitprof
+
+        # Check internals
+        self._chk_set(['setup', 'det', 'sci_ID', 'par'])
+
+        # Return already generated data
+        if np.all([k in self.calib_dict[self.setup].keys()
+                   for k in ['normpixelflat', 'slitprof']]):
+            self.mspixflatnrm = self.calib_dict[self.setup]['normpixelflat']
+            self.slitprof = self.calib_dict[self.setup]['slitprof']
+            return self.mspixflatnrm, self.slitprof
+
+        # Instantiate
+        pixflat_image_files = fsort.list_of_files(self.fitstbl, 'pixelflat', self.sci_ID)
+        self.flatField = flatfield.FlatField(self.spectrograph, file_list=pixflat_image_files,
+                                             det=self.det, par=self.par['pixelflatframe'],
+                                             setup=self.setup, root_path=self.master_root,
+                                             mode=self.par['masters'],
+                                             flatpar=self.par['flatfield'], msbias=self.msbias,
+                                             msbpm = self.msbpm,tslits_dict=self.tslits_dict, tilts=self.mstilts)
+
+        # Load from disk (MasterFrame)?
+        self.mspixflatnrm = self.flatField.master()
+        self.slitprof = None
+
+        # Load user supplied flat (e.g. LRISb with pixel flat)?
+        if self.par['flatfield']['frame'] not in ['pixelflat', 'trace']:
+            # First try to find directly, then try to find it in the
+            # masters directory, then fail
+            if os.path.isfile(self.par['flatfield']['frame']):
+                mspixelflat_name = self.par['flatfield']['frame']
+            elif os.path.isfile(os.path.join(self.flatField.directory_path,
+                                             self.par['flatfield']['frame'])):
+                mspixelflat_name = os.path.join(self.flatField.directory_path,
+                                                self.par['flatfield']['frame'])
+            else:
+                raise ValueError('Could not find user-defined flatfield master: {0}'.format(
+                    self.par['flatfield']['frame']))
+            msgs.info('Found user-defined file: {0}'.format(mspixelflat_name))
+            self.mspixflatnrm, head, _ = masters._load(mspixelflat_name, exten=self.det,
+                                                       frametype=None, force=True)
+            # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
+            self.slitprof = np.ones_like(self.mspixflatnrm)
+
+        if self.mspixflatnrm is None:
+            # TODO -- Consider turning the following back on.  I'm regenerating the flat for now
+            # Use mstrace if the indices are identical
+            # if np.all(sort.ftype_indices(fitstbl,'trace',1) ==
+            #                  sort.ftype_indices(fitstbl, 'pixelflat', 1))
+            #            and (traceSlits.mstrace is not None):
+            #    flatField.mspixelflat = traceSlits.mstrace.copy()
+            # Run
+            self.mspixflatnrm, self.slitprof = self.flatField.run(armed=False)
+            # Save to Masters
+            if self.save_masters:
+                self.flatField.save_master(self.mspixflatnrm, raw_files=pixflat_image_files,
+                                           steps=self.flatField.steps)
+                self.flatField.save_master(self.slitprof, raw_files=pixflat_image_files,
+                                           steps=self.flatField.steps,
+                                           outfile=masters.master_name('slitprof', self.setup,
+                                                                       self.master_dir))
+        elif self.slitprof is None:
+            self.slitprof, _, _ = self.flatField.load_master_slitprofile()
+
+        # Save & return
+        self.calib_dict[self.setup]['normpixelflat'] = self.mspixflatnrm
+        self.calib_dict[self.setup]['slitprof'] = self.slitprof
+        return self.mspixflatnrm, self.slitprof
 
 
 class MultiSlitCalibrations(Calibrations):

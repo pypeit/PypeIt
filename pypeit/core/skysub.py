@@ -221,6 +221,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     sky = image[fit_sky][isrt]
     sky_ivar = ivar[fit_sky][isrt]
 
+    # ToDo Add in a polynomial profile basis here to improve the global sky subtraction?
     # Restrict fit to positive pixels only and mask out large outliers via a pre-fit to the log
     if (pos_mask is True):
         pos_sky = (sky > 1.0) & (sky_ivar > 0.0)

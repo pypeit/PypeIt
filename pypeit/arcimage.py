@@ -78,7 +78,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
                                          directory_path=directory_path, mode=mode)
 
 
-    def build_image(self):
+    def build_image(self, overwrite=False, trim=True):
         """
         Build the arc image from one or more arc files
 
@@ -91,7 +91,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         if self.nfiles == 0:
             self.file_list = fsort.list_of_files(self.fitstbl, self.frametype, self.sci_ID)
         # Combine
-        self.stack = self.process(bias_subtract=self.msbias)
+        self.stack = self.process(bias_subtract=self.msbias, overwrite=overwrite, trim=True)
         #
         return self.stack
 
