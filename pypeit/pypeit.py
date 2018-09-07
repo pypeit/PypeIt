@@ -335,12 +335,16 @@ class MultiSlit(PypeIt):
         # Run em
         self.caliBrate.run_the_steps()
 
+        msgs.info("Successful Calibration!")
+
     def _init_calibrations(self):
         # TODO -- Need to make save_masters and write_qa optional
         # Init calib dict
-        self.caliBrate = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
-                                                   par=self.par['calibrations'],
-                                                   save_masters=True, write_qa=True)
+        self.caliBrate = calibrations.MultiSlitCalibrations(
+            self.fitstbl, spectrograph=self.spectrograph,
+            par=self.par['calibrations'],
+            redux_path=self.par['rdx']['redux_path'],
+            save_masters=True, write_qa=True)
 
 
 class LRISb(MultiSlit):

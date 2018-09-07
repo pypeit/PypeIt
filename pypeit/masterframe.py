@@ -23,33 +23,26 @@ class MasterFrame(object):
     ----------
     frametype : str
     setup : str
-    settings : dict
+    master_dir : str, optional
+    redux_path : str, optional
+      Path for reduction
+    spectrograph : Spectrograph, optional
+      Only used for directory_path;  should be Deprecated
 
     Attributes
     ----------
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, frametype, setup, spectrograph=None, directory_path=None, mode=None):
+    def __init__(self, frametype, setup, spectrograph=None,
+                 master_dir=None, mode=None, par=None, redux_path=None):
 
-        # Set the output directory
-        spec_name = None
-        if spectrograph is not None:
-            # Get the name of the spectrograph used for the directory name.
-            if isinstance(spectrograph, str):
-                spec_name = spectrograph
-            else:
-                # Try treating the object as a Spectrograph object
-                try:
-                    spec_name = spectrograph.spectrograph
-                except:
-                    pass
-        self.directory_path = directory_path
-        if self.directory_path is None:
-            self.directory_path = os.path.join(os.getcwd(), 'MF')
-            if spec_name is not None:
-                self.directory_path += '_'+spec_name
-        
+        # Output path
+        if master_dir is None:
+            self.master_dir = masters.set_master_dir(redux_path, spectrograph, par)
+        else:
+            self.master_dir = master_dir
+
         # Other parameters
         self.frametype = frametype
         self.setup = setup
@@ -58,11 +51,11 @@ class MasterFrame(object):
 
     @property
     def ms_name(self):
-        return masters.master_name(self.frametype, self.setup, self.directory_path)
+        return masters.master_name(self.frametype, self.setup, self.master_dir)
 
     @property
     def mdir(self):
-        return self.directory_path
+        return self.master_dir
 
     def _masters_load_chk(self):
         # Logic on whether to load the masters frame

@@ -47,6 +47,9 @@ class Calibrations(object):
 
     Parameters
     ----------
+    redux_path : str, optional
+      Path to location of PypeIt file (and reductions)
+      Defaults to pwd
 
     Attributes
     ----------
@@ -58,8 +61,8 @@ class Calibrations(object):
 
     # TODO: master_root is a bit of a kludge.  It could be defined
     # earlier and/or in par.
-    def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None, save_masters=True,
-                 write_qa=True):
+    def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None,
+                 save_masters=True, write_qa=True):
 
         # Check the type of the provided fits table
         if not isinstance(fitstbl, Table):
@@ -91,12 +94,9 @@ class Calibrations(object):
         if not isinstance(self.par, pypeitpar.CalibrationsPar):
             raise TypeError('Input parameters must be a CalibrationsPar instance.')
 
-        # TODO: Kludge for now:  If master_root is provided, it
-        # over-rides the default in CalibrationsPar.  Should just make
-        # caldir and master_root the same...
-        self.master_root = os.path.join(os.getcwd(), self.par['caldir']) \
-                                if master_root is None else master_root
-        self.master_dir = self.master_root+'_'+self.spectrograph.spectrograph
+        # Output dirs
+        self.redux_path = self.par['rdx']['redux_path'] if redux_path is None else redux_path
+        self.master_dir = masters.set_master_dir(self.redux_path, self.spectrograph, self.par)
 
         # Attributes
         self.calib_dict = {}
@@ -187,7 +187,7 @@ class Calibrations(object):
         # Instantiate with everything needed to generate the image (in case we do)
         self.arcImage = arcimage.ArcImage(self.spectrograph, file_list=[], det=self.det,
                                           par=self.par['arcframe'], setup=self.setup,
-                                          root_path=self.master_root, mode=self.par['masters'],
+                                          master_dir=self.master_dir, mode=self.par['masters'],
                                           fitstbl=self.fitstbl, sci_ID=self.sci_ID,
                                           msbias=self.msbias)
         
@@ -228,7 +228,7 @@ class Calibrations(object):
         # Instantiate
         self.biasFrame = biasframe.BiasFrame(self.spectrograph, det=self.det,
                                              par=self.par['biasframe'], setup=self.setup,
-                                             root_path=self.master_root, mode=self.par['masters'],
+                                             master_dir=self.master_dir, mode=self.par['masters'],
                                              fitstbl=self.fitstbl, sci_ID=self.sci_ID)
 
         # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
@@ -348,7 +348,7 @@ class Calibrations(object):
         pixflat_image_files = fsort.list_of_files(self.fitstbl, 'pixelflat', self.sci_ID)
         self.flatField = flatfield.FlatField(self.spectrograph, file_list=pixflat_image_files,
                                              det=self.det, par=self.par['pixelflatframe'],
-                                             setup=self.setup, root_path=self.master_root,
+                                             setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'],
                                              flatpar=self.par['flatfield'], msbias=self.msbias,
                                              tslits_dict=self.tslits_dict, tilts=self.mstilts)
@@ -446,7 +446,8 @@ class Calibrations(object):
         # Instantiate (without mstrace)
         self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, par=self.par['slits'],
                                                 det=self.det, setup=self.setup,
-                                                directory_path=self.master_dir,
+                                                master_dir=self.master_dir,
+                                                redux_path=self.redux_path,
                                                 mode=self.par['masters'], binbpx=self.msbpm)
 
         # Load via master, as desired
@@ -521,7 +522,7 @@ class Calibrations(object):
         # Instantiate
         self.waveImage = waveimage.WaveImage(self.tslits_dict['slitpix'],
                                              self.mstilts, self.wv_calib,
-                                             setup=self.setup, directory_path=self.master_dir,
+                                             setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], maskslits=self.maskslits)
         # Attempt to load master
         self.mswave = self.waveImage.master()
@@ -580,9 +581,10 @@ class Calibrations(object):
         # Instantiate
         self.waveCalib = wavecalib.WaveCalib(self.msarc, spectrograph=self.spectrograph,
                                              par=self.par['wavelengths'], det=self.det,
-                                             setup=self.setup, root_path=self.master_root,
+                                             setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], fitstbl=self.fitstbl,
-                                             sci_ID=self.sci_ID)
+                                             sci_ID=self.sci_ID,
+                                             redux_path=self.redux_path)
         # Load from disk (MasterFrame)?
         self.wv_calib = self.waveCalib.master()
         # Build?
@@ -663,9 +665,9 @@ class Calibrations(object):
         # Instantiate
         self.waveTilts = wavetilts.WaveTilts(self.msarc, spectrograph=self.spectrograph,
                                              par=self.par['tilts'], det=self.det,
-                                             setup=self.setup, root_path=self.master_root,
+                                             setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], pixlocn=self.pixlocn,
-                                             tslits_dict=self.tslits_dict)
+                                             tslits_dict=self.tslits_dict, redux_path=self.redux_path)
         # Master
         self.mstilts = self.waveTilts.master()
         if self.mstilts is None:
@@ -789,7 +791,7 @@ class Calibrations(object):
         pixflat_image_files = fsort.list_of_files(self.fitstbl, 'pixelflat', self.sci_ID)
         self.flatField = flatfield.FlatField(self.spectrograph, file_list=pixflat_image_files,
                                              det=self.det, par=self.par['pixelflatframe'],
-                                             setup=self.setup, root_path=self.master_root,
+                                             setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'],
                                              flatpar=self.par['flatfield'], msbias=self.msbias,
                                              msbpm = self.msbpm,tslits_dict=self.tslits_dict, tilts=self.mstilts)
@@ -804,9 +806,9 @@ class Calibrations(object):
             # masters directory, then fail
             if os.path.isfile(self.par['flatfield']['frame']):
                 mspixelflat_name = self.par['flatfield']['frame']
-            elif os.path.isfile(os.path.join(self.flatField.directory_path,
+            elif os.path.isfile(os.path.join(self.flatField.master_dir,
                                              self.par['flatfield']['frame'])):
-                mspixelflat_name = os.path.join(self.flatField.directory_path,
+                mspixelflat_name = os.path.join(self.flatField.master_dir,
                                                 self.par['flatfield']['frame'])
             else:
                 raise ValueError('Could not find user-defined flatfield master: {0}'.format(
@@ -848,10 +850,10 @@ class MultiSlitCalibrations(Calibrations):
     Child of Calibrations class for performing multi-slit (and longslit)
     calibrations.
     """
-    def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None, save_masters=True,
+    def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None, save_masters=True,
                  write_qa=True, steps=None):
         Calibrations.__init__(self, fitstbl, spectrograph=spectrograph, par=par,
-                              master_root=master_root, save_masters=save_masters,
+                              redux_path=redux_path, save_masters=save_masters,
                               write_qa=write_qa)
         self.steps = MultiSlitCalibrations.default_steps() if steps is None else steps
 

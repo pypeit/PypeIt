@@ -60,8 +60,8 @@ class WaveTilts(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'tilts'
 
-    def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, root_path=None,
-                 mode=None, pixlocn=None, tslits_dict=None):
+    def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
+                 mode=None, pixlocn=None, tslits_dict=None, redux_path=None):
 
         # TODO: (KBW) Why was setup='' in this argument list and
         # setup=None in all the others?  Is it because of the
@@ -83,10 +83,8 @@ class WaveTilts(masterframe.MasterFrame):
             raise TypeError('Must provide a name or instance for the Spectrograph.')
 
         # MasterFrame
-        directory_path = None if root_path is None \
-                                else root_path+'_'+self.spectrograph.spectrograph
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         directory_path=directory_path, mode=mode)
+                                         master_dir=master_dir, mode=mode)
 
         self.par = pypeitpar.WaveTiltsPar() if par is None else par
 
@@ -97,6 +95,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Optional parameters
         self.det = det
+        self.redux_path = redux_path
 
         # Attributes
         if self.tslits_dict is not None:
@@ -239,7 +238,7 @@ class WaveTilts(masterframe.MasterFrame):
                                                         yorder=self.par['yorder'],
                                                         func2D=self.par['func2D'],
                                                         setup=self.setup, show_QA=show_QA,
-                                                        doqa=doqa)
+                                                        doqa=doqa, out_dir=self.redux_path)
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.tilts

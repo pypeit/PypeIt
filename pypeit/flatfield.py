@@ -3,10 +3,12 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
+import os
 
 #from importlib import reload
 
 from pypeit import msgs
+
 from pypeit import processimages
 from pypeit.core import masters
 from pypeit import masterframe
@@ -17,15 +19,9 @@ from pypeit.core import trace_slits
 
 from pypeit import debugger
 
-# TODO, JFH: I do not understand why ArcImage is its own class whereas
-# there is no class called FlatImage. In principle this is because
-# several codes like tilts, and wv_calib use the msarc so it made sense
-# to make reading the image a separate class. However, that is also true
-# for flats, since the flat fielding code and the tracing code both use
-# the flat image
 class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     """
-    This class will generat the pixel-level FlatField
+    This class will generate the pixel-level FlatField
       The master() method returns the image
 
     Parameters
@@ -66,7 +62,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     # Frame type is a class attribute
     frametype = 'pixelflat'
 
-    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, root_path=None,
+    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, master_dir=None,
                  mode=None, flatpar=None, msbias=None, msbpm = None, tslits_dict=None, tilts=None):
 
         # Image processing parameters
@@ -78,16 +74,18 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        directory_path = None if root_path is None \
-                                else root_path+'_'+self.spectrograph.spectrograph
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         directory_path=directory_path, mode=mode)
+                                         master_dir=master_dir, mode=mode)
 
         # Parameters unique to this Object
         self.msbias = msbias
         self.tslits_dict = tslits_dict
         self.tilts = tilts
         self.msbpm = msbpm
+        if master_dir is None:
+            self.master_dir = os.getcwd()
+        else:
+            self.master_dir = master_dir
 
         # Key outputs
         self.rawflatimg = None
