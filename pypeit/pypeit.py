@@ -68,6 +68,9 @@ class PypeIt(object):
         self.setup_pypeit_file = None
         self.redux_path = None
         self.show=show
+        self.setup = None
+        self.det = None
+        self.sci_ID = None
 
 
     def build_setup_files(self, files_root):
@@ -131,7 +134,7 @@ class PypeIt(object):
 
         for sci_ID in all_sci_ID:
             sci_dict = self.extract_exposure(sci_ID)
-            self.save_exposure(sci_dict)
+            self.save_exposure(sci_ID, sci_dict)
 
 
     def extract_exposure(self, sci_ID, reuse=False):
@@ -186,8 +189,8 @@ class PypeIt(object):
         # Return
         return sci_dict
 
-    def save_exposure(self, sci_dict):
-
+    def save_exposure(self, sci_ID, sci_dict):
+        self.sci_ID = sci_ID
         scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
 
         # Build the final list of specobjs and vel_corr
@@ -209,7 +212,7 @@ class PypeIt(object):
         # Write 1D spectra
         save_format = 'fits'
         if save_format == 'fits':
-            outfile = os.path.join(self.par['rdx']['scidir'], 'spec1d_{:s}.fits'.format(self.basename))
+            outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'], 'spec1d_{:s}.fits'.format(self.basename))
             helio_dict = dict(refframe='pixel'
             if self.caliBrate.par['wavelengths']['reference'] == 'pixel'
             else self.caliBrate.par['wavelengths']['frame'],
@@ -223,11 +226,12 @@ class PypeIt(object):
             msgs.error(save_format + ' is not a recognized output format!')
         # Obj info
         save.save_obj_info(all_specobjs, self.fitstbl, self.spectrograph, self.basename,
-                           self.par['rdx']['scidir'])
+                           os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir']))
         # Write 2D images for the Science Frame
         save.save_2d_images(sci_dict, self.fitstbl, scidx, self.spectrograph.primary_hdrext,
                             self.setup, self.caliBrate.master_dir,
-                            self.par['rdx']['scidir'], self.basename)
+                            os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir']),
+                            self.basename)
         return
 
     def _extract_one(self):
@@ -334,7 +338,7 @@ class PypeIt(object):
 
     def run(self, quick=False):
         """
-        Execute PYPIT.
+        Execute PypeIt.
 
         .. todo::
             - More description in docstring
@@ -443,13 +447,13 @@ class PypeIt(object):
         self.msgs_reset()
 
         # Perform the setup
-        self.setup = pypeitsetup.PypeItSetup.from_pypeit_file(pypeit_file)
-        self.par, _, self.fitstbl, self.setup_dict = self.setup.run(setup_only=setup_only,
+        self.pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(pypeit_file)
+        self.par, _, self.fitstbl, self.setup_dict = self.pypeitSetup.run(setup_only=setup_only,
                                                            calibration_check=calibration_check,
                                                            use_header_frametype=use_header_frametype,
                                                            sort_dir=sort_dir)
         # Write the fits table
-        self.setup.write_fitstbl()
+        self.pypeitSetup.write_fitstbl()
 
     def show_science(self):
         print(self.fitstbl[['target','ra','dec','exptime','dispname','sci_ID']][self.fitstbl['science']])
@@ -468,11 +472,11 @@ class MultiSlit(PypeIt):
 
     def calibrate_one(self, sci_ID, det):
         # Setup
-        setup = pypsetup.instr_setup(sci_ID, det, self.fitstbl, self.setup_dict,
+        self.setup = pypsetup.instr_setup(sci_ID, det, self.fitstbl, self.setup_dict,
                                      self.spectrograph.detector[det-1]['numamplifiers'],
                                      must_exist=True)
         # Setup
-        self.caliBrate.reset(setup, det, sci_ID, self.par['calibrations'])
+        self.caliBrate.reset(self.setup, det, sci_ID, self.par['calibrations'])
         # Run em
         self.caliBrate.run_the_steps()
 

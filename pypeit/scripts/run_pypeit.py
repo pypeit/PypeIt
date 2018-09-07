@@ -68,6 +68,7 @@ def main(args):
 
     from pypeit import check_requirements
     from pypeit import pypeit
+    from pypeit import pypeitsetup
     from pypeit import debugger
 
     # Initiate logging for bugs and command line help
@@ -82,6 +83,10 @@ def main(args):
     if splitnm[1] != '.pypeit':
         msgs.error("Bad extension for PypeIt reduction file."+msgs.newline()+".pypeit is required")
     logname = splitnm[0] + ".log"
+
+    # Load PypeIt file (might happen twice but that is ok)
+    pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(args.pypeit_file)
+    debugger.set_trace()
 
     pypeit.PypeIt(args.pypeit_file, setup_only=args.prep_setup, calibration_check=args.calcheck,
                   use_header_frametype=args.hdrframetype, sort_dir=args.sort_dir, overwrite=args.overwrite,
