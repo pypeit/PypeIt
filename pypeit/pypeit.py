@@ -118,6 +118,7 @@ class PypeIt(object):
         # Read master file
         cfg_lines, data_files, frametype, setups = parse_pypeit_file(self.setup_pypeit_file)
         sorted_file = os.path.splitext(self.setup_pypeit_file)[0]+'.sorted'
+        sub_cfg_lines = cfg_lines[0:2]
 
         # Get paths
         paths = []
@@ -131,6 +132,9 @@ class PypeIt(object):
         all_setups, all_setuplines, all_setupfiles = pypsetup.load_sorted(sorted_file)
         for setup, setup_lines, sorted_files in zip(all_setups, all_setuplines, all_setupfiles):
             root = self.spectrograph.spectrograph+'_setup_'
+            # cfg_lines
+            cfg_lines = sub_cfg_lines
+            cfg_lines += ['    sortroot = {0}'.format(root + setup)]
             # Make the dir
             newdir = os.path.join(self.setups_path, root+setup)
             if not os.path.exists(newdir):
@@ -194,7 +198,7 @@ class PypeIt(object):
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
         for sci_ID in all_sci_ID:
-            sci_dict = self.extract_exposure(sci_ID, reuse=reuse_masters)
+            sci_dict = self.reduce_exposure(sci_ID, reuse_masters=reuse_masters)
             self.save_exposure(sci_ID, sci_dict)
 
         self.print_end_time()

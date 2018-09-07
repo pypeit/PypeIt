@@ -1178,7 +1178,7 @@ def make_dirs(spectrograph, caldir, scidir, qadir, redux_path=None, overwrite=Fa
 
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Master Calibrations directory")
-    newdir = os.path.join(redux_path, caldir, spectrograph)
+    newdir = os.path.join(redux_path, caldir+'_'+spectrograph)
     if os.path.exists(newdir):
         if not overwrite:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
