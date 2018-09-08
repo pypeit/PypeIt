@@ -72,6 +72,7 @@ class SpecObj(object):
     def __init__(self, shape, slit_spat_pos, slit_spec_pos, det=1, setup=None,
                  slitid=999, scidx=1, objtype='unknown', spat_pixpos=None, config=None):
 
+
         #Assign from init parameters
         self.shape = shape
         self.slit_spat_pos = slit_spat_pos
@@ -90,9 +91,8 @@ class SpecObj(object):
         self.idx = None
         self.spat_fracpos = None
         self.smash_peakflux = None
-        self.trace_spat = None
-        self.trace_spec = None
         self.fwhm = None
+        self.trace_spat = None
         self.spat_pixpos = spat_pixpos # Position on the image in pixels at the midpoint of the slit in spectral direction
         self.maskwidth = None
         self.mincol = None

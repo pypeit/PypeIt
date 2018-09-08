@@ -54,9 +54,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None, show = False):
     status = 0
 
     # Generate sciexp list, if need be (it will be soon)
-    #sv_std_idx = []
     std_dict = {}
-    #sciexp = []
     all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
     numsci = len(all_sci_ID)
     basenames = [None]*numsci  # For fluxing at the very end

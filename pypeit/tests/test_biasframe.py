@@ -97,8 +97,9 @@ def test_run_and_master(kast_blue_bias_files):
     root_path = data_path('MF')
     setup = 'A_01_aa'
     # Instantiate
+    master_dir = root_path+'_shane_kast_blue'
     bias_frame = biasframe.BiasFrame('shane_kast_blue', file_list=kast_blue_bias_files,
-                                     setup=setup, root_path=root_path)
+                                     setup=setup, master_dir=master_dir)
     assert bias_frame.frametype == 'bias'
 
     # Run
@@ -107,14 +108,14 @@ def test_run_and_master(kast_blue_bias_files):
     assert bias_frame.steps[-1] == 'combine'
 
     # Run with reuse (should simply load the file)
-    bias_frame2 = biasframe.BiasFrame('shane_kast_blue', setup=setup, root_path=root_path,
+    bias_frame2 = biasframe.BiasFrame('shane_kast_blue', setup=setup, master_dir=master_dir,
                                       mode='reuse')
     bias2 = bias_frame2.master()
     assert isinstance(bias_frame2.stack, np.ndarray)
     assert len(bias_frame2.steps) == 0
 
     # Load (not kept in the Object!)
-    bias_frame3 = biasframe.BiasFrame('shane_kast_blue', setup=setup, root_path=root_path,
+    bias_frame3 = biasframe.BiasFrame('shane_kast_blue', setup=setup, master_dir=master_dir,
                                       mode='reuse')
     bias3, _, _ = bias_frame3.load_master_frame()
     assert bias_frame3.stack is None

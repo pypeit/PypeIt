@@ -57,7 +57,7 @@ def test_gen_sensfunc():
 
     # Get the sensitivity function
     extinction_data = flux.load_extinction_data(telescope['longitude'], telescope['latitude'])
-    extinction_corr = flux.extinction_correction(specobjs[0][0].boxcar['wave'],
+    extinction_corr = flux.extinction_correction(specobjs[0][0].boxcar['WAVE'],
                                                    fitstbl['airmass'][4], extinction_data)
     sensfunc = flux.generate_sensfunc(specobjs[0][0], RA, DEC, fitstbl['exptime'][4],
                                         extinction_corr)

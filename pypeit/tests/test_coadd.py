@@ -101,6 +101,7 @@ def test_qa():
     coadd.coadd_spectra(dspec, wave_method='concatenate', qafile='tst.pdf')
 
 
+'''  THIS ARE OLD MODELS
 def test_load():
     files = [data_path('spec1d_J2202p1708_KASTb_2015Nov06T024436.08.fits'),
              data_path('spec1d_J2202p1708_KASTb_2015Nov06T031500.09.fits'),
@@ -109,6 +110,7 @@ def test_load():
     assert spectra.nspec == 3
     # Boxcar too
     spectra = coadd.load_spec(files, extract='box')
+'''
 
 
 def test_new_wave_grid():

@@ -355,7 +355,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 '''
 
-def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=None, clobber=True):
+def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=None, clobber=True):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
@@ -399,7 +399,7 @@ def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=N
     # Loop on detectors
     npix = 0
     ext = 0
-    for sobj in specobjs.specobjs:
+    for sobj in specObjs.specobjs:
         if sobj is None:
             continue
         ext += 1
@@ -410,9 +410,11 @@ def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=N
         # Add Spectrum Table
         cols = []
         # Trace
-        cols += [fits.Column(array=sobj.trace_spat, name=str('TRACE'), format=sobj.trace_spat.dtype)]
+        if sobj.trace_spat is not None:
+            cols += [fits.Column(array=sobj.trace_spat, name=str('TRACE'), format=sobj.trace_spat.dtype)]
         # FWHM fit from extraction
-        cols += [fits.Column(array=sobj.fwhmfit, name=str('FWHM'), format=sobj.fwhmfit.dtype)]
+        if sobj.fwhmfit is not None:
+            cols += [fits.Column(array=sobj.fwhmfit, name=str('FWHM'), format=sobj.fwhmfit.dtype)]
         if ext == 1:
             npix = len(sobj.trace_spat)
         # Boxcar

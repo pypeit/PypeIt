@@ -10,20 +10,54 @@ from astropy import units
 
 import linetools.utils
 
+from pypeit.par import pypeitpar
 from pypeit import msgs
 
 from pypeit import debugger
 
+def set_master_dir(redux_path, spectrograph, par):
+    """
+    Set the master directory auto-magically
+
+    Args:
+        redux_path: str or None
+        spectrograph: Spectrograph or None
+        par: ParSet or None
+
+    Returns:
+        master_dir : str
+          Path of the MasterFrame directory
+
+    """
+    # Parameters
+    if par is None:
+        tmppar = pypeitpar.CalibrationsPar()
+    else:
+        if 'caldir' not in par.keys():
+            tmppar = pypeitpar.CalibrationsPar()
+        else:
+            tmppar = par
+    # Redux path
+    if redux_path is None:
+        redux_path = os.getcwd()
+    master_dir = os.path.join(redux_path, tmppar['caldir'])
+    # Spectrograph
+    if spectrograph is not None:
+        master_dir += '_'+spectrograph.spectrograph
+    # Return
+    return master_dir
 
 def master_name(ftype, setup, mdir):
     """ Default filenames for MasterFrames
 
     Parameters
     ----------
-    ftype
+    ftype : str
+      Frame type
     setup : str
+      Setup name
     mdir : str, optional
-      Master directory; usually taken from settings
+      Master directory
 
     Returns
     -------

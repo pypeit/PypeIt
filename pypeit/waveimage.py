@@ -44,12 +44,12 @@ class WaveImage(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'wave'
 
-    def __init__(self, slitpix, tilts, wv_calib, setup=None, directory_path=None, mode=None, 
+    def __init__(self, slitpix, tilts, wv_calib, setup=None, master_dir=None, mode=None,
                  maskslits=None):
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         directory_path=directory_path, mode=mode)
+                                         master_dir=master_dir, mode=mode)
 
         # Required parameters (but can be None)
         self.slitpix = slitpix

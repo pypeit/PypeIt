@@ -420,9 +420,11 @@ def parse_pypeit_file(ifile, file_check=True):
             exist, and fault if they do not.
 
     Returns:
-        :obj:`lists`: Four lists are provided: (1) the list of
-        configuration lines, (2) the list of datafiles to read, (3) the
-        list of frametypes for each file, and (4) the list of setup
+        :obj:`lists`: Four lists are provided:
+        (1) the list of configuration lines,
+        (2) the list of datafiles to read,
+        (3) the list of frametypes for each file, and
+        (4) the list of setup
         lines.
     """
     # Read in the pypeit reduction file
@@ -520,7 +522,7 @@ def pypeit_config_lines(ifile):
     
 
 def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setup_mode=False,
-                    setup_lines=None, sorted_files=None, paths=None):
+                    setup_lines=None, sorted_files=None, paths=None, add_arcframe=False):
     """ Generate a default PYPIT file
 
     Parameters
@@ -539,6 +541,10 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
       Running setup script?
     calcheck : bool, optional
       Run calcheck?
+    setup_mode : bool, optional
+      Running setups?
+    add_arcframe : bool, optional
+      May be Deprecated
 
     Returns
     -------

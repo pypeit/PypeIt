@@ -63,11 +63,13 @@ def multi_caliBrate():
                                          biasframe=pypeitpar.FrameGroupPar('bias',
                                                                           useframe='overscan'))
 
-    master_root = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
-                    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
+    redux_path = data_path('') if os.getenv('PYPEIT_DEV') is None \
+        else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
+    #master_root = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
+    #                else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     
     multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl, spectrograph=spectrograph,
-                                                        par=calib_par, master_root=master_root,
+                                                        par=calib_par, redux_path=redux_path,
                                                         save_masters=False, write_qa=False)
     multi_caliBrate.reset(setup, det, sci_ID, calib_par)
     return multi_caliBrate

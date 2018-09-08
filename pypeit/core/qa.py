@@ -19,7 +19,7 @@ import yaml
 #except NameError:  # For Python 3
 #    basestring = str
 
-def set_qa_filename(root, method, det=None, slit=None, prefix=None):
+def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None):
     """
     Parameters
     ----------
@@ -31,12 +31,17 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None):
     slit : int, optional
     prefix : str, optional
       start the name of the QA file
+    out_dir : str, optional
+      Path to QA/
 
     Returns
     -------
     outfile : str
       Filename
     """
+    if out_dir is None:
+        out_dir = os.getcwd()
+    #
     if method == 'slit_trace_qa':
         outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(root)
     elif method == 'slit_profile_qa':
@@ -64,7 +69,7 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None):
     else:
         raise IOError("NOT READY FOR THIS QA: {:s}".format(method))
     # Return
-    return outfile
+    return os.path.join(out_dir, outfile)
 
 
 def get_dimen(x, maxp=25):

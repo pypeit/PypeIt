@@ -59,7 +59,7 @@ def test_step_by_step():
     word = np.where(flatField.tslits_dict['slitpix'] == slit + 1)
     flatField.mspixelflatnrm = flatField.mspixelflat.copy()
     flatField.mspixelflatnrm[word] /= nrmvals
-    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0291458)
+    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0267346)
 
 def test_run():
     if skip_test:
@@ -73,7 +73,7 @@ def test_run():
     flatField = flatfield.FlatField(spectrograph=spectrograph, det=1, tilts=tilts,
                                     tslits_dict=TSlits.tslits_dict.copy())
     # Use mstrace
-    flatField.mspixelflat = TSlits.mstrace.copy()
+    flatField.rawflatimg = TSlits.mstrace.copy()
     mspixelflatnrm, slitprofiles = flatField.run()
     assert np.isclose(np.median(mspixelflatnrm), 0.98186201)
 
