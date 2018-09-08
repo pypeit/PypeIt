@@ -9,12 +9,13 @@ import inspect
 import numpy as np
 import scipy
 
-from matplotlib import pyplot as plt
-from matplotlib import gridspec, font_manager
+
+#from matplotlib import gridspec, font_manager
 
 from astropy import units
 from astropy.stats import sigma_clip
 from astropy.stats import sigma_clipped_stats
+#from matplotlib import pyplot as plt
 
 from pypeit import msgs
 from pypeit.core import qa
@@ -24,6 +25,10 @@ from pypeit import utils
 from pypeit.core import pixels
 from pypeit import debugger
 from pypeit import ginga
+import time
+from matplotlib import pyplot as plt
+
+
 #from IPython import embed
 
 # MASK VALUES FROM EXTRACTION
@@ -35,9 +40,7 @@ from pypeit import ginga
 
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
-
-
-
+import multiprocessing
 
 
 def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
@@ -481,9 +484,14 @@ def findfwhm(model, sig_x):
 def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind = None,
                    title =' ', xtrunc = 1e6, xlim = None, ylim = None, qafile = None):
 
+    from importlib import reload
+    import matplotlib
+    reload(matplotlib)
+    plt = matplotlib.pyplot
 
     # Plotting pre-amble
     plt.close("all")
+    #plt.clf()
 #    plt.rc('text', usetex=True)
 #    plt.rc('font', family='serif')
     width = 10.0 # Golden ratio 1.618
@@ -572,7 +580,8 @@ def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
 
 def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                 thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 3.0, wvmnx = [2900.0,30000.0],
-                hwidth = None, prof_nsigma = None, no_deriv = False, gauss = False, show_profile = False):
+                hwidth = None, prof_nsigma = None, no_deriv = False, gauss = False, obj_string = '',
+                show_profile = False):
 
     """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> sn_gauss) in which
     fit a simple Gaussian. Port of IDL LOWREDUX long_gprofile.pro
@@ -614,7 +623,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
          which truncates exponentially). This allows for extracting all the flux and results in better sky-subtraction
          for bright extended objects.
     no_deriv : boolean [default = False]
-         disables determination of derivatives and exponential tr
+         disables determination of derivatives and exponential apodization
 
      Returns
      -------
@@ -631,7 +640,12 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                value of the reduced chi^2
      """
 
+#    multiprocessing.get_context('spawn')
 
+    p_show_profile = None  # This is the process object that is passed back for show_profile mode
+
+    # ToDO sort out title string for QA plots
+    title_string = ' '
 
     if hwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
     if prof_nsigma is not None:
@@ -765,7 +779,9 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         msgs.info("Returning Gaussian profile")
         sigma_x = norm_x/(np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr,np.ones(nspat)))
         profile_model = np.exp(-0.5*sigma_x**2)/np.sqrt(2.0*np.pi)*(sigma_x**2 < 25.)
-        msgs.info("FWHM="  + "{:6.2f}".format(thisfwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2)))
+        info_string = "FWHM="  + "{:6.2f}".format(thisfwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2))
+        title_string = obj_string + ', ' + info_string
+        msgs.info(title_string)
         nxinf = np.sum(np.isfinite(xnew) == False)
         if(nxinf != 0):
             msgs.warn("Nan pixel values in trace correction")
@@ -781,15 +797,20 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         if(np.sum(norm) > 0.0):
             profile_model = profile_model/norm
         if ngood > 0:
-            title_string = ' '
             indx = good
         else:
-            title_string = 'No good pixels, showing all'
+            title_string = title_string + ', no good pixels, showing all'
             indx = None
 
         if(show_profile):
-            qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, ind=indx, xtrunc= 7.0)
-        return (profile_model, xnew, fwhmfit, med_sn2)
+            #qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, ind=indx, xtrunc= 7.0)
+            # Execute the interactive plot as another process
+            p_show_profile = multiprocessing.Process(target=qa_fit_profile, args = (sigma_x, norm_obj, profile_model),
+                                     kwargs = {'title':title_string, 'ind': indx,'xtrunc': 7.0})
+            p_show_profile.daemon = True
+            p_show_profile.start()
+
+        return (profile_model, xnew, fwhmfit, med_sn2, p_show_profile)
 
 
     msgs.info("Gaussian vs b-spline of width " + "{:6.2f}".format(thisfwhm) + " pixels")
@@ -886,7 +907,9 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         msgs.info("Too few pixels inside l_limit and r_limit")
         msgs.info("Returning Gaussian profile")
         profile_model = np.exp(-0.5*sigma_x**2)/np.sqrt(2.0*np.pi)*(sigma_x**2 < 25.)
-        msgs.info("FWHM="  + "{:6.2f}".format(thisfwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2)))
+        info_string = "FWHM="  + "{:6.2f}".format(bspline_fwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2))
+        title_string = obj_string + ', ' + info_string
+        msgs.info(title_string)
         nxinf = np.sum(np.isfinite(xnew) == False)
         if(nxinf != 0):
             msgs.warn("Nan pixel values in trace correction")
@@ -903,16 +926,20 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
             profile_model = profile_model/norm
 
         if(show_profile):
-            qa_fit_profile(sigma_x, norm_obj, profile_model, l_limit = l_limit, r_limit = r_limit, ind =good, xlim = 7.0)
+            #qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, l_limit = l_limit, r_limit = r_limit, ind =good, xlim = 7.0)
+            # Execute the interactive plot as another process
+            p_show_profile = multiprocessing.Process(target=qa_fit_profile, args=(sigma_x, norm_obj, profile_model),
+                                     kwargs={'l_limit':l_limit,'r_limit': r_limit,'title': title_string, 'ind': good, 'xlim': 7.0})
+            p_show_profile.daemon = True
+            p_show_profile.start()
 
-        return (profile_model, xnew, fwhmfit, med_sn2)
+        return (profile_model, xnew, fwhmfit, med_sn2, p_show_profile)
 
     sigma_iter = 3
     isort =  (xtemp.flat[si[inside]]).argsort()
     inside = si[inside[isort]]
     pb =np.ones(inside.size)
 
-    # ADD the loop here later
     for iiter in range(1,sigma_iter + 1):
         mode_zero, _ = bset.value(sigma_x.flat[inside])
         mode_zero = mode_zero*pb
@@ -1059,10 +1086,11 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     chi_med = np.median(res_mode[chi_good]**2)
     chi_zero = np.median(norm_obj.flat[ss[inside]]**2*norm_ivar.flat[ss[inside]])
 
-    msgs.info("----------  Results of Profile Fit ----------")
+    msgs.info("--------------------  Results of Profile Fit --------------------")
     msgs.info(" min(fwhmfit)={:5.2f}".format(fwhmfit.min()) +
-              " max(fwhmfit)={:5.2f}".format(fwhmfit.max()) + " median(chi)={:5.2f}".format(chi_med) +
+              " max(fwhmfit)={:5.2f}".format(fwhmfit.max()) + " median(chi^2)={:5.2f}".format(chi_med) +
               " nbkpts={:2d}".format(bkpt.size))
+    msgs.info("-----------------------------------------------------------------")
 
     nxinf = np.sum(np.isfinite(xnew) == False)
     if (nxinf != 0):
@@ -1078,12 +1106,21 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     norm = np.outer(np.sum(profile_model, 1), np.ones(nspat))
     if (np.sum(norm) > 0.0):
         profile_model = profile_model / norm
-    msgs.info("FWHM="  + "{:6.2f}".format(thisfwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2)))
-    if(show_profile):
-        qa_fit_profile(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp,
-                       l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = prof_nsigma)
 
-    return (profile_model, xnew, fwhmfit, med_sn2)
+    info_string = "FWHM range:" + "{:5.2f}".format(fwhmfit.min()) + " - {:5.2f}".format(fwhmfit.max()) \
+                  + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2)) + ", median(chi^2)={:8.3f}".format(chi_med)
+    title_string = obj_string + ' ' + info_string
+    if(show_profile):
+        #qa_fit_profile(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp,
+         #              l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = prof_nsigma)
+
+        p_show_profile = multiprocessing.Process(target=qa_fit_profile, args=(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp),
+                                 kwargs={'l_limit': l_limit, 'r_limit': r_limit, 'title': title_string, 'ind': ss[inside],
+                                         'xlim': prof_nsigma})
+        p_show_profile.daemon = True
+        p_show_profile.start()
+
+    return (profile_model, xnew, fwhmfit, med_sn2, p_show_profile)
 
 
 def parse_hand_dict(hand_extract_dict):
@@ -1143,7 +1180,7 @@ specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
             hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit = 10,  bg_smth = 5.0, pkwdth = 3.0,
             maskwidth = 3.0, sig_thresh = 10.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (3,3), objmask_nthresh = 2.0,
-            specobj_dict=specobj_dict, show_peaks=True, show_fits = False, show_trace = False):
+            specobj_dict=specobj_dict, show_peaks=True, show_fits = False, show_trace = False, qa_title=''):
 
     """ Find the location of objects in a slitmask slit or a echelle order.
 
@@ -1198,6 +1235,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     from pypeit.core import trace_slits
     from pypeit import specobjs
 
+    proc_list = []  # List of processes for interactive plotting, these are passed back in case the user wants to terminate them
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
         msgs.error('Invalid value of peak_thresh. It must be between 0.0 and 1.0')
@@ -1343,21 +1381,32 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
         nobj_reg = 0
 
 
+
     if show_peaks:
         spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
         spat_approx = slit_left[specmid] + xsize[specmid]*xcen/nsamp
-        plt.plot(spat_approx_vec, fluxsub/sigma, color ='cornflowerblue',linestyle=':', label='Collapsed Flux')
-        plt.plot(spat_approx_vec, fluxconv/sigma, color='black', label = 'FWHM Convolved')
-        plt.hlines(threshold/sigma,spat_approx_vec.min(),spat_approx_vec.max(), color='red',linestyle='--', label='Threshold')
-        plt.hlines(1.0,spat_approx_vec.min(),spat_approx_vec.max(), color='green',linestyle=':', label='+- 1 sigma')
-        plt.hlines(-1.0,spat_approx_vec.min(),spat_approx_vec.max(), color='green',linestyle=':')
 
-        plt.plot(spat_approx, ypeak/sigma, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
-                 linestyle='None', zorder = 10,label='Object Found')
-        plt.legend()
-        plt.xlabel('Approximate Spatial Position (pixels)')
-        plt.ylabel('F/sigma (significance)')
-        plt.show()
+        # Define the plotting function
+        def plot_show_peaks():
+            plt.plot(spat_approx_vec, fluxsub/sigma, color ='cornflowerblue',linestyle=':', label='Collapsed Flux')
+            plt.plot(spat_approx_vec, fluxconv/sigma, color='black', label = 'FWHM Convolved')
+            plt.hlines(threshold/sigma,spat_approx_vec.min(),spat_approx_vec.max(), color='red',linestyle='--', label='Threshold')
+            plt.hlines(1.0,spat_approx_vec.min(),spat_approx_vec.max(), color='green',linestyle=':', label='+- 1 sigma')
+            plt.hlines(-1.0,spat_approx_vec.min(),spat_approx_vec.max(), color='green',linestyle=':')
+
+            plt.plot(spat_approx, ypeak/sigma, color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
+                     linestyle='None', zorder = 10,label='Object Found')
+            plt.legend()
+            plt.xlabel('Approximate Spatial Position (pixels)')
+            plt.ylabel('F/sigma (significance)')
+            plt.title(qa_title)
+            plt.show()
+
+        # Execute the interactive plot as another process
+        p_show_peaks = multiprocessing.Process(target=plot_show_peaks)
+        p_show_peaks.daemon = True # This allows the __main__ to exit without this window blocking it
+        p_show_peaks.start()
+        proc_list.append(p_show_peaks)
 
 
     # Now loop over all the regular apertures and assign preliminary traces to them.
@@ -1476,19 +1525,27 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
         if(show_fits) & (iiter == niter - 1):
             for iobj in range(nobj_reg):
                 nomask = (tracemask1[:,iobj]==0)
-                # plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
-                plt.plot(spec_vec[nomask],xpos1[nomask,iobj],marker='o', c='k', markersize=3.0,linestyle='None',label='flux weighted centroid')
-                plt.plot(spec_vec,xpos0[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
-                plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
-                if np.any(~nomask):
-                    plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=5.0,linestyle='None',
-                             zorder= 20, label='masked points, set to init guess')
-                plt.title('Flux Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
-                plt.ylim((0.995*xfit1[:, iobj].min(), 1.005*xfit1[:, iobj].max()))
-                plt.xlabel('Spectral Pixel')
-                plt.ylabel('Spatial Pixel')
-                plt.legend()
-                plt.show()
+
+                # Define the plotting function
+                def plot_show_flux_wt():
+                    # plt.errorbar(spec_vec[nomask],xpos1[nomask,iobj],yerr=xerr1[nomask,iobj], c='k',fmt='o',markersize=2.0,linestyle='None', elinewidth = 0.2, )
+                    plt.plot(spec_vec[nomask],xpos1[nomask,iobj],marker='o', c='k', markersize=3.0,linestyle='None',label='flux weighted centroid')
+                    plt.plot(spec_vec,xpos0[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
+                    plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
+                    if np.any(~nomask):
+                        plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=5.0,linestyle='None',
+                        zorder= 20, label='masked points, set to init guess')
+                    plt.title('Flux Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
+                    plt.ylim((0.995*xfit1[:, iobj].min(), 1.005*xfit1[:, iobj].max()))
+                    plt.xlabel('Spectral Pixel')
+                    plt.ylabel('Spatial Pixel')
+                    plt.legend()
+                    plt.show()
+
+                # Execute the interactive plot as another process
+                p_show_flux_wt = multiprocessing.Process(target=plot_show_flux_wt)
+                p_show_flux_wt.start()
+                proc_list.append(p_show_flux_wt)
 
     xfit2 = np.copy(xfit1)
 
@@ -1511,20 +1568,27 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
                 # Plot all the points that were not masked initially
                 if show_fits:
                     nomask = (tracemask2[:, iobj] == 0)
-                    plt.plot(spec_vec[nomask], xpos2[nomask, iobj], marker='o', c='k', markersize=3.0, linestyle='None',
-                             label='gauss. weighted centroid')
-                    plt.plot(spec_vec, xfit1[:, iobj], c='g', zorder=20, linewidth=2.0, linestyle='--',
-                             label='initial guess from flux weighting')
-                    plt.plot(spec_vec, xfit2[:, iobj], c='red', zorder=10, linewidth=2.0, label='final fit to trace')
-                    if np.any(~nomask):
-                        plt.plot(spec_vec[~nomask], xfit2[~nomask, iobj], c='blue', marker='+', markersize=5.0,
-                                 linestyle='None',zorder=20, label='masked points, set to init guess')
-                    plt.title('Gaussian Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
-                    plt.ylim((0.995 * xfit2[:, iobj].min(), 1.005 * xfit2[:, iobj].max()))
-                    plt.xlabel('Spectral Pixel')
-                    plt.ylabel('Spatial Pixel')
-                    plt.legend()
-                    plt.show()
+
+                    def plot_show_gauss_wt():
+                        plt.plot(spec_vec[nomask], xpos2[nomask, iobj], marker='o', c='k', markersize=3.0, linestyle='None',
+                                 label='gauss. weighted centroid')
+                        plt.plot(spec_vec, xfit1[:, iobj], c='g', zorder=20, linewidth=2.0, linestyle='--',
+                                 label='initial guess from flux weighting')
+                        plt.plot(spec_vec, xfit2[:, iobj], c='red', zorder=10, linewidth=2.0, label='final fit to trace')
+                        if np.any(~nomask):
+                            plt.plot(spec_vec[~nomask], xfit2[~nomask, iobj], c='blue', marker='+', markersize=5.0,
+                                     linestyle='None',zorder=20, label='masked points, set to init guess')
+                        plt.title('Gaussian Weighted Centroid to object {:s}.'.format(sobjs[iobj].idx))
+                        plt.ylim((0.995 * xfit2[:, iobj].min(), 1.005 * xfit2[:, iobj].max()))
+                        plt.xlabel('Spectral Pixel')
+                        plt.ylabel('Spatial Pixel')
+                        plt.legend()
+                        plt.show()
+
+                    # Execute the interactive plot as another process
+                    p_show_gauss_wt = multiprocessing.Process(target=plot_show_gauss_wt)
+                    p_show_gauss_wt.start()
+                    proc_list.append(p_show_gauss_wt)
 
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
     if hand_extract_dict is not None:
@@ -1657,566 +1721,20 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
                 color = 'blue'
             ginga.show_trace(viewer, ch,sobjs[iobj].trace_spat, trc_name = sobjs[iobj].idx, color=color)
 
+#    if show_fits or show_peaks:
+#        plt.ioff()
 
-    return (sobjs, skymask[thismask], objmask[thismask])
+    # Clean up interactive plots if they exist
+#    if show_peaks:
+#        time.sleep(5)
+#        p_show_peaks.terminate()
+#        p_show_peaks.join()
 
-
-
-# This routine is deprecated, replaced by extract_boxcar
-def boxcar(specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace, mswave,
-           maskslits, slitpix):
-    """ Perform boxcar extraction on the traced objects.
-    Also perform a local sky subtraction
-
-    Parameters
-    ----------
-    specobjs : list of dict
-      list of SpecObj objects
-    sciframe : ndarray
-      science frame, should be sky subtracted
-    varframe : ndarray
-      variance image
-    bgframe : ndarray
-      sky background frame
-    crmask : int ndarray
-        mask of cosmic ray hits
-    scitrace : list
-      traces, object and background trace images
-
-    Returns
-    -------
-    bgcorr : ndarray
-      Correction to the sky background in the object window
-    """
-    # Subtract the global sky
-    skysub = sciframe-skyframe
-
-    bgfitord = 1  # Polynomial order used to fit the background
-    slits = range(len(scitrace))
-    nslit = len(slits)
-    gdslits = np.where(~maskslits)[0]
-    cr_mask = 1.0-crmask
-    bgfit = np.linspace(0.0, 1.0, sciframe.shape[1])
-    bgcorr = np.zeros_like(cr_mask)
-    # Loop on Slits
-    for sl in slits:
-        if sl not in gdslits:
-            continue
-        word = np.where((slitpix.astype(int) == sl + 1) & (varframe > 0.))
-        if word[0].size == 0:
-            continue
-        mask_slit = np.zeros(sciframe.shape, dtype=np.float)
-        mask_slit[word] = 1.0
-        # Loop on Objects
-        nobj = scitrace[sl]['nobj']
-        for o in range(nobj):
-            msgs.info("Performing boxcar extraction of object {0:d}/{1:d} in slit {2:d}/{3:d}".format(o+1, nobj, sl+1, nslit))
-            if scitrace[sl]['object'] is None:
-                # The object for all slits is provided in the first extension
-                objreg = np.copy(scitrace[0]['object'][:, :, o])
-                wzro = np.where(slitpix != sl + 1)
-                objreg[wzro] = 0.0
-            else:
-                objreg = scitrace[sl]['object'][:, :, o]
-            # Fit the background
-            msgs.info("   Fitting the background")
-            if scitrace[sl]['background'] is None:
-                # The background for all slits is provided in the first extension
-                bckreg = np.copy(scitrace[0]['background'][:, :, o])
-                wzro = np.where(slitpix != sl + 1)
-                bckreg[wzro] = 0.0
-            else:
-                bckreg = scitrace[sl]['background'][:, :, o]
-            # Trim CRs further
-            bg_mask = np.zeros_like(sciframe)
-            bg_mask[np.where((bckreg*cr_mask <= 0.))] = 1.
-            bg_mask[np.where((slitpix != sl + 1))] = 1.
-            mask_sci = np.ma.array(skysub, mask=bg_mask, fill_value=0.)
-            clip_image = sigma_clip(mask_sci, axis=1, sigma=3.)  # For the mask only
-            # Fit
-            bgframe = func2d_fit_val(skysub, bgfitord, x=bgfit,
-                                     w=(~clip_image.mask)*bckreg*cr_mask)
-            # Weights
-            weight = objreg*mask_slit
-            sumweight = np.sum(weight, axis=1)
-            # Deal with fully masked regions
-            fully_masked = sumweight == 0.
-            if np.any(fully_masked):
-                weight[fully_masked,:] = 1.
-                sumweight[fully_masked] = weight.shape[1]
-            # Generate wavelength array (average over the pixels)
-            wvsum = np.sum(mswave*weight, axis=1)
-            wvsum /= sumweight
-            # Generate sky spectrum (flux per pixel)
-            skysum = np.sum(skyframe*weight, axis=1)
-            skysum /= sumweight
-            # Total the object flux
-            msgs.info("   Summing object counts")
-            scisum = np.sum((skysub-bgframe)*weight, axis=1)
-            # Total the variance array
-            msgs.info("   Summing variance array")
-            varsum = np.sum(varframe*weight, axis=1)
-            # Update background correction image
-            tmp = bckreg + objreg
-            gdp = np.where((tmp > 0) & (slitpix == sl + 1))
-            bgcorr[gdp] = bgframe[gdp]
-            # Mask
-            boxmask = np.zeros(wvsum.shape, dtype=np.int)
-            # Bad detector pixels
-            BPs = np.sum(weight*bpix, axis=1)
-            bp = BPs > 0.
-            boxmask[bp] += mask_flags['bad_pix']
-            # CR
-            CRs = np.sum(weight*cr_mask, axis=1)
-            cr = CRs > 0.
-            boxmask[cr] += mask_flags['CR']
-            # Fully masked
-            if np.any(fully_masked):
-                boxmask[fully_masked] += mask_flags['bad_row']
-                scisum[fully_masked] = 0.
-                varsum[fully_masked] = 0.
-                skysum[fully_masked] = 0.
-            # NAN
-            NANs = np.isnan(scisum)
-            if np.any(NANs):
-                msgs.warn("   NANs in the spectrum somehow...")
-                boxmask[NANs] += mask_flags['NANs']
-                scisum[NANs] = 0.
-                varsum[NANs] = 0.
-                skysum[NANs] = 0.
-            # Check on specobjs
-            if not specobjs[sl][o].check_trace(scitrace[sl]['traces'][:, o]):
-                debugger.set_trace()
-                msgs.error("Bad match to specobj in boxcar!")
-            # Fill
-            specobjs[sl][o].boxcar['wave'] = wvsum.copy()*units.AA  # Yes, units enter here
-            specobjs[sl][o].boxcar['counts'] = scisum.copy()
-            specobjs[sl][o].boxcar['var'] = varsum.copy()
-            if np.sum(specobjs[sl][o].boxcar['var']) == 0.:
-                debugger.set_trace()
-            specobjs[sl][o].boxcar['sky'] = skysum.copy()  # per pixel
-            specobjs[sl][o].boxcar['mask'] = boxmask.copy()
-            # Find boxcar size
-            slit_sz = []
-            inslit = np.where(weight == 1.)
-            for ii in range(weight.shape[0]):
-                inrow = inslit[0] == ii
-                if np.sum(inrow) > 0:
-                    slit_sz.append(np.max(inslit[1][inrow])-np.min(inslit[1][inrow]))
-            slit_pix = np.median(slit_sz)  # Pixels
-            specobjs[sl][o].boxcar['size'] = slit_pix
-    # Return
-    return bgcorr
-
-# This routine is deprecated
-# TODO: (KBW) But it can still be called...
-def obj_profiles(det, specobjs, sciframe, varframe, crmask,
-                 scitrace, tilts, maskslits, slitpix,
-                 extraction_profile='gaussian',
-                 COUNT_LIM=25., doqa=True, pickle_file=None):
-    """ Derive spatial profiles for each object
-    Parameters
-    ----------
-    det : int
-    specobjs : list
-    sciframe : ndarray
-      Sky subtracted science frame
-    varframe : ndarray
-    crmask : ndarray
-    scitrace : list
-    tilts : ndarray
-    maskslits : ndarray
-
-    Returns
-    -------
-    All internal on specobj and scitrace objects
-    """
-    # Init QA
-    #
-    sigframe = np.sqrt(varframe)
-    slits = range(len(specobjs))
-    gdslits = np.where(~maskslits)[0]
-    # Loop on slits
-    for sl in slits:
-        if sl not in gdslits:
-            continue
-        # Loop on objects
-        nobj = scitrace[sl]['nobj']
-        if nobj == 0:
-            continue
-        scitrace[sl]['opt_profile'] = []
-        msgs.work("Should probably loop on S/N")
-        for o in range(nobj):
-            msgs.info("Deriving spatial profile of object {0:d}/{1:d} in slit {2:d}/{3:d}".format(o+1, nobj, sl+1, len(specobjs)))
-            # Get object pixels
-            if scitrace[sl]['background'] is None:
-                # The object for all slits is provided in the first extension
-                objreg = np.copy(scitrace[0]['object'][:, :, o])
-                wzro = np.where(slitpix != sl + 1)
-                objreg[wzro] = 0.0
-            else:
-                objreg = scitrace[sl]['object'][:, :, o]
-            # Calculate slit image
-            slit_img = artrace.slit_image(scitrace[sl], o, tilts)
-            # Object pixels
-            weight = objreg.copy()
-            # Identify good rows
-            try:
-                gdrow = np.where(specobjs[sl][o].boxcar['counts'] > COUNT_LIM)[0]
-            except:
-                debugger.set_trace()
-            # Normalized image
-            norm_img = sciframe / np.outer(specobjs[sl][o].boxcar['counts'], np.ones(sciframe.shape[1]))
-            # Eliminate rows with CRs (wipes out boxcar)
-            crspec = np.sum(crmask*weight, axis=1)
-            cr_rows = np.where(crspec > 0)[0]
-            weight[cr_rows, :] = 0.
-            #
-            if len(gdrow) > 100:  # Good S/N regime
-                msgs.info("Good S/N for profile")
-                # Eliminate low count regions
-                badrow = np.where(specobjs[sl][o].boxcar['counts'] < COUNT_LIM)[0]
-                weight[badrow, :] = 0.
-                # Extract profile
-                gdprof = (weight > 0) & (sigframe > 0.) & (~np.isnan(slit_img))  # slit_img=nan if the slit is partially on the chip
-                slit_val = slit_img[gdprof]
-                flux_val = norm_img[gdprof]
-                #weight_val = sciframe[gdprof]/sigframe[gdprof]  # S/N
-                weight_val = 1./sigframe[gdprof]  # 1/N
-                msgs.work("Weight by S/N in boxcar extraction? [avoid CRs; smooth?]")
-                # Fit
-                fdict = dict(func=extraction_profile, deg=3, extrap=False)
-                if fdict['func'] == 'gaussian':
-                    fdict['deg'] = 2
-                elif fdict['func'] == 'moffat':
-                    fdict['deg'] = 3
-                else:
-                    msgs.error("Not ready for this type of object profile")
-                msgs.work("Might give our own guess here instead of using default")
-                guess = None
-                # Check if there are enough pixels in the slit to perform fit
-                if slit_val.size <= fdict['deg'] + 1:
-                    msgs.warn("Not enough pixels to determine profile of object={0:s} in slit {1:d}".format(specobjs[sl][o].idx, sl+1) + msgs.newline() +
-                              "Skipping Optimal")
-                    fdict['extrap'] = True
-                    scitrace[sl]['opt_profile'].append(copy.deepcopy(fdict))
-                    continue
-                # Fit the profile
-                try:
-                    mask, gfit = utils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdict['func'], weights=weight_val, maxone=False, guesses=guess)
-                except RuntimeError:
-                    msgs.warn("Bad Profile fit for object={:s}." + msgs.newline() +
-                              "Skipping Optimal".format(specobjs[sl][o].idx))
-                    fdict['extrap'] = True
-                    scitrace[sl]['opt_profile'].append(copy.deepcopy(fdict))
-                    continue
-                except ValueError:
-                    debugger.set_trace()  # NaNs in the values?  Check
-                msgs.work("Consider flagging/removing CRs here")
-                # Record
-                fdict['param'] = gfit.copy()
-                fdict['mask'] = mask
-                fdict['slit_val'] = slit_val
-                fdict['flux_val'] = flux_val
-                scitrace[sl]['opt_profile'].append(copy.deepcopy(fdict))
-                specobjs[sl][o].optimal['fwhm'] = fdict['param'][1]  # Pixels
-                if False:
-                    gdp = mask == 0
-                    mn = np.min(slit_val[gdp])
-                    mx = np.max(slit_val[gdp])
-                    xval = np.linspace(mn, mx, 1000)
-                    model = utils.func_val(gfit, xval, fdict['func'])
-                    plt.clf()
-                    ax = plt.gca()
-                    ax.scatter(slit_val[gdp], flux_val[gdp], marker='.', s=0.7, edgecolor='none', facecolor='black')
-                    ax.plot(xval, model, 'b')
-                    # Gaussian too?
-                    if False:
-                        fdictg = dict(func='gaussian', deg=2)
-                        maskg, gfitg = utils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdictg['func'], weights=weight_val, maxone=False)
-                        modelg = utils.func_val(gfitg, xval, fdictg['func'])
-                        ax.plot(xval, modelg, 'r')
-                    plt.show()
-                    debugger.set_trace()
-            elif len(gdrow) > 10:  #
-                msgs.warn("Low extracted flux for obj={:s} in slit {:d}.  Not ready for Optimal".format(specobjs[sl][o].idx,sl+1))
-                scitrace[sl]['opt_profile'].append({})
-                continue
-            elif len(gdrow) >= 0:  # limit is ">= 0" to avoid crash for gdrow=0
-                msgs.warn("Low extracted flux for obj={:s} in slit {:d}.  Not ready for Optimal".format(specobjs[sl][o].idx, sl + 1))
-                scitrace[sl]['opt_profile'].append({})
-                continue
-    # QA
-    if doqa:
-        msgs.info("Preparing QA for spatial object profiles")
-#        qa.obj_profile_qa(slf, specobjs, scitrace, det)
-        debugger.set_trace()  # Need to avoid slf
-        obj_profile_qa(specobjs, scitrace, det)
-    return
+#    if show_fits:
+#        p_show_flux_wt.terminate()
+#        p_show_gauss_wt.terminate()
 
 
-# This routine is deprecated, replaced by fit_profile_qa
-def obj_profile_qa(slf, specobjs, scitrace, det):
-    """ Generate a QA plot for the object spatial profile
-    Parameters
-    ----------
-    """
-
-    plt.rcdefaults()
-    plt.rcParams['font.family']= 'times new roman'
-
-    method = inspect.stack()[0][3]
-    gdslits = np.where(~slf._maskslits[det-1])[0]
-    for sl in range(len(specobjs)):
-        if sl not in gdslits:
-            continue
-        # Setup
-        nobj = scitrace[sl]['nobj']
-        if nobj == 0:
-            continue
-        ncol = min(3, nobj)
-        nrow = nobj // ncol + ((nobj % ncol) > 0)
-        # Outfile
-        outfile = qa.set_qa_filename(slf._basename, method, det=det, slit=specobjs[sl][0].slitid)
-        # Plot
-        plt.figure(figsize=(8, 5.0))
-        plt.clf()
-        gs = gridspec.GridSpec(nrow, ncol)
-
-        # Plot
-        for o in range(nobj):
-            fdict = scitrace[sl]['opt_profile'][o]
-            if 'param' not in fdict.keys():  # Not optimally extracted
-                continue
-            ax = plt.subplot(gs[o//ncol, o % ncol])
-
-            # Data
-            gdp = fdict['mask'] == 0
-            ax.scatter(fdict['slit_val'][gdp], fdict['flux_val'][gdp], marker='.',
-                       s=0.5, edgecolor='none')
-
-            # Fit
-            mn = np.min(fdict['slit_val'][gdp])
-            mx = np.max(fdict['slit_val'][gdp])
-            xval = np.linspace(mn, mx, 1000)
-            fit = utils.func_val(fdict['param'], xval, fdict['func'])
-            ax.plot(xval, fit, 'r')
-            # Axes
-            ax.set_xlim(mn,mx)
-            # Label
-            ax.text(0.02, 0.90, 'Obj={:s}'.format(specobjs[sl][o].idx),
-                    transform=ax.transAxes, ha='left', size='small')
-
-        plt.savefig(outfile, dpi=500)
-        plt.close()
-
-    plt.rcdefaults()
-
-# This routine is deprecated, replaced by extract_optimal
-# TODO: (KBW) But it can still be called...
-def optimal_extract(specobjs, sciframe, varframe,
-                    crmask, scitrace, tilts, mswave,
-                    maskslits, slitpix, calib_wavelength='vacuum',
-                    pickle_file=None, profiles=None):
-    """ Preform optimal extraction
-    Standard Horne approach
-
-    Parameters
-    ----------
-    slf
-    det
-    specobjs
-    sciframe
-    varframe
-    crmask
-    scitrace
-    COUNT_LIM
-    pickle_file
-
-    Returns
-    -------
-    newvar : ndarray
-      Updated variance array that includes object model
-    """
-    # Inverse variance
-    model_ivar = np.zeros_like(varframe)
-    cr_mask = 1.0-crmask
-    gdvar = (varframe > 0.) & (cr_mask == 1.)
-    model_ivar[gdvar] = utils.calc_ivar(varframe[gdvar])
-    # Object model image
-    obj_model = np.zeros_like(varframe)
-    gdslits = np.where(~maskslits)[0]
-    # Loop on slits
-    for sl in range(len(specobjs)):
-        if sl not in gdslits:
-            continue
-        # Loop on objects
-        nobj = scitrace[sl]['nobj']
-        if nobj == 0:
-            continue
-        for o in range(nobj):
-            msgs.info("Performing optimal extraction of object {0:d}/{1:d} in slit {2:d}/{3:d}".format(o+1, nobj, sl+1, len(specobjs)))
-            # Get object pixels
-            if scitrace[sl]['background'] is None:
-                # The object for all slits is provided in the first extension
-                objreg = np.copy(scitrace[0]['object'][:, :, o])
-                wzro = np.where(slitpix != sl + 1)
-                objreg[wzro] = 0.0
-            else:
-                objreg = scitrace[sl]['object'][:, :, o]
-            # Fit dict
-            fit_dict = scitrace[sl]['opt_profile'][o]
-            if 'param' not in fit_dict.keys():
-                continue
-            # Slit image
-            slit_img = artrace.slit_image(scitrace[sl], o, tilts)
-            #msgs.warn("Turn off tilts")
-            # Object pixels
-            weight = objreg.copy()
-            gdo = (weight > 0) & (model_ivar > 0)
-            # Profile image
-            prof_img = np.zeros_like(weight)
-            prof_img[gdo] = utils.func_val(fit_dict['param'], slit_img[gdo],
-                                             fit_dict['func'])
-            # Normalize
-            norm_prof = np.sum(prof_img, axis=1)
-            prof_img /= np.outer(norm_prof + (norm_prof == 0.), np.ones(prof_img.shape[1]))
-            # Mask (1=good)
-            mask = np.zeros_like(prof_img)
-            mask[gdo] = 1.
-            mask *= cr_mask
-
-            # Optimal flux
-            opt_num = np.sum(mask * sciframe * model_ivar * prof_img, axis=1)
-            opt_den = np.sum(mask * model_ivar * prof_img**2, axis=1)
-            opt_flux = opt_num / (opt_den + (opt_den == 0.))
-            # Optimal wave
-            opt_num = np.sum(mswave * model_ivar * prof_img**2, axis=1)
-            opt_den = np.sum(model_ivar * prof_img**2, axis=1)
-            opt_wave = opt_num / (opt_den + (opt_den == 0.))
-            # Replace fully masked rows with mean wavelength (they will have zero flux and ivar)
-            full_mask = opt_num == 0.
-            if np.any(full_mask):
-                msgs.warn("Replacing fully masked regions with mean wavelengths")
-                mnwv = np.mean(mswave, axis=1)
-                opt_wave[full_mask] = mnwv[full_mask]
-            if (np.sum(opt_wave < 1.) > 0) and calib_wavelength != "pixel":
-                debugger.set_trace()
-                msgs.error("Zero value in wavelength array. Uh-oh")
-            # Optimal ivar
-            opt_num = np.sum(mask * model_ivar * prof_img**2, axis=1)
-            ivar_den = np.sum(mask * prof_img, axis=1)
-            opt_ivar = opt_num * utils.calc_ivar(ivar_den)
-
-            # Save
-            specobjs[sl][o].optimal['wave'] = opt_wave.copy()*units.AA  # Yes, units enter here
-            specobjs[sl][o].optimal['counts'] = opt_flux.copy()
-            gdiv = (opt_ivar > 0.) & (ivar_den > 0.)
-            opt_var = np.zeros_like(opt_ivar)
-            opt_var[gdiv] = utils.calc_ivar(opt_ivar[gdiv])
-            specobjs[sl][o].optimal['var'] = opt_var.copy()
-            #specobjs[o].boxcar['sky'] = skysum  # per pixel
-
-            # Update object model
-            counts_image = np.outer(opt_flux, np.ones(prof_img.shape[1]))
-            obj_model += prof_img * counts_image
-
-    # KBW: Using variance_frame here produces a circular import.  I've
-    # changed this function to return the object model, then this last
-    # step is done in arproc.
-
-#    # Generate new variance image
-#    newvar = arproc.variance_frame(slf, det, sciframe, -1,
-#                                   skyframe=skyframe, objframe=obj_model)
-#    # Return
-#    return newvar
-
-    return obj_model
-
-
-def boxcar_cen(slf, det, img):
-    """ Simple boxcar down center of the slit
-
-    Parameters
-    ----------
-    slf
-    det
-    img
-
-    Returns
-    -------
-    spec : ndarray
-
-    """
-    # Extract a slit down the center (as in ararc, or should be!)
-    ordcen = slf.GetFrame(slf._pixcen, det)
-    op1 = ordcen+1
-    op2 = ordcen+2
-    om1 = ordcen-1
-    om2 = ordcen-2
-    # Extract
-    censpec = (img[:,ordcen]+img[:,op1]+img[:,op2]+img[:,om1]+img[:,om2])/5.0
-    if len(censpec.shape) == 3:
-        censpec = censpec[:, 0].flatten()
-    # Return
-    return censpec
-
-
-def func2d_fit_val(y, order, x=None, w=None):
-    """
-    Fit a polynomial to each column in y.
-
-    if y is 2D, always fit along columns
-
-    test if y is a MaskedArray
-    """
-    # Check input
-    if y.ndim > 2:
-        msgs.error('y cannot have more than 2 dimensions.')
-
-    _y = np.atleast_2d(y)
-    ny, npix = _y.shape
-
-    # Set the x coordinates
-    if x is None:
-        _x = np.linspace(-1,1,npix)
-    else:
-        if x.ndim != 1:
-            msgs.error('x must be a vector')
-        if x.size != npix:
-            msgs.error('Input x must match y vector or column length.')
-        _x = x.copy()
-
-    # Generate the Vandermonde matrix
-    vand = np.polynomial.polynomial.polyvander(_x, order)
-
-    # Fit with appropriate weighting
-    if w is None:
-        # Fit without weights
-        c = np.linalg.lstsq(vand, _y.T)[0]
-        ym = np.sum(c[:,:,None] * vand.T[:,None,:], axis=0)
-    elif w.ndim == 1:
-        # Fit with the same weight for each vector
-        _vand = w[:,None] * vand
-        __y = w[None,:] * _y
-        c = np.linalg.lstsq(_vand, __y.T)[0]
-        ym = np.sum(c[:,:,None] * vand.T[:,None,:], axis=0)
-    else:
-        # Fit with different weights for each vector
-        if w.shape != y.shape:
-            msgs.error('Input w must match y axis length or y shape.')
-        # Prep the output model
-        ym = np.empty(_y.shape, dtype=float)
-        # Weight the data
-        __y = w * _y
-        for i in range(ny):
-            # Weight the Vandermonde matrix for this y vector
-            _vand = w[i,:,None] * vand
-            c = np.linalg.lstsq(_vand, __y[i,:])[0]
-            ym[i,:] = np.sum(c[:,None] * vand.T[:,:], axis=0)
-
-    # Return the model with the appropriate shape
-    return ym if y.ndim == 2 else ym[0,:]
-
+    return (sobjs, skymask[thismask], objmask[thismask], proc_list)
 
 
