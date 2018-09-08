@@ -1480,7 +1480,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
     skymask = np.copy(thismask)
     if (len(sobjs) == 0) & (hand_extract_dict == None):
         msgs.info('No objects found')
-        return (None, skymask[thismask], objmask[thismask])
+        return (None, skymask[thismask], objmask[thismask], proc_list)
 
 
     msgs.info('Fitting the object traces')
