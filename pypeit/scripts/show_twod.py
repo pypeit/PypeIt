@@ -141,13 +141,13 @@ def main(args):
 
     # SCIIMG
     image = (sciimg)*(bitmask == 0)  # sky subtracted image
-    #(mean, med, sigma) = sigma_clipped_stats(image[bitmask == 0], sigma_lower=5.0, sigma_upper=5.0)
-    #cut_min = mean - 1.0 * sigma
-    #cut_max = mean + 4.0 * sigma
+    (mean, med, sigma) = sigma_clipped_stats(image[bitmask == 0], sigma_lower=5.0, sigma_upper=5.0)
+    cut_min = mean - 1.0 * sigma
+    cut_max = mean + 4.0 * sigma
     chname_skysub='sciimg-det{:s}'.format(sdet)
     # Clear all channels at the beginning
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
-                                  bitmask=bitmask_in, clear=True) #, cuts=(cut_min, cut_max))
+                                  bitmask=bitmask_in, clear=True) #, cuts=(cut_min, cut_max), wcs_match=True)
 
     # SKYSUB
     image = (sciimg - skymodel) * (bitmask == 0)  # sky subtracted image
@@ -157,7 +157,7 @@ def main(args):
     chname_skysub='skysub-det{:s}'.format(sdet)
     # Clear all channels at the beginning
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
-                                  bitmask=bitmask_in) #, cuts=(cut_min, cut_max))
+                                  bitmask=bitmask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
                                   # JFH For some reason Ginga crashes when I try to put cuts in here.
     show_trace(hdulist_1d, det_nm, viewer, ch)
     ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
@@ -166,7 +166,7 @@ def main(args):
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
     image = (sciimg - skymodel) * np.sqrt(ivarmodel) * (bitmask == 0)  # sky residual map
     viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=waveimg,
-                                  cuts=(-5.0, 5.0), bitmask = bitmask_in)
+                                  cuts=(-5.0, 5.0), bitmask = bitmask_in) #,wcs_match=True)
     show_trace(hdulist_1d, det_nm, viewer, ch)
     ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
 
@@ -174,12 +174,12 @@ def main(args):
     chname_resids = 'resid-det{:s}'.format(sdet)
     image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * (bitmask == 0)  # full model residual map
     viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=waveimg,
-                                  cuts = (-5.0, 5.0), bitmask = bitmask_in)
+                                  cuts = (-5.0, 5.0), bitmask = bitmask_in) #,wcs_match=True)
     show_trace(hdulist_1d, det_nm, viewer, ch)
     ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
 
 
-    # After displaying all the images since up the images with WCS_MATCH
+    # After displaying all the images sync up the images with WCS_MATCH
     shell = viewer.shell()
     out = shell.start_global_plugin('WCSMatch')
     out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_resids], {})
