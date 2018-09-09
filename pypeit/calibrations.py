@@ -62,7 +62,7 @@ class Calibrations(object):
     # TODO: master_root is a bit of a kludge.  It could be defined
     # earlier and/or in par.
     def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None,
-                 save_masters=True, write_qa=True):
+                 save_masters=True, write_qa=True, show = False):
 
         # Check the type of the provided fits table
         if not isinstance(fitstbl, Table):
@@ -72,6 +72,7 @@ class Calibrations(object):
         self.fitstbl = fitstbl
         self.save_masters = save_masters
         self.write_qa = write_qa
+        self.show = show
 
         # Spectrometer class
         if spectrograph is None:
@@ -385,7 +386,7 @@ class Calibrations(object):
             #            and (traceSlits.mstrace is not None):
             #    flatField.mspixelflat = traceSlits.mstrace.copy()
             # Run
-            self.mspixflatnrm, self.msillumflat = self.flatField.run(show=show)
+            self.mspixflatnrm, self.msillumflat = self.flatField.run(show=self.show)
             # Save to Masters
             if self.save_masters:
                 self.flatField.save_master(self.mspixflatnrm, raw_files=pixflat_image_files,
@@ -827,7 +828,7 @@ class Calibrations(object):
             #            and (traceSlits.mstrace is not None):
             #    flatField.mspixelflat = traceSlits.mstrace.copy()
             # Run
-            self.mspixflatnrm, self.slitprof = self.flatField.run(armed=False)
+            self.mspixflatnrm, self.slitprof = self.flatField.run()
             # Save to Masters
             if self.save_masters:
                 self.flatField.save_master(self.mspixflatnrm, raw_files=pixflat_image_files,
@@ -851,10 +852,10 @@ class MultiSlitCalibrations(Calibrations):
     calibrations.
     """
     def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None, save_masters=True,
-                 write_qa=True, steps=None):
+                 write_qa=True, show = False, steps=None):
         Calibrations.__init__(self, fitstbl, spectrograph=spectrograph, par=par,
                               redux_path=redux_path, save_masters=save_masters,
-                              write_qa=write_qa)
+                              write_qa=write_qa, show = show)
         self.steps = MultiSlitCalibrations.default_steps() if steps is None else steps
 
     @staticmethod
