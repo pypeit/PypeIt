@@ -317,6 +317,8 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
         iiter += 1
         if error == -2:
             msgs.warn(" All break points have been dropped!!")
+            from IPython import embed
+            embed()
             return (sset, outmask, yfit, reduced_chi)
         elif error == 0:
             # Iterate the fit -- next rejection iteration
