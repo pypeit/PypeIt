@@ -552,7 +552,11 @@ class ScienceImage(processimages.ProcessImages):
         bitmask[self.crmask == True] += np.uint64(2**1)
         bitmask[self.sciimg >= saturation] += np.uint64(2**2)
         bitmask[self.sciimg <= mincounts] += np.uint64(2**3)
-        bitmask[self.tslits_dict['slitpix'] == 0] += np.uint64(2**4)
+        # This try except is here so that the bitmask can still be created even if tslits_dict has not been instantiated yet
+        try:
+            bitmask[self.tslits_dict['slitpix'] == 0] += np.uint64(2**4)
+        except:
+            pass
         bitmask[np.isfinite(self.sciimg) == False] += np.uint64(2**5)
         bitmask[self.sciivar <= 0.0] += np.uint64(2**6)
         bitmask[np.isfinite(self.sciivar) == False] += np.uint64(2**7)
@@ -620,7 +624,7 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'global_sky'
-                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask = bitmask_in, clear = clear, wcs_match=True)
+                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask = bitmask_in, clear = clear, wcs_match=True) #, cuts=(cut_min, cut_max))
                 #cuts=(cut_min, cut_max)
         elif attr == 'local':
             # local sky subtraction
@@ -634,7 +638,7 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'local_sky'
-                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in, clear=clear, wcs_match=True)
+                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in, clear=clear, wcs_match=True) #, cuts=(cut_min, cut_max))
                 #cuts=(cut_min, cut_max),
         elif attr == 'sky_resid':
             # sky residual map with object included
