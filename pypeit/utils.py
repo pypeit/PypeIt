@@ -251,10 +251,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     if profile_basis.size != nx*npoly:
         msgs.error('Profile basis is not a multiple of the number of data points.')
 
-    msgs.info("Fitting npoly =" + "{:3d}".format(npoly) + " profile basis functions, nx=" + "{:3d}".format(nx) + " pixels")
-    msgs.info("****************************  Iter  Chi^2  # rejected  Rel. fact   ****************************")
-    msgs.info("                              ----  -----  ----------  --------- ")
-
     # Init
     yfit = np.zeros(ydata.shape)
     reduced_chi = 0.
@@ -266,6 +262,13 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
 
     if inmask is None:
         inmask = (invvar > 0)
+
+    nin = np.sum(inmask)
+    msgs.info("Fitting npoly =" + "{:3d}".format(npoly) + " profile basis functions, nin=" + "{:3d}".format(nin) + " good pixels")
+    msgs.info("****************************  Iter  Chi^2  # rejected  Rel. fact   ****************************")
+    msgs.info("                              ----  -----  ----------  --------- ")
+
+
     maskwork = outmask & inmask & (invvar > 0)
     if not maskwork.any():
         msgs.error('No valid data points in bspline_profile!.')
