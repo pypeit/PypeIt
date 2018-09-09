@@ -16,7 +16,7 @@ def parser(options=None):
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument("--exten", type=int, default=1, help="FITS extension")
     parser.add_argument("--obj", type=str, help="Object name in lieu of extension, e.g. O424-S1466-D02-I0013")
-    parser.add_argument("--extract", type=str, default='box', help="Extraction method. Default is boxcar. ['box', 'opt']")
+    parser.add_argument("--extract", type=str, default='OPT', help="Extraction method. Default is optimal. ['BOX', 'OPT']")
     parser.add_argument("--flux", default=False, action="store_true", help="Show fluxed spectrum?")
 
     if options is None:
