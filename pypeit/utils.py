@@ -265,7 +265,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
 
     nin = np.sum(inmask)
     msgs.info("Fitting npoly =" + "{:3d}".format(npoly) + " profile basis functions, nin=" + "{:3d}".format(nin) + " good pixels")
-    msgs.info("****************************  Iter  Chi^2  # rejected  Rel. fact   ****************************")
+    msgs.info("******************************  Iter  Chi^2  # rejected  Rel. fact   ******************************")
     msgs.info("                              ----  -----  ----------  --------- ")
 
 
@@ -350,7 +350,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
             msgs.info("                             {:4d}".format(iiter) + "    ---    ---    ---    ---")
 
 
-    msgs.info("***********************************************************************************************")
+    msgs.info("***************************************************************************************************")
     msgs.info(
         "Final fit after " + "{:2d}".format(iiter) + " iterations: reduced_chi = " + "{:8.3f}".format(reduced_chi) +
         ", rejected = " + "{:7d}".format((maskwork == 0).sum()) + ", relative_factor = {:6.2f}".format(relative_factor))
