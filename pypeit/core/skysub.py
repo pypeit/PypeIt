@@ -131,9 +131,15 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
         npercol = np.fmax(np.floor(np.sum(thismask) / nspec), 1.0)
         # Demand at least 10 pixels per row (on average) per degree of the polynomial
         if npoly is None:
-            npoly_in = 7
-            npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol / 10.)).astype(int)), 1)
-        poly_basis = pydl.fpoly(2.0*ximg_fit - 1.0, npoly).T
+            #npoly_in = 7
+            #npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol / 10.)).astype(int)), 1)
+            if npercol > 100:
+                npoly = 3
+            elif npercol > 40:
+                npoly = 2
+            else:
+                npoly = 1
+        poly_basis = pydl.flegendre(2.0*ximg_fit - 1.0, npoly).T
 
     # Full fit now
     #full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp, npoly = npoly)
