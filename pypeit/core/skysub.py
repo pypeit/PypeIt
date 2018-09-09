@@ -21,7 +21,7 @@ from scipy.special import ndtr
 
 
 def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3., trim_edg = (3,3),
-                  pos_mask=True, show_fit=False):
+                  pos_mask=True, show_fit=False, no_poly=False, npoly = None):
     """
     Perform global sky subtraction on an input slit
 
@@ -88,54 +88,92 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
 
+
     # Init
-    nspec = image.shape[0]
+    (nspec, nspat) = image.shape
     piximg = tilts * (nspec-1)
     if inmask is None:
         inmask = np.copy(thismask)
 
-    # Sky pixels for fitting
-    fit_sky = (thismask == True) & (ivar > 0.0) & (inmask == True) & (edgmask == False)
-    isrt = np.argsort(piximg[fit_sky])
-    wsky = piximg[fit_sky][isrt]
-    sky = image[fit_sky][isrt]
-    sky_ivar = ivar[fit_sky][isrt]
 
-    # ToDo Add in a polynomial profile basis here to improve the global sky subtraction?
-    # Restrict fit to positive pixels only and mask out large outliers via a pre-fit to the log
+    # Sky pixels for fitting
+    inmask_in = (thismask == True) & (ivar > 0.0) & (inmask == True) & (edgmask == False)
+    isrt = np.argsort(piximg[thismask])
+    pix = piximg[thismask][isrt]
+    sky = image[thismask][isrt]
+    sky_ivar = ivar[thismask][isrt]
+    ximg_fit = ximg[thismask][isrt]
+    inmask_fit = inmask_in[thismask][isrt]
+    #spatial = spatial_img[fit_sky][isrt]
+
+    # Restrict fit to positive pixels only and mask out large outliers via a pre-fit to the log.
     if (pos_mask is True):
         pos_sky = (sky > 1.0) & (sky_ivar > 0.0)
         if np.sum(pos_sky) > nspec:
             lsky = np.log(sky[pos_sky])
-            lsky_ivar = np.full(lsky.shape, 0.1)
+            lsky_ivar = inmask_fit[pos_sky].astype(float)/3.0** 2  # set errors to just be 3.0 in the log
+            #lsky_ivar = np.full(lsky.shape, 0.1)
             # Init bspline to get the sky breakpoints (kludgy)
-            tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
-            lskyset, outmask, lsky_fit, red_chi = utils.bspline_profile(wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
-                                                                        fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
+            #tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
+            lskyset, outmask, lsky_fit, red_chi = utils.bspline_profile(pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
+                                                                        inmask = inmask_fit[pos_sky],
+                                                                        upper=sigrej, lower=sigrej,
+                                                                        kwargs_bspline={'bkspace':bsp},
                                                                         kwargs_reject={'groupbadpix': True, 'maxrej': 10})
             res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
             lmask = (res < 5.0) & (res > -4.0)
             sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
+            inmask_fit[pos_sky]=(sky_ivar[pos_sky] > 0.0) & lmask
 
+    if no_poly:
+        poly_basis= np.ones_like(sky)
+    else:
+        npercol = np.fmax(np.floor(np.sum(thismask) / nspec), 1.0)
+        # Demand at least 10 pixels per row (on average) per degree of the polynomial
+        if npoly is None:
+            npoly_in = 7
+            npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol / 10.)).astype(int)), 1)
+        poly_basis = pydl.fpoly(2.0*ximg_fit - 1.0, npoly).T
 
     # Full fit now
-    full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp)
-    skyset, outmask, yfit, _ = utils.bspline_profile(wsky, sky, sky_ivar, np.ones_like(sky),
-                                                       fullbkpt=full_bspline.breakpoints,upper=sigrej, lower=sigrej,
-                                                       kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    #full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp, npoly = npoly)
+    #skyset, outmask, yfit, _ = utils.bspline_profile(wsky, sky, sky_ivar, poly_basis,
+    #                                                   fullbkpt=full_bspline.breakpoints,upper=sigrej, lower=sigrej,
+    #                                                   kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+
+
+    # Perform the full fit now
+    skyset, outmask, yfit, _ = utils.bspline_profile(pix, sky, sky_ivar,poly_basis,inmask = inmask_fit, nord = 4,
+                                                               upper=sigrej, lower=sigrej,
+                                                               kwargs_bspline = {'bkspace':bsp},
+                                                               kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+
+    sky_frame = np.zeros_like(image)
+    ythis = np.zeros_like(yfit)
+    ythis[isrt] = yfit
+    sky_frame[thismask] = ythis
+
+    #skyset.funcname ='legendre'
+    #skyset.xmin = spat_min
+    #skyset.xmax = spat_max
+
     # Evaluate and save
-    bgframe, _ = skyset.value(piximg[thismask])
+    #bgframe, _ = skyset.value(piximg[thismask],x2=spatial_img[thismask])
 
     # Debugging/checking
+
+    # ToDo This QA ceases to make sense I think for 2-d fits. I need to think about what the best QA would be here, but I think
+    # probably looking at residuals as a function of spectral and spatial position like in the flat fielding code.
     if show_fit:
         goodbk = skyset.mask
-        yfit_bkpt = np.interp(skyset.breakpoints[goodbk], wsky,yfit)
+        # This is approximate
+        yfit_bkpt = np.interp(skyset.breakpoints[goodbk], pix,yfit)
         plt.clf()
         ax = plt.gca()
-        was_fit_and_masked = (outmask == False)
-        ax.plot(wsky, sky, color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None')
-        ax.plot(wsky[was_fit_and_masked], sky[was_fit_and_masked], color='red', marker='+', markersize=1.5, mfc='red', fillstyle='full', linestyle='None')
-        ax.plot(wsky, yfit, color='cornflowerblue')
+        was_fit_and_masked = inmask_fit & ~outmask
+        ax.plot(pix, sky, color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None')
+        ax.plot(pix[was_fit_and_masked], sky[was_fit_and_masked], color='red', marker='+', markersize=1.5, mfc='red', fillstyle='full', linestyle='None')
+        ax.plot(pix, yfit, color='cornflowerblue')
         ax.plot(skyset.breakpoints[goodbk], yfit_bkpt, color='lawngreen', marker='o', markersize=4.0, mfc='lawngreen', fillstyle='full', linestyle='None')
         ax.set_ylim((0.99*yfit.min(),1.01*yfit.max()))
         plt.show()
@@ -144,7 +182,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     # ToDO worth thinking about whether we want to return a mask here. It makese no sense to return outmask
     # in its present form though since that does not refer to the whole image.
     # return bgframe, outmask
-    return bgframe
+    return ythis
 
 
 
@@ -332,13 +370,15 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         sigrej_eff = sigrej
         proc_list = [] # List of processes for interactive plotting, these are terminated at the end of each iteration sequence
         for iiter in range(1, niter + 1):
+            msgs.info('--------------------------REDUCING: Iteration # ' + '{:2d}'.format(iiter) + ' of ' +
+                      '{:2d}'.format(niter) + '---------------------------------------------------')
             img_minsky = sciimg - skyimage
             for ii in range(objwork):
                 iobj = group[ii]
                 if iiter == 1:
                     # If this is the first iteration, print status message. Initiate profile fitting with a simple
                     # boxcar extraction.
-                    msgs.info('--------------------------REDUCING: Iteration # ' + '{:2d}'.format(iiter) + ' of ' + '{:2d}'.format(niter) + '---------------------------------------------------')
+                    msgs.info("----------------------------------- PROFILE FITTING --------------------------------------------------------")
                     msgs.info("Fitting profile for obj # " + "{:}".format(sobjs[iobj].objid) + " of {:}".format(nobj))
                     msgs.info("At x = {:5.2f}".format(sobjs[iobj].spat_pixpos) + " on slit # {:}".format(sobjs[iobj].slitid))
                     msgs.info("------------------------------------------------------------------------------------------------------------")
@@ -357,7 +397,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                                 box_denom + (box_denom == 0.0))
                     fluxivar = mask_box / (mvar_box + (mvar_box == 0.0))
                 else:
-                    msgs.info('--------------------------REDUCING: Iteration # ' + '{:2d}'.format(iiter) + ' of ' + '{:2d}'.format(niter) + '---------------------------------------------------')
                     # For later iterations, profile fitting is based on an optimal extraction
                     last_profile = obj_profiles[:, :, ii]
                     trace = np.outer(sobjs[iobj].trace_spat, np.ones(nspat))
