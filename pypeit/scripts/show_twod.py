@@ -138,6 +138,17 @@ def main(args):
 
     # Now show each image to a separate channel
 
+
+    # SCIIMG
+    image = (sciimg)*(bitmask == 0)  # sky subtracted image
+    #(mean, med, sigma) = sigma_clipped_stats(image[bitmask == 0], sigma_lower=5.0, sigma_upper=5.0)
+    #cut_min = mean - 1.0 * sigma
+    #cut_max = mean + 4.0 * sigma
+    chname_skysub='sciimg-det{:s}'.format(sdet)
+    # Clear all channels at the beginning
+    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
+                                  bitmask=bitmask_in, clear=True) #, cuts=(cut_min, cut_max))
+
     # SKYSUB
     image = (sciimg - skymodel) * (bitmask == 0)  # sky subtracted image
     (mean, med, sigma) = sigma_clipped_stats(image[bitmask == 0], sigma_lower=5.0, sigma_upper=5.0)
@@ -146,7 +157,7 @@ def main(args):
     chname_skysub='skysub-det{:s}'.format(sdet)
     # Clear all channels at the beginning
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
-                                  bitmask=bitmask_in, clear=True) #, cuts=(cut_min, cut_max))
+                                  bitmask=bitmask_in) #, cuts=(cut_min, cut_max))
                                   # JFH For some reason Ginga crashes when I try to put cuts in here.
     show_trace(hdulist_1d, det_nm, viewer, ch)
     ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
