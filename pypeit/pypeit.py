@@ -173,6 +173,16 @@ class PypeIt(object):
         """
         assert False
 
+    def _chk_for_std(self):
+        # Can only reduce these frames if the mask is the same
+        std_idx = fsort.ftype_indices(self.fitstbl, 'standard', self.sci_ID)
+        if len(std_idx) > 0:
+            std_idx = std_idx[0]
+            return std_idx
+        else:
+            msgs.info("No standard star associated with this science frame")
+            return -1
+
     def reduce_all(self, reuse_masters=False):
         """
         Reduce all of the science exposures
@@ -691,6 +701,23 @@ class MultiSlit(PypeIt):
 
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
 
+    def _extract_std(self):
+        #
+        msgs.info("Processing standard star")
+        std_image_files = fsort.list_of_files(fitstbl, 'standard', sci_ID)
+        if std_idx in std_dict.keys():
+            if det in std_dict[std_idx].keys():
+                continue
+        else:
+            std_dict[std_idx] = {}
+
+    @staticmethod
+    def default_sci_find_obj_steps():
+        return ['process', 'find_objects', 'global_skysub', 'find_objects']
+
+    @staticmethod
+    def default_std_find_obj_steps():
+        return ['process', 'global_skysub', 'find_objects']
 
 def instantiate_me(spectrograph, **kwargs):
     """
