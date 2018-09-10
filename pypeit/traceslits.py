@@ -45,6 +45,8 @@ class TraceSlits(masterframe.MasterFrame):
       Detector number
     ednum : int, optional
       Edge number used for indexing
+    redux_path : str, optional
+      Used for QA output
 
     Attributes
     ----------
@@ -102,12 +104,12 @@ class TraceSlits(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'trace'
 
-    def __init__(self, mstrace, pixlocn, par=None, det=None, setup=None, directory_path=None,
+    def __init__(self, mstrace, pixlocn, par=None, det=None, setup=None, master_dir=None,
+                 redux_path=None,
                  mode=None, binbpx=None, ednum=100000):
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         directory_path=directory_path, mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup, master_dir=master_dir, mode=mode)
 
         # TODO -- Remove pixlocn as a required item
 
@@ -124,6 +126,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.par = pypeitpar.TraceSlitsPar() if par is None else par
 
         # Optional parameters
+        self.redux_path = redux_path
         self.det = det
         self.ednum = ednum
         if binbpx is None: # Bad pixel array
@@ -1105,7 +1108,7 @@ class TraceSlits(masterframe.MasterFrame):
         trace_slits.slit_trace_qa(self.mstrace, self.lcen,
                                    self.rcen, self.extrapord, self.setup,
                                    desc="Trace of the slit edges D{:02d}".format(self.det),
-                                   use_slitid=use_slitid)
+                                   use_slitid=use_slitid, out_dir=self.redux_path)
 
 
     def __repr__(self):

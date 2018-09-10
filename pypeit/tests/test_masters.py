@@ -17,7 +17,7 @@ def test_master_name():
     """ Test master name method
     """
     types = ['bias', 'badpix', 'trace', 'pixelflat', 'arc', 'wave', 'wv_calib', 'tilts']
-    suff = ['Bias', 'BadPix', 'Trace', 'FlatField', 'Arc', 'Wave', 'WaveCalib', 'Tilts']
+    suff = ['Bias', 'BadPix', 'Trace', 'PixelFlat', 'Arc', 'Wave', 'WaveCalib', 'Tilts']
     for isuff,itype in zip(suff,types):
         if itype == 'wv_calib':
             exten = '.json'

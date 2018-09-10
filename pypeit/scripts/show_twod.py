@@ -118,7 +118,7 @@ def main(args):
     objmodel = hdu[exten].data
     # Get waveimg
     cwd = os.getcwd()
-    wcs_img = cwd+'/'+ os.path.basename(os.path.normpath(head0['PYPMFDIR'])) +\
+    waveimg = cwd+'/'+ os.path.basename(os.path.normpath(head0['PYPMFDIR'])) +\
               '/MasterWave_'+'{:s}_{:02d}_{:s}.fits'.format(head0['PYPCNFIG'], args.det, head0['PYPCALIB'])
     # Load Tslits
     mdir = head0['PYPMFDIR']+'/'
@@ -143,30 +143,46 @@ def main(args):
     (mean, med, sigma) = sigma_clipped_stats(image[bitmask == 0], sigma_lower=5.0, sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 4.0 * sigma
-    viewer, ch = ginga.show_image(image, chname='skysub-det{:s}'.format(sdet).format(sdet), wcs_img=wcs_img,
-                                  bitmask=bitmask_in) #, cuts=(cut_min, cut_max))
+    chname_skysub='skysub-det{:s}'.format(sdet)
+    # Clear all channels at the beginning
+    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
+                                  bitmask=bitmask_in, clear=True) #, cuts=(cut_min, cut_max))
                                   # JFH For some reason Ginga crashes when I try to put cuts in here.
     show_trace(hdulist_1d, det_nm, viewer, ch)
     ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
 
     # SKRESIDS
+    chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
     image = (sciimg - skymodel) * np.sqrt(ivarmodel) * (bitmask == 0)  # sky residual map
-    viewer, ch = ginga.show_image(image, chname='sky_resid-det{:s}'.format(sdet).format(sdet), wcs_img=wcs_img,
+    viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=waveimg,
                                   cuts=(-5.0, 5.0), bitmask = bitmask_in)
     show_trace(hdulist_1d, det_nm, viewer, ch)
     ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
 
     # RESIDS
+    chname_resids = 'resid-det{:s}'.format(sdet)
     image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * (bitmask == 0)  # full model residual map
-    viewer, ch = ginga.show_image(image, chname='resid-det{:s}'.format(sdet).format(sdet), wcs_img=wcs_img,
+    viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=waveimg,
                                   cuts = (-5.0, 5.0), bitmask = bitmask_in)
     show_trace(hdulist_1d, det_nm, viewer, ch)
     ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
 
+
     # After displaying all the images since up the images with WCS_MATCH
-
-
+    shell = viewer.shell()
+    out = shell.start_global_plugin('WCSMatch')
+    out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_resids], {})
 
     if args.embed:
+
         IPython.embed()
+        # Playing with some mask stuff
+        #out = shell.start_operation('TVMask')
+        #maskfile = '/Users/joe/python/PypeIt-development-suite/REDUX_OUT/Shane_Kast_blue/600_4310_d55/shane_kast_blue_setup_A/crmask.fits'
+        #out = shell.call_local_plugin_method(chname_resids, 'TVMask', 'load_file', [maskfile], {})
+
+
+
+
+
 

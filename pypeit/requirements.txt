@@ -4,9 +4,9 @@
 # added here, or add them as submodule dependencies in extern/ directory
 #
 # Users
-numpy>=1.13
-scipy>=0.18.1
-matplotlib>=1.5.3
+numpy>=1.14
+scipy>=1.1
+matplotlib>=2.1
 astropy>=2.0.5
 PyYAML>=3.11
 future>=0.16.0
@@ -16,7 +16,7 @@ configobj>=5.0.6
 
 # linetools
 # arclines
-numba>=0.37.0
+numba>=0.38.0
 
 # Develop
 #ginga>=2.7.0

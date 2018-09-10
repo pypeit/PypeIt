@@ -33,7 +33,7 @@ def test_load_specobj():
     specobjs, head0 = load.load_specobj(spec_file)
     # Test
     assert isinstance(specobjs, list)
-    assert len(specobjs[0].boxcar['counts']) == 1199
+    assert len(specobjs[0].boxcar['COUNTS']) == 1200
 
 
 def test_load_1dspec():
@@ -44,10 +44,11 @@ def test_load_1dspec():
     # Test
     assert isinstance(spec, XSpectrum1D)
     # Boxcar
-    spec = load.load_1dspec(spec_file, extract='box')
+    spec = load.load_1dspec(spec_file, extract='BOX')
     assert isinstance(spec, XSpectrum1D)
     # By objname
-    spec2 = load.load_1dspec(spec_file, objname='O473-S5473-D01-I0008')
+    #spec2 = load.load_1dspec(spec_file, objname='O473-S5473-D01-I0008')
+    spec2 = load.load_1dspec(spec_file, objname='SPAT0132-SLIT0001-DET01-SCI008')
     assert isinstance(spec2, XSpectrum1D)
 
 

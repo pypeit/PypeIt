@@ -635,7 +635,8 @@ def vactoair(wave):
     return new_wave
 
 # TODO I don't see why maskslits is needed in these routine, since if the slits are masked in arms, they won't be extracted
-def flexure_qa(specobjs, maskslits, basename, det, flex_list, slit_cen=False):
+def flexure_qa(specobjs, maskslits, basename, det, flex_list,
+               slit_cen=False, out_dir=None):
     """ QA on flexure measurement
 
     Parameters
@@ -676,7 +677,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list, slit_cen=False):
             continue
         nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile, one QA file per slit
-        outfile = qa.set_qa_filename(basename, method + '_corr', det=det,slit=(slit + 1))
+        outfile = qa.set_qa_filename(basename, method + '_corr', det=det,slit=(slit + 1), out_dir=out_dir)
         plt.figure(figsize=(8, 5.0))
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
@@ -737,7 +738,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list, slit_cen=False):
             gdsky = gdsky[idx]
 
         # Outfile
-        outfile = qa.set_qa_filename(basename, method+'_sky', det=det,slit=(slit + 1))
+        outfile = qa.set_qa_filename(basename, method+'_sky', det=det,slit=(slit + 1), out_dir=out_dir)
         # Figure
         plt.figure(figsize=(8, 5.0))
         plt.clf()

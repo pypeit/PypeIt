@@ -896,7 +896,7 @@ class ReducePar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, spectrograph=None, pipeline=None, detnum=None, sortroot=None, calwin=None,
-                 scidir=None, qadir=None):
+                 scidir=None, qadir=None, redux_path=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -922,7 +922,7 @@ class ReducePar(ParSet):
         descr['pipeline'] = 'Pipeline options that pypeit can use for reductions.  ' \
                             'Options are: {0}'.format(', '.join(options['pipeline']))
 
-        dtypes['detnum'] = [list]
+        dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices'
 
         dtypes['sortroot'] = str
@@ -944,6 +944,10 @@ class ReducePar(ParSet):
         descr['qadir'] = 'Directory relative to calling directory to write quality ' \
                          'assessment files.'
 
+        defaults['redux_path'] = os.getcwd()
+        dtypes['redux_path'] = str
+        descr['redux_path'] = 'Path to folder for performing reductions.'
+
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -959,7 +963,7 @@ class ReducePar(ParSet):
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'pipeline', 'detnum', 'sortroot', 'calwin', 'scidir',
-                    'qadir' ]
+                    'qadir', 'redux_path']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

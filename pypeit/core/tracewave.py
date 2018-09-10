@@ -770,7 +770,25 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
 
 # TODO: Change yorder to "dispaxis_order"?
 def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', maskval=-999999.9,
-              setup=None, doqa=True, show_QA=False):
+              setup=None, doqa=True, show_QA=False, out_dir=None):
+    """
+
+    Args:
+        msarc:
+        slit:
+        all_tilts:
+        order:
+        yorder:
+        func2D:
+        maskval:
+        setup:
+        doqa:
+        show_QA:
+        out_dir:
+
+    Returns:
+
+    """
     # Unpack
     xtilt, ytilt, mtilt, wtilt = all_tilts
     #
@@ -798,7 +816,7 @@ def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', mask
 
     # QA
     if doqa:
-        plot_tiltres(setup, mtilt[wgd], ytilt[wgd], yfit, slit=slit, show_QA=show_QA)
+        plot_tiltres(setup, mtilt[wgd], ytilt[wgd], yfit, slit=slit, show_QA=show_QA, out_dir=out_dir)
 
     # y normalization and subtract
     ynorm = np.outer(np.linspace(0., 1., msarc.shape[0]), np.ones(msarc.shape[1]))
@@ -1163,7 +1181,7 @@ def plot_orderfits(setup, model, ydata, xdata=None, xmodl=None, textplt="Slit",
 
 
 
-def plot_tiltres(setup, mtilt, ytilt, yfit, slit=None, outfile=None, show_QA=False):
+def plot_tiltres(setup, mtilt, ytilt, yfit, slit=None, outfile=None, show_QA=False, out_dir=None):
     """ Generate a QA plot of the residuals for the fit to the tilts
     One slit at a time
 
@@ -1177,7 +1195,7 @@ def plot_tiltres(setup, mtilt, ytilt, yfit, slit=None, outfile=None, show_QA=Fal
     # Outfil
     method = inspect.stack()[0][3]
     if (outfile is None) and (not show_QA):
-        outfile = qa.set_qa_filename(setup, method, slit=slit)
+        outfile = qa.set_qa_filename(setup, method, slit=slit, out_dir=out_dir)
 
     # Setup
     plt.figure(figsize=(8, 4.0))
