@@ -54,8 +54,7 @@ if __name__ == '__main__':
     lines += ['++++++++++++++++++++++++++++++++++++']
     lines += ['']
 
-    p = pypeitpar.PypeItPar(skysubtract=pypeitpar.SkySubtractionPar(),
-                          flexure=pypeitpar.FlexurePar(),
+    p = pypeitpar.PypeItPar(flexure=pypeitpar.FlexurePar(),
                           fluxcalib=pypeitpar.FluxCalibrationPar())
 
     lines += par_hierarchy(p)
