@@ -1249,13 +1249,14 @@ class General:
         # Allow for weaker lines in the fit
         if tcent is None:
             tcent, ecent = self.get_use_tcent(patt_dict['sign'], weak=True)
-            weights = 1.0/ecent
-            #weights = np.ones(tcent.size)
+            #weights = 1.0/ecent
+            weights = np.ones(tcent.size)
         else:
             if ecent is None:
                 weights = np.ones(tcent.size)
             else:
-                weights = 1.0/ecent
+                #weights = 1.0/ecent
+                weights = np.ones(tcent.size)
         # Fit
         try:
             final_fit = fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
