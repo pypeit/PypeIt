@@ -75,7 +75,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         # A time stamp of the observation; used to find calibrations
         # proximate to science frames. The units of this value are
         # specified by fits+timeunit below
-        def_keys[0]['time'] = 'UTC'
+        #def_keys[0]['time'] = 'UTC'
         # FIX TIME HERE
 
         # Image size
@@ -254,7 +254,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         head_keys[0]['filter'] = 'FILNAME'
         return head_keys
 
-    def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
+    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None, msarc_shape=None,
                        binspectral=None, **null_kwargs):
         """
 
