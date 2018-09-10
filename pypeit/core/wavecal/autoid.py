@@ -564,7 +564,7 @@ class General:
                 return None, None
 
             # Create a detlines KD Tree
-            maxlinear = 0.25*self._npix
+            maxlinear = 0.5*self._npix
             if polygon == 3:
                 msgs.info("Generating patterns for a trigon")
                 patternp, indexp = kdtree_generator.trigon(use_tcentp, detsrch, maxlinear)
