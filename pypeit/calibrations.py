@@ -272,7 +272,7 @@ class Calibrations(object):
         example_file = os.path.join(self.fitstbl['directory'][scidx],
                                     self.fitstbl['filename'][scidx])
         # Always use the example file
-        bpmImage = bpmimage.BPMImage(self.spectrograph, filename=example_file, det=self.det,
+        bpmImage = bpmimage.BPMImage(self.spectrograph, shape=self.shape, filename=example_file, det=self.det,
                                      msbias=self.msbias if self.par['badpix'] == 'bias' else None,
                                      trim=self.par['trim'])
         # Build, save, and return
