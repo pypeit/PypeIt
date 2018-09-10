@@ -199,7 +199,8 @@ def hexagon(linelist, numsrch, maxlin):
     return pattern, index
 
 
-def main(polygon, numsearch=8, maxlinear=15.0, use_unknowns=True, leafsize=30, verbose=False):
+def main(polygon, numsearch=8, maxlinear=100.0, use_unknowns=True, leafsize=30, verbose=False,
+         ret_treeindx=False, outname=None, ):
     """Driving method for generating the KD Tree
 
     Parameters
@@ -243,7 +244,8 @@ def main(polygon, numsearch=8, maxlinear=15.0, use_unknowns=True, leafsize=30, v
         if verbose: print("Patterns can only be generated with 3 <= polygon <= 6")
         return None
 
-    outname = '../../data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.kdtree'.format(polygon, numsearch)
+    if outname is None:
+        outname = '../../data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.kdtree'.format(polygon, numsearch)
     outindx = outname.replace('.kdtree', '.index')
     print("Generating Tree")
     tree = cKDTree(pattern, leafsize=leafsize)
@@ -254,7 +256,8 @@ def main(polygon, numsearch=8, maxlinear=15.0, use_unknowns=True, leafsize=30, v
     print("Written index file:\n{0:s}".format(outindx))
     #_ = pickle.load(open(outname, 'rb'))
     #print("loaded successfully")
-
+    if ret_treeindx:
+        return tree, index
 
 # Test
 if __name__ == '__main__':
@@ -289,6 +292,6 @@ if __name__ == '__main__':
     Then, the values (a-ll)/(r-ll) and (b-ll)/(r-ll) are in the same
     coordinate system for both detlines and linelist.
     """
-    polygon = 3
-    numsearch = 20
+    polygon = 4
+    numsearch = 10
     main(polygon, numsearch=numsearch, verbose=True)

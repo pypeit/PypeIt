@@ -188,8 +188,13 @@ def load_tree(polygon=4, numsearch=20):
     try:
         file_load = pickle.load(open(filename, 'rb'))
         index = np.load(fileindx)
-    except IOError:
-        msgs.error("Could not load KD Tree patterns")
+    except FileNotFoundError:
+        msgs.info('The requested KDTree was not found on disk' + msgs.newline() +
+                  'please be patient while the ThAr KDTree is built and saved to disk.')
+        from pypeit.core.wavecal import kdtree_generator
+        file_load, index = kdtree_generator.main(polygon, numsearch=numsearch, verbose=True,
+                                                 ret_treeindx=True, outname=filename)
+
     return file_load, index
 
 
