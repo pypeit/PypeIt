@@ -319,10 +319,8 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
             error, yfit = sset.workit(xdata, ydata, invvar*maskwork,action, laction, uaction)
         iiter += 1
         if error == -2:
-            msgs.warn(" All break points have been dropped!!")
-            from IPython import embed
-            embed()
-            return (sset, outmask, yfit, reduced_chi)
+            msgs.warn(" All break points have been dropped!! Fit failed, I hope you know what you are doing")
+            return (sset, np.zeros(xdata.shape,dtype=bool), np.zeros(xdata.shape), reduced_chi)
         elif error == 0:
             # Iterate the fit -- next rejection iteration
             chi_array = (ydata - yfit)*np.sqrt(invvar * maskwork)
