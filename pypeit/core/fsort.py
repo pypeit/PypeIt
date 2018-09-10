@@ -1117,7 +1117,7 @@ def make_dirs(spectrograph, caldir, scidir, qadir, redux_path=None, overwrite=Fa
     if redux_path is None:
         redux_path = os.getcwd()
     msgs.info("Creating Science directory")
-    newdir = "{0:s}/{1:s}".format(redux_path, scidir)
+    newdir = os.path.join(redux_path, scidir)
     if os.path.exists(newdir):
         msgs.info("The following directory already exists:"+msgs.newline()+newdir)
         if not overwrite:
@@ -1178,7 +1178,7 @@ def make_dirs(spectrograph, caldir, scidir, qadir, redux_path=None, overwrite=Fa
 
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Master Calibrations directory")
-    newdir = "{:s}/{:s}_{:s}".format(redux_path, caldir, spectrograph)
+    newdir = os.path.join(redux_path, caldir+'_'+spectrograph)
     if os.path.exists(newdir):
         if not overwrite:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
@@ -1200,7 +1200,7 @@ def make_dirs(spectrograph, caldir, scidir, qadir, redux_path=None, overwrite=Fa
     # TODO: I'd rather that this still consider overwrite and fault
     # instead of just proceeding
     msgs.info("Creating QA directory")
-    newdir = "{0:s}/{1:s}".format(redux_path, qadir)
+    newdir = os.path.join(redux_path, qadir)
     if os.path.exists(newdir):
         msgs.warn("Pre-existing QA plots will be overwritten")
         '''

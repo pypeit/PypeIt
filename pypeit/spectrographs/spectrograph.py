@@ -468,15 +468,8 @@ class Spectrograph(object):
         raise FileNotFoundError('Could not find archive sky spectrum: {0} or {1}'.format(
                                     self.sky_file, _sky_file))
 
-
-    def __repr__(self):
-        # Generate string
-        txt = '<{:s}: '.format(self.__class__.__name__)
-        txt += ' spectrograph={:s},'.format(self.spectrograph)
-        txt += ' telescope={:s},'.format(self.telescope['name'])
-        txt += ' camera={:s}'.format(self.camera)
-        txt += '>'
-        return txt
+    def pypeit_class(self):
+        return 'MultiSlit'
 
     def mm_per_pix(self, det=1):
         """
@@ -508,5 +501,12 @@ class Spectrograph(object):
 
         return self.detector[det-1]['platescale']/tel_platescale
 
-            
 
+    def __repr__(self):
+        # Generate string
+        txt = '<{:s}: '.format(self.__class__.__name__)
+        txt += ' spectrograph={:s},'.format(self.spectrograph)
+        txt += ' telescope={:s},'.format(self.telescope['name'])
+        txt += ' camera={:s}'.format(self.camera)
+        txt += '>'
+        return txt

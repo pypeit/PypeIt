@@ -87,56 +87,20 @@ def main(args):
     # Load PypeIt file (might happen twice but that is ok)
     pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(args.pypeit_file)
 
-    # MULTI-SLIT ONLY FOR RIGHT NOW
-    pypeIt = pypeit.MultiSlit(pypeitSetup.spectrograph, verbosity=args.verbosity,
-                              overwrite=args.overwrite, logname=logname,
-                              show=args.show)
+    #
+    pypeIt = pypeit.instantiate_me(pypeitSetup.spectrograph,
+                                   verbosity=args.verbosity,
+                                   overwrite=args.overwrite, logname=logname, show=args.show)
 
     # Init Setup
     redux_dir = './'
     pypeIt.init_setup(args.pypeit_file, redux_dir, calibration_check=True)
-    pypeIt.extract_all(reuse=args.use_masters)
+    pypeIt.reduce_all(reuse_masters=args.use_masters)
 
     msgs.info('Data reduction complete')
     # QA HTML
     msgs.info('Generating QA HTML')
     pypeIt.build_qa()
 
-    #pypeit.PypeIt(args.pypeit_file, setup_only=args.prep_setup, calibration_check=args.calcheck,
-                  #use_header_frametype=args.hdrframetype, sort_dir=args.sort_dir, overwrite=args.overwrite,
-                  #verbosity=args.verbosity, use_masters=args.use_masters, show = args.show, logname=logname)
-
     return 0
-
-#    # Execute the reduction, and catch any bugs for printout
-#    if debug['develop']:
-#        pypeit.PYPIT(args.pypeit_file, progname=pypeit.__file__, quick=qck, ncpus=cpu,
-#                    verbosity=args.verbosity, use_masters=args.use_masters, devtest=args.devtest,
-#                    logname=logname)
-#    else:
-#        try:
-#            pypeit.PYPIT(args.pypeit_file, progname=pypeit.__file__, quick=qck, ncpus=cpu,
-#                        verbosity=args.verbosity, use_masters=args.use_masters,
-#                        devtest=args.devtest, logname=logname)
-#        except:
-#            # There is a bug in the code, print the file and line number of the error.
-#            et, ev, tb = sys.exc_info()
-#            filename, line_no = "<filename>", "<line_no>"
-#            while tb:
-#                co = tb.tb_frame.f_code
-#                filename = str(co.co_filename)
-#                try:
-#                    line_no = str(traceback.tb_lineno(tb))
-#                except AttributeError:  # Python 3
-#                    line_no = 'UNDEFINED'
-#                tb = tb.tb_next
-#            filename = filename.split('/')[-1]
-#            if str(ev) != "":
-#                msgs.bug("There appears to be a bug on Line " + line_no + " of " + filename
-#                         + " with error:" + msgs.newline() + str(ev) + msgs.newline()
-#                         + "---> please contact the authors")
-#            msgs.close()
-#            return 1
-#    return 0
-
 

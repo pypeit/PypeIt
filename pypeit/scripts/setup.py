@@ -23,8 +23,8 @@ def parser(options=None):
                         help='File extension; compression indicators (e.g. .gz) not required.')
     parser.add_argument("--pypeit_file", default=False, action='store_true',
                         help='Input is the .pypeit file')
-    parser.add_argument("--redux_path", default=None,
-                        help='Path to reduction folder.  Default is current working directory.')
+    parser.add_argument("--setups_path", default=None,
+                        help='Path to top-level folder.  Default is current working directory.')
     parser.add_argument("-c", "--custom", default=False, action='store_true',
                         help='Generate custom folders and pypeit files?')
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
@@ -45,8 +45,8 @@ def main(args):
 
     from pypeit import msgs
     from pypeit.spectrographs.util import valid_spectrographs
-    from pypeit.par.util import make_pypeit_file, parse_pypeit_file
-    from pypeit.scripts import run_pypeit
+    from pypeit.spectrographs.util import load_spectrograph
+    from pypeit import pypeit
 
     # Check that input spectrograph is supported
     instruments_served = valid_spectrographs()
@@ -56,8 +56,19 @@ def main(args):
                          + '\tSelect an available instrument or consult the documentation '
                          + 'on how to add a new instrument.')
 
+    # Instantiate
+    spectrograph = load_spectrograph(args.spectrograph)
 
-    if args.custom:
+    # Generate PypeIt
+    pypeIt = pypeit.instantiate_me(spectrograph, verbosity=args.verbosity,
+                                   overwrite=args.overwrite, setups_path=args.setups_path)
+
+    pypeIt.build_setup_files(args.files_root)
+
+    # Custom?
+    if not args.custom:
         return
+    else:
+        pypeIt.build_custom_pypeitfiles()
 
 

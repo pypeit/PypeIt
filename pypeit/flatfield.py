@@ -226,7 +226,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         Parameters
         ----------
         datasec_img
-        armed : bool, optional
 
         Returns
         -------

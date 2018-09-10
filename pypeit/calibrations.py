@@ -385,7 +385,7 @@ class Calibrations(object):
             #            and (traceSlits.mstrace is not None):
             #    flatField.mspixelflat = traceSlits.mstrace.copy()
             # Run
-            self.mspixflatnrm, self.msillumflat = self.flatField.run(armed=False, show=show)
+            self.mspixflatnrm, self.msillumflat = self.flatField.run(show=show)
             # Save to Masters
             if self.save_masters:
                 self.flatField.save_master(self.mspixflatnrm, raw_files=pixflat_image_files,

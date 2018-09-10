@@ -13,11 +13,9 @@ from collections import OrderedDict
 from pypeit import msgs
 from pypeit.core import fsort
 from pypeit.core import qa
-from pypeit import arms
 from pypeit.par.util import make_pypeit_file, parse_pypeit_file
 
 from pypeit import pypeitsetup
-from pypeit.spectrographs import keck_lris
 from pypeit.scripts import run_pypeit
 from pypeit.core import pypsetup
 from pypeit import calibrations
@@ -38,6 +36,17 @@ class PypeIt(object):
 
     Parameters
     ----------
+    spectrograph: Spectrograph
+    setups_path: str, optional
+      Path for files related to all setups
+    verbosity: int, optional
+      2=verbose
+    overwrite: bool, optional
+      Overwrite files
+    logname: str, optional
+      filename for log file
+    show: bool, optional
+      Show QA on screen along the way
 
     Attributes
     ----------
@@ -64,7 +73,7 @@ class PypeIt(object):
             self.setups_path = setups_path
 
         # Internals
-        self.pypeit_file = ''
+        self.pypeit_file = None
         self.logname = logname
         self.setup_pypeit_file = None
         self.redux_path = None
@@ -75,6 +84,16 @@ class PypeIt(object):
 
 
     def build_setup_files(self, files_root):
+        """
+        Generate the setup files for PypeIt from a list of input files
+
+        Args:
+            files_root: str
+              Root name for the files to be reduced including full path
+
+        Returns:
+
+        """
 
         # Record the starting time
         self.tstart = time.time()
@@ -86,12 +105,20 @@ class PypeIt(object):
         self.print_end_time()
 
     def build_custom_pypeitfiles(self):
+        """
+        Build the custom PypeIt files, one per unique instrument configuration
+        Each is put in a custom folder parallel to the folder of setups files
+
+        Returns:
+
+        """
 
         msgs.reset(verbosity=2)
 
         # Read master file
         cfg_lines, data_files, frametype, setups = parse_pypeit_file(self.setup_pypeit_file)
-        sorted_file = self.setup_pypeit_file.replace('pypeit', 'sorted')
+        sorted_file = os.path.splitext(self.setup_pypeit_file)[0]+'.sorted'
+        sub_cfg_lines = cfg_lines[0:2]
 
         # Get paths
         paths = []
@@ -105,6 +132,9 @@ class PypeIt(object):
         all_setups, all_setuplines, all_setupfiles = pypsetup.load_sorted(sorted_file)
         for setup, setup_lines, sorted_files in zip(all_setups, all_setuplines, all_setupfiles):
             root = self.spectrograph.spectrograph+'_setup_'
+            # cfg_lines
+            cfg_lines = sub_cfg_lines
+            cfg_lines += ['    sortroot = {0}'.format(root + setup)]
             # Make the dir
             newdir = os.path.join(self.setups_path, root+setup)
             if not os.path.exists(newdir):
@@ -121,13 +151,40 @@ class PypeIt(object):
             print("Wrote {:s}".format(pypeit_file))
 
     def build_qa(self):
+        """
+        Generate QA wrappers
+
+        Returns:
+
+        """
         qa.gen_mf_html(self.pypeit_file)
         qa.gen_exp_html()
 
     def calibrate_one(self, sci_ID, det):
-        pass
+        """
+        Dummy method.  Set in a child
 
-    def extract_all(self, reuse=False):
+        Args:
+            sci_ID:
+            det:
+
+        Returns:
+
+        """
+        assert False
+
+    def reduce_all(self, reuse_masters=False):
+        """
+        Reduce all of the science exposures
+        Generate all needed calibration files
+
+        Args:
+            reuse_masters: bool, optional
+              Reuse MasterFrame files (where available)
+
+        Returns:
+
+        """
 
         self.tstart = time.time()
         std_dict = {}
@@ -141,16 +198,31 @@ class PypeIt(object):
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
         for sci_ID in all_sci_ID:
-            sci_dict = self.extract_exposure(sci_ID, reuse=reuse)
+            sci_dict = self.reduce_exposure(sci_ID, reuse_masters=reuse_masters)
             self.save_exposure(sci_ID, sci_dict)
 
         self.print_end_time()
 
-    def extract_exposure(self, sci_ID, reuse=False):
+    def reduce_exposure(self, sci_ID, reuse_masters=False):
+        """
+        Reduce a single science exposure
+
+        Args:
+            sci_ID: int
+              binary flag indicating the science frame
+            reuse_masters: bool, optional
+              Reuse MasterFrame files (where available)
+
+
+        Returns:
+            sci_dict: dict
+              dict containing the primary outputs of extraction
+
+        """
         self.sci_ID = sci_ID
 
-
-        if reuse:
+        # Insist on re-using MasterFrames where applicable
+        if reuse_masters:
             self.par['calibrations']['masters'] = 'reuse'
 
         sci_dict = OrderedDict()  # This needs to be ordered
@@ -199,6 +271,18 @@ class PypeIt(object):
         return sci_dict
 
     def save_exposure(self, sci_ID, sci_dict):
+        """
+        Save the outputs from extraction for a given exposure
+
+        Args:
+            sci_ID: int
+              binary flag indicating the science frame
+            sci_dict: dict
+              dict containing the primary outputs of extraction
+
+        Returns:
+
+        """
         self.sci_ID = sci_ID
         scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
 
@@ -244,12 +328,37 @@ class PypeIt(object):
         return
 
     def _extract_one(self):
-        pass
+        """
+        Dummy method for extraction
+
+        Returns:
+
+        """
+        assert False
 
     def _init_calibrations(self):
+        """
+        Dummy method for instantiating a Calibration class
+
+        Returns:
+
+        """
         pass
 
     def init_one_science(self, sci_ID, det):
+        """
+        Instantiate ScienceImage class and run the first step with it
+
+        Args:
+            sci_ID: int
+              binary flag indicating the science frame
+            det: int
+              detector index
+
+        Returns:
+            self.obstime : Time
+            self.basename : str
+        """
         self.sci_ID = sci_ID
         self.det = det
 
@@ -269,19 +378,27 @@ class PypeIt(object):
 
 
     def init_setup(self, pypeit_file, redux_path=None, calibration_check=True):
+        """
+        Prepare to run redux on a setup
+
+        Args:
+            pypeit_file: str
+            redux_path: str, optional
+            calibration_check: bool, optional
+              Check calibrations
+
+        Returns:
+
+        """
         self.pypeit_file = pypeit_file
 
-
-        # This loads the file and sets:
+        # This loads the file and sets the following internals:
         #  self.par
         #  self.fitstbl
         #  self.setup_dict
         self._setup(self.pypeit_file, calibration_check=calibration_check)
 
         # Make the output directories
-        # TODO: Do we want the code to interactively ask for a new
-        # directory?  I think it would be better if it just faulted when a
-        # directory/file exists and overwrite is False.
         if redux_path is not None:
             self.par['rdx']['redux_path'] = redux_path
         else:
@@ -290,10 +407,25 @@ class PypeIt(object):
         fsort.make_dirs(self.spectrograph.spectrograph, self.par['calibrations']['caldir'],
                         self.par['rdx']['scidir'], self.par['rdx']['qadir'], overwrite=self.overwrite,
                         redux_path=self.par['rdx']['redux_path'])
-        # Calibrations
+        # Instantiate Calibration class
         self._init_calibrations()
 
     def _make_setup_pypeit_file(self, files_root, extension='.fits', overwrite=False):
+        """
+        Generate a single PypeIt File for a setup
+
+        Args:
+            files_root: str
+            extension: str, optional
+              Extension of data files
+            overwrite: bool, optional
+
+        Returns:
+            pargs: ArgParse
+            outdir: str
+            pypeit_file: str
+
+        """
 
         # setup_files dir
         outdir = os.path.join(self.setups_path, 'setup_files')
@@ -324,11 +456,24 @@ class PypeIt(object):
         return pargs, outdir, pypeit_file
 
     def msgs_reset(self):
+        """
+        Reset the msgs object
+
+        Returns:
+
+        """
+
         # Reset the global logger
         msgs.reset(log=self.logname, verbosity=self.verbosity)
         msgs.pypeit_file = self.pypeit_file
 
     def print_end_time(self):
+        """
+        Print the elapsed time
+
+        Returns:
+
+        """
         # Capture the end time and print it to user
         tend = time.time()
         codetime = tend-self.tstart
@@ -347,9 +492,13 @@ class PypeIt(object):
 
     def _setup(self, pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False, sort_dir=None):
         """
+        Setup PypeIt
+           Check files for all calibrations
+           Generate the FITS table + write to disk
 
         Args:
-            setup_only (bool):
+            pypeit_file (str):
+            setup_only (bool, optional):
                 Only this setup will be performed.  Pypit is expected to
                 execute in a way that ends after this class is fully
                 instantiated such that the user can inspect the results
@@ -357,15 +506,15 @@ class PypeIt(object):
                 output describing the success of the setup and how to
                 proceed, and provides warnings (instead of errors) for
                 issues that may cause the reduction itself to fail.
-            calibration_check (bool):
+            calibration_check (bool, optional):
                 Only check that the calibration frames are appropriately
                 setup and exist on disk.  Pypit is expected to execute in a
                 way that ends after this class is fully instantiated such
                 that the user can inspect the results before proceeding.
-            use_header_frametype (bool):
+            use_header_frametype (bool, optional):
                 Allow setup to use the frame types drawn from the file
                 headers using the instrument specific keywords.
-            sort_dir (str):
+            sort_dir (str, optional):
                 The directory to put the '.sorted' file.
 
         Returns:
@@ -385,6 +534,12 @@ class PypeIt(object):
         self.pypeitSetup.write_fitstbl()
 
     def show_science(self):
+        """
+        Simple print of science frames
+
+        Returns:
+
+        """
         print(self.fitstbl[['target','ra','dec','exptime','dispname','sci_ID']][self.fitstbl['science']])
 
     def __repr__(self):
@@ -396,10 +551,26 @@ class PypeIt(object):
 
 
 class MultiSlit(PypeIt):
+    """
+    Child of PypeIt for Multislit and Longslit reductions
+
+    """
     def __init__(self, spectrograph, **kwargs):
         PypeIt.__init__(self, spectrograph, **kwargs)
 
     def calibrate_one(self, sci_ID, det):
+        """
+        Calibrate a science exposure / detector pair
+
+        Args:
+            sci_ID: int
+              binary flag indicating the science frame
+            det: int
+              detector number
+
+        Returns:
+
+        """
         # Setup
         self.setup = pypsetup.instr_setup(sci_ID, det, self.fitstbl, self.setup_dict,
                                      self.spectrograph.detector[det-1]['numamplifiers'],
@@ -412,6 +583,12 @@ class MultiSlit(PypeIt):
         msgs.info("Successful Calibration!")
 
     def _init_calibrations(self):
+        """
+        Instantiate the Calibrations class
+
+        Returns:
+
+        """
         # TODO -- Need to make save_masters and write_qa optional
         # Init calib dict
         self.caliBrate = calibrations.MultiSlitCalibrations(
@@ -422,9 +599,25 @@ class MultiSlit(PypeIt):
 
 
     def _extract_one(self):
-        msgs.work("Should check the Calibs were done already")
+        """
+        Extract a single exposure/detector pair
+        sci_ID and det need to have been set internally prior
 
+        Returns:
+            sciimg
+            sciivar
+            skymodel
+            objmodel
+            ivarmodel
+            outmask
+            sobjs
+            vel_corr
 
+        """
+        # TODO -- Turn the following stream into a recipe like in Calibrations
+        # TODO -- Should check the Calibs were done already
+
+        #
         scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
 
         # Process images (includes inverse variance image, rn2 image, and CR mask)
@@ -447,6 +640,7 @@ class MultiSlit(PypeIt):
                                                  maskslits=maskslits, show_peaks=self.show)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
+        vel_corr = None
         if nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
             global_sky = self.sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.mstilts,
@@ -481,8 +675,8 @@ class MultiSlit(PypeIt):
                                                            self.spectrograph.telescope['elevation'],
                                                            self.caliBrate.par['wavelengths']['frame'])
                 else:
-                    msgs.info('There are no objects on detector {0} to perform a '.format(det)
-                              + '{1} correction'.format(caliBrate.par['wavelengths']['frame']))
+                    msgs.info('There are no objects on detector {0} to perform a '.format(self.det)
+                              + '{1} correction'.format(self.caliBrate.par['wavelengths']['frame']))
             else:
                 msgs.info('A wavelength reference-frame correction will not be performed.')
 
@@ -494,15 +688,26 @@ class MultiSlit(PypeIt):
             ivarmodel = np.copy(sciivar)  # Set to sciivar. Could create a model but what is the point?
             outmask = self.sciI.bitmask  # Set to inmask in case on objects were found
             sobjs = sobjs_obj  # empty specobjs object from object finding
-            vel_corr = None
 
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
 
 
-class LRISb(MultiSlit):
-    def __init__(self, **kwargs):
-        spectrograph = keck_lris.KeckLRISBSpectrograph()
-        MultiSlit.__init__(self, spectrograph, **kwargs)
+def instantiate_me(spectrograph, **kwargs):
+    """
+    Simple wrapper for grabbing the right PypeIt class
 
+    Args:
+        name: str
+          Allowed options are MultiSlit
+        spectrograph: Spectrograph
+        **kwargs:
 
+    Returns:
 
+    """
+    if spectrograph.pypeit_class() == 'MultiSlit':
+        pypeIt = MultiSlit(spectrograph, **kwargs)
+    else:
+        msgs.error("NOT READY FOR THIS TYPE OF REDUX")
+    # Return
+    return pypeIt

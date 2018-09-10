@@ -36,6 +36,8 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+master_dir = data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
+    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
 
 def test_step_by_step():
     if skip_test:
@@ -48,11 +50,10 @@ def test_step_by_step():
     setup = 'A_01_aa'
     spectrograph.detector[0]['saturation'] = 60000.
     spectrograph.detector[0]['nonlinear'] = 0.9
-    root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
-                    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     par = pypeitpar.WaveTiltsPar()
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
-                                    root_path=root_path, mode='reuse', pixlocn=TSlits.pixlocn,
+                                    master_dir=master_dir,
+                                    mode='reuse', pixlocn=TSlits.pixlocn,
                                     tslits_dict=TSlits.tslits_dict)
     # Extract arcs
     arccen, maskslits = waveTilts._extract_arcs()
@@ -85,11 +86,9 @@ def test_run():
     setup = 'A_01_aa'
     spectrograph.detector[0]['saturation'] = 60000.
     spectrograph.detector[0]['nonlinear'] = 0.9
-    root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
-                    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     par = pypeitpar.WaveTiltsPar()
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
-                                    root_path=root_path, mode='reuse', pixlocn=TSlits.pixlocn,
+                                    master_dir=master_dir, mode='reuse', pixlocn=TSlits.pixlocn,
                                     tslits_dict=TSlits.tslits_dict)
     # Run
     tilts, mask = waveTilts.run(doqa=False)
