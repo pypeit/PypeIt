@@ -239,7 +239,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             self.rawflatimg = self.build_pixflat()
 
         # Prep tck (sets self.ntckx, self.ntcky)
-        self._prep_tck()
+        #self._prep_tck()
 
         # Setup
         self.mspixelflat = np.ones_like(self.rawflatimg)
