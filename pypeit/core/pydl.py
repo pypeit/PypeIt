@@ -672,12 +672,14 @@ class bspline(object):
         goodbkpt = np.where(self.mask)[0]
         nbkpt = len(goodbkpt)
         if nbkpt <= 2*self.nord:
+            msgs.warn('Fewer good break points than order of b-spline. Returning...')
             return -2
         # Find the unique ones for the polynomial
         hmm = err[uniq(err//self.npoly)]//self.npoly
 
         n = nbkpt - self.nord
         if np.any(hmm >= n):
+            msgs.warn('Note enough unique points in cholesky_band decomposition of b-spline matrix. Returning...')
             return -2
         test = np.zeros(nbkpt, dtype='bool')
         for jj in range(-int(np.ceil(self.nord/2)), int(self.nord/2.)):
@@ -730,6 +732,7 @@ class bspline(object):
         goodbk = self.mask[self.nord:]
         nn = goodbk.sum()
         if nn < self.nord:
+            msgs.warn('Fewer good break points than order of b-spline. Returning...')
             yfit = np.zeros(ydata.shape, dtype='f')
             return (-2, yfit)
         nfull = nn * self.npoly
