@@ -13,7 +13,8 @@ from pypeit import debugger
 
 def valid_spectrographs():
     # TODO: Is there a more clever way to do this?
-    return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
+    raise DeprecationWarning("THIS DOES NOTHING, I THINK")
+    return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec_low',
             'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
             'wht_isis_blue', 'vlt_xshooter_vis']
 
@@ -48,8 +49,8 @@ def load_spectrograph(spectrograph=None):
     if spectrograph == 'keck_nires':
         return spectrographs.keck_nires.KeckNIRESpectrograph()
 
-    if spectrograph == 'keck_nirspec':
-        return spectrographs.keck_nirspec.KeckNIRSPECSpectrograph()
+    if spectrograph == 'keck_nirspec_low':
+        return spectrographs.keck_nirspec.KeckNIRSPECLowSpectrograph()
 
     if spectrograph == 'shane_kast_blue':
         return spectrographs.shane_kast.ShaneKastBlueSpectrograph()

@@ -34,8 +34,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         # TODO: Make self.spectrograph a class attribute?
-        # Use the ARMS pipeline
-        par['rdx']['pipeline'] = 'ARMS'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
         par['calibrations']['biasframe']['number'] = 5

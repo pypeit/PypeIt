@@ -19,7 +19,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     def __init__(self):
         # Get it started
         super(KeckNIRSPECSpectrograph, self).__init__()
-        self.spectrograph = 'keck_nirspec'
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'NIRSPEC'
         self.detector = [
@@ -51,7 +50,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         Set default parameters for NIRSPEC redutions
         """
         par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'keck_nirspec'
         # TODO: Make self.spectrograph a class attribute?
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
@@ -224,6 +222,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
     def __init__(self):
         # Get it started
         super(KeckNIRSPECLowSpectrograph, self).__init__()
+        self.spectrograph = 'keck_nirspec_low'
 
 
     def default_pypeit_par(self):
@@ -231,7 +230,6 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         Set default parameters for NIRSPEC low-dispersion reductions
         """
         par = self.nirspec_default_pypeit_par()
-        par['rdx']['pipeline'] = ARMS
         return par
 
     def check_header(self, headers):
