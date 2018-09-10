@@ -354,12 +354,13 @@ class Calibrations(object):
                                              flatpar=self.par['flatfield'], msbias=self.msbias,
                                              tslits_dict=self.tslits_dict, tilts=self.mstilts)
 
-        # Load from disk (MasterFrame)?
-        self.mspixflatnrm = self.flatField.master()
-        self.msillumflat = None
+        # --- Pixel flats
 
-        # Load user supplied flat (e.g. LRISb with pixel flat)?
-        if self.par['flatfield']['frame'] not in ['pixelflat', 'trace']:
+        # 1)  Try to load a master frile from disk (MasterFrame)?
+        self.mspixflatnrm = self.flatField.master()
+
+        # 2) Did the user specific a flat? If so load it in  (e.g. LRISb with pixel flat)?
+        if self.par['flatfield']['frame'] not in ['pixelflat']:
             # First try to find directly, then try to find it in the
             # masters directory, then fail
             if os.path.isfile(self.par['flatfield']['frame']):
@@ -375,9 +376,9 @@ class Calibrations(object):
             self.mspixflatnrm, head, _ = masters._load(mspixelflat_name, exten=self.det,
                                                        frametype=None, force=True)
             # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
-            self.msillumflat = np.ones_like(self.mspixflatnrm)
+            #self.msillumflat = np.ones_like(self.mspixflatnrm)
 
-        # ToDO JFH think about this logic
+        # 3) there is no master or no user supplied flat, generate the flat
         if self.mspixflatnrm is None and len(pixflat_image_files) != 0:
             # TODO -- Consider turning the following back on.  I'm regenerating the flat for now
             # Use mstrace if the indices are identical
@@ -395,12 +396,19 @@ class Calibrations(object):
                                            steps=self.flatField.steps,
                                            outfile=masters.master_name('illumflat', self.setup,
                                                                        self.master_dir))
-        else:
-            self.mspixflatnrm = np.ones_like(self.mstilts)
-            msgs.warn('You are not pixel flat fielding your data!')
 
+        # 4) If we still don't have a pixel flat, then just use unity everywhere and print out a warning
+        if self.mspixflatnrm is None:
+            self.mspixflatnrm = np.ones_like(self.mstilts)
+            msgs.warn('You are not pixel flat fielding your data!!!')
+
+        # --- Illumination flats
+
+        # 1) If we ran the flat field algorithm above, then the illumination file was created. So check msillumflat is set
         if self.msillumflat is None:
+            # 2) If no illumination file is set yet, try to read it in from a master
             self.msillumflat, _, _ = self.flatField.load_master_illumflat()
+            # 3) If there is no master file, then set illumflat to unit and war user that they are not illumflatting their data
             if self.msillumflat is None:
                 self.msillumflat = np.ones_like(self.mstilts)
                 msgs.warn('You are not illumination flat fielding your data!')
@@ -408,6 +416,7 @@ class Calibrations(object):
         # Save & return
         self.calib_dict[self.setup]['normpixelflat'] = self.mspixflatnrm
         self.calib_dict[self.setup]['illumflat'] = self.msillumflat
+
         return self.mspixflatnrm, self.msillumflat
 
     def get_slits(self, arms=True):
