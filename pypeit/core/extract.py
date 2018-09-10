@@ -498,11 +498,17 @@ def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
     fig, ax = plt.subplots(1, figsize=(width, width/1.618))
 
     if ind is None:
-        ind = np.slice(x_tot.size)
+        indx = np.slice(x_tot.size)
+    else:
+        if len(ind) == 0:
+            indx = np.slice(x_tot.size)
+            title = title + ': no good pixels, showing all'
+        else:
+            indx = ind
 
-    x = x_tot.flat[ind]
-    y = y_tot.flat[ind]
-    model = model_tot.flat[ind]
+    x = x_tot.flat[indx]
+    y = y_tot.flat[indx]
+    model = model_tot.flat[indx]
 
     ax.plot(x,y,color='k',marker='o',markersize= 0.3, mfc='k',fillstyle='full',linestyle='None')
 
@@ -578,6 +584,36 @@ def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
     return
 
 
+def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
+                    ind = None, l_limit = None, r_limit=None, xlim = None, xtrunc = 1e6):
+
+    p_show_profile = None  # This is the process object that is passed back for show_profile mode
+    profile_model = np.exp(-0.5 *sigma_x** 2)/np.sqrt(2.0 * np.pi) * (sigma_x ** 2 < 25.)
+    info_string = "FWHM=" + "{:6.2f}".format(fwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2))
+    title_string = obj_string + ', ' + info_string
+    msgs.info(title_string)
+    inf = np.isfinite(profile_model) == False
+    ninf = np.sum(inf)
+    if (ninf != 0):
+        msgs.warn("Nan pixel values in object profile... setting them to zero")
+        profile_model[inf] = 0.0
+    # Normalize profile
+    nspat = profile_model.shape[1]
+    norm = np.outer(np.sum(profile_model, 1), np.ones(nspat))
+    if (np.sum(norm) > 0.0):
+        profile_model = profile_model / norm
+    if (show_profile):
+        # qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, l_limit = l_limit, r_limit = r_limit, ind =good, xlim = 7.0)
+        # Execute the interactive plot as another process
+        p_show_profile = multiprocessing.Process(target=qa_fit_profile, args=(sigma_x, norm_obj, profile_model),
+                                                 kwargs={'l_limit': l_limit, 'r_limit': r_limit, 'title': title_string,
+                                                         'ind': ind, 'xlim': xlim, 'xtrunc':xtrunc})
+        p_show_profile.daemon = True
+        p_show_profile.start()
+
+    return (profile_model, p_show_profile)
+
+
 def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                 thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 3.0, wvmnx = [2900.0,30000.0],
                 hwidth = None, prof_nsigma = None, no_deriv = False, gauss = False, obj_string = '',
@@ -643,9 +679,6 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
 #    multiprocessing.get_context('spawn')
 
     p_show_profile = None  # This is the process object that is passed back for show_profile mode
-
-    # ToDO sort out title string for QA plots
-    title_string = ' '
 
     if hwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
     if prof_nsigma is not None:
@@ -769,53 +802,17 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     sigma = np.full(nspec, thisfwhm/2.3548)
     fwhmfit = sigma*2.3548
     trace_corr = np.zeros(nspec)
-
-    # If we have too few pixels to fit a profile or S/N is too low, just use a Gaussian profile
-    # TODO Clean up the logic below. It is formally correct but
-    # redundant since no trace correction has been created or applied yet.  I'm only postponing doing it
-    # to preserve this syntax for later when it is needed
-    if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
-        msgs.info("Too few good pixels or S/N <" + "{:5.1f}".format(sn_gauss) + " or gauss flag set")
-        msgs.info("Returning Gaussian profile")
-        sigma_x = norm_x/(np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr,np.ones(nspat)))
-        profile_model = np.exp(-0.5*sigma_x**2)/np.sqrt(2.0*np.pi)*(sigma_x**2 < 25.)
-        info_string = "FWHM="  + "{:6.2f}".format(thisfwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2))
-        title_string = obj_string + ', ' + info_string
-        msgs.info(title_string)
-        nxinf = np.sum(np.isfinite(xnew) == False)
-        if(nxinf != 0):
-            msgs.warn("Nan pixel values in trace correction")
-            msgs.warn("Returning original trace....")
-            xnew = trace_in
-        inf = np.isfinite(profile_model) == False
-        ninf = np.sum(inf)
-        if (ninf != 0):
-            msgs.warn("Nan pixel values in object profile... setting them to zero")
-            profile_model[inf] = 0.0
-        # Normalize profile
-        norm = np.outer(np.sum(profile_model,1),np.ones(nspat))
-        if(np.sum(norm) > 0.0):
-            profile_model = profile_model/norm
-        if ngood > 0:
-            indx = good
-        else:
-            title_string = title_string + ', no good pixels, showing all'
-            indx = None
-
-        if(show_profile):
-            #qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, ind=indx, xtrunc= 7.0)
-            # Execute the interactive plot as another process
-            p_show_profile = multiprocessing.Process(target=qa_fit_profile, args = (sigma_x, norm_obj, profile_model),
-                                     kwargs = {'title':title_string, 'ind': indx,'xtrunc': 7.0})
-            p_show_profile.daemon = True
-            p_show_profile.start()
-
-        return (profile_model, xnew, fwhmfit, med_sn2, p_show_profile)
-
-
     msgs.info("Gaussian vs b-spline of width " + "{:6.2f}".format(thisfwhm) + " pixels")
     area = 1.0
     sigma_x = norm_x / (np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr, np.ones(nspat)))
+
+    # If we have too few pixels to fit a profile or S/N is too low, just use a Gaussian profile
+    if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
+        msgs.info("Too few good pixels or S/N <" + "{:5.1f}".format(sn_gauss) + " or gauss flag set")
+        msgs.info("Returning Gaussian profile")
+        (profile_model, p_show_profile) = return_gaussian(sigma_x, norm_obj, thisfwhm, med_sn2, obj_string,show_profile,
+                                                          ind=good,xtrunc=7.0)
+        return (profile_model, trace_in, fwhmfit, med_sn2, p_show_profile)
 
     mask = np.full(nspec*nspat, False, dtype=bool)
 
@@ -899,44 +896,16 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     inside, = np.where((sigma_x.flat[si] > l_limit) & (sigma_x.flat[si] < r_limit) & mask[si])
     ninside = inside.size
 
-
-    # If we have too few pixels after this step, then again just use a Gaussian profile and return. Note that
-    # we are following the original IDL code here and not using the improved sigma and trace correction for the
-    # profile at this stage since ninside is so small.
+    # If we have too few pixels after this step, then again just use a Gaussian profile and return.
     if(ninside < 10):
         msgs.info("Too few pixels inside l_limit and r_limit")
         msgs.info("Returning Gaussian profile")
-        profile_model = np.exp(-0.5*sigma_x**2)/np.sqrt(2.0*np.pi)*(sigma_x**2 < 25.)
-        info_string = "FWHM="  + "{:6.2f}".format(bspline_fwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2))
-        title_string = obj_string + ', ' + info_string
-        msgs.info(title_string)
-        nxinf = np.sum(np.isfinite(xnew) == False)
-        if(nxinf != 0):
-            msgs.warn("Nan pixel values in trace correction")
-            msgs.warn("Returning original trace....")
-            xnew = trace_in
-        inf = np.isfinite(profile_model) == False
-        ninf = np.sum(inf)
-        if (ninf != 0):
-            msgs.warn("Nan pixel values in object profile... setting them to zero")
-            profile_model[inf] = 0.0
-        # Normalize profile
-        norm = np.outer(np.sum(profile_model,1),np.ones(nspat))
-        if(np.sum(norm) > 0.0):
-            profile_model = profile_model/norm
-
-        if(show_profile):
-            #qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, l_limit = l_limit, r_limit = r_limit, ind =good, xlim = 7.0)
-            # Execute the interactive plot as another process
-            p_show_profile = multiprocessing.Process(target=qa_fit_profile, args=(sigma_x, norm_obj, profile_model),
-                                     kwargs={'l_limit':l_limit,'r_limit': r_limit,'title': title_string, 'ind': good, 'xlim': 7.0})
-            p_show_profile.daemon = True
-            p_show_profile.start()
-
-        return (profile_model, xnew, fwhmfit, med_sn2, p_show_profile)
+        (profile_model, p_show_profile) = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,show_profile,
+                                                          ind = good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
+        return (profile_model, trace_in, fwhmfit, med_sn2, p_show_profile)
 
     sigma_iter = 3
-    isort =  (xtemp.flat[si[inside]]).argsort()
+    isort = (xtemp.flat[si[inside]]).argsort()
     inside = si[inside[isort]]
     pb =np.ones(inside.size)
 
@@ -959,6 +928,15 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
 
         mode_shift_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis
                                       ,maxiter=1,kwargs_bspline= {'nbkpts':nbkpts})
+        # Check to see if the mode fit failed, if so punt and return a Gaussian
+        if not np.any(mode_shift_out[1]):
+            msgs.info('B-spline fit to trace correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
+            msgs.info("Returning Gaussian profile")
+            (profile_model, p_show_profile) = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
+                                                              show_profile,ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
+            return (profile_model, trace_in, fwhmfit, med_sn2, p_show_profile)
+
+
         mode_shift_set = mode_shift_out[0]
         temp_set = pydl.bspline(None, fullbkpt = mode_shift_set.breakpoints,nord=mode_shift_set.nord)
         temp_set.coeff = mode_shift_set.coeff[0, :]
@@ -972,6 +950,13 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         profile_basis = np.column_stack((mode_zero,mode_stretch))
         mode_stretch_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis,
                                             maxiter=1,fullbkpt = mode_shift_set.breakpoints)
+        if not np.any(mode_stretch_out[1]):
+            msgs.info('B-spline fit to width correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
+            msgs.info("Returning Gaussian profile")
+            (profile_model, p_show_profile) = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
+                                                              show_profile,ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
+            return (profile_model, trace_in, fwhmfit, med_sn2, p_show_profile)
+
         mode_stretch_set = mode_stretch_out[0]
         temp_set = pydl.bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
         temp_set.coeff = mode_stretch_set.coeff[0, :]
@@ -1000,6 +985,13 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                 keep = np.ones(bkpt.size, type=bool)
             bset_out = utils.bspline_profile(sigma_x.flat[inside[ss]],norm_obj.flat[inside[ss]],norm_ivar.flat[inside[ss]],pb[ss],
                                     nord = 4, bkpt=bkpt[keep],maxiter=2)
+            if not np.any(bset_out[1]):
+                msgs.info('B-spline to profile in trace and width correction loop failed for fit to ninside = {:}'.format(ninside) + ' pixels')
+                msgs.info("Returning Gaussian profile")
+                (profile_model, p_show_profile) = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
+                                                                  show_profile, ind=good, l_limit=l_limit,r_limit=r_limit, xlim=7.0)
+                return (profile_model, trace_in, fwhmfit, med_sn2, p_show_profile)
+
             bset = bset_out[0] # This updated bset used for the next set of trace corrections
 
     # Apply trace corrections only if they are small (added by JFH)
