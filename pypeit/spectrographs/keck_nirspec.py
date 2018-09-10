@@ -76,6 +76,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         # proximate to science frames. The units of this value are
         # specified by fits+timeunit below
         def_keys[0]['time'] = 'UTC'
+        # FIX TIME HERE
 
         # Image size
         # TODO: Check ordering
