@@ -161,53 +161,23 @@ def bspline_magfit(
     flux_obs = flux.copy()
     var_obs = var.copy()
 
-    from pypit.core.pydl import bspline
-    from pypit.core.pydl import iterfit as bspline_iterfit
-
-    """
-    # OLD
-    from pydl.pydlutils.bspline import bspline
-    from pydl.pydlutils.bspline import iterfit as bspline_iterfit
-    """
-
     # preparing arrays to run in bspline_iterfit
 
-    """
-    EPF: this line somehow was not working 
-     invvar = (var_obs > 0.) / (np.max(var_obs, 0))
-    changed to the less elegant, but effective:
-     invvar = 1/var_obs
-    """
-
-    from pypit.arutils import calc_ivar
+    from pypeit.utils import calc_ivar
     invvar = calc_ivar(var_obs)
     if (np.all(~np.isfinite(invvar))):
         msgs.warn("NaN are present in the inverse variance")
 
-    """
-    # maskregions
-    invvar[np.where(var_obs ==  0.0)] = 0.0
-    invvar[np.where(var_obs == -1.0)] = 0.0
-    """
-
-    # Removing 10sigma outliners
-    nx = wave_obs.size
-    pos_error = 1. / np.sqrt(np.maximum(invvar, 0.) + (invvar == 0))
+    # Removing outliners
+    # if the flux is too small, take as value 1/10th of the sigma
+    pos_error = np.sqrt(np.maximum(var_obs, 0.))
     pos_mask = (flux_obs > pos_error / 10.0) & (invvar > 0) & (flux_std > 0.0)
-
     fluxlog = 2.5 * np.log10(np.maximum(flux_obs, pos_error / 10))
-    
+    logivar = invvar * np.power(flux_obs,2.) * pos_mask * np.power(1.08574,-2.)
     """
-    Ema: Old logivar
+    EMA: I think there was a bug here. You need to have 1.08574^-2
     logivar = invvar * flux_obs ** 2 * pos_mask * 1.08574
     """
-    
-    """
-    1.08574 converts Log_10 into ln
-    """
-    logivar = invvar * np.power(flux_obs,2.) * pos_mask * np.power(1.08574,-2.)
-
-
 
     # Exclude extreme values of magfunc
     flux_stdlog = 2.5 * np.log10(np.maximum(flux_std, 1.0e-20))
@@ -217,7 +187,10 @@ def bspline_magfit(
 
     msgs.info("Initialize bspline for flux calibration")
 
-    init_bspline = bspline(wave_obs, bkspace=kwargs_bspline['bkspace'])
+    from pypeit.core import pydl
+
+    init_bspline = pydl.bspline(wave_obs,
+                                bkspace=kwargs_bspline['bkspace'])
     fullbkpt = init_bspline.breakpoints
     # remove masked regions
     msk_obs = np.ones_like(wave_obs).astype(bool)
@@ -238,17 +211,14 @@ def bspline_magfit(
     plt.legend()
     plt.xlabel('Wavelength [ang]')
     plt.show()
-    plt.close()
-
-
-
+    
     #  First round of the fit:
-    bset1, bmask = bspline_iterfit(wave_obs, magfunc, invvar=logivar,
-                                   upper=upper, lower=lower,
-                                   maxiter=maxiter,
-                                   fullbkpt=init_breakpoints,
-                                   kwargs_bspline=kwargs_bspline,
-                                   kwargs_reject=kwargs_reject)
+    bset1, bmask = pydl.iterfit(wave_obs, magfunc, invvar=logivar,
+                                upper=upper, lower=lower,
+                                maxiter=maxiter,
+                                fullbkpt=init_breakpoints,
+                                kwargs_bspline=kwargs_bspline,
+                                kwargs_reject=kwargs_reject)
 
     """
     # OLD
@@ -294,7 +264,7 @@ def bspline_magfit(
     msgs.info("Bspline fit: step 2")
 
     #  Now do one more fit to the ratio of data/model - 1.
-    bset_residual, bmask2 = bspline_iterfit(wave_obs, residual, invvar=residual_ivar,
+    bset_residual, bmask2 = pydl.iterfit(wave_obs, residual, invvar=residual_ivar,
                                             fullbkpt=bset1.breakpoints, maxiter=maxiter, upper=upper,
                                             lower=lower, kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject)
     """
