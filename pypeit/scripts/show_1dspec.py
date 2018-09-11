@@ -38,7 +38,7 @@ def main(args, unit_test=False):
 
     from linetools.guis.xspecgui import XSpecGui
 
-    from pypeit import arload
+    from pypeit.core import load
 
     # List only?
     if args.list:
@@ -50,7 +50,7 @@ def main(args, unit_test=False):
         sys.exit()
 
     # Load spectrum
-    spec = arload.load_1dspec(args.file, exten=args.exten, extract=args.extract,
+    spec = load.load_1dspec(args.file, exten=args.exten, extract=args.extract,
                               objname=args.obj, flux=args.flux)
 
     if unit_test is False:

@@ -9,7 +9,7 @@ from warnings import warn
 
 from pypeit import msgs
 from pypeit import debugger
-
+import copy
 
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
@@ -232,8 +232,11 @@ class bspline(object):
         """Init creates an object whose attributes are similar to the
         structure returned by the create_bspline function.
         """
+        # JFH added this to enforce immutability of these input arguments, as this code modifies bkpt and fullbkpt
+        # as it goes
+        fullbkpt1 = copy.copy(fullbkpt)
+        bkpt1 = copy.copy(bkpt)
         #ToDO Consider refactoring the argument list so that there are no kwargs
-
         if from_dict is not None:
             self.nord=from_dict['nord'],
             self.npoly=from_dict['npoly'],
@@ -248,29 +251,29 @@ class bspline(object):
             #
             # Set the breakpoints.
             #
-            if fullbkpt is None:
-                if bkpt is None:
+            if fullbkpt1 is None:
+                if bkpt1 is None:
                     startx = x.min()
                     rangex = x.max() - startx
                     if 'placed' in kwargs:
                         w = ((kwargs['placed'] >= startx) &
                              (kwargs['placed'] <= startx+rangex))
                         if w.sum() < 2:
-                            bkpt = np.arange(2, dtype='f') * rangex + startx
+                            bkpt1 = np.arange(2, dtype='f') * rangex + startx
                         else:
-                            bkpt = kwargs['placed'][w]
+                            bkpt1 = kwargs['placed'][w]
                     elif 'bkspace' in kwargs:
                         nbkpts = int(rangex/kwargs['bkspace']) + 1
                         if nbkpts < 2:
                             nbkpts = 2
                         tempbkspace = rangex/float(nbkpts-1)
-                        bkpt = np.arange(nbkpts, dtype='f')*tempbkspace + startx
+                        bkpt1 = np.arange(nbkpts, dtype='f')*tempbkspace + startx
                     elif 'nbkpts' in kwargs:
                         nbkpts = kwargs['nbkpts']
                         if nbkpts < 2:
                             nbkpts = 2
                         tempbkspace = rangex/float(nbkpts-1)
-                        bkpt = np.arange(nbkpts, dtype='f') * tempbkspace + startx
+                        bkpt1 = np.arange(nbkpts, dtype='f') * tempbkspace + startx
                     elif 'everyn' in kwargs:
                         nx = x.size
                         nbkpts = max(nx/kwargs['everyn'], 1)
@@ -281,38 +284,53 @@ class bspline(object):
                             # JFH This was a bug. Made fixes
                             #xspot = int(nx/(nbkpts-1)) * np.arange(nbkpts, dtype='i4')
                         #bkpt = x[xspot].astype('f')
-                        bkpt = np.interp(xspot,np.arange(nx),x)
+                        bkpt1 = np.interp(xspot,np.arange(nx),x)
                     else:
                         raise ValueError('No information for bkpts.')
-                imin = bkpt.argmin()
-                imax = bkpt.argmax()
-                if x.min() < bkpt[imin]:
-                    if verbose:
-                        print('Lowest breakpoint does not cover lowest x value: changing.')
-                    bkpt[imin] = x.min()
-                if x.max() > bkpt[imax]:
-                    if verbose:
-                        print('Highest breakpoint does not cover highest x value: changing.')
-                    bkpt[imax] = x.max()
-                nshortbkpt = bkpt.size
-                fullbkpt = bkpt.copy()
+                # JFH added this new code, because bkpt.size = 1 implies fullbkpt has only 2*(nord-1) + 1 elements.
+                # This will cause a crash in action because nbkpt < 2*nord, i.e. for bkpt = 1, nord = 7 fullbkpt has
+                # seven elements which is less than 2*nord = 8. The codes above seem to require nbkpt >=2, so I'm implementing
+                # this requirement. Note that the previous code before this fix simply sets bkpt to bkpt[imax] =x.max()
+                # which is equally arbitrary, but still results in a crash. By requiring at least 2 bkpt, fullbkpt will
+                # have 8 elements preventing action from crashing
+                if (bkpt1.size < 2):
+                    bkpt1 = np.zeros(2,dtype=float)
+                    bkpt1[0] = x.min()
+                    bkpt1[1] = x.max()
+                else:
+                    imin = bkpt1.argmin()
+                    imax = bkpt1.argmax()
+                    if x.min() < bkpt1[imin]:
+                        if verbose:
+                            print('Lowest breakpoint does not cover lowest x value: changing.')
+                        bkpt1[imin] = x.min()
+                    if x.max() > bkpt1[imax]:
+                        if verbose:
+                            print('Highest breakpoint does not cover highest x value: changing.')
+                        bkpt1[imax] = x.max()
+
+                nshortbkpt = bkpt1.size
+                fullbkpt1 = bkpt1.copy()
+                # Note that with the JFH change above, this nshortbkpt ==1 is never realized beacause above I forced
+                # bkpt to have at least two elements. Not sure why this was even allowed, since bkpt.size = 1
+                #  basically results in action crashing as described above.
                 if nshortbkpt == 1:
                     bkspace = np.float32(bkspread)
                 else:
-                    bkspace = (bkpt[1] - bkpt[0]) * np.float32(bkspread)
+                    bkspace = (bkpt1[1] - bkpt1[0]) * np.float32(bkspread)
                 for i in np.arange(1, nord, dtype=np.float32):
-                    fullbkpt = np.insert(fullbkpt, 0, bkpt[0]-bkspace*i)
-                    fullbkpt = np.insert(fullbkpt, fullbkpt.shape[0],
-                                         bkpt[nshortbkpt-1] + bkspace*i)
+                    fullbkpt1 = np.insert(fullbkpt1, 0, bkpt1[0]-bkspace*i)
+                    fullbkpt1 = np.insert(fullbkpt1, fullbkpt1.shape[0],
+                                         bkpt1[nshortbkpt-1] + bkspace*i)
 
             #
             # Set the attributes
             #
-            nc = fullbkpt.size - nord
-            self.breakpoints = fullbkpt
+            nc = fullbkpt1.size - nord
+            self.breakpoints = fullbkpt1
             self.nord = nord
             self.npoly = npoly
-            self.mask = np.ones((fullbkpt.size,), dtype='bool')
+            self.mask = np.ones((fullbkpt1.size,), dtype='bool')
             if npoly > 1:
                 self.coeff = np.zeros((npoly, nc), dtype='d')
                 self.icoeff = np.zeros((npoly, nc), dtype='d')
@@ -454,6 +472,8 @@ class bspline(object):
         nx = x.size
         nbkpt = self.mask.sum()
         if nbkpt < 2*self.nord:
+            msgs.warn('Order chosen nord = {:d}'.format(self.nord) +
+                         ' is too low for the number of breakpoints nbkpt = {:d}'.format(nbkpt))
             return (-2, 0, 0)
         n = nbkpt - self.nord
         gb = self.breakpoints[self.mask]
@@ -794,9 +814,18 @@ def cholesky_band(l, mininf=0.0):
     bw, nn = lower.shape
     n = nn - bw
     negative = lower[0, 0:n] <= mininf
-    if negative.any() or not np.all(np.isfinite(lower)):
-        msgs.warn('Bad entries: ' + str(negative.nonzero()[0]))
+    # JFH changed this below to make it more consistent with IDL version. Not sure
+    # why the np.all(np.isfinite(lower)) was added. The code could return an empty
+    # list for negative.nonzero() and crash if all elements in lower are NaN.
+    if negative.any():
+        msgs.warn('Found {:d}'.format(len(negative.nonzero()[0])) +
+                  ' bad entries: ' + str(negative.nonzero()[0]))
         return (negative.nonzero()[0], l)
+#    negative = (lower[0, 0:n] <= mininf)
+#    if negative.any() or not np.all(np.isfinite(lower)):
+#        msgs.warn('Found {:d}'.format(len(negative.nonzero()[0])) +
+#                  ' bad entries: ' + str(negative.nonzero()[0]))
+#        return (negative.nonzero()[0], l)
     kn = bw - 1
     spot = np.arange(kn, dtype='i4') + 1
     bi = np.arange(kn, dtype='i4')
@@ -1108,6 +1137,472 @@ def fchebyshev(x, m):
         for k in range(2, m):
             leg[k, :] = np.polyval(chebyt(k), x)
     return leg
+
+
+def fchebyshev_split(x, m):
+    """Compute the first `m` Chebyshev polynomials, but modified to allow a
+    split in the baseline at :math:`x=0`.  The intent is to allow a model fit
+    where a constant term is different for positive and negative `x`.
+
+    Parameters
+    ----------
+    x : array-like
+        Compute the Chebyshev polynomials at these abscissa values.
+    m : :class:`int`
+        The number of Chebyshev polynomials to compute.  For example, if
+        :math:`m = 3`, :math:`T_0 (x)`, :math:`T_1 (x)` and
+        :math:`T_2 (x)` will be computed.
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+    """
+    import numpy as np
+    if isinstance(x, np.ndarray):
+        n = x.size
+    else:
+        n = 1
+    if m < 2:
+        raise ValueError('Order of polynomial must be at least 2.')
+    try:
+        dt = x.dtype
+    except AttributeError:
+        dt = np.float64
+    leg = np.ones((m, n), dtype=dt)
+    try:
+        leg[0, :] = (x >= 0).astype(x.dtype)
+    except AttributeError:
+        leg[0, :] = np.double(x >= 0)
+    if m > 2:
+        leg[2, :] = x
+    if m > 3:
+        for k in range(3, m):
+            leg[k, :] = 2.0 * x * leg[k-1, :] - leg[k-2, :]
+    return leg
+
+
+
+def fpoly(x, m):
+    """Compute the first `m` simple polynomials.
+
+    Parameters
+    ----------
+    x : array-like
+        Compute the simple polynomials at these abscissa values.
+    m : :class:`int`
+        The number of simple polynomials to compute.  For example, if
+        :math:`m = 3`, :math:`x^0`, :math:`x^1` and
+        :math:`x^2` will be computed.
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+    """
+    if isinstance(x, np.ndarray):
+        n = x.size
+    else:
+        n = 1
+    if m < 1:
+        raise ValueError('Order of polynomial must be at least 1.')
+    try:
+        dt = x.dtype
+    except AttributeError:
+        dt = np.float64
+    leg = np.ones((m, n), dtype=dt)
+    if m >= 2:
+        leg[1, :] = x
+    if m >= 3:
+        for k in range(2, m):
+            leg[k, :] = leg[k-1, :] * x
+    return leg
+
+
+def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
+            inputans=None, inputfunc=None):
+    """Fit `x`, `y` positions to a functional form.
+
+    Parameters
+    ----------
+    x : array-like
+        X values (independent variable).
+    y : array-like
+        Y values (dependent variable).
+    ncoeff : :class:`int`
+        Number of coefficients to fit.
+    invvar : array-like, optional
+        Weight values; inverse variance.
+    function_name : :class:`str`, optional
+        Function name, default 'legendre'.
+    ia : array-like, optional
+        An array of bool of length `ncoeff` specifying free (``True``) and
+        fixed (``False``) parameters.
+    inputans : array-like, optional
+        An array of values of length `ncoeff` specifying the values of
+        the fixed parameters.
+    inputfunc : array-like, optional
+        Multiply the function fit by these values.
+
+    Returns
+    -------
+    :func:`tuple` of array-like
+        Fit coefficients, length `ncoeff`; fitted values.
+
+    Raises
+    ------
+    KeyError
+        If an invalid function type is selected.
+    ValueError
+        If input dimensions do not agree.
+    """
+    if x.shape != y.shape:
+        raise ValueError('Dimensions of X and Y do not agree!')
+    if invvar is None:
+        invvar = np.ones(x.shape, dtype=x.dtype)
+    else:
+        if invvar.shape != x.shape:
+            raise ValueError('Dimensions of X and invvar do not agree!')
+    if ia is None:
+        ia = np.ones((ncoeff,), dtype=np.bool)
+    if not ia.all():
+        if inputans is None:
+            inputans = np.zeros((ncoeff,), dtype=x.dtype)
+    #
+    # Select unmasked points
+    #
+    igood = (invvar > 0).nonzero()[0]
+    ngood = len(igood)
+    res = np.zeros((ncoeff,), dtype=x.dtype)
+    yfit = np.zeros(x.shape, dtype=x.dtype)
+    if ngood == 0:
+        pass
+    elif ngood == 1:
+        res[0] = y[igood[0]]
+        yfit += y[igood[0]]
+    else:
+        ncfit = min(ngood, ncoeff)
+        function_map = {
+            'legendre': flegendre,
+            'flegendre': flegendre,
+            'chebyshev': fchebyshev,
+            'fchebyshev': fchebyshev,
+            'chebyshev_split': fchebyshev_split,
+            'fchebyshev_split': fchebyshev_split,
+            'poly': fpoly,
+            'fpoly': fpoly
+            }
+        try:
+            legarr = function_map[function_name](x, ncfit)
+        except KeyError:
+            raise KeyError('Unknown function type: {0}'.format(function_name))
+        if inputfunc is not None:
+            if inputfunc.shape != x.shape:
+                raise ValueError('Dimensions of X and inputfunc do not agree!')
+            legarr *= np.tile(inputfunc, ncfit).reshape(ncfit, x.shape[0])
+        yfix = np.zeros(x.shape, dtype=x.dtype)
+        nonfix = ia[0:ncfit].nonzero()[0]
+        nparams = len(nonfix)
+        fixed = (~ia[0:ncfit]).nonzero()[0]
+        if len(fixed) > 0:
+            yfix = np.dot(legarr.T, inputans * (1 - ia))
+            ysub = y - yfix
+            finalarr = legarr[nonfix, :]
+        else:
+            finalarr = legarr
+            ysub = y
+        # extra2 = finalarr * np.outer(np.ones((nparams,), dtype=x.dtype),
+        #                             (invvar > 0))
+        extra2 = finalarr * np.outer(np.ones((nparams,), dtype=x.dtype),
+                                    invvar)
+        alpha = np.dot(finalarr, extra2.T)
+        # assert alpha.dtype == x.dtype
+        if nparams > 1:
+            # beta = np.dot(ysub * (invvar > 0), finalarr.T)
+            beta = np.dot(ysub * invvar, finalarr.T)
+            assert beta.dtype == x.dtype
+            # uu,ww,vv = np.linalg.svd(alpha, full_matrices=False)
+            res[nonfix] = np.linalg.solve(alpha, beta)
+        else:
+            # res[nonfix] = (ysub * (invvar > 0) * finalarr).sum()/alpha
+            res[nonfix] = (ysub * invvar * finalarr).sum()/alpha
+        if len(fixed) > 0:
+            res[fixed] = inputans[fixed]
+        yfit = np.dot(legarr.T, res[0:ncfit])
+    return (res, yfit)
+
+
+class TraceSet(object):
+    """Implements the idea of a trace set.
+
+    Attributes
+    ----------
+    func : :class:`str`
+        Name of function type used to fit the trace set.
+    xmin : float-like
+        Minimum x value.
+    xmax : float-like
+        Maximum x value.
+    coeff : array-like
+        Coefficients of the trace set fit.
+    nTrace : :class:`int`
+        Number of traces in the object.
+    ncoeff : :class:`int`
+        Number of coefficients of the trace set fit.
+    xjumplo : float-like
+        Jump value, for BOSS readouts.
+    xjumphi : float-like
+        Jump value, for BOSS readouts.
+    xjumpval : float-like
+        Jump value, for BOSS readouts.
+    outmask : array-like
+        When initialized with x,y positions, this contains the rejected
+        points.
+    yfit : array-like
+        When initialized with x,y positions, this contains the fitted y
+        values.
+    """
+    _func_map = {'poly': fpoly, 'legendre': flegendre,
+                    'chebyshev': fchebyshev}
+
+    def __init__(self, *args, **kwargs):
+        """This class can be initialized either with a set of xy positions,
+        or with a trace set HDU from a FITS file.
+        """
+        from astropy.io.fits.fitsrec import FITS_rec
+        #from .math import djs_reject
+        if len(args) == 1 and isinstance(args[0], FITS_rec):
+            #
+            # Initialize with FITS data
+            #
+            self.func = args[0]['FUNC'][0]
+            self.xmin = args[0]['XMIN'][0]
+            self.xmax = args[0]['XMAX'][0]
+            self.coeff = args[0]['COEFF'][0]
+            self.nTrace = self.coeff.shape[0]
+            self.ncoeff = self.coeff.shape[1]
+            if 'XJUMPLO' in args[0].dtype.names:
+                self.xjumplo = args[0]['XJUMPLO'][0]
+                self.xjumphi = args[0]['XJUMPHI'][0]
+                self.xjumpval = args[0]['XJUMPVAL'][0]
+            else:
+                self.xjumplo = None
+                self.xjumphi = None
+                self.xjumpval = None
+            self.outmask = None
+            self.yfit = None
+        elif len(args) == 2:
+            #
+            # Initialize with x, y positions.
+            #
+            xpos = args[0]
+            ypos = args[1]
+            self.nTrace = xpos.shape[0]
+            if 'invvar' in kwargs:
+                invvar = kwargs['invvar']
+            else:
+                invvar = np.ones(xpos.shape, dtype=xpos.dtype)
+            if 'func' in kwargs:
+                self.func = kwargs['func']
+            else:
+                self.func = 'legendre'
+            if 'ncoeff' in kwargs:
+                self.ncoeff = int(kwargs['ncoeff'])
+            else:
+                self.ncoeff = 3
+            if 'xmin' in kwargs:
+                self.xmin = np.float64(kwargs['xmin'])
+            else:
+                self.xmin = xpos.min()
+            if 'xmax' in kwargs:
+                self.xmax = np.float64(kwargs['xmax'])
+            else:
+                self.xmax = xpos.max()
+            if 'maxiter' in kwargs:
+                maxiter = int(kwargs['maxiter'])
+            else:
+                maxiter = 10
+            if 'inmask' in kwargs:
+                inmask = kwargs['inmask']
+            else:
+                inmask = np.ones(xpos.shape, dtype=np.bool)
+            do_jump = False
+            if 'xjumplo' in kwargs:
+                do_jump = True
+                self.xjumplo = np.float64(kwargs['xjumplo'])
+            else:
+                self.xjumplo = None
+            if 'xjumphi' in kwargs:
+                self.xjumphi = np.float64(kwargs['xjumphi'])
+            else:
+                self.xjumphi = None
+            if 'xjumpval' in kwargs:
+                self.xjumpval = np.float64(kwargs['xjumpval'])
+            else:
+                self.xjumpval = None
+            self.coeff = np.zeros((self.nTrace, self.ncoeff), dtype=xpos.dtype)
+            self.outmask = np.zeros(xpos.shape, dtype=np.bool)
+            self.yfit = np.zeros(xpos.shape, dtype=xpos.dtype)
+            for iTrace in range(self.nTrace):
+                xvec = self.xnorm(xpos[iTrace, :], do_jump)
+                iIter = 0
+                qdone = False
+                tempivar = (invvar[iTrace, :] *
+                            inmask[iTrace, :].astype(invvar.dtype))
+                thismask = tempivar > 0
+                while (not qdone) and (iIter <= maxiter):
+                    res, ycurfit = func_fit(xvec, ypos[iTrace, :], self.ncoeff,
+                        invvar=tempivar, function_name=self.func)
+                    thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,
+                                                invvar=tempivar)
+                    iIter += 1
+                self.yfit[iTrace, :] = ycurfit
+                self.coeff[iTrace, :] = res
+                self.outmask[iTrace, :] = thismask
+        else:
+            msgs.error('Wrong number of arguments to TraceSet!')
+            #raise PydlutilsException("Wrong number of arguments to TraceSet!")
+
+    def xy(self, xpos=None, ignore_jump=False):
+        """Convert from a trace set to an array of x,y positions.
+
+        Parameters
+        ----------
+        xpos : array-like, optional
+            If provided, evaluate the trace set at these positions.  Otherwise
+            the positions will be constructed from the trace set object iself.
+        ignore_jump : :class:`bool`, optional
+            If ``True``, ignore any jump information in the `tset` object
+
+        Returns
+        -------
+        :func:`tuple` of array-like
+            The x, y positions.
+        """
+        #from .misc import djs_laxisgen
+        do_jump = self.has_jump and (not ignore_jump)
+        if xpos is None:
+            xpos = djs_laxisgen([self.nTrace, self.nx], iaxis=1) + self.xmin
+        ypos = np.zeros(xpos.shape, dtype=xpos.dtype)
+        for iTrace in range(self.nTrace):
+            xvec = self.xnorm(xpos[iTrace, :], do_jump)
+            legarr = self._func_map[self.func](xvec, self.ncoeff)
+            ypos[iTrace, :] = np.dot(legarr.T, self.coeff[iTrace, :])
+        return (xpos, ypos)
+
+    @property
+    def has_jump(self):
+        """``True`` if jump conditions are set.
+        """
+        return self.xjumplo is not None
+
+    @property
+    def xRange(self):
+        """Range of x values.
+        """
+        return self.xmax - self.xmin
+
+    @property
+    def nx(self):
+        """Number of x values.
+        """
+        return int(self.xRange + 1)
+
+    @property
+    def xmid(self):
+        """Midpoint of x values.
+        """
+        return 0.5 * (self.xmin + self.xmax)
+
+    def xnorm(self, xinput, jump):
+        """Convert input x coordinates to normalized coordinates suitable
+        for input to special polynomials.
+
+        Parameters
+        ----------
+        xinput : array-like
+            Input coordinates.
+        jump : :class:`bool`
+            Set to ``True`` if there is a jump.
+
+        Returns
+        -------
+        array-like
+            Normalized coordinates.
+        """
+        if jump:
+            # Vector specifying what fraction of the jump has passed:
+            jfrac = np.minimum(np.maximum(((xinput - self.xjumplo) /
+                                (self.xjumphi - self.xjumplo)), 0.), 1.)
+            # Conversion to "natural" x baseline:
+            xnatural = xinput + jfrac * self.xjumpval
+        else:
+            xnatural = xinput
+        return 2.0 * (xnatural - self.xmid)/self.xRange
+
+
+def traceset2xy(tset, xpos=None, ignore_jump=False):
+    """Convert from a trace set to an array of x,y positions.
+
+    Parameters
+    ----------
+    tset : :class:`TraceSet`
+        A :class:`TraceSet` object.
+    xpos : array-like, optional
+        If provided, evaluate the trace set at these positions.  Otherwise
+        the positions will be constructed from the trace set object iself.
+    ignore_jump : bool, optional
+        If ``True``, ignore any jump information in the `tset` object
+
+    Returns
+    -------
+    :func:`tuple` of array-like
+        The x, y positions.
+    """
+    return tset.xy(xpos, ignore_jump)
+
+
+def xy2traceset(xpos, ypos, **kwargs):
+    """Convert from x,y positions to a trace set.
+
+    Parameters
+    ----------
+    xpos, ypos : array-like
+        X,Y positions corresponding as [nx,Ntrace] arrays.
+    invvar : array-like, optional
+        Inverse variances for fitting.
+    func : :class:`str`, optional
+        Function type for fitting; defaults to 'legendre'.
+    ncoeff : :class:`int`, optional
+        Number of coefficients to fit.  Defaults to 3.
+    xmin, xmax : :class:`float`, optional
+        Explicitly set minimum and maximum values, instead of computing
+        them from `xpos`.
+    maxiter : :class:`int`, optional
+        Maximum number of rejection iterations; set to 0 for no rejection;
+        default to 10.
+    inmask : array-like, optional
+        Mask set to 1 for good points and 0 for rejected points;
+        same dimensions as `xpos`, `ypos`.  Points rejected by `inmask`
+        are always rejected from the fits (the rejection is "sticky"),
+        and will also be marked as rejected in the outmask attribute.
+    ia, inputans, inputfunc : array-like, optional
+        These arguments will be passed to :func:`func_fit`.
+    xjumplo : :class:`float`, optional
+        x position locating start of an x discontinuity
+    xjumphi : :class:`float`, optional
+        x position locating end of that x discontinuity
+    xjumpval : :class:`float`, optional
+        magnitude of the discontinuity "jump" between those bounds
+        (previous 3 keywords motivated by BOSS 2-phase readout)
+
+    Returns
+    -------
+    :class:`TraceSet`
+        A :class:`TraceSet` object.
+    """
+    return TraceSet(xpos, ypos, **kwargs)
+
+
+
 
 def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
                invvar=None, lower=None, upper=None, maxdev=None,
@@ -1425,4 +1920,47 @@ def djs_laxisnum(dims, iaxis=0):
     else:
         raise ValueError("{0:d} dimensions not supported.".format(ndimen))
     return result
+
+
+
+def djs_laxisgen(dims, iaxis=0):
+    """Returns an integer array where each element of the array is set
+    equal to its index number along the specified axis.
+
+    Parameters
+    ----------
+    dims : :class:`list`
+        Dimensions of the array to return.
+    iaxis : :class:`int`, optional
+        Index along this dimension.
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        An array of indexes with ``dtype=int32``.
+
+    Raises
+    ------
+    ValueError
+        If `iaxis` is greater than or equal to the number of dimensions.
+
+    Notes
+    -----
+    For two or more dimensions, there is no difference between this routine
+    and :func:`~pydl.pydlutils.misc.djs_laxisnum`.
+
+    Examples
+    --------
+    >>> from pydl.pydlutils.misc import djs_laxisgen
+    >>> print(djs_laxisgen([4,4]))
+    [[0 0 0 0]
+     [1 1 1 1]
+     [2 2 2 2]
+     [3 3 3 3]]
+    """
+    ndimen = len(dims)
+    if ndimen == 1:
+        return np.arange(dims[0], dtype='i4')
+    return djs_laxisnum(dims, iaxis)
+
 

@@ -36,6 +36,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['hatch'] = 'TRAPDOOR'
 
         # TODO: Should do something with the lamps
+        # Lamp names and statuses
+        for kk,lamp_name in enumerate(['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON',
+                          'XENON', 'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']):
+            #def_keys[0]['lampname{:02d}'.format(kk+1)] = lamp_name
+            def_keys[0]['lampstat{:02d}'.format(kk+1)] = lamp_name
 
         return def_keys
 
@@ -142,6 +147,67 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Return
         return match_criteria
 
+    def lris_cond_dict(self, ftype):
+        """
+
+        Args:
+            ftype: str
+
+        Returns:
+
+        """
+        cond_dict = {}
+
+        if ftype == 'science':
+            cond_dict['condition1'] = 'lampstat01=off&lampstat02=off&lampstat03=off' \
+                                      '&lampstat04=off&lampstat05=off&lampstat06=off' \
+                                      '&lampstat07=off&lampstat08=off&lampstat09=off' \
+                                      '&lampstat10=off&lampstat11=off&lampstat12=off'
+            cond_dict['condition2'] = 'hatch=open'
+            cond_dict['condition2'] = 'exptime>29'
+        elif ftype == 'bias':
+            cond_dict['condition1'] = 'lampstat01=off&lampstat02=off&lampstat03=off' \
+                                      '&lampstat04=off&lampstat05=off&lampstat06=off' \
+                                      '&lampstat07=off&lampstat08=off&lampstat09=off' \
+                                      '&lampstat10=off&lampstat11=off&lampstat12=off'
+            cond_dict['condition2'] = 'exptime<1'
+        elif ftype == 'pixelflat':
+            cond_dict['condition1'] = 'exptime<30&exptime>1'
+            cond_dict['condition2'] = 'hatch=open'  # Dome, not internal
+        elif ftype == 'pinhole':
+            cond_dict['condition1'] = 'exptime>99999999'
+        elif ftype == 'trace':
+            cond_dict['condition1'] = 'exptime<30&exptime>1'
+            cond_dict['condition2'] = 'hatch=open'  # Dome, not internal
+        elif ftype == 'arc':
+            cond_dict['condition1'] = 'lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on' \
+                                      '|lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on' \
+                                      '|lampstat05=on'
+            cond_dict['condition2'] = 'hatch=closed'
+        else:
+            pass
+
+        return cond_dict
+
+    def check_ftype(self, ftype, fitstbl):
+        """
+        Check the frame type
+
+        Args:
+            ftype:
+            fitstbl:
+
+        Returns:
+
+        """
+        # Load up
+        cond_dict = self.lris_cond_dict(ftype)
+
+        # Do it
+        gd_chk = fsort.chk_all_conditions(fitstbl, cond_dict)
+
+        return gd_chk
+
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     """
@@ -206,7 +272,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['slits']['sigdetect'] = 30.
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypeitpar.SkySubtractionPar()
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
@@ -244,7 +310,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             arcparam is modified in place
 
         """
-        arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'CdI', 'HgI']
+        arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         if disperser == '600/4000':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.63 # Ang per pixel (unbinned)
@@ -252,19 +318,22 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 6000.
             arcparam['wv_cen'] = 4000.
+            arcparam['min_ampl'] = 1000.0
         elif disperser == '400/3400':
+            pass
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=1.02
             arcparam['b1']= 2.72694493e-04
             arcparam['b2']= -5.30717321e-09
             arcparam['wvmnx'][1] = 6000.
+            arcparam['min_ampl'] = 1000.0
         elif disperser == '300/5000':
             arcparam['n_first'] = 2
             arcparam['wv_cen'] = 4500.
             arcparam['disp'] = 1.43
+            arcparam['min_ampl'] = 1000.0
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-
 
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
@@ -314,7 +383,29 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         self.numhead = 5
         # Uses default timeunit
         # Uses default primary_hdrext
+        # TODO why isn't there a sky file set here?
         # self.sky_file ?
+
+    @staticmethod
+    def default_pypeit_par():
+        """
+        Set default parameters for Keck LRISr reductions.
+        """
+        par = pypeitpar.PypeItPar()
+        par['rdx']['spectrograph'] = 'keck_lris_red'
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+        # Set wave tilts order
+        par['calibrations']['slits']['sigdetect'] = 30.
+        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+        # Always sky subtract, starting with default parameters
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypeitpar.FlexurePar()
+        return par
+
 
     def header_keys(self):
         head_keys = self.lris_header_keys()
@@ -367,9 +458,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             arcparam is modified in place
 
         """
-        arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
+        #arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
         # Should set according to the lamps that were on
         arcparam['lamps'] = ['ArI','NeI','HgI','KrI','XeI']
+        '''
         if disperser == '600/7500':
             arcparam['n_first']=3 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
@@ -394,7 +486,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-
+        '''
 
 def read_lris(raw_file, det=None, TRIM=False):
     """

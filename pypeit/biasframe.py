@@ -3,7 +3,6 @@
 from __future__ import absolute_import, division, print_function
 
 import inspect
-import numpy as np
 import os
 
 
@@ -15,6 +14,7 @@ from pypeit import masterframe
 from pypeit.par import pypeitpar
 
 from pypeit import debugger
+
 
 class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     """
@@ -47,6 +47,8 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
       used to match bias frames to the current science exposure
     par : ParSet
       PypitPar['calibrations']['biasframe']
+    redux_path : str (optional)
+      Path for reduction
 
 
     Attributes
@@ -63,7 +65,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'bias'
 
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, root_path=None,
+    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, master_dir=None,
                  mode=None, fitstbl=None, sci_ID=None):
 
         # Parameters
@@ -75,16 +77,13 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        directory_path = None if root_path is None \
-                                else root_path+'_'+self.spectrograph.spectrograph
-        masterframe.MasterFrame.__init__(self, self.frametype, setup, directory_path=directory_path,
-                                         mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup, mode=mode, master_dir=master_dir)
 
         # Parameters unique to this Object
         self.fitstbl = fitstbl
         self.sci_ID = sci_ID
 
-    def build_image(self, overwrite=False):
+    def build_image(self, overwrite=False, trim=True):
         """
         Grab the bias files (as needed) and then
          process the input bias frames with ProcessImages.process()
@@ -104,7 +103,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         if self.nfiles == 0:
             self.file_list = fsort.list_of_files(self.fitstbl, 'bias', self.sci_ID)
         # Combine
-        self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
+        self.stack = self.process(bias_subtract=None, trim=trim, overwrite=overwrite)
         #
         return self.stack
 

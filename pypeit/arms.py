@@ -9,7 +9,7 @@ from collections import OrderedDict
 
 from pypeit import msgs
 from pypeit.core import load
-from pypeit import utils
+from pypeit import specobjs
 from pypeit.core import save
 from pypeit.core import wave
 from pypeit.core import pypsetup
@@ -27,7 +27,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit import debugger
 
 
-def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
+def ARMS(fitstbl, setup_dict, par=None, spectrograph=None, show = False):
     """
     Automatic Reduction of Multislit Data
 
@@ -54,9 +54,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
     status = 0
 
     # Generate sciexp list, if need be (it will be soon)
-    #sv_std_idx = []
     std_dict = {}
-    #sciexp = []
     all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
     numsci = len(all_sci_ID)
     basenames = [None]*numsci  # For fluxing at the very end
@@ -79,9 +77,8 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
     _par = _spectrograph.default_pypeit_par() if par is None else par
     if not isinstance(_par, pypeitpar.PypeItPar):
         raise TypeError('Input parameters must be a PypitPar instance.')
-    required = [ 'rdx', 'calibrations', 'scienceframe', 'objects', 'extract', 'skysubtract',
-                 'flexure', 'fluxcalib' ]
-    can_be_None = [ 'skysubtract', 'flexure', 'fluxcalib' ]
+    required = [ 'rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib' ]
+    can_be_None = [ 'flexure', 'fluxcalib' ]
     _par.validate_keys(required=required, can_be_None=can_be_None)
 
     # Init calib dict
@@ -105,7 +102,8 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
         for kk in range(_spectrograph.ndet):
             det = kk + 1  # Detectors indexed from 1
             if _par['rdx']['detnum'] is not None:
-                if det not in map(int, _par['rdx']['detnum']):
+                detnum = [_par['rdx']['detnum']] if isinstance(_par['rdx']['detnum'],int) else _par['rdx']['detnum']
+                if det not in map(int, detnum):
                     msgs.warn("Skipping detector {:d}".format(det))
                     continue
                 else:
@@ -143,7 +141,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             # Derive the spectral tilt
             mstilts, maskslits = caliBrate.get_tilts()
             # Prepare the pixel flat field frame
-            mspixflatnrm, slitprof = caliBrate.get_pixflatnrm()
+            mspixflatnrm, msillumflat = caliBrate.get_pixflatnrm(show = show)
             # Generate/load a master wave frame
             mswave = caliBrate.get_wave()
 
@@ -159,113 +157,92 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             sci_image_files = fsort.list_of_files(fitstbl, 'science', sci_ID)
 
             # Instantiate
-            sciI = scienceimage.ScienceImage(_spectrograph, file_list=sci_image_files,
-                                             frame_par=_par['scienceframe'],
-                                             trace_objects_par=_par['objects'],
-                                             extract_objects_par=_par['extract'],
-                                             tslits_dict=tslits_dict, tilts=mstilts, det=det,
-                                             setup=setup, datasec_img=datasec_img, bpm=msbpm,
-                                             maskslits=maskslits, pixlocn=pixlocn,
-                                             fitstbl=fitstbl, scidx=scidx)
+            sciI = scienceimage.ScienceImage(_spectrograph, sci_image_files,
+                                             det=det,objtype ='science', scidx=scidx, setup=setup,
+                                             par = _par['scienceimage'],
+                                             frame_par=_par['scienceframe'])
 
             msgs.sciexp = sciI  # For QA on crash
 
             # Names and time
-            obstime, basename = sciI.init_time_names(_spectrograph.camera,
-                                                     timeunit=_spectrograph.timeunit)
+            obstime, basename = sciI.init_time_names(fitstbl)
             if basenames[sc] is None:
                 basenames[sc] = basename
 
-            # Process (includes Variance image and CRs)
-            sciframe, rawvarframe, crmask = sciI.process(msbias, mspixflatnrm, apply_gain=True,
-                                                         trim=caliBrate.par['trim'])
+            # Process images (includes inverse variance image, rn2 image, and CR mask)
+            sciimg, sciivar, rn2img, crmask = sciI.process(msbias, mspixflatnrm, msbpm, illum_flat = msillumflat,
+                                                           apply_gain=True,trim=caliBrate.par['trim'], show = show)
 
-            # Global skysub
-            if _par['skysubtract'] is None:
-                # These are set as attributes of sciI
-                sciI.global_sky = np.zeros_like(sciframe)
-                sciI.modelvarframe = np.zeros_like(sciframe)
+            # Object finding, first pass on frame without sky subtraction
+            sobjs_obj0, nobj0 = sciI.find_objects(tslits_dict, skysub = False, maskslits=maskslits)
+
+            # Global sky subtraction, first pass. Uses skymask from object finding
+            global_sky0 = sciI.global_skysub(tslits_dict, mstilts, use_skymask=True, maskslits = maskslits, show = show)
+
+            # Object finding, second pass on frame *with* sky subtraction. Show here if requested
+            sobjs_obj, nobj = sciI.find_objects(tslits_dict, skysub = True, maskslits=maskslits,show_peaks=show)
+
+            # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
+            if nobj > 0:
+                # Global sky subtraction second pass. Uses skymask from object finding
+                global_sky = sciI.global_skysub(tslits_dict, mstilts, use_skymask=True, maskslits = maskslits,show = show)
+
+                skymodel, objmodel, ivarmodel, outmask, sobjs = sciI.local_skysub_extract(mswave, maskslits=maskslits,
+                                                                                          show_profile=show,show=show)
+
+                # Flexure correction?
+                if _par['flexure'] is not None and _par['flexure']['method'] is not None:
+                    sky_file, sky_spectrum = _spectrograph.archive_sky_spectrum()
+                    flex_list = wave.flexure_obj(sobjs, maskslits, _par['flexure']['method'],
+                                                 sky_spectrum, sky_file=sky_file,
+                                                 mxshft=_par['flexure']['maxshift'])
+                    # QA
+                    wave.flexure_qa(sobjs, maskslits, basename, det, flex_list)
+
+                # Helio
+                # Correct Earth's motion
+                #vel_corr = -999999.9
+                if (caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) and \
+                        (caliBrate.par['wavelengths']['reference'] != 'pixel'):
+                    if sobjs is not None:
+                        msgs.info("Performing a {0} correction".format(
+                            caliBrate.par['wavelengths']['frame']))
+
+                        vel, vel_corr = wave.geomotion_correct(sobjs, maskslits, fitstbl, scidx,
+                                                               obstime,
+                                                               _spectrograph.telescope['longitude'],
+                                                               _spectrograph.telescope['latitude'],
+                                                               _spectrograph.telescope['elevation'],
+                                                               caliBrate.par['wavelengths']['frame'])
+                    else:
+                        msgs.info('There are no objects on detector {0} to perform a '.format(det)
+                                  + '{1} correction'.format(caliBrate.par['wavelengths']['frame']))
+                else:
+                    msgs.info('A wavelength reference-frame correction will not be performed.')
+
             else:
-                # The call to global_skysub initializes the attributes
-                # of sciI directly
-                global_sky, modelvarframe = sciI.global_skysub(
-                                        bspline_spacing=_par['skysubtract']['bspline_spacing'])
-
-            # Find objects
-            nobj = sciI.find_objects()[1]
-            if nobj == 0:
                 msgs.warn('No objects to extract for science frame' + msgs.newline()
                           + fitstbl['filename'][scidx])
-                specobjs, flg_objs = [], None
-            else:
-                flg_objs = True  # Objects were found
-
-            # Another round of sky sub
-            if _par['skysubtract'] is not None and flg_objs:
-                global_sky, modelvarframe = sciI.global_skysub(
-                                        bspline_spacing=_par['skysubtract']['bspline_spacing'],
-                                                               use_tracemask=True)
-
-            # Another round of finding objects
-            if flg_objs:
-                nobj = sciI.find_objects()[1]
-                if nobj == 0:
-                    msgs.warn('No objects to extract for science frame' + msgs.newline()
-                              + fitstbl['filename'][scidx])
-                    specobjs, flg_objs = [], None
-
-            # Extraction
-            if flg_objs:
-                specobjs, finalvar, finalsky = sciI.extraction(mswave)
-
-            # Flexure correction?
-            if _par['flexure'] is not None and flg_objs and _par['flexure']['method'] is not None:
-                sky_file, sky_spectrum = _spectrograph.archive_sky_spectrum()
-                flex_list = wave.flexure_obj(specobjs, maskslits, _par['flexure']['method'],
-                                               sky_spectrum, sky_file=sky_file,
-                                               mxshft=_par['flexure']['maxshift'])
-                # QA
-                wave.flexure_qa(specobjs, maskslits, basename, det, flex_list)
-
-            # Helio
-            # Correct Earth's motion
-            vel_corr = -999999.9
-            if (caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) and \
-                        (caliBrate.par['wavelengths']['reference'] != 'pixel') and flg_objs:
-                if _par['extract']['reuse']:
-                    msgs.warn('{0} correction'.format(caliBrate.par['wavelengths']['frame'])
-                              + 'will not be applied if an extracted science frame exists, '
-                              + 'and is used')
-                if specobjs is not None:
-                    msgs.info("Performing a {0} correction".format(
-                                            caliBrate.par['wavelengths']['frame']))
-
-                    vel, vel_corr = wave.geomotion_correct(specobjs, maskslits, fitstbl, scidx,
-                                                             obstime,
-                                                             _spectrograph.telescope['longitude'],
-                                                             _spectrograph.telescope['latitude'],
-                                                             _spectrograph.telescope['elevation'],
-                                                             caliBrate.par['wavelengths']['frame'])
-                else:
-                    msgs.info('There are no objects on detector {0} to perform a '.format(det)
-                              + '{1} correction'.format(caliBrate.par['wavelengths']['frame']))
-            else:
-                msgs.info('A wavelength reference-frame correction will not be performed.')
+                skymodel = global_sky0  # set to first pass global sky
+                objmodel = np.zeros_like(sciimg)
+                ivarmodel = np.copy(sciivar) # Set to sciivar. Could create a model but what is the point?
+                outmask = sciI.bitmask # Set to inmask in case on objects were found
+                sobjs = sobjs_obj # empty specobjs object from object finding
+                vel_corr = None
 
             # Save for outputing (after all detectors are done)
-            sci_dict[det]['sciframe'] = sciframe
-            if vel_corr > -999999.9:
+            sci_dict[det]['sciimg'] = sciimg
+            sci_dict[det]['sciivar'] = sciivar
+            sci_dict[det]['skymodel'] = skymodel
+            sci_dict[det]['objmodel'] = objmodel
+            sci_dict[det]['ivarmodel'] = ivarmodel
+            sci_dict[det]['outmask'] = outmask
+            sci_dict[det]['specobjs'] =  sobjs   #utils.unravel_specobjs([specobjs])
+            if vel_corr is not None:
                 sci_dict['meta']['vel_corr'] = vel_corr
-            if flg_objs:
-                sci_dict[det]['specobjs'] = utils.unravel_specobjs([specobjs])
-                sci_dict[det]['finalvar'] = finalvar
-                sci_dict[det]['finalsky'] = finalsky
-            else:  # Nothing extracted
-                sci_dict[det]['specobjs'] = []
-                sci_dict[det]['finalvar'] = sciI.modelvarframe
-                sci_dict[det]['finalsky'] = sciI.global_sky
             #-----------------------------------------------------------
 
+            '''
             #-----------------------------------------------------------
             # Standard star frames
             #-----------------------------------------------------------
@@ -323,18 +300,20 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
             std_dict[std_idx][det]['basename'] = std_basename
             std_dict[std_idx][det]['specobjs'] = utils.unravel_specobjs([stdobjs])
             #-----------------------------------------------------------
+            '''
 
         #---------------------------------------------------------------
         # Write the output for this exposure
         #---------------------------------------------------------------
         # Build the final list of specobjs and vel_corr
-        all_specobjs = []
+        all_specobjs = specobjs.SpecObjs()
+
         for key in sci_dict:
             if key in ['meta']:
                 continue
             #
             try:
-                all_specobjs += sci_dict[key]['specobjs']
+                all_specobjs.add_sobj(sci_dict[key]['specobjs'])
             except KeyError:  # No object extracted
                 continue
 
@@ -347,7 +326,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None):
         if save_format == 'fits':
             outfile = os.path.join(_par['rdx']['scidir'], 'spec1d_{:s}.fits'.format(basename))
             helio_dict = dict(refframe='pixel'
-                              if caliBrate.par['wavelengths']['reference'] == 'pixel' 
+                              if caliBrate.par['wavelengths']['reference'] == 'pixel'
                               else caliBrate.par['wavelengths']['frame'],
                               vel_correction=sci_dict['meta']['vel_corr'])
             save.save_1d_spectra_fits(all_specobjs, fitstbl[scidx], outfile,

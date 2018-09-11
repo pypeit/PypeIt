@@ -45,6 +45,8 @@ class TraceSlits(masterframe.MasterFrame):
       Detector number
     ednum : int, optional
       Edge number used for indexing
+    redux_path : str, optional
+      Used for QA output
 
     Attributes
     ----------
@@ -102,12 +104,12 @@ class TraceSlits(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'trace'
 
-    def __init__(self, mstrace, pixlocn, par=None, det=None, setup=None, directory_path=None,
+    def __init__(self, mstrace, pixlocn, par=None, det=None, setup=None, master_dir=None,
+                 redux_path=None,
                  mode=None, binbpx=None, ednum=100000):
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         directory_path=directory_path, mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup, master_dir=master_dir, mode=mode)
 
         # TODO -- Remove pixlocn as a required item
 
@@ -124,6 +126,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.par = pypeitpar.TraceSlitsPar() if par is None else par
 
         # Optional parameters
+        self.redux_path = redux_path
         self.det = det
         self.ednum = ednum
         if binbpx is None: # Bad pixel array
@@ -184,6 +187,8 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         fits_dict, ts_dict = load_traceslit_files(root)
+        msgs.info("Loading Slits from {:s}".format(root + '.fits.gz'))
+
 
         # Deal with the bad pixel image
         if 'BINBPX' in fits_dict.keys():
@@ -791,7 +796,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _trim_slits(self, usefracpix=True):
+    def _trim_slits(self, trim_short_slits=True, plate_scale = None):
         """
         Trim slits
           Mainly those that fell off the detector
@@ -810,7 +815,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         nslit = self.lcen.shape[1]
         mask = np.zeros(nslit)
-        fracpix = int(self.par['fracignore']*self.mstrace.shape[1])
+        #fracpix = int(self.par['fracignore']*self.mstrace.shape[1])
         for o in range(nslit):
             if np.min(self.lcen[:, o]) > self.mstrace.shape[1]:
                 mask[o] = 1
@@ -818,10 +823,12 @@ class TraceSlits(masterframe.MasterFrame):
             elif np.max(self.rcen[:, o]) < 0:
                 mask[o] = 1
                 msgs.info("Slit {0:d} is off the detector - ignoring this slit".format(o + 1))
-            if usefracpix:
-                if np.median(self.rcen[:,o]-self.lcen[:,o]) < fracpix:
+            if trim_short_slits:
+                if np.median(self.rcen[:,o]-self.lcen[:,o])*plate_scale < self.par['min_slit_width']:
                     mask[o] = 1
-                    msgs.info("Slit {0:d} is less than fracignore - ignoring this slit".format(o + 1))
+                    msgs.info("Slit {0:d}".format(o + 1) +
+                              " is less than min_slit_width = {:} arcseconds".format(self.par['min_slit_width']) +
+                              " - ignoring this slit")
         # Trim
         wok = np.where(mask == 0)[0]
         self.lcen = self.lcen[:, wok]
@@ -967,7 +974,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Return
         return loaded
 
-    def run(self, arms=True, ignore_orders=False, add_user_slits=None):
+    def run(self, arms=True, ignore_orders=False, add_user_slits=None, plate_scale = None):
         """ Main driver for tracing slits.
 
           Code flow
@@ -1078,7 +1085,7 @@ class TraceSlits(masterframe.MasterFrame):
 
             # Remove any slits that are completely off the detector
             #   Also remove short slits here for multi-slit and long-slit (aligntment stars)
-            self._trim_slits(usefracpix=arms)
+            self._trim_slits(trim_short_slits=arms, plate_scale = plate_scale)
 
         # Generate pixel arrays
         self._make_pixel_arrays()
@@ -1101,7 +1108,7 @@ class TraceSlits(masterframe.MasterFrame):
         trace_slits.slit_trace_qa(self.mstrace, self.lcen,
                                    self.rcen, self.extrapord, self.setup,
                                    desc="Trace of the slit edges D{:02d}".format(self.det),
-                                   use_slitid=use_slitid)
+                                   use_slitid=use_slitid, out_dir=self.redux_path)
 
 
     def __repr__(self):

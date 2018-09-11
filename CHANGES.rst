@@ -9,7 +9,16 @@
 - Turn off 2.7 Travis testing
 - Integrated arclines into PypeIt
 - Modified debug/developer modes
-
+- Update SpecObjs class; ndarray instead of list;  set() method
+- Completely revamped object finding, global sky subtraction and local sky subtraction with new algorithms.
+- Added -s option to run_pypeit for interactive outputs.
+- Improved pypeit_show_spec2d script. 
+- Fixed bug whereby -m --use_master was not being used by run_pypeit script.
+- Overhaul of general algorithm for wavelength calibration
+- Hot fix for bspline + requirements update
+- Fixed issue with biases being written to disk as untrimmed. 
+- Completely reworked flat fielding algorithm. 
+- Fixed some parsing issues with the .pypeit file for cases where there is a whitepsace in the path.
 
 0.8.1
 -----

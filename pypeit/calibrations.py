@@ -1,4 +1,4 @@
-""" Class for guiding calibration object generation in PYPIT
+""" Class for guiding calibration object generation in PypeIt
 """
 from __future__ import absolute_import, division, print_function
 
@@ -25,6 +25,8 @@ from pypeit import waveimage
 from pypeit.core import fsort
 from pypeit.core import masters
 from pypeit.core import procimg
+from pypeit.core import parse
+
 
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
@@ -36,7 +38,7 @@ from pypeit import debugger
 class Calibrations(object):
     """
     This class is primarily designed to guide the generation of calibration images
-    and objects in PYPIT
+    and objects in PypeIt
 
     Must be able to instantiate spectrograph.
 
@@ -45,6 +47,9 @@ class Calibrations(object):
 
     Parameters
     ----------
+    redux_path : str, optional
+      Path to location of PypeIt file (and reductions)
+      Defaults to pwd
 
     Attributes
     ----------
@@ -56,8 +61,8 @@ class Calibrations(object):
 
     # TODO: master_root is a bit of a kludge.  It could be defined
     # earlier and/or in par.
-    def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None, save_masters=True,
-                 write_qa=True):
+    def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None,
+                 save_masters=True, write_qa=True):
 
         # Check the type of the provided fits table
         if not isinstance(fitstbl, Table):
@@ -89,12 +94,9 @@ class Calibrations(object):
         if not isinstance(self.par, pypeitpar.CalibrationsPar):
             raise TypeError('Input parameters must be a CalibrationsPar instance.')
 
-        # TODO: Kludge for now:  If master_root is provided, it
-        # over-rides the default in CalibrationsPar.  Should just make
-        # caldir and master_root the same...
-        self.master_root = os.path.join(os.getcwd(), self.par['caldir']) \
-                                if master_root is None else master_root
-        self.master_dir = self.master_root+'_'+self.spectrograph.spectrograph
+        # Output dirs
+        self.redux_path = os.getcwd() if redux_path is None else redux_path
+        self.master_dir = masters.set_master_dir(self.redux_path, self.spectrograph, self.par)
 
         # Attributes
         self.calib_dict = {}
@@ -118,14 +120,14 @@ class Calibrations(object):
         self.shape = None
         self.msarc = None
         self.msbias = None
-        self.mbpm = None
+        self.msbpm = None
         self.pixlocn = None
         self.tslits_dict = None
         self.maskslits = None
         self.wavecalib = None
         self.mstilts = None
         self.mspixflatnrm = None
-        self.slitprof = None
+        self.msillumflat = None
         self.mswave = None
         self.datasec_img = None
 
@@ -185,7 +187,7 @@ class Calibrations(object):
         # Instantiate with everything needed to generate the image (in case we do)
         self.arcImage = arcimage.ArcImage(self.spectrograph, file_list=[], det=self.det,
                                           par=self.par['arcframe'], setup=self.setup,
-                                          root_path=self.master_root, mode=self.par['masters'],
+                                          master_dir=self.master_dir, mode=self.par['masters'],
                                           fitstbl=self.fitstbl, sci_ID=self.sci_ID,
                                           msbias=self.msbias)
         
@@ -226,7 +228,7 @@ class Calibrations(object):
         # Instantiate
         self.biasFrame = biasframe.BiasFrame(self.spectrograph, det=self.det,
                                              par=self.par['biasframe'], setup=self.setup,
-                                             root_path=self.master_root, mode=self.par['masters'],
+                                             master_dir=self.master_dir, mode=self.par['masters'],
                                              fitstbl=self.fitstbl, sci_ID=self.sci_ID)
 
         # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
@@ -300,7 +302,7 @@ class Calibrations(object):
             self.datasec_img = procimg.trim_frame(self.datasec_img, self.datasec_img < 1)
         return self.datasec_img
 
-    def get_pixflatnrm(self):
+    def get_pixflatnrm(self, show=False):
         """
         Load or generate a normalized pixel flat
           and slit profile
@@ -313,44 +315,47 @@ class Calibrations(object):
 
         Returns:
             self.mspixflatnrm: ndarray
-            self.slitprof: ndarray
+            self.msillumflat: ndarray
 
         """
         if self.par['flatfield']['method'] is None:
             # User does not want to flat-field
             self.mspixflatnrm = None
-            self.slitprof = None
-            return self.mspixflatnrm, self.slitprof
+            self.msillumflat = None
+            msgs.warning('Parameter calibrations.flatfield.method is set to None. You are NOT flatfielding your data!!!')
+            return self.mspixflatnrm, self.msillumflat
 
-        # Check for existing data
+        # Check for existing data necessary to build flats
         if not self._chk_objs(['tslits_dict', 'mstilts', 'datasec_img']):
+            msgs.warning('Flats were requested, but there are quantities missing necessary to create flats. ' +
+                         'Proceeding without flat fielding....')
             # User cannot flat-field
             self.mspixflatnrm = None
-            self.slitprof = None
-            return self.mspixflatnrm, self.slitprof
-       
+            self.msillumflat = None
+            return self.mspixflatnrm, self.msillumflat
+
         # Check internals
         self._chk_set(['setup', 'det', 'sci_ID', 'par'])
 
         # Return already generated data
-        if np.all([ k in self.calib_dict[self.setup].keys() 
-                            for k in ['normpixelflat','slitprof']]):
+        if np.all([k in self.calib_dict[self.setup].keys()
+                   for k in ['normpixelflat', 'illumflat']]):
             self.mspixflatnrm = self.calib_dict[self.setup]['normpixelflat']
-            self.slitprof = self.calib_dict[self.setup]['slitprof']
-            return self.mspixflatnrm, self.slitprof
+            self.msillumflat = self.calib_dict[self.setup]['illumflat']
+            return self.mspixflatnrm, self.msillumflat
 
         # Instantiate
         pixflat_image_files = fsort.list_of_files(self.fitstbl, 'pixelflat', self.sci_ID)
         self.flatField = flatfield.FlatField(self.spectrograph, file_list=pixflat_image_files,
                                              det=self.det, par=self.par['pixelflatframe'],
-                                             setup=self.setup, root_path=self.master_root,
+                                             setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'],
                                              flatpar=self.par['flatfield'], msbias=self.msbias,
                                              tslits_dict=self.tslits_dict, tilts=self.mstilts)
 
         # Load from disk (MasterFrame)?
         self.mspixflatnrm = self.flatField.master()
-        self.slitprof = None
+        self.msillumflat = None
 
         # Load user supplied flat (e.g. LRISb with pixel flat)?
         if self.par['flatfield']['frame'] not in ['pixelflat', 'trace']:
@@ -359,42 +364,50 @@ class Calibrations(object):
             if os.path.isfile(self.par['flatfield']['frame']):
                 mspixelflat_name = self.par['flatfield']['frame']
             elif os.path.isfile(os.path.join(self.flatField.directory_path,
-                                        self.par['flatfield']['frame'])):
+                                             self.par['flatfield']['frame'])):
                 mspixelflat_name = os.path.join(self.flatField.directory_path,
                                                 self.par['flatfield']['frame'])
             else:
                 raise ValueError('Could not find user-defined flatfield master: {0}'.format(
-                                                self.par['flatfield']['frame']))
+                    self.par['flatfield']['frame']))
             msgs.info('Found user-defined file: {0}'.format(mspixelflat_name))
             self.mspixflatnrm, head, _ = masters._load(mspixelflat_name, exten=self.det,
-                                                         frametype=None, force=True)
+                                                       frametype=None, force=True)
             # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
-            self.slitprof = np.ones_like(self.mspixflatnrm)
+            self.msillumflat = np.ones_like(self.mspixflatnrm)
 
-        if self.mspixflatnrm is None:
+        # ToDO JFH think about this logic
+        if self.mspixflatnrm is None and len(pixflat_image_files) != 0:
             # TODO -- Consider turning the following back on.  I'm regenerating the flat for now
             # Use mstrace if the indices are identical
-            #if np.all(sort.ftype_indices(fitstbl,'trace',1) ==
+            # if np.all(sort.ftype_indices(fitstbl,'trace',1) ==
             #                  sort.ftype_indices(fitstbl, 'pixelflat', 1))
             #            and (traceSlits.mstrace is not None):
             #    flatField.mspixelflat = traceSlits.mstrace.copy()
             # Run
-            self.mspixflatnrm, self.slitprof = self.flatField.run(armed=False)
+            self.mspixflatnrm, self.msillumflat = self.flatField.run(show=show)
             # Save to Masters
             if self.save_masters:
                 self.flatField.save_master(self.mspixflatnrm, raw_files=pixflat_image_files,
                                            steps=self.flatField.steps)
-                self.flatField.save_master(self.slitprof, raw_files=pixflat_image_files,
+                self.flatField.save_master(self.msillumflat, raw_files=pixflat_image_files,
                                            steps=self.flatField.steps,
-                                           outfile=masters.master_name('slitprof', self.setup,
-                                                        self.master_dir))
-        elif self.slitprof is None:
-            self.slitprof, _, _ = self.flatField.load_master_slitprofile()
+                                           outfile=masters.master_name('illumflat', self.setup,
+                                                                       self.master_dir))
+        else:
+            self.mspixflatnrm = np.ones_like(self.mstilts)
+            msgs.warn('You are not pixel flat fielding your data!')
+
+        if self.msillumflat is None:
+            self.msillumflat, _, _ = self.flatField.load_master_illumflat()
+            if self.msillumflat is None:
+                self.msillumflat = np.ones_like(self.mstilts)
+                msgs.warn('You are not illumination flat fielding your data!')
 
         # Save & return
         self.calib_dict[self.setup]['normpixelflat'] = self.mspixflatnrm
-        self.calib_dict[self.setup]['slitprof'] = self.slitprof
-        return self.mspixflatnrm, self.slitprof
+        self.calib_dict[self.setup]['illumflat'] = self.msillumflat
+        return self.mspixflatnrm, self.msillumflat
 
     def get_slits(self, arms=True):
         """
@@ -433,7 +446,8 @@ class Calibrations(object):
         # Instantiate (without mstrace)
         self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, par=self.par['slits'],
                                                 det=self.det, setup=self.setup,
-                                                directory_path=self.master_dir,
+                                                master_dir=self.master_dir,
+                                                redux_path=self.redux_path,
                                                 mode=self.par['masters'], binbpx=self.msbpm)
 
         # Load via master, as desired
@@ -447,8 +461,13 @@ class Calibrations(object):
             self.traceSlits.mstrace = traceImage.process(bias_subtract=self.msbias,
                                                          trim=self.par['trim'], apply_gain=True)
             _ = self.traceSlits.make_binarr()
+
+            # Compute the plate scale in arcsec which is needed to trim short slits
+            scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
+            binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
+            plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
             # Now we go forth
-            self.tslits_dict = self.traceSlits.run(arms=arms)
+            self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale)
              # No slits?
             if self.tslits_dict is None:
                 self.maskslits = None
@@ -503,7 +522,7 @@ class Calibrations(object):
         # Instantiate
         self.waveImage = waveimage.WaveImage(self.tslits_dict['slitpix'],
                                              self.mstilts, self.wv_calib,
-                                             setup=self.setup, directory_path=self.master_dir,
+                                             setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], maskslits=self.maskslits)
         # Attempt to load master
         self.mswave = self.waveImage.master()
@@ -562,16 +581,17 @@ class Calibrations(object):
         # Instantiate
         self.waveCalib = wavecalib.WaveCalib(self.msarc, spectrograph=self.spectrograph,
                                              par=self.par['wavelengths'], det=self.det,
-                                             setup=self.setup, root_path=self.master_root,
+                                             setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], fitstbl=self.fitstbl,
-                                             sci_ID=self.sci_ID)
+                                             sci_ID=self.sci_ID,
+                                             redux_path=self.redux_path)
         # Load from disk (MasterFrame)?
         self.wv_calib = self.waveCalib.master()
         # Build?
         if self.wv_calib is None:
             self.wv_calib, _ = self.waveCalib.run(self.tslits_dict['lcen'],
                                                   self.tslits_dict['rcen'], self.pixlocn,
-                                                  nonlinear=nonlinear, skip_QA=(~self.write_qa))
+                                                  nonlinear=nonlinear, skip_QA=(not self.write_qa))
             # Save to Masters
             if self.save_masters:
                 self.waveCalib.save_master(self.waveCalib.wv_calib)
@@ -645,9 +665,9 @@ class Calibrations(object):
         # Instantiate
         self.waveTilts = wavetilts.WaveTilts(self.msarc, spectrograph=self.spectrograph,
                                              par=self.par['tilts'], det=self.det,
-                                             setup=self.setup, root_path=self.master_root,
+                                             setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], pixlocn=self.pixlocn,
-                                             tslits_dict=self.tslits_dict)
+                                             tslits_dict=self.tslits_dict, redux_path=self.redux_path)
         # Master
         self.mstilts = self.waveTilts.master()
         if self.mstilts is None:
@@ -666,6 +686,12 @@ class Calibrations(object):
         return self.mstilts, self.maskslits
 
     def run_the_steps(self):
+        """
+        Run full the full recipe of calibration steps
+
+        Returns:
+
+        """
         for step in self.steps:
             getattr(self, 'get_{:s}'.format(step))()
 
@@ -723,11 +749,111 @@ class Calibrations(object):
         txt += '>'
         return txt
 
+
+
+    def get_pixflatnrm_old(self):
+        """
+        Load or generate a normalized pixel flat
+          and slit profile
+        Requirements:
+           tslits_dict
+           mstilts
+           datasec_img
+           det, sci_ID, par, setup
+        Returns:
+            self.mspixflatnrm: ndarray
+            self.slitprof: ndarray
+        """
+        if self.par['flatfield']['method'] is None:
+            # User does not want to flat-field
+            self.mspixflatnrm = None
+            self.slitprof = None
+            return self.mspixflatnrm, self.slitprof
+
+        # Check for existing data
+        if not self._chk_objs(['tslits_dict', 'mstilts', 'datasec_img']):
+            # User cannot flat-field
+            self.mspixflatnrm = None
+            self.slitprof = None
+            return self.mspixflatnrm, self.slitprof
+
+        # Check internals
+        self._chk_set(['setup', 'det', 'sci_ID', 'par'])
+
+        # Return already generated data
+        if np.all([k in self.calib_dict[self.setup].keys()
+                   for k in ['normpixelflat', 'slitprof']]):
+            self.mspixflatnrm = self.calib_dict[self.setup]['normpixelflat']
+            self.slitprof = self.calib_dict[self.setup]['slitprof']
+            return self.mspixflatnrm, self.slitprof
+
+        # Instantiate
+        pixflat_image_files = fsort.list_of_files(self.fitstbl, 'pixelflat', self.sci_ID)
+        self.flatField = flatfield.FlatField(self.spectrograph, file_list=pixflat_image_files,
+                                             det=self.det, par=self.par['pixelflatframe'],
+                                             setup=self.setup, master_dir=self.master_dir,
+                                             mode=self.par['masters'],
+                                             flatpar=self.par['flatfield'], msbias=self.msbias,
+                                             msbpm = self.msbpm,tslits_dict=self.tslits_dict, tilts=self.mstilts)
+
+        # Load from disk (MasterFrame)?
+        self.mspixflatnrm = self.flatField.master()
+        self.slitprof = None
+
+        # Load user supplied flat (e.g. LRISb with pixel flat)?
+        if self.par['flatfield']['frame'] not in ['pixelflat', 'trace']:
+            # First try to find directly, then try to find it in the
+            # masters directory, then fail
+            if os.path.isfile(self.par['flatfield']['frame']):
+                mspixelflat_name = self.par['flatfield']['frame']
+            elif os.path.isfile(os.path.join(self.flatField.master_dir,
+                                             self.par['flatfield']['frame'])):
+                mspixelflat_name = os.path.join(self.flatField.master_dir,
+                                                self.par['flatfield']['frame'])
+            else:
+                raise ValueError('Could not find user-defined flatfield master: {0}'.format(
+                    self.par['flatfield']['frame']))
+            msgs.info('Found user-defined file: {0}'.format(mspixelflat_name))
+            self.mspixflatnrm, head, _ = masters._load(mspixelflat_name, exten=self.det,
+                                                       frametype=None, force=True)
+            # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
+            self.slitprof = np.ones_like(self.mspixflatnrm)
+
+        if self.mspixflatnrm is None:
+            # TODO -- Consider turning the following back on.  I'm regenerating the flat for now
+            # Use mstrace if the indices are identical
+            # if np.all(sort.ftype_indices(fitstbl,'trace',1) ==
+            #                  sort.ftype_indices(fitstbl, 'pixelflat', 1))
+            #            and (traceSlits.mstrace is not None):
+            #    flatField.mspixelflat = traceSlits.mstrace.copy()
+            # Run
+            self.mspixflatnrm, self.slitprof = self.flatField.run(armed=False)
+            # Save to Masters
+            if self.save_masters:
+                self.flatField.save_master(self.mspixflatnrm, raw_files=pixflat_image_files,
+                                           steps=self.flatField.steps)
+                self.flatField.save_master(self.slitprof, raw_files=pixflat_image_files,
+                                           steps=self.flatField.steps,
+                                           outfile=masters.master_name('slitprof', self.setup,
+                                                                       self.master_dir))
+        elif self.slitprof is None:
+            self.slitprof, _, _ = self.flatField.load_master_slitprofile()
+
+        # Save & return
+        self.calib_dict[self.setup]['normpixelflat'] = self.mspixflatnrm
+        self.calib_dict[self.setup]['slitprof'] = self.slitprof
+        return self.mspixflatnrm, self.slitprof
+
+
 class MultiSlitCalibrations(Calibrations):
-    def __init__(self, fitstbl, spectrograph=None, par=None, master_root=None, save_masters=True,
+    """
+    Child of Calibrations class for performing multi-slit (and longslit)
+    calibrations.
+    """
+    def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None, save_masters=True,
                  write_qa=True, steps=None):
         Calibrations.__init__(self, fitstbl, spectrograph=spectrograph, par=par,
-                              master_root=master_root, save_masters=save_masters,
+                              redux_path=redux_path, save_masters=save_masters,
                               write_qa=write_qa)
         self.steps = MultiSlitCalibrations.default_steps() if steps is None else steps
 

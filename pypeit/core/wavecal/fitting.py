@@ -8,6 +8,7 @@ import numpy as np
 from pypeit import utils
 from pypeit.core.wavecal import qa
 
+from pypeit import debugger
 
 def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
                       verbose=False, aparm=None):
@@ -23,9 +24,10 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
                     nsig_rej=2.,         # Number of sigma for rejection
                     nsig_rej_final=3.0)  # Number of sigma for rejection (final fit)
     npix = spec.size
+    aparm['disp'] = disp
 
     # Setup for fitting
-    sv_ifit = list(ifit) # Keep the originals
+    sv_ifit = list(ifit)  # Keep the originals
     all_ids = -999.*np.ones(len(tcent))
     all_idsion = np.array(['UNKNWN']*len(tcent))
     all_ids[ifit] = IDs
@@ -38,7 +40,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
         # Fit with rejection
         xfit, yfit = tcent[ifit], all_ids[ifit]
         mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej'],
-                                         minv=fmin, maxv=fmax)
+                                         minv=fmin, maxv=fmax, verbose=verbose)
 
         rms_ang = utils.calc_fit_rms(xfit[mask == 0], yfit[mask == 0],
                                      fit, aparm['func'], minv=fmin, maxv=fmax)
@@ -73,7 +75,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
     fmin, fmax = 0., 1.
     xfit, yfit = tcent[ifit]/(npix-1), all_ids[ifit]
     mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'],
-                                     minv=fmin, maxv=fmax)#, debug=True)
+                                     minv=fmin, maxv=fmax, verbose=verbose)#, debug=True)
     irej = np.where(mask == 1)[0]
     if len(irej) > 0:
         xrej = xfit[irej]

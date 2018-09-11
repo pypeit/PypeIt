@@ -652,6 +652,7 @@ class FluxCalibrationPar(ParSet):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
 
+# JFH TODO this parset is now deprecated
 # TODO: What other parameters should there be?
 class SkySubtractionPar(ParSet):
     """
@@ -746,6 +747,79 @@ class ManualExtractionPar(ParSet):
     Args:
         frame (:obj:`str`):
             The name of the fits file for a manual extraction
+        spec = List of spectral positions to hand extract
+        spat = List of spatial positions to hand extract
+        det = List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer
+             which will be used for all members of that list
+        fwhm = List of FWHM for hand extraction. This must be a list aligned with spec and spat lists, or a single number which will
+             be used for all members of that list'
+
+
+    """
+    def __init__(self, frame=None, spec=None, spat = None, det = None, fwhm = None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+        dtypes['frame'] = str
+        descr['frame'] = 'The name of the fits file for a manual extraction'
+
+        dtypes['spec'] = [list, float, int]
+        descr['spec'] = 'List of spectral positions to hand extract '
+
+        dtypes['spat'] = [list, float, int]
+        descr['spat'] = 'List of spatial positions to hand extract '
+
+        dtypes['det'] = [list, int]
+        descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer which will be used for all members of that list'
+        dtypes['fwhm'] = [list, int,float]
+        descr['fwhm'] = 'List of FWHM for hand extraction. This must be a list aligned with spec and spat lists, or a single number which will be used for all members of that list'
+
+        # Instantiate the parameter set
+        super(ManualExtractionPar, self).__init__(list(pars.keys()),
+                                                  values=list(pars.values()),
+                                                  dtypes=list(dtypes.values()),
+                                                  descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+        parkeys = [ 'frame', 'spec','spat','det','fwhm']
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        pass
+
+
+
+class ManualExtractionParOld(ParSet):
+    """
+    A parameter set holding the arguments for how to perform the
+    manual extraction of a spectrum.
+
+    A list of these objects can be included in an instance of
+    :class:`ExtractObjectsPar` to perform a set of user-defined
+    extractions.
+
+    For an example of how to define a series of manual extractions in
+    the pypeit input file, see :ref:`pypeit_file`.
+
+    Args:
+        frame (:obj:`str`):
+            The name of the fits file for a manual extraction
 
         params (:obj:`list`):
             Parameters of the manual extraction.  For example, params =
@@ -808,6 +882,7 @@ class ManualExtractionPar(ParSet):
                                     self.data['frame']))
 
 
+
 class ReducePar(ParSet):
     """
     The parameter set used to hold arguments for functionality relevant
@@ -821,7 +896,7 @@ class ReducePar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, spectrograph=None, pipeline=None, detnum=None, sortroot=None, calwin=None,
-                 scidir=None, qadir=None):
+                 scidir=None, qadir=None, redux_path=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -847,7 +922,7 @@ class ReducePar(ParSet):
         descr['pipeline'] = 'Pipeline options that pypeit can use for reductions.  ' \
                             'Options are: {0}'.format(', '.join(options['pipeline']))
 
-        dtypes['detnum'] = [list]
+        dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices'
 
         dtypes['sortroot'] = str
@@ -869,6 +944,10 @@ class ReducePar(ParSet):
         descr['qadir'] = 'Directory relative to calling directory to write quality ' \
                          'assessment files.'
 
+        defaults['redux_path'] = os.getcwd()
+        dtypes['redux_path'] = str
+        descr['redux_path'] = 'Path to folder for performing reductions.'
+
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -884,7 +963,7 @@ class ReducePar(ParSet):
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'pipeline', 'detnum', 'sortroot', 'calwin', 'scidir',
-                    'qadir' ]
+                    'qadir', 'redux_path']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1067,6 +1146,7 @@ class TraceSlitsPar(ParSet):
     """
     def __init__(self, function=None, polyorder=None, medrep=None, number=None, trim=None,
                  maxgap=None, maxshift=None, pad=None, sigdetect=None, fracignore=None,
+                 min_slit_width = None,
                  diffpolyorder=None, single=None, sobel_mode=None, pcatype=None, pcapar=None,
                  pcaextrap=None):
 
@@ -1141,6 +1221,13 @@ class TraceSlitsPar(ParSet):
                               'of the detector, it will be ignored (and reconstructed when/if ' \
                               'an \'order\' PCA analysis is performed).'
 
+        defaults['min_slit_width'] = 6.0  # arcseconds!
+        dtypes['min_slit_width'] = float
+        descr['min_slit_width'] = 'If a slit spans less than this number of arcseconds over the spatial ' \
+                                  'direction of the detector, it will be ignored. Use this option to prevent the ' \
+                                  'of alignment (box) slits from multislit reductions, which typically cannot be reduced ' \
+                                  'without a significant struggle'
+
         defaults['diffpolyorder'] = 2
         dtypes['diffpolyorder'] = int
         descr['diffpolyorder'] = 'Order of the 2D function used to fit the 2d solution for the ' \
@@ -1195,7 +1282,7 @@ class TraceSlitsPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
-                    'pad', 'sigdetect', 'fracignore', 'diffpolyorder', 'single', 'sobel_mode',
+                    'pad', 'sigdetect', 'fracignore', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
                     'pcatype', 'pcapar', 'pcaextrap' ]
         kwargs = {}
         for pk in parkeys:
@@ -1335,8 +1422,7 @@ class WaveTiltsPar(ParSet):
             self.data['params'] = [self.data['params']]
         pass
 
-
-# TODO: Should these be added?:
+# TODO: JFH. This parameter class is now deprecated
 # From artrace.trace_objects_in_slit
 #       trim=2, triml=None, trimr=None, sigmin=2.0, bgreg=None
 class TraceObjectsPar(ParSet):
@@ -1448,7 +1534,7 @@ class TraceObjectsPar(ParSet):
             self.data['params'] = [self.data['params']]
         pass
 
-
+# TODO JFH This parset is now deprecated.
 class ExtractObjectsPar(ParSet):
     """
     The parameter set used to hold arguments for extracting object
@@ -1538,6 +1624,78 @@ class ExtractObjectsPar(ParSet):
         Return the list of valid functions to use for object tracing.
         """
         return [ 'gaussian', 'gaussfunc', 'moffat', 'moffatfunc' ]
+
+    def validate(self):
+        pass
+
+# ToDO place holder to be updated by JFH
+class ScienceImagePar(ParSet):
+    """
+    The parameter set used to hold arguments for sky subtraction, object finding and extraction in the ScienceImage class
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+
+    def __init__(self, bspline_spacing=None, maxnumber=None,manual=None, nodding = None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Check the manual input
+        if manual is not None:
+            if not isinstance(manual, (ParSet, dict, list)):
+                raise TypeError('Manual extraction input must be a ParSet, dictionary, or list.')
+            _manual = [manual] if isinstance(manual, (ParSet, dict)) else manual
+            pars['manual'] = _manual
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        defaults['bspline_spacing'] = 0.6
+        dtypes['bspline_spacing'] = [int, float]
+        descr['bspline_spacing'] = 'Break-point spacing for the bspline fit'
+
+        dtypes['maxnumber'] = int
+        descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
+                             'None for no limit.'
+
+        # Place holder for NIR maybe in the future
+        defaults['nodding'] = False
+        dtypes['nodding'] = bool
+        descr['nodding'] = 'Use the nodded frames to perform the sky subtraction'
+
+        dtypes['manual'] = list
+        descr['manual'] = 'List of manual extraction parameter sets'
+
+        # Instantiate the parameter set
+        super(ScienceImagePar, self).__init__(list(pars.keys()),
+                                                values=list(pars.values()),
+                                                defaults=list(defaults.values()),
+                                                options=list(options.values()),
+                                                dtypes=list(dtypes.values()),
+                                                descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+        #ToDO change to updated param list
+        parkeys = ['bspline_spacing', 'maxnumber', 'nodding']
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        kwargs['manual'] = util.get_parset_list(cfg, 'manual', ManualExtractionPar)
+        return cls(**kwargs)
 
     def validate(self):
         pass
@@ -1734,8 +1892,7 @@ class PypeItPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, rdx=None, calibrations=None, scienceframe=None, objects=None, extract=None,
-                 skysubtract=None, flexure=None, fluxcalib=None):
+    def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None, flexure=None, fluxcalib=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1766,21 +1923,26 @@ class PypeItPar(ParSet):
         dtypes['scienceframe'] = [ ParSet, dict ]
         descr['scienceframe'] = 'The frames and combination rules for the science observations'
 
-        defaults['objects'] = TraceObjectsPar()
-        dtypes['objects'] = [ ParSet, dict ]
-        descr['objects'] = 'Define how to tract the slit tilts using the trace frames'
+        defaults['scienceimage'] = ScienceImagePar()
+        dtypes['scienceimage'] = [ParSet, dict]
+        descr['scienceimage'] = 'Parameters determining sky-subtraction, object finding, and extraction'
 
-        defaults['extract'] = ExtractObjectsPar()
-        dtypes['extract'] = [ ParSet, dict ]
-        descr['extract'] = 'Define how to extract 1D object spectra'
+## JFH commented out objects, extract, and skysubtract below. These parsets are all deprecated now
+#        defaults['objects'] = TraceObjectsPar()
+#        dtypes['objects'] = [ ParSet, dict ]
+#        descr['objects'] = 'Define how to tract the slit tilts using the trace frames'
+
+#        defaults['extract'] = ExtractObjectsPar()
+#        dtypes['extract'] = [ ParSet, dict ]
+#        descr['extract'] = 'Define how to extract 1D object spectra'
 
         # Sky subtraction is turned OFF by default
-        dtypes['skysubtract'] = [ ParSet, dict ]
-        descr['skysubtract'] = 'Parameters used by the sky-subtraction procedure.  Sky ' \
-                               'subtraction is not performed by default.  To turn on, either' \
-                               'set the parameters in the \'skysubtract\' parameter group or ' \
-                               'set \'skysubtract = True\' in the \'rdx\' parameter group ' \
-                               'to use the default sky-subtraction parameters.'
+#        dtypes['skysubtract'] = [ ParSet, dict ]
+#        descr['skysubtract'] = 'Parameters used by the sky-subtraction procedure.  Sky ' \
+#                               'subtraction is not performed by default.  To turn on, either' \
+#                               'set the parameters in the \'skysubtract\' parameter group or ' \
+#                               'set \'skysubtract = True\' in the \'rdx\' parameter group ' \
+#                               'to use the default sky-subtraction parameters.'
 
 
         # Flexure is turned OFF by default
@@ -2017,6 +2179,11 @@ class PypeItPar(ParSet):
         pk = 'scienceframe'
         kwargs[pk] = FrameGroupPar.from_dict('science', cfg[pk]) if pk in k else None
 
+        pk = 'scienceimage'
+        kwargs[pk] = ScienceImagePar.from_dict(cfg[pk]) if pk in k else None
+
+        # JFH These lines here below are deprecated now
+        '''
         pk = 'objects'
         kwargs[pk] = TraceObjectsPar.from_dict(cfg[pk]) if pk in k else None
 
@@ -2028,7 +2195,7 @@ class PypeItPar(ParSet):
         default = SkySubtractionPar() \
                         if pk in cfg['rdx'].keys() and cfg['rdx']['skysubtract'] else None
         kwargs[pk] = SkySubtractionPar.from_dict(cfg[pk]) if pk in k else default
-
+        '''
         # Allow flexure to be turned on using cfg['rdx']
         pk = 'flexure'
         default = FlexurePar() if pk in cfg['rdx'].keys() and cfg['rdx']['flexure'] else None
@@ -2129,7 +2296,7 @@ class DetectorPar(ParSet):
     :ref:`instruments`.
     """
     def __init__(self, dataext=None, dispaxis=None, xgap=None, ygap=None, ysize=None,
-                 platescale=None, darkcurr=None, saturation=None, nonlinear=None,
+                 platescale=None, darkcurr=None, saturation=None, mincounts = None, nonlinear=None,
                  numamplifiers=None, gain=None, ronoise=None, datasec=None, oscansec=None,
                  suffix=None):
 
@@ -2184,6 +2351,11 @@ class DetectorPar(ParSet):
         defaults['saturation'] = 65535.0
         dtypes['saturation'] = [ int, float ]
         descr['saturation'] = 'The detector saturation level'
+
+        defaults['mincounts'] = -1000.0
+        dtypes['mincounts'] = [ int, float ]
+        descr['mincounts'] = 'Counts in a pixel below this value will be ignored as being unphysical'
+
 
         defaults['nonlinear'] = 0.86
         dtypes['nonlinear'] = [ int, float ]
@@ -2241,7 +2413,7 @@ class DetectorPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = [ 'dataext', 'dispaxis', 'xgap', 'ygap', 'ysize', 'platescale', 'darkcurr',
-                    'saturation', 'nonlinear', 'numamplifiers', 'gain', 'ronoise', 'datasec',
+                    'saturation', 'mincounts','nonlinear', 'numamplifiers', 'gain', 'ronoise', 'datasec',
                     'oscansec', 'suffix' ]
         kwargs = {}
         for pk in parkeys:

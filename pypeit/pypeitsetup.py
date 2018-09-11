@@ -290,8 +290,8 @@ class PypeItSetup(object):
                                                self.spectrograph.get_match_criteria(),
                                                self.fitstbl, self.par['rdx']['calwin'],
                                                setup=setup_only,
-                                               match_nods=self.par['skysubtract'] is not None \
-                                                            and self.par['skysubtract']['nodding'])
+                                               match_nods=self.par['scienceimage'] is not None \
+                                                            and self.par['scienceimage']['nodding'])
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
@@ -454,19 +454,13 @@ class PypeItSetup(object):
                                 else pypeit_file.replace('.pypeit', '.calib')
             pypsetup.write_calib(calib_file, self.setup_dict)
 
-        # Finish (depends on PYPIT run mode)
+        # Finish (depends on PypeIt run mode)
         if calibration_check:
             msgs.info("Inspect the .calib file: {:s}".format(calib_file))
             msgs.info("*********************************************************")
             msgs.info("Calibration check complete and successful!")
             msgs.info("Set 'run calcheck False' to continue with data reduction")
             msgs.info("*********************************************************")
-            # Instrument specific (might push into a separate file)
-            # TODO: Move to spectrograph class
-#            if self.spectrograph.spectrograph in ['keck_lris_blue']:
-#                if self.spectrograph.calib_par['flatfield']['useframe'] in ['pixelflat']:
-#                    msgs.warn("We recommend a slitless flat for your instrument.")
-            return None, None, None, None
 
         if setup_only:
             for idx in np.where(self.fitstbl['failures'])[0]:

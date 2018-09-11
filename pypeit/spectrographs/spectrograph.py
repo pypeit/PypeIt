@@ -396,7 +396,9 @@ class Spectrograph(object):
             if strict:
                 msgs.error("Error reading header from extension {0} of file:".format(filename))
             else:
-                msgs.warn("Bad header in extension {0:d} of file:".format(filename))
+                msgs.warn("Bad header in extension of file:{:}".format(filename))
+                # TODO JFH Not following the logic of this error message which caused a crash. Changing to above.
+#               msgs.warn("Bad header in extension {0:d} of file:".format(filename))
                 msgs.warn("Proceeding on the hopes this was a calibration file, otherwise consider removing.")
         return headarr
 
@@ -466,14 +468,8 @@ class Spectrograph(object):
         raise FileNotFoundError('Could not find archive sky spectrum: {0} or {1}'.format(
                                     self.sky_file, _sky_file))
 
-
-    def __repr__(self):
-        # Generate sets string
-        txt = '<{:s}: '.format(self.__class__.__name__)
-        txt += ' spectrograph={:s},'.format(self.spectrograph)
-        txt += ' camera={:s}'.format(self.camera)
-        txt += '>'
-        return txt
+    def pypeit_class(self):
+        return 'MultiSlit'
 
     def mm_per_pix(self, det=1):
         """
@@ -505,5 +501,12 @@ class Spectrograph(object):
 
         return self.detector[det-1]['platescale']/tel_platescale
 
-            
 
+    def __repr__(self):
+        # Generate string
+        txt = '<{:s}: '.format(self.__class__.__name__)
+        txt += ' spectrograph={:s},'.format(self.spectrograph)
+        txt += ' telescope={:s},'.format(self.telescope['name'])
+        txt += ' camera={:s}'.format(self.camera)
+        txt += '>'
+        return txt

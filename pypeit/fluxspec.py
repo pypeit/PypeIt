@@ -16,6 +16,7 @@ from pypeit.core import masters
 from pypeit.core import save
 from pypeit import utils
 from pypeit import masterframe
+from pypeit import specobjs
 
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
@@ -130,13 +131,13 @@ class FluxSpec(masterframe.MasterFrame):
             msgs.info("Spectrograph set to {0}, from argument object".format(_spectrograph))
     
         # MasterFrame
-        directory_path = None
+        master_dir = None
         if root_path is not None:
-            directory_path = root_path
+            master_dir = root_path
             if spectrograph_name is not None:
-                directory_path += '_'+spectrograph_name
+                master_dir += '_'+spectrograph_name
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         directory_path=directory_path, mode=mode)
+                                         master_dir=master_dir, mode=mode)
         # Get the extinction data
         self.extinction_data = None
         if _spectrograph is not None:
@@ -429,7 +430,14 @@ class FluxSpec(masterframe.MasterFrame):
             telescope = TelescopePar(longitude=self.sci_header['LON-OBS'],
                                      latitude=self.sci_header['LAT-OBS'],
                                      elevation=self.sci_header['ALT-OBS'])
-        save.save_1d_spectra_fits(self.sci_specobjs, self.sci_header, outfile,
+        # KLUDGE ME
+        if isinstance(self.sci_specobjs, list):
+            specObjs = specobjs.SpecObjs(self.sci_specobjs)
+        elif isinstance(self.sci_specobjs, specobjs.SpecObjs):
+            specObjs = self.sci_specobjs
+        else:
+            msgs.error("BAD INPUT")
+        save.save_1d_spectra_fits(specObjs, self.sci_header, outfile,
                                     helio_dict=helio_dict, telescope=telescope, clobber=True)
         # Step
         self.steps.append(inspect.stack()[0][3])
