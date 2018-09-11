@@ -529,6 +529,30 @@ class General:
         """ KD Tree algorithm to wavelength calibrate spectroscopic data.
         Currently, this is only designed for ThAr lamp spectra. See the
         'run_brute' function if you want to calibrate longslit spectra.
+
+        Parameters
+        ----------
+        polygon : int
+          Number of sides to the polygon used in pattern matching:
+            polygon=3  -->  trigon (two anchor lines and one floating line)
+            polygon=4  -->  tetragon (two anchor lines and two floating lines)
+            polygon=5  -->  pentagon (two anchor lines and three floating lines)
+            ...
+        detsrch : int
+          Number of consecutive detected lines used to generate a pattern. For
+          example, if detsrch is 4, then for a trigon, the following patterns will
+          be generated (assuming line #1 is the left anchor):
+          1 2 3  (in this case line #3 is the right anchor)
+          1 2 4  (in this case line #4 is the right anchor)
+          1 3 4  (in this case line #4 is the right anchor)
+        lstsrch : int
+          Number of consecutive lines in the linelist used to generate a pattern.
+          See example above for detsrch
+        pixtol : float
+          Tolerance used to find good patterns. An acceptable match if
+          the closest distance to a pattern is < pixtol/npix, where npix
+          is the number of pixels in the spectral direction. Ideally, this
+          should depend on the pattern...
         """
 
         # Load the linelist KD Tree
@@ -625,8 +649,12 @@ class General:
 
     def cross_match(self, good_fit):
         """Cross-correlate the spectra across all slits to ID all of the lines.
+
+        Parameters
+        ----------
         good_fit : ndarray (bool)
-          Indicates which slits are deemed to be a good fit (although, they need not necessarily be a good fit).
+          Indicates which slits are deemed to be a good fit (although, sometimes a bad fit can be
+          labelled as a good fit). To remedy this, the true good fits are determined in this routine.
         """
         # Steps:
         # Check that all of the "good" slits are indeed good
@@ -782,6 +810,10 @@ class General:
 
     def cross_match_order(self, good_fit):
         """Using the solutions of all orders, identify the good solutions, and refit the bad ones!
+
+        TODO: This function needs work... The first few lines of code successfully pick up the good orders,
+        but we need a new routine that (based on an estimated central wavelength and dispersion) can successfully
+        ID all of the lines.
         """
 
         # First determine the central wavelength and dispersion of every slit, using the known good solutions
@@ -1228,7 +1260,28 @@ class General:
         return patt_dict
 
     def fit_slit(self, slit, patt_dict, outroot=None, slittxt="Slit", tcent=None, ecent=None):
+        """ Perform a fit to the wavelength solution
 
+        Parameters
+        ----------
+        slit : int
+          slit number
+        patt_dict : dict
+          dictionary of patterns
+        outroot : str
+          root directory to save QA
+        slittxt : str
+          Label used for QA
+        tcent : ndarray
+          List of the detections in this slit...
+        ecent : ndarray
+          ... and their corresponding errors
+
+        Returns
+        -------
+        final_fit : dict
+          A dictionary containing all of the information about the fit
+        """
         # Perform final fit to the line IDs
         if self._thar:
             NIST_lines = (self._line_lists['NIST'] > 0) & (np.char.find(self._line_lists['Source'].data, 'MURPHY') >= 0)
@@ -1274,6 +1327,8 @@ class General:
         return final_fit
 
     def finalize_fit(self):
+        """ Once the best IDs have been found for each slit, perform a final fit to all slits and save the results
+        """
         for slit in range(self._nslit):
             if slit not in self._ok_mask:
                 continue
@@ -1378,6 +1433,43 @@ class General:
 
 @nb.jit(nopython=True, cache=True)
 def results_kdtree_nb(use_tcent, wvdata, res, residx, dindex, lindex, nindx, npix, ordfit=1):
+    """ A numba speedup of the results_kdtree function in the General class (see above).
+    For all of the acceptable pattern matches, estimate the central wavelength and dispersion,
+    and record the index in the linelist and the corresponding indices of the detected lines.
+
+    Parameters
+    ----------
+    use_tcent : ndarray
+      detected lines
+    wvdata : ndarray
+      the linelist
+    res : list
+      A flattened list of the results of the ball tree query from the KDTree (this contains all acceptable matches)
+      This needs to be a flattened list for numba
+    residx : list
+      This contains the original indices of the unflattened (i.e. nested) 'res' list
+    dindex : ndarray
+      Indices of the lines in the detected lines for all patterns
+    lindex : ndarray
+      Indices of the lines in the linelist for all patterns
+    nindx : int
+      Number of acceptable pattens
+    npix : int
+      Number of pixels in the spectral direction
+    ordfit : int
+      Order of the polynomial used to fit the pixel/wavelength IDs
+
+    Returns
+    -------
+    dind : ndarray
+      Indices of the lines in the detected lines that were used for each acceptable pattern
+    lind : linelist index of patterns
+      Indices of the lines in the linelist that were used for each corresponding pattern
+    wvcent : ndarray
+      Central wavelength of each pattern
+    wvdisp : ndarray
+      Central dispersion of each pattern
+    """
     # Assign wavelengths to each pixel
     ncols = len(res)
     wvdisp = np.zeros(ncols, dtype=nb.types.float64)

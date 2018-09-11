@@ -175,7 +175,7 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, ge
     return arccen, maskslit, satsnd
 
 
-def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False, return_errors=False):
+def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -193,6 +193,8 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False, return_errors=
       The centroids of the line detections
     twid : ndarray
       The 1sigma Gaussian widths of the line detections
+    centerr : ndarray
+      The variance on tcent
     w : ndarray
       An index array indicating which detections are the most reliable.
     detns : ndarray
@@ -248,10 +250,7 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False, return_errors=
         plt.plot(xrng, detns, 'k-')
         plt.plot(tcent, tampl, 'ro')
         plt.show()
-    if return_errors:
-        return tampl, tcent, twid, centerr, ww, detns
-    else:
-        return tampl, tcent, twid, ww, detns
+    return tampl, tcent, twid, centerr, ww, detns
 
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
@@ -320,7 +319,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, w, yprep = detect_lines(censpec, nfitpix=nfitpix)
+    tampl, tcent, twid, _, w, yprep = detect_lines(censpec, nfitpix=nfitpix)
 
     # Cut down to the good ones
     tcent = tcent[w]
