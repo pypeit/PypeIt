@@ -206,12 +206,16 @@ def bspline_magfit(
     
     import matplotlib.pyplot as plt
     plt.figure(1)
-    plt.ylim(np.min(logivar),np.max(logivar))
     plt.plot(wave_obs, logivar, label='logivar')
     plt.legend()
     plt.xlabel('Wavelength [ang]')
+
+    plt.figure(2)
+    plt.plot(wave_obs, invvar, label='invvar')
+    plt.legend()
+    plt.xlabel('Wavelength [ang]')
     plt.show()
-    
+
     #  First round of the fit:
     bset1, bmask = pydl.iterfit(wave_obs, magfunc, invvar=logivar,
                                 upper=upper, lower=lower,
@@ -289,6 +293,7 @@ def bspline_magfit(
     print(bspline_dict)
 
     # Write the sens_dict to a json file
+    import json
     msgs.info("Writing bspline_dict into .json file")
     with open('bspline_dict.json', 'w') as fp:
         json.dump(bspline_dict, fp, sort_keys=True, indent=4)
