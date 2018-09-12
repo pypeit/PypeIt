@@ -1370,7 +1370,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
         nobj_reg = 0
 
 
-    # ToDo Also plot the edge trimming boundaries on the QA here. 
+    # ToDo Also plot the edge trimming boundaries on the QA here.
     if show_peaks:
         spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
         spat_approx = slit_left[specmid] + xsize[specmid]*xcen/nsamp
