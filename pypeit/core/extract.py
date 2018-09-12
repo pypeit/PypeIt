@@ -799,7 +799,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     trace_corr = np.zeros(nspec)
     msgs.info("Gaussian vs b-spline of width " + "{:6.2f}".format(thisfwhm) + " pixels")
     area = 1.0
-    sigma_x = norm_x / (np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr, np.ones(nspat)))
+    # sigma_x represents the profile argument, i.e. (x-x0)/sigma
+    sigma_x = norm_x/(np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat))
 
     # If we have too few pixels to fit a profile or S/N is too low, just use a Gaussian profile
     if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
@@ -969,7 +970,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         sigma = sigma*(1.0 + sigma_factor)
         area = area * h0/(1.0 + sigma_factor)
 
-        sigma_x = norm_x / (np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr, np.ones(nspat)))
+        sigma_x = norm_x / (np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat))
 
         # Update the profile B-spline fit for the next iteration
         if iiter < sigma_iter-1:
