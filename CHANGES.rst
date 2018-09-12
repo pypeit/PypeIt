@@ -20,6 +20,9 @@
 - Fixed issue with biases being written to disk as untrimmed. 
 - Completely reworked flat fielding algorithm. 
 - Fixed some parsing issues with the .pypeit file for cases where there is a whitepsace in the path.
+- Implemented interactive plots with the -s option which allow the reduction to continue running.
+- Modified global sky subtraction significantly to now do a polynomial fit. This greatly improves results for large slits.
+- Updated loading of spectra and pypeit_show_1dspec script to work with new output data model. 
 
 0.8.1
 -----

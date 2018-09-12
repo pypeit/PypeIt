@@ -1088,6 +1088,7 @@ def flatfield(sciframe, flatframe, bpix, illum_flat=None, snframe=None, varframe
 
     # Fold in the slit profile
     if illum_flat is not None:
+        msgs.info('Dividing by illumination flat')
         flatframe *= illum_flat
 
     # New image

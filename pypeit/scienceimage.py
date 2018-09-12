@@ -19,7 +19,7 @@ from pypeit import utils
 from pypeit import ginga
 from astropy.stats import sigma_clipped_stats
 import time
-
+from multiprocessing import Process
 
 from pypeit.par import pypeitpar
 
@@ -152,7 +152,7 @@ class ScienceImage(processimages.ProcessImages):
         # SpecObjs object
         self.sobjs_obj = None # Only object finding but no extraction
         self.sobjs = None  # Final extracted object list with trace corrections applied
-
+        self.qa_proc_list = []
 
         # Other bookeeping internals
         self.exptime = None
@@ -284,21 +284,23 @@ class ScienceImage(processimages.ProcessImages):
 
         # Loop on slits
         for slit in gdslits:
-            msgs.info("Finding objects on slit: {:d}".format(slit +1))
+            qa_title ="Finding objects on slit # {:d}".format(slit +1)
+            msgs.info(qa_title)
             thismask = (self.tslits_dict['slitpix'] == slit + 1)
             inmask = (self.bitmask == 0) & thismask
             # Find objects
             specobj_dict = {'setup': self.setup, 'slitid': slit+1, 'scidx': self.scidx, 'det': self.det, 'objtype': self.objtype}
             # TODO we need to add QA paths and QA hooks. QA should be done through objfind where all the relevant information is. This will
             # be a png file(s) per slit.
-            sobjs_slit, self.skymask[thismask], self.objmask[thismask] = extract.objfind(image, thismask,
+            sobjs_slit, self.skymask[thismask], self.objmask[thismask], proc_list = extract.objfind(image, thismask,
                                                                                     self.tslits_dict['lcen'][:,slit],
                                                                                     self.tslits_dict['rcen'][:,slit],
                                                                                     inmask = inmask,
                                                                                     hand_extract_dict=self.par['manual'],
                                                                                     specobj_dict=specobj_dict,show_peaks=show_peaks,
-                                                                                    show_fits = show_fits,show_trace=show_trace)
+                                                                                    show_fits = show_fits,show_trace=show_trace, qa_title=qa_title)
             sobjs.add_sobj(sobjs_slit)
+            self.qa_proc_list += proc_list
 
         self.sobjs_obj = sobjs
         # Finish
@@ -443,6 +445,11 @@ class ScienceImage(processimages.ProcessImages):
             self.show('local', sobjs = self.sobjs, slits= True)
             self.show('resid', sobjs = self.sobjs, slits= True)
 
+        # Clean up any interactive windows that are still up
+        for proc in self.qa_proc_list:
+            proc.terminate()
+            proc.join()
+
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
@@ -500,7 +507,8 @@ class ScienceImage(processimages.ProcessImages):
 
         # Show the science image if an interactive run
         if show:
-            self.show('image', image=self.sciimg, chname='sciimg', clear=True)
+            bitmask = self._build_bitmask()
+            self.show('image', image=self.sciimg*(bitmask == 0), chname='sciimg', clear=True)
         return self.sciimg, self.sciivar, self.rn2img, self.crmask
 
 
@@ -544,7 +552,11 @@ class ScienceImage(processimages.ProcessImages):
         bitmask[self.crmask == True] += np.uint64(2**1)
         bitmask[self.sciimg >= saturation] += np.uint64(2**2)
         bitmask[self.sciimg <= mincounts] += np.uint64(2**3)
-        bitmask[self.tslits_dict['slitpix'] == 0] += np.uint64(2**4)
+        # This try except is here so that the bitmask can still be created even if tslits_dict has not been instantiated yet
+        try:
+            bitmask[self.tslits_dict['slitpix'] == 0] += np.uint64(2**4)
+        except:
+            pass
         bitmask[np.isfinite(self.sciimg) == False] += np.uint64(2**5)
         bitmask[self.sciivar <= 0.0] += np.uint64(2**6)
         bitmask[np.isfinite(self.sciivar) == False] += np.uint64(2**7)
@@ -612,7 +624,7 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'global_sky'
-                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask = bitmask_in, clear = clear, wcs_match=True)
+                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask = bitmask_in, clear = clear, wcs_match=True) #, cuts=(cut_min, cut_max))
                 #cuts=(cut_min, cut_max)
         elif attr == 'local':
             # local sky subtraction
@@ -626,7 +638,7 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     bitmask_in = None
                 ch_name = chname if chname is not None else 'local_sky'
-                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in, clear=clear, wcs_match=True)
+                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in, clear=clear, wcs_match=True) #, cuts=(cut_min, cut_max))
                 #cuts=(cut_min, cut_max),
         elif attr == 'sky_resid':
             # sky residual map with object included

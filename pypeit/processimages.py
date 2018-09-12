@@ -400,7 +400,10 @@ class ProcessImages(object):
         if self.bpm is None:
             msgs.error('No bpm for {0}'.format(self.spectrograph.spectrograph))
 
+        msgs.info("Flat fielding your image")
         # Flat-field the data and return the result
+
+        from IPython import embed
         self.stack = flat.flatfield(self.stack, self.pixel_flat, self.bpm, illum_flat=self.illum_flat)
         return self.stack
 
