@@ -530,6 +530,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 msgs.warn('ERROR: Bspline sky subtraction failed after 4 iterations of bkpt spacing')
                 msgs.warn('       Moving on......')
                 obj_profiles = np.zeros_like(obj_profiles)
+                # Just replace with the global sky
+                skyimage.flat[isub] = global_sky.flat[isub]
 
         # Now that iterations are complete, clear the windows if show_profile was set
         if show_profile:
