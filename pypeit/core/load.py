@@ -335,8 +335,8 @@ def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
     rsp_kwargs = {}
     rsp_kwargs['wave_tag'] = '{:s}_WAVE'.format(extract)
     if flux:
-        rsp_kwargs['flux_tag'] = '{:s}_flam'.format(extract)
-        rsp_kwargs['ivar_tag'] = '{:s}_flam_ivar'.format(extract)
+        rsp_kwargs['flux_tag'] = '{:s}_FLAM'.format(extract)
+        rsp_kwargs['ivar_tag'] = '{:s}_FLAM_IVAR'.format(extract)
     else:
         rsp_kwargs['flux_tag'] = '{:s}_COUNTS'.format(extract)
         rsp_kwargs['ivar_tag'] = '{:s}_COUNTS_IVAR'.format(extract)

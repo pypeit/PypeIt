@@ -484,11 +484,6 @@ def findfwhm(model, sig_x):
 def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind = None,
                    title =' ', xtrunc = 1e6, xlim = None, ylim = None, qafile = None):
 
-    from importlib import reload
-    import matplotlib
-    reload(matplotlib)
-    plt = matplotlib.pyplot
-
     # Plotting pre-amble
     plt.close("all")
     #plt.clf()
@@ -611,7 +606,7 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
         p_show_profile.daemon = True
         p_show_profile.start()
 
-    return (profile_model, p_show_profile)
+    return profile_model, p_show_profile
 
 
 def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
@@ -1727,6 +1722,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
 #        p_show_gauss_wt.terminate()
 
 
-    return (sobjs, skymask[thismask], objmask[thismask], proc_list)
+    return sobjs, skymask[thismask], objmask[thismask], proc_list
 
 
