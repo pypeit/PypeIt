@@ -53,6 +53,11 @@ ZnI     2900-8000   2 May 2016
 ThAr    3000-11000  9 January 2018
 ======  ==========  ==============
 
+In the case of the ThAr list, all of the lines are taken from
+the NIST database, and are labelled with a 'MURPHY' flag if the
+line also appears in the list of lines identified by
+`Murphy et al. (2007) MNRAS 378 221 <http://adsabs.harvard.edu/abs/2007MNRAS.378..221M>`_
+
 By-Hand Calibration
 ===================
 
