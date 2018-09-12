@@ -46,7 +46,7 @@ def trigon(linelist, numsrch, maxlin):
         if nup > sz_l: nup = sz_l
         for ll in range(l + nptn - 1, nup):
             if (linelist[ll] - linelist[l]) > maxlin: continue
-            for x in range(l + 1, ll - 1):
+            for x in range(l + 1, ll):
                 cnt += 1
 
     index = np.zeros((cnt, nptn), dtype=nb.types.uint64)
@@ -60,7 +60,7 @@ def trigon(linelist, numsrch, maxlin):
         for ll in range(l + nptn - 1, nup):
             if (linelist[ll] - linelist[l]) > maxlin: continue
             # Create a pattern with these two endpoints
-            for x in range(l + 1, ll - 1):
+            for x in range(l + 1, ll):
                 index[cnt, 0] = l
                 index[cnt, 1] = x
                 index[cnt, 2] = ll
@@ -100,7 +100,7 @@ def tetragon(linelist, numsrch, maxlin):
         for ll in range(l + nptn - 1, nup):
             if (linelist[ll] - linelist[l]) > maxlin: continue
             for x in range(l + 1, ll - 2):
-                for xx in range(x + 1, ll - 1):
+                for xx in range(x + 1, ll):
                     cnt += 1
 
     index = np.zeros((cnt, nptn), dtype=nb.types.uint64)
@@ -115,7 +115,7 @@ def tetragon(linelist, numsrch, maxlin):
             if (linelist[ll] - linelist[l]) > maxlin: continue
             # Create a pattern with these two endpoints
             for x in range(l + 1, ll - 2):
-                for xx in range(x + 1, ll - 1):
+                for xx in range(x + 1, ll):
                     index[cnt, 0] = l
                     index[cnt, 1] = x
                     index[cnt, 2] = xx
@@ -253,6 +253,10 @@ def main(polygon, numsearch=8, maxlinear=100.0, use_unknowns=True, leafsize=30, 
         tot_list = line_lists
     wvdata = np.array(tot_list['wave'].data)  # Removes mask if any
     wvdata.sort()
+
+    # NIST_lines = (line_lists_all['NIST'] > 0) & (np.char.find(line_lists_all['Source'].data, 'MURPHY') >= 0)
+    # wvdata = line_lists_all['wave'].data[NIST_lines]
+    # wvdata.sort()
 
     if polygon == 3:
         if verbose: print("Generating patterns for a trigon")

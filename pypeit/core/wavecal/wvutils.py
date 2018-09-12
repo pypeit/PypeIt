@@ -26,7 +26,7 @@ def arc_lines_from_spec(spec, min_ampl=300.):
     """
 
     # Find peaks
-    tampl, tcent, twid, centerr, w, yprep = arc.detect_lines(spec, nfitpix=7, return_errors=True)
+    tampl, tcent, twid, centerr, w, yprep = arc.detect_lines(spec, nfitpix=7)
     all_tcent = tcent[w]
     all_tampl = tampl[w]
     all_ecent = centerr[w]
