@@ -177,7 +177,7 @@ def bspline_magfit(
     # Removing outliners
     # if the flux is too small, take as value 1/10th of the sigma
     pos_error = np.sqrt(np.maximum(1./ivar_obs, 0.))
-    pos_mask = (flux_obs > pos_error / 10.0) & (ivar_obs > 0) & (flux_std > 0.0)
+    pos_mask = (flux_obs > pos_error / 10.0) & (ivar_obs > 0.0) & (flux_std > 0.0)
     fluxlog = 2.5 * np.log10(np.maximum(flux_obs, pos_error / 10))
     logivar = ivar_obs * np.power(flux_obs, 2.) * pos_mask * np.power(1.08574, -2.)
     """
@@ -207,24 +207,6 @@ def bspline_magfit(
     init_breakpoints = fullbkpt[msk_bkpt == 1.]
 
     msgs.info("Bspline fit: step 1")
-
-    """
-    # Check for magfunc
-
-    import matplotlib.pyplot as plt
-    plt.figure(1)
-    plt.plot(wave_obs, logivar, label='logivar')
-    plt.legend()
-    plt.xlabel('Wavelength [ang]')
-
-    plt.figure(2)
-    plt.plot(wave_obs, ivar_obs, label='invvar')
-    plt.legend()
-    plt.xlabel('Wavelength [ang]')
-    plt.show()
-    """
-
-
     #  First round of the fit:
     bset1, bmask = pydl.iterfit(wave_obs, magfunc, invvar=logivar,
                                 upper=upper, lower=lower,
@@ -232,15 +214,6 @@ def bspline_magfit(
                                 fullbkpt=init_breakpoints,
                                 kwargs_bspline=kwargs_bspline,
                                 kwargs_reject=kwargs_reject)
-
-    """
-    # OLD
-    bset1, bmask = bspline_iterfit(wave_obs, magfunc, invvar=logivar,
-                                   fullbkpt=init_breakpoints,
-                                   maxiter=maxiter,
-                                   upper=upper, lower=lower, kwargs_bspline=kwargs_bspline,
-                                   kwargs_reject=kwargs_reject)
-    """
 
     # Calculate residuals
     logfit1, _ = bset1.value(wave_obs)
@@ -251,43 +224,14 @@ def bspline_magfit(
     residual_ivar = (modelfit1 * flux_obs / (sensfunc + (sensfunc == 0.0))) ** 2 * ivar_obs
     residual_ivar = residual_ivar * new_mask
 
-    """
-    # Check for magfunc
-    import matplotlib.pyplot as plt
-    plt.figure(1)
-    plt.ylim(np.min(magfunc),np.max(magfunc))
-    plt.plot(wave_obs, magfunc, label='magfunc')
-    plt.plot(wave_obs, logfit1, label='logfit1')
-    plt.legend()
-    plt.xlabel('Wavelength [ang]')
-    plt.show()
-    # plt.close()
-
-    # Check for calibration
-    import matplotlib.pyplot as plt
-    plt.figure(2)
-    plt.plot(wave_obs, sensfunc*flux_obs, label='scaled')
-    plt.plot(wave_obs, flux_std, label='model')
-    plt.legend()
-    plt.xlabel('Wavelength [ang]')
-    plt.show()
-    # plt.close()
-    """
-    
     msgs.info("Bspline fit: step 2")
-
     #  Now do one more fit to the ratio of data/model - 1.
     bset_residual, bmask2 = pydl.iterfit(wave_obs, residual, invvar=residual_ivar,
-                                         fullbkpt=bset1.breakpoints, maxiter=maxiter, upper=upper,
-                                         lower=lower, kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject)
-    """
-    OLD
-    bset_residual, bmask2 = bspline_iterfit(wave_obs, residual, invvar=residual_ivar,
-                                            fullbkpt=bset1.breakpoints,
-                                            maxiter=maxiter,
-                                            upper=upper, lower=lower, kwargs_bspline=kwargs_bspline,
-                                            kwargs_reject=kwargs_reject)
-    """
+                                         upper=upper, lower=lower,
+                                         maxiter=maxiter,
+                                         fullbkpt=bset1.breakpoints,
+                                         kwargs_bspline=kwargs_bspline,
+                                         kwargs_reject=kwargs_reject)
 
     # Create sensitivity function
     bset_log1 = bset1
@@ -295,20 +239,13 @@ def bspline_magfit(
     newlogfit, _ = bset_log1.value(wave_obs)
     sensfit = np.power(10.0, 0.4 * newlogfit)
 
-    ## print(bset_log1)
-
-    bspline_dict = {}
-
-    print(bspline_dict)
-
     # Write the sens_dict to a json file
     import json
     msgs.info("Writing bspline_dict into .json file")
     with open('bspline_dict.json', 'w') as fp:
         json.dump(bspline_dict, fp, sort_keys=True, indent=4)
 
-    # bspline_func = bspline_fromdict(wave_obs, from_dict=bspline_dict)
-
+    """
     # Check for calibration
     import matplotlib.pyplot as plt
     plt.figure(1)
@@ -318,6 +255,7 @@ def bspline_magfit(
     plt.xlabel('Wavelength [ang]')
     plt.show()
     # plt.close()
+    """
 
     # Check quality of the fit
     absdev = np.median(np.abs(sensfit / modelfit1 - 1))
@@ -325,7 +263,7 @@ def bspline_magfit(
 
     # Check for residual of the fit
     import matplotlib.pyplot as plt
-    plt.figure(2)
+    plt.figure(1)
     plt.plot(wave_obs, sensfit / modelfit1 - 1, label='residual')
     plt.legend()
     plt.xlabel('Wavelength [ang]')
@@ -671,7 +609,7 @@ def find_standard(specobjs):
         if spobj is None:
             medfx.append(0.)
         else:
-            medfx.append(np.median(spobj.boxcar['counts']))
+            medfx.append(np.median(spobj.boxcar['COUNTS']))
     try:
         mxix = np.argmax(np.array(medfx))
     except:

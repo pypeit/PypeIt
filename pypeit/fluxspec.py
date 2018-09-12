@@ -196,9 +196,9 @@ class FluxSpec(masterframe.MasterFrame):
             std_splice = sv_stds[0].copy()
             # Append
             for ostd in sv_stds[1:]:
-                std_splice.boxcar['wave'] = np.append(std_splice.boxcar['wave'].value,
-                                                      ostd.boxcar['wave'].value) * units.AA
-                for key in ['counts', 'var']:
+                std_splice.boxcar['WAVE'] = np.append(std_splice.boxcar['WAVE'].value,
+                                                      ostd.boxcar['WAVE'].value) * units.AA
+                for key in ['COUNTS', 'COUNTS_IVAR']:
                     std_splice.boxcar[key] = np.append(std_splice.boxcar[key], ostd.boxcar[key])
             self.std = std_splice
         else:
@@ -234,12 +234,13 @@ class FluxSpec(masterframe.MasterFrame):
             return None
 
         # Get extinction correction
-        extinction_corr = flux.extinction_correction(self.std.boxcar['wave'],
-                                                       self.std_header['AIRMASS'],
-                                                       self.extinction_data)
-        self.sensfunc = flux.generate_sensfunc(self.std, self.std_header['RA'],
-                                                 self.std_header['DEC'],
-                                                 self.std_header['EXPTIME'], extinction_corr)
+        extinction_corr = flux.extinction_correction(self.std.boxcar['WAVE'],
+                                                     self.std_header['AIRMASS'],
+                                                     self.extinction_data)
+        self.sensfunc = flux.generate_sensfunc(self.std,
+                                               self.std_header['RA'], self.std_header['DEC'],
+                                               self.std_header['EXPTIME'], self.std_header['spectrograph'],
+	                                       extinction_corr)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
