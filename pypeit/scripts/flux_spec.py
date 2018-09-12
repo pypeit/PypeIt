@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Script for fluxing PYPIT 1d spectra
+Script for fluxing PYPEIT 1d spectra
 """
 from __future__ import absolute_import
 from __future__ import division
