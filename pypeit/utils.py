@@ -251,10 +251,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     if profile_basis.size != nx*npoly:
         msgs.error('Profile basis is not a multiple of the number of data points.')
 
-    msgs.info("Fitting npoly =" + "{:3d}".format(npoly) + " profile basis functions, nx=" + "{:3d}".format(nx) + " pixels")
-    msgs.info("****************************  Iter  Chi^2  # rejected  Rel. fact   ****************************")
-    msgs.info("                              ----  -----  ----------  --------- ")
-
     # Init
     yfit = np.zeros(ydata.shape)
     reduced_chi = 0.
@@ -266,6 +262,13 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
 
     if inmask is None:
         inmask = (invvar > 0)
+
+    nin = np.sum(inmask)
+    msgs.info("Fitting npoly =" + "{:3d}".format(npoly) + " profile basis functions, nin=" + "{:3d}".format(nin) + " good pixels")
+    msgs.info("******************************  Iter  Chi^2  # rejected  Rel. fact   ******************************")
+    msgs.info("                              ----  -----  ----------  --------- ")
+
+
     maskwork = outmask & inmask & (invvar > 0)
     if not maskwork.any():
         msgs.error('No valid data points in bspline_profile!.')
@@ -316,8 +319,8 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
             error, yfit = sset.workit(xdata, ydata, invvar*maskwork,action, laction, uaction)
         iiter += 1
         if error == -2:
-            msgs.warn(" All break points have been dropped!!")
-            return (sset, outmask, yfit, reduced_chi)
+            msgs.warn(" All break points have been dropped!! Fit failed, I hope you know what you are doing")
+            return (sset, np.zeros(xdata.shape,dtype=bool), np.zeros(xdata.shape), reduced_chi)
         elif error == 0:
             # Iterate the fit -- next rejection iteration
             chi_array = (ydata - yfit)*np.sqrt(invvar * maskwork)
@@ -345,7 +348,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
             msgs.info("                             {:4d}".format(iiter) + "    ---    ---    ---    ---")
 
 
-    msgs.info("***********************************************************************************************")
+    msgs.info("***************************************************************************************************")
     msgs.info(
         "Final fit after " + "{:2d}".format(iiter) + " iterations: reduced_chi = " + "{:8.3f}".format(reduced_chi) +
         ", rejected = " + "{:7d}".format((maskwork == 0).sum()) + ", relative_factor = {:6.2f}".format(relative_factor))
