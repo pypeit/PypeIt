@@ -299,6 +299,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
 
     # Exit gracefully if we have no positive object profiles, since that means something was wrong with object fitting
     if not np.any(oprof > 0.0):
+        msgs.warn('Object profile is zero everywhere. This aperture is junk.')
         junk = np.zeros(nspec)
         # Fill in the optimally extraction tags
         specobj.optimal['WAVE'] = junk
