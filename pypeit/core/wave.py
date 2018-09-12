@@ -108,6 +108,7 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=None):
 
     #Rebin both spectra onto overlapped wavelength range
     if len(keep_idx) <= 50:
+        #TODO JFH the code needs to exit gracefully here for bad apertures.
         msgs.error("Not enough overlap between sky spectra")
     else: #rebin onto object ALWAYS
         keep_wave = obj_skyspec.wavelength[keep_idx]
