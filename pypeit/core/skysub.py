@@ -223,7 +223,9 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     good = good[wave[good].argsort()]
     relative, = np.where(relative_mask[good])
 
-    (sset1, outmask_good1, yfit1, red_chi1) = utils.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good, :],
+
+
+    sset1, outmask_good1, yfit1, red_chi1 = utils.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good, :],
                                                               fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
                                                               relative=relative,
                                                               kwargs_reject={'groupbadpix': True, 'maxrej': 5})
@@ -237,7 +239,7 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     msgs.info('2nd round....')
     msgs.info('Iter     Chi^2     Rejected Pts')
 
-    (sset, outmask_good, yfit, red_chi) = utils.bspline_profile(wave[good], data[good], ivar[good] * mask1,
+    sset, outmask_good, yfit, red_chi = utils.bspline_profile(wave[good], data[good], ivar[good] * mask1,
                                                           profile_basis[good, :],
                                                           fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
                                                           relative=relative,
@@ -528,6 +530,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 msgs.warn('ERROR: Bspline sky subtraction failed after 4 iterations of bkpt spacing')
                 msgs.warn('       Moving on......')
                 obj_profiles = np.zeros_like(obj_profiles)
+                # Just replace with the global sky
+                skyimage.flat[isub] = global_sky.flat[isub]
 
         # Now that iterations are complete, clear the windows if show_profile was set
         if show_profile:

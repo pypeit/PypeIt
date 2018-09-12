@@ -273,14 +273,12 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     if not maskwork.any():
         msgs.error('No valid data points in bspline_profile!.')
     else:
-        #from IPython import embed
-        #embed()
         # Init bspline class
         sset = pydl.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
                        funcname='Bspline longslit special', **kwargs_bspline)
         if maskwork.sum() < sset.nord:
             msgs.warn('Number of good data points fewer than nord.')
-            return (sset, outmask, yfit, reduced_chi)
+            return sset, outmask, yfit, reduced_chi
 
     # This was checked in detail against IDL for identical inputs
     outer = (np.outer(np.ones(nord, dtype=float), profile_basis.flatten('F'))).T

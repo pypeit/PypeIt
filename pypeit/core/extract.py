@@ -299,6 +299,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
 
     # Exit gracefully if we have no positive object profiles, since that means something was wrong with object fitting
     if not np.any(oprof > 0.0):
+        msgs.warn('Object profile is zero everywhere. This aperture is junk.')
         junk = np.zeros(nspec)
         # Fill in the optimally extraction tags
         specobj.optimal['WAVE'] = junk
@@ -799,7 +800,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     trace_corr = np.zeros(nspec)
     msgs.info("Gaussian vs b-spline of width " + "{:6.2f}".format(thisfwhm) + " pixels")
     area = 1.0
-    sigma_x = norm_x / (np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr, np.ones(nspat)))
+    # sigma_x represents the profile argument, i.e. (x-x0)/sigma
+    sigma_x = norm_x/(np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat))
 
     # If we have too few pixels to fit a profile or S/N is too low, just use a Gaussian profile
     if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
@@ -969,7 +971,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         sigma = sigma*(1.0 + sigma_factor)
         area = area * h0/(1.0 + sigma_factor)
 
-        sigma_x = norm_x / (np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr, np.ones(nspat)))
+        sigma_x = norm_x / (np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat))
 
         # Update the profile B-spline fit for the next iteration
         if iiter < sigma_iter-1:
@@ -1368,7 +1370,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
         nobj_reg = 0
 
 
-
+    # ToDo Also plot the edge trimming boundaries on the QA here.
     if show_peaks:
         spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
         spat_approx = slit_left[specmid] + xsize[specmid]*xcen/nsamp
