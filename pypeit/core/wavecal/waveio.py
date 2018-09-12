@@ -180,6 +180,33 @@ def load_source_table():
 
 
 def load_tree(polygon=4, numsearch=20):
+    """ Load a KDTree of ThAr patterns that is stored on disk
+
+    Parameters
+    ----------
+    polygon : int
+      Number of sides to the polygon used in pattern matching:
+        polygon=3  -->  trigon (two anchor lines and one floating line)
+        polygon=4  -->  tetragon (two anchor lines and two floating lines)
+        polygon=5  -->  pentagon (two anchor lines and three floating lines)
+        ...
+    numsearch : int
+      Number of consecutive detected lines used to generate a pattern. For
+      example, if numsearch is 4, then for a trigon, the following patterns will
+      be generated (assuming line #1 is the left anchor):
+      1 2 3  (in this case line #3 is the right anchor)
+      1 2 4  (in this case line #4 is the right anchor)
+      1 3 4  (in this case line #4 is the right anchor)
+
+    Returns
+    -------
+    file_load : KDTree instance
+      The KDTree containing the patterns
+    index : ndarray
+      For each pattern in the KDTree, this array stores the corresponding index in
+      the linelist
+    """
+
     import pickle
     filename = pypeit.__path__[0] +\
                '/data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.kdtree'.format(polygon, numsearch)

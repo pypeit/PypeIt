@@ -19,8 +19,20 @@ import pickle
 
 @nb.jit(nopython=True, cache=True)
 def trigon(linelist, numsrch, maxlin):
-    """
-    linelist : list of wavelength calibration lines (must be sorted by ascending wavelength)
+    """ Generate a series of trigon patterns, given an input list of detections or lines from a linelist
+
+    linelist : ndarray
+      list of wavelength calibration lines (must be sorted by ascending wavelength)
+    numsrch : int
+      Number of consecutive detected lines used to generate a pattern. For
+      example, if numsrch is 4, there are four lines (called 1 2 3 4). The following
+      patterns will be generated (assuming line #1 is the left anchor):
+      1 2 3  (in this case line #3 is the right anchor)
+      1 2 4  (in this case line #4 is the right anchor)
+      1 3 4  (in this case line #4 is the right anchor)
+    maxlin : float
+      Value (in pixels in the case of detections or Angstroms in the case of a linelist)
+      over which the wavelength solution can be considered linear.
     """
 
     nptn = 3  # Number of lines used to create a pattern
@@ -59,9 +71,23 @@ def trigon(linelist, numsrch, maxlin):
 
 @nb.jit(nopython=True, cache=True)
 def tetragon(linelist, numsrch, maxlin):
+    """ Generate a series of tetragon patterns, given an input list of detections or lines from a linelist
+
+    linelist : ndarray
+      list of wavelength calibration lines (must be sorted by ascending wavelength)
+    numsrch : int
+      Number of consecutive detected lines used to generate a pattern. For
+      example, if numsrch is 5, there are four lines (called 1 2 3 4 5). The following
+      patterns will be generated (assuming line #1 is the left anchor):
+      1 2 3 4 (in this case line #4 is the right anchor)
+      1 2 3 5 (in this case line #5 is the right anchor)
+      1 2 4 5 (in this case line #5 is the right anchor)
+      1 3 4 5 (in this case line #5 is the right anchor)
+    maxlin : float
+      Value (in pixels in the case of detections or Angstroms in the case of a linelist)
+      over which the wavelength solution can be considered linear.
     """
-    linelist : list of wavelength calibration lines (must be sorted by ascending wavelength)
-    """
+
     nptn = 4  # Number of lines used to create a pattern
 
     sz_l = linelist.shape[0]
@@ -103,7 +129,7 @@ def tetragon(linelist, numsrch, maxlin):
 @nb.jit(nopython=True, cache=True)
 def pentagon(linelist, numsrch, maxlin):
     """
-    linelist : list of wavelength calibration lines (must be sorted by ascending wavelength)
+    see trigon and tetragon for an example docstring
     """
     nptn = 5  # Number of lines used to create a pattern
 
@@ -150,7 +176,7 @@ def pentagon(linelist, numsrch, maxlin):
 @nb.jit(nopython=True, cache=True)
 def hexagon(linelist, numsrch, maxlin):
     """
-    linelist : list of wavelength calibration lines (must be sorted by ascending wavelength)
+    see trigon and tetragon for an example docstring
     """
 
     # Number of lines used to create a pattern
