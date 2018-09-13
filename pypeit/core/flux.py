@@ -660,20 +660,8 @@ def find_standard(specobjs):
     return mxix
 
 
-def generate_sensfunc(
-        wave,
-        counts,
-        counts_ivar,
-        airmass,
-        exptime,
-        spectrograph,
-        telluric=False,
-        star_type=None,
-        star_mag=None,
-        RA=None,
-        DEC=None,
-        BALM_MASK_WID=5.,
-        nresln=None):
+def generate_sensfunc(wave,counts,counts_ivar,airmass,exptime,spectrograph,telluric=False,star_type=None,star_mag=None,
+                      RA=None,DEC=None,BALM_MASK_WID=5.,nresln=None):
     """ Function to generate the sensitivity function.
     This can work in different regimes:
     - If telluric=False and RA=None and Dec=None
