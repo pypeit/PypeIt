@@ -659,7 +659,7 @@ def score_triangles(counts):
     # Score
     if (ncnt == 1) & (max_counts >= 4):
         score = 'Perfect'
-    elif sum_counts/max_counts >= 0.8:
+    elif sum_counts/max_counts >= 0.8 and max_counts >= 4:
         score = 'Very Good'
     elif sum_counts/max_counts >= 0.65:
         score = 'Good'

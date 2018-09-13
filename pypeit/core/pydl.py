@@ -877,7 +877,7 @@ def cholesky_solve(a, bb):
     return (-1, b)
 
 
-def iterfit(xdata, ydata, invvar=None, upper=5, lower=5, x2=None,
+def iterfit(xdata, ydata, invvar=None, inmask = None, upper=5, lower=5, x2=None,
             maxiter=10, nord = 4, bkpt = None, fullbkpt = None, kwargs_bspline={}, kwargs_reject={}):
     """Iteratively fit a b-spline set to data, with rejection.
 
@@ -921,6 +921,10 @@ def iterfit(xdata, ydata, invvar=None, upper=5, lower=5, x2=None,
         if var == 0:
             var = 1.0
         invvar = np.ones(ydata.shape, dtype=ydata.dtype)/var
+
+    if inmask is None:
+        inmask = invvar > 0.0
+
     if x2 is not None:
         if x2.size != nx:
             raise ValueError('Dimensions of xdata and x2 do not agree.')
@@ -930,7 +934,7 @@ def iterfit(xdata, ydata, invvar=None, upper=5, lower=5, x2=None,
     else:
         outmask = np.ones(invvar.shape, dtype='bool')
     xsort = xdata.argsort()
-    maskwork = (outmask & (invvar > 0))[xsort]
+    maskwork = (outmask & inmask & (invvar > 0.0))[xsort]
     if 'oldset' in kwargs_bspline:
         sset = kwargs_bspline['oldset']
         sset.mask = True
@@ -997,13 +1001,13 @@ def iterfit(xdata, ydata, invvar=None, upper=5, lower=5, x2=None,
             error, yfit = sset.fit(xwork, ywork, invwork*maskwork,
                                    x2=x2work)
         iiter += 1
-        inmask = maskwork
+        inmask_rej = maskwork
         if error == -2:
 
             return (sset, outmask)
         elif error == 0:
             maskwork, qdone = djs_reject(ywork, yfit, invvar=invwork,
-                                         inmask=inmask, outmask=maskwork,
+                                         inmask=inmask_rej, outmask=maskwork,
                                          upper=upper, lower=lower,**kwargs_reject)
         else:
             pass

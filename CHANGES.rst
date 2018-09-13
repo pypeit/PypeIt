@@ -8,6 +8,7 @@
 - Added thresholding in pypeit.core.tracewave to ensure that tilts are never crazy values due to extrapolation of fits which can break sky subtraction. 
 - Turn off 2.7 Travis testing
 - Integrated arclines into PypeIt
+- Added KDTree algorithm to the wavelength calibration routines
 - Modified debug/developer modes
 - Update SpecObjs class; ndarray instead of list;  set() method
 - Completely revamped object finding, global sky subtraction and local sky subtraction with new algorithms.
