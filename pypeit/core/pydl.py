@@ -234,8 +234,8 @@ class bspline(object):
         """
         # JFH added this to enforce immutability of these input arguments, as this code modifies bkpt and fullbkpt
         # as it goes
-        fullbkpt1 = copy.copy(fullbkpt)
-        bkpt1 = copy.copy(bkpt)
+        fullbkpt1 = np.copy(fullbkpt)
+        bkpt1 = np.copy(bkpt)
         #ToDO Consider refactoring the argument list so that there are no kwargs
         if from_dict is not None:
             self.nord=from_dict['nord'],
@@ -247,6 +247,16 @@ class bspline(object):
             self.xmin=from_dict['xmin'],
             self.xmax=from_dict['xmax'],
             self.funcname=from_dict['funcname']
+        elif x is None:
+            self.nord = None
+            self.npoly = None
+            self.breakpoints= None
+            self.mask= None
+            self.coeff= None
+            self.icoeff= None
+            self.xmin= None
+            self.xmax= None
+            self.funcname= None
         else:
             #
             # Set the breakpoints.
