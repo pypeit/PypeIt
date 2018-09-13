@@ -574,7 +574,7 @@ class General:
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._lowest_ampl)
             if self._all_tcent.size == 0:
-                msgs.warn("No lines to identify in slit {0:d}!".format(slit))
+                msgs.warn("No lines to identify in slit {0:d}!".format(slit+ 1))
                 continue
 
             # Save the detections
