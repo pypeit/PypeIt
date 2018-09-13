@@ -175,9 +175,9 @@ def bspline_magfit(
         msgs.warn("NaN are present in the inverse variance")
 
     # Removing outliners
-    # if the flux is too small, take as value 1/10th of the sigma
-    
+
     """
+    # if the flux is too small, take as value 1/10th of the sigma
     pos_error = np.sqrt(np.maximum(1./ivar_obs, 0.))
     pos_mask = (flux_obs > pos_error / 10.0) & (ivar_obs > 0.0) & (flux_std > 0.0)
     fluxlog = 2.5 * np.log10(np.maximum(flux_obs, pos_error / 10))
@@ -185,16 +185,21 @@ def bspline_magfit(
 
     pos_mask = (flux_obs > 0.) & (ivar_obs > 0.0) & (flux_std > 0.0) & np.isfinite(ivar_obs)
     fluxlog = 2.5 * np.log10(flux_obs)
-    
     logivar = ivar_obs * np.power(flux_obs, 2.) * pos_mask * np.power(1.08574, -2.)
+
     """
     EMA: I think there was a bug here. You need to have 1.08574^-2
     logivar = invvar * flux_obs ** 2 * pos_mask * 1.08574
     """
 
     # Exclude extreme values of magfunc
+    """
     flux_stdlog = 2.5 * np.log10(np.maximum(flux_std, 1.0e-20))
+    """
+    flux_stdlog = 2.5 * np.log10(flux_std)
     magfunc = flux_stdlog - fluxlog
+    print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ magfunc")
+    print(np.max(magfunc))
     magfunc = np.minimum(magfunc, 25.)
     sensfunc = 10.0 ** (0.4 * magfunc) * pos_mask
 
