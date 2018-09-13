@@ -344,6 +344,19 @@ class bspline(object):
             else:
                 self.funcname = 'legendre'
 
+    def copy(self):
+
+        bsp_copy = bspline(None)
+        bsp_copy.nord = self.nord
+        bsp_copy.npoly = self.npoly
+        bsp_copy.breakpoints = np.copy(self.breakpoints)
+        bsp_copy.mask = np.copy(self.mask)
+        bsp_copy.coeff = np.copy(self.coeff)
+        bsp_copy.icoeff = np.copy(self.icoeff)
+        bsp_copy.xmin = self.xmin
+        bsp_copy.xmax = self.xmax
+        bsp_copy.funcname = self.funcname
+        return bsp_copy
 
     def to_dict(self):
         """Write bspline parameters to a dict.
