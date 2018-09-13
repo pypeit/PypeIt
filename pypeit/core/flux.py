@@ -196,7 +196,7 @@ def bspline_magfit(
     """
     flux_stdlog = 2.5 * np.log10(np.maximum(flux_std, 1.0e-20))
     """
-    std_mask = np.isfinite(flux_std)
+    flux_stdlog[pos_mask] = 1.0e-20
     flux_stdlog = 2.5 * np.log10(np.maximum(flux_std,1.0e-20)) * pos_mask
     magfunc = flux_stdlog - fluxlog
     print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ flux_stdlog")
