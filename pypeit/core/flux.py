@@ -228,8 +228,6 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
     # Calculate residuals
     logfit1, _ = bset1.value(wave_obs)
     
-    from IPython import embed
-    embed()
     # Check for calibration
     plt.figure(1)
     plt.plot(wave_obs, magfunc, label='magfunc')
