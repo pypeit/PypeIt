@@ -15,6 +15,8 @@ from astropy import coordinates
 from astropy.table import Table, Column
 from astropy.io import ascii
 from astropy.io import fits
+from astropy.stats import sigma_clipped_stats
+
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
@@ -26,11 +28,13 @@ from pypeit.core import pydl
 from pypeit import msgs
 from pypeit import utils
 from pypeit import debugger
-import scipy.interpolate as interpolate
+import scipy
 
-TINY = 1e-6
+TINY = 1e-15
 MAGFUNC_MAX = 25.0
+MAGFUNC_MIN = -25.0
 
+SN2_MAX = (20.0)**2
 
 def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EXTRAP=0.05):
     """ Apply the sensitivity function to the data
@@ -124,7 +128,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
 '''
 
 
-def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lower=2, kwargs_bspline={},kwargs_reject={}):
+def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=35, upper=2,lower=2, kwargs_bspline={},kwargs_reject={} , debug = False):
     """
     Perform a bspline fit to the flux ratio of standard to
     observed counts. Used to generate a sensitivity function.
@@ -178,29 +182,37 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
 
     # Removing outliners
     ## pos_mask = (flux_obs > 0.) & (ivar_obs > 0.0) & (flux_std > 0.0) & np.isfinite(ivar_obs) & np.isfinite(flux_std)
-    if inmask is None:
-        masktot = (ivar_obs > 0.0) & np.isfinite(flux_obs) & np.isfinite(ivar_obs) & np.isfinite(flux_std)
-    else:
-        masktot = inmask & (ivar_obs > 0.0) & np.isfinite(flux_obs) & np.isfinite(ivar_obs) & np.isfinite(flux_std)
-
     # Calculate log of flux_obs
     pos_obs = np.sqrt((ivar_obs > 0.) / (np.abs(ivar_obs) + (ivar_obs == 0)))
     fluxlog = 2.5 * np.log10(np.maximum(flux_obs,TINY))
 #    fluxlog = 2.5 * np.log10(np.maximum(flux_obs,pos_obs/5.))
-    logivar = ivar_obs * np.power(np.maximum(flux_obs,TINY), 2.)*np.power(1.08574, -2.)
+    logivar_pix = ivar_obs * np.power(np.maximum(flux_obs,TINY), 2.)*np.power(1.08574, -2.)
+    dwave = np.median(wave_obs - np.roll(wave_obs,1))
+    nresln = kwargs_bspline['bkspace']/dwave
+    med_width = (np.ceil(10.0*nresln)).astype(int)
+    #logivar = np.minimum(scipy.ndimage.filters.median_filter(logivar_pix, size=med_width, mode='reflect'),SN2_MAX)
+    logivar= np.ones_like(fluxlog)*(10.0**2)
 
     # Calculate log of flux_std model
     flux_stdlog = 2.5 * np.log10(np.maximum(flux_std,TINY))
     # Calculate ratio
     magfunc = flux_stdlog - fluxlog
-    magfunc = np.minimum(magfunc, MAGFUNC_MAX)
+    magfunc =np.maximum(np.minimum(magfunc, MAGFUNC_MAX), MAGFUNC_MIN)
+
+    magfunc_mask = (magfunc < 0.99*MAGFUNC_MAX) & (magfunc > 0.99*MAGFUNC_MIN)
     sensfunc = 10.0 ** (0.4 * magfunc)
+
+    if inmask is None:
+        masktot = (ivar_obs > 0.0) & np.isfinite(flux_obs) & np.isfinite(ivar_obs) & np.isfinite(flux_std) & magfunc_mask
+    else:
+        masktot = inmask & (ivar_obs > 0.0) & np.isfinite(flux_obs) & np.isfinite(ivar_obs) & np.isfinite(flux_std) & magfunc_mask
+
 
     # Mask outliners
     #fluxlog[~pos_mask] = -1
     logivar[~masktot] = 0.
     #flux_stdlog[~pos_mask] = -1.
-    magfunc[~masktot] = MAGFUNC_MAX
+    #magfunc[~masktot] = MAGFUNC_MAX
     #sensfunc[~pos_mask] = 0.
 
     msgs.info("Initialize bspline for flux calibration")
@@ -215,73 +227,104 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
     """
     msk_obs[~masktot] = False
     
-    msk_bkpt = interpolate.interp1d(wave_obs, msk_obs, kind='nearest', fill_value='extrapolate')(fullbkpt)
+    msk_bkpt = scipy.interpolate.interp1d(wave_obs, msk_obs, kind='nearest', fill_value='extrapolate')(fullbkpt)
 
-    init_breakpoints = fullbkpt[msk_bkpt > 0.999]
-    #init_breakpoints = fullbkpt
+    # TESTING turning off masking for now
+    #init_breakpoints = fullbkpt[msk_bkpt > 0.999]
+    init_breakpoints = fullbkpt
 
     msgs.info("Bspline fit: step 1")
     #  First round of the fit:
-    bset1, bmask = pydl.iterfit(wave_obs, magfunc, invvar=logivar, inmask = masktot,upper=upper, lower=lower,maxiter=maxiter,
-                                fullbkpt=init_breakpoints,kwargs_bspline=kwargs_bspline,kwargs_reject=kwargs_reject)
+    bset1, bmask = pydl.iterfit(wave_obs, magfunc, invvar=logivar, inmask = masktot,upper=upper, lower=lower,
+                                fullbkpt=init_breakpoints,maxiter = maxiter, kwargs_bspline=kwargs_bspline,kwargs_reject=kwargs_reject)
 
-    # Calculate residuals
+
     logfit1, _ = bset1.value(wave_obs)
-    logfit_bkpt = bset.value(init_breakpoints)
-    
-    # Check for calibration
-    plt.figure(1)
-    plt.plot(wave_obs, magfunc, label='magfunc')
-    plt.plot(wave_obs, logfit1, label='logfit1')
-    plt.plot(wave_obs[~masktot], logfit1[~masktot], '+',color = 'red', markersize = 4.0, label='masked logfit1')
-    plt.plot(init_breakpoints, logfit_bkpt, '.',color = 'gren', markersize = 4.0, label='breakpoints')
-    plt.legend()
-    plt.xlabel('Wavelength [ang]')
-    plt.show()
+    logfit_bkpt, _ = bset1.value(init_breakpoints)
+
+    if debug:
+        # Check for calibration
+        plt.figure(1)
+        plt.plot(wave_obs, magfunc, drawstyle = 'steps-mid', color = 'black', label='magfunc')
+        plt.plot(wave_obs, logfit1, color = 'cornflowerblue', label='logfit1')
+        plt.plot(wave_obs[~masktot], magfunc[~masktot], '+',color = 'red', markersize = 5.0, label='masked magfunc')
+        plt.plot(wave_obs[~masktot], logfit1[~masktot], '+',color = 'red', markersize = 5.0, label='masked logfit1')
+        plt.plot(init_breakpoints, logfit_bkpt, '.',color = 'green', markersize = 4.0, label='breakpoints')
+        plt.plot(init_breakpoints, np.interp(init_breakpoints,wave_obs,magfunc), '.',color = 'green', markersize = 4.0, label='breakpoints')
+        plt.plot(wave_obs, 1.0/np.sqrt(logivar),color = 'orange', label='sigma')
+        plt.legend()
+        plt.xlabel('Wavelength [ang]')
+        plt.ylim(0.0,1.2*MAGFUNC_MAX)
+        plt.show()
     # plt.close()
 
     
     
-    modelfit1 = 10.0 ** (0.4 * logfit1)
-    residual = sensfunc / (modelfit1 + (modelfit1 == 0)) - 1.
+    modelfit1 =np.power(10.0,0.4 * np.maximum(np.minimum(logfit1, MAGFUNC_MAX),MAGFUNC_MIN))
+    residual = sensfunc/(modelfit1 + (modelfit1 == 0)) - 1.
     #new_mask = masktot & (sensfunc > 0)
 
-    residual_ivar = (modelfit1 * flux_obs / (sensfunc + (sensfunc == 0.0))) ** 2 * ivar_obs
+    #residual_ivar = (modelfit1 * flux_obs / (sensfunc + (sensfunc == 0.0))) ** 2 * ivar_obs
+    residual_ivar = np.ones_like(residual)/(0.1**2)
     residual_ivar = residual_ivar * masktot
 
-    msgs.info("Bspline fit: step 2")
-    #  Now do one more fit to the ratio of data/model - 1.
-    bset_residual, bmask2 = pydl.iterfit(wave_obs, residual, invvar=residual_ivar,inmask = masktot,upper=upper, lower=lower,
-                                         maxiter=maxiter,fullbkpt=bset1.breakpoints,kwargs_bspline=kwargs_bspline,kwargs_reject=kwargs_reject)
-    resid_fit, _ = bset_residual.value(wave_obs)
+    (mean, med, stddev) = sigma_clipped_stats(residual[masktot], sigma_lower=3.0, sigma_upper=3.0)
 
-    # Plot the residual fit
-    plt.figure(1)
-    plt.plot(wave_obs, residual, label='residual')
-    plt.plot(wave_obs, resid_fit, label='resid fit')
-    plt.legend()
-    plt.xlabel('Wavelength [ang]')
-    plt.show()
+    if np.median(stddev > 0.01):
+        msgs.info("Bspline fit: step 2")
+        #  Now do one more fit to the ratio of data/model - 1.
+        bset_residual, bmask2 = pydl.iterfit(wave_obs, residual, invvar=residual_ivar,inmask = masktot,upper=upper, lower=lower,
+        maxiter=maxiter,fullbkpt=bset1.breakpoints,kwargs_bspline=kwargs_bspline,kwargs_reject=kwargs_reject)
+        resid_fit, _ = bset_residual.value(wave_obs)
 
+        # Plot the residual fit
+        plt.figure(1)
+        plt.plot(wave_obs, residual, label='residual')
+        plt.plot(wave_obs, resid_fit, label='resid fit')
+        plt.legend()
+        plt.ylim(-0.1,0.1)
+        plt.xlabel('Wavelength [ang]')
+        plt.show()
+
+        bset_log1 = bset1.copy()
+        bset_log1.coeff = bset_log1.coeff + bset_residual.coeff
+
+    else:
+        bset_log1 = bset1.copy()
 
     # Create sensitivity function
-    bset_log1 = bset1.copy()
-    bset_log1.coeff = bset_log1.coeff + bset_residual.coeff
     newlogfit, _ = bset_log1.value(wave_obs)
-    sensfit = np.power(10.0, 0.4 * newlogfit)
+    sensfit = np.power(10.0, 0.4*np.maximum(np.minimum(newlogfit, MAGFUNC_MAX),MAGFUNC_MIN))
 
+    sensfit[~magfunc_mask] = 0.0
+
+    # Ema take it from here. Archive this is a file. Modify the routine that applies it. Check that things still work at tell=false
+    
+    #npix = len(wave_obs)
+    #wave_fine = np.linspace(wave_obs.min(),wave_obs.max(),num = 100*npix)
+    #sensfit_fine = scipy.interpolate.interp1d(wave_obs, sensfit, fill_value='extrapolate')(wave_fine)
+    #sensfit_ivar =np.ones_like(sensfit_fine)/(1000.0**2)
+    #from IPython import embed
+    #embed()
+
+    #bsens, _ = pydl.iterfit(wave_fine,sensfit_fine, invvar=sensfit_ivar,maxiter= 1, kwargs_bspline={'everyn':5})
+    #sensfunc_fit, _  = bsens.value(wave_obs)
 
     # Check for calibration
-    logfit2, _ = bset_residual.value(wave_obs)
-
     plt.figure(1)
-    plt.plot(wave_obs, modelfit1, label='modelfit1')
-    plt.plot(wave_obs, sensfunc, label='sensfunc')
+    plt.plot(wave_obs, sensfunc, drawstyle='steps-mid', color='black', label='sensfunc')
+    plt.plot(wave_obs, sensfunc_fit, color='cornflowerblue', label='sensfunc fit')
+    plt.plot(wave_obs[~masktot], sensfunc[~masktot], '+', color='red', markersize=5.0, label='masked sensfunc')
+    plt.plot(wave_obs[~masktot], sensfunc_fit[~masktot], '+', color='red', markersize=5.0, label='masked sensfuncfit')
     plt.legend()
     plt.xlabel('Wavelength [ang]')
+    plt.ylim(0.0, 100.0)
     plt.show()
 
-    # plt.close()
+    # Check for calibration
+    #logfit2, _ = bset_residual.value(wave_obs)
+
+     # plt.close()
 
 
 
@@ -297,11 +340,12 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
     """
 
     # Check for calibration
-    plt.figure(1)
-    plt.plot(wave_obs, newlogfit, label='newlogfit')
-    plt.legend()
-    plt.xlabel('Wavelength [ang]')
-    plt.show()
+    if debug:
+        plt.figure(1)
+        plt.plot(wave_obs, newlogfit, label='newlogfit')
+        plt.legend()
+        plt.xlabel('Wavelength [ang]')
+        plt.show()
     # plt.close()
 
     # Check quality of the fit
@@ -309,12 +353,13 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
     msgs.info('Difference between fits is {:g}'.format(absdev))
 
     # Check for residual of the fit
-    plt.figure(1)
-    plt.plot(wave_obs, sensfit / modelfit1 - 1, label='residual')
-    plt.legend()
-    plt.xlabel('Wavelength [ang]')
-    plt.show()
-    plt.close()
+    if debug:
+        plt.figure(1)
+        plt.plot(wave_obs, sensfit / modelfit1 - 1, label='residual')
+        plt.legend()
+        plt.xlabel('Wavelength [ang]')
+        plt.show()
+        plt.close()
 
     # QA
     msgs.work("Add QA for sensitivity function")
@@ -776,7 +821,7 @@ def generate_sensfunc(wave,counts,counts_ivar,airmass,exptime,spectrograph,tellu
         msgs.warn('Your spectrum extends beyond calibrated standard star.')
 
     # Set nresln
-    if nresln == None:
+    if nresln is None:
         if telluric:
             nresln = 1.5
             msgs.info("Set nresln to 1.5")
@@ -789,10 +834,10 @@ def generate_sensfunc(wave,counts,counts_ivar,airmass,exptime,spectrograph,tellu
     # to setup an array of breakpoints based on the resolution. At the
     # moment we are using only one number
     msgs.work("Should pull resolution from arc line analysis")
-    msgs.work("At the moment the resolution is taken as 4 x PixelScale")
+    msgs.work("At the moment the resolution is taken as the PixelScale")
     msgs.work("This needs to be changed!")
     std_pix = np.median(np.abs(wave_star - np.roll(wave_star, 1)))
-    std_res = 4.0 * std_pix
+    std_res = std_pix
     resln = std_res
     if (nresln * std_res) < std_pix:
         msgs.warn("Bspline breakpoints spacing shoud be larger than 1pixel")
