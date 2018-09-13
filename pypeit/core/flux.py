@@ -183,8 +183,8 @@ def bspline_magfit(
     fluxlog = 2.5 * np.log10(np.maximum(flux_obs, pos_error / 10))
     """
 
-    pos_mask = (flux_obs > 0.) & (ivar_obs > 0.0) & (flux_std > 0.0) & np.isfinite(ivar_obs)
-    fluxlog = 2.5 * np.log10(np.maximum(flux_obs,10e-20)) * pos_mask
+    pos_mask = (flux_obs > 0.) & (ivar_obs > 0.0) & (flux_std > 0.0) & np.isfinite(ivar_obs) & np.isfinite(flux_std)
+    fluxlog = 2.5 * np.log10(np.maximum(flux_obs,1.0e-20)) * pos_mask
     logivar = ivar_obs * np.power(flux_obs, 2.) * pos_mask * np.power(1.08574, -2.)
 
     """
@@ -197,14 +197,14 @@ def bspline_magfit(
     flux_stdlog = 2.5 * np.log10(np.maximum(flux_std, 1.0e-20))
     """
     std_mask = np.isfinite(flux_std)
-    flux_stdlog = 2.5 * np.log10(np.maximum(flux_std,10e-20)) * std_mask
+    flux_stdlog = 2.5 * np.log10(np.maximum(flux_std,1.0e-20)) * pos_mask
     magfunc = flux_stdlog - fluxlog
     print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ flux_stdlog")
     print(np.max(flux_stdlog))
     print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ fluxlog")
     print(np.max(fluxlog))
     magfunc = np.minimum(magfunc, 25.)
-    sensfunc = 10.0 ** (0.4 * magfunc) * pos_mask * std_mask
+    sensfunc = 10.0 ** (0.4 * magfunc) * pos_mask
 
     msgs.info("Initialize bspline for flux calibration")
 
