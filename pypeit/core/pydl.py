@@ -356,7 +356,7 @@ class bspline(object):
             else:
                 self.funcname = 'legendre'
 
-        return 
+        return
 
     def copy(self):
 
