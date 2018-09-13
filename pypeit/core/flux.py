@@ -162,7 +162,6 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
 
 
     # Check for calibration
-    import matplotlib.pyplot as plt
     plt.figure(1)
     plt.plot(wave_obs, flux_obs, label='flux_obs')
     plt.legend()
