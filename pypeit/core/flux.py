@@ -183,7 +183,7 @@ def bspline_magfit(
     fluxlog = 2.5 * np.log10(np.maximum(flux_obs, pos_error / 10))
     """
 
-    pos_mask = (flux_obs > 0.) & (ivar_obs > 0.0) & (flux_std > 0.0)
+    pos_mask = (flux_obs > 0.) & (ivar_obs > 0.0) & (flux_std > 0.0) & np.isfinite(ivar_obs)
     fluxlog = 2.5 * np.log10(flux_obs)
     
     logivar = ivar_obs * np.power(flux_obs, 2.) * pos_mask * np.power(1.08574, -2.)
@@ -207,7 +207,11 @@ def bspline_magfit(
     fullbkpt = init_bspline.breakpoints
     # remove masked regions
     msk_obs = np.ones_like(wave_obs).astype(bool)
+    """
     msk_obs[ivar_obs <= 0.] = False
+    """
+    msk_obs[~pos_mask] = False
+    
     import scipy.interpolate as interpolate
     msk_bkpt = interpolate.interp1d(wave_obs, msk_obs, kind='nearest', fill_value='extrapolate')(fullbkpt)
 
