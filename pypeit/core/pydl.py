@@ -247,6 +247,7 @@ class bspline(object):
             self.xmin=from_dict['xmin'],
             self.xmax=from_dict['xmax'],
             self.funcname=from_dict['funcname']
+            return
         elif x is None:
             self.nord = None
             self.npoly = None
@@ -257,6 +258,7 @@ class bspline(object):
             self.xmin= None
             self.xmax= None
             self.funcname= None
+            return
         else:
             #
             # Set the breakpoints.
@@ -353,6 +355,8 @@ class bspline(object):
                 self.funcname = kwargs['funcname']
             else:
                 self.funcname = 'legendre'
+
+        return 
 
     def copy(self):
 
