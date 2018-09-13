@@ -394,7 +394,7 @@ def func_der(coeffs, func, nderive=1):
 
 
 def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
-             bspline_par=None):
+             bspline_par=None, return_errors=False):
     """ General routine to fit a function to a given set of x,y points
 
     Parameters
@@ -468,7 +468,10 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
         else:
             msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
         # Return
-        return popt
+        if return_errors:
+            return popt, pcov
+        else:
+            return popt
     elif func in ["moffat"]:
         # Guesses
         if guesses is None:
@@ -554,7 +557,7 @@ def func_val(c, x, func, minv=None, maxv=None):
                    "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
 
 
-def calc_fit_rms(xfit, yfit, fit, func, minv=None, maxv=None):
+def calc_fit_rms(xfit, yfit, fit, func, minv=None, maxv=None, weights=None):
     """ Simple RMS calculation
 
     Parameters
@@ -571,8 +574,13 @@ def calc_fit_rms(xfit, yfit, fit, func, minv=None, maxv=None):
     rms : float
 
     """
+    if weights is None:
+        weights = np.ones(xfit.size)
+    # Normalise
+    weights /= np.sum(weights)
     values = func_val(fit, xfit, func, minv=minv, maxv=maxv)
-    rms = np.std(yfit-values)
+    # rms = np.std(yfit-values)
+    rms = np.sqrt(np.sum(weights*(yfit-values)**2))
     # Return
     return rms
 
