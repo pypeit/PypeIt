@@ -171,7 +171,7 @@ def bspline_magfit(
     if (np.all(~np.isfinite(invvar))):
         msgs.warn("NaN are present in the inverse variance")
     """
-    if (np.all(~np.isfinite(ivar_obs))):
+    if np.all(~np.isfinite(ivar_obs)):
         msgs.warn("NaN are present in the inverse variance")
 
     # Removing outliners
@@ -239,11 +239,6 @@ def bspline_magfit(
     newlogfit, _ = bset_log1.value(wave_obs)
     sensfit = np.power(10.0, 0.4 * newlogfit)
 
-    # Write the sens_dict to a json file
-    import json
-    msgs.info("Writing bspline_dict into .json file")
-    with open('bspline_dict.json', 'w') as fp:
-        json.dump(bspline_dict, fp, sort_keys=True, indent=4)
 
     """
     # Check for calibration
@@ -256,6 +251,15 @@ def bspline_magfit(
     plt.show()
     # plt.close()
     """
+
+    # Check for calibration
+    import matplotlib.pyplot as plt
+    plt.figure(1)
+    plt.plot(wave_obs, newlogfit, label='newlogfit')
+    plt.legend()
+    plt.xlabel('Wavelength [ang]')
+    plt.show()
+    # plt.close()
 
     # Check quality of the fit
     absdev = np.median(np.abs(sensfit / modelfit1 - 1))
@@ -409,7 +413,7 @@ def extinction_correction(wave, airmass, extinct):
     gdv = np.where(mag_ext > 0.)[0]
     if len(gdv) == 0:
         msgs.error(
-            "None of the input wavelengths are in the extinction correction range.  Presumably something was input wrong.")
+            "None of the input wavelengths are in the extinction correction range. Presumably something was input wrong.")
     if gdv[0] != 0:  # Low wavelengths
         mag_ext[0:gdv[0]] = mag_ext[gdv[0]]
         msgs.warn("Extrapolating at low wavelengths using last valid value")
@@ -693,9 +697,9 @@ def generate_sensfunc(
 
     # Create copy of the arrays to avoid modification and convert to 
     # electrons / s
-    wave_star   = wave.copy()
-    flux_star   = counts.copy() / exptime
-    ivar_star   = counts_ivar.copy() * exptime ** 2
+    wave_star = wave.copy()
+    flux_star = counts.copy() / exptime
+    ivar_star = counts_ivar.copy() * exptime ** 2
 
     # ToDo
     # This should be changed. At the moment the extinction correction procedure
@@ -730,7 +734,7 @@ def generate_sensfunc(
         star_lam = 10 ** star_loglam
         # Generate a dict matching the output of find_standard_file
         std_dict = dict(file='KuruczTelluricModel', name=star_type, fmt=1,
-                        ra='00:00:00.0', dec='00:00:00.0')
+                        ra=None, dec=None)
         std_dict['wave'] = star_lam * units.AA
         std_dict['flux'] = 1e17 * star_flux * units.erg / units.s / units.cm ** 2 / units.AA
 
@@ -744,8 +748,8 @@ def generate_sensfunc(
     # Set nresln
     if nresln == None:
         if telluric:
-            nresln = 1.5
-            msgs.info("Set nresln to 1.5")
+            nresln = 2.5
+            msgs.info("Set nresln to 2.5")
         else:
             nresln = 20.0
             msgs.info("Set nresln to 20.0")
@@ -777,8 +781,8 @@ def generate_sensfunc(
 
     # Mask edges
     msgs.info(" Masking edges")
-    msk_star[:10] = False
-    msk_star[-10:] = False
+    msk_star[:1] = False
+    msk_star[-1:] = False
 
     # Mask Balmer
     msgs.info(" Masking Balmer")
@@ -860,6 +864,7 @@ def generate_sensfunc(
 
     """
     # Write the sens_dict to a json file
+    import json
     msgs.info("Writing sens_dict into .json file")
     with open('sens_dict.json', 'w') as fp:
         json.dump(sens_dict, fp, sort_keys=True, indent=4)
