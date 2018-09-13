@@ -184,8 +184,10 @@ def bspline_magfit(
     """
 
     pos_mask = (flux_obs > 0.) & (ivar_obs > 0.0) & (flux_std > 0.0) & np.isfinite(ivar_obs) & np.isfinite(flux_std)
-    fluxlog = 2.5 * np.log10(np.maximum(flux_obs,1.0e-20)) * pos_mask
+    fluxlog = 2.5 * np.log10(np.maximum(flux_obs,1.0e-20))
+    fluxlog[~pos_mask] = -1
     logivar = ivar_obs * np.power(flux_obs, 2.) * pos_mask * np.power(1.08574, -2.)
+    logivar[~pos_mask] = 0.
 
     """
     EMA: I think there was a bug here. You need to have 1.08574^-2
@@ -196,8 +198,8 @@ def bspline_magfit(
     """
     flux_stdlog = 2.5 * np.log10(np.maximum(flux_std, 1.0e-20))
     """
-    flux_stdlog[pos_mask] = 1.0e-20
-    flux_stdlog = 2.5 * np.log10(np.maximum(flux_std,1.0e-20)) * pos_mask
+    flux_stdlog = 2.5 * np.log10(np.maximum(flux_std,1.0e-20))
+    flux_stdlog[~pos_mask] = -1.
     magfunc = flux_stdlog - fluxlog
     print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ flux_stdlog")
     print(np.max(flux_stdlog))
