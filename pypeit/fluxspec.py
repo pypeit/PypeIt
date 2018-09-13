@@ -69,7 +69,7 @@ class FluxSpec(masterframe.MasterFrame):
       Used for the RA, DEC, AIRMASS, EXPTIME of the standard star spectrum
     std_idx : int or list
       Index that std is within the std_specbojs list
-    sci_specobjs : list
+    sci_specobjs : SpecObjs
       List of SpecObj objects to be fluxed (or that were fluxed)
     sci_header : dict-like
       Used for the airmass, exptime of the science spectra
@@ -80,14 +80,13 @@ class FluxSpec(masterframe.MasterFrame):
 
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
                  std_specobjs=None, std_header=None, spectrograph=None, multi_det=None,
-                 setup=None, root_path=None, mode=None):
+                 setup=None, master_dir=None, mode=None):
 
         # Load standard files
         std_spectro = None
         self.std_spec1d_file = std_spec1d_file
         # Need to unwrap these (sometimes)..
-        self.std_specobjs = std_specobjs if std_specobjs is None \
-                                            else utils.unravel_specobjs(std_specobjs)
+        self.std_specobjs = std_specobjs
         self.std_header = std_header
         if self.std_spec1d_file is not None:
             self.std_specobjs, self.std_header = load.load_specobj(self.std_spec1d_file)
@@ -131,11 +130,6 @@ class FluxSpec(masterframe.MasterFrame):
             msgs.info("Spectrograph set to {0}, from argument object".format(_spectrograph))
     
         # MasterFrame
-        master_dir = None
-        if root_path is not None:
-            master_dir = root_path
-            if spectrograph_name is not None:
-                master_dir += '_'+spectrograph_name
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
                                          master_dir=master_dir, mode=mode)
         # Get the extinction data
@@ -185,7 +179,7 @@ class FluxSpec(masterframe.MasterFrame):
             sv_stds = []
             # Find the standard in each detector
             for det in self.multi_det:
-                stds = [sobj for sobj in self.std_specobjs if sobj.det == det]
+                stds = [sobj for sobj in self.std_specobjs.specobjs if sobj.det == det]
                 if len(stds) == 0:
                     debugger.set_trace()
                 idx = flux.find_standard(stds)
@@ -204,7 +198,7 @@ class FluxSpec(masterframe.MasterFrame):
         else:
             # Find brightest object in the exposures
             # Searches over all slits (over all detectors), and all objects
-            self.std_idx = flux.find_standard(self.std_specobjs)
+            self.std_idx = flux.find_standard(self.std_specobjs.specobjs)
             # Set internal
             self.std = self.std_specobjs[self.std_idx]
             # Step
