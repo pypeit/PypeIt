@@ -21,9 +21,15 @@ try:
 except ImportError:
     pass
 
+from pypeit.core import pydl
 from pypeit import msgs
 from pypeit import utils
 from pypeit import debugger
+import scipy.interpolate as interpolate
+import matplotlib.pyplot as plt
+
+TINY = 1e-6
+MAGFUNC_MAX = 25.0
 
 
 def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EXTRAP=0.05):
@@ -118,16 +124,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
 '''
 
 
-def bspline_magfit(
-        wave,
-        flux,
-        ivar,
-        flux_std,
-        maxiter=10,
-        upper=2,
-        lower=2,
-        kwargs_bspline={},
-        kwargs_reject={}):
+def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lower=2, kwargs_bspline={},kwargs_reject={}):
     """
     Perform a bspline fit to the flux ratio of standard to
     observed counts. Used to generate a sensitivity function.
@@ -182,66 +179,58 @@ def bspline_magfit(
 
     # Removing outliners
     ## pos_mask = (flux_obs > 0.) & (ivar_obs > 0.0) & (flux_std > 0.0) & np.isfinite(ivar_obs) & np.isfinite(flux_std)
-    pos_mask = (ivar_obs > 0.0) & (flux_std > 0.0) & np.isfinite(ivar_obs) & np.isfinite(flux_std)
+    if inmask is None:
+        masktot = (ivar_obs > 0.0) & np.isfinite(flux_obs) & np.isfinite(ivar_obs) & np.isfinite(flux_std)
+    else:
+        masktot = inmask & (ivar_obs > 0.0) & np.isfinite(flux_obs) & np.isfinite(ivar_obs) & np.isfinite(flux_std)
 
     # Calculate log of flux_obs
     pos_obs = np.sqrt((ivar_obs > 0.) / (np.abs(ivar_obs) + (ivar_obs == 0)))
-    fluxlog = 2.5 * np.log10(np.maximum(flux_obs,pos_obs/5.))
-    logivar = ivar_obs * np.power(np.maximum(flux_obs,pos_obs/5.), 2.) * np.power(1.08574, -2.)
-    """
-    EMA: I think there was a bug here. You need to have 1.08574^-2
-    logivar = invvar * flux_obs ** 2 * pos_mask * 1.08574
-    """
-    # Calculate log of flux_std
-    flux_stdlog = 2.5 * np.log10(flux_std)
+    fluxlog = 2.5 * np.log10(np.maximum(flux_obs,TINY))
+#    fluxlog = 2.5 * np.log10(np.maximum(flux_obs,pos_obs/5.))
+    logivar = ivar_obs * np.power(np.maximum(flux_obs,TINY), 2.)*np.power(1.08574, -2.)
+
+    # Calculate log of flux_std model
+    flux_stdlog = 2.5 * np.log10(np.maximum(flux_std,TINY))
     # Calculate ratio
     magfunc = flux_stdlog - fluxlog
-    magfunc = np.minimum(magfunc, 25.)
+    magfunc = np.minimum(magfunc, MAGFUNC_MAX)
     sensfunc = 10.0 ** (0.4 * magfunc)
 
     # Mask outliners
-    fluxlog[~pos_mask] = -1
-    logivar[~pos_mask] = 0.
-    flux_stdlog[~pos_mask] = -1.
-    magfunc[~pos_mask] = 0.
-    sensfunc[~pos_mask] = 0.
+    #fluxlog[~pos_mask] = -1
+    logivar[~masktot] = 0.
+    #flux_stdlog[~pos_mask] = -1.
+    magfunc[~masktot] = MAGFUNC_MAX
+    #sensfunc[~pos_mask] = 0.
 
     msgs.info("Initialize bspline for flux calibration")
 
-    from pypeit.core import pydl
 
-    init_bspline = pydl.bspline(wave_obs,
-                                bkspace=kwargs_bspline['bkspace'])
+    init_bspline = pydl.bspline(wave_obs,bkspace=kwargs_bspline['bkspace'])
     fullbkpt = init_bspline.breakpoints
     # remove masked regions
     msk_obs = np.ones_like(wave_obs).astype(bool)
     """
     msk_obs[ivar_obs <= 0.] = False
     """
-    msk_obs[~pos_mask] = False
+    msk_obs[~masktot] = False
     
-    import scipy.interpolate as interpolate
     msk_bkpt = interpolate.interp1d(wave_obs, msk_obs, kind='nearest', fill_value='extrapolate')(fullbkpt)
 
-    # init_breakpoints = fullbkpt[msk_bkpt == 1.]
-
-    init_breakpoints = fullbkpt
+    init_breakpoints = fullbkpt[msk_bkpt > 0.999]
+    #init_breakpoints = fullbkpt
 
     msgs.info("Bspline fit: step 1")
     #  First round of the fit:
-    bset1, bmask = pydl.iterfit(wave_obs, magfunc, invvar=logivar,
-                                upper=upper, lower=lower,
-                                maxiter=maxiter,
-                                fullbkpt=init_breakpoints,
-                                kwargs_bspline=kwargs_bspline,
-                                kwargs_reject=kwargs_reject)
+    bset1, bmask = pydl.iterfit(wave_obs, magfunc, invvar=logivar, inmask = masktot,upper=upper, lower=lower,maxiter=maxiter,
+                                fullbkpt=init_breakpoints,kwargs_bspline=kwargs_bspline,kwargs_reject=kwargs_reject)
 
     # Calculate residuals
     logfit1, _ = bset1.value(wave_obs)
     
 
     # Check for calibration
-    import matplotlib.pyplot as plt
     plt.figure(1)
     plt.plot(wave_obs, magfunc, label='magfunc')
     plt.plot(wave_obs, logfit1, label='logfit1')
@@ -277,7 +266,6 @@ def bspline_magfit(
 
 
     # Check for calibration
-    import matplotlib.pyplot as plt
     logfit2, _ = bset_residual.value(wave_obs)
 
 
@@ -896,14 +884,13 @@ def generate_sensfunc(
         msk_star[tell] = False
 
     # Apply mask
-    ivar_star[msk_star == False] = -1.
+    ivar_star[~msk_star] = 0.0
 
     # Fit in magnitudes
     kwargs_bspline = {'bkspace': resln.value * nresln}
     kwargs_reject = {'maxrej': 5}
-    mag_set = bspline_magfit(wave_star.value, flux_star, ivar_star,
-                             flux_true, kwargs_bspline=kwargs_bspline,
-                             kwargs_reject=kwargs_reject)
+    mag_set = bspline_magfit(wave_star.value, flux_star, ivar_star, flux_true, inmask = msk_star,
+                             kwargs_bspline=kwargs_bspline,kwargs_reject=kwargs_reject)
 
     # Creating the dict
     msgs.work("Is min, max and wave_min, wave_max a duplicate?")
