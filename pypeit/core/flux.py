@@ -227,12 +227,14 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
 
     # Calculate residuals
     logfit1, _ = bset1.value(wave_obs)
+    logfit_bkpt = bset.value(init_breakpoints)
     
     # Check for calibration
     plt.figure(1)
     plt.plot(wave_obs, magfunc, label='magfunc')
     plt.plot(wave_obs, logfit1, label='logfit1')
-    plt.plot(wave_obs[~masktot], logfit1[~masktot], '+',markersize = 4.0, label='maked logfit1')
+    plt.plot(wave_obs[~masktot], logfit1[~masktot], '+',color = 'red', markersize = 4.0, label='masked logfit1')
+    plt.plot(init_breakpoints, logfit_bkpt, '.',color = 'gren', markersize = 4.0, label='breakpoints')
     plt.legend()
     plt.xlabel('Wavelength [ang]')
     plt.show()
