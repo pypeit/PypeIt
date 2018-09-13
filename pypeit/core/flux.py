@@ -26,7 +26,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import debugger
 import scipy.interpolate as interpolate
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 
 TINY = 1e-6
 MAGFUNC_MAX = 25.0
