@@ -21,12 +21,12 @@ try:
 except ImportError:
     pass
 
+from matplotlib import pyplot as plt
 from pypeit.core import pydl
 from pypeit import msgs
 from pypeit import utils
 from pypeit import debugger
 import scipy.interpolate as interpolate
-from matplotlib import pyplot as plt
 
 TINY = 1e-6
 MAGFUNC_MAX = 25.0
@@ -228,7 +228,8 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
     # Calculate residuals
     logfit1, _ = bset1.value(wave_obs)
     
-
+    from IPython import embed
+    embed()
     # Check for calibration
     plt.figure(1)
     plt.plot(wave_obs, magfunc, label='magfunc')
