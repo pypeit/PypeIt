@@ -232,7 +232,7 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
     plt.figure(1)
     plt.plot(wave_obs, magfunc, label='magfunc')
     plt.plot(wave_obs, logfit1, label='logfit1')
-    plt.plot(wave_obs, logfit1[~masktot], '+',markersize = 2.0, label='maked logfit1')
+    plt.plot(wave_obs[~masktot], logfit1[~masktot], '+',markersize = 2.0, label='maked logfit1')
     plt.legend()
     plt.xlabel('Wavelength [ang]')
     plt.show()
