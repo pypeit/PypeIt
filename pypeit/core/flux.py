@@ -163,50 +163,48 @@ def bspline_magfit(
     flux_obs = flux.copy()
     ivar_obs = ivar.copy()
 
+
+    # Check for calibration
+    import matplotlib.pyplot as plt
+    plt.figure(1)
+    plt.plot(wave_obs, flux_obs, label='flux_obs')
+    plt.legend()
+    plt.xlabel('Wavelength [ang]')
+    plt.show()
+    # plt.close()
+
+
+
     # preparing arrays to run in bspline_iterfit
 
-    """
-    from pypeit.utils import calc_ivar
-    invvar = calc_ivar(var_obs)
-    if (np.all(~np.isfinite(invvar))):
-        msgs.warn("NaN are present in the inverse variance")
-    """
     if np.all(~np.isfinite(ivar_obs)):
         msgs.warn("NaN are present in the inverse variance")
 
     # Removing outliners
+    ## pos_mask = (flux_obs > 0.) & (ivar_obs > 0.0) & (flux_std > 0.0) & np.isfinite(ivar_obs) & np.isfinite(flux_std)
+    pos_mask = (ivar_obs > 0.0) & (flux_std > 0.0) & np.isfinite(ivar_obs) & np.isfinite(flux_std)
 
-    """
-    # if the flux is too small, take as value 1/10th of the sigma
-    pos_error = np.sqrt(np.maximum(1./ivar_obs, 0.))
-    pos_mask = (flux_obs > pos_error / 10.0) & (ivar_obs > 0.0) & (flux_std > 0.0)
-    fluxlog = 2.5 * np.log10(np.maximum(flux_obs, pos_error / 10))
-    """
-
-    pos_mask = (flux_obs > 0.) & (ivar_obs > 0.0) & (flux_std > 0.0) & np.isfinite(ivar_obs) & np.isfinite(flux_std)
-    fluxlog = 2.5 * np.log10(np.maximum(flux_obs,1.0e-20))
-    fluxlog[~pos_mask] = -1
-    logivar = ivar_obs * np.power(flux_obs, 2.) * pos_mask * np.power(1.08574, -2.)
-    logivar[~pos_mask] = 0.
-
+    # Calculate log of flux_obs
+    pos_obs = np.sqrt((ivar_obs > 0.) / (np.abs(ivar_obs) + (ivar_obs == 0)))
+    fluxlog = 2.5 * np.log10(np.maximum(flux_obs,pos_obs/5.))
+    logivar = ivar_obs * np.power(np.maximum(flux_obs,pos_obs/5.), 2.) * np.power(1.08574, -2.)
     """
     EMA: I think there was a bug here. You need to have 1.08574^-2
     logivar = invvar * flux_obs ** 2 * pos_mask * 1.08574
     """
-
-    # Exclude extreme values of magfunc
-    """
-    flux_stdlog = 2.5 * np.log10(np.maximum(flux_std, 1.0e-20))
-    """
-    flux_stdlog = 2.5 * np.log10(np.maximum(flux_std,1.0e-20))
-    flux_stdlog[~pos_mask] = -1.
+    # Calculate log of flux_std
+    flux_stdlog = 2.5 * np.log10(flux_std)
+    # Calculate ratio
     magfunc = flux_stdlog - fluxlog
-    print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ flux_stdlog")
-    print(np.max(flux_stdlog))
-    print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ fluxlog")
-    print(np.max(fluxlog))
     magfunc = np.minimum(magfunc, 25.)
-    sensfunc = 10.0 ** (0.4 * magfunc) * pos_mask
+    sensfunc = 10.0 ** (0.4 * magfunc)
+
+    # Mask outliners
+    fluxlog[~pos_mask] = -1
+    logivar[~pos_mask] = 0.
+    flux_stdlog[~pos_mask] = -1.
+    magfunc[~pos_mask] = 0.
+    sensfunc[~pos_mask] = 0.
 
     msgs.info("Initialize bspline for flux calibration")
 
@@ -225,7 +223,9 @@ def bspline_magfit(
     import scipy.interpolate as interpolate
     msk_bkpt = interpolate.interp1d(wave_obs, msk_obs, kind='nearest', fill_value='extrapolate')(fullbkpt)
 
-    init_breakpoints = fullbkpt[msk_bkpt == 1.]
+    # init_breakpoints = fullbkpt[msk_bkpt == 1.]
+
+    init_breakpoints = fullbkpt
 
     msgs.info("Bspline fit: step 1")
     #  First round of the fit:
@@ -238,6 +238,20 @@ def bspline_magfit(
 
     # Calculate residuals
     logfit1, _ = bset1.value(wave_obs)
+    
+
+    # Check for calibration
+    import matplotlib.pyplot as plt
+    plt.figure(1)
+    plt.plot(wave_obs, magfunc, label='magfunc')
+    plt.plot(wave_obs, logfit1, label='logfit1')
+    plt.legend()
+    plt.xlabel('Wavelength [ang]')
+    plt.show()
+    # plt.close()
+
+    
+    
     modelfit1 = 10.0 ** (0.4 * logfit1)
     residual = sensfunc / (modelfit1 + (modelfit1 == 0)) - 1.
     new_mask = pos_mask & (sensfunc > 0)
@@ -259,6 +273,22 @@ def bspline_magfit(
     bset_log1.coeff = bset_log1.coeff + bset_residual.coeff
     newlogfit, _ = bset_log1.value(wave_obs)
     sensfit = np.power(10.0, 0.4 * newlogfit)
+
+
+
+    # Check for calibration
+    import matplotlib.pyplot as plt
+    logfit2, _ = bset_residual.value(wave_obs)
+
+
+    plt.figure(1)
+    plt.plot(wave_obs, modelfit1, label='modelfit1')
+    plt.plot(wave_obs, sensfunc, label='sensfunc')
+    plt.legend()
+    plt.xlabel('Wavelength [ang]')
+    plt.show()
+    # plt.close()
+
 
 
     """
@@ -670,7 +700,7 @@ def generate_sensfunc(
       is generated using nresln=20.0 and masking out telluric regions.
     - If telluric=True
       the code creates a sintetic standard star spectrum using the Kurucz models,
-      the sens func is created setting nresln=2.5 it contains the correction for
+      the sens func is created setting nresln=1.5 it contains the correction for
       telluric lines.
 
     Parameters:
@@ -769,8 +799,8 @@ def generate_sensfunc(
     # Set nresln
     if nresln == None:
         if telluric:
-            nresln = 2.5
-            msgs.info("Set nresln to 2.5")
+            nresln = 1.5
+            msgs.info("Set nresln to 1.5")
         else:
             nresln = 20.0
             msgs.info("Set nresln to 20.0")
