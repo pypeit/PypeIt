@@ -280,7 +280,6 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
 
     """
     # Check for calibration
-    import matplotlib.pyplot as plt
     plt.figure(1)
     plt.plot(wave_obs, sensfit*flux_obs, label='scaled')
     plt.plot(wave_obs, flux_std, label='model')
@@ -291,7 +290,6 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
     """
 
     # Check for calibration
-    import matplotlib.pyplot as plt
     plt.figure(1)
     plt.plot(wave_obs, newlogfit, label='newlogfit')
     plt.legend()
@@ -304,7 +302,6 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
     msgs.info('Difference between fits is {:g}'.format(absdev))
 
     # Check for residual of the fit
-    import matplotlib.pyplot as plt
     plt.figure(1)
     plt.plot(wave_obs, sensfit / modelfit1 - 1, label='residual')
     plt.legend()
