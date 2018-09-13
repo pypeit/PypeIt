@@ -234,8 +234,8 @@ class bspline(object):
         """
         # JFH added this to enforce immutability of these input arguments, as this code modifies bkpt and fullbkpt
         # as it goes
-        fullbkpt1 = np.copy(fullbkpt)
-        bkpt1 = np.copy(bkpt)
+        fullbkpt1 = copy.copy(fullbkpt)
+        bkpt1 = copy.copy(bkpt)
         #ToDO Consider refactoring the argument list so that there are no kwargs
         if from_dict is not None:
             self.nord=from_dict['nord'],
@@ -347,8 +347,6 @@ class bspline(object):
                 self.coeff = np.zeros((npoly, nc), dtype='d')
                 self.icoeff = np.zeros((npoly, nc), dtype='d')
             else:
-                from IPython import embed
-                embed()
                 self.coeff = np.zeros((nc,), dtype='d')
                 self.icoeff = np.zeros((nc,), dtype='d')
             self.xmin = 0.0
