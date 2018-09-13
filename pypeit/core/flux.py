@@ -184,7 +184,7 @@ def bspline_magfit(
     """
 
     pos_mask = (flux_obs > 0.) & (ivar_obs > 0.0) & (flux_std > 0.0) & np.isfinite(ivar_obs)
-    fluxlog = 2.5 * np.log10(flux_obs) * pos_mask
+    fluxlog = 2.5 * np.log10(np.maximum(flux_obs,10e-20) * pos_mask
     logivar = ivar_obs * np.power(flux_obs, 2.) * pos_mask * np.power(1.08574, -2.)
 
     """
