@@ -241,31 +241,35 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
     
     modelfit1 = 10.0 ** (0.4 * logfit1)
     residual = sensfunc / (modelfit1 + (modelfit1 == 0)) - 1.
-    new_mask = pos_mask & (sensfunc > 0)
+    #new_mask = masktot & (sensfunc > 0)
 
     residual_ivar = (modelfit1 * flux_obs / (sensfunc + (sensfunc == 0.0))) ** 2 * ivar_obs
-    residual_ivar = residual_ivar * new_mask
+    residual_ivar = residual_ivar * masktot
 
     msgs.info("Bspline fit: step 2")
     #  Now do one more fit to the ratio of data/model - 1.
-    bset_residual, bmask2 = pydl.iterfit(wave_obs, residual, invvar=residual_ivar,
-                                         upper=upper, lower=lower,
-                                         maxiter=maxiter,
-                                         fullbkpt=bset1.breakpoints,
-                                         kwargs_bspline=kwargs_bspline,
-                                         kwargs_reject=kwargs_reject)
+    bset_residual, bmask2 = pydl.iterfit(wave_obs, residual, invvar=residual_ivar,inmask = masktot,upper=upper, lower=lower,
+                                         maxiter=maxiter,fullbkpt=bset1.breakpoints,kwargs_bspline=kwargs_bspline,kwargs_reject=kwargs_reject)
+    resid_fit, _ = bset_residual.value(wave_obs)
+
+    # Plot the residual fit
+    plt.figure(1)
+    plt.plot(wave_obs, residual, label='residual')
+    plt.plot(wave_obs, resid_fit, label='resid fit')
+    plt.legend()
+    plt.xlabel('Wavelength [ang]')
+    plt.show()
+
 
     # Create sensitivity function
-    bset_log1 = bset1
+    bset_log1 = bset1.copy()
     bset_log1.coeff = bset_log1.coeff + bset_residual.coeff
     newlogfit, _ = bset_log1.value(wave_obs)
     sensfit = np.power(10.0, 0.4 * newlogfit)
 
 
-
     # Check for calibration
     logfit2, _ = bset_residual.value(wave_obs)
-
 
     plt.figure(1)
     plt.plot(wave_obs, modelfit1, label='modelfit1')
@@ -273,6 +277,7 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=10, upper=2,lo
     plt.legend()
     plt.xlabel('Wavelength [ang]')
     plt.show()
+
     # plt.close()
 
 
