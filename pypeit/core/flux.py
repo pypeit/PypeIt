@@ -176,9 +176,16 @@ def bspline_magfit(
 
     # Removing outliners
     # if the flux is too small, take as value 1/10th of the sigma
+    
+    """
     pos_error = np.sqrt(np.maximum(1./ivar_obs, 0.))
     pos_mask = (flux_obs > pos_error / 10.0) & (ivar_obs > 0.0) & (flux_std > 0.0)
     fluxlog = 2.5 * np.log10(np.maximum(flux_obs, pos_error / 10))
+    """
+
+    pos_mask = (flux_obs > 0.) & (ivar_obs > 0.0) & (flux_std > 0.0)
+    fluxlog = 2.5 * np.log10(flux_obs)
+    
     logivar = ivar_obs * np.power(flux_obs, 2.) * pos_mask * np.power(1.08574, -2.)
     """
     EMA: I think there was a bug here. You need to have 1.08574^-2
@@ -649,7 +656,7 @@ def generate_sensfunc(
       is generated using nresln=20.0 and masking out telluric regions.
     - If telluric=True
       the code creates a sintetic standard star spectrum using the Kurucz models,
-      the sens func is created setting nresln=1.5 it contains the correction for
+      the sens func is created setting nresln=2.5 it contains the correction for
       telluric lines.
 
     Parameters:
