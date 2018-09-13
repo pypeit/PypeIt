@@ -347,6 +347,8 @@ class bspline(object):
                 self.coeff = np.zeros((npoly, nc), dtype='d')
                 self.icoeff = np.zeros((npoly, nc), dtype='d')
             else:
+                from IPython import embed
+                embed()
                 self.coeff = np.zeros((nc,), dtype='d')
                 self.icoeff = np.zeros((nc,), dtype='d')
             self.xmin = 0.0
