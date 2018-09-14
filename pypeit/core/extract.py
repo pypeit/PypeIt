@@ -305,6 +305,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
         specobj.optimal['WAVE'] = junk
         specobj.optimal['COUNTS'] = junk
         specobj.optimal['COUNTS_IVAR'] = junk
+        specobj.optimal['COUNTS_SIG'] = junk
         specobj.optimal['COUNTS_NIVAR'] = junk
         specobj.optimal['MASK'] = junk
         specobj.optimal['COUNTS_SKY'] = junk
@@ -314,6 +315,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
         # Fill in the boxcar tags
         specobj.boxcar['WAVE'] = junk
         specobj.boxcar['COUNTS'] = junk
+        specobj.optimal['COUNTS_SIG'] = junk
         specobj.boxcar['COUNTS_IVAR'] = junk
         specobj.boxcar['COUNTS_NIVAR'] = junk
         specobj.boxcar['MASK'] = junk
@@ -390,6 +392,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     specobj.optimal['WAVE'] = wave_opt    # Optimally extracted wavelengths
     specobj.optimal['COUNTS'] = flux_opt    # Optimally extracted flux
     specobj.optimal['COUNTS_IVAR'] = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
+    specobj.optimal['COUNTS_SIG'] = np.sqrt(utils.calc_ivar(mivar_opt))
     specobj.optimal['COUNTS_NIVAR'] = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
     specobj.optimal['MASK'] = mask_opt    # Mask for optimally extracted flux
     specobj.optimal['COUNTS_SKY'] = sky_opt      # Optimally extracted sky
@@ -426,12 +429,12 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     specobj.boxcar['WAVE'] = wave_box
     specobj.boxcar['COUNTS'] = flux_box*mask_box
     specobj.boxcar['COUNTS_IVAR'] = ivar_box*mask_box
+    specobj.boxcar['COUNTS_SIG'] = np.sqrt(utils.calc_ivar(ivar_box*mask_box))
     specobj.boxcar['COUNTS_NIVAR'] = nivar_box*mask_box
     specobj.boxcar['MASK'] = mask_box
     specobj.boxcar['COUNTS_SKY'] = sky_box
     specobj.boxcar['COUNTS_RN'] = rn_box
     specobj.boxcar['BOX_RADIUS'] = box_radius
-
 
     return None
 
