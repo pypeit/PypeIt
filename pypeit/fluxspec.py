@@ -287,7 +287,7 @@ class FluxSpec(masterframe.MasterFrame):
             if sci_obj is not None:
                 # Do it
                 flux.apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime,
-                                      self.extinction_data)
+                                    self.spectrograph)
 
     def flux_science(self):
         """
@@ -301,7 +301,7 @@ class FluxSpec(masterframe.MasterFrame):
         """
         for sci_obj in self.sci_specobjs:
             flux.apply_sensfunc(sci_obj, self.sensfunc, self.sci_header['AIRMASS'],
-                                  self.sci_header['EXPTIME'], self.extinction_data)
+                                  self.sci_header['EXPTIME'], self.spectrograph)
         self.steps.append(inspect.stack()[0][3])
 
     def _set_std_obj(self, obj_id):
