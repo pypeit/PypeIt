@@ -271,8 +271,13 @@ def load_specobj(fname):
         except:
             msgs.error("BUG ME")
             debugger.set_trace()
+        # TODO -- Figure out if this is a default
         # Add trace
-        specobj.trace = spec['TRACE']
+        try:
+            specobj.trace = spec['TRACE']
+        except:
+            # KLUDGE!
+            specobj.trace = np.arange(len(spec['BOX_WAVE']))
         # Add spectrum
         if 'BOX_COUNTS' in spec.keys():
             for skey in speckeys:
@@ -335,11 +340,11 @@ def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
     rsp_kwargs = {}
     rsp_kwargs['wave_tag'] = '{:s}_WAVE'.format(extract)
     if flux:
-        rsp_kwargs['flux_tag'] = '{:s}_flam'.format(extract)
-        rsp_kwargs['var_tag'] = '{:s}_flam_var'.format(extract)
+        rsp_kwargs['flux_tag'] = '{:s}_FLAM'.format(extract)
+        rsp_kwargs['var_tag'] = '{:s}_FLAM_IVAR'.format(extract)
     else:
         rsp_kwargs['flux_tag'] = '{:s}_COUNTS'.format(extract)
-        rsp_kwargs['var_tag'] = '{:s}_VAR'.format(extract)
+        rsp_kwargs['var_tag'] = '{:s}_IVAR'.format(extract)
     # Identify extension from objname?
     if objname is not None:
         hdulist = fits.open(fname)
