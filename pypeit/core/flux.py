@@ -34,81 +34,6 @@ MAGFUNC_MAX = 25.0
 MAGFUNC_MIN = -25.0
 SN2_MAX = (20.0) ** 2
 
-
-def apply_sensfunc_allslits(spec_obj, sens_dict, airmass,
-    exptime, spectrograph, MAX_EXTRAP=0.05):
-    """ Apply the sensitivity function to the data
-    We also correct for extinction.
-
-    Parameters
-    ----------
-    MAX_EXTRAP : float, optional [0.05]
-      Fractional amount to extrapolate sensitivity function
-    """
-    # Load extinction data
-    # extinct = load_extinction_data(settings_spec)
-    # airmass = fitsdict['airmass'][scidx]
-
-    for islit in range(len(specobj)):
-        msgs.info("Apply sensfunction on order: {}".format(islit))
-
-        for extract_type in ['boxcar', 'optimal']:
-            extract = getattr(specobj, extract_type)
-            print(extract)
-            if len(extract) == 0:
-                continue
-
-
-
-'''
-            wave_box        = np.copy(spec_obj[islit].boxcar['WAVE'])
-            counts_box      = np.copy(spec_obj[islit].boxcar['COUNTS']) / exptime
-            counts_ivar_box = np.copy(spec_obj[islit].boxcar['COUNTS_IVAR']) * exptime ** 2.
-
-            wave_opt        = np.copy(spec_obj[islit].optimal['WAVE'])
-            counts_opt      = np.copy(spec_obj[islit].optimal['COUNTS']) / exptime
-            counts_ivar_opt = np.copy(spec_obj[islit].optimal['COUNTS_IVAR']) * exptime ** 2.
-
-        sens = sens_dict[islit]
-        if np.max(wave_c) < 100. * units.AA:
-            ## msgs.info("Applying extinction correction")
-            extinct = flux.load_extinction_data(spectrograph.telescope['longitude'],
-                                                spectrograph.telescope['latitude'])
-            ext_corr = extinction_correction(wave_c, airmass, extinct)
-            # Correct for extinction and convert to electrons / s
-            flux_c = flux_c * ext_corr / exptime
-            var_c = var_c * ext_corr ** 2 / exptime ** 2
-        else:
-            # msgs.info("Extinction correction not applied")
-            # Convert to electrons / s
-            flux_c = flux_c / exptime
-            var_c = var_c / exptime ** 2
-
-
-
-        for extract_type in ['boxcar', 'optimal']:
-            extract = getattr(spec_obj, extract_type)
-            if len(extract) == 0:
-                continue
-            msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
-                      "{}".format(spec_obj))
-            wave = extract['wave']  # for convenience
-            scale = np.zeros(wave.size)
-            # Allow for some extrapolation
-            dwv = sensfunc['wave_max'] - sensfunc['wave_min']
-            inds = ((wave >= sensfunc['wave_min'] - dwv * MAX_EXTRAP)
-                   & (wave <= sensfunc['wave_max'] + dwv * MAX_EXTRAP))
-            mag_func = utils.func_val(sensfunc['c'], wave[inds],
-                                      sensfunc['func'])
-            sens = 10.0 ** (0.4 * mag_func)
-            # Extinction
-            ext_corr = extinction_correction(wave[inds], airmass, extinction_data)
-            scale[inds] = sens * ext_corr
-            # Fill
-            extract['flam'] = extract['counts'] * scale / exptime
-            extract['flam_var'] = (extract['var'] * (scale / exptime) ** 2)
-'''
-
 def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, 
                    spectrograph, MAX_EXTRAP=0.05):
     """ Apply the sensitivity function to the data
@@ -144,48 +69,12 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime,
             sensfit = sensfit * ext_corr
         else:
             msgs.info("Extinction correction not applied")
-        extract['flam'] = extract['COUNTS'] * sensfit / exptime
-        extract['flam_var'] = (sensfit / exptime) / (np.sqrt(extract['COUNTS_IVAR']))
+        extract['FLAM'] = extract['COUNTS'] * sensfit / exptime
+        extract['FLAM_SIG'] = (sensfit / exptime) / (np.sqrt(extract['COUNTS_IVAR']))
+        extract['FLAM_IVAR'] = extract['COUNTS_IVAR'] / (sensfit / exptime) **2 
 
-'''
-def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, 
-                   extinction_data, MAX_EXTRAP=0.05):
-    """ Apply the sensitivity function to the data
-    We also correct for extinction.
 
-    Parameters
-    ----------
-    MAX_EXTRAP : float, optional [0.05]
-      Fractional amount to extrapolate sensitivity function
-    """
-    # Load extinction data
-    # extinct = load_extinction_data(settings_spec)
-    # airmass = fitsdict['airmass'][scidx]
-
-    # Loop on extraction modes
-    for extract_type in ['boxcar', 'optimal']:
-        extract = getattr(spec_obj, extract_type)
-        if len(extract) == 0:
-            continue
-        msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
-                  "{}".format(spec_obj))
-        wave = extract['wave']  # for convenience
-        scale = np.zeros(wave.size)
-        # Allow for some extrapolation
-        dwv = sensfunc['wave_max'] - sensfunc['wave_min']
-        inds = ((wave >= sensfunc['wave_min'] - dwv * MAX_EXTRAP)
-                & (wave <= sensfunc['wave_max'] + dwv * MAX_EXTRAP))
-        mag_func = utils.func_val(sensfunc['c'], wave[inds],
-                                  sensfunc['func'])
-        sens = 10.0 ** (0.4 * mag_func)
-        # Extinction
-        ext_corr = extinction_correction(wave[inds], airmass, extinction_data)
-        scale[inds] = sens * ext_corr
-        # Fill
-        extract['flam'] = extract['counts'] * scale / exptime
-        extract['flam_var'] = (extract['var'] * (scale / exptime) ** 2)
-'''
-
+"""
 def generate_sensfunc_allslits(specobj, airmass, exptime, spectrograph, telluric=False, star_type=None,
                       star_mag=None, RA=None, DEC=None, BALM_MASK_WID=5., nresln=None):
     """ Generate_sensfunc having SpecObjs as input and runnig it over
@@ -213,7 +102,7 @@ def generate_sensfunc_allslits(specobj, airmass, exptime, spectrograph, telluric
                                         telluric=telluric, star_type=star_type, star_mag=star_mag, RA=RA,
                                         DEC=DEC, BALM_MASK_WID=BALM_MASK_WID, nresln=nresln)
     return sens_dict
-
+"""
 
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
