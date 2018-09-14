@@ -76,6 +76,7 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
+        par['flexure']['method'] = None
         return par
 
     def nires_header_keys(self):

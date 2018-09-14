@@ -361,7 +361,7 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
         plt.show()
 
 
-def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, cont_samp = 30, nonlinear=None, debug=False):
+def detect_lines(censpec, nfitpix=5, sigdetect = 20.0, cont_samp = 30, nonlinear=None, debug=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
