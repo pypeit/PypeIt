@@ -617,7 +617,6 @@ class MultiSlit(PypeIt):
         # TODO -- Turn the following stream into a recipe like in Calibrations
         # TODO -- Should check the Calibs were done already
 
-        #
         scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
 
         # Process images (includes inverse variance image, rn2 image, and CR mask)
