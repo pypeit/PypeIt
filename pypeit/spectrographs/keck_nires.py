@@ -151,6 +151,24 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
 
         """
 
+        arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
+        arcparam['llist'] = ''
+        arcparam['disp'] = 2.              # Ang/unbinned pixel
+        arcparam['b1'] = 0.                # Pixel fit term (binning independent)
+        arcparam['b2'] = 0.                # Pixel fit term
+        arcparam['wv_cen'] = 0.            # Estimate of central wavelength
+        arcparam['wvmnx'] = [9000., 25000.] # Guess at wavelength range
+        arcparam['disp_toler'] = 0.1       # 10% tolerance
+        arcparam['match_toler'] = 3.       # Matching tolerance (pixels)
+        arcparam['min_ampl'] = 1000.       # Minimum amplitude
+        arcparam['func'] = 'legendre'      # Function for fitting
+        arcparam['n_first'] = 1            # Order of polynomial for first fit
+        arcparam['n_final'] = 3            # Order of polynomial for final fit
+        arcparam['nsig_rej'] = 2.          # Number of sigma for rejection
+        arcparam['nsig_rej_final'] = 2.0   # Number of sigma for rejection (final fit)
+        arcparam['Nstrong'] = 13           # Number of lines for auto-analysis
+
+
         """ OLD VERSION
         arcparam = dict(llist='',
                         disp=2.,  # Ang/unbinned pixel
@@ -167,22 +185,7 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
                         n_final=3,  # Order of polynomial for final fit
                         nsig_rej=2.,  # Number of sigma for rejection
                         nsig_rej_final=2.0,  # Number of sigma for rejection (final fit)
-                        Nstrong=13)  # Number of lines for auto-analysis """
+                        Nstrong=13)  # Number of lines for auto-analysis 
+    """
 
         # NEW VERSION
-        arcparam['llist'] = ''
-        arcparam['disp'] = 2.              # Ang/unbinned pixel
-        arcparam['b1'] = 0.                # Pixel fit term (binning independent)
-        arcparam['b2'] = 0.                # Pixel fit term
-        arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
-        arcparam['wv_cen'] = 0.            # Estimate of central wavelength
-        arcparam['wvmnx'] = [9000., 25000.] # Guess at wavelength range
-        arcparam['disp_toler'] = 0.1       # 10% tolerance
-        arcparam['match_toler'] = 3.       # Matching tolerance (pixels)
-        arcparam['min_ampl'] = 1000.       # Minimum amplitude
-        arcparam['func'] = 'legendre'      # Function for fitting
-        arcparam['n_first'] = 1            # Order of polynomial for first fit
-        arcparam['n_final'] = 3            # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2.          # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 2.0   # Number of sigma for rejection (final fit)
-        arcparam['Nstrong'] = 13           # Number of lines for auto-analysis
