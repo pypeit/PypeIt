@@ -416,7 +416,11 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         if sobj.fwhmfit is not None:
             cols += [fits.Column(array=sobj.fwhmfit, name=str('FWHM'), format=sobj.fwhmfit.dtype)]
         if ext == 1:
-            npix = len(sobj['trace'])
+            # TODO -- FIX THIS KLUDGE
+            try:
+                npix = len(sobj['trace'])
+            except:  # THIS IS A DUMB KLUDGE
+                npix = len(sobj['trace_spat'])
         # Boxcar
         for key in sobj.boxcar.keys():
             # Skip some

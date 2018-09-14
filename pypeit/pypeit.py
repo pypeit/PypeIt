@@ -209,11 +209,12 @@ class PypeIt(object):
         can_be_None = [ 'flexure', 'fluxcalib' ]
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
-        for sci_ID in all_sci_ID:
+        for kk,sci_ID in enumerate(all_sci_ID):
             sci_dict = self.reduce_exposure(sci_ID, reuse_masters=reuse_masters)
             # Save
             scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
             self.save_exposure(scidx, sci_dict, self.basename)
+            basenames[kk] = self.basename
 
         # Standard stars
         for std_idx in self.std_dict.keys():

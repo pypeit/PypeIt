@@ -474,6 +474,8 @@ def generate_sensfunc(std_obj, RA, DEC, exptime, extinction, BALM_MASK_WID=5., n
       sensitivity function described by a dict
     """
     wave = std_obj.boxcar['WAVE']
+    if not isinstance(wave, units.Quantity):
+        wave = wave * units.AA
     # Apply Extinction
 #    extinct = load_extinction_data(settings_spect) # Observatory specific
 #    ext_corr = extinction_correction(wave, airmass, extinction_data)
