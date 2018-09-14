@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Script for fluxing PYPIT 1d spectra
+Script for fluxing PYPEIT 1d spectra
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -25,6 +25,7 @@ def parser(options=None):
     parser.add_argument("--flux_file", type=str, help="Output filename for fluxed science spectra")
     parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
     parser.add_argument("--multi_det", type=str, help="Multiple detectors (e.g. 3,7 for DEIMOS)")
+    parser.add_argument("--telluric", default=False, action="store_true", help="Correct for telluric absorptions?")
 
     if options is None:
         args = parser.parse_args()
@@ -74,6 +75,7 @@ def main(args, unit_test=False):
     FxSpec = fluxspec.FluxSpec(std_spec1d_file=args.std_file,
                                sci_spec1d_file=args.sci_file,
                                spectrograph=args.instr,
+                               telluric=args.telluric,
                                sens_file=sfile,
                                multi_det=multi_det)
     # Step through
