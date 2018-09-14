@@ -361,7 +361,7 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
         plt.show()
 
 
-def detect_lines(censpec, nfitpix=5, sigdetect = 20.0, cont_samp = 30, nonlinear=None, debug=False):
+def detect_lines(censpec, nfitpix=5, sigdetect = 20.0, FWHM = 10.0, cont_samp = 30, nonlinear=None, debug=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -438,8 +438,10 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 20.0, cont_samp = 30, nonlinear
 
     #tampl, tcent, twid, centerr = fit_arcspec(xrng, detns, pixt, nfitpix)
     tampl, tcent, twid, centerr = fit_arcspec(xrng, arc_in, pixt, nfitpix)
-    good = (~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1])
+    #         sigma finite  & sigma positive &  sigma < FWHM/2.35 & cen positive  &  cen on detector
+    good = (~np.isnan(twid)) & (twid > 0.0) & (twid < FWHM/2.35) & (tcent > 0.0) & (tcent < xrng[-1])
     ww = np.where(good)
+
     if debug:
         plt.plot(xrng, arc_in, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc')
         plt.plot(tcent[~good], tampl[~good],'r+', markersize =6.0, label = 'bad peaks')
