@@ -34,6 +34,51 @@ MAGFUNC_MAX = 25.0
 MAGFUNC_MIN = -25.0
 SN2_MAX = (20.0) ** 2
 
+
+def apply_sensfunc_allslits(spec_obj, sens_dict, airmass, exptime, spectrograph, MAX_EXTRAP=0.05):
+    """ Apply the sensitivity function to the data
+    We also correct for extinction.
+
+    Parameters
+    ----------
+    MAX_EXTRAP : float, optional [0.05]
+      Fractional amount to extrapolate sensitivity function
+    """
+    # Load extinction data
+    # extinct = load_extinction_data(settings_spec)
+    # airmass = fitsdict['airmass'][scidx]
+
+    for islit in range(len(specobj)):
+        msgs.info("Apply sensfunction on order: {}".format(islit))
+        spec = spec_obj[islit]
+        sens = sens_dict[islit]
+        for extract_type in ['boxcar', 'optimal']:
+            extract = getattr(spec_obj, extract_type)
+            if len(extract) == 0:
+                continue
+            msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
+                      "{}".format(spec_obj))
+            wave = extract['wave']  # for convenience
+            scale = np.zeros(wave.size)
+            # Allow for some extrapolation
+            dwv = sensfunc['wave_max'] - sensfunc['wave_min']
+            inds = ((wave >= sensfunc['wave_min'] - dwv * MAX_EXTRAP)
+                   & (wave <= sensfunc['wave_max'] + dwv * MAX_EXTRAP))
+            mag_func = utils.func_val(sensfunc['c'], wave[inds],
+                                      sensfunc['func'])
+            sens = 10.0 ** (0.4 * mag_func)
+            # Extinction
+            ext_corr = extinction_correction(wave[inds], airmass, extinction_data)
+            scale[inds] = sens * ext_corr
+            # Fill
+            extract['flam'] = extract['counts'] * scale / exptime
+            extract['flam_var'] = (extract['var'] * (scale / exptime) ** 2)
+
+
+
+
+
+'''
 def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EXTRAP=0.05):
     """ Apply the sensitivity function to the data
     We also correct for extinction.
@@ -69,7 +114,7 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EX
         # Fill
         extract['flam'] = extract['counts'] * scale / exptime
         extract['flam_var'] = (extract['var'] * (scale / exptime) ** 2)
-
+'''
 
 def generate_sensfunc_allslits(specobj, airmass, exptime, spectrograph, telluric=False, star_type=None,
                       star_mag=None, RA=None, DEC=None, BALM_MASK_WID=5., nresln=None):
@@ -98,6 +143,7 @@ def generate_sensfunc_allslits(specobj, airmass, exptime, spectrograph, telluric
                                         telluric=telluric, star_type=star_type, star_mag=star_mag, RA=RA,
                                         DEC=DEC, BALM_MASK_WID=BALM_MASK_WID, nresln=nresln)
     return sens_dict
+
 
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
