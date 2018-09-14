@@ -299,7 +299,7 @@ def bspline_magfit(wave,flux,ivar,flux_std,inmask = None, maxiter=35, upper=2,lo
     sensfit[~magfunc_mask] = 0.0
 
     # Ema take it from here. Archive this is a file. Modify the routine that applies it. Check that things still work at tell=false
-    
+
     #npix = len(wave_obs)
     #wave_fine = np.linspace(wave_obs.min(),wave_obs.max(),num = 100*npix)
     #sensfit_fine = scipy.interpolate.interp1d(wave_obs, sensfit, fill_value='extrapolate')(wave_fine)
