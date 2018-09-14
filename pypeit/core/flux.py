@@ -17,7 +17,6 @@ from astropy.io import ascii
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 
-
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except ImportError:
@@ -34,7 +33,8 @@ TINY = 1e-15
 MAGFUNC_MAX = 25.0
 MAGFUNC_MIN = -25.0
 
-SN2_MAX = (20.0)**2
+SN2_MAX = (20.0) ** 2
+
 
 def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EXTRAP=0.05):
     """ Apply the sensitivity function to the data
@@ -73,8 +73,259 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EX
         extract['flam_var'] = (extract['var'] * (scale / exptime) ** 2)
 
 
-def bspline_magfit(wave, flux, ivar, flux_std, inmask = None, maxiter=35, upper=2, lower=2,
-                   kwargs_bspline={}, kwargs_reject={}, debug = False):
+def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
+                      star_mag=None,
+                      RA=None, DEC=None, BALM_MASK_WID=5., nresln=None):
+    """ Function to generate the sensitivity function.
+    This can work in different regimes:
+    - If telluric=False and RA=None and Dec=None
+      the code creates a sintetic standard star spectrum using the Kurucz models,
+      and from this it generates a sens func using nresln=20.0 and masking out
+      telluric regions.
+    - If telluric=False and RA and Dec are assigned
+      the standard star spectrum is extracted from the archive, and a sens func 
+      is generated using nresln=20.0 and masking out telluric regions.
+    - If telluric=True
+      the code creates a sintetic standard star spectrum using the Kurucz models,
+      the sens func is created setting nresln=1.5 it contains the correction for
+      telluric lines.
+
+    Parameters:
+    ----------
+    wave : array
+      Wavelength of the star with units
+    counts : array
+      Flux (in counts) of the star
+    counts_ivar : array
+      Inverse variance of the star
+    airmass : float
+      Airmass
+    exptime : float
+      Exposure time in seconds
+    spectrograph : dict
+      Instrument specific dict
+      Used for extinction correction
+    telluric : bool
+      if True performs a telluric correction
+    star_type : str
+      Spectral type of the telluric star (used if telluric=True)
+    star_mag : float
+      Apparent magnitude of telluric star (used if telluric=True)
+    RA : float
+      deg, RA of the telluric star
+      if assigned, the standard star spectrum will be extracted from
+      the archive
+    DEC : float
+      deg, DEC of the telluric star
+      if assigned, the standard star spectrum will be extracted from
+      the archive
+    BALM_MASK_WID : float
+      Mask parameter for Balmer absorption. A region equal to
+      BALM_MASK_WID*resln is masked wher resln is the estimate
+      for the spectral resolution.
+    nresln : float
+      Number of resolution elements for break-point placement.
+      If assigned, overwrites the settings imposed by the code.
+
+    Returns:
+    -------
+    sens_dict : dict
+      sensitivity function described by a dict
+    """
+
+    # Create copy of the arrays to avoid modification and convert to 
+    # electrons / s
+    wave_star = wave.copy()
+    flux_star = counts.copy() / exptime
+    ivar_star = counts_ivar.copy() * exptime ** 2
+
+    # ToDo
+    # This should be changed. At the moment the extinction correction procedure
+    # requires the spectra to be in the optical. For the NIR is probably enough
+    # to extend the tables to longer wavelength setting the extinction to 0.0mag.
+    msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
+    # Apply Extinction if optical bands
+    if np.max(wave_star) < 10000. * units.AA:
+        msgs.info("Applying extinction correction")
+        extinct = load_extinction_data(spectrograph.telescope['longitude'],
+                                       spectrograph.telescope['latitude'])
+        ext_corr = extinction_correction(wave_star, airmass, extinct)
+        # Correct for extinction
+        flux_star = flux_star * ext_corr
+        ivar_star = ivar_star / ext_corr ** 2
+    else:
+        msgs.info("Extinction correction not applied")
+
+    # Create star model
+    if (RA is not None) and (DEC is not None):
+        # Pull star spectral model from archive
+        msgs.info("Get standard model")
+        # Grab closest standard within a tolerance
+        std_dict = find_standard_file((RA, DEC))
+        # Load standard
+        load_standard_file(std_dict)
+    else:
+        # Create star spectral model
+        msgs.info("Creating standard model")
+        # Create star model
+        star_loglam, star_flux, std_dict = telluric_sed(star_mag, star_type)
+        star_lam = 10 ** star_loglam
+        # Generate a dict matching the output of find_standard_file
+        std_dict = dict(file='KuruczTelluricModel', name=star_type, fmt=1,
+                        ra=None, dec=None)
+        std_dict['wave'] = star_lam * units.AA
+        std_dict['flux'] = 1e17 * star_flux * units.erg / units.s / units.cm ** 2 / units.AA
+
+    # Interpolate onto observed wavelengths
+    std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
+    xspec = std_xspec.rebin(wave_star)  # Conserves flambda
+    flux_true2 = xspec.flux.value
+    
+    flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'], fill_value='extrapolate')(wave_star)
+    
+    plt.figure(1)
+    plt.plot(std_dict['wave'],std_dict['flux'],label='Orig')
+    plt.scatter(wave_star,flux_true,s=5,c='red', label='rebin scipy')
+    plt.plot(wave_star,flux_true2,label='rebin X')
+
+    plt.xlim(np.min(wave_star.value),np.max(wave_star.value))
+    plt.ylim(np.min(flux_true),np.max(flux_true))
+    plt.legend()
+    plt.show()
+    
+    
+    if np.min(flux_true) == 0.:
+        msgs.warn('Your spectrum extends beyond calibrated standard star.')
+
+    # Set nresln
+    if nresln is None:
+        if telluric:
+            nresln = 1.5
+            msgs.info("Set nresln to 1.5")
+        else:
+            nresln = 20.0
+            msgs.info("Set nresln to 20.0")
+
+    # ToDo
+    # Compute an effective resolution for the standard. This could be improved
+    # to setup an array of breakpoints based on the resolution. At the
+    # moment we are using only one number
+    msgs.work("Should pull resolution from arc line analysis")
+    msgs.work("At the moment the resolution is taken as the PixelScale")
+    msgs.work("This needs to be changed!")
+    std_pix = np.median(np.abs(wave_star - np.roll(wave_star, 1)))
+    std_res = std_pix
+    resln = std_res
+    if (nresln * std_res) < std_pix:
+        msgs.warn("Bspline breakpoints spacing shoud be larger than 1pixel")
+        msgs.warn("Changing input nresln to fix this")
+        nresln = std_res / std_pix
+
+    # Mask bad pixels, edges, and Balmer, Paschen, Brackett, and Pfund lines
+    # Mask (True = good pixels)
+    msgs.info("Masking spectral regions:")
+    msk_star = np.ones_like(flux_star).astype(bool)
+
+    # Mask bad pixels
+    msgs.info(" Masking bad pixels")
+    msk_star[ivar_star <= 0.] = False
+    msk_star[flux_star <= 0.] = False
+
+    # Mask edges
+    msgs.info(" Masking edges")
+    msk_star[:1] = False
+    msk_star[-1:] = False
+
+    # Mask Balmer
+    msgs.info(" Masking Balmer")
+    lines_balm = np.array([3836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0,
+                           6564.6, 8224.8, 8239.2]) * units.AA
+    for line_balm in lines_balm:
+        ibalm = np.abs(wave_star - line_balm) <= BALM_MASK_WID * resln
+        msk_star[ibalm] = False
+
+    # Mask Paschen
+    msgs.info(" Masking Paschen")
+    # air wavelengths from:
+    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
+    lines_pasc = np.array([8203.6, 9229.0, 9546.0, 10049.4, 10938.1,
+                           12818.1, 18751.0]) * units.AA
+    for line_pasc in lines_pasc:
+        ipasc = np.abs(wave_star - line_pasc) <= BALM_MASK_WID * resln
+        msk_star[ipasc] = False
+
+    # Mask Brackett
+    msgs.info(" Masking Brackett")
+    # air wavelengths from:
+    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
+    lines_brac = np.array([14584.0, 18174.0, 19446.0, 21655.0,
+                           26252.0, 40512.0]) * units.AA
+    for line_brac in lines_brac:
+        ibrac = np.abs(wave_star - line_brac) <= BALM_MASK_WID * resln
+        msk_star[ibrac] = False
+
+    # Mask Pfund
+    msgs.info(" Masking Pfund")
+    # air wavelengths from:
+    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
+    lines_pfund = np.array([22788.0, 32961.0, 37395.0, 46525.0,
+                            74578.0]) * units.AA
+    for line_pfund in lines_pfund:
+        ipfund = np.abs(wave_star - line_pfund) <= BALM_MASK_WID * resln
+        msk_star[ipfund] = False
+
+    # Mask Atm. cutoff
+    msgs.info(" Masking Below the atmospheric cutoff")
+    atms_cutoff = wave_star <= 3000.0 * units.AA
+    msk_star[atms_cutoff] = False
+
+    if telluric == False:
+        # Mask telluric absorption
+        msgs.info("Masking Telluric")
+        tell = np.any([((wave >= 7580.00 * units.AA) & (wave <= 7750.00 * units.AA)),
+                       ((wave >= 7160.00 * units.AA) & (wave <= 7340.00 * units.AA)),
+                       ((wave >= 6860.00 * units.AA) & (wave <= 6930.00 * units.AA)),
+                       ((wave >= 9310.00 * units.AA) & (wave <= 9665.00 * units.AA)),
+                       ((wave >= 11120.0 * units.AA) & (wave <= 11615.0 * units.AA)),
+                       ((wave >= 12610.0 * units.AA) & (wave <= 12720.0 * units.AA)),
+                       ((wave >= 13160.0 * units.AA) & (wave <= 15065.0 * units.AA)),
+                       ((wave >= 15700.0 * units.AA) & (wave <= 15770.0 * units.AA)),
+                       ((wave >= 16000.0 * units.AA) & (wave <= 16100.0 * units.AA)),
+                       ((wave >= 16420.0 * units.AA) & (wave <= 16580.0 * units.AA)),
+                       ((wave >= 17310.0 * units.AA) & (wave <= 20775.0 * units.AA)),
+                       (wave >= 22680.0 * units.AA)], axis=0)
+        msk_star[tell] = False
+
+    # Apply mask
+    ivar_star[~msk_star] = 0.0
+
+    # Fit in magnitudes
+    kwargs_bspline = {'bkspace': resln.value * nresln}
+    kwargs_reject = {'maxrej': 5}
+    mag_set = bspline_magfit(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,
+                             kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject)
+
+    # Creating the dict
+    msgs.work("Is min, max and wave_min, wave_max a duplicate?")
+    sens_dict = dict(bspline=mag_set, func='bspline', min=None, max=None, std=std_dict)
+
+    # Add in wavemin,wavemax
+    sens_dict['wave_min'] = np.min(wave_star)
+    sens_dict['wave_max'] = np.max(wave_star)
+
+    """
+    # Write the sens_dict to a json file
+    import json
+    msgs.info("Writing sens_dict into .json file")
+    with open('sens_dict.json', 'w') as fp:
+        json.dump(sens_dict, fp, sort_keys=True, indent=4)
+    """
+
+    return sens_dict
+
+
+def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, lower=2,
+                   kwargs_bspline={}, kwargs_reject={}, debug=True):
     """
     Perform a bspline fit to the flux ratio of standard to
     observed counts. Used to generate a sensitivity function.
@@ -113,171 +364,152 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask = None, maxiter=35, upper=
     flux_obs = flux.copy()
     ivar_obs = ivar.copy()
 
-    # Check for calibration
-    plt.figure(1)
-    plt.plot(wave_obs, flux_obs, label='flux_obs')
-    plt.legend()
-    plt.xlabel('Wavelength [ang]')
-    plt.show()
-    # plt.close()
-
-
-
     # preparing arrays to run in bspline_iterfit
 
     if np.all(~np.isfinite(ivar_obs)):
         msgs.warn("NaN are present in the inverse variance")
 
     # Preparing arrays to run in bspline_iterfit
+
     if np.all(~np.isfinite(ivar_obs)):
         msgs.warn("NaN are present in the inverse variance")
-    # Removing outliners
-    # Calculate log of flux_obs
-    fluxlog = 2.5 * np.log10(np.maximum(flux_obs,TINY))
-#    fluxlog = 2.5 * np.log10(np.maximum(flux_obs,pos_obs/5.))
-    logivar_pix = ivar_obs * np.power(np.maximum(flux_obs,TINY), 2.)*np.power(1.08574, -2.)
-    dwave = np.median(wave_obs - np.roll(wave_obs,1))
-    nresln = kwargs_bspline['bkspace']/dwave
-    med_width = (np.ceil(10.0*nresln)).astype(int)
-    #logivar = np.minimum(scipy.ndimage.filters.median_filter(logivar_pix, size=med_width, mode='reflect'),SN2_MAX)
-    logivar= np.ones_like(fluxlog)*(10.0**2)
 
-    # Calculate log of flux_std model
-    flux_stdlog = 2.5 * np.log10(np.maximum(flux_std,TINY))
-    # Calculate ratio
-    magfunc = flux_stdlog - fluxlog
-    magfunc =np.maximum(np.minimum(magfunc, MAGFUNC_MAX), MAGFUNC_MIN)
+    # Removing outliers
 
-    magfunc_mask = (magfunc < 0.99*MAGFUNC_MAX) & (magfunc > 0.99*MAGFUNC_MIN)
-    sensfunc = 10.0 ** (0.4 * magfunc)
+    # Calculate log of flux_obs setting a floor at TINY
+    logflux_obs = 2.5 * np.log10(np.maximum(flux_obs, TINY))
+    # Set a fix value fro the variance of logflux
+    logivar_obs = np.ones_like(logflux_obs) * (10.0 ** 2)
 
-    if inmask is None:
-        masktot = (ivar_obs > 0.0) & np.isfinite(flux_obs) & np.isfinite(ivar_obs) & np.isfinite(flux_std) & magfunc_mask
-    else:
-        masktot = inmask & (ivar_obs > 0.0) & np.isfinite(flux_obs) & np.isfinite(ivar_obs) & np.isfinite(flux_std) & magfunc_mask
+    # Calculate log of flux_std model setting a floor at TINY
+    logflux_std = 2.5 * np.log10(np.maximum(flux_std, TINY))
 
+    # Calculate ratio setting a floor at MAGFUNC_MIN and a ceiling at
+    # MAGFUNC_MAX
+    magfunc = logflux_std - logflux_obs
+    magfunc = np.maximum(np.minimum(magfunc, MAGFUNC_MAX), MAGFUNC_MIN)
+    magfunc_mask = (magfunc < 0.99 * MAGFUNC_MAX) & (magfunc > 0.99 * MAGFUNC_MIN)
 
     # Mask outliners
-    #fluxlog[~pos_mask] = -1
-    logivar[~masktot] = 0.
-    #flux_stdlog[~pos_mask] = -1.
-    #magfunc[~masktot] = MAGFUNC_MAX
-    #sensfunc[~pos_mask] = 0.
+    if inmask is None:
+        masktot = (ivar_obs > 0.0) & np.isfinite(logflux_obs) & np.isfinite(ivar_obs) & \
+                  np.isfinite(logflux_std) & magfunc_mask
+    else:
+        masktot = inmask & (ivar_obs > 0.0) & np.isfinite(logflux_obs) & np.isfinite(ivar_obs) & \
+                  np.isfinite(logflux_std) & magfunc_mask
+    logivar_obs[~masktot] = 0.
+
+
+    # Calculate sensfunc
+    sensfunc = 10.0 ** (0.4 * magfunc)
 
     msgs.info("Initialize bspline for flux calibration")
 
-
-    init_bspline = pydl.bspline(wave_obs,bkspace=kwargs_bspline['bkspace'])
+    init_bspline = pydl.bspline(wave_obs, bkspace=kwargs_bspline['bkspace'])
     fullbkpt = init_bspline.breakpoints
-    # remove masked regions
-    msk_obs = np.ones_like(wave_obs).astype(bool)
-    """
-    msk_obs[ivar_obs <= 0.] = False
-    """
-    msk_obs[~masktot] = False
-    
-    msk_bkpt = scipy.interpolate.interp1d(wave_obs, msk_obs, kind='nearest', fill_value='extrapolate')(fullbkpt)
 
     # TESTING turning off masking for now
-    #init_breakpoints = fullbkpt[msk_bkpt > 0.999]
-    init_breakpoints = fullbkpt
+    # remove masked regions from breakpoints
+    msk_obs = np.ones_like(wave_obs).astype(bool)
+    msk_obs[~masktot] = False
+    msk_bkpt = scipy.interpolate.interp1d(wave_obs, msk_obs, kind='nearest', fill_value='extrapolate')(fullbkpt)
+    init_breakpoints = fullbkpt[msk_bkpt > 0.999]
 
-    msgs.info("Bspline fit: step 1")
+    # init_breakpoints = fullbkpt
+
     #  First round of the fit:
-    bset1, bmask = pydl.iterfit(wave_obs, magfunc, invvar=logivar, inmask = masktot,upper=upper, lower=lower,
-                                fullbkpt=init_breakpoints,maxiter = maxiter, kwargs_bspline=kwargs_bspline,kwargs_reject=kwargs_reject)
-
-
+    msgs.info("Bspline fit: step 1")
+    bset1, bmask = pydl.iterfit(wave_obs, magfunc, invvar=logivar_obs, inmask=masktot, upper=upper, lower=lower,
+                                fullbkpt=init_breakpoints, maxiter=maxiter, kwargs_bspline=kwargs_bspline,
+                                kwargs_reject=kwargs_reject)
     logfit1, _ = bset1.value(wave_obs)
     logfit_bkpt, _ = bset1.value(init_breakpoints)
 
     if debug:
         # Check for calibration
         plt.figure(1)
-        plt.plot(wave_obs, magfunc, drawstyle = 'steps-mid', color = 'black', label='magfunc')
-        plt.plot(wave_obs, logfit1, color = 'cornflowerblue', label='logfit1')
-        plt.plot(wave_obs[~masktot], magfunc[~masktot], '+',color = 'red', markersize = 5.0, label='masked magfunc')
-        plt.plot(wave_obs[~masktot], logfit1[~masktot], '+',color = 'red', markersize = 5.0, label='masked logfit1')
-        plt.plot(init_breakpoints, logfit_bkpt, '.',color = 'green', markersize = 4.0, label='breakpoints')
-        plt.plot(init_breakpoints, np.interp(init_breakpoints,wave_obs,magfunc), '.',color = 'green', markersize = 4.0, label='breakpoints')
-        plt.plot(wave_obs, 1.0/np.sqrt(logivar),color = 'orange', label='sigma')
+        plt.plot(wave_obs, magfunc, drawstyle='steps-mid', color='black', label='magfunc')
+        plt.plot(wave_obs, logfit1, color='cornflowerblue', label='logfit1')
+        plt.plot(wave_obs[~masktot], magfunc[~masktot], '+', color='red', markersize=5.0, label='masked magfunc')
+        plt.plot(wave_obs[~masktot], logfit1[~masktot], '+', color='red', markersize=5.0, label='masked logfit1')
+        plt.plot(init_breakpoints, logfit_bkpt, '.', color='green', markersize=4.0, label='breakpoints')
+        plt.plot(init_breakpoints, np.interp(init_breakpoints, wave_obs, magfunc), '.', color='green', markersize=4.0,
+                 label='breakpoints')
+        plt.plot(wave_obs, 1.0 / np.sqrt(logivar_obs), color='orange', label='sigma')
         plt.legend()
         plt.xlabel('Wavelength [ang]')
-        plt.ylim(0.0,1.2*MAGFUNC_MAX)
+        plt.ylim(0.0, 1.2 * MAGFUNC_MAX)
+        plt.title('1st Bspline fit')
         plt.show()
-    # plt.close()
 
-    
-    
-    modelfit1 =np.power(10.0,0.4 * np.maximum(np.minimum(logfit1, MAGFUNC_MAX),MAGFUNC_MIN))
-    residual = sensfunc/(modelfit1 + (modelfit1 == 0)) - 1.
-    #new_mask = masktot & (sensfunc > 0)
+    modelfit1 = np.power(10.0, 0.4 * np.maximum(np.minimum(logfit1, MAGFUNC_MAX), MAGFUNC_MIN))
+    residual = sensfunc / (modelfit1 + (modelfit1 == 0)) - 1.
+    # new_mask = masktot & (sensfunc > 0)
 
-    #residual_ivar = (modelfit1 * flux_obs / (sensfunc + (sensfunc == 0.0))) ** 2 * ivar_obs
-    residual_ivar = np.ones_like(residual)/(0.1**2)
+    # residual_ivar = (modelfit1 * flux_obs / (sensfunc + (sensfunc == 0.0))) ** 2 * ivar_obs
+    residual_ivar = np.ones_like(residual) / (0.1 ** 2)
     residual_ivar = residual_ivar * masktot
 
     (mean, med, stddev) = sigma_clipped_stats(residual[masktot], sigma_lower=3.0, sigma_upper=3.0)
 
     if np.median(stddev > 0.01):
-        msgs.info("Bspline fit: step 2")
+        #  Second round of the fit:
+        msgs.info("Bspline fit: step 1")
         #  Now do one more fit to the ratio of data/model - 1.
-        bset_residual, bmask2 = pydl.iterfit(wave_obs, residual, invvar=residual_ivar,inmask = masktot,upper=upper, lower=lower,
-        maxiter=maxiter,fullbkpt=bset1.breakpoints,kwargs_bspline=kwargs_bspline,kwargs_reject=kwargs_reject)
-        resid_fit, _ = bset_residual.value(wave_obs)
-
-        # Plot the residual fit
-        plt.figure(1)
-        plt.plot(wave_obs, residual, label='residual')
-        plt.plot(wave_obs, resid_fit, label='resid fit')
-        plt.legend()
-        plt.ylim(-0.1,0.1)
-        plt.xlabel('Wavelength [ang]')
-        plt.show()
-
+        bset_residual, bmask2 = pydl.iterfit(wave_obs, residual, invvar=residual_ivar, inmask=masktot, upper=upper,
+                                             lower=lower, maxiter=maxiter, fullbkpt=bset1.breakpoints,
+                                             kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject)
         bset_log1 = bset1.copy()
         bset_log1.coeff = bset_log1.coeff + bset_residual.coeff
-
+        if debug:
+            # Check for calibration
+            resid_fit, _ = bset_residual.value(wave_obs)
+            logfit2, _ = bset_log1.value(wave_obs)
+            logfit2_bkpt, _ = bset_log1.value(bset1.breakpoints)
+            plt.figure(1)
+            plt.plot(wave_obs, residual, drawstyle='steps-mid', color='black', label='residual')
+            plt.plot(wave_obs, resid_fit, color='cornflowerblue', label='resid_fit')
+            plt.plot(wave_obs[~masktot], residual[~masktot], '+', color='red', markersize=5.0, label='masked residual')
+            plt.plot(wave_obs[~masktot], resid_fit[~masktot], '+', color='red', markersize=5.0, label='masked resid_fit')
+            plt.plot(init_breakpoints, logfit2_bkpt, '.', color='green', markersize=4.0, label='breakpoints')
+            plt.plot(wave_obs, 1.0 / np.sqrt(residual_ivar), color='orange', label='sigma')
+            plt.legend()
+            plt.xlabel('Wavelength [ang]')
+            plt.ylim(-0.1, 0.1)
+            plt.title('2nd Bspline fit')
+            plt.show()
     else:
         bset_log1 = bset1.copy()
 
     # Create sensitivity function
     newlogfit, _ = bset_log1.value(wave_obs)
-    sensfit = np.power(10.0, 0.4*np.maximum(np.minimum(newlogfit, MAGFUNC_MAX),MAGFUNC_MIN))
+    sensfit = np.power(10.0, 0.4 * np.maximum(np.minimum(newlogfit, MAGFUNC_MAX), MAGFUNC_MIN))
 
     sensfit[~magfunc_mask] = 0.0
 
-    # Ema take it from here. Archive this is a file. Modify the routine that applies it. Check that things still work at tell=false
+    # Ema take it from here. Archive this is a file. Modify the routine that applies it.
+    # Check that things still work at tell=false
 
-    #npix = len(wave_obs)
-    #wave_fine = np.linspace(wave_obs.min(),wave_obs.max(),num = 100*npix)
-    #sensfit_fine = scipy.interpolate.interp1d(wave_obs, sensfit, fill_value='extrapolate')(wave_fine)
-    #sensfit_ivar =np.ones_like(sensfit_fine)/(1000.0**2)
-    #from IPython import embed
-    #embed()
+    # npix = len(wave_obs)
+    # wave_fine = np.linspace(wave_obs.min(),wave_obs.max(),num = 100*npix)
+    # sensfit_fine = scipy.interpolate.interp1d(wave_obs, sensfit, fill_value='extrapolate')(wave_fine)
+    # sensfit_ivar =np.ones_like(sensfit_fine)/(1000.0**2)
+    # from IPython import embed
+    # embed()
 
-    #bsens, _ = pydl.iterfit(wave_fine,sensfit_fine, invvar=sensfit_ivar,maxiter= 1, kwargs_bspline={'everyn':5})
-    #sensfunc_fit, _  = bsens.value(wave_obs)
+    # bsens, _ = pydl.iterfit(wave_fine,sensfit_fine, invvar=sensfit_ivar,maxiter= 1, kwargs_bspline={'everyn':5})
+    # sensfunc_fit, _  = bsens.value(wave_obs)
 
     # Check for calibration
     plt.figure(1)
     plt.plot(wave_obs, sensfunc, drawstyle='steps-mid', color='black', label='sensfunc')
-    plt.plot(wave_obs, sensfunc_fit, color='cornflowerblue', label='sensfunc fit')
+    plt.plot(wave_obs, sensfit, color='cornflowerblue', label='sensfunc fit')
     plt.plot(wave_obs[~masktot], sensfunc[~masktot], '+', color='red', markersize=5.0, label='masked sensfunc')
-    plt.plot(wave_obs[~masktot], sensfunc_fit[~masktot], '+', color='red', markersize=5.0, label='masked sensfuncfit')
+    plt.plot(wave_obs[~masktot], sensfit[~masktot], '+', color='red', markersize=5.0, label='masked sensfuncfit')
     plt.legend()
     plt.xlabel('Wavelength [ang]')
     plt.ylim(0.0, 100.0)
     plt.show()
-
-    # Check for calibration
-    if debug:
-        plt.figure(1)
-        plt.plot(wave_obs, newlogfit, label='newlogfit')
-        plt.legend()
-        plt.xlabel('Wavelength [ang]')
-        plt.show()
-    # plt.close()
 
     # Check quality of the fit
     absdev = np.median(np.abs(sensfit / modelfit1 - 1))
@@ -285,12 +517,35 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask = None, maxiter=35, upper=
 
     # Check for residual of the fit
     if debug:
+        """
         plt.figure(1)
         plt.plot(wave_obs, sensfit / modelfit1 - 1, label='residual')
         plt.legend()
         plt.xlabel('Wavelength [ang]')
         plt.show()
         plt.close()
+        """
+
+        # scale = np.power(10.0, 0.4 * sensfit)
+        flux_cal = flux_obs * sensfit
+        ivar_cal = ivar_obs / sensfit ** 2.
+
+        plt.rcdefaults()
+        plt.rcParams['font.family']= 'times new roman'
+        plt.figure(figsize=(11, 8.5))
+        plt.clf()
+        plt.plot(wave_obs,flux_cal, label='Calibrated Spectrum')
+        plt.plot(wave_obs,flux_std, label='Model')
+        plt.plot(wave_obs,np.sqrt(1/ivar_cal))
+        plt.legend()
+        plt.xlabel('Wavelength [ang]')
+        plt.ylabel('Flux [erg/s/cm2/Ang.]')
+        plt.ylim(0,np.median(flux_std)*2.5)
+        plt.show()
+        plt.close()
+
+
+
 
     # QA
     msgs.work("Add QA for sensitivity function")
@@ -545,242 +800,6 @@ def find_standard(specobjs):
     return mxix
 
 
-def generate_sensfunc(wave,counts,counts_ivar,airmass,exptime,spectrograph,telluric=False,star_type=None,star_mag=None,
-                      RA=None,DEC=None,BALM_MASK_WID=5.,nresln=None):
-    """ Function to generate the sensitivity function.
-    This can work in different regimes:
-    - If telluric=False and RA=None and Dec=None
-      the code creates a sintetic standard star spectrum using the Kurucz models,
-      and from this it generates a sens func using nresln=20.0 and masking out
-      telluric regions.
-    - If telluric=False and RA and Dec are assigned
-      the standard star spectrum is extracted from the archive, and a sens func 
-      is generated using nresln=20.0 and masking out telluric regions.
-    - If telluric=True
-      the code creates a sintetic standard star spectrum using the Kurucz models,
-      the sens func is created setting nresln=1.5 it contains the correction for
-      telluric lines.
-
-    Parameters:
-    ----------
-    wave : array
-      Wavelength of the star with units
-    counts : array
-      Flux (in counts) of the star
-    counts_ivar : array
-      Inverse variance of the star
-    airmass : float
-      Airmass
-    exptime : float
-      Exposure time in seconds
-    spectrograph : dict
-      Instrument specific dict
-      Used for extinction correction
-    telluric : bool
-      if True performs a telluric correction
-    star_type : str
-      Spectral type of the telluric star (used if telluric=True)
-    star_mag : float
-      Apparent magnitude of telluric star (used if telluric=True)
-    RA : float
-      deg, RA of the telluric star
-      if assigned, the standard star spectrum will be extracted from
-      the archive
-    DEC : float
-      deg, DEC of the telluric star
-      if assigned, the standard star spectrum will be extracted from
-      the archive
-    BALM_MASK_WID : float
-      Mask parameter for Balmer absorption. A region equal to
-      BALM_MASK_WID*resln is masked wher resln is the estimate
-      for the spectral resolution.
-    nresln : float
-      Number of resolution elements for break-point placement.
-      If assigned, overwrites the settings imposed by the code.
-
-    Returns:
-    -------
-    sens_dict : dict
-      sensitivity function described by a dict
-    """
-
-    # Create copy of the arrays to avoid modification and convert to 
-    # electrons / s
-    wave_star = wave.copy()
-    flux_star = counts.copy() / exptime
-    ivar_star = counts_ivar.copy() * exptime ** 2
-
-    # ToDo
-    # This should be changed. At the moment the extinction correction procedure
-    # requires the spectra to be in the optical. For the NIR is probably enough
-    # to extend the tables to longer wavelength setting the extinction to 0.0mag.
-    msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
-    # Apply Extinction if optical bands
-    if np.max(wave_star) < 10000. * units.AA:
-        msgs.info("Applying extinction correction")
-        extinct = load_extinction_data(spectrograph.telescope['longitude'],
-                                       spectrograph.telescope['latitude'])
-        ext_corr = extinction_correction(wave_star, airmass, extinct)
-        # Correct for extinction
-        flux_star = flux_star * ext_corr 
-        ivar_star = ivar_star / ext_corr ** 2
-    else:
-        msgs.info("Extinction correction not applied")
-
-    # Create star model
-    if (RA is not None) and (DEC is not None):
-        # Pull star spectral model from archive
-        msgs.info("Get standard model")
-        # Grab closest standard within a tolerance
-        std_dict = find_standard_file((RA, DEC))
-        # Load standard
-        load_standard_file(std_dict)
-    else:
-        # Create star spectral model
-        msgs.info("Creating standard model")
-        # Create star model
-        star_loglam, star_flux, std_dict = telluric_sed(star_mag, star_type)
-        star_lam = 10 ** star_loglam
-        # Generate a dict matching the output of find_standard_file
-        std_dict = dict(file='KuruczTelluricModel', name=star_type, fmt=1,
-                        ra=None, dec=None)
-        std_dict['wave'] = star_lam * units.AA
-        std_dict['flux'] = 1e17 * star_flux * units.erg / units.s / units.cm ** 2 / units.AA
-
-    # Interpolate onto observed wavelengths
-    std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
-    xspec = std_xspec.rebin(wave_star)  # Conserves flambda
-    flux_true = xspec.flux.value
-    if np.min(flux_true) == 0.:
-        msgs.warn('Your spectrum extends beyond calibrated standard star.')
-
-    # Set nresln
-    if nresln is None:
-        if telluric:
-            nresln = 1.5
-            msgs.info("Set nresln to 1.5")
-        else:
-            nresln = 20.0
-            msgs.info("Set nresln to 20.0")
-
-    # ToDo
-    # Compute an effective resolution for the standard. This could be improved
-    # to setup an array of breakpoints based on the resolution. At the
-    # moment we are using only one number
-    msgs.work("Should pull resolution from arc line analysis")
-    msgs.work("At the moment the resolution is taken as the PixelScale")
-    msgs.work("This needs to be changed!")
-    std_pix = np.median(np.abs(wave_star - np.roll(wave_star, 1)))
-    std_res = std_pix
-    resln = std_res
-    if (nresln * std_res) < std_pix:
-        msgs.warn("Bspline breakpoints spacing shoud be larger than 1pixel")
-        msgs.warn("Changing input nresln to fix this")
-        nresln = std_res / std_pix
-
-    # Mask bad pixels, edges, and Balmer, Paschen, Brackett, and Pfund lines
-    # Mask (True = good pixels)
-    msgs.info("Masking spectral regions:")
-    msk_star = np.ones_like(flux_star).astype(bool)
-
-    # Mask bad pixels
-    msgs.info(" Masking bad pixels")
-    msk_star[ivar_star <= 0.] = False
-    msk_star[flux_star <= 0.] = False
-
-    # Mask edges
-    msgs.info(" Masking edges")
-    msk_star[:1] = False
-    msk_star[-1:] = False
-
-    # Mask Balmer
-    msgs.info(" Masking Balmer")
-    lines_balm = np.array([3836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0,
-                           6564.6, 8224.8, 8239.2]) * units.AA
-    for line_balm in lines_balm:
-        ibalm = np.abs(wave_star - line_balm) <= BALM_MASK_WID * resln
-        msk_star[ibalm] = False
-
-    # Mask Paschen
-    msgs.info(" Masking Paschen")
-    # air wavelengths from:
-    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
-    lines_pasc = np.array([8203.6, 9229.0, 9546.0, 10049.4, 10938.1,
-                           12818.1, 18751.0]) * units.AA
-    for line_pasc in lines_pasc:
-        ipasc = np.abs(wave_star - line_pasc) <= BALM_MASK_WID * resln
-        msk_star[ipasc] = False
-
-    # Mask Brackett
-    msgs.info(" Masking Brackett")
-    # air wavelengths from:
-    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
-    lines_brac = np.array([14584.0, 18174.0, 19446.0, 21655.0,
-                           26252.0, 40512.0]) * units.AA
-    for line_brac in lines_brac:
-        ibrac = np.abs(wave_star - line_brac) <= BALM_MASK_WID * resln
-        msk_star[ibrac] = False
-
-    # Mask Pfund
-    msgs.info(" Masking Pfund")
-    # air wavelengths from:
-    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
-    lines_pfund = np.array([22788.0, 32961.0, 37395.0, 46525.0,
-                            74578.0]) * units.AA
-    for line_pfund in lines_pfund:
-        ipfund = np.abs(wave_star - line_pfund) <= BALM_MASK_WID * resln
-        msk_star[ipfund] = False
-
-    # Mask Atm. cutoff
-    msgs.info(" Masking Below the atmospheric cutoff")
-    atms_cutoff = wave_star <= 3000.0 * units.AA
-    msk_star[atms_cutoff] = False
-
-    if telluric == False:
-        # Mask telluric absorption
-        msgs.info("Masking Telluric")
-        tell = np.any([((wave >= 7580.00 * units.AA) & (wave <= 7750.00 * units.AA)),
-                       ((wave >= 7160.00 * units.AA) & (wave <= 7340.00 * units.AA)),
-                       ((wave >= 6860.00 * units.AA) & (wave <= 6930.00 * units.AA)),
-                       ((wave >= 9310.00 * units.AA) & (wave <= 9665.00 * units.AA)),
-                       ((wave >= 11120.0 * units.AA) & (wave <= 11615.0 * units.AA)),
-                       ((wave >= 12610.0 * units.AA) & (wave <= 12720.0 * units.AA)),
-                       ((wave >= 13160.0 * units.AA) & (wave <= 15065.0 * units.AA)),
-                       ((wave >= 15700.0 * units.AA) & (wave <= 15770.0 * units.AA)),
-                       ((wave >= 16000.0 * units.AA) & (wave <= 16100.0 * units.AA)),
-                       ((wave >= 16420.0 * units.AA) & (wave <= 16580.0 * units.AA)),
-                       ((wave >= 17310.0 * units.AA) & (wave <= 20775.0 * units.AA)),
-                       (wave >= 22680.0 * units.AA)], axis=0)
-        msk_star[tell] = False
-
-    # Apply mask
-    ivar_star[~msk_star] = 0.0
-
-    # Fit in magnitudes
-    kwargs_bspline = {'bkspace': resln.value * nresln}
-    kwargs_reject = {'maxrej': 5}
-    mag_set = bspline_magfit(wave_star.value, flux_star, ivar_star, flux_true, inmask = msk_star,
-                             kwargs_bspline=kwargs_bspline,kwargs_reject=kwargs_reject)
-
-    # Creating the dict
-    msgs.work("Is min, max and wave_min, wave_max a duplicate?")
-    sens_dict = dict(bspline=mag_set, func='bspline', min=None, max=None, std=std_dict)
-
-    # Add in wavemin,wavemax
-    sens_dict['wave_min'] = np.min(wave_star)
-    sens_dict['wave_max'] = np.max(wave_star)
-
-    """
-    # Write the sens_dict to a json file
-    import json
-    msgs.info("Writing sens_dict into .json file")
-    with open('sens_dict.json', 'w') as fp:
-        json.dump(sens_dict, fp, sort_keys=True, indent=4)
-    """
-
-    return sens_dict
-
-
 def telluric_params(sptype):
     """Compute physical parameters for a given stellar type.
     This is used by telluric_sed(V, sptype) to create the model spectrum.
@@ -848,7 +867,7 @@ def telluric_sed(V, sptype):
     # Flux factor (absolute/apparent V mag)
 
     # Define constants
-    parsec = constants.pc.cgs    # 3.086e18
+    parsec = constants.pc.cgs  # 3.086e18
     R_sol = constants.R_sun.cgs  # 6.96e10
 
     # Distance modulus
@@ -860,10 +879,10 @@ def telluric_sed(V, sptype):
     flux_factor = (R / D.value) ** 2
 
     # Grab closest T in Kurucz SEDs
-    T1 =  3000. + np.arange(28) *  250
-    T2 = 10000. + np.arange(6)  *  500
+    T1 = 3000. + np.arange(28) * 250
+    T2 = 10000. + np.arange(6) * 500
     T3 = 13000. + np.arange(22) * 1000
-    T4 = 35000. + np.arange(7)  * 2500
+    T4 = 35000. + np.arange(7) * 2500
     Tk = np.concatenate([T1, T2, T3, T4])
     indT = np.argmin(np.abs(Tk - tell_param['T']))
 
