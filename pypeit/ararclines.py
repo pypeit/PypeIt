@@ -56,6 +56,7 @@ def load_arcline_list(lines, disperser, spectrograph, wvmnx=None, modify_parse_d
         rej_dict = yaml.load(infile)
     # Loop through the NIST Tables
     tbls = []
+    print(lines)
     for iline in lines:
         # Load
         tbl = parse_nist(iline)

@@ -6,8 +6,10 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit.par.pypeitpar import DetectorPar
+from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
+from pypeit.core import fsort
 
 from pypeit import debugger
 
@@ -22,6 +24,7 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'keck_nires'
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'NIRES'
+        self.numhead = 3
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext         = 0,
@@ -44,6 +47,63 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         # Uses default primary_hdrext
         # self.sky_file = ?
 
+    @staticmethod
+    def default_pypeit_par():
+        """
+        Set default parameters for Shane Kast Blue reductions.
+        """
+        par = pypeitpar.PypeItPar()
+        # TODO: Make self.spectrograph a class attribute?
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+        # Frame numbers
+        par['calibrations']['standardframe']['number'] = 1
+        par['calibrations']['biasframe']['number'] = 0
+        par['calibrations']['pixelflatframe']['number'] = 5
+        par['calibrations']['traceframe']['number'] = 5
+        par['calibrations']['arcframe']['number'] = 1
+        # Bias
+        par['calibrations']['biasframe']['useframe'] = 'overscan'
+        # Set slits and tilts parameters
+        par['calibrations']['tilts']['order'] = 2
+        par['calibrations']['tilts']['tracethresh'] = [50, 50, 60, 60, 2000]
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 3.
+        par['calibrations']['slits']['pcatype'] = 'order'
+        # Scienceimage default parameters
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypeitpar.FlexurePar()
+        return par
+
+    def nires_header_keys(self):
+        def_keys = self.default_header_keys()
+
+        def_keys[0]['target'] = 'OBJECT'
+        def_keys[0]['exptime'] = 'ITIME'
+        return def_keys
+
+    def header_keys(self):
+        head_keys = self.nires_header_keys()
+        return head_keys
+
+    def get_match_criteria(self):
+        """Set the general matching criteria for Shane Kast."""
+        match_criteria = {}
+        for key in fsort.ftype_list:
+            match_criteria[key] = {}
+
+        match_criteria['standard']['match'] = {}
+
+        match_criteria['pixelflat']['match'] = {}
+
+        match_criteria['trace']['match'] = {}
+
+        match_criteria['arc']['match'] = {}
+
+        return match_criteria
 
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
