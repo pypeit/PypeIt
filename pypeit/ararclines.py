@@ -54,22 +54,26 @@ def load_arcline_list(lines, disperser, spectrograph, wvmnx=None, modify_parse_d
     root = resource_filename('pypeit', 'data/arc_lines')
     with open(root+'/rejected_lines.yaml', 'r') as infile:
         rej_dict = yaml.load(infile)
-    # Loop through the NIST Tables
-    tbls = []
-    print(lines)
-    for iline in lines:
-        # Load
-        tbl = parse_nist(iline)
-        # Parse
-        if iline in parse_dict.keys():
-            tbl = parse_nist_tbl(tbl,parse_dict[iline])
-        # Reject
-        if iline in rej_dict.keys():
-            msgs.info("Rejecting select {:s} lines".format(iline))
-            tbl = reject_lines(tbl,rej_dict[iline], disperser, spectrograph)
-        tbls.append(tbl[['Ion','wave','RelInt']])
-    # Stack
-    alist = vstack(tbls)
+
+    # TODO JFH This is not elegant, but I cannot figure out how the codes reads in linelists from other directories
+    if spectrograph in ['keck_nires','keck_nirspec']:
+        alist = waveio.load_line_list(lines[0],use_ion = True, NIST = False)
+    else:
+        # Loop through the NIST Tables
+        tbls = []
+        for iline in lines:
+            # Load
+            tbl = parse_nist(iline)
+            # Parse
+            if iline in parse_dict.keys():
+                tbl = parse_nist_tbl(tbl,parse_dict[iline])
+            # Reject
+            if iline in rej_dict.keys():
+                msgs.info("Rejecting select {:s} lines".format(iline))
+                tbl = reject_lines(tbl,rej_dict[iline], disperser, spectrograph)
+            tbls.append(tbl[['Ion','wave','RelInt']])
+        # Stack
+        alist = vstack(tbls)
 
     # wvmnx?
     if wvmnx is not None:
