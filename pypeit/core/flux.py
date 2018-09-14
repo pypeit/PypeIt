@@ -3,7 +3,6 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import glob
-
 import numpy as np
 import scipy
 
@@ -16,25 +15,24 @@ from astropy.table import Table, Column
 from astropy.io import ascii
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
+from matplotlib import pyplot as plt
+
+from matplotlib import pyplot as plt
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except ImportError:
     pass
 
-from matplotlib import pyplot as plt
 from pypeit.core import pydl
 from pypeit import msgs
 from pypeit import utils
 from pypeit import debugger
-import scipy
 
 TINY = 1e-15
 MAGFUNC_MAX = 25.0
 MAGFUNC_MIN = -25.0
-
 SN2_MAX = (20.0) ** 2
-
 
 def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EXTRAP=0.05):
     """ Apply the sensitivity function to the data
@@ -73,9 +71,37 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EX
         extract['flam_var'] = (extract['var'] * (scale / exptime) ** 2)
 
 
+def generate_sensfunc_allslits(specobj, airmass, exptime, spectrograph, telluric=False, star_type=None,
+                      star_mag=None, RA=None, DEC=None, BALM_MASK_WID=5., nresln=None):
+    """ Generate_sensfunc having SpecObjs as input and runnig it over
+    the different orders.
+    
+    Parameters:
+    -----------
+
+    Returns:
+    -------
+    """
+    # create dictionary for sens function
+    sens_dict = {}
+    sens_dict['SensTelluric'] = telluric
+    if (RA is not None) and (DEC is not None):
+        sens_dict['SensType'] = "FromSpectrum"
+    else:
+        sens_dict['SensType'] = "FromModel"
+
+    # run over the different slits
+    for islit in range(len(specobj)):
+        msgs.info("Generate sensfunction on order: {}".format(islit))
+        sens_dict[islit] = generate_sensfunc(specobj[islit].boxcar['WAVE'], specobj[islit].boxcar['COUNTS'],
+                                        specobj[islit].boxcar['COUNTS_IVAR'], airmass, exptime, spectrograph,
+                                        telluric=telluric, star_type=star_type, star_mag=star_mag, RA=RA,
+                                        DEC=DEC, BALM_MASK_WID=BALM_MASK_WID, nresln=nresln)
+    return sens_dict
+
+
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
-                      star_mag=None,
-                      RA=None, DEC=None, BALM_MASK_WID=5., nresln=None):
+                      star_mag=None, RA=None, DEC=None, BALM_MASK_WID=5., nresln=None):
     """ Function to generate the sensitivity function.
     This can work in different regimes:
     - If telluric=False and RA=None and Dec=None
@@ -312,6 +338,9 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     # Add in wavemin,wavemax
     sens_dict['wave_min'] = np.min(wave_star)
     sens_dict['wave_max'] = np.max(wave_star)
+    sens_dict['wave'] = wave_star
+    sens_dict['msk_star'] = msk_star
+
 
     """
     # Write the sens_dict to a json file
