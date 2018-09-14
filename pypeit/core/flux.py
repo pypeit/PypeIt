@@ -44,7 +44,7 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EX
             continue
         msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
                   "{}".format(spec_obj))
-        wave = extract['wave']  # for convenience
+        wave = extract['WAVE']  # for convenience
         scale = np.zeros(wave.size)
         # Allow for some extrapolation
         dwv = sensfunc['wave_max']-sensfunc['wave_min']
@@ -57,8 +57,8 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EX
         ext_corr = extinction_correction(wave[inds], airmass, extinction_data)
         scale[inds] = sens*ext_corr
         # Fill
-        extract['flam'] = extract['counts']*scale/exptime
-        extract['flam_var'] = (extract['var']*(scale/exptime)**2)
+        extract['FLAM'] = extract['COUNTS']*scale/exptime
+        extract['FLAM_IVAR'] = (extract['COUNTS_IVAR']/(scale/exptime)**2)
 
 '''
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
@@ -214,8 +214,9 @@ def extinction_correction(wave, airmass, extinct):
 
     Parameters
     ----------
-    wave : Quantity array
+    wave : ndarray
       Wavelengths for interpolation. Should be sorted
+      Assumes Angstroms
     airmass : float
       Airmass
     extinct : Table
@@ -232,7 +233,7 @@ def extinction_correction(wave, airmass, extinct):
     # Interpolate
     f_mag_ext = scipy.interpolate.interp1d(extinct['wave'],
         extinct['mag_ext'], bounds_error=False, fill_value=0.)
-    mag_ext = f_mag_ext(wave.to('AA').value)
+    mag_ext = f_mag_ext(wave)
 
     # Deal with outside wavelengths
     gdv = np.where(mag_ext > 0.)[0]
@@ -435,7 +436,7 @@ def find_standard(specobj_list):
         if spobj is None:
             medfx.append(0.)
         else:
-            medfx.append(np.median(spobj.boxcar['counts']))
+            medfx.append(np.median(spobj.boxcar['COUNTS']))
     try:
         mxix = np.argmax(np.array(medfx))
     except:
@@ -488,7 +489,7 @@ def generate_sensfunc(std_obj, RA, DEC, exptime, extinction, BALM_MASK_WID=5., n
     load_standard_file(std_dict)
     # Interpolate onto observed wavelengths
     std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
-    xspec = std_xspec.rebin(wave) # Conserves flambda
+    xspec = std_xspec.rebin(wave*units.AA) # Conserves flambda
     #flux_interp = scipy.interpolate.interp1d(std_dict['wave'],
     #    std_dict['flux'], bounds_error=False, fill_value=0.)
     #flux_true = flux_interp(wave.to('AA').value)

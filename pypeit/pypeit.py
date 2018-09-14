@@ -237,10 +237,10 @@ class PypeIt(object):
                 # Take the first standard
                 std_idx = list(self.std_dict.keys())[0]
                 # Build the list of stdobjs
-                all_std_objs = []
-                for det in self.std_dict[std_idx].keys():
-                    all_std_objs += self.std_dict[std_idx][det]['specobjs']
-                FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs, spectrograph=self.spectrograph,
+                #all_std_objs = []
+                #for det in self.std_dict[std_idx].keys():
+                #    all_std_objs += self.std_dict[std_idx][det]['specobjs']
+                FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs.specobjs, spectrograph=self.spectrograph,
                                            setup=self.setup, master_dir=self.caliBrate.master_dir,
                                            mode=self.par['calibrations']['masters'])
                 sensfunc = FxSpec.master(self.fitstbl[std_idx])

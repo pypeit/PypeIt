@@ -179,7 +179,7 @@ class FluxSpec(masterframe.MasterFrame):
             sv_stds = []
             # Find the standard in each detector
             for det in self.multi_det:
-                stds = [sobj for sobj in self.std_specobjs.specobjs if sobj.det == det]
+                stds = [sobj for sobj in self.std_specobjs if sobj.det == det]
                 if len(stds) == 0:
                     debugger.set_trace()
                 idx = flux.find_standard(stds)
@@ -190,15 +190,15 @@ class FluxSpec(masterframe.MasterFrame):
             std_splice = sv_stds[0].copy()
             # Append
             for ostd in sv_stds[1:]:
-                std_splice.boxcar['wave'] = np.append(std_splice.boxcar['wave'].value,
-                                                      ostd.boxcar['wave'].value) * units.AA
-                for key in ['counts', 'var']:
+                std_splice.boxcar['WAVE'] = np.append(std_splice.boxcar['WAVE'].value,
+                                                      ostd.boxcar['WAVE'].value) * units.AA
+                for key in ['COUNTS', 'COUNTS_IVAR']:
                     std_splice.boxcar[key] = np.append(std_splice.boxcar[key], ostd.boxcar[key])
             self.std = std_splice
         else:
             # Find brightest object in the exposures
             # Searches over all slits (over all detectors), and all objects
-            self.std_idx = flux.find_standard(self.std_specobjs.specobjs)
+            self.std_idx = flux.find_standard(self.std_specobjs)
             # Set internal
             self.std = self.std_specobjs[self.std_idx]
             # Step
@@ -228,7 +228,7 @@ class FluxSpec(masterframe.MasterFrame):
             return None
 
         # Get extinction correction
-        extinction_corr = flux.extinction_correction(self.std.boxcar['wave'],
+        extinction_corr = flux.extinction_correction(self.std.boxcar['WAVE'],
                                                        self.std_header['AIRMASS'],
                                                        self.extinction_data)
         self.sensfunc = flux.generate_sensfunc(self.std, self.std_header['RA'],
