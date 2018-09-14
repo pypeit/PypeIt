@@ -31,6 +31,7 @@ def arc_lines_from_spec(spec, min_ampl=300.):
     all_tampl = tampl[w]
     all_ecent = centerr[w]
 
+
     # Cut on Amplitude
     cut_amp = all_tampl > min_ampl
     cut_tcent = all_tcent[cut_amp]
