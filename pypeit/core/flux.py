@@ -41,13 +41,22 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime,
 
     Parameters
     ----------
+    spec_obj : dict
+      SpecObj
+    sensfunc : dict
+      Sens Function dict
+    airmass : float
+      Airmass
+    exptime : float
+      Exposure time in seconds
+    spectrograph : dict
+      Instrument specific dict
+      Used for extinction correction
     MAX_EXTRAP : float, optional [0.05]
       Fractional amount to extrapolate sensitivity function
     """
-    # Load extinction data
-    # extinct = load_extinction_data(settings_spec)
-    # airmass = fitsdict['airmass'][scidx]
 
+    # ToDo Is MAX_EXTRAP necessary?
     # Loop on extraction modes
     for extract_type in ['boxcar', 'optimal']:
         extract = getattr(spec_obj, extract_type)
@@ -72,38 +81,6 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime,
         extract['FLAM'] = extract['COUNTS'] * sensfit / exptime
         extract['FLAM_SIG'] = (sensfit / exptime) / (np.sqrt(extract['COUNTS_IVAR']))
         extract['FLAM_IVAR'] = extract['COUNTS_IVAR'] / (sensfit / exptime) **2 
-
-
-"""
-def generate_sensfunc_allslits(specobj, airmass, exptime, spectrograph, telluric=False, star_type=None,
-                      star_mag=None, RA=None, DEC=None, BALM_MASK_WID=5., nresln=None):
-    """ Generate_sensfunc having SpecObjs as input and runnig it over
-    the different orders.
-    
-    Parameters:
-    -----------
-
-    Returns:
-    -------
-    """
-    # create dictionary for sens function
-    sens_dict = {}
-    sens_dict['SensTelluric'] = telluric
-    if (RA is not None) and (DEC is not None):
-        sens_dict['SensType'] = "FromSpectrum"
-    else:
-        sens_dict['SensType'] = "FromModel"
-
-    # run over the different slits
-    for islit in range(len(specobj)):
-        msgs.info("Generate sensfunction on order: {}".format(islit))
-        sens_dict[islit] = generate_sensfunc(specobj[islit].boxcar['WAVE'], specobj[islit].boxcar['COUNTS'],
-                                        specobj[islit].boxcar['COUNTS_IVAR'], airmass, exptime, spectrograph,
-                                        telluric=telluric, star_type=star_type, star_mag=star_mag, RA=RA,
-                                        DEC=DEC, BALM_MASK_WID=BALM_MASK_WID, nresln=nresln)
-    return sens_dict
-"""
-
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
                       star_mag=None, RA=None, DEC=None, BALM_MASK_WID=5., nresln=None):
@@ -360,7 +337,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
 
 
 def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, lower=2,
-                   kwargs_bspline={}, kwargs_reject={}, debug=True):
+                   kwargs_bspline={}, kwargs_reject={}, debug=False):
     """
     Perform a bspline fit to the flux ratio of standard to
     observed counts. Used to generate a sensitivity function.
