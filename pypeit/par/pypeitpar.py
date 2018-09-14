@@ -404,7 +404,7 @@ class FlatFieldPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frame=None, slitprofile=None, method=None, params=None, twodpca=None):
+    def __init__(self, frame=None, illumflatten=None, method=None): #, params=None, twodpca=None):
     
         # Grab the parameter names and values from the function
         # arguments
@@ -424,12 +424,12 @@ class FlatFieldPar(ParSet):
         # TODO: Provide a list of valid masters to use as options?
         defaults['frame'] = 'pixelflat'
         dtypes['frame'] = str
-        descr['frame'] = 'Frame to use for field flattening.  Options are: pixelflat, pinhole, ' \
-                         'or a specified master calibration file.'
+        descr['frame'] = 'Frame to use for field flattening.  Options are: "pixelflat", ' \
+                         'or a specified calibration filename.'
 
-        defaults['slitprofile'] = True
-        dtypes['slitprofile'] = bool
-        descr['slitprofile'] = 'Use the flat field to determine the spatial profile of each slit.'
+        defaults['illumflatten'] = True
+        dtypes['illumflatten'] = bool
+        descr['illumflatten'] = 'Use the flat field to determine the illumination profile of each slit.'
 
         defaults['method'] = 'bspline'
         options['method'] = FlatFieldPar.valid_methods()
@@ -437,20 +437,21 @@ class FlatFieldPar(ParSet):
         descr['method'] = 'Method used to flat field the data; use None to skip flat-fielding.  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
-        defaults['params'] = [20]
-        dtypes['params'] = [int, list]
-        descr['params'] = 'Flat-field method parameters.  For \'PolyScan\', set params = order, ' \
-                          'numPixels, repeat ; for bspline, set params = spacing '
+        # JFH These parameters below are all now deprecated.
+        #defaults['params'] = [20]
+        #dtypes['params'] = [int, list]
+        #descr['params'] = 'Flat-field method parameters.  For \'PolyScan\', set params = order, ' \
+        #                  'numPixels, repeat ; for bspline, set params = spacing '
 
         # TODO:  How is twodpca used?  Is it just another method that is
         # only used for ARMED?  Could we remove twodpca and just add
         # another method option?
-        defaults['twodpca'] = 0
-        dtypes['twodpca'] = int
-        descr['twodpca'] = 'Perform a simple 2D PCA on the echelle blaze fits if the value of ' \
-                           'this argument is >1. The argument value is equal to the number of ' \
-                           'PCA components. 0 means that no PCA will be performed.  **This is ' \
-                           'only used with ARMED pipeline.'
+        #defaults['twodpca'] = 0
+        #dtypes['twodpca'] = int
+        #descr['twodpca'] = 'Perform a simple 2D PCA on the echelle blaze fits if the value of ' \
+        #                   'this argument is >1. The argument value is equal to the number of ' \
+        #                   'PCA components. 0 means that no PCA will be performed.  **This is ' \
+        #                   'only used with ARMED pipeline.'
 
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
@@ -466,7 +467,7 @@ class FlatFieldPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'frame', 'slitprofile', 'method', 'params', 'twodpca' ]
+        parkeys = [ 'frame', 'illumflatten', 'method'] #', 'params', 'twodpca' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -477,29 +478,31 @@ class FlatFieldPar(ParSet):
         """
         Return the valid frame types.
         """
-        return ['pixelflat', 'pinhole']
+
+        # ToDO JFH So won't this fail if the user tries to provide a filename?
+        return ['pixelflat'] # , 'pinhole'] disabling this for now, we don't seem to be using it. JFH
 
     @staticmethod
     def valid_methods():
         """
         Return the valid flat-field methods
         """
-        return [ 'PolyScan', 'bspline' ]
+        return ['bspline'] # [ 'PolyScan', 'bspline' ]. Same here. Not sure what PolyScan is
 
     def validate(self):
         """
         Check the parameters are valid for the provided method.
         """
         # Convert param to list
-        if isinstance(self.data['params'], int):
-            self.data['params'] = [self.data['params']]
+        #if isinstance(self.data['params'], int):
+        #    self.data['params'] = [self.data['params']]
         
         # Check that there are the correct number of parameters
-        if self.data['method'] == 'PolyScan' and len(self.data['params']) != 3:
-            raise ValueError('For PolyScan method, set params = order, number of '
-                             'pixels, number of repeats')
-        if self.data['method'] == 'bspline' and len(self.data['params']) != 1:
-            raise ValueError('For bspline method, set params = spacing (integer).')
+        #if self.data['method'] == 'PolyScan' and len(self.data['params']) != 3:
+        #    raise ValueError('For PolyScan method, set params = order, number of '
+        #                     'pixels, number of repeats')
+        #if self.data['method'] == 'bspline' and len(self.data['params']) != 1:
+        #    raise ValueError('For bspline method, set params = spacing (integer).')
         if self.data['frame'] in FlatFieldPar.valid_frames() or self.data['frame'] is None:
             return
 

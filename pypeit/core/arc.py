@@ -193,6 +193,8 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False):
       The centroids of the line detections
     twid : ndarray
       The 1sigma Gaussian widths of the line detections
+    centerr : ndarray
+      The variance on tcent
     w : ndarray
       An index array indicating which detections are the most reliable.
     detns : ndarray
@@ -222,7 +224,7 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False):
     detns = detns.astype(np.float)
     xrng = np.arange(detns.size, dtype=np.float)
 
-    #detns_smth = gaussian_filter(detns, 1)
+    #detns_smth = gaussian_filter(detns, 1.0)
     if debug:
         import pdb
         from matplotlib import pyplot as plt
@@ -231,16 +233,16 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False):
         plt.plot(xrng, detns_smth, 'r-', drawstyle='steps')
         plt.show()
 
-
+    #detns = detns_smth
     # Find all significant detections
     # TODO -- Need to add nonlinear back in here
     pixt = np.where((detns > 0.0) &  # (detns < slf._nonlinear[det-1]) &
                     (detns > np.roll(detns, 1)) & (detns >= np.roll(detns, -1)) &
                     (np.roll(detns, 1) > np.roll(detns, 2)) & (np.roll(detns, -1) > np.roll(detns, -2)) &#)[0]
-                    (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3)))[0]
-#                    (np.roll(detns_smth, 3) > np.roll(detns_smth, 4)) & (np.roll(detns_smth, -3) > np.roll(detns_smth, -4)) & # )[0]
+                    (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3))&#)[0]
+                    (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)))[0]# & # )[0]
 #                    (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
-    tampl, tcent, twid = fit_arcspec(xrng, detns, pixt, nfitpix)
+    tampl, tcent, twid, centerr = fit_arcspec(xrng, detns, pixt, nfitpix)
     ww = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
     if debug:
         # Check the results
@@ -248,7 +250,7 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None, debug=False):
         plt.plot(xrng, detns, 'k-')
         plt.plot(tcent, tampl, 'ro')
         plt.show()
-    return tampl, tcent, twid, ww, detns
+    return tampl, tcent, twid, centerr, ww, detns
 
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
@@ -256,9 +258,11 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     # Setup the arrays with fit parameters
     sz_p = pixt.size
     sz_a = yarray.size
-    ampl, cent, widt = -1.0*np.ones(sz_p, dtype=np.float),\
-                       -1.0*np.ones(sz_p, dtype=np.float),\
-                       -1.0*np.ones(sz_p, dtype=np.float)
+    ampl, cent, widt, centerr = -1.0*np.ones(sz_p, dtype=np.float),\
+                                -1.0*np.ones(sz_p, dtype=np.float),\
+                                -1.0*np.ones(sz_p, dtype=np.float), \
+                                -1.0 * np.ones(sz_p, dtype=np.float)
+
 
     for p in range(sz_p):
         pmin = pixt[p]-(fitp-1)//2
@@ -273,13 +277,14 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
             continue  # Probably won't be a good solution
         # Fit the gaussian
         try:
-            popt = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)
+            popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3, return_errors=True)
             ampl[p] = popt[0]
             cent[p] = popt[1]
             widt[p] = popt[2]
+            centerr[p] = pcov[1, 1]
         except RuntimeError:
             pass
-    return ampl, cent, widt
+    return ampl, cent, widt, centerr
 
 
 def simple_calib_driver(msarc, aparm, censpec, ok_mask, nfitpix=5, get_poly=False,
@@ -314,7 +319,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, w, yprep = detect_lines(censpec, nfitpix=nfitpix)
+    tampl, tcent, twid, _, w, yprep = detect_lines(censpec, nfitpix=nfitpix)
 
     # Cut down to the good ones
     tcent = tcent[w]
@@ -549,7 +554,7 @@ def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
     else:
         # Now preferred
         arcfitter = autoid.General(spec, aparm['lamps'], ok_mask=ok_mask, fit_parm=aparm, min_ampl=aparm['min_ampl'])
-        final_fit = arcfitter._all_final_fit
+        patt_dict, final_fit = arcfitter.get_results()
     return final_fit
 
 
