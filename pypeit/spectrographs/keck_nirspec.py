@@ -91,6 +91,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['lampstat05'] = 'ETALON'
         def_keys[0]['lampstat06'] = 'FLAT'
 
+        def_keys[0]['exptime'] = 'ELAPTIME' # 'ELAPTIME' is added by KOA, but otherwise would need to do 'ITIME' * 'COADDS'
         def_keys[0]['dispname'] = 'DISPERS'
         def_keys[0]['hatch'] = 'CALMPOS'
         def_keys[0]['slitwid'] = 'SLITWIDT'
