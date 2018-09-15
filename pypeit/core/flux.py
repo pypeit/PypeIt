@@ -289,7 +289,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     atms_cutoff = wave_star <= 3000.0 * units.AA
     msk_star[atms_cutoff] = False
 
-    if telluric == False:
+    if ~telluric:
         # Mask telluric absorption
         msgs.info("Masking Telluric")
         tell = np.any([((wave >= 7580.00 * units.AA) & (wave <= 7750.00 * units.AA)),
@@ -690,8 +690,7 @@ def find_standard_file(radec, toler=20. * units.arcmin, check=False):
             mind2d = d2d[imind2d]
             if mind2d < closest['sep']:
                 closest['sep'] = mind2d
-                closest.update(dict(name=star_tbl[int(idx)]['Name'],
-                                    ra=star_tbl[int(idx)]['RA_2000'],
+                closest.update(dict(name=star_tbl[int(idx)]['Name'],ra=star_tbl[int(idx)]['RA_2000'],
                                     dec=star_tbl[int(idx)]['DEC_2000']))
     # Standard star not found
     if check: return False
