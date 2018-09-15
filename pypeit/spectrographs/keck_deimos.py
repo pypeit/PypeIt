@@ -420,6 +420,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         arcparam['wv_cen'] = fitstbl['dispangle'][arc_idx]
         # TODO -- Should set according to the lamps that were on
         arcparam['lamps'] = ['ArI','NeI','KrI','XeI']
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+
         if disperser == '830G': # Blaze 8640
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.47 # Ang per pixel (unbinned)

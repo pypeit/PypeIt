@@ -27,7 +27,7 @@ from pypeit import msgs
 from pypeit import debugger
 
 
-def basic(spec, lines, wv_cen, disp, min_ampl=300.,
+def basic(spec, lines, wv_cen, disp, min_ampl=300.,nonlinear_counts = 1e10,
           swv_uncertainty=350., pix_tol=2, plot_fil=None, min_nmatch=5,
           **kwargs):
     """ Basic algorithm to wavelength calibrate spectroscopic data
@@ -69,7 +69,7 @@ def basic(spec, lines, wv_cen, disp, min_ampl=300.,
     wvdata = wvdata[isrt]
 
     # Find peaks
-    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=min_ampl)
+    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=min_ampl, nonlinear_counts = nonlinear_counts)
 
     # Matching
     match_idx, scores = patterns.run_quad_match(cut_tcent, wave, wvdata,
@@ -117,7 +117,7 @@ def basic(spec, lines, wv_cen, disp, min_ampl=300.,
     return status, ngd_match, match_idx, scores, final_fit
 
 
-def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
+def semi_brute(spec, lines, wv_cen, disp, min_ampl=300., nonlinear_counts = 1e10,
                outroot=None, debug=False, do_fit=True, verbose=False,
                fit_parm=None, min_nmatch=3, lowest_ampl=200.):
     """
@@ -154,7 +154,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
     npix = spec.size
 
     # Lines
-    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=min_ampl)
+    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=min_ampl, nonlinear_counts = nonlinear_counts)
 
     # Best
     best_dict = dict(nmatch=0, ibest=-1, bwv=0., min_ampl=min_ampl, unknown=False,
@@ -188,7 +188,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
                 ampl /= 2.
                 if ampl < lowest_ampl:
                     break
-                all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=ampl)
+                all_tcent, cut_tcent, icut = wvutils(spec, min_ampl=ampl, nonlinear_counts = nonlinear_counts)
                 patterns.scan_for_matches(wv_cen, disp, npix, cut_tcent, wvdata,
                                           best_dict=best_dict, pix_tol=pix_tol, ampl=ampl)
 
@@ -203,7 +203,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
 
     # Try to pick up some extras by turning off/on unknowns
     if best_dict['unknown']:
-        tot_list = line_lists
+        tot_list = line_listsarc_lines_from_spec
     else:
         tot_list = vstack([line_lists,unknwns])
     wvdata = np.array(tot_list['wave'].data) # Removes mask if any
@@ -288,7 +288,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300.,
                 imsk[kk] = False
         ifit = ifit[imsk]
         # Allow for weaker lines in the fit
-        all_tcent, weak_cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=lowest_ampl)
+        all_tcent, weak_cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=lowest_ampl, nonlinear_counts = nonlinear_counts)
         add_weak = []
         for weak in weak_cut_tcent:
             if np.min(np.abs(cut_tcent-weak)) > 5.:
@@ -316,9 +316,11 @@ class General:
     lines : list
       List of arc lamps on
     ok_mask : ndarray
-
     min_ampl : float
       Minimum amplitude of the arc lines that will be used in the fit
+    nonlinear_counts : float, default = 1e10
+      value above which to mask saturated arc lines. This should  be nonlinear_counts= nonlinear*saturation according to pypeit parsets.
+      Default is 1e10 which is to not mask.
     islinelist : bool
       Is lines a linelist (True), or a list of ions (False)
     outroot : str, optional
@@ -354,7 +356,7 @@ class General:
       final best guess of the line IDs
     """
 
-    def __init__(self, spec, lines, ok_mask=None, min_ampl=1000., islinelist=False,
+    def __init__(self, spec, lines, ok_mask=None, min_ampl=1000., nonlinear_counts = 1e10, islinelist=False,
               outroot=None, debug=False, verbose=False,
               fit_parm=None, lowest_ampl=200., rms_threshold=0.1,
               binw=None, bind=None, nstore=1, use_unknowns=True):
@@ -374,6 +376,8 @@ class General:
 
         self._min_ampl = min_ampl
         self._lowest_ampl = lowest_ampl
+        self._nonlinear_counts = nonlinear_counts
+
 
         self._use_unknowns = use_unknowns
         self._islinelist = islinelist
@@ -499,9 +503,9 @@ class General:
                 continue
             # Detect lines, and decide which tcent to use
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_ampl=self._min_ampl)
+                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_ampl=self._min_ampl, nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_ampl=self._lowest_ampl)
+                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_ampl=self._lowest_ampl, nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit))
                 continue
@@ -580,9 +584,9 @@ class General:
                 continue
             # Detect lines, and decide which tcent to use
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._min_ampl)
+                wvutils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._min_ampl, nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._lowest_ampl)
+                wvutils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._lowest_ampl, nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit+ 1))
                 continue

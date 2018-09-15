@@ -361,7 +361,7 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
         plt.show()
 
 
-def detect_lines(censpec, nfitpix=5, sigdetect = 20.0, FWHM = 10.0, cont_samp = 30, nonlinear=None, debug=False):
+def detect_lines(censpec, nfitpix=5, sigdetect = 20.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, debug=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -370,6 +370,24 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 20.0, FWHM = 10.0, cont_samp = 
     ----------
     censpec : ndarray, optional
       A 1D spectrum to be searched for significant detections
+
+    Optional Parameters
+    -------------------
+    sigdetect: float, default 20.
+       sigma threshold above continuum subtracted fluctuations for arc-line detection
+
+    FWHM:  float, default = 10.0
+       FWHM in pixels used for filtering out arc lines that are too wide and not considered in fits.
+
+    cont_samp: float, default = 30.0
+       Median filtering window in spectral pixesl for continuum subtraction.
+
+    nonlinear_counts: float, default = 1e10
+       Value above which to mask saturated arc lines. This should be nonlinear_counts= nonlinear*saturation according to pypeit parsets.
+       Default is 1e10 which is to not mask.
+
+    debug: boolean, default = False
+       Make plots showing results of peak finding and final arc lines that are used.
 
     Returns
     -------
@@ -387,21 +405,9 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 20.0, FWHM = 10.0, cont_samp = 
       The spectrum used to find detections. This spectrum has
       had any "continuum" emission subtracted off
     """
-    # TODO I don't see that there is any continuum subtraction being done here contrary to what the docs say.
 
-    # Extract a rough spectrum of the arc in each order
-    msgs.info("Detecting lines")
-    '''
-    if MK_SATMASK:
-        ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
-        msgs.info("Generating a mask of arc line saturation streaks")
-        satmask = saturation_mask(msarc, nonlinear)
-        satsnd = order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
-    else:
-        satsnd = np.zeros_like(ordcen)
-    '''
     # Detect the location of the arc lines
-    msgs.info("Detecting the strongest, nonsaturated lines")
+    msgs.info("Detecting lines...isolating the strongest, nonsaturated lines")
 
     if len(censpec.shape) == 3:
         detns = censpec[:, 0].flatten()
@@ -439,7 +445,8 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 20.0, FWHM = 10.0, cont_samp = 
     #tampl, tcent, twid, centerr = fit_arcspec(xrng, detns, pixt, nfitpix)
     tampl, tcent, twid, centerr = fit_arcspec(xrng, arc_in, pixt, nfitpix)
     #         sigma finite  & sigma positive &  sigma < FWHM/2.35 & cen positive  &  cen on detector
-    good = (~np.isnan(twid)) & (twid > 0.0) & (twid < FWHM/2.35) & (tcent > 0.0) & (tcent < xrng[-1])
+    # TESTING
+    good = (~np.isnan(twid)) & (twid > 0.0) & (twid < FWHM/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & (tampl < nonlinear_counts)
     ww = np.where(good)
 
     if debug:
@@ -518,7 +525,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, _, w, yprep = detect_lines(censpec, nfitpix=nfitpix)
+    tampl, tcent, twid, _, w, yprep = detect_lines(censpec, nfitpix=nfitpix, nonlinear_counts = aparm['nonlinear_counts'])
 
     # Cut down to the good ones
     tcent = tcent[w]
@@ -742,17 +749,17 @@ def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
         final_fit = {}
         for slit in ok_mask:
             best_dict, ifinal_fit = autoid.semi_brute(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'],
-                                                      fit_parm=aparm, min_ampl=aparm['min_ampl'])
+                                                      fit_parm=aparm, min_ampl=aparm['min_ampl'], nonlinear_counts= aparm['nonlinear_counts'])
             final_fit[str(slit)] = ifinal_fit.copy()
     elif use_method == "basic":
         final_fit = {}
         for slit in ok_mask:
             status, ngd_match, match_idx, scores, ifinal_fit =\
-                autoid.basic(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'])
+                autoid.basic(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'], nonlinear_counts = aparm['nonlinear_counts'])
             final_fit[str(slit)] = ifinal_fit.copy()
     else:
         # Now preferred
-        arcfitter = autoid.General(spec, aparm['lamps'], ok_mask=ok_mask, fit_parm=aparm, min_ampl=aparm['min_ampl'])
+        arcfitter = autoid.General(spec, aparm['lamps'], ok_mask=ok_mask, fit_parm=aparm, min_ampl=aparm['min_ampl'], nonlinear_counts = aparm['nonlinear_counts'])
         patt_dict, final_fit = arcfitter.get_results()
     return final_fit
 
