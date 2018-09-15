@@ -240,7 +240,7 @@ def load_specobj(fname):
     specObjs : list of SpecObjExp
     head0
     """
-    speckeys = ['WAVE', 'SKY', 'MASK', 'flam', 'flam_var', 'COUNTS_IVAR', 'COUNTS']
+    speckeys = ['WAVE', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG', 'COUNTS_IVAR', 'COUNTS']
     #
     specObjs = []
     hdulist = fits.open(fname)

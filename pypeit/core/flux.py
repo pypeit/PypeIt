@@ -3,7 +3,6 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import glob
-
 import numpy as np
 import scipy
 
@@ -16,39 +15,49 @@ from astropy.table import Table, Column
 from astropy.io import ascii
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
+from matplotlib import pyplot as plt
+
+from matplotlib import pyplot as plt
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except ImportError:
     pass
 
-from matplotlib import pyplot as plt
 from pypeit.core import pydl
 from pypeit import msgs
 from pypeit import utils
 from pypeit import debugger
-import scipy
+from pypeit.core import qa
 
 TINY = 1e-15
 MAGFUNC_MAX = 25.0
 MAGFUNC_MIN = -25.0
-
 SN2_MAX = (20.0) ** 2
 
-
-def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EXTRAP=0.05):
+def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, 
+                   spectrograph, MAX_EXTRAP=0.05):
     """ Apply the sensitivity function to the data
     We also correct for extinction.
 
     Parameters
     ----------
+    spec_obj : dict
+      SpecObj
+    sensfunc : dict
+      Sens Function dict
+    airmass : float
+      Airmass
+    exptime : float
+      Exposure time in seconds
+    spectrograph : dict
+      Instrument specific dict
+      Used for extinction correction
     MAX_EXTRAP : float, optional [0.05]
       Fractional amount to extrapolate sensitivity function
     """
-    # Load extinction data
-    # extinct = load_extinction_data(settings_spec)
-    # airmass = fitsdict['airmass'][scidx]
 
+    # ToDo Is MAX_EXTRAP necessary?
     # Loop on extraction modes
     for extract_type in ['boxcar', 'optimal']:
         extract = getattr(spec_obj, extract_type)
@@ -56,26 +65,26 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, extinction_data, MAX_EX
             continue
         msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
                   "{}".format(spec_obj))
-        wave = extract['wave']  # for convenience
-        scale = np.zeros(wave.size)
-        # Allow for some extrapolation
-        dwv = sensfunc['wave_max'] - sensfunc['wave_min']
-        inds = ((wave >= sensfunc['wave_min'] - dwv * MAX_EXTRAP)
-                & (wave <= sensfunc['wave_max'] + dwv * MAX_EXTRAP))
-        mag_func = utils.func_val(sensfunc['c'], wave[inds],
-                                  sensfunc['func'])
-        sens = 10.0 ** (0.4 * mag_func)
-        # Extinction
-        ext_corr = extinction_correction(wave[inds], airmass, extinction_data)
-        scale[inds] = sens * ext_corr
-        # Fill
-        extract['flam'] = extract['counts'] * scale / exptime
-        extract['flam_var'] = (extract['var'] * (scale / exptime) ** 2)
-
+        wave = np.copy(np.array(extract['WAVE']))
+        magfit, _ = sensfunc['mag_set'].value(wave)
+        sensfit = np.power(10.0, 0.4 * np.maximum(np.minimum(magfit, MAGFUNC_MAX), MAGFUNC_MIN))
+        
+        msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
+        # Apply Extinction if optical bands
+        if np.max(wave) < 10000.:
+            msgs.info("Applying extinction correction")
+            extinct = load_extinction_data(spectrograph.telescope['longitude'],
+                                           spectrograph.telescope['latitude'])
+            ext_corr = extinction_correction(wave* units.AA, airmass, extinct)
+            sensfit = sensfit * ext_corr
+        else:
+            msgs.info("Extinction correction not applied")
+        extract['FLAM'] = extract['COUNTS'] * sensfit / exptime
+        extract['FLAM_SIG'] = (sensfit / exptime) / (np.sqrt(extract['COUNTS_IVAR']))
+        extract['FLAM_IVAR'] = extract['COUNTS_IVAR'] / (sensfit / exptime) **2 
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
-                      star_mag=None,
-                      RA=None, DEC=None, BALM_MASK_WID=5., nresln=None):
+                      star_mag=None, RA=None, DEC=None, BALM_MASK_WID=5., nresln=None):
     """ Function to generate the sensitivity function.
     This can work in different regimes:
     - If telluric=False and RA=None and Dec=None
@@ -164,6 +173,10 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         std_dict = find_standard_file((RA, DEC))
         # Load standard
         load_standard_file(std_dict)
+        # Interpolate onto observed wavelengths
+        std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
+        xspec = std_xspec.rebin(wave_star)  # Conserves flambda
+        flux_true = xspec.flux.value
     else:
         # Create star spectral model
         msgs.info("Creating standard model")
@@ -175,14 +188,11 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
                         ra=None, dec=None)
         std_dict['wave'] = star_lam * units.AA
         std_dict['flux'] = 1e17 * star_flux * units.erg / units.s / units.cm ** 2 / units.AA
-
-    # Interpolate onto observed wavelengths
-    std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
-    xspec = std_xspec.rebin(wave_star)  # Conserves flambda
-    flux_true2 = xspec.flux.value
+        # ToDO If the Kuruck model is used, rebin create weird features
+        # I using scipy interpolate to avoid this
+        flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'], fill_value='extrapolate')(wave_star)
     
-    flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'], fill_value='extrapolate')(wave_star)
-    
+    """
     plt.figure(1)
     plt.plot(std_dict['wave'],std_dict['flux'],label='Orig')
     plt.scatter(wave_star,flux_true,s=5,c='red', label='rebin scipy')
@@ -192,7 +202,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     plt.ylim(np.min(flux_true),np.max(flux_true))
     plt.legend()
     plt.show()
-    
+    """
     
     if np.min(flux_true) == 0.:
         msgs.warn('Your spectrum extends beyond calibrated standard star.')
@@ -312,6 +322,9 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     # Add in wavemin,wavemax
     sens_dict['wave_min'] = np.min(wave_star)
     sens_dict['wave_max'] = np.max(wave_star)
+    sens_dict['wave'] = wave_star
+    sens_dict['msk_star'] = msk_star
+    sens_dict['mag_set'] = mag_set
 
     """
     # Write the sens_dict to a json file
@@ -325,7 +338,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
 
 
 def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, lower=2,
-                   kwargs_bspline={}, kwargs_reject={}, debug=True):
+                   kwargs_bspline={}, kwargs_reject={}, debug=False):
     """
     Perform a bspline fit to the flux ratio of standard to
     observed counts. Used to generate a sensitivity function.
@@ -454,7 +467,7 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
 
     if np.median(stddev > 0.01):
         #  Second round of the fit:
-        msgs.info("Bspline fit: step 1")
+        msgs.info("Bspline fit: step 2")
         #  Now do one more fit to the ratio of data/model - 1.
         bset_residual, bmask2 = pydl.iterfit(wave_obs, residual, invvar=residual_ivar, inmask=masktot, upper=upper,
                                              lower=lower, maxiter=maxiter, fullbkpt=bset1.breakpoints,
@@ -487,29 +500,18 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
 
     sensfit[~magfunc_mask] = 0.0
 
-    # Ema take it from here. Archive this is a file. Modify the routine that applies it.
-    # Check that things still work at tell=false
+    if debug:
 
-    # npix = len(wave_obs)
-    # wave_fine = np.linspace(wave_obs.min(),wave_obs.max(),num = 100*npix)
-    # sensfit_fine = scipy.interpolate.interp1d(wave_obs, sensfit, fill_value='extrapolate')(wave_fine)
-    # sensfit_ivar =np.ones_like(sensfit_fine)/(1000.0**2)
-    # from IPython import embed
-    # embed()
-
-    # bsens, _ = pydl.iterfit(wave_fine,sensfit_fine, invvar=sensfit_ivar,maxiter= 1, kwargs_bspline={'everyn':5})
-    # sensfunc_fit, _  = bsens.value(wave_obs)
-
-    # Check for calibration
-    plt.figure(1)
-    plt.plot(wave_obs, sensfunc, drawstyle='steps-mid', color='black', label='sensfunc')
-    plt.plot(wave_obs, sensfit, color='cornflowerblue', label='sensfunc fit')
-    plt.plot(wave_obs[~masktot], sensfunc[~masktot], '+', color='red', markersize=5.0, label='masked sensfunc')
-    plt.plot(wave_obs[~masktot], sensfit[~masktot], '+', color='red', markersize=5.0, label='masked sensfuncfit')
-    plt.legend()
-    plt.xlabel('Wavelength [ang]')
-    plt.ylim(0.0, 100.0)
-    plt.show()
+        # Check for calibration
+        plt.figure(1)
+        plt.plot(wave_obs, sensfunc, drawstyle='steps-mid', color='black', label='sensfunc')
+        plt.plot(wave_obs, sensfit, color='cornflowerblue', label='sensfunc fit')
+        plt.plot(wave_obs[~masktot], sensfunc[~masktot], '+', color='red', markersize=5.0, label='masked sensfunc')
+        plt.plot(wave_obs[~masktot], sensfit[~masktot], '+', color='red', markersize=5.0, label='masked sensfuncfit')
+        plt.legend()
+        plt.xlabel('Wavelength [ang]')
+        plt.ylim(0.0, 100.0)
+        plt.show()
 
     # Check quality of the fit
     absdev = np.median(np.abs(sensfit / modelfit1 - 1))
@@ -517,14 +519,6 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
 
     # Check for residual of the fit
     if debug:
-        """
-        plt.figure(1)
-        plt.plot(wave_obs, sensfit / modelfit1 - 1, label='residual')
-        plt.legend()
-        plt.xlabel('Wavelength [ang]')
-        plt.show()
-        plt.close()
-        """
 
         # scale = np.power(10.0, 0.4 * sensfit)
         flux_cal = flux_obs * sensfit
@@ -549,6 +543,9 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
 
     # QA
     msgs.work("Add QA for sensitivity function")
+    qa_bspline_magfit(wave_obs, bset_log1, magfunc, masktot)
+    
+    
     """
     bspline_magfit_new_qa(wave_obs, magfunc, logfit1,
                           newlogfit, bset1.breakpoints,
@@ -557,6 +554,41 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
 
     return bset_log1
 
+def qa_bspline_magfit(wave, bset, magfunc, mask):
+    plt.close("all")
+    plt.rcParams['savefig.dpi'] = 600
+    plt.rcParams['xtick.top'] = True
+    plt.rcParams['ytick.right'] = True
+    plt.rcParams['xtick.minor.visible'] = True
+    plt.rcParams['ytick.minor.visible'] = True
+    plt.rcParams['ytick.direction'] = 'in'
+    plt.rcParams['xtick.direction'] = 'in'
+    plt.rcParams['xtick.major.size'] = 6
+    plt.rcParams['ytick.major.size'] = 6
+    plt.rcParams['xtick.minor.size'] = 3
+    plt.rcParams['ytick.minor.size'] = 3
+    plt.rcParams['xtick.major.width'] = 1
+    plt.rcParams['ytick.major.width'] = 1
+    plt.rcParams['xtick.minor.width'] = 1
+    plt.rcParams['ytick.minor.width'] = 1
+    plt.rcParams['axes.linewidth'] = 1
+    plt.rcParams['lines.linewidth'] = 2
+    plt.rcParams['legend.frameon'] = False
+    plt.rcParams['legend.handletextpad'] = 1.0
+    final_fit, _ = bset.value(wave)
+    final_fit_bkpt, _ = bset.value(bset.breakpoints)
+
+    plt.figure(1)
+    plt.plot(bset.breakpoints, final_fit_bkpt, '.', color='green', markersize=4.0, label='breakpoints')
+    plt.plot(wave, magfunc, drawstyle='steps-mid', color='black', label='magfunc')
+    plt.plot(wave, final_fit, color='cornflowerblue', label='bspline fit')
+    plt.plot(wave[~mask], magfunc[~mask], '+', color='red', markersize=5.0, label='masked points')
+    plt.legend()
+    plt.xlabel('Wavelength [ang]')
+    plt.title('Final Result of the Bspline fit')
+
+    plt.show()
+    return
 
 def extinction_correction(wave, airmass, extinct):
     """
