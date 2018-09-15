@@ -227,7 +227,8 @@ class bspline(object):
         new_bspline = bspline(None, from_dict=dictionary)
     """
 
-    def __init__(self, x, nord=4, npoly=1, bkpt=None, fullbkpt = None, bkspread=1.0,
+    # ToDO Consider refactoring the argument list so that there are no kwargs
+    def __init__(self, x, fullbkpt = None, nord=4, npoly=1, bkpt=None, bkspread=1.0,
                  verbose=False, from_dict=None, **kwargs):
         """Init creates an object whose attributes are similar to the
         structure returned by the create_bspline function.
@@ -236,7 +237,6 @@ class bspline(object):
         # as it goes
         fullbkpt1 = copy.copy(fullbkpt)
         bkpt1 = copy.copy(bkpt)
-        #ToDO Consider refactoring the argument list so that there are no kwargs
         if from_dict is not None:
             self.nord=from_dict['nord'],
             self.npoly=from_dict['npoly'],
@@ -248,7 +248,8 @@ class bspline(object):
             self.xmax=from_dict['xmax'],
             self.funcname=from_dict['funcname']
             return
-        elif x is None:
+        # Instantiate empty if neither fullbkpt or x is set
+        elif x is None and fullbkpt is None:
             self.nord = None
             self.npoly = None
             self.breakpoints= None
