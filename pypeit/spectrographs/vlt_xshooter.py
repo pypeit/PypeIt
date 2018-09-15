@@ -266,6 +266,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         """
         #debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
         arcparam['lamps'] = ['OH_triplespec']
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+
 
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):

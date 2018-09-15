@@ -1,4 +1,4 @@
-""" Output for PYPIT
+""" Output for PYPEIT
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
@@ -416,7 +416,10 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         if sobj.fwhmfit is not None:
             cols += [fits.Column(array=sobj.fwhmfit, name=str('FWHM'), format=sobj.fwhmfit.dtype)]
         if ext == 1:
-            npix = len(sobj.trace_spat)
+            # print(sobj)
+            # print(sobj.trace_spat)
+            if sobj.trace_spat is not None:
+                npix = len(sobj.trace_spat)
         # Boxcar
         for key in sobj.boxcar.keys():
             # Skip some
@@ -680,8 +683,8 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         tmp = str(head0['HISTORY']).replace('\n', ' ')
         prihdu.header.add_history(str(tmp))
 
-    # PYPIT
-    prihdu.header['PIPELINE'] = str('PYPIT')
+    # PYPEIT
+    prihdu.header['PIPELINE'] = str('PYPEIT')
     prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
     ssetup = setup.split('_') #settings.argflag['reduce']['masters']['setup'].split('_')
     prihdu.header['PYPCNFIG'] = str(ssetup[0])

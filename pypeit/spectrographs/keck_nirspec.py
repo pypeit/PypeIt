@@ -82,6 +82,9 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
         """
         arcparam['lamps'] = ['OH_R24000']
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+        arcparam['min_ampl'] = 1000.       # Minimum amplitude
+
         if fitstbl['filter1'][arc_idx] == 'NIRSPEC-1':
             arcparam['n_first'] = 2  # Too much curvature for 1st order
             arcparam['disp'] = 2.1093  # Ang per pixel for Low-Res, NIRSPEC-1 filter
