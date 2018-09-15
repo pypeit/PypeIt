@@ -24,7 +24,9 @@
 - Modified global sky subtraction significantly to now do a polynomial fit. This greatly improves results for large slits.
 - Updated loading of spectra and pypeit_show_1dspec script to work with new output data model.
 - Implemeneted a new peak finding algorithm for arc lines which significantly improved wavelength fits.
-- Added algorithms and data files for telluric correction of near-IR spectra. 
+- Added filtering of saturated arc lines which fixed issues with wavelength fits. 
+- Added algorithms and data files for telluric correction of near-IR spectra.
+  
 
 0.8.1
 -----
