@@ -500,19 +500,6 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
 
     sensfit[~magfunc_mask] = 0.0
 
-    # Ema take it from here. Archive this is a file. Modify the routine that applies it.
-    # Check that things still work at tell=false
-
-    # npix = len(wave_obs)
-    # wave_fine = np.linspace(wave_obs.min(),wave_obs.max(),num = 100*npix)
-    # sensfit_fine = scipy.interpolate.interp1d(wave_obs, sensfit, fill_value='extrapolate')(wave_fine)
-    # sensfit_ivar =np.ones_like(sensfit_fine)/(1000.0**2)
-    # from IPython import embed
-    # embed()
-
-    # bsens, _ = pydl.iterfit(wave_fine,sensfit_fine, invvar=sensfit_ivar,maxiter= 1, kwargs_bspline={'everyn':5})
-    # sensfunc_fit, _  = bsens.value(wave_obs)
-
     if debug:
 
         # Check for calibration
