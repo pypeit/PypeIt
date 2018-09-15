@@ -428,7 +428,7 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 20.0, FWHM = 10.0, cont_samp = 
                     (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)))[0]# & # )[0]
 #                    (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
 
-    samp_width = np.ceil(detns.size/30).astype(int)
+    samp_width = np.ceil(detns.size/cont_samp).astype(int)
     cont  = utils.fast_running_median(detns, samp_width)
     arc_in = detns - cont
     (mean, med, stddev) = sigma_clipped_stats(arc_in, sigma_lower=3.0, sigma_upper=3.0)
