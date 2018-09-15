@@ -449,15 +449,17 @@ class General:
     def run_brute_loop(self, slit, arrerr=None, wavedata=None):
         # Set the parameter space that gets searched
         rng_poly = [3, 4]            # Range of algorithms to check (only trigons+tetragons are supported)
-        rng_list = range(3, 10)      # Number of lines to search over for the linelist
-        rng_detn = range(3, 10)      # Number of lines to search over for the detected lines
+        rng_list = range(3, 6)      # Number of lines to search over for the linelist
+        rng_detn = range(3, 6)      # Number of lines to search over for the detected lines
         rng_pixt = [1.0]             # Pixel tolerance
+        idthresh = 0.5               # Criteria for early return (at least this fraction of lines must have
+                                     #    an ID on either side of the spectrum)
 
         best_patt_dict, best_final_fit = None, None
         # Loop through parameter space
         for poly in rng_poly:
-            for lstsrch in rng_list:
-                for detsrch in rng_detn:
+            for detsrch in rng_detn:
+                for lstsrch in rng_list:
                     for pix_tol in rng_pixt:
                         psols, msols = self.results_brute(poly=poly, pix_tol=pix_tol, detsrch=detsrch, lstsrch=lstsrch,
                                                           wavedata=wavedata, arrerr=arrerr)
@@ -474,6 +476,14 @@ class General:
                             # Has a better fit been identified (i.e. more lines identified)?
                             if len(final_fit['xfit']) > len(best_final_fit['xfit']):
                                 best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
+                            # Decide if an early return is acceptable
+                            nlft = np.sum(best_final_fit['tcent'] < best_final_fit['xnorm']/2.0)
+                            nrgt = best_final_fit['tcent'].size-nlft
+                            if np.sum(best_final_fit['xfit'] < 0.5)/nlft > idthresh and\
+                                np.sum(best_final_fit['xfit'] >= 0.5) / nrgt > idthresh:
+                                # At least half of the lines on either side of the spectrum have been identified
+                                return best_patt_dict, best_final_fit
+
         return best_patt_dict, best_final_fit
 
     def run_brute(self):
