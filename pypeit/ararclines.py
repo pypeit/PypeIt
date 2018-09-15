@@ -55,8 +55,9 @@ def load_arcline_list(lines, disperser, spectrograph, wvmnx=None, modify_parse_d
     with open(root+'/rejected_lines.yaml', 'r') as infile:
         rej_dict = yaml.load(infile)
 
-    # TODO JFH This is not elegant, but I cannot figure out how the codes reads in linelists from other directories
-    if spectrograph in ['keck_nires','keck_nirspec']:
+    # TODO JFH This is not elegant, but I cannot figure out how the codes reads in linelists from other directories.
+    # It appears these codes were never ported properly
+    if 'OH' in lines[0]:
         alist = waveio.load_line_list(lines[0],use_ion = True, NIST = False)
     else:
         # Loop through the NIST Tables
