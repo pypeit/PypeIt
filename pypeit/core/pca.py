@@ -398,9 +398,9 @@ def pca_plot(setup, inpar, ofit, prefix, maxp=25, pcadesc="", addOne=True,
     # Setup
     method = inspect.stack()[0][3]
     if not show:
-        outroot = arqa.set_qa_filename(setup, method, prefix=prefix)
+        outroot = qa.set_qa_filename(setup, method, prefix=prefix)
     npc = inpar['npc']+1
-    pages, npp = arqa.get_dimen(npc, maxp=maxp)
+    pages, npp = qa.get_dimen(npc, maxp=maxp)
     #
     x0 = inpar['x0']
     ordernum = inpar['x0in']

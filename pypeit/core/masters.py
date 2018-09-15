@@ -205,7 +205,7 @@ def _load(name, exten=0, frametype='<None>', force=False):
     elif frametype == 'trace':
         msgs.error('Load from the class not this method')
     else:
-        msgs.info("Loading a pre-existing master calibration frame")
+        msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(frametype) + " from filename: {:}".format(name))
         hdu = fits.open(name)
         #msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
         head0 = hdu[0].header

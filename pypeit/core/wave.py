@@ -42,8 +42,8 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=None):
         mxshft = 20
     #Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
-    arx_amp, arx_cent, arx_wid, arx_w, arx_yprep = arc.detect_lines(arx_skyspec.flux.value)
-    obj_amp, obj_cent, obj_wid, obj_w, obj_yprep = arc.detect_lines(obj_skyspec.flux.value)
+    arx_amp, arx_cent, arx_wid, _, arx_w, arx_yprep = arc.detect_lines(arx_skyspec.flux.value)
+    obj_amp, obj_cent, obj_wid, _, obj_w, obj_yprep = arc.detect_lines(obj_skyspec.flux.value)
 
     #Keep only 5 brightest amplitude lines (xxx_keep is array of indices within arx_w of the 5 brightest)
     arx_keep = np.argsort(arx_amp[arx_w])[-5:]
@@ -108,6 +108,7 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=None):
 
     #Rebin both spectra onto overlapped wavelength range
     if len(keep_idx) <= 50:
+        #TODO JFH the code needs to exit gracefully here for bad apertures.
         msgs.error("Not enough overlap between sky spectra")
     else: #rebin onto object ALWAYS
         keep_wave = obj_skyspec.wavelength[keep_idx]

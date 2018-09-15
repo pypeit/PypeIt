@@ -341,10 +341,11 @@ def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
     rsp_kwargs['wave_tag'] = '{:s}_WAVE'.format(extract)
     if flux:
         rsp_kwargs['flux_tag'] = '{:s}_FLAM'.format(extract)
-        rsp_kwargs['var_tag'] = '{:s}_FLAM_IVAR'.format(extract)
+        rsp_kwargs['ivar_tag'] = '{:s}_FLAM_IVAR'.format(extract)
     else:
         rsp_kwargs['flux_tag'] = '{:s}_COUNTS'.format(extract)
-        rsp_kwargs['var_tag'] = '{:s}_IVAR'.format(extract)
+        rsp_kwargs['ivar_tag'] = '{:s}_COUNTS_IVAR'.format(extract)
+
     # Identify extension from objname?
     if objname is not None:
         hdulist = fits.open(fname)
@@ -352,6 +353,7 @@ def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
         exten = hdu_names.index(objname)
         if exten < 0:
             msgs.error("Bad input object name: {:s}".format(objname))
+
     # Load
     spec = XSpectrum1D.from_file(fname, exten=exten, **rsp_kwargs)
     # Return

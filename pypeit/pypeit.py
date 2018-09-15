@@ -689,7 +689,7 @@ class MultiSlit(PypeIt):
             self.fitstbl, spectrograph=self.spectrograph,
             par=self.par['calibrations'],
             redux_path=self.par['rdx']['redux_path'],
-            save_masters=True, write_qa=True)
+            save_masters=True, write_qa=True, show=self.show)
 
 
     def _extract_one(self):
