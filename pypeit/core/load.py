@@ -240,7 +240,7 @@ def load_specobj(fname):
     specObjs : list of SpecObjExp
     head0
     """
-    speckeys = ['WAVE', 'SKY', 'MASK', 'flam', 'flam_var', 'COUNTS_IVAR', 'COUNTS']
+    speckeys = ['WAVE', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG', 'COUNTS_IVAR', 'COUNTS']
     #
     specObjs = []
     hdulist = fits.open(fname)
@@ -341,10 +341,10 @@ def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
     rsp_kwargs['wave_tag'] = '{:s}_WAVE'.format(extract)
     if flux:
         rsp_kwargs['flux_tag'] = '{:s}_FLAM'.format(extract)
-        rsp_kwargs['ivar_tag'] = '{:s}_FLAM_IVAR'.format(extract)
+        rsp_kwargs['sig_tag'] = '{:s}_FLAM_SIG'.format(extract)
     else:
         rsp_kwargs['flux_tag'] = '{:s}_COUNTS'.format(extract)
-        rsp_kwargs['ivar_tag'] = '{:s}_COUNTS_IVAR'.format(extract)
+        rsp_kwargs['sig_tag'] = '{:s}_COUNTS_SIG'.format(extract)
 
     # Identify extension from objname?
     if objname is not None:

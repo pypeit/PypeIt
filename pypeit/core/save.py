@@ -1,4 +1,4 @@
-""" Output for PYPIT
+""" Output for PYPEIT
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
@@ -684,8 +684,8 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         tmp = str(head0['HISTORY']).replace('\n', ' ')
         prihdu.header.add_history(str(tmp))
 
-    # PYPIT
-    prihdu.header['PIPELINE'] = str('PYPIT')
+    # PYPEIT
+    prihdu.header['PIPELINE'] = str('PYPEIT')
     prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
     ssetup = setup.split('_') #settings.argflag['reduce']['masters']['setup'].split('_')
     prihdu.header['PYPCNFIG'] = str(ssetup[0])

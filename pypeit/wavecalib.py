@@ -69,6 +69,8 @@ class WaveCalib(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'wv_calib'
 
+    # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
+    # parameters since instantiating without them does nothing. Make them required
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
                  mode=None, fitstbl=None, sci_ID=None, arcparam=None, redux_path=None):
 
@@ -197,8 +199,11 @@ class WaveCalib(masterframe.MasterFrame):
         self.maskslits
 
         """
-        nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation'] \
-                                * self.spectrograph.detector[self.det-1]['nonlinear']
+
+        # ToDO JFH As far as I can tell, passing in nonlinear_counts with gen_satmask = False does absolutely nothing.
+        # Not sure what was intended here.
+        nonlinear_counts = self.spectrograph.detector[self.det - 1]['saturation'] * \
+                          self.spectrograph.detector[self.det - 1]['nonlinear']
         self.arccen, self.maskslits, _ \
                     = arc.get_censpec(lordloc, rordloc, pixlocn, self.msarc, self.det,
                                         nonlinear_counts=nonlinear_counts, gen_satmask=False)

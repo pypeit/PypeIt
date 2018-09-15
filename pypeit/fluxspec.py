@@ -73,6 +73,8 @@ class FluxSpec(masterframe.MasterFrame):
       List of SpecObj objects to be fluxed (or that were fluxed)
     sci_header : dict-like
       Used for the airmass, exptime of the science spectra
+    spectrograph : dict-like
+      Used for extinction correction
     """
 
     # Frametype is a class attribute
@@ -80,7 +82,7 @@ class FluxSpec(masterframe.MasterFrame):
 
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
                  std_specobjs=None, std_header=None, spectrograph=None, multi_det=None,
-                 setup=None, master_dir=None, mode=None):
+                 telluric=False, setup=None, master_dir=None, mode=None):
 
         # Load standard files
         std_spectro = None
@@ -128,7 +130,10 @@ class FluxSpec(masterframe.MasterFrame):
         elif isinstance(_spectrograph, Spectrograph):
             spectrograph_name = _spectrograph.spectrograph
             msgs.info("Spectrograph set to {0}, from argument object".format(_spectrograph))
-    
+
+        if spectrograph_name is not None:
+            self.spectrograph = load_spectrograph(spectrograph=_spectrograph)
+
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
                                          master_dir=master_dir, mode=mode)
@@ -150,6 +155,10 @@ class FluxSpec(masterframe.MasterFrame):
         # Parameters
         self.sens_file = sens_file
         self.multi_det = multi_det
+
+        # Set telluric option
+        self.telluric = telluric
+        print(self.telluric)
 
         # Main outputs
         self.sensfunc = None if self.sens_file is None \
@@ -228,12 +237,28 @@ class FluxSpec(masterframe.MasterFrame):
             return None
 
         # Get extinction correction
-        extinction_corr = flux.extinction_correction(self.std.boxcar['WAVE'],
-                                                       self.std_header['AIRMASS'],
-                                                       self.extinction_data)
-        self.sensfunc = flux.generate_sensfunc(self.std, self.std_header['RA'],
-                                                 self.std_header['DEC'],
-                                                 self.std_header['EXPTIME'], extinction_corr)
+        #extinction_corr = flux.extinction_correction(self.std.boxcar['WAVE'],
+                                                       #self.std_header['AIRMASS'],
+                                                       #self.extinction_data)
+        #self.sensfunc = flux.generate_sensfunc(self.std, self.std_header['RA'],
+                                                 #self.std_header['DEC'],
+                                                 #self.std_header['EXPTIME'], extinction_corr)
+        # extinction_corr = flux.extinction_correction(self.std.boxcar['WAVE'],
+        #                                              self.std_header['AIRMASS'],
+        #                                              self.extinction_data)
+
+
+        self.sensfunc = flux.generate_sensfunc(self.std.boxcar['WAVE'],
+                                               self.std.boxcar['COUNTS'],
+                                               self.std.boxcar['COUNTS_IVAR'],
+                                               self.std_header['AIRMASS'],
+                                               self.std_header['EXPTIME'],
+                                               self.spectrograph,
+                                               telluric=self.telluric,
+                                               RA=self.std_header['RA'],
+                                               DEC=self.std_header['DEC'])
+
+#                                              extinction_corr)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -262,7 +287,7 @@ class FluxSpec(masterframe.MasterFrame):
             if sci_obj is not None:
                 # Do it
                 flux.apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime,
-                                      self.extinction_data)
+                                    self.spectrograph)
 
     def flux_science(self):
         """
@@ -276,7 +301,7 @@ class FluxSpec(masterframe.MasterFrame):
         """
         for sci_obj in self.sci_specobjs:
             flux.apply_sensfunc(sci_obj, self.sensfunc, self.sci_header['AIRMASS'],
-                                  self.sci_header['EXPTIME'], self.extinction_data)
+                                  self.sci_header['EXPTIME'], self.spectrograph)
         self.steps.append(inspect.stack()[0][3])
 
     def _set_std_obj(self, obj_id):
