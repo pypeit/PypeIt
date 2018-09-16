@@ -109,9 +109,11 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
     3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
-    nspec = flat.shape[0]
-    nspat = flat.shape[1]
+    shape = flat.shape
+    nspec = shape[0]
+    nspat = shape[1]
     piximg = mstilts * (nspec-1)
+    pixvec = np.arange(nspec)
     # Compute the approximate number of pixels sampling each spatial pixel for this slit
     npercol = np.fmax(np.floor(np.sum(thismask)/nspec),1.0)
     # Demand at least 10 pixels per row (on average) per degree of the polynomial
@@ -121,8 +123,15 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
 
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
+
+    # Create a wider slitmask
+    shift = 3.0
+    slitmask_wide = pixels.slit_pixels(slif_left - shift , slit_righ + shift, shape, 0)
+
     if inmask is None:
         inmask = np.copy(thismask)
+
+
 
     log_flat = np.log(np.fmax(flat, 1.0))
     inmask_log = ((flat > 1.0) & inmask)
@@ -175,34 +184,21 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
     norm_spec[thismask] = flat[thismask]/np.fmax(spec_model[thismask], 1.0)
 
     # Flat field pixels for fitting spatial direction
-    slitwidth = np.median(slit_righ - slit_left) # How many pixels wide is the slit at each Y?
+    specvec = np.interp(pixvec, pix_fit, specfit)
+    spec_sm = utils.fast_running_median(specvec, np.fmax(np.ceil(0.1*nspec).astype(int),10))
+    spec_sm_max = spec_sm.max()
 
-    fit_spat = thismask & inmask & (spec_model > 1.0)
+    fit_spat = slitmask_wide & inmask & (spec_model > 1.0)
     isrt_spat = np.argsort(ximg[fit_spat])
     ximg_fit = ximg[fit_spat][isrt_spat]
     norm_spec_fit = norm_spec[fit_spat][isrt_spat]
     norm_spec_ivar = np.ones_like(norm_spec_fit)/(spat_illum_thresh**2)
     nfit_spat = np.sum(fit_spat)
 
+    slitwidth = np.median(slit_righ - slit_left) # How many pixels wide is the slit at each Y?
     ximg_resln = spat_samp/slitwidth
     npad = 10000
     no_illum = False
-
-
-#    illumquick1 = scipy.ndimage.filters.median_filter(norm_spec_fit[isamp], size=samp_width, mode = 'reflect')
-#   statinds = (ximg_fit[isamp] > 0.1) & (ximg_fit[isamp] < 0.9)
-#    mean = np.mean(illumquick1[statinds])
-#    illum_max_quick = (np.abs(illumquick1[statinds]/mean-1.0)).max()
-#    imed = None
-#    if(illum_max_quick <= spat_illum_thresh/3.0):
-#        ximg_in = np.concatenate((-0.2 + 0.2*np.arange(npad)/(npad - 1), ximg_fit, 1.0 + 0.2*np.arange(npad)/(npad - 1)))
-#        normin = np.ones(2*npad + nfit_spat)
-#        #msgs.info('illum_max={:7.3f}'.format(illum_max_quick))
-#        msgs.info('Subsampled illum fluctuations = {:7.3f}'.format(illum_max_quick) +
-#                  '% < spat_illum_thresh/3={:4.2f}'.format(100.0*spat_illum_thresh/3.0) +'%')
-#        msgs.info('Slit illumination function set to unity for this slit')
-#        no_illum=True
-#    else:
 
     # Quickly compute a version of the illumination function by downsampling, and use this to mask bad pixels
     # from the median filter.
