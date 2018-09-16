@@ -28,7 +28,7 @@ from matplotlib import pyplot as plt
 import scipy
 
 
-def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_samp_fine = 1.2,  spec_samp_coarse = 50.0,
+def fit_flat_new(flat, mstilts, thismask_in, slit_left, slit_righ, inmask = None,spec_samp_fine = 1.2,  spec_samp_coarse = 50.0,
              spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0),debug = False):
 
 
@@ -43,8 +43,8 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
     mstilts: float ndarray, shape (nspec, nspat)
           Tilts indicating how wavelengths move across the slit
 
-    thismask:  boolean ndarray, shape (nspec, nspat)
-        Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
+    thismask_in:  boolean ndarray, shape (nspec, nspat)
+        Boolean mask image specifying the pixels which lie on the slit/order according to the initial slit/order bounadries.
         The convention is: True = on the slit/order, False  = off the slit/order
 
     slit_left:  float ndarray, shape  (nspec, 1) or (nspec)
@@ -87,6 +87,7 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
       Show plots useful for debugging. This will block further execution of the code until the plot windows are closed.
 
 
+   TODO update for new behavior
     Returns
     -------
     pixeflat:   ndarray with size = np.sum(thismask)
@@ -115,22 +116,27 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
     piximg = mstilts * (nspec-1)
     pixvec = np.arange(nspec)
     # Compute the approximate number of pixels sampling each spatial pixel for this slit
-    npercol = np.fmax(np.floor(np.sum(thismask)/nspec),1.0)
+    npercol = np.fmax(np.floor(np.sum(thismask_in)/nspec),1.0)
     # Demand at least 10 pixels per row (on average) per degree of the polynomial
     if npoly is None:
         npoly_in = 7
         npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol/10.)).astype(int)),1)
 
 
-    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
+    _, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask_in, trim_edg=trim_edg)
+    # Create a fractional position image ximg that extends off the slit
+    spat_img = np.outer(np.ones(nspec), np.arange(nspat)) # spatial position everywhere along image
+    slit_left_img = np.outer(slit_left, np.ones(nspat))   # left slit boundary replicated spatially
+    slitwidth_img = np.outer(slit_left - slit_right, np.ones(nspat)) # slit width replicated spatially
+    ximg = (spat_img - slit_left_img)/slitwidth_img
 
-    # Create a wider slitmask
+    # Create a wider slitmask image with shift pixels padded on each side
     shift = 3.0
-    slitmask_wide = pixels.slit_pixels(slif_left - shift , slit_righ + shift, shape, 0)
+    slitmask_wide = pixels.slit_pixels(slif_left, slit_righ, shape, shift)
+    thismask = (slitmask_wide > 0) # mask enclosing the wider slit bounadries
 
     if inmask is None:
-        inmask = np.copy(thismask)
-
+        inmask = np.ones_like(thismask_in)
 
 
     log_flat = np.log(np.fmax(flat, 1.0))
@@ -138,7 +144,7 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
     log_ivar = inmask_log.astype(float)/0.5**2 # set errors to just be 0.5 in the log
 
     # Flat field pixels for fitting spectral direction
-    fit_spec = thismask & inmask & (edgmask == False)
+    fit_spec = thismask_in & inmask & (edgmask == False)
     isrt_spec = np.argsort(piximg[fit_spec])
     pix_fit = piximg[fit_spec][isrt_spec]
     log_flat_fit = log_flat[fit_spec][isrt_spec]
@@ -184,11 +190,13 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
     norm_spec[thismask] = flat[thismask]/np.fmax(spec_model[thismask], 1.0)
 
     # Flat field pixels for fitting spatial direction
+    # Determine maximum counts in median filtered flat spectrum. Only fit pixels > 0.1 of this maximum
     specvec = np.interp(pixvec, pix_fit, specfit)
-    spec_sm = utils.fast_running_median(specvec, np.fmax(np.ceil(0.1*nspec).astype(int),10))
+    spec_sm = utils.fast_running_median(specvec, np.fmax(np.ceil(0.10*nspec).astype(int),10))
     spec_sm_max = spec_sm.max()
 
-    fit_spat = slitmask_wide & inmask & (spec_model > 1.0)
+
+    fit_spat = slitmask_wide & inmask & (spec_model > 1.0) (spec_model > 0.1*spec_sm_max)
     isrt_spat = np.argsort(ximg[fit_spat])
     ximg_fit = ximg[fit_spat][isrt_spat]
     norm_spec_fit = norm_spec[fit_spat][isrt_spat]
