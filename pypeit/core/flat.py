@@ -377,7 +377,7 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
 
 def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
              spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0),
-             tweak_slits = True, tweak_slits_thresh = 0.9, tweak_slits_maxfrac = 0.05, debug = True):
+             tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.07, debug = True):
 
 
     """ Compute pixelflat and illumination flat from a flat field image.
@@ -502,7 +502,7 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     ximg = (spat_img - slit_left_img)/slitwidth_img
 
     # Create a wider slitmask image with shift pixels padded on each side
-    pad = 4.0
+    pad = 5.0
     slitmask_pad = pixels.slit_pixels(slit_left_in, slit_righ_in, shape, pad)
     thismask = (slitmask_pad > 0) # mask enclosing the wider slit bounadries
 
@@ -574,6 +574,8 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     slitwidth = np.median(slit_righ_in - slit_left_in) # How many pixels wide is the slit at each Y?
     ximg_resln = spat_samp/slitwidth
 
+    # TODO get rid of this quick illum and masking with chi, as it does not appear to help at all.
+
     # Quickly compute a version of the illumination function by downsampling, and use this to mask bad pixels
     # from the median filter.
     isamp = (np.arange(nfit_spat//10)*10.0).astype(int)
@@ -582,7 +584,8 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     illumquick = np.interp(ximg_fit,ximg_fit[isamp],illumquick1)
     chi_illum = (norm_spec_fit - illumquick)*np.sqrt(norm_spec_ivar)
 
-    imed = np.abs(chi_illum) < 10.0 # 10*spat_illum_thresh ouliters, i.e. 10%
+    # TESTING with short circuiting this to see if it makes a difference
+    imed = np.abs(chi_illum) <  1e10 # 10.0 # 10*spat_illum_thresh ouliters, i.e. 10%
     nmed = np.sum(imed)
     med_width = (np.ceil(nmed*ximg_resln)).astype(int)
     normimg_raw = utils.fast_running_median(norm_spec_fit[imed],med_width)
@@ -657,7 +660,7 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         thismask_out = thismask_in
         ximg_out = ximg_in
 
-
+    # Add an approximate pixel axis at the top
     if debug:
         plt.clf()
         ax = plt.gca()
