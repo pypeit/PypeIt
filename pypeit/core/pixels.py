@@ -108,7 +108,8 @@ def slit_pixels(slf, frameshape, det):
                 settings.argflag['trace']['slits']['pad'])
 '''
 
-
+# ToDo add this function to the instrument class to enable ordermasks and trimming or orders
+# ToDO rewrite this function to use images rather than loops as in flat_fit.py
 def slit_pixels(all_lordloc_in, all_rordloc_in, frameshape, pad):
     """ Generate an image indicating the slit/order associated with each pixel.
 
@@ -250,7 +251,7 @@ def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
     w = np.ix_(xfin, yfin)
     return retarr[w]
 
-
+# ToDO rewrite this function to use images rather than loops as in flat_fit.py
 def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
     """
     Generate the ximg and edgemask frames
