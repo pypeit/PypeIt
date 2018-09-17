@@ -375,7 +375,7 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
 '''
 
 
-def fit_flat(flat, tilts_dict, thismask_in, slit_left, slit_righ, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
+def fit_flat(flat, tilts_dict_in, thismask_in, slit_left_in, slit_righ_in, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
              spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0),
              slit_tweak = True, slit_tweak_thresh = 0.85, slit_tweak_maxfrac = 0.05, debug = True):
 
@@ -388,17 +388,17 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left, slit_righ, inmask = None,
         Flat field image in units of electrons.
 
 
-    mstilts: float ndarray, shape (nspec, nspat)
-          Tilts indicating how wavelengths move across the slit
+    tilts_dict: dict
+          Dictionary containing wavelength tilts image and other information indicating how wavelengths move across the slit
 
     thismask_in:  boolean ndarray, shape (nspec, nspat)
         Boolean mask image specifying the pixels which lie on the slit/order according to the initial slit/order bounadries.
         The convention is: True = on the slit/order, False  = off the slit/order
 
-    slit_left:  float ndarray, shape  (nspec, 1) or (nspec)
+    slit_left_in:  float ndarray, shape  (nspec, 1) or (nspec)
         Left boundary of slit/order to be extracted (given as floating pt pixels).
 
-    slit_righ:  float ndarray, shape  (nspec, 1) or (nspec)
+    slit_righ_in:  float ndarray, shape  (nspec, 1) or (nspec)
         Right boundary of slit/order to be extracted (given as floating pt pixels).
 
 
@@ -488,7 +488,7 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left, slit_righ, inmask = None,
         npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol/10.)).astype(int)),1)
 
     # Generate the edgemask using the original slit boundaries and thismask_in
-    _, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask_in, trim_edg=trim_edg)
+    ximg_in, edgmask_in = pixels.ximg_and_edgemask(slit_left_in, slit_righ, thismask_in, trim_edg=trim_edg)
 
     # Create a tilts image that encompasses the whole image, rather than just the thismask_in slit pixels
     tilts = tracewave.coeff2tilts(tilts_dict['coeffs'], shape, tilts_dict['func2D'], max_tilt=1.2, min_tilt=-0.2)
@@ -497,13 +497,13 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left, slit_righ, inmask = None,
 
     # Create a fractional position image ximg that encompasses the whole image, rather than just the thismask_in slit pixels
     spat_img = np.outer(np.ones(nspec), np.arange(nspat)) # spatial position everywhere along image
-    slit_left_img = np.outer(slit_left, np.ones(nspat))   # left slit boundary replicated spatially
-    slitwidth_img = np.outer(slit_righ - slit_left, np.ones(nspat)) # slit width replicated spatially
+    slit_left_img = np.outer(slit_left_in, np.ones(nspat))   # left slit boundary replicated spatially
+    slitwidth_img = np.outer(slit_righ - slit_left_in, np.ones(nspat)) # slit width replicated spatially
     ximg = (spat_img - slit_left_img)/slitwidth_img
 
     # Create a wider slitmask image with shift pixels padded on each side
     pad = 3.0
-    slitmask_pad = pixels.slit_pixels(slit_left, slit_righ, shape, pad)
+    slitmask_pad = pixels.slit_pixels(slit_left_in, slit_righ, shape, pad)
     thismask = (slitmask_pad > 0) # mask enclosing the wider slit bounadries
 
     if inmask is None:
@@ -515,7 +515,7 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left, slit_righ, inmask = None,
     log_ivar = inmask_log.astype(float)/0.5**2 # set errors to just be 0.5 in the log
 
     # Flat field pixels for fitting spectral direction. Restrict to original slit pixels
-    fit_spec = thismask_in & inmask & (edgmask == False)
+    fit_spec = thismask_in & inmask & (edgmask_in == False)
     isrt_spec = np.argsort(piximg[fit_spec])
     pix_fit = piximg[fit_spec][isrt_spec]
     log_flat_fit = log_flat[fit_spec][isrt_spec]
@@ -571,7 +571,7 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left, slit_righ, inmask = None,
     norm_spec_ivar = np.ones_like(norm_spec_fit)/(spat_illum_thresh**2)
     nfit_spat = np.sum(fit_spat)
 
-    slitwidth = np.median(slit_righ - slit_left) # How many pixels wide is the slit at each Y?
+    slitwidth = np.median(slit_righ - slit_left_in) # How many pixels wide is the slit at each Y?
     ximg_resln = spat_samp/slitwidth
 
     # Quickly compute a version of the illumination function by downsampling, and use this to mask bad pixels
@@ -596,38 +596,9 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left, slit_righ, inmask = None,
     xmax = xmiddle[normimg[imiddle].argmax()]
     normimg = normimg/norm_max
 
-    # compute median value of normimg edge pixels
-    # TESTING. No longer fixing edge values?
-    #if(normimg.size > 6):
-    #    lmed = np.median(normimg[0:5])
-    #    rmed = np.median(normimg[-1:-6:-1])
-    #else:
-    #    lmed = normimg[0]
-    #    rmed = normimg[-1]
-
     # mask regions where illumination function takes on extreme values
     if np.any(~np.isfinite(normimg)):
         msgs.error('Inifinities in slit illumination function computation normimg')
-
-    #illum_max = (np.abs(normimg[statinds]/mean - 1.0)).max()
-    #if (illum_max <= spat_illum_thresh):
-    #    ximg_in = ximg_fit
-    #    normin = np.ones_like(ximg_fit)
-        #ximg_in = np.concatenate((-0.2 + 0.2*np.arange(nfine)/(nfine - 1), ximg_fit,1.0 + 0.2*np.arange(nfine)/(nfine-1)))
-        #normin = np.ones(2*nfine + nfit_spat)
-    #    msgs.info('Illum fluctuations = {:7.3f}'.format(illum_max*100) +
-    #              '% < spat_illum_thresh={:4.2f}'.format(100.0*spat_illum_thresh)+'%')
-    #    msgs.info('Slit illumination function set to unity for this slit%')
-    #    no_illum = True
-    #else:
-#    ximg_in = ximg_fit[imed]
-#    normin = normimg
-        #ximg_in = np.concatenate((-0.2 + 0.2*np.arange(nfine)/(nfine-1), ximg_fit[imed], 1.0 + 0.2*np.arange(nfine)/(nfine-1)))
-        #normin =  np.concatenate((np.full(nfine, lmed), normimg, np.full(nfine,rmed)))
-
-    #    if spat_bkpt is not None:
-    #        fullbkpt = spatbkpt
-    #    else:
 
     # Determine the breakpoint spacing from the sampling of the ximg
     ximg_samp = np.median(ximg_fit - np.roll(ximg_fit,1))
@@ -641,18 +612,24 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left, slit_righ, inmask = None,
     spat_set, outmask_spat, spatfit, _ = utils.bspline_profile(ximg_fit, normfit, imed.astype(float),np.ones_like(normfit),
                                                                inmask = imed, nord=4,upper=5.0, lower=5.0,fullbkpt = fullbkpt)
 
-    slit_left_twk = np.copy(slit_left)
-    slit_righ_twk = np.copy(slit_righ)
-    tweak_left = False
-    tweak_righ = False
+    # Evaluate and save
+    illumflat = np.ones_like(flat)
+    illumflat[thismask], _ = spat_set.value(ximg[thismask])
+    norm_spec_spat = np.ones_like(flat)
+    norm_spec_spat[thismask] = flat[thismask]/np.fmax(spec_model[thismask], 1.0)/np.fmax(illumflat[thismask],0.01)
+
     if slit_tweak:
+        tweak_left = False
+        tweak_righ = False
+        slit_left_out = np.copy(slit_left)
+        slit_righ_out = np.copy(slit_righ)
         msgs.info('Tweaking slit boundaries using slit illumination function')
         step = 0.001
         # march out from maximum near the middle to find left edge
         for xleft in np.arange(xmax,ximg_fit.min(),-step):
             norm_now = np.interp(xleft, ximg_fit, spatfit)
             if (norm_now < slit_tweak_thresh) & (xleft < slit_tweak_maxfrac):
-                slit_left_twk +=  xleft*slitwidth
+                slit_left_out +=  xleft*slitwidth
                 tweak_left = True
                 msgs.info('Tweaking left slit boundary by {:5.3f}'.format(100*xleft) +
                           ' %, or {:7.3f}'.format(xleft*slitwidth) + ' pixels')
@@ -661,11 +638,23 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left, slit_righ, inmask = None,
         for xrigh in np.arange(xmax,ximg_fit.max(),step):
             norm_now = np.interp(xrigh, ximg_fit, spatfit)
             if (norm_now < slit_tweak_thresh) & ((1.0-xrigh) < slit_tweak_maxfrac):
-                slit_righ_twk -= (1.0 - xrigh)*slitwidth
+                slit_righ_out -= (1.0 - xrigh)*slitwidth
                 tweak_righ = True
                 msgs.info('Tweaking right slit boundary by {:5.3f}'.format(100*(1.0 - xrigh)) +
                           ' %, or {:7.3f}'.format((1.0-xrigh)*slitwidth) + ' pixels')
                 break
+
+        # Recreate all the quantities we need based on the tweaked slits
+        slitmask_out = pixels.slit_pixels(slit_left_out, slit_righ_out, shape, 0)
+        thismask_out = (slitmask_out > 0)
+        ximg_out, edgmask_out = pixels.ximg_and_edgemask(slit_left_out, slit_righ_out, thismask_out, trim_edg=trim_edg)
+        # Note that nothing changes with the tilts, since these were already extrapolated across the whole image.
+    else:
+        slit_left_out = np.copy(slit_left)
+        slit_righ_out = np.copy(slit_righ)
+        thismask_out = thismask_in
+        ximg_out = ximg_in
+
 
     if debug:
         plt.clf()
@@ -680,39 +669,28 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left, slit_righ, inmask = None,
         ymax = 1.2*spatfit.max()
         ax.set_ylim((np.fmax(0.8 * spatfit.min(), 0.5), 1.2 * spatfit.max()))
         ax.set_xlim(ximg_fit.min(), ximg_fit.max())
-        if slit_tweak:
-            plt.hlines(slit_tweak_thresh,ximg_fit.min(),ximg_fit.max(), color='orange', linewidth = 3.0, label='illum func threshold')
-        if tweak_left:
-            plt.vlines(xleft,ymin,ymax, color='lightgreen',linestyle='--', linewidth = 3.0, label='tweaked left edge')
-        if tweak_righ:
-            plt.vlines(xrigh,ymin,ymax, color='red',linestyle='--', linewidth = 3.0, label='tweaked right edge')
         plt.vlines(0.0, ymin, ymax, color='lightgreen', linestyle=':', linewidth=3.0, label='original left edge')
         plt.vlines(1.0,ymin,ymax, color='red',linestyle=':', linewidth = 3.0, label='original right edge')
+        if slit_tweak:
+            plt.hlines(slit_tweak_thresh,ximg_fit.min(),ximg_fit.max(), color='orange', linewidth = 3.0, label='illum func threshold')
+            if tweak_left:
+                plt.vlines(xleft,ymin,ymax, color='lightgreen',linestyle='--', linewidth = 3.0, label='tweaked left edge')
+            if tweak_righ:
+                plt.vlines(xrigh,ymin,ymax, color='red',linestyle='--', linewidth = 3.0, label='tweaked right edge')
         plt.legend()
         plt.xlabel('Normalized Slit Position')
         plt.ylabel('Normflat Spatial Profile')
         plt.show()
 
-    # Now tweak the slit boundaries
-    from IPython import embed
-    embed()
-
-    # Evaluate and save
-    illumflat = np.ones_like(flat)
-    illumflat[thismask], _ = spat_set.value(ximg[thismask])
-    norm_spec_spat = np.ones_like(flat)
-    norm_spec_spat[thismask] = flat[thismask]/np.fmax(spec_model[thismask], 1.0)/np.fmax(illumflat[thismask],0.01)
-
-
     msgs.info('Performing illumination + scattered light flat field fit')
 
     # Flat field pixels for fitting spectral direction
-    isrt_spec = np.argsort(piximg[thismask])
-    pix_twod = piximg[thismask][isrt_spec]
-    ximg_twod = ximg[thismask][isrt_spec]
-    norm_twod = norm_spec_spat[thismask][isrt_spec]
+    isrt_spec = np.argsort(piximg[thismask_out])
+    pix_twod = piximg[thismask_out][isrt_spec]
+    ximg_twod = ximg_out[thismask_out][isrt_spec]
+    norm_twod = norm_spec_spat[thismask_out][isrt_spec]
 
-    fitmask = inmask[thismask][isrt_spec] & (np.abs(norm_twod - 1.0) < 0.30)
+    fitmask = inmask[thismask_out][isrt_spec] & (np.abs(norm_twod - 1.0) < 0.30)
     # Here we ignore the formal photon counting errors and simply assume that a typical error per pixel.
     # This guess is somewhat aribtrary. We then set the rejection threshold with sigrej_illum
     var_value = 0.01
@@ -770,13 +748,13 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left, slit_righ, inmask = None,
     twod_model = np.ones_like(flat)
     twod_this = np.zeros_like(twodfit)
     twod_this[isrt_spec] = twodfit
-    twod_model[thismask] = twod_this
+    twod_model[thismask_out] = twod_this
 
     # Compute all the final output images output
     pixelflat = np.ones_like(flat)
     flat_model = np.ones_like(flat)
-    flat_model[thismask] = twod_model[thismask]*np.fmax(illumflat[thismask],0.05)*np.fmax(spec_model[thismask],1.0)
-    pixelflat[thismask] = flat[thismask]/flat_model[thismask]
+    flat_model[thismask_out] = twod_model[thismask_out]*np.fmax(illumflat[thismask_out],0.05)*np.fmax(spec_model[thismask_out],1.0)
+    pixelflat[thismask_out] = flat[thismask_out]/flat_model[thismask_out]
 
     # ToDo Add some code here to treat the edges and places where fits go bad?
 
