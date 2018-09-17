@@ -674,15 +674,15 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         ymax = 1.2*spatfit.max()
         ax.set_ylim((np.fmax(0.8 * spatfit.min(), 0.5), 1.2 * spatfit.max()))
         ax.set_xlim(ximg_fit.min(), ximg_fit.max())
-        plt.vlines(0.0, ymin, ymax, color='lightgreen', linestyle=':', linewidth=2.0, label='original left edge')
-        plt.vlines(1.0,ymin,ymax, color='red',linestyle=':', linewidth = 2.0, label='original right edge')
+        plt.vlines(0.0, ymin, ymax, color='lightgreen', linestyle=':', linewidth=2.0, label='original left edge',zorder=8)
+        plt.vlines(1.0,ymin,ymax, color='red',linestyle=':', linewidth = 2.0, label='original right edge',zorder=9)
         if tweak_slits:
             label = 'threshold = {:5.2f}'.format(tweak_slits_thresh) + ' % of max illumprofile'
-            plt.hlines(tweak_slits_thresh*norm_max,ximg_fit.min(),ximg_fit.max(), color='orange', linewidth = 3.0, label=label)
+            plt.hlines(tweak_slits_thresh*norm_max,ximg_fit.min(),ximg_fit.max(), color='orange', linewidth = 3.0, label=label, zorder=10)
             if tweak_left:
-                plt.vlines(xleft,ymin,ymax, color='lightgreen',linestyle='--', linewidth = 3.0, label='tweaked left edge')
+                plt.vlines(xleft,ymin,ymax, color='lightgreen',linestyle='--', linewidth = 3.0, label='tweaked left edge',zorder=11)
             if tweak_righ:
-                plt.vlines(xrigh,ymin,ymax, color='red',linestyle='--', linewidth = 3.0, label='tweaked right edge')
+                plt.vlines(xrigh,ymin,ymax, color='red',linestyle='--', linewidth = 3.0, label='tweaked right edge',zorder=20)
         plt.legend()
         plt.xlabel('Normalized Slit Position')
         plt.ylabel('Normflat Spatial Profile')
