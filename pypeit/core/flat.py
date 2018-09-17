@@ -375,9 +375,9 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
 '''
 
 
-def fit_flat(flat, tilts_dict_in, thismask_in, slit_left_in, slit_righ_in, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
+def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
              spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0),
-             slit_tweak = True, slit_tweak_thresh = 0.85, slit_tweak_maxfrac = 0.05, debug = True):
+             tweak_slits = True, tweak_slits_thresh = 0.85, tweak_slits_maxfrac = 0.05, debug = True):
 
 
     """ Compute pixelflat and illumination flat from a flat field image.
@@ -432,14 +432,14 @@ def fit_flat(flat, tilts_dict_in, thismask_in, slit_left_in, slit_righ_in, inmas
       Do not attempt to set this paramter unless you know what you are doing.
 
 
-    slit_tweak: bool, default = True
+    tweak_slits: bool, default = True
       Slit edges will be tweaked such the left and right bounadaries intersect the location where the illumination
-      function falls below slit_tweak_thresh (see below) of its maximum value near the center (moving out from the center)
+      function falls below tweak_slits_thresh (see below) of its maximum value near the center (moving out from the center)
 
-    slit_tweak_thresh: float, default = 0.85
-      If slit_tweak is True, this sets the illumination function threshold used to tweak the slits
+    tweak_slits_thresh: float, default = 0.85
+      If tweak_slits is True, this sets the illumination function threshold used to tweak the slits
 
-    slit_tweak_maxfrac: float, default = 0.05
+    tweak_slits_maxfrac: float, default = 0.05
       Maximum fractinoal amount (of slit width) allowed for each trimming the left and right slit boundaries, i.e. the
       default is 5% which means slits would shrink by at most 10%.
 
@@ -618,7 +618,7 @@ def fit_flat(flat, tilts_dict_in, thismask_in, slit_left_in, slit_righ_in, inmas
     norm_spec_spat = np.ones_like(flat)
     norm_spec_spat[thismask] = flat[thismask]/np.fmax(spec_model[thismask], 1.0)/np.fmax(illumflat[thismask],0.01)
 
-    if slit_tweak:
+    if tweak_slits:
         tweak_left = False
         tweak_righ = False
         slit_left_out = np.copy(slit_left)
@@ -628,7 +628,7 @@ def fit_flat(flat, tilts_dict_in, thismask_in, slit_left_in, slit_righ_in, inmas
         # march out from maximum near the middle to find left edge
         for xleft in np.arange(xmax,ximg_fit.min(),-step):
             norm_now = np.interp(xleft, ximg_fit, spatfit)
-            if (norm_now < slit_tweak_thresh) & (xleft < slit_tweak_maxfrac):
+            if (norm_now < tweak_slits_thresh) & (xleft < tweak_slits_maxfrac):
                 slit_left_out +=  xleft*slitwidth
                 tweak_left = True
                 msgs.info('Tweaking left slit boundary by {:5.3f}'.format(100*xleft) +
@@ -637,7 +637,7 @@ def fit_flat(flat, tilts_dict_in, thismask_in, slit_left_in, slit_righ_in, inmas
         # marck out from maximum near the middle to find right edge
         for xrigh in np.arange(xmax,ximg_fit.max(),step):
             norm_now = np.interp(xrigh, ximg_fit, spatfit)
-            if (norm_now < slit_tweak_thresh) & ((1.0-xrigh) < slit_tweak_maxfrac):
+            if (norm_now < tweak_slits_thresh) & ((1.0-xrigh) < tweak_slits_maxfrac):
                 slit_righ_out -= (1.0 - xrigh)*slitwidth
                 tweak_righ = True
                 msgs.info('Tweaking right slit boundary by {:5.3f}'.format(100*(1.0 - xrigh)) +
@@ -671,8 +671,8 @@ def fit_flat(flat, tilts_dict_in, thismask_in, slit_left_in, slit_righ_in, inmas
         ax.set_xlim(ximg_fit.min(), ximg_fit.max())
         plt.vlines(0.0, ymin, ymax, color='lightgreen', linestyle=':', linewidth=3.0, label='original left edge')
         plt.vlines(1.0,ymin,ymax, color='red',linestyle=':', linewidth = 3.0, label='original right edge')
-        if slit_tweak:
-            plt.hlines(slit_tweak_thresh,ximg_fit.min(),ximg_fit.max(), color='orange', linewidth = 3.0, label='illum func threshold')
+        if tweak_slits:
+            plt.hlines(tweak_slits_thresh,ximg_fit.min(),ximg_fit.max(), color='orange', linewidth = 3.0, label='illum func threshold')
             if tweak_left:
                 plt.vlines(xleft,ymin,ymax, color='lightgreen',linestyle='--', linewidth = 3.0, label='tweaked left edge')
             if tweak_righ:
@@ -758,7 +758,7 @@ def fit_flat(flat, tilts_dict_in, thismask_in, slit_left_in, slit_righ_in, inmas
 
     # ToDo Add some code here to treat the edges and places where fits go bad?
 
-    return (pixelflat[thismask], illumflat[thismask], flat_model[thismask])
+    return pixelflat, illumflat, flat_model, thismask_out, slit_left_out, slit_righ_out
 
 
 
