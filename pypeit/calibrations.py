@@ -126,7 +126,7 @@ class Calibrations(object):
         self.tslits_dict = None
         self.maskslits = None
         self.wavecalib = None
-        self.mstilts = None
+        self.tilts_dict = None
         self.mspixflatnrm = None
         self.msillumflat = None
         self.mswave = None
@@ -310,7 +310,7 @@ class Calibrations(object):
 
         Requirements:
            tslits_dict
-           mstilts
+           tilts_dict
            datasec_img
            det, sci_ID, par, setup
 
@@ -319,6 +319,7 @@ class Calibrations(object):
             self.msillumflat: ndarray
 
         """
+
         if self.par['flatfield']['method'] is None:
             # User does not want to flat-field
             self.mspixflatnrm = None
@@ -327,7 +328,7 @@ class Calibrations(object):
             return self.mspixflatnrm, self.msillumflat
 
         # Check for existing data necessary to build flats
-        if not self._chk_objs(['tslits_dict', 'mstilts', 'datasec_img']):
+        if not self._chk_objs(['tslits_dict', 'tilts_dict', 'datasec_img']):
             msgs.warning('Flats were requested, but there are quantities missing necessary to create flats. ' +
                          'Proceeding without flat fielding....')
             # User cannot flat-field
@@ -352,7 +353,7 @@ class Calibrations(object):
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'],
                                              flatpar=self.par['flatfield'], msbias=self.msbias,
-                                             tslits_dict=self.tslits_dict, tilts=self.mstilts)
+                                             tslits_dict=self.tslits_dict, tilts_dict=self.tilts_dict)
 
         # --- Pixel flats
 
@@ -399,7 +400,7 @@ class Calibrations(object):
 
         # 4) If we still don't have a pixel flat, then just use unity everywhere and print out a warning
         if self.mspixflatnrm is None:
-            self.mspixflatnrm = np.ones_like(self.mstilts)
+            self.mspixflatnrm = np.ones_like(self.tilts_dict['tilts'])
             msgs.warn('You are not pixel flat fielding your data!!!')
 
         # --- Illumination flats
@@ -410,7 +411,7 @@ class Calibrations(object):
             self.msillumflat, _, _ = self.flatField.load_master_illumflat()
             # 3) If there is no master file, then set illumflat to unit and war user that they are not illumflatting their data
             if self.msillumflat is None:
-                self.msillumflat = np.ones_like(self.mstilts)
+                self.msillumflat = np.ones_like(self.tilts_dict['tilts'])
                 msgs.warn('You are not illumination flat fielding your data!')
 
         # Save & return
@@ -503,7 +504,7 @@ class Calibrations(object):
         Load or generate a wavelength image
 
         Requirements:
-           mstilts, tslits_dict, wv_calib, maskslits
+           tilts_dict, tslits_dict, wv_calib, maskslits
            det, par, setup
 
         Returns:
@@ -511,7 +512,7 @@ class Calibrations(object):
 
         """
         # Check for existing data
-        if not self._chk_objs(['mstilts','tslits_dict','wv_calib','maskslits']):
+        if not self._chk_objs(['tilts_dict','tslits_dict','wv_calib','maskslits']):
             self.mswave = None
             return self.mswave
 
@@ -525,13 +526,13 @@ class Calibrations(object):
 
         # No wavelength calibration requested
         if self.par['wavelengths']['reference'] == 'pixel':
-            self.mswave = self.mstilts * (self.mstilts.shape[0]-1.0)
+            self.mswave = self.tilts_dict['tilts'] * (self.tilts_dict['tilts'].shape[0]-1.0)
             self.calib_dict[self.setup]['wave'] = self.mswave
             return self.mswave
 
         # Instantiate
         self.waveImage = waveimage.WaveImage(self.tslits_dict['slitpix'],
-                                             self.mstilts, self.wv_calib,
+                                             self.tilts_dict['tilts'], self.wv_calib,
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], maskslits=self.maskslits)
         # Attempt to load master
@@ -650,27 +651,27 @@ class Calibrations(object):
            det, par, setup, sci_ID, spectrograph
 
         Returns:
-            self.mstilts: ndarray (2D)
+            self.tilts_dict: dictionary with tilts information (2D)
             self.maskslits: ndarray
 
         """
         # Check for existing data
         if not self._chk_objs(['msarc', 'tslits_dict', 'pixlocn', 'wv_calib', 'maskslits']):
             msgs.error('dont have all the objects')
-            self.mstilts = None
+            self.tilts_dict = None
             self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
             self.maskslits += self.wt_maskslits
-            return self.mstilts, self.maskslits
+            return self.tilts_dict, self.maskslits
 
         # Check internals
         self._chk_set(['setup', 'det', 'sci_ID', 'par'])
 
         # Return existing data
-        if 'tilts' in self.calib_dict[self.setup].keys():
-            self.mstilts = self.calib_dict[self.setup]['tilts']
+        if 'tilts_dict' in self.calib_dict[self.setup].keys():
+            self.tilts_dict = self.calib_dict[self.setup]['tilts_dict']
             self.wt_maskslits = self.calib_dict[self.setup]['wtmask']
             self.maskslits += self.wt_maskslits
-            return self.mstilts, self.maskslits
+            return self.tilts_dict, self.maskslits
 
         # Instantiate
         self.waveTilts = wavetilts.WaveTilts(self.msarc, spectrograph=self.spectrograph,
@@ -679,9 +680,9 @@ class Calibrations(object):
                                              mode=self.par['masters'], pixlocn=self.pixlocn,
                                              tslits_dict=self.tslits_dict, redux_path=self.redux_path)
         # Master
-        self.mstilts = self.waveTilts.master()
-        if self.mstilts is None:
-            self.mstilts, self.wt_maskslits \
+        self.tilts_dict = self.waveTilts.master()
+        if self.tilts_dict is None:
+            self.tilts_dict, self.wt_maskslits \
                     = self.waveTilts.run(maskslits=self.maskslits, wv_calib=self.wv_calib,
                                          doqa=self.write_qa)
             if self.save_masters:
@@ -690,10 +691,10 @@ class Calibrations(object):
             self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
 
         # Save & return
-        self.calib_dict[self.setup]['tilts'] = self.mstilts
+        self.calib_dict[self.setup]['tilts_dict'] = self.tilts_dict
         self.calib_dict[self.setup]['wtmask'] = self.wt_maskslits
         self.maskslits += self.wt_maskslits
-        return self.mstilts, self.maskslits
+        return self.tilts_dict, self.maskslits
 
     def run_the_steps(self):
         """
@@ -767,7 +768,7 @@ class Calibrations(object):
           and slit profile
         Requirements:
            tslits_dict
-           mstilts
+           tilts_dict
            datasec_img
            det, sci_ID, par, setup
         Returns:
@@ -781,7 +782,7 @@ class Calibrations(object):
             return self.mspixflatnrm, self.slitprof
 
         # Check for existing data
-        if not self._chk_objs(['tslits_dict', 'mstilts', 'datasec_img']):
+        if not self._chk_objs(['tslits_dict', 'tilts_dict', 'datasec_img']):
             # User cannot flat-field
             self.mspixflatnrm = None
             self.slitprof = None
@@ -804,7 +805,7 @@ class Calibrations(object):
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'],
                                              flatpar=self.par['flatfield'], msbias=self.msbias,
-                                             msbpm = self.msbpm,tslits_dict=self.tslits_dict, tilts=self.mstilts)
+                                             msbpm = self.msbpm,tslits_dict=self.tslits_dict, tilts=self.tilts_dict)
 
         # Load from disk (MasterFrame)?
         self.mspixflatnrm = self.flatField.master()

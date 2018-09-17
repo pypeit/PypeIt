@@ -63,7 +63,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'pixelflat'
 
     def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, master_dir=None,
-                 mode=None, flatpar=None, msbias=None, msbpm = None, tslits_dict=None, tilts=None):
+                 mode=None, flatpar=None, msbias=None, msbpm = None, tslits_dict=None, tilts_dict=None):
 
         # Image processing parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
@@ -80,7 +80,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Parameters unique to this Object
         self.msbias = msbias
         self.tslits_dict = tslits_dict
-        self.tilts = tilts
+        self.tilts_dict = tilts_dict
         self.msbpm = msbpm
         if master_dir is None:
             self.master_dir = os.getcwd()
@@ -170,6 +170,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         """
         return masters.load_master_frame('illumflat', self.setup, self.mdir)
 
+    # ToDO this routine is deprecated and no longer called
     def slit_profile(self, slit):
         """
         Generate the slit profile for a given slit
@@ -201,7 +202,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         slordloc = self.tslits_dict['lcen'][:,slit]
         srordloc = self.tslits_dict['rcen'][:,slit]
         modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit \
-                = flat.slit_profile(slit, self.mspixelflat, self.tilts, slordloc, srordloc,
+                = flat.slit_profile(slit, self.mspixelflat, self.tilts_dict['tilts'], slordloc, srordloc,
                                       self.tslits_dict['slitpix'], self.tslits_dict['pixwid'],
                                       ntckx=self.ntckx, ntcky=self.ntcky)
         # Step
@@ -251,12 +252,15 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             msgs.info("Computing flat field image for slit: {:d}".format(slit + 1))
             thismask = (self.tslits_dict['slitpix'] == slit + 1)
             if self.msbpm is not None:
-                inmask = thismask & ~self.msbpm
+                inmask = ~self.msbpm
             else:
-                inmask = thismask
+                inmask = np.ones_like(self.rawflatimg,dtype=bool)
+
             # Fit flats for a single slit
+            this_tilts_dict = {'tilts':self.tilts_dict['tilts'], 'coeffs':self.tilts_dict['coeffs'][:,:,slit],
+                               'func2D':self.tilts_dict['func2D']}
             self.mspixelflat[thismask], self.msillumflat[thismask], self.flat_model[thismask] = \
-                flat.fit_flat(self.rawflatimg, self.tilts, thismask,self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:,slit],
+                flat.fit_flat(self.rawflatimg, this_tilts_dict, thismask,self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:,slit],
                               inmask = inmask, debug = debug)
 
 

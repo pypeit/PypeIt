@@ -112,6 +112,8 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Main outputs
         self.final_tilts = None
+        self.coeffs = None
+        self.tilts_dict = None
 
     @classmethod
     def from_master_files(cls, setup, mdir='./'):
@@ -140,11 +142,12 @@ class WaveTilts(masterframe.MasterFrame):
         hdul = fits.open(mstilts_file)
         slf.final_tilts = hdul[0].data
         slf.tilts = slf.final_tilts
+        self.coeffs = slf.hdu[1].data
 
         # Dict
         slf.all_trcdict = []
         islit = 0
-        for hdu in hdul[1:]:
+        for hdu in hdul[2:]:
             if hdu.name == 'FWM{:03d}'.format(islit):
                 # Setup
                 fwm_img = hdu.data
@@ -233,7 +236,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.tilts : ndarray
 
         """
-        self.tilts, self.outpar = tracewave.fit_tilts(self.msarc, slit, self.all_ttilts[slit],
+        self.tilts, coeffs, self.outpar = tracewave.fit_tilts(self.msarc, slit, self.all_ttilts[slit],
                                                         order=self.par['order'],
                                                         yorder=self.par['yorder'],
                                                         func2D=self.par['func2D'],
@@ -241,7 +244,7 @@ class WaveTilts(masterframe.MasterFrame):
                                                         doqa=doqa, out_dir=self.redux_path)
         # Step
         self.steps.append(inspect.stack()[0][3])
-        return self.tilts
+        return self.tilts, coeffs
 
     def _trace_tilts(self, slit, wv_calib=None):
         """
@@ -325,6 +328,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Final tilts image
         self.final_tilts = np.zeros_like(self.msarc)
+        self.coeffs = np.zeros((self.par['order'] + 2,self.par['yorder'] +1,self.nslit))
         # Loop on all slits
         for slit in gdslits:
             # Trace
@@ -335,13 +339,14 @@ class WaveTilts(masterframe.MasterFrame):
 
             # 2D model of the tilts
             #   Includes QA
-            self.tilts = self._fit_tilts(slit, doqa=doqa)
+            self.tilts, self.coeffs[:,:,slit] = self._fit_tilts(slit, doqa=doqa)
 
             # Save to final image
             word = self.tslits_dict['slitpix'] == slit+1
             self.final_tilts[word] = self.tilts[word]
 
-        return self.final_tilts, maskslits
+        self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'func2D':self.par['func2D']}
+        return self.tilts_dict, maskslits
 
     def _qa(self, slit):
         """
@@ -381,6 +386,9 @@ class WaveTilts(masterframe.MasterFrame):
         #
         hdu0 = fits.PrimaryHDU(self.final_tilts)
         hdul = [hdu0]
+        hdu_coeff = fits.ImageHDU(self.coeffs)
+        hdu_coeff.header['FUNC2D'] = self.par['func2D']
+        hdul.append(hdu_coeff)
 
         for slit in range(self.nslit):
             # Bad slit?
