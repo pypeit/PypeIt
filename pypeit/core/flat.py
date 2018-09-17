@@ -646,7 +646,8 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left, slit_righ, inmask = None,
     tweak_left = False
     tweak_righ = False
     if slit_tweak:
-        step = 0.01
+        msgs.info('Tweaking slit boundaries using slit illumination function')
+        step = 0.001
         # march out from maximum near the middle to find left edge
         for xleft in np.arange(xmax,ximg_fit.min(),-step):
             norm_now = np.interp(xleft, ximg_fit, spatfit)
@@ -680,11 +681,13 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left, slit_righ, inmask = None,
         ax.set_ylim((np.fmax(0.8 * spatfit.min(), 0.5), 1.2 * spatfit.max()))
         ax.set_xlim(ximg_fit.min(), ximg_fit.max())
         if slit_tweak:
-            plt.hlines(slit_tweak_thresh,ximg_fit.min(),ximg_fit.max(), color='orange',linestyle='--', linewidth = 3.0, label='illum func threshold')
+            plt.hlines(slit_tweak_thresh,ximg_fit.min(),ximg_fit.max(), color='orange', linewidth = 3.0, label='illum func threshold')
         if tweak_left:
             plt.vlines(xleft,ymin,ymax, color='lightgreen',linestyle='--', linewidth = 3.0, label='tweaked left edge')
         if tweak_righ:
             plt.vlines(xrigh,ymin,ymax, color='red',linestyle='--', linewidth = 3.0, label='tweaked right edge')
+        plt.vlines(0.0, ymin, ymax, color='lightgreen', linestyle=':', linewidth=3.0, label='original left edge')
+        plt.vlines(1.0,ymin,ymax, color='red',linestyle=':', linewidth = 3.0, label='original right edge')
         plt.legend()
         plt.xlabel('Normalized Slit Position')
         plt.ylabel('Normflat Spatial Profile')
