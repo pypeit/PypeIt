@@ -377,7 +377,7 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
 
 def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
              spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0),
-             tweak_slits = True, tweak_slits_thresh = 0.85, tweak_slits_maxfrac = 0.05, debug = True):
+             tweak_slits = True, tweak_slits_thresh = 0.9, tweak_slits_maxfrac = 0.05, debug = True):
 
 
     """ Compute pixelflat and illumination flat from a flat field image.
@@ -590,11 +590,13 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     sig_res = np.fmax(med_width/20.0,0.5)
     normimg = scipy.ndimage.filters.gaussian_filter1d(normimg_raw,sig_res, mode='nearest')
     # Normalize to unity via maximum value at the middle of the slit
-    imiddle = (ximg_fit[imed] > 0.4) & (ximg_fit[imed] < 0.6)
+    imiddle = (ximg_fit[imed] > 0.1) & (ximg_fit[imed] < 0.9)
     xmiddle = ximg_fit[imed][imiddle]
     norm_max = normimg[imiddle].max()
     xmax = xmiddle[normimg[imiddle].argmax()]
-    normimg = normimg/norm_max
+    normimg = normimg
+    # Divide norm_spec_fit by the same amount for QA
+    norm_spec_fit = norm_spec_fit
 
     # mask regions where illumination function takes on extreme values
     if np.any(~np.isfinite(normimg)):
@@ -625,19 +627,19 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         slit_righ_out = np.copy(slit_righ_in)
         msgs.info('Tweaking slit boundaries using slit illumination function')
         step = 0.001
-        # march out from maximum near the middle to find left edge
-        for xleft in np.arange(xmax,ximg_fit.min(),-step):
+        # march out middle to find left edge
+        for xleft in np.arange(0.5,ximg_fit.min(),-step):
             norm_now = np.interp(xleft, ximg_fit, spatfit)
-            if (norm_now < tweak_slits_thresh) & (xleft < tweak_slits_maxfrac):
+            if (norm_now < tweak_slits_thresh*norm_max) & (xleft < tweak_slits_maxfrac):
                 slit_left_out +=  xleft*slitwidth
                 tweak_left = True
                 msgs.info('Tweaking left slit boundary by {:5.3f}'.format(100*xleft) +
                           ' %, or {:7.3f}'.format(xleft*slitwidth) + ' pixels')
                 break
-        # marck out from maximum near the middle to find right edge
-        for xrigh in np.arange(xmax,ximg_fit.max(),step):
+        # march out from middle  to find right edge
+        for xrigh in np.arange(0.5,ximg_fit.max(),step):
             norm_now = np.interp(xrigh, ximg_fit, spatfit)
-            if (norm_now < tweak_slits_thresh) & ((1.0-xrigh) < tweak_slits_maxfrac):
+            if (norm_now < tweak_slits_thresh*norm_max) & ((1.0-xrigh) < tweak_slits_maxfrac):
                 slit_righ_out -= (1.0 - xrigh)*slitwidth
                 tweak_righ = True
                 msgs.info('Tweaking right slit boundary by {:5.3f}'.format(100*(1.0 - xrigh)) +
@@ -672,7 +674,8 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         plt.vlines(0.0, ymin, ymax, color='lightgreen', linestyle=':', linewidth=2.0, label='original left edge')
         plt.vlines(1.0,ymin,ymax, color='red',linestyle=':', linewidth = 2.0, label='original right edge')
         if tweak_slits:
-            plt.hlines(tweak_slits_thresh,ximg_fit.min(),ximg_fit.max(), color='orange', linewidth = 3.0, label='illum func threshold')
+            label = 'threshold = {:5.2f}'.format(tweak_slits_thresh) + ' % of max illumprofile'
+            plt.hlines(tweak_slits_thresh*norm_max,ximg_fit.min(),ximg_fit.max(), color='orange', linewidth = 3.0, label=label)
             if tweak_left:
                 plt.vlines(xleft,ymin,ymax, color='lightgreen',linestyle='--', linewidth = 3.0, label='tweaked left edge')
             if tweak_righ:
