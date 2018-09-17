@@ -266,7 +266,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                                'func2D':self.tilts_dict['func2D']}
             pixelflat, illumflat, flat_model, thismask_out, slit_left_out, slit_righ_out = \
                 flat.fit_flat(self.rawflatimg, this_tilts_dict, thismask,self.tslits_dict['lcen'][:, slit],
-                              self.tslits_dict['rcen'][:,slit],inmask = inmask, debug = debug)
+                              self.tslits_dict['rcen'][:,slit],inmask = inmask, debug = debug, tweak_slits = self.flatpar['tweak_slits'])
             self.mspixelflat[thismask_out] = pixelflat[thismask_out]
             self.msillumflat[thismask_out] = illumflat[thismask_out]
             self.flat_model[thismask_out] = flat_model[thismask_out]
@@ -290,13 +290,11 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # ToDO need to update hte master files. This is complicated because tslits_dict and tilts_dict are not the actual masters, but rather
         # some much more complicated crapp is, like the whole class.
-        msgs.warning('We are currently not updating the master files for these tweaked slits. Implement that!!')
-
+        msgs.warn('We are currently not updating the master files for these tweaked slits. Implement that!!')
 
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show(slits=True, wcs_match = True)
-
 
         # Return
         return self.mspixelflat, self.msillumflat
