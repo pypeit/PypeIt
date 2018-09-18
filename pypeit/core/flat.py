@@ -377,7 +377,7 @@ def fit_flat(flat, mstilts, thismask, slit_left, slit_righ, inmask = None,spec_s
 
 def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
              spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0),
-             tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.07, debug = True):
+             tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.07, debug = False):
 
 
     """ Compute pixelflat and illumination flat from a flat field image.
