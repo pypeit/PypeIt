@@ -84,18 +84,18 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     @staticmethod
     def default_pypeit_par():
         """
-        Set default parameters for Keck LRISb reductions.
+        Set default parameters for VLT XSHOOTER reductions.
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'vlt_xshooter_vis'
-        # Use the ARMS pipeline
+        # Use the ARMED pipeline
         par['rdx']['pipeline'] = 'ARMED'
         # Set wave tilts order
         par['calibrations']['slits']['polyorder'] = 5 # Might want 6 or 7
         par['calibrations']['slits']['maxshift'] = 0.5  # Trace crude
         #par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypeitpar.SkySubtractionPar()
+        # par['skysubtract'] = pypeitpar.SkySubtractionPar()
         # Always flux calibrate, starting with default parameters
         #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
@@ -228,7 +228,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['maxshift'] = 0.5  # Trace crude
         #par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypeitpar.SkySubtractionPar()
+        # par['skysubtract'] = pypeitpar.SkySubtractionPar()
         # Always flux calibrate, starting with default parameters
         #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
