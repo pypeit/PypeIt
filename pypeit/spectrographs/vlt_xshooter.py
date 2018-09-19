@@ -250,7 +250,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         head_keys = self.xshooter_header_keys()
         return head_keys
 
-    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
+    def setup_arcparam(self, arcparam, msarc_shape=None, 
+                       disperser=None, **null_kwargs):
         """
         Setup the arc parameters
 
@@ -265,8 +266,22 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         """
         #debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['OH_triplespec']
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+        arcparam['disp'] = 0.6                                 # Ang/unbinned pixel
+        arcparam['b1'] = 1./ arcparam['disp'] / msarc_shape[0] # Pixel fit term (binning independent)
+        arcparam['b2'] = 0.                                    # Pixel fit term
+        arcparam['lamps'] = ['OH_triplespec']                  # Line lamps on
+        arcparam['wv_cen']=16000.                              # Estimate of central wavelength
+        arcparam['wvmnx'] = [9940.,24000.]                     # Guess at wavelength range
+        arcparam['disp_toler'] = 0.1                           # 10% tolerance
+        arcparam['match_toler'] = 3.                           # Matching tolerance (pixels)
+        arcparam['min_ampl'] = 1000.                           # Minimum amplitude
+        arcparam['func'] = 'legendre'                          # Function for fitting
+        arcparam['n_first'] = 1                                # Order of polynomial for first fit
+        arcparam['n_final'] = 4                                # Order of polynomial for final fit
+        arcparam['nsig_rej'] = 2.                              # Number of sigma for rejection
+        arcparam['nsig_rej_final'] = 3.0                       # Number of sigma for rejection (final fit)
+        arcparam['Nstrong'] = 13                               # Number of lines for auto-analysis
 
 
 
