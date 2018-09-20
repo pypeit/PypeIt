@@ -141,6 +141,11 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         match_criteria['arc']['match'] = {}
         match_criteria['bias']['match'] = {}
 
+        # binning
+        # match_criteria['standard']['match']['binning'] = ''
+        # match_criteria['bias']['match']['binning'] = ''
+
+
         return match_criteria
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
