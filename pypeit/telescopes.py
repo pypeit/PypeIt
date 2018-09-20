@@ -12,13 +12,19 @@ from pypeit.par.pypeitpar import TelescopePar
 
 #TODO: Remove 'Par' from class name?
 
+class GeminiNTelescopePar(TelescopePar):
+    def __init__(self):
+        super(GeminiNTelescopePar, self).__init__(name='GEMININ',
+                                               longitude=155.47833,
+                                               latitude=19.82833,
+                                               elevation=4160.0)
+
 class KeckTelescopePar(TelescopePar):
     def __init__(self):
         super(KeckTelescopePar, self).__init__(name='KECK',
                                                longitude=155.47833,
                                                latitude=19.82833,
                                                elevation=4160.0,
-                                               fratio=15,
                                                diameter=10)
 
 class ShaneTelescopePar(TelescopePar):
