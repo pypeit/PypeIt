@@ -213,7 +213,7 @@ class WaveTilts(masterframe.MasterFrame):
         """
         # Extract an arc down each slit/order
         self.arccen, self.arc_maskslit = arc.get_censpec(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
-                                                     self.slits_dict['slitpix'], self.msarc, inmask = (self.bpm == 0))
+                                                     self.tslits_dict['slitpix'], self.msarc, inmask = (self.bpm == 0))
 
         #self.arccen, self.arc_maskslit, _ = arc.get_censpec(self.tslits_dict['lcen'],
         #                                                      self.tslits_dict['rcen'],
