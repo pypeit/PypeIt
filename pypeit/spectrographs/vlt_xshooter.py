@@ -50,7 +50,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['naxis0'] = 'NAXIS2'
         def_keys[0]['naxis1'] = 'NAXIS1'
         #
-        def_keys[0]['utc'] = 'HIERARCH ESO DET FRAM UTC'
+        ## def_keys[0]['utc'] = 'HIERARCH ESO DET FRAM UTC'
 
 
         # TODO: Should do something with the lamps
@@ -125,6 +125,20 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     def header_keys(self):
         head_keys = self.xshooter_header_keys()
         return head_keys
+
+    def get_match_criteria(self):
+        """Set the general matching criteria for Xshooter vis."""
+        match_criteria = {}
+        for key in fsort.ftype_list:
+            match_criteria[key] = {}
+
+        match_criteria['standard']['match'] = {}
+        match_criteria['pixelflat']['match'] = {}
+        match_criteria['trace']['match'] = {}
+        match_criteria['arc']['match'] = {}
+        match_criteria['bias']['match'] = {}
+
+        return match_criteria
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
@@ -243,6 +257,20 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         return par
+
+    def get_match_criteria(self):
+        """Set the general matching criteria for Xshooter vis."""
+        match_criteria = {}
+        for key in fsort.ftype_list:
+            match_criteria[key] = {}
+
+        match_criteria['standard']['match'] = {}
+        match_criteria['pixelflat']['match'] = {}
+        match_criteria['trace']['match'] = {}
+        match_criteria['arc']['match'] = {}
+        match_criteria['bias']['match'] = {}
+
+        return match_criteria
 
     def check_header(self):
         """Validate elements of the header."""
