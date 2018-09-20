@@ -61,7 +61,7 @@ class WaveTilts(masterframe.MasterFrame):
     frametype = 'tilts'
 
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
-                 mode=None, pixlocn=None, tslits_dict=None, redux_path=None):
+                 mode=None, pixlocn=None, tslits_dict=None, redux_path=None, bpm = None):
 
         # TODO: (KBW) Why was setup='' in this argument list and
         # setup=None in all the others?  Is it because of the
@@ -90,6 +90,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Parameters (but can be None)
         self.msarc = msarc
+        self.bpm = bpm
         self.tslits_dict = tslits_dict
         self.pixlocn = pixlocn
 
@@ -198,7 +199,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return self.badlines
 
-    def _extract_arcs(self, gen_satmask=False):
+    def _extract_arcs(self):
         """
         Extract the arcs down each slit/order
 
@@ -211,11 +212,14 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Extract an arc down each slit/order
-        self.arccen, self.arc_maskslit, _ = arc.get_censpec(self.tslits_dict['lcen'],
-                                                              self.tslits_dict['rcen'],
-                                                              self.pixlocn, self.msarc, self.det,
-                                                              gen_satmask=gen_satmask)
-        self.satmask = np.zeros_like(self.msarc)
+        self.arccen, self.arc_maskslit = arc.get_censpec(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
+                                                     self.slits_dict['slitpix'], self.msarc, inmask = (self.bpm == 0))
+
+        #self.arccen, self.arc_maskslit, _ = arc.get_censpec(self.tslits_dict['lcen'],
+        #                                                      self.tslits_dict['rcen'],
+        #                                                      self.pixlocn, self.msarc, self.det,
+        #                                                      gen_satmask=gen_satmask)
+        #self.satmask = np.zeros_like(self.msarc)
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.arccen, self.arc_maskslit
@@ -320,7 +324,7 @@ class WaveTilts(masterframe.MasterFrame):
             maskslits = np.zeros(self.nslit, dtype=bool)
 
         # Extract the arc spectra for all slits
-        self.arccen, self.arc_maskslit = self._extract_arcs(gen_satmask=gen_satmask)
+        self.arccen, self.arc_maskslit = self._extract_arcs()
 
         # maskslit
         self.mask = maskslits & (self.arc_maskslit==1)
