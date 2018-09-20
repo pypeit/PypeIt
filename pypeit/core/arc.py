@@ -79,8 +79,33 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
     # Return
     return arcparam
 
+def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 3, xfrac = 0.5):
 
-def get_censpec(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, gen_satmask=False):
+    if inmask is None:
+        inmask = (slitpix > 0)
+
+    nslits = slit_left.shape[1]
+    (nspec, nspat) = arcimg.shape
+    maskslit = np.zeros(nslits, dtype=np.int)
+    trace = slit_left + xfrac*(slit_righ - slit_left)
+    arc_spec = np.zeros((nspec, nslits))
+
+    for islit in range(nslits):
+        msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit + 1))
+        # Create a mask for the pixels that will contribue to the arc
+        spat_img = np.outer(np.ones(nspec), np.arange(nspat))  # spatial position everywhere along image
+        trace_img = np.outer(trace[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
+        arcmask = (slitpix > 0) & inmask & (spat_img > (trace_img - box_rad)) & (spat_img < (trace_img + box_rad))
+        this_mean, this_med, this_sig = sigma_clipped_stats(arcimg, mask=~arcmask, sigma=3.0, axis=1)
+        arc_spec[:,islit] = this_med.data
+        if ~np.any(arc_spec[:,islit]):
+            maskslit[islit] = 1
+
+    return arc_spec, maskslit
+
+
+# ToDO this code needs to be replaced. It is not masking outliers, and zeros out orders that leave the detector
+def get_censpec_old(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, gen_satmask=False):
     """ Extract a simple spectrum down the center of each slit
     Parameters
     ----------
@@ -452,6 +477,7 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
         plt.plot(tcent[~good], tampl_bad,'r+', markersize =6.0, label = 'bad peaks')
         plt.plot(tcent[good], tampl[good],'g+', markersize =6.0, label = 'good peaks')
         plt.title('Good Lines = {:d}'.format(np.sum(good)) + ',  Bad Lines = {:d}'.format(np.sum(~good)))
+        plt.ylim(0.0,np.fmin(nonlinear_counts,2e5))
         plt.legend()
         plt.show()
 

@@ -560,7 +560,7 @@ class Calibrations(object):
             self.maskslits -- Updated
         """
         # Check for existing data
-        if not self._chk_objs(['msarc', 'tslits_dict', 'pixlocn']):
+        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict']):
             msgs.error('dont have all the objects')
             self.wv_calib = None
             self.wv_maskslits = np.zeros_like(self.maskslits, dtype=bool)
@@ -595,13 +595,13 @@ class Calibrations(object):
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], fitstbl=self.fitstbl,
                                              sci_ID=self.sci_ID,
-                                             redux_path=self.redux_path)
+                                             redux_path=self.redux_path, bpm = self.msbpm)
         # Load from disk (MasterFrame)?
         self.wv_calib = self.waveCalib.master()
         # Build?
         if self.wv_calib is None:
             self.wv_calib, _ = self.waveCalib.run(self.tslits_dict['lcen'],
-                                                  self.tslits_dict['rcen'], self.pixlocn,
+                                                  self.tslits_dict['rcen'], self.tslits_dict['slitpix'],
                                                   nonlinear=nonlinear, skip_QA=(not self.write_qa))
             # Save to Masters
             if self.save_masters:
@@ -656,7 +656,7 @@ class Calibrations(object):
 
         """
         # Check for existing data
-        if not self._chk_objs(['msarc', 'tslits_dict', 'pixlocn', 'wv_calib', 'maskslits']):
+        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict', 'pixlocn', 'wv_calib', 'maskslits']):
             msgs.error('dont have all the objects')
             self.tilts_dict = None
             self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
@@ -678,7 +678,7 @@ class Calibrations(object):
                                              par=self.par['tilts'], det=self.det,
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], pixlocn=self.pixlocn,
-                                             tslits_dict=self.tslits_dict, redux_path=self.redux_path)
+                                             tslits_dict=self.tslits_dict, redux_path=self.redux_path, bpm = self.msbpm)
         # Master
         self.tilts_dict = self.waveTilts.master()
         if self.tilts_dict is None:
