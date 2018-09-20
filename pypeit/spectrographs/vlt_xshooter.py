@@ -35,14 +35,23 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     def xshooter_header_keys(self):
         def_keys = self.default_header_keys()
 
-        def_keys[0]['target'] = 'OBJECT'
-        def_keys[0]['exptime'] = 'EXPTIME'
-        #def_keys[0]['hatch'] = 'TRAPDOOR'
-        def_keys[0]['idname'] = 'HIERARCH.ESO.DPR.TYPE'
-        def_keys[0]['airmass'] = 'HIERARCH.ESO.TEL.AIRM.START'
-        def_keys[0]['decker'] = 'HIERARCH.ESO.INS.OPTI4.NAME'
+        def_keys[0]['target'] = 'OBJECT'     # Header keyword for the name given by the observer to a given frame
+        def_keys[0]['idname'] = 'HIERARCH ESO DPR CATG'    # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+        def_keys[0]['time'] = 'MJD-OBS'      # The time stamp of the observation (i.e. decimal MJD)
+        def_keys[0]['date'] = 'DATE-OBS'     # The UT date of the observation which is used for heliocentric (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+        def_keys[0]['ra'] = 'RA'             # Right Ascension of the target
+        def_keys[0]['dec'] = 'DEC'           # Declination of the target
+        def_keys[0]['airmass'] = 'HIERARCH ESO TEL AIRM START'   # Airmass at start of observation
+        def_keys[0]['binning'] = 'BINNING'   # Binning
+        def_keys[0]['exptime'] = 'EXPTIME'   # Exposure time keyword
+        def_keys[0]['decker'] = 'HIERARCH ESO INS OPTI3 NAME' # FOR UVB
+        def_keys[0]['decker'] = 'HIERARCH ESO INS OPTI4 NAME' # FOR VIS
+        def_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME' # FOR NIR
         def_keys[0]['naxis0'] = 'NAXIS2'
         def_keys[0]['naxis1'] = 'NAXIS1'
+        #
+        def_keys[0]['utc'] = 'HIERARCH ESO DET FRAM UTC'
+
 
         # TODO: Should do something with the lamps
 
