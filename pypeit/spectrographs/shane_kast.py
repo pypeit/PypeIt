@@ -220,16 +220,21 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         par['rdx']['spectrograph'] = 'shane_kast_blue'
         return par
 
-    def check_header(self, headers):
-        """Validate elements of the header."""
-        chk_dict = {}
-        # chk_dict is 1-indexed!
-        chk_dict[1] = {}
-        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[1]['NAXIS'] = 2
-        # Check the CCD name (replace any spaces with underscores)
-        chk_dict[1]['DSENSOR'] = 'Fairchild CCD 3041 2Kx2K'
-        return chk_dict
+    def check_headers(self, headers):
+        """
+        Check headers match expectations for a Shane Kast blue exposure.
+
+        See also
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+
+        Args:
+            headers (list):
+                A list of headers read from a fits file
+        """
+        expected_values = { '0.NAXIS': 2,
+                            '0.DSENSOR': 'Fairchild CCD 3041 2Kx2K' }
+        super(ShaneKastBlueSpectrograph, self).check_headers(headers,
+                                                             expected_values=expected_values)
 
     def header_keys(self):
         """

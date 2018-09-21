@@ -1,6 +1,10 @@
-""" Routines for sorting data to be reduced by PYPIT"""
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
+"""
+Provides a class that handles the fits metadata required by PypeIt.
+"""
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
 import os
 import re
@@ -9,17 +13,18 @@ import shutil
 
 import numpy as np
 
+import astropy.table
 from astropy.coordinates import SkyCoord
-from astropy.table import Table
+from astropy.time import Time
 from astropy import units
 
 from pypeit import msgs
-#from pypeit import arparse as settings
 from pypeit import utils
 from pypeit.core.flux import find_standard_file
 from pypeit import debugger
 
 from pypeit.bitmask import BitMask
+from pypeit.spectrographs.util import load_spectrograph
 
 class FrameTypeBitMask(BitMask):
     """
@@ -41,207 +46,508 @@ class FrameTypeBitMask(BitMask):
         super(FrameTypeBitMask, self).__init__(list(frame_types.keys()),
                                                descr=list(frame_types.values()))
 
-## TODO: (KBW) You know my comment about this...
-#ftype_list = [     # NOTE:  arc must be listed first!
-#    'arc',         # Exposure of one or more 
-#    'bias',        # Exposure for assessing detector bias (usually 0s)
-#    'dark',        # Exposure for assessing detector dark current
-#    'pinhole',     # Exposure for tracing the orders or slits
-#    'pixelflat',   # Exposure for assessing pixel-to-pixel variations
-#    'science',   # Exposure on one or more science targets
-#    'standard',    # Exposure on a 'standard star' used for flux calibration
-#    'trace',       # Exposure for tracing slits or echelle orders (usually twilight sky or flat lamp)
-#    'unknown',     # Unknown..
-#]
+    def type_names(self, type_bits, join=True):
+        """
+        Use the type bits to get the type names for each frame.
 
-def ftype_indices(fitstbl, ftype, sci_ID):
+        .. todo::
+            - This should probably be a general function in
+              :class:`pypeit.bitmask.BitMask`
+    
+        Args:
+            type_bits (int):
+                The bit mask for each frame.
+            bitmask (:class:`pypeit.bitmask.BitMask`, optional):
+                The bit mask used to pull out the bit names.  Uses
+                :class:`FrameTypeBitMask` by default.
+            join (:obj:`bool`, optional):
+                Instead of providing a list of type names for items with
+                multiple bits tripped, joint the list into a single,
+                comma-separated string.
+    
+        Returns:
+            list: List of the frame types for each frame.  Each frame can
+            have multiple types, meaning the 2nd axis is not necessarily the
+            same length for all frames.
+        """
+        out = []
+        for b in type_bits:
+            n = self.flagged_bits(b)
+            if len(n) == 0:
+                n = ['None']
+            out += [','.join(n)] if join else [n]
+        return out
+    
+# Initially tried to subclass this from astropy.table.Table, but that
+# proved too difficult.
+class FitsMetaData:
     """
-
-    Parameters
-    ----------
-    fitstbl : Table
-    ftype : str
-      e.g. arc, trace, science
-    sci_ID : int
-      ID value of the science exposure
-      Binary, i.e.  1, 2, 4, 8, 16..
-
-    Returns
-    -------
-    idx : ndarray (int)
-      Indices of the rows of the Table matching the inputs
-
-    """
-    idx = np.where(fitstbl[ftype] & (fitstbl['sci_ID'] & sci_ID > 0))[0]
-    return idx
-
-
-def list_of_files(fitstbl, ftype, sci_ID):
-    """
-    Generate a list of filenames with path for a given frametype and sci_ID
-
-    Parameters
-    ----------
-    fitstbl : Table
-    ftype : str
-    sci_ID : int
-
-    Returns
-    -------
-    file_list : list
-
-    """
-    file_list = []
-    idx = ftype_indices(fitstbl, ftype, sci_ID)
-    # Saving the match_frames algorithm (perhaps only for posterity!)
-    #sframes = arsort.match_frames(frames, settings.argflag['trace']['combine']['match'], frametype='trace', satlevel=settings.spect[dnum]['saturation']*settings.spect['det'][det-1]['nonlinear'])
-    for ii in idx:
-        file_list.append(os.path.join(fitstbl['directory'][ii], fitstbl['filename'][ii]))
-    # Return
-    return file_list
-
-
-def get_type_names(type_bits, bitmask=None, join=True):
-    """
-    Use the type bits to get the type names for each frame.
+    Replacement for fitstbl
 
     Args:
-        type_bits (int):
-            The bit mask for each frame.
-        bitmask (:class:`pypeit.bitmask.BitMask`, optional):
-            The bit mask used to pull out the bit names.  Uses
-            :class:`FrameTypeBitMask` by default.
 
-    Returns:
-        list: List of the frame types for each frame.  Each frame can
-        have multiple types, meaning the 2nd axis is not necessarily the
-        same length for all frames.
-    """
-    bm = FrameTypeBitMask() if bitmask is None else bitmask
-    out = []
-    for b in type_bits:
-        n = bm.flagged_bits(b)
-        if len(n) == 0:
-            n = ['None']
-        out += [','.join(n)] if join else [n]
-    return out
+    Attributes:
+        spectrograph
+        bitmask
 
+    Raises:
 
-def get_frame_types(spectrograph, fitstbl, flag_unknown=False, user=None, useIDname=False):
-    """
-    Generate a table of frame types from the input metadata object.
+    ---
+
+    Create a table of relevant fits file metadata used during the
+    reduction.
+
+    The content of the fits table is dictated by the header keywords
+    specified for the provided spectrograph.  It is expected that this
+    table can be used to set the frame type of each file.
+
+    The metadata is validated using checks specified by the provided
+    spectrograph class.
+
+    .. todo::
+        This should get abstracted to be independent of the
+        spectrograph, with all the spectrograph dependent keywords be
+        passed into the function.  The validation of the table would
+        then happen in PypeItSetup.
 
     Args:
+        file_list (list):
+            The list of files to include in the table.
         spectrograph
             (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The spectrograph used to collect the data save to each file.
             The class is used to provide the header keyword data to
             include in the table and specify any validation checks.
-        fitstbl (:obj:`astropy.table.Table`):
-            Table with the fits file metadata.
-        flag_unknown (:obj:`bool`, optional):
-            Instead of crashing out if there are unidentified files,
-            leave without a type and continue.
-        user (:obj:`dict`, optional):
-            A dictionary with the types designated by the user.  The
-            file name and type are expected to be the key and value of
-            the dictionary, respectively.  The number of keys therefore
-            *must* match the number of files in the provided `fitstbl`.
-            For frames that have multiple types, the types should be
-            provided as a string with comma-separated types.
-        useIDname (:obj:`bool`, optional):
-            Use ID name in the Header to image type
-
+            
     Returns:
-        :obj:`astropy.table.Table`: A Table with two columns, the type
-        names and the type bits.  See :class:`FrameTypeBitMask` for the
-        allowed frame types.
+        :class:`astropy.table.Table`: A table with the relevant metadata
+        for the provided fits files.
     """
-    msgs.info("Typing files")
+    def __init__(self, spectrograph, file_list=None, data=None, strict=True):
+        self.spectrograph = spectrograph
+        self.bitmask = FrameTypeBitMask()
+        self.table = astropy.table.Table(data if file_list is None 
+                                            else self._build_data(file_list, strict=strict))
+    
+    def _build_data(self, file_list, strict=True):
+        """
+        Returns a dictionary with the data to be included in the table.
+        """
+        # Get the header keywords specific to the provided spectrograph.
+        # head_keys is a nested dictionary listing the header keywords
+        # for each extension in the file.  The top-level dictionary key
+        # is just the 0-indexed number of the extension
+        head_keys = self.spectrograph.header_keys()
 
-    # Prep the bits vector
-    numfiles = fitstbl['filename'].size
-    bm = FrameTypeBitMask()
-    type_bits = np.zeros(numfiles, dtype=bm.minimum_dtype())
+        # The table is declared based on this input dictionary: The
+        # directory, filename, instrument, utc are always included
+        data = {k:[] for k in FitsMetaData.default_keys()}
 
-    # Use the user-defined frame types from the input dictionary
-    if user is not None:
-        if len(user.keys()) != numfiles:
-            raise ValueError('The user-provided dictionary does not match the fitstbl.')
-        msgs.info('Using user-provided frame types.')
-        for ifile,ftypes in ftdict.items():
-            indx = fitstbl['filename'] == ifile
-            type_bits[indx] = bm.turn_on(type_bits[indx], flag=ftypes.split(','))
-        return Table({'frametype': get_type_names(type_bits, bitmask=bm), 'framebit': type_bits})
+        # Add columns to the output table for each keyword.  The
+        # keywords from all extensions must be unique.
+        ext = {}
+        for i in head_keys.keys():
+            for k in head_keys[i].keys():
+                if k in data.keys():
+                    raise ValueError('Keywords are not unique across all extensions!')
+                ext[k] = i
+                data[k] = []
 
-    # Loop over the frame types
-    for i, ftype in enumerate(bm.keys()):
+        # TODO: Stopgap for required keys in fitstbl used by other parts of
+        # the code.  Need to decide how to handle these.
+        required_columns = ['time', 'date', 'target']
+        required_for_ABBA = ['ra', 'dec'] # and for standards?
+        added_by_fsort = ['frametype', 'framebit']
+        if any([ c not in data.keys() for c in required_columns]):
+            msgs.warn('Columns are missing.')
 
-        # Initialize: Flag frames with the correct ID name or start by
-        # flagging all as true
-        indx = fitstbl['idname'] == spectrograph.idname(ftype) if useIDname \
-                    else np.ones(numfiles, dtype=bool)
+        # Number of files to read
+        numfiles = len(file_list)
 
-        # Include a combination of instrument-specific checks using
-        # combinations of the full set of metadata
-        indx &= spectrograph.check_ftype(ftype, fitstbl)
+        # Loop on files
+        for i in range(numfiles):
 
-        # Turn on the relevant bits
-        type_bits[indx] = bm.turn_on(type_bits[indx], flag=ftype)
+            # Read the fits headers
+            headarr = self.spectrograph.get_headarr(file_list[i], strict=strict)
 
-    # Find the nearest standard star to each science frame
-    # TODO: Should this be 'standard' or 'science' or both?
-    if 'ra' not in fitstbl.keys() or 'dec' not in fitstbl.keys():
-        msgs.warn('Cannot associate standard with science frames without sky coordinates.')
-    else:
-        indx = bm.flagged(type_bits, flag='standard')
-        for b, f, ra, dec in zip(type_bits[indx], fitstbl['filename'][indx], fitstbl['ra'][indx],
-                                 fitstbl['dec'][indx]):
-            if ra == 'None' or dec == 'None':
-                msgs.warn('RA and DEC must not be None for file:' + msgs.newline() + f)
-                msgs.warn('The above file could be a twilight flat frame that was' + msgs.newline()
-                        + 'missed by the automatic identification.')
-                b = bm.turn_off(b, flag='standard')
+            # Check that the header is valid
+            # TODO: The check_headers function needs to be implemented
+            # for each instrument.  spectrograph.check_headers() should
+            # raise an exception with an appropriate message.
+            try:
+                # TODO: Move this into spectrograph.validate_fitstbl()
+                self.spectrograph.check_headers(headarr)
+            except Exception as e:
+                msgs.warn('Reading of headers from file:' + msgs.newline() + file_list[i]
+                          + msgs.newline() + 'failed with the following exception'
+                          + msgs.newline() + e.__repr__() + msgs.newline() +
+                          'Please check that the file was taken with the provided instrument:'
+                          + msgs.newline() + '{0}'.format(self.spectrograph.spectrograph)
+                          + msgs.newline() + 'Then either change the instrument or remove/skip '
+                          + 'the file.' + msgs.newline()+ 'Continuing by ignoring this file...')
+                numfiles -= 1
                 continue
 
-            # If an object exists within 20 arcmins of a listed standard,
-            # then it is probably a standard star
-            foundstd = find_standard_file(ra, dec, check=True)
-            b = bm.turn_off(b, flag='science' if foundstd else 'standard')
+            # Add the directory, file name, and instrument to the table
+            d,f = os.path.split(file_list[i])
+            data['directory'].append(d)
+            data['filename'].append(f)
+            data['instrume'].append(self.spectrograph.spectrograph)
 
-#    # Make any forced changes
-#    skeys = settings_spect['set'].keys()
-#    if len(skeys) > 0:
-#        msgs.info("Making forced file identification changes")
-#        msgs.warn("Note that the image will have *only* the specified type")
-#        for sk in skeys:
-#            for jj in settings_spect['set'][sk]:
-#                idx = np.where(fitstbl['filename']==jj)[0]
-#                # Zero out the others
-#                for ftype in ftype_list:
-#                    filetypes[ftype][idx] = False
-#                # And set
-#                filetypes[sk][idx] = True
+            # Add the time of the observation
+            utc = self.get_utc(headarr)
+            data['utc'].append('None' if utc is None else utc)
+            if utc is None:
+                msgs.warn('UTC is not listed as a header keyword in file:' + msgs.newline()
+                          + file_list[i])
 
-    # Find the files without any types
-    indx = np.invert(bm.flagged(type_bits))
-    if np.any(indx):
-        msgs.info("Couldn't identify the following files:")
-        for f in fitstbl['filename'][indx]:
-            msgs.info(f)
-        if not flag_unknown:
-            msgs.error("Check these files before continuing")
+            # TODO: Read binning-dependent detector properties here? (maybe read speed too)
+    
+            # Now get the rest of the keywords
+            for k in data.keys():
+                if k in FitsMetaData.default_keys():
+                    continue
+    
+                # Try to read the header item
+                try:
+                    value = headarr[ext[k]][head_keys[ext[k]][k]]
+                except KeyError:
+                    # Keyword not found in header
+                    msgs.warn("{:s} keyword not in header. Setting to None".format(k))
+                    value = 'None'
+    
+                # Convert the time to hours
+                # TODO: Done here or as a method in Spectrograph?
+                if k == 'time' and value != 'None':
+                    value = self.convert_time(value)
+    
+                # Set the value
+                vtype = type(value)
+                if np.issubdtype(vtype, str):
+                    value = value.strip()
+                if np.issubdtype(vtype, np.integer) or np.issubdtype(vtype, np.floating) \
+                        or np.issubdtype(vtype, str) or np.issubdtype(vtype, np.bool_):
+                    data[k].append(value)
+                else:
+                    msgs.bug('Unexpected type, {1:s}, for key {0:s}'.format(k,
+                             vtype).replace('<type ','').replace('>',''))
+    
+            msgs.info('Successfully loaded headers for file:' + msgs.newline() + file_list[i])
 
-    # Now identify the dark frames
-    # TODO: Move this to Spectrograph.check_ftype?
-    indx = bm.flagged(type_bits, flag='bias') \
-                    & (fitstbl['exptime'].data.astype(float) > spectrograph.minexp)
-    type_bits[indx] = bm.turn_on(type_bits[indx], 'dark')
+        # Report
+        msgs.info("Headers loaded for {0:d} files successfully".format(numfiles))
+        if numfiles != len(file_list):
+            msgs.warn("Headers were not loaded for {0:d} files".format(len(file_list) - numfiles))
+        if numfiles == 0:
+            msgs.error("The headers could not be read from the input data files." + msgs.newline() +
+                    "Please check that the settings file matches the data.")
+        
+        return data
 
-    # Finish up (note that this is called above if user is not None!)
-    msgs.info("Typing completed!")
-    return Table({'frametype': get_type_names(type_bits, bitmask=bm), 'framebit': type_bits})
+    # TODO:  In this implementation, slicing the FitsMetaData object
+    # will return an astropy.table.Table, not a FitsMetaData object.
+    def __getitem__(self, item):
+        return self.table.__getitem__(item)
 
+    def __setitem__(self, item):
+        return self.table.__setitem__(item)
+
+    def __len__(self):
+        return self.table.__len__()
+
+    def __repr__(self):
+        return self.table._base_repr_(html=False,
+                            descr_vals=['FitsMetaData:\n',
+                                        '              spectrograph={0}\n'.format(
+                                                                    self.spectrograph.spectrograph),
+                                        '              length={0}\n'.format(len(self))])
+
+    def _repr_html_(self):
+        return self.table._base_repr_(html=True, max_width=-1,
+                            descr_vals=['FitsMetaData: spectrograph={0}, length={1}\n'.format(
+                                                    self.spectrograph.spectrograph, len(self))])
+
+    @staticmethod
+    def default_keys():
+        return [ 'directory', 'filename', 'instrume', 'utc' ]
+
+    @staticmethod
+    def get_utc(headarr):
+        """
+        Find and return the UTC for a file based on the headers read from
+        all extensions.
+    
+        The value returned is the first UT or UTC keyword found any in any
+        header object.
+    
+        Args:
+            headarr (list):
+                List of :obj:`astropy.io.fits.Header` objects to search
+                through for a UTC of the observation.
+        Returns:
+            object: The value of the header keyword.
+        """
+        for h in headarr:
+            if h == 'None':
+                continue
+            if 'UTC' in h.keys():
+                return h['UTC']
+            elif 'UT' in h.keys():
+                return h['UT']
+        return None
+
+    def convert_time(self, in_time):
+        """
+        Convert the time read from a file header to hours for all
+        spectrographs.
+    
+        Args:
+            in_time (str):
+                The time read from the file header
+
+        Returns:
+            float: The time in hours.
+        """
+        # Convert seconds to hours
+        if self.spectrograph.timeunit == 's':
+            return float(in_time)/3600.0
+    
+        # Convert minutes to hours
+        if self.spectrograph.timeunit == 'm':
+            return float(in_time)/60.0
+
+        # Convert from an astropy.Time format
+        if self.spectrograph.timeunit in Time.FORMATS.keys():
+            ival = float(in_time) if self.spectrograph.timeunit == 'mjd' else in_time
+            tval = Time(ival, scale='tt', format=self.spectrograph.timeunit)
+            # Put MJD in hours
+            return tval.mjd * 24.0
+        
+        msgs.error('Bad time unit')
+
+    def find_frames(self, ftype, sci_ID=None):
+        """
+        Find the rows with the associated frame type.
+
+        The frames must also match the science frame index, if it is
+        provided.
+
+        Args:
+            ftype (str):
+                The frame type identifier.  See the keys for
+                :class:`FrameTypeBitMask`.
+
+            sci_ID (:obj:`int`, optional):
+                Index of the science frame that it must match.  If None,
+                any row of the specified frame type is included.
+
+        Returns:
+            numpy.ndarray: Boolean array with the rows that contain the
+            appropriate frames matched to the science frame, if
+            provided.
+        """
+        if 'framebit' not in self.keys():
+            raise ValueError('Frame types are not set.  First run get_frame_types.')
+        indx = self.bitmask.flagged(self['framebit'], ftype)
+        return indx if sci_ID is None else indx & (self['sci_ID'] == sci_ID)
+
+    def find_frame_files(self, ftype, sci_ID=None):
+        """
+        Return the list of files with a given frame type.
+
+        The frames must also match the science frame index, if it is
+        provided.
+
+        Args:
+            ftype (str):
+                The frame type identifier.  See the keys for
+                :class:`FrameTypeBitMask`.
+            sci_ID (:obj:`int`, optional):
+                Index of the science frame that it must match.  If None,
+                any row of the specified frame type is included.
+
+        Returns:
+            list: List of file paths that match the frame type and
+            science frame ID, if the latter is provided.
+        """
+        indx = self.find_frames(ftype, sci_ID=sci_ID)
+        return [ os.path.join(d,f) for d,f in zip(self['directory'][indx], self['filename'][indx])]
+
+    def set_frame_types(self, type_bits, merge=True):
+        """
+        Set and return a Table with the frame types and bits.
+        
+        Args:
+            type_bits (numpy.ndarray):
+                Integer bitmask with the frame types.  The length must
+                match the existing number of table rows.
+
+            merge (:obj:`bool`, optional):
+                Merge the types and bits into the existing table.  This
+                will *overwrite* any existing columns.
+        
+        Returns:
+            `astropy.table.Table`: Table with two columns, the frame
+            type name and bits.  Nothing is returned if merge is True.
+        """
+        t = astropy.table.Table({'frametype': get_type_names(type_bits, bitmask=bm), 
+                                 'framebit': type_bits})
+        if merge:
+            self['frametype'] = t['frametype']
+            self['framebit'] = t['framebit']
+            return
+        return t
+
+    def get_frame_types(self, flag_unknown=False, user=None, useIDname=False, merge=True):
+        """
+        Generate a table of frame types from the input metadata object.
+
+        .. todo::
+            - Here's where we could add a SPIT option.
+    
+        Args:
+            flag_unknown (:obj:`bool`, optional):
+                Instead of crashing out if there are unidentified files,
+                leave without a type and continue.
+            user (:obj:`dict`, optional):
+                A dictionary with the types designated by the user.  The
+                file name and type are expected to be the key and value
+                of the dictionary, respectively.  The number of keys
+                therefore *must* match the number of files in the
+                provided `fitstbl`.  For frames that have multiple
+                types, the types should be provided as a string with
+                comma-separated types.
+            useIDname (:obj:`bool`, optional):
+                Use ID name in the Header to image type
+            merge (:obj:`bool`, optional):
+                Merge the frame typing into the exiting table.
+
+        Returns:
+            :obj:`astropy.table.Table`: A Table with two columns, the
+            type names and the type bits.  See :class:`FrameTypeBitMask`
+            for the allowed frame types.
+        """
+        # Checks
+        if 'frametype' in self.keys() or 'framebit' in self.keys():
+            msgs.warn('Removing existing frametype and framebit columns.')
+            del self['frametype']
+            del self['framebit']
+        if useIDname and 'idname' not in self.keys():
+            raise ValueError('idname is not set in table; cannot use it for file typing.')
+
+        # Start
+        msgs.info("Typing files")
+        type_bits = np.zeros(self.__len__(), dtype=self.bitmask.minimum_dtype())
+    
+        # Use the user-defined frame types from the input dictionary
+        if user is not None:
+            if len(user.keys()) != self.__len__():
+                raise ValueError('The user-provided dictionary does not match table length.')
+            msgs.info('Using user-provided frame types.')
+            for ifile,ftypes in ftdict.items():
+                indx = self['filename'] == ifile
+                type_bits[indx] = self.bitmask.turn_on(type_bits[indx], flag=ftypes.split(','))
+            return self.set_frame_types(type_bits, merge=merge)
+    
+        # Loop over the frame types
+        for i, ftype in enumerate(self.bitmask.keys()):
+    
+            # Initialize: Flag frames with the correct ID name or start by
+            # flagging all as true
+            indx = self['idname'] == self.spectrograph.idname(ftype) if useIDname \
+                        else np.ones(self.__len__(), dtype=bool)
+    
+            # Include a combination of instrument-specific checks using
+            # combinations of the full set of metadata
+            indx &= self.spectrograph.check_ftype(ftype, self)
+    
+            # Turn on the relevant bits
+            type_bits[indx] = self.bitmask.turn_on(type_bits[indx], flag=ftype)
+    
+        # Find the nearest standard star to each science frame
+        # TODO: Should this be 'standard' or 'science' or both?
+        if 'ra' not in self.keys() or 'dec' not in self.keys():
+            msgs.warn('Cannot associate standard with science frames without sky coordinates.')
+        else:
+            indx = self.bitmask.flagged(type_bits, flag='standard')
+            for b, f, ra, dec in zip(type_bits[indx], self['filename'][indx], self['ra'][indx],
+                                     self['dec'][indx]):
+                if ra == 'None' or dec == 'None':
+                    msgs.warn('RA and DEC must not be None for file:' + msgs.newline() + f)
+                    msgs.warn('The above file could be a twilight flat frame that was'
+                              + msgs.newline() + 'missed by the automatic identification.')
+                    b = self.bitmask.turn_off(b, flag='standard')
+                    continue
+    
+                # If an object exists within 20 arcmins of a listed standard,
+                # then it is probably a standard star
+                foundstd = find_standard_file(ra, dec, check=True)
+                b = self.bitmask.turn_off(b, flag='science' if foundstd else 'standard')
+    
+        # Find the files without any types
+        indx = np.invert(self.bitmask.flagged(type_bits))
+        if np.any(indx):
+            msgs.info("Couldn't identify the following files:")
+            for f in self['filename'][indx]:
+                msgs.info(f)
+            if not flag_unknown:
+                msgs.error("Check these files before continuing")
+    
+        # Now identify the dark frames
+        # TODO: Move this to Spectrograph.check_ftype?
+        indx = self.bitmask.flagged(type_bits, flag='bias') \
+                        & (self['exptime'].data.astype(float) > self.spectrograph.minexp)
+        type_bits[indx] = self.bitmask.turn_on(type_bits[indx], 'dark')
+    
+        # Finish up (note that this is called above if user is not None!)
+        msgs.info("Typing completed!")
+        return self.set_frame_types(type_bits, merge=merge)
+
+    def write(self, ofile, columns=None, format=None):
+        """
+        Write the metadata for the files to reduce.
+    
+        The table is written with the filename and frametype columns
+        first.  All remaining columns, or a subset of them selected by
+        `columns`, follow these first two.
+    
+        Args:
+            ofile (:obj:`str`, file-like):
+                Output file name or file stream.  Passed directly to the
+                `astropy.table.Table.write` function.
+            columns (:obj:`list`, optional):
+                A list of columns to include in the output file.  If None,
+                all columns in `fitstbl` are written.
+            format (:obj:`str`, optional):
+                Format for the file output.  See
+                :func:`astropy.table.Table.write`.
+        
+        Raises:
+            ValueError:
+                Raised if the columns to include are not unique.
+        """
+        msgs.info('Writing fits file metadata to {0}.'.format(ofile))
+    
+        # Set the columns to include and check that they are unique
+        _columns = list(self.keys()) if columns is None else columns
+        if len(np.unique(_columns)) != len(_columns):
+            # TODO: A warning may suffice...
+            raise ValueError('Column names must be unique!')
+    
+        # Force the filename and frametype columns to go first
+        col_order = [ 'filename', 'frametype' ]
+        col_order.append(list(set(_columns) - set(col_order)))
+    
+        # Remove any columns that don't exist
+        for c in col_order:
+            if c not in self.keys():
+                msgs.warn('{0} is not a valid column!  Removing from output.'.format(c))
+                col_order.remove(c)
+    
+        # Write the output
+        self[col_order].write(ofile, format=format)
+#        'ascii.fixed_width')
+    
 
 def chk_all_conditions(fitstbl, cond_dict):
     """ Loop on the conditions for this given file type
@@ -336,142 +642,8 @@ def chk_condition(fitstbl, cond):
     return ntmp
 
 
-def write_fitstbl(fitstbl, ofile, columns=None):
-    """
-    Write the metadata for the files to reduce.
 
-    The table is written with the filename and frametype columns first.
-    All remaining columns, or a subset of them selected by `columns`,
-    follow these first two.
-
-    .. todo::
-        Force a fault if 'filename' and 'frametype' are not columns in
-        `fitstbl`?
-
-    Args:
-        fitstbl (:obj:`astropy.table.Table`):
-            Table with the metadata for the fits files to reduce.
-        ofile (:obj:`str`):
-            Name for the output file.  Extension of the file should be
-            '.lst'.
-        columns (:obj:`list`, optional):
-            A list of columns to include in the output file.  If None,
-            all columns in `fitstbl` are written.
-    
-    Raises:
-        ValueError:
-            Raised if the columns to include are not unique.
-    """
-    msgs.info('Writing fits file metadata to {0}.'.format(ofile))
-
-    # Set the columns to include and check that they are unique
-    _columns = list(fitstbl.keys()) if columns is None else columns
-    if len(numpy.unique(_columns)) != len(_columns):
-        # TODO: A warning may suffice...
-        raise ValueError('Column names must be unique!')
-
-    # Force the filename and frametype columns to go first
-    col_order = [ 'filename', 'frametype' ]
-    col_order.append(list(set(_columns) - set(col_order)))
-
-    # Remove any columns that don't exist
-    for c in col_order:
-        if c not in fitstbl.keys():
-            msgs.warn('{0} is not a valid column!  Removing from output.'.format(c))
-            col_order.remove(c)
-
-    # Write the output
-    fitstbl[col_order].write(ofile, format='ascii.fixed_width')
-
-
-# TODO: Deprecated, but left here until I'm sure I've removed the calls
-# to it.
-def write_lst(fitstbl, skeys, pypeit_filename, setup=False,
-              sort_dir=None):
-    """
-    Write out an ascii file that contains the details of the file sorting.
-    By default, the filename is printed first, followed by the frametype.
-    After these, all parameters listed in the 'keyword' item in the
-    settings file will be printed
-
-    Parameters
-    ----------
-    fitstbl : Table
-      Contains relevant information from fits header files
-    """
-    msgs.info("Preparing to write out the data sorting details")
-    nfiles = fitstbl['filename'].size
-    # Specify which keywords to print after 'filename' and 'filetype'
-    prord = ['filename', 'frametype', 'target', 'exptime', 'naxis0', 'naxis1', 'filter1', 'filter2']
-    prdtp = ["char",     "char",      "char",   "double",  "int",    "int",    "char",     "char"]
-    # Now insert the remaining keywords:
-    for i in skeys:
-        if i not in prord:
-            prord.append(i)
-            # Append the type of value this keyword holds
-            typv = type(fitstbl[i][0])
-            if typv is int or typv is np.int_:
-                prdtp.append("int")
-            elif isinstance(fitstbl[i][0], str) or typv is np.string_:
-                prdtp.append("char")
-            elif typv is float or typv is np.float_:
-                prdtp.append("double")
-            else:
-                msgs.bug("I didn't expect useful headers to contain type {!s:s}".format(typv).replace('<type ', '').replace('>', ''))
-
-    # ASCII file
-    asciiord = ['filename', 'date', 'frametype', 'frameno', 'target', 'exptime', 'binning',
-        'dichroic', 'dispname', 'dispangle', 'decker']
-    # Generate the columns except frametype
-    ascii_tbl = Table()
-    badclms = []
-    for pr in asciiord:
-        if pr != 'frametype':
-            try:  # No longer require that all of these be present
-                ascii_tbl[pr] = fitstbl[pr]
-            except KeyError:
-                badclms.append(pr)
-    # Remove
-    for pr in badclms:
-        asciiord.pop(asciiord.index(pr))
-    # Frametype
-    ascii_tbl['frametype'] = build_frametype_list(fitstbl)
-    # Write
-    if setup:
-        ascii_name = pypeit_filename.replace('.pypeit', '.lst')
-    else:
-        ascii_name = sort_dir+'.lst'
-    ascii_tbl[asciiord].write(ascii_name, format='ascii.fixed_width')
-    return ascii_tbl
-
-
-def build_frametype_list(fitstbl):
-    """
-
-    Parameters
-    ----------
-    fitstbl : Table
-
-    Returns
-    -------
-    ftypes : list
-      List of frametype's for each frame, e.g.
-        arc
-        trace,pixelflat
-    """
-    # Now frame type
-    ftypes = []
-    for i in range(len(fitstbl)):
-        addval = ""
-        for ft in ftype_list:
-            if fitstbl[ft][i]:
-                if len(addval) != 0: addval += ","
-                addval += ft
-        ftypes.append(addval)
-    # Return
-    return ftypes
-
-
+# TODO: Does this function work?  while statement seems weird
 def match_ABBA(fitstbl, max_targ_sep=30, max_nod_sep=2):
     """
 
@@ -852,58 +1024,6 @@ def match_warnings(calib_par, ftag, nmatch, numfr, target, setup=False):
     return code
 
 
-def match_frames(frames, criteria, frametype='<None>', satlevel=None):
-    """
-    identify frames with a similar appearance (i.e. one frame appears to be a scaled version of another).
-    """
-
-    prob = utils.erf(criteria/np.sqrt(2.0))[0]
-    frsh0, frsh1, frsh2 = frames.shape
-    msgs.info("Matching {:d} {:s} frames with confidence interval {:5.3%}".format(frsh2, frametype, prob))
-    srtframes = [np.zeros((frsh0, frsh1, 1))]
-    srtframes[0][:,:,0] = frames[:,:,0]
-    tsrta = [frames[frsh0/2,:,0]]
-    tsrtb = [frames[:,frsh1/2,0]]
-    msgs.bug("Throughout this routine, you should probably search for the mean of the non-saturated pixels")
-    tsrta[0] /= np.mean(tsrta[0])
-    tsrtb[0] /= np.mean(tsrtb[0])
-    for fr in range(1, frames.shape[2]):
-        fm = None
-        for st in range(len(srtframes)):
-            tmata = frames[frsh0/2,:,fr]
-            tmatb = frames[:,frsh1/2,fr]
-            tmata /= np.mean(tmata)
-            tmatb /= np.mean(tmatb)
-            if satlevel is None:
-                wa = np.where(tmata>0.0)
-                wb = np.where(tmatb>0.0)
-            else:
-                wa = np.where((tmata>0.0)&(tmata<satlevel))
-                wb = np.where((tmatb>0.0)&(tmatb<satlevel))
-            testa, testb = np.mean(tsrta[st][wa]/tmata[wa]), np.mean(tsrtb[st][wb]/tmatb[wb])
-            if np.size(wa[0]) == 0 or np.size(wb[0]) == 0:
-                msgs.bug("I didn't expect to find a row of zeros in the middle of the chip!")
-                sys.exit()
-            if (testa >= prob) and (testa <= (2.0-prob)) and (testb >= prob) and (testb <= (2.0-prob)):
-                fm = st
-                break
-        if fm is None:
-            srtframes.append(np.zeros((frames.shape[0], frames.shape[1], 1)))
-            srtframes[-1][:,:,0] = frames[:,:,fr]
-            tsrta.append(tmata)
-            tsrtb.append(tmatb)
-        else:
-            srtframes[fm] = np.append(srtframes[fm],np.zeros((frames.shape[0], frames.shape[1], 1)), axis=2)
-            srtframes[fm][:,:,-1] = frames[:,:,fr]
-    if len(srtframes) > 1:
-        msgs.info("Found {0:d} different sets of {1:s} frames".format(len(srtframes), frametype))
-    else:
-        msgs.info("Found {0:d} set of {1:s} frames".format(len(srtframes), frametype))
-    if frames.shape[2] > 1:
-        del tsrta, tsrtb, tmata, tmatb, testa, testb
-    return srtframes
-
-
 def make_dirs(spectrograph, caldir, scidir, qadir, overwrite=False):
     """
     Make the directories for the pypeit output.
@@ -929,111 +1049,26 @@ def make_dirs(spectrograph, caldir, scidir, qadir, overwrite=False):
 
     # First, get the current working directory
     currDIR = os.getcwd()
-    msgs.info("Creating Science directory")
     newdir = "{0:s}/{1:s}".format(currDIR, scidir)
+    msgs.info('Creating Science directory:' + msgs.newline() + newdir)
     if os.path.exists(newdir):
-        msgs.info("The following directory already exists:"+msgs.newline()+newdir)
-        if not overwrite:
-            rmdir = ''
-            while os.path.exists(newdir):
-                while rmdir != 'n' and rmdir != 'y' and rmdir != 'r':
-                    rmdir = input(msgs.input() + 'Remove this directory and its contents?'
-                                  + '([y]es, [n]o, [r]ename) - ')
-                if rmdir == 'n':
-                    msgs.warn("Any previous calibration files may be overwritten")
-                    break
-                elif rmdir == 'r':
-                    newdir = input(msgs.input()+"Enter a new directory name: ")
-                elif rmdir == 'y':
-                    shutil.rmtree(newdir)
-                    os.mkdir(newdir)
-                    break
-            if rmdir == 'r': os.mkdir(newdir)
-    else: os.mkdir(newdir)
-
-    # Create a directory for each object in the Science directory
-    msgs.info("Creating Object directories")
-    #Go through objects creating directory tree structure
-    #w = filesort['science']
-    #sci_targs = np.array(list(set(fitsdict['target'][w])))
-    '''
-    # Loop through targets and replace spaces with underscores
-    nored = np.array([])
-    # Create directories
-    rmalways = False
-    for i in range(sci_targs.size):
-        sci_targs[i] = sci_targs[i].replace(' ', '_')
-        newdir = "{0:s}/{1:s}/{2:s}".format(currDIR, settings.argflag['run']['directory']['science'], sci_targs[i])
-        if os.path.exists(newdir):
-            if settings.argflag['output']['overwrite'] or rmalways:
-                pass
-#				shutil.rmtree(newdir)
-#				os.mkdir(newdir)
-            else:
-                msgs.info("The following directory already exists:"+msgs.newline()+newdir)
-                rmdir = ''
-                while rmdir != 'n' and rmdir != 'y' and rmdir != 'a':
-                    rmdir = input(msgs.input()+"Remove this directory and it's contents? ([y]es, [n]o, or [a]lways) - ")
-                if rmdir == 'n':
-                    msgs.info("Not reducing {0:s}".format(sci_targs[i]))
-                    nored = np.append(i)
-                else:
-                    shutil.rmtree(newdir)
-                    os.mkdir(newdir)
-                    if rmdir == 'a': rmalways = True
-        else: os.mkdir(newdir)
-    # Remove the entries from sci_targs which will not be reduced
-    nored = nored.astype(np.int)
-    while nored.size > 0:
-        sci_targs = np.delete(sci_targs, nored[0])
-        nored = np.delete(nored, 0)
-    '''
+        msgs.warn('Directory already exists.  Files may be ovewritten.')
+    else:
+        os.mkdir(newdir)
 
     # Create a directory where all of the master calibration frames are stored.
-    msgs.info("Creating Master Calibrations directory")
     newdir = "{:s}/{:s}_{:s}".format(currDIR, caldir, spectrograph)
+    msgs.info('Creating Master Calibrations directory:' + msgs.newline() + newdir)
     if os.path.exists(newdir):
-        if not overwrite:
-            msgs.info("The following directory already exists:"+msgs.newline()+newdir)
-            rmdir = ''
-            while rmdir != 'n' and rmdir != 'y':
-                rmdir = input(msgs.input() + 'Remove this directory and its contents?'
-                              '([y]es, [n]o) - ')
-            if rmdir == 'n':
-                msgs.warn("Any previous calibration files will be overwritten")
-            else:
-                shutil.rmtree(newdir)
-                os.mkdir(newdir)
-#		else:
-#			shutil.rmtree(newdir)
-#			os.mkdir(newdir)
-    else: os.mkdir(newdir)
+        msgs.warn('Directory already exists.  Files may be ovewritten.')
+    else:
+        os.mkdir(newdir)
 
     # Create a directory where all of the QA is stored
-    # TODO: I'd rather that this still consider overwrite and fault
-    # instead of just proceeding
-    msgs.info("Creating QA directory")
     newdir = "{0:s}/{1:s}".format(currDIR, qadir)
+    msgs.info('Creating QA directory:' + msgs.newline() + newdir)
     if os.path.exists(newdir):
-        msgs.warn("Pre-existing QA plots will be overwritten")
-        '''
-        if not settings.argflag['output']['overwrite']:
-            msgs.info("The following directory already exists:"+msgs.newline()+newdir)
-            rmdir=''
-            while rmdir != 'n' and rmdir != 'y':
-                rmdir=input(msgs.input()+"Remove this directory and it's contents? ([y]es, [n]o) - ")
-            if rmdir == 'n':
-                msgs.warn("Any previously made plots will be overwritten")
-            else:
-                shutil.rmtree(newdir)
-                os.mkdir(newdir)
-        else:
-            shutil.rmtree(newdir)
-            os.mkdir(newdir)
-            os.mkdir(newdir+'/PNGs')
-        '''
-        if not os.path.exists(newdir+'/PNGs'):
-            os.mkdir(newdir+'/PNGs')
+        msgs.warn('Directory already exists.  Files may be ovewritten.')
     else:
         os.mkdir(newdir)
         os.mkdir(newdir+'/PNGs')
@@ -1118,4 +1153,6 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='./', noty
             fitstbl['standard'][4] = True
             fitstbl['science'][5:] = True
     # Return
-    return fitstbl
+    return FitsMetaData(load_spectrograph(spectrograph), data=fitstbl)
+
+

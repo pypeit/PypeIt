@@ -130,6 +130,14 @@ def create_fitstbl(file_list, spectrograph, strict=True):
             ext[k] = i
             fitsdict[k] = []
 
+    # TODO: Stopgap for required keys in fitstbl used by other parts of
+    # the code.  Need to decide how to handle these.
+    required_columns = ['time', 'date', 'target']
+    required_for_ABBA = ['ra', 'dec'] # and for standards?
+    added_by_fsort = ['frametype', 'framebit']
+    if any([ c not in fitsdict.keys() for c in required_columns]):
+        msgs.warn('Columns are missing.')
+
     # Number of files to read
     numfiles = len(file_list)
 
@@ -211,9 +219,6 @@ def create_fitstbl(file_list, spectrograph, strict=True):
     if numfiles == 0:
         msgs.error("The headers could not be read from the input data files." + msgs.newline() +
                    "Please check that the settings file matches the data.")
-
-    # Check if any other settings require header values to be loaded
-    msgs.info("Checking spectrograph settings for required header information")
 
     # Return an astropy.table.Table
     return Table(fitsdict)
@@ -405,3 +410,4 @@ def waveids(fname):
     except:
         pass
     return pixels
+

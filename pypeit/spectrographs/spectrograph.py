@@ -418,6 +418,7 @@ class Spectrograph(object):
         pass
 
     def check_ftype(self, ftype, fitstbl):
+        msgs.warn('Frame typing conditions have not been set for {0}.'.format(self.spectrograph))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def idname(self, ftype):
@@ -436,8 +437,34 @@ class Spectrograph(object):
         """
         raise NotImplementedError('Header keyword with frame type not set for this spectrograph.')
 
-    def check_headers(self, headers):
-        pass
+    def check_headers(self, headers, expected_values=None):
+        """
+        Check headers match instrument-spectific expectations.
+
+        Args:
+            headers (list):
+                A list of headers read from a fits file
+
+        Raises:
+        """
+        # Check the number of headers provided
+        if len(headers) != self.numhead:
+            raise ValueError('Expected {0} headers, but only provided {1}'.format(self.numhead,
+                                                                                  len(headers)))
+
+        if expected_values is None:
+            msgs.warn('Specific header keyword checks have not been implemented for {0}.'.format(
+                                                                        self.spectrograph))
+            return
+
+        # Check a series of expected header keyword values
+        for k,v in expected_values.items():
+            ext, card = k.split('.')
+            ext = int(ext)
+            if headers[ext][card] != v:
+                raise ValueError('Keyword {0} in extension {1} has incorrect value.  '.format(
+                                    card, ext)
+                                 + 'Expected {0} but found {1}.'.format(v, headers[ext][card]))
 
     def setup_arcparam(self, **null_kwargs):
         return None

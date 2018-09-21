@@ -164,16 +164,20 @@ class PypeItSetup(object):
 
     def build_fitstbl(self, strict=True):
         """
+        Construct the table with metadata for the frames to reduce.
 
-        Parameters
-        ----------
-        file_list : list
-          List of file names for generating fitstbl
+        Largely a wrapper for :func:`pypeit.core.load.create_fitstbl`.
 
-        Returns
-        -------
-        fitstbl : Table
-
+        Args:
+            strict (:obj:`bool`, optional):
+                Function will fault if :func:`fits.getheader` fails to
+                read the headers of any of the files in
+                :attr:`file_list`.  Set to False to only report a
+                warning and continue.
+    
+        Returns:
+            :obj:`astropy.table.Table`: Table with the metadata for each
+            fits file to reduce.
         """
         # Build and sort the table
         self.fitstbl = load.create_fitstbl(self.file_list, self.spectrograph, strict=strict)
@@ -234,13 +238,6 @@ class PypeItSetup(object):
         """
         # Run with masters?
         if self.par['calibrations']['masters'] == 'force':
-            print(self.par['calibrations']['masters'])
-            # TODO: This is now checked when validating the parameter
-            # set.  See CalibrationsPar.validate()
-#            # Check that setup was input
-#            if len(self.spectrograph.calib_par['setup']) == 0:
-#                msgs.error("When forcing use of master frames, you need to specify the You need to specify the following parameter in your PYPIT file:" 
-#                           + msgs.newline() + "reduce masters setup")
             # Generate a dummy setup_dict
             self.setup_dict = pypsetup.dummy_setup_dict(self.fitstbl,
                                                        self.par['calibrations']['setup'])
@@ -296,10 +293,10 @@ class PypeItSetup(object):
 
         """
         self.fitstbl = fsort.match_to_science(self.par['calibrations'],
-                                               self.spectrograph.get_match_criteria(),
-                                               self.fitstbl, self.par['rdx']['calwin'],
-                                               setup=setup_only,
-                                               match_nods=self.par['scienceimage'] is not None \
+                                              self.spectrograph.get_match_criteria(),
+                                              self.fitstbl, self.par['rdx']['calwin'],
+                                              setup=setup_only,
+                                              match_nods=self.par['scienceimage'] is not None \
                                                             and self.par['scienceimage']['nodding'])
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -366,18 +363,61 @@ class PypeItSetup(object):
         msgs.info("Loaded fitstbl from {:s}".format(fits_file))
         return self.fitstbl
 
-    def write_fitstbl(self, outfile=None, overwrite=True):
-        """
-        Write fitstbl to FITS
+# TODO: Deprecated, will remove after testing.
+#    def write_fitstbl(self, outfile=None, overwrite=True):
+#        """
+#        Write fitstbl to FITS
+#
+#        Parameters
+#        ----------
+#        outfile : str
+#        overwrite : bool (optional)
+#        """
+#        if outfile is None:
+#            outfile = self.pypeit_file.replace('.pypeit', '.fits')
+#        self.fitstbl.write(outfile, overwrite=overwrite)
 
-        Parameters
-        ----------
-        outfile : str
-        overwrite : bool (optional)
+    def write_tabulated_metadata(self, setup_only=False, sort_dir=None):
         """
-        if outfile is None:
-            outfile = self.pypeit_file.replace('.pypeit', '.fits')
-        self.fitstbl.write(outfile, overwrite=overwrite)
+        Write :attr:`fitstbl` to a file.
+
+        The default file is determined as follows:
+            - if both :attr:`pypeit_file` and `sort_dir` are None, the
+              output file is the name of the spectrograph with a '.lst'
+              extension.
+            - if `setup_only` is true and the pypeit file is valid, the
+              output file is the pypeit file name with the ".pypeit"
+              extension replaced by ".lst".
+            - if `setup_only` is false and `sort_dir` is not None, the
+              output file is simply `sort_dir` with '.lst' appended.
+            - if none of these conditions are met a ValueError is
+              raised.
+
+        .. todo::
+            - Is the use of sort_dir right here?
+
+        Args:
+            setup_only (:obj:`bool`, optional):
+                Code is being run for setup only, not to reduce the data.
+            sort_dir (:obj:`str`, optional):
+                The full root of the name for the metadata table
+                ('.lst') file.
+
+        Raises:
+            ValueError:
+                Raised if the output file cannot be determined from the
+                input and attributes.
+        """
+        if self.pypeit_file is None and sort_dir is None:
+            ofile = self.spectrograph.spectrograph + '.lst'
+        elif setup_only and self.pypeit_file is not None:
+            ofile = self.pypeit_file.replace('.pypeit', '.lst')
+        elif not setup_only and sort_dir is not None:
+            ofile = sort_dir + '.lst'
+        else:
+            raise ValueError('Could not determine name for output file.')
+
+        fsort.write_fitstbl(self.fitstbl, ofile, columns=self.spectrograph.metadata_keys())
 
     def run(self, setup_only=False, calibration_check=False, use_header_id=False, sort_dir=None):
         """
@@ -445,9 +485,7 @@ class PypeItSetup(object):
 
         # Write?
         if sort_dir is not None:
-            print('WRITING: {0}'.format(sort_dir))
-            fsort.write_lst(self.fitstbl, self.spectrograph.header_keys(), pypeit_file,
-                             setup=setup_only, sort_dir=sort_dir)
+            self.write_tabulated_metadata(setup_only=setup_only, sort_dir=sort_dir)
 
         # Match calibs to science
         self.match_to_science(setup_only=setup_only)

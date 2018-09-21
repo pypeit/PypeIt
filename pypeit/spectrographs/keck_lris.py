@@ -64,6 +64,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['lampstat09'] = 'DEUTERIUM'
         hdr_keys[0]['lampstat10'] = 'FLAMP1'
         hdr_keys[0]['lampstat11'] = 'FLAMP2'
+        hdr_keys[0]['lampstat11'] = 'HALOGEN'
 
         return hdr_keys
 
@@ -241,7 +242,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['flexure'] = pypeitpar.FlexurePar()
         return par
 
-    def check_header(self, headers):
+    def check_headers(self, headers):
         """Validate elements of the header."""
         chk_dict = {}
         # chk_dict is 1-indexed!
@@ -368,11 +369,73 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['flexure'] = pypeitpar.FlexurePar()
         return par
 
-
     def header_keys(self):
         head_keys = self.lris_header_keys()
-#        head_keys[0]['filter1'] = 'BLUFILT'
         return head_keys
+
+    def check_headers(self, headers):
+        """
+        Check headers match expectations for an LRISr exposure.
+
+        See also
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+
+        Args:
+            headers (list):
+                A list of headers read from a fits file
+        """
+        expected_values = { '0.INSTRUME': 'LRIS',
+                               '1.NAXIS': 2,
+                               '2.NAXIS': 2,
+                               '3.NAXIS': 2,
+                               '4.NAXIS': 2,
+                             '1.CCDGEOM': 'LBNL Thick High-Resistivity',
+                             '1.CCDNAME': '19-3',
+                             '3.CCDNAME': '19-2' }
+        super(KeckLRISRSpectrograph, self).check_headers(headers, expected_values=expected_values)
+            
+    # get_headarr
+    # get_match_criteria
+    # idname
+    
+    def check_ftype(self, ftype, fitstbl):
+        if ftype == 'science':
+            return self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') \
+                        & (fitstbl['exptime'] > 29)
+        if ftype == 'bias':
+            return self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed') \
+                        & (fitstbl['exptime'] < 1)
+        if ftype == 'pixelflat' or ftype == 'trace':
+            # Flats and trace frames are typed together
+            return self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open') \
+                        & (fitstbl['exptime'] < 30)
+        if ftype == 'pinhole' or ftype == 'dark':
+            # Don't type pinhole or dark frames
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype == 'arc':
+            return self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 'closed')
+
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+  
+    # TODO: Doesn't use self...
+    def lamps(self, fitstbl, status):
+        if status == 'off':
+            # Check if all are off
+            return np.all(np.array([ (fitstbl[k] == 'off') | (fitstbl[k] == 'None')
+                                        for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
+        if status == 'arcs':
+            # Check if any arc lamps are on
+            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,9) ]
+            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
+                                            if k in arc_lamp_stat]), axis=0)
+        if status == 'dome':
+            # Check if any dome lamps are on
+            dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(9,13) ]
+            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
+                                            if k in dome_lamp_stat]), axis=0)
+        raise ValueError('No implementation for status = {0}'.format(status))
+        
 
     def bpm(self, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
