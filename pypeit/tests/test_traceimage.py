@@ -29,8 +29,8 @@ def data_path(filename):
 def deimos_flat_files():
     if not skip_test:
         deimos_flat_files = [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS',
-                                          '830G_L', ifile)
-                                for ifile in ['d0914_0014.fits', 'd0914_0015.fits']]
+                                          '830G_L_8400', ifile)
+                                for ifile in ['d0914_0014.fits.gz', 'd0914_0015.fits.gz']]
     else:
         deimos_flat_files = None
     return deimos_flat_files
