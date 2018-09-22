@@ -94,8 +94,8 @@ class FitsMetaData:
 
     ---
 
-    Create a table of relevant fits file metadata used during the
-    reduction.
+    Largely provides a table of relevant fits file metadata used during
+    the reduction.
 
     The content of the fits table is dictated by the header keywords
     specified for the provided spectrograph.  It is expected that this
@@ -104,6 +104,11 @@ class FitsMetaData:
     The metadata is validated using checks specified by the provided
     spectrograph class.
 
+    For the data table, one should typically provided either the file
+    list from which to grab the data from the fits headers or the data
+    directly.  If neither are provided the table is instantiated without
+    any data.
+
     .. todo::
         This should get abstracted to be independent of the
         spectrograph, with all the spectrograph dependent keywords be
@@ -111,17 +116,33 @@ class FitsMetaData:
         then happen in PypeItSetup.
 
     Args:
-        file_list (list):
-            The list of files to include in the table.
         spectrograph
             (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The spectrograph used to collect the data save to each file.
             The class is used to provide the header keyword data to
             include in the table and specify any validation checks.
-            
-    Returns:
-        :class:`astropy.table.Table`: A table with the relevant metadata
-        for the provided fits files.
+        file_list (:obj:`list`, optional):
+            The list of files to include in the table.
+        data (table-like, optional):
+            The data to incude in the table.  The type can be anything
+            allowed by the instantiation of
+            :class:`astropy.table.Table`.
+        strict (:obj:`bool`, optional):
+            Function will fault if :func:`fits.getheader` fails to read
+            any of the headers in the provided file list.  Set to False
+            to instead report a warning and continue.
+
+    Attributes:
+        spectrograph
+            (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The spectrograph used to collect the data save to each file.
+            The class is used to provide the header keyword data to
+            include in the table and specify any validation checks.
+        bitmask (:class:`FrameTypeBitMask`):
+            The bitmask used to set the frame type of each fits file.
+        table (:class:`astropy.table.Table`):
+            The table with the relevant metadata for each fits file to
+            use in the data reduction.
     """
     def __init__(self, spectrograph, file_list=None, data=None, strict=True):
         self.spectrograph = spectrograph
