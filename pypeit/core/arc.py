@@ -61,7 +61,6 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                                                arc_idx=arc_idx, binspatial=binspatial,
                                                binspectral=binspectral, msarc_shape=msarc_shape)
     # Load linelist
-    #if settings.argflag['arc']['calibrate']['lamps'] is not None:
     if calibrate_lamps is not None:
         arcparam['lamps'] = calibrate_lamps
     slmps = arcparam['lamps'][0]

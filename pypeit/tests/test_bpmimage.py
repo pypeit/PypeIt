@@ -66,7 +66,7 @@ def test_keck_lris_red():
     if skip_test:
         return
     example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_LRIS_red',
-                                'long_600_7500_d560', 'LR.20160216.05529.fits')
+                                'long_600_7500_d560', 'LR.20160216.05529.fits.gz')
     # Simple
     bpmImage = bpmimage.BPMImage(spectrograph='keck_lris_red', filename=example_file, det=2)
     bpm = bpmImage.build()
@@ -75,8 +75,8 @@ def test_keck_lris_red():
 def test_keck_deimos():
     if skip_test:
         return
-    example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L',
-                                'd0914_0002.fits')
+    example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L_8400',
+                                'd0914_0002.fits.gz')
     # Simple
     bpmImage = bpmimage.BPMImage(spectrograph='keck_deimos', filename=example_file, det=4)
     bpm = bpmImage.build()
