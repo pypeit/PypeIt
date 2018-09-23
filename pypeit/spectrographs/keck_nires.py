@@ -154,6 +154,7 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
         arcparam['min_ampl'] = 1000.       # Minimum amplitude
+        arcparam['wvmnx'] = [8000., 26000.] # Guess at wavelength range
 
 
 #        arcparam['llist'] = ''
