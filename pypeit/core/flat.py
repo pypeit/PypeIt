@@ -643,6 +643,8 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
                 tweak_left = True
                 msgs.info('Tweaking left slit boundary by {:5.3f}'.format(100*xleft) +
                           ' %, or {:7.3f}'.format(xleft*slitwidth) + ' pixels')
+                if np.abs(xleft-tweak_slits_maxfrac) < 0.01:
+                    msgs.warn('Left slit boundary tweak limited by maximum changed allowed by tweak_slits_maxfracn={:5.3f}'.format(100.0*tweak_slits_maxfrac) + ' %')
                 break
         msgs.info('Right threshold = {:5.3f}'.format(tweak_slits_thresh*norm_max_righ) +
                   ' --  or {:5.3f}'.format(100.0*tweak_slits_thresh) + ' % of right side max of illumination function = {:5.3f}'.format(norm_max_righ))
@@ -654,6 +656,8 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
                 tweak_righ = True
                 msgs.info('Tweaking right slit boundary by {:5.3f}'.format(100*(1.0 - xrigh)) +
                           ' %, or {:7.3f}'.format((1.0-xrigh)*slitwidth) + ' pixels')
+                if np.abs((1.0-xrigh)-tweak_slits_maxfrac) < 0.01:
+                    msgs.warn('Right slit boundary tweak limited by maximum changed allowed by tweak_slits_maxfracn={:5.3f}'.format(100.0*tweak_slits_maxfrac) + ' %')
                 break
 
         # Recreate all the quantities we need based on the tweaked slits
