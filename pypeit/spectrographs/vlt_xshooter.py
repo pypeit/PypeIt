@@ -103,16 +103,18 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Use the ARMED pipeline
         par['rdx']['pipeline'] = 'ARMED'
         # Set wave tilts order
-        # par['calibrations']['slits']['polyorder'] = 5 # Might want 6 or 7
-        par['calibrations']['slits']['maxshift'] = 0.5  # Trace crude
-        # par['calibrations']['slits']['polyorder'] = 5
-        # par['calibrations']['slits']['maxshift'] = 3.
 
+        par['calibrations']['arcframe']['process']['overscan'] = 'median'
+        par['calibrations']['traceframe']['process']['overscan'] = 'median'
         par['calibrations']['slits']['sigdetect'] = 310.
         par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 3.
+        par['calibrations']['slits']['pcatype'] = 'order'
         par['calibrations']['slits']['number'] = -1
-
-
+        par['calibrations']['tilts']['tracethresh'] = [50,50,50,50,50,50,50,50,50, 50, 50, 60, 60, 2000,2000,6000]
+        
+        # par['calibrations']['trim'] = False
         # par['calibrations']['tilts']['tracethresh'] = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
 
         # par['calibrations']['tilts']['tracethresh'] = [50, 50, 60, 60, 2000]
