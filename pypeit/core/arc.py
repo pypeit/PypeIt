@@ -97,7 +97,7 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
         arcmask = (slitpix > 0) & inmask & (spat_img > (trace_img - box_rad)) & (spat_img < (trace_img + box_rad))
         this_mean, this_med, this_sig = sigma_clipped_stats(arcimg, mask=~arcmask, sigma=3.0, axis=1)
         arc_spec[:,islit] = this_med.data
-        if ~np.any(arc_spec[:,islit]):
+        if not np.any(arc_spec[:,islit]):
             maskslit[islit] = 1
 
     return arc_spec, maskslit
@@ -467,7 +467,7 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
 
     #         sigma finite  & sigma positive &  sigma < FWHM/2.35 & cen positive  &  cen on detector
     # TESTING
-    good = (~np.isnan(twid)) & (twid > 0.0) & (twid < FWHM/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & (tampl < nonlinear_counts)
+    good = (np.invert(np.isnan(twid))) & (twid > 0.0) & (twid < FWHM/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & (tampl < nonlinear_counts)
     ww = np.where(good)
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan
