@@ -516,6 +516,11 @@ class FlatFieldPar(ParSet):
             raise ValueError('Provided frame file name does not exist: {0}'.format(
                                 self.data['frame']))
 
+        # Check that if tweak slits is true that illumflatten is alwo true
+        if self.data['tweak_slits'] and not self.data['illumflatten']:
+            raise ValueError('In order to tweak slits illumflatten must be set to True')
+
+
 
 class FlexurePar(ParSet):
     """
