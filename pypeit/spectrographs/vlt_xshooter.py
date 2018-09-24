@@ -49,6 +49,9 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['decker']  = 'HIERARCH ESO INS OPTI3 NAME'# FOR UVB
         def_keys[0]['decker']  = 'HIERARCH ESO INS OPTI4 NAME'# FOR VIS
         def_keys[0]['decker']  = 'HIERARCH ESO INS OPTI5 NAME'# FOR NIR
+        #
+        def_keys[0]['binspatial']  = 'HIERARCH ESO DET WIN1 BINX' # Binning along X-axis (HIERARCH ESO DET WIN1 BINY along Y)
+        def_keys[0]['binspectral'] = 'HIERARCH ESO DET WIN1 BINY' # Binning along X-axis (HIERARCH ESO DET WIN1 BINY along Y)
 
         ## def_keys[0]['utc'] = 'HIERARCH ESO DET FRAM UTC'
 
@@ -264,7 +267,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
-        # Use the ARMS pipeline
+        # Use the ARMED pipeline
         par['rdx']['pipeline'] = 'ARMED'
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 500.
