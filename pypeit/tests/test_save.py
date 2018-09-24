@@ -62,7 +62,7 @@ def test_save2d_fits():
     head0 = fits.getheader(data_path('spec2d_test.fits'))
     assert head0['PYPCNFIG'] == 'A'
     assert head0['PYPCALIB'] == 'aa'
-    assert 'PYPIT' in head0['PIPELINE']
+    assert 'PYPEIT' in head0['PIPELINE']
 
 
 def test_save1d_fits():
@@ -76,17 +76,17 @@ def test_save1d_fits():
     save.save_1d_spectra_fits(specObjs, fitstbl[5], data_path('tst.fits'))
 
 
-'''  # NEEDS REFACTORING
-def test_save1d_hdf5():
-    """ save1d to FITS and HDF5
-    """
-    # Dummy self
-    fitstbl = arsort.dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
-    slf = arsciexp.dummy_self(fitstbl=fitstbl)
-    # specobj
-    slf._specobjs = []
-    slf._specobjs.append([])
-    slf._specobjs[0].append([mk_specobj(objid=455), mk_specobj(flux=3., objid=555)])
-    # Write to HDF5
-    arsave.save_1d_spectra_hdf5(slf, fitstbl)
-'''
+# NEEDS REFACTORING
+#def test_save1d_hdf5():
+#    """ save1d to FITS and HDF5
+#    """
+#    # Dummy self
+#    fitstbl = arsort.dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
+#    slf = arsciexp.dummy_self(fitstbl=fitstbl)
+#    # specobj
+#    slf._specobjs = []
+#    slf._specobjs.append([])
+#    slf._specobjs[0].append([mk_specobj(objid=455), mk_specobj(flux=3., objid=555)])
+#    # Write to HDF5
+#    arsave.save_1d_spectra_hdf5(slf, fitstbl)
+

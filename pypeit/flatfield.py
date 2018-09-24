@@ -63,7 +63,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'pixelflat'
 
     def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, master_dir=None,
-                 mode=None, flatpar=None, msbias=None, msbpm = None, tslits_dict=None, tilts=None):
+                 mode=None, flatpar=None, msbias=None, msbpm=None, tslits_dict=None, tilts=None):
 
         # Image processing parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
@@ -74,8 +74,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         master_dir=master_dir, mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup, master_dir=master_dir,
+                                         mode=mode)
 
         # Parameters unique to this Object
         self.msbias = msbias
@@ -211,7 +211,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Return
         return modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit
 
-    def run(self, debug = False, show = False):
+    def run(self, debug=False, show=False):
         """
         Main driver to generate normalized flat field and illumination flats
 
@@ -255,37 +255,35 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             else:
                 inmask = thismask
             # Fit flats for a single slit
-            self.mspixelflat[thismask], self.msillumflat[thismask], self.flat_model[thismask] = \
-                flat.fit_flat(self.rawflatimg, self.tilts, thismask,self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:,slit],
-                              inmask = inmask, debug = debug)
-
+            self.mspixelflat[thismask], self.msillumflat[thismask], self.flat_model[thismask] \
+                    = flat.fit_flat(self.rawflatimg, self.tilts, thismask,
+                                    self.tslits_dict['lcen'][:,slit],
+                                    self.tslits_dict['rcen'][:,slit], inmask=inmask, debug=debug)
 
         if show:
-            # Global skysub is the first step in a new extraction so clear the channels here
+            # Global skysub is the first step in a new extraction so
+            # clear the channels here
             self.show(slits=True, wcs_match = True)
-
 
         # Return
         return self.mspixelflat, self.msillumflat
 
-
-
     def show(self, slits = True, wcs_match = True):
-
-        viewer, ch = ginga.show_image(self.mspixelflat, chname='pixeflat', cuts=(0.9, 1.1), wcs_match=wcs_match, clear=True)
-        viewer, ch = ginga.show_image(self.msillumflat, chname='illumflat', cuts=(0.9, 1.1), wcs_match=wcs_match)
+        viewer, ch = ginga.show_image(self.mspixelflat, chname='pixeflat', cuts=(0.9, 1.1),
+                                      wcs_match=wcs_match, clear=True)
+        viewer, ch = ginga.show_image(self.msillumflat, chname='illumflat', cuts=(0.9, 1.1),
+                                      wcs_match=wcs_match)
         viewer, ch = ginga.show_image(self.rawflatimg, chname='flat', wcs_match=wcs_match)
         viewer, ch = ginga.show_image(self.flat_model, chname='flat_model', wcs_match=wcs_match)
 
-
         if slits:
             if self.tslits_dict is not None:
-                slit_ids = [trace_slits.get_slitid(self.rawflatimg.shape, self.tslits_dict['lcen'], self.tslits_dict['rcen'], ii)[0]
-                            for ii in range(self.tslits_dict['lcen'].shape[1])]
-                ginga.show_slits(viewer, ch, self.tslits_dict['lcen'], self.tslits_dict['rcen'], slit_ids)
+                slit_ids = [trace_slits.get_slitid(self.rawflatimg.shape, self.tslits_dict['lcen'],
+                                                   self.tslits_dict['rcen'], ii)[0]
+                                for ii in range(self.tslits_dict['lcen'].shape[1])]
+                ginga.show_slits(viewer, ch, self.tslits_dict['lcen'], self.tslits_dict['rcen'],
+                                 slit_ids)
 
-
-'''
     def show_old(self, attr='norm', display='ginga'):
         """
         Show one of the internal images
@@ -308,9 +306,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             if self.mspixelflatnrm is not None:
                 ginga.show_image(self.mspixelflatnrm)
 
-'''
-
-'''
     def run_old(self, armed=False):
         """
         Main driver to generate normalized flat field
@@ -388,27 +383,22 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         inslit = self.tslits_dict['slitpix'] >= 1.
         self.mspixelflatnrm[~inslit] = 1.
 
-        # QA
-"""
-        if np.array_equal(self._idx_flat, self._idx_trace):
-            # The flat field frame is also being used to trace the slit edges and determine the slit
-            # profile. Avoid recalculating the slit profile and blaze function and save them here.
-            self.SetFrame(self._msblaze, msblaze, det)
-            self.SetFrame(self._slitprof, slit_profiles, det)
-            masters.save_masters(self, det, mftype='slitprof')
-            if settings.argflag["reduce"]["slitprofile"]["perform"]:
-                msgs.info("Preparing QA of each slit profile")
-                #                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
-                #                                              self._slitpix[det - 1], desc="Slit profile")
-                arproc.slit_profile_qa(self, mstracenrm, slit_profiles,
-                                       self._lordloc[det - 1], self._rordloc[det - 1],
-                                       self._slitpix[det - 1], desc="Slit profile")
-            msgs.info("Saving blaze function QA")
-            #                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
-            artracewave.plot_orderfits(self.setup, msblaze, flat_ext1d, desc="Blaze function")
-        #
-   """
+#        # QA
+#        if np.array_equal(self._idx_flat, self._idx_trace):
+#            # The flat field frame is also being used to trace the slit
+#            # edges and determine the slit profile. Avoid recalculating
+#            # the slit profile and blaze function and save them here.
+#            self.SetFrame(self._msblaze, msblaze, det)
+#            self.SetFrame(self._slitprof, slit_profiles, det)
+#            masters.save_masters(self, det, mftype='slitprof')
+#            if settings.argflag["reduce"]["slitprofile"]["perform"]:
+#                msgs.info("Preparing QA of each slit profile")
+#                arproc.slit_profile_qa(self, mstracenrm, slit_profiles,
+#                                       self._lordloc[det - 1], self._rordloc[det - 1],
+#                                       self._slitpix[det - 1], desc="Slit profile")
+#            msgs.info("Saving blaze function QA")
+#            artracewave.plot_orderfits(self.setup, msblaze, flat_ext1d, desc="Blaze function")
 
         # Return
         return self.mspixelflatnrm, self.slit_profiles
-'''
+

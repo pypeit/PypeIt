@@ -112,7 +112,7 @@ class BPMImage(object):
         else:
             _datasec = datasec
             if self.spectrograph is None and _datasec is None:
-                _datasec = [[slice(None),slice(None)]]
+                _datasec = [(slice(None),slice(None))]
                 _numamplifiers = 1
             if _datasec is None:
                 # Get the data sections from the spectrograph definition
