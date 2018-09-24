@@ -232,28 +232,28 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
 
     # Quickly compute a version of the illumination function by downsampling, and use this to mask bad pixels
     # from the median filter.
-    isamp = (np.arange(nfit_spat//10)*10.0).astype(int)
-    samp_width = (np.ceil(isamp.size*ximg_resln)).astype(int)
-    illumquick1 = utils.fast_running_median(norm_spec_fit[isamp], samp_width)
-    illumquick = np.interp(ximg_fit,ximg_fit[isamp],illumquick1)
-    chi_illum = (norm_spec_fit - illumquick)*np.sqrt(norm_spec_ivar)
+    #isamp = (np.arange(nfit_spat//10)*10.0).astype(int)
+    #samp_width = (np.ceil(isamp.size*ximg_resln)).astype(int)
+    #illumquick1 = utils.fast_running_median(norm_spec_fit[isamp], samp_width)
+    #illumquick = np.interp(ximg_fit,ximg_fit[isamp],illumquick1)
+    #chi_illum = (norm_spec_fit - illumquick)*np.sqrt(norm_spec_ivar)
 
     # TESTING with short circuiting this to see if it makes a difference
-    imed = np.abs(chi_illum) <  1e10 # 10.0 # 10*spat_illum_thresh ouliters, i.e. 10%
+    #imed = np.abs(chi_illum) <  1e10 # 10.0 # 10*spat_illum_thresh ouliters, i.e. 10%
     # Get rid of this masking, it is doing nothing
-    nmed = np.sum(imed)
-    med_width = (np.ceil(nmed*ximg_resln)).astype(int)
-    normimg_raw = utils.fast_running_median(norm_spec_fit[imed],med_width)
+    #nmed = np.sum(imed)
+    med_width = (np.ceil(nfit_spat*ximg_resln)).astype(int)
+    normimg_raw = utils.fast_running_median(norm_spec_fit,med_width)
     #normimg_raw = scipy.ndimage.filters.median_filter(norm_spec_fit[imed], size=med_width, mode='reflect')
     sig_res = np.fmax(med_width/20.0,0.5)
     normimg = scipy.ndimage.filters.gaussian_filter1d(normimg_raw,sig_res, mode='nearest')
     # Determine the maximum at the left and right end of the slit
-    ileft = (ximg_fit[imed] > 0.1) & (ximg_fit[imed] < 0.4)
-    xleft = ximg_fit[imed][ileft]
+    ileft = (ximg_fit > 0.1) & (ximg_fit < 0.4)
+    xleft = ximg_fit[ileft]
     norm_max_left = normimg[ileft].max()
     xmax_left = xleft[normimg[ileft].argmax()]
-    irigh = (ximg_fit[imed] > 0.6) & (ximg_fit[imed] < 0.9)
-    xrigh = ximg_fit[imed][irigh]
+    irigh = (ximg_fit > 0.6) & (ximg_fit < 0.9)
+    xrigh = ximg_fit[irigh]
     norm_max_righ = normimg[irigh].max()
     xmax_righ = xrigh[normimg[irigh].argmax()]
 
@@ -269,10 +269,8 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     ximg_bsp  = np.fmax(ximg_1pix/10.0, ximg_samp*1.2)
     bsp_set = pydl.bspline(ximg_fit,nord=4, bkspace=ximg_bsp)
     fullbkpt = bsp_set.breakpoints
-    normfit = np.zeros_like(ximg_fit)
-    normfit[imed] = normimg
-    spat_set, outmask_spat, spatfit, _ = utils.bspline_profile(ximg_fit, normfit, imed.astype(float),np.ones_like(normfit),
-                                                               inmask = imed, nord=4,upper=5.0, lower=5.0,fullbkpt = fullbkpt)
+    spat_set, outmask_spat, spatfit, _ = utils.bspline_profile(ximg_fit, normimg, np.ones_like(normimg),np.ones_like(normimg),
+                                                               nord=4,upper=5.0, lower=5.0,fullbkpt = fullbkpt)
 
     # Evaluate and save
     illumflat = np.ones_like(flat)
@@ -331,8 +329,8 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         ax = plt.gca()
         ax.plot(ximg_fit, norm_spec_fit, color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full',linestyle='None',
                 label = 'all pixels')
-        ax.plot(ximg_fit[~imed], norm_spec_fit[~imed], color='darkred', marker='+',markersize=4.0, mfc='red',
-                fillstyle='full', linestyle='None', label = 'masked')
+        #ax.plot(ximg_fit[~imed], norm_spec_fit[~imed], color='darkred', marker='+',markersize=4.0, mfc='red',
+        #        fillstyle='full', linestyle='None', label = 'masked')
         #ax.plot(ximg_fit[imed], normfit[imed], color='orange', label = 'median spatial profile')
         ax.plot(ximg_fit, spatfit, color='cornflowerblue', label = 'final slit illumination function')
         ymin = np.fmax(0.8 * spatfit.min(), 0.5)
