@@ -117,3 +117,4 @@ def test_script(kast_blue_files, deimos_files):
                                '--sensfunc_file={:s}'.format(data_path('tmp2.yaml')),
                                '--multi_det=3,7'])
     flux_spec.main(pargs3)
+

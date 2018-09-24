@@ -61,7 +61,7 @@ class WaveTilts(masterframe.MasterFrame):
     frametype = 'tilts'
 
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
-                 mode=None, pixlocn=None, tslits_dict=None, redux_path=None, bpm = None):
+                 mode=None, tslits_dict=None, redux_path=None, bpm = None):
 
         # TODO: (KBW) Why was setup='' in this argument list and
         # setup=None in all the others?  Is it because of the
@@ -92,7 +92,6 @@ class WaveTilts(masterframe.MasterFrame):
         self.msarc = msarc
         self.bpm = bpm
         self.tslits_dict = tslits_dict
-        self.pixlocn = pixlocn
 
         # Optional parameters
         self.det = det
@@ -213,13 +212,7 @@ class WaveTilts(masterframe.MasterFrame):
         """
         # Extract an arc down each slit/order
         self.arccen, self.arc_maskslit = arc.get_censpec(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
-                                                     self.slits_dict['slitpix'], self.msarc, inmask = (self.bpm == 0))
-
-        #self.arccen, self.arc_maskslit, _ = arc.get_censpec(self.tslits_dict['lcen'],
-        #                                                      self.tslits_dict['rcen'],
-        #                                                      self.pixlocn, self.msarc, self.det,
-        #                                                      gen_satmask=gen_satmask)
-        #self.satmask = np.zeros_like(self.msarc)
+                                                     self.tslits_dict['slitpix'], self.msarc, inmask = (self.bpm == 0))
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.arccen, self.arc_maskslit

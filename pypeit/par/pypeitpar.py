@@ -541,7 +541,6 @@ class FlexurePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-
         defaults['method'] = 'boxcar'
         options['method'] = FlexurePar.valid_methods()
         dtypes['method'] = str
@@ -1900,7 +1899,8 @@ class PypeItPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None, flexure=None, fluxcalib=None):
+    def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None,
+                 flexure=None, fluxcalib=None):
 
         # Grab the parameter names and values from the function
         # arguments

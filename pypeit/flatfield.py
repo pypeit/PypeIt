@@ -288,10 +288,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             self.tslits_dict['ximg'] = ximg
             self.tslits_dict['edge_mask'] = edge_mask
 
-        # ToDO need to update hte master files. This is complicated because tslits_dict and tilts_dict are not the actual masters, but rather
-        # some much more complicated crapp is, like the whole class.
-        msgs.warn('We are currently not updating the master files for these tweaked slits. Implement that!!')
-
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show(slits=True, wcs_match = True)

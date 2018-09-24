@@ -26,8 +26,8 @@ def deimos_flat_files():
     if not skip_test:
         # Longslit in dets 3,7
         deimos_flat_files = [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS',
-                                          '830G_L', ifile) 
-                                            for ifile in ['d0914_0014.fits', 'd0914_0015.fits']]
+                                          '830G_L_8400', ifile) 
+                                    for ifile in ['d0914_0014.fits.gz', 'd0914_0015.fits.gz']]
         assert len(deimos_flat_files) == 2
     else:
         deimos_flat_files = None
@@ -99,3 +99,4 @@ def test_combine(deimos_flat_files):
     # Test
     assert isinstance(deimos_flats.stack, np.ndarray)
     assert deimos_flats.stack.shape == (4096,2048)
+

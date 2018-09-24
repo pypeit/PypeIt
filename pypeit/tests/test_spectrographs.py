@@ -23,7 +23,7 @@ def test_keckdeimos():
     if skip_test:
         return
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS',
-                                '830G_L', 'd0914_0002.fits')
+                                '830G_L_8400', 'd0914_0002.fits.gz')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Keck DEIMOS read.')
     data, _ = s.load_raw_frame(example_file)
@@ -49,7 +49,7 @@ def test_kecklrisred():
     if skip_test:
         return
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_LRIS_red',
-                                'long_600_7500_d560', 'LR.20160216.05529.fits')
+                                'long_600_7500_d560', 'LR.20160216.05529.fits.gz')
     if not os.path.isfile(example_file):
         raise FileNotFoundError('Could not find example file for Keck LRIS Red read.')
     data, _ = s.load_raw_frame(example_file)

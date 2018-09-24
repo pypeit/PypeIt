@@ -61,7 +61,6 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                                                arc_idx=arc_idx, binspatial=binspatial,
                                                binspectral=binspectral, msarc_shape=msarc_shape)
     # Load linelist
-    #if settings.argflag['arc']['calibrate']['lamps'] is not None:
     if calibrate_lamps is not None:
         arcparam['lamps'] = calibrate_lamps
     slmps = arcparam['lamps'][0]
@@ -477,7 +476,6 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
         plt.plot(tcent[~good], tampl_bad,'r+', markersize =6.0, label = 'bad peaks')
         plt.plot(tcent[good], tampl[good],'g+', markersize =6.0, label = 'good peaks')
         plt.title('Good Lines = {:d}'.format(np.sum(good)) + ',  Bad Lines = {:d}'.format(np.sum(~good)))
-        plt.ylim(0.0,np.fmin(nonlinear_counts,2e5))
         plt.legend()
         plt.show()
 
