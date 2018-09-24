@@ -26,7 +26,8 @@
 - Implemeneted a new peak finding algorithm for arc lines which significantly improved wavelength fits.
 - Added filtering of saturated arc lines which fixed issues with wavelength fits. 
 - Added algorithms and data files for telluric correction of near-IR spectra.
-  
+- Revamped flat field roiutine to tweak slit boundaries based on slit illumination profile. Reworked calibrations class
+to accomodate the updated slit boundaries and tilts images as well as update the master files.
 
 0.8.1
 -----

@@ -404,7 +404,7 @@ class FlatFieldPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frame=None, illumflatten=None, method=None): #, params=None, twodpca=None):
+    def __init__(self, frame=None, illumflatten=None, tweak_slits=None, method=None): #, params=None, twodpca=None):
     
         # Grab the parameter names and values from the function
         # arguments
@@ -431,6 +431,11 @@ class FlatFieldPar(ParSet):
         dtypes['illumflatten'] = bool
         descr['illumflatten'] = 'Use the flat field to determine the illumination profile of each slit.'
 
+        defaults['tweak_slits'] = True
+        dtypes['tweak_slits'] = bool
+        descr['tweak_slits'] = 'Use the illumination flat field to tweak the slit edges. illumflatten must be set to true for this to work'
+
+        # ToDO This method keyword is defunct now
         defaults['method'] = 'bspline'
         options['method'] = FlatFieldPar.valid_methods()
         dtypes['method'] = str
@@ -467,7 +472,7 @@ class FlatFieldPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'frame', 'illumflatten', 'method'] #', 'params', 'twodpca' ]
+        parkeys = [ 'frame', 'illumflatten', 'tweak_slits', 'method'] #', 'params', 'twodpca' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -510,6 +515,11 @@ class FlatFieldPar(ParSet):
         if not os.path.isfile(self.data['frame']):
             raise ValueError('Provided frame file name does not exist: {0}'.format(
                                 self.data['frame']))
+
+        # Check that if tweak slits is true that illumflatten is alwo true
+        if self.data['tweak_slits'] and not self.data['illumflatten']:
+            raise ValueError('In order to tweak slits illumflatten must be set to True')
+
 
 
 class FlexurePar(ParSet):

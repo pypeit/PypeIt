@@ -856,6 +856,7 @@ def match_to_science(calib_par, match_dict, fitstbl, calwin, setup=False, verbos
     msgs.info("Matching calibrations to Science frames")
 
     # New columns
+
     fitstbl['failures'] = False
     fitstbl['sci_ID'] = 0
 

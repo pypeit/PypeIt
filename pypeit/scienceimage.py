@@ -505,10 +505,10 @@ class ScienceImage(processimages.ProcessImages):
         # Build CR mask
         self.crmask = self.build_crmask()
 
-        # Show the science image if an interactive run
+        # Show the science image if an interactive run, only show the crmask
         if show:
-            bitmask = self._build_bitmask()
-            self.show('image', image=self.sciimg*(bitmask == 0), chname='sciimg', clear=True)
+            # Only mask the CRs in this image
+            self.show('image', image=self.sciimg*(self.crmask == 0), chname='sciimg', clear=True)
         return self.sciimg, self.sciivar, self.rn2img, self.crmask
 
 

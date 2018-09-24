@@ -35,14 +35,23 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     def xshooter_header_keys(self):
         def_keys = self.default_header_keys()
 
-        def_keys[0]['target'] = 'OBJECT'
-        def_keys[0]['exptime'] = 'EXPTIME'
-        #def_keys[0]['hatch'] = 'TRAPDOOR'
-        def_keys[0]['idname'] = 'HIERARCH.ESO.DPR.TYPE'
-        def_keys[0]['airmass'] = 'HIERARCH.ESO.TEL.AIRM.START'
-        def_keys[0]['decker'] = 'HIERARCH.ESO.INS.OPTI4.NAME'
+        def_keys[0]['target'] = 'OBJECT'     # Header keyword for the name given by the observer to a given frame
+        def_keys[0]['idname'] = 'HIERARCH ESO DPR CATG'    # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+        def_keys[0]['time'] = 'MJD-OBS'      # The time stamp of the observation (i.e. decimal MJD)
+        def_keys[0]['date'] = 'DATE-OBS'     # The UT date of the observation which is used for heliocentric (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+        def_keys[0]['ra'] = 'RA'             # Right Ascension of the target
+        def_keys[0]['dec'] = 'DEC'           # Declination of the target
+        def_keys[0]['airmass'] = 'HIERARCH ESO TEL AIRM START'   # Airmass at start of observation
+        def_keys[0]['binning'] = 'BINNING'   # Binning
+        def_keys[0]['exptime'] = 'EXPTIME'   # Exposure time keyword
+        def_keys[0]['decker'] = 'HIERARCH ESO INS OPTI3 NAME' # FOR UVB
+        def_keys[0]['decker'] = 'HIERARCH ESO INS OPTI4 NAME' # FOR VIS
+        def_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME' # FOR NIR
         def_keys[0]['naxis0'] = 'NAXIS2'
         def_keys[0]['naxis1'] = 'NAXIS1'
+        #
+        ## def_keys[0]['utc'] = 'HIERARCH ESO DET FRAM UTC'
+
 
         # TODO: Should do something with the lamps
 
@@ -84,18 +93,21 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     @staticmethod
     def default_pypeit_par():
         """
-        Set default parameters for Keck LRISb reductions.
+        Set default parameters for VLT XSHOOTER reductions.
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'vlt_xshooter_vis'
-        # Use the ARMS pipeline
+        # Use the ARMED pipeline
         par['rdx']['pipeline'] = 'ARMED'
         # Set wave tilts order
         par['calibrations']['slits']['polyorder'] = 5 # Might want 6 or 7
         par['calibrations']['slits']['maxshift'] = 0.5  # Trace crude
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 3.
+        par['calibrations']['slits']['pcatype'] = 'order'
         #par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypeitpar.SkySubtractionPar()
+        # par['skysubtract'] = pypeitpar.SkySubtractionPar()
         # Always flux calibrate, starting with default parameters
         #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
@@ -116,6 +128,20 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     def header_keys(self):
         head_keys = self.xshooter_header_keys()
         return head_keys
+
+    def get_match_criteria(self):
+        """Set the general matching criteria for Xshooter vis."""
+        match_criteria = {}
+        for key in fsort.ftype_list:
+            match_criteria[key] = {}
+
+        match_criteria['standard']['match'] = {}
+        match_criteria['pixelflat']['match'] = {}
+        match_criteria['trace']['match'] = {}
+        match_criteria['arc']['match'] = {}
+        match_criteria['bias']['match'] = {}
+
+        return match_criteria
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
@@ -217,23 +243,46 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     @staticmethod
     def default_pypeit_par():
         """
-        Set default parameters for Keck LRISb reductions.
+        Set default parameters for Xshooter NIR reductions.
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
         # Use the ARMS pipeline
         par['rdx']['pipeline'] = 'ARMED'
         # Set wave tilts order
-        par['calibrations']['slits']['polyorder'] = 5 # Might want 6 or 7
-        par['calibrations']['slits']['maxshift'] = 0.5  # Trace crude
-        #par['calibrations']['slits']['pcapar'] = [3,2,1,0]
-        # Always sky subtract, starting with default parameters
-        par['skysubtract'] = pypeitpar.SkySubtractionPar()
-        # Always flux calibrate, starting with default parameters
-        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        par['calibrations']['slits']['sigdetect'] = 500.
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['tilts']['tracethresh'] = [50,50,50,50,50,50,50,50,50, 50, 50, 60, 60, 2000,2000,6000]
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
+
+        par['scienceframe']['process']['sigclip'] = 20.0
+        par['scienceframe']['process']['satpix'] ='nothing'
+
+
+        #par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+        # Always sky subtract, starting with default parameters
+        # par['skysubtract'] = pypeitpar.SkySubtractionPar()
+        # Always flux calibrate, starting with default parameters
+        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+
         return par
+
+    def get_match_criteria(self):
+        """Set the general matching criteria for Xshooter vis."""
+        match_criteria = {}
+        for key in fsort.ftype_list:
+            match_criteria[key] = {}
+
+        match_criteria['standard']['match'] = {}
+        match_criteria['pixelflat']['match'] = {}
+        match_criteria['trace']['match'] = {}
+        match_criteria['arc']['match'] = {}
+        match_criteria['bias']['match'] = {}
+
+        return match_criteria
 
     def check_header(self):
         """Validate elements of the header."""
@@ -250,7 +299,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         head_keys = self.xshooter_header_keys()
         return head_keys
 
-    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
+    def setup_arcparam(self, arcparam, msarc_shape=None, 
+                       disperser=None, **null_kwargs):
         """
         Setup the arc parameters
 
@@ -265,8 +315,26 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         """
         #debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['OH_triplespec']
+        arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+        arcparam['min_ampl'] = 1000.       # Minimum amplitude
+        arcparam['wvmnx'] = [8000.,25000.]                     # Guess at wavelength range
+
+#        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+#        arcparam['disp'] = 0.6                                 # Ang/unbinned pixel
+#        arcparam['b1'] = 1./ arcparam['disp'] / msarc_shape[0] # Pixel fit term (binning independent)
+#        arcparam['b2'] = 0.                                    # Pixel fit term
+#        arcparam['lamps'] = ['OH_triplespec']                  # Line lamps on
+#        arcparam['wv_cen']=17370.                              # Estimate of central wavelength
+#        arcparam['disp_toler'] = 0.1                           # 10% tolerance
+#        arcparam['match_toler'] = 3.                           # Matching tolerance (pixels)
+#        arcparam['min_ampl'] = 1000.                           # Minimum amplitude
+#        arcparam['func'] = 'legendre'                          # Function for fitting
+#        arcparam['n_first'] = 1                                # Order of polynomial for first fit
+#        arcparam['n_final'] = 3                                # Order of polynomial for final fit
+#        arcparam['nsig_rej'] = 5.                              # Number of sigma for rejection
+#        arcparam['nsig_rej_final'] = 5.0                       # Number of sigma for rejection (final fit)
+#        arcparam['Nstrong'] = 20                               # Number of lines for auto-analysis
 
 
 
