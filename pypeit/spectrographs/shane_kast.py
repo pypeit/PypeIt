@@ -28,7 +28,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         self.timeunit = 's'
 
     @staticmethod
-    def kast_default_pypeit_par():
+    def default_pypeit_par():
         """
         Set default parameters for Shane Kast Blue reductions.
         """
@@ -52,7 +52,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['flexure'] = pypeitpar.FlexurePar()
         return par
 
-    def kast_header_keys(self):
+    def header_keys(self):
         """
         Provide the relevant header keywords
         """
@@ -108,7 +108,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
 
         return def_keys
 
-    def kast_cond_dict(self, ftype):
+    def frame_type_conditions(self, ftype):
         cond_dict = {}
 
         if ftype == 'science':
@@ -140,15 +140,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
             pass
 
         return cond_dict
-
-    def check_ftype(self, ftype, fitstbl):
-        # Load up
-        cond_dict = self.kast_cond_dict(ftype)
-
-        # Do it
-        gd_chk = fsort.chk_all_conditions(fitstbl, cond_dict)
-
-        return gd_chk
 
     def get_match_criteria(self):
         """Set the general matching criteria for Shane Kast."""
@@ -216,7 +207,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         """
         Set default parameters for Shane Kast Blue reductions.
         """
-        par = self.kast_default_pypeit_par()
+        par = super(ShaneKastBlueSpectrograph, self).default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_blue'
         return par
 
@@ -243,10 +234,10 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         Returns:
 
         """
-        head_keys = self.kast_header_keys()
+        hdr_keys = super(ShaneKastBlueSpectrograph, self).header_keys()
         # Add the name of the dispersing element
-        head_keys[0]['dispname'] = 'GRISM_N'
-        return head_keys
+        hdr_keys[0]['dispname'] = 'GRISM_N'
+        return hdr_keys
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
@@ -313,10 +304,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         """
         Set default parameters for Shane Kast Blue reductions.
         """
-        par = self.kast_default_pypeit_par()
-        #
+        par = super(ShaneKastRedSpectrograph, self).default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_red'
-        #
         return par
 
     def check_header(self, headers):
@@ -337,11 +326,11 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         Returns:
 
         """
-        head_keys = self.kast_header_keys()
-        head_keys[0]['filter1'] = 'RDFILT_N'
-        head_keys[0]['dispname'] = 'GRATING_N'
-        head_keys[0]['dispangle'] = 'GRTILT_P'
-        return head_keys
+        hdr_keys = super(ShaneKastRedSpectrograph, self).header_keys()
+        hdr_keys[0]['filter1'] = 'RDFILT_N'
+        hdr_keys[0]['dispname'] = 'GRATING_N'
+        hdr_keys[0]['dispangle'] = 'GRTILT_P'
+        return hdr_keys
 
     def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
                        binspectral=None, **null_kwargs):
@@ -410,9 +399,8 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         """
         Set default parameters for Shane Kast Blue reductions.
         """
-        par = self.kast_default_pypeit_par()
+        par = super(ShaneKastRedRetSpectrograph, self).default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_red_ret'
-        #
         par['calibrations']['pixelflatframe']['number'] = 3
         par['calibrations']['traceframe']['number'] = 3
         return par
@@ -424,12 +412,11 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         Returns:
 
         """
-        head_keys = self.kast_header_keys()
-        head_keys[0]['filter1'] = 'RDFILT_N'
-        head_keys[0]['dispname'] = 'GRATNG_N'
-        head_keys[0]['dispangle'] = 'GRTILT_P'
-        #
-        return head_keys
+        hdr_keys = super(ShaneKastRedRetSpectrograph, self).header_keys()
+        hdr_keys[0]['filter1'] = 'RDFILT_N'
+        hdr_keys[0]['dispname'] = 'GRATNG_N'
+        hdr_keys[0]['dispangle'] = 'GRTILT_P'
+        return hdr_keys
 
     def check_header(self, headers):
         """Validate elements of the header."""

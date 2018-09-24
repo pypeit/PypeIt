@@ -276,7 +276,7 @@ class PypeItSetup(object):
         self.fitstbl -- Updated with 'AB_frame' column
 
         """
-        self.fitstbl = fsort.match_ABBA(self.fitstbl)
+        self.fitstbl.match_ABBA()
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -292,12 +292,9 @@ class PypeItSetup(object):
         self.fitstbl -- Updated with 'sci_ID' and 'failures' columns
 
         """
-        self.fitstbl = fsort.match_to_science(self.par['calibrations'],
-                                              self.spectrograph.get_match_criteria(),
-                                              self.fitstbl, self.par['rdx']['calwin'],
-                                              setup=setup_only,
-                                              match_nods=self.par['scienceimage'] is not None \
-                                                            and self.par['scienceimage']['nodding'])
+        self.fitstbl.match_to_science(self.par['calibrations'], self.par['rdx']['calwin'],
+                                      setup=setup_only)
+
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
@@ -489,6 +486,9 @@ class PypeItSetup(object):
 
         # Match calibs to science
         self.match_to_science(setup_only=setup_only)
+
+        if self.par['scienceimage'] is not None and self.par['scienceimage']['nodding']:
+            self.match_ABBA()
 
         # Setup dict
         self.build_setup_dict(setup_only=setup_only)

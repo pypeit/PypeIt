@@ -417,9 +417,9 @@ class Spectrograph(object):
     def get_match_criteria(self):
         pass
 
-    def check_ftype(self, ftype, fitstbl):
+    def frame_type_conditions(self, ftype):
         msgs.warn('Frame typing conditions have not been set for {0}.'.format(self.spectrograph))
-        return np.zeros(len(fitstbl), dtype=bool)
+        return dict()
 
     def idname(self, ftype):
         """

@@ -9,14 +9,12 @@ from astropy.io import fits
 
 from pypeit import msgs
 from pypeit.core import parse
-from pypeit.par.pypeitpar import DetectorPar
+from pypeit.core import fsort
+from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
-from pypeit.core import fsort
-
 from pypeit import debugger
-
 
 class KeckLRISSpectrograph(spectrograph.Spectrograph):
     """
@@ -150,7 +148,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
     def get_match_criteria(self):
         match_criteria = {}
-        for key in fsort.ftype_list:
+        for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
         #
         match_criteria['standard']['match'] = {}
@@ -183,7 +181,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         self.camera = 'LRISb'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 1,
+                pypeitpar.DetectorPar(
+                            dataext         = 1,
                             dispaxis        = 0,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -200,7 +199,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                             suffix          = '_01blue'
                             ),
                 #Detector 2
-                DetectorPar(dataext         = 2,
+                pypeitpar.DetectorPar(
+                            dataext         = 2,
                             dispaxis        = 0,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -309,7 +309,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         self.camera = 'LRISr'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         =1,
+                pypeitpar.DetectorPar(
+                            dataext         =1,
                             dispaxis        =0,
                             xgap            =0.,
                             ygap            =0.,
@@ -326,7 +327,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                             suffix          ='_01red'
                             ),
                 #Detector 2
-                DetectorPar(dataext         =2,
+                pypeitpar.DetectorPar(
+                            dataext         =2,
                             dispaxis        =0,
                             xgap            =0.,
                             ygap            =0.,
@@ -367,6 +369,12 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['biasframe']['exptime'] = [None, 1]
+        par['calibrations']['pixelflatframe']['exptime'] = [None, 30]
+        par['calibrations']['traceframe']['exptime'] = [None, 30]
+        par['calibrations']['traceframe']['exptime'] = [None, 30]
+        par['scienceframe']['exptime'] = [None, 30]
         return par
 
     def header_keys(self):
@@ -397,29 +405,46 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     # get_headarr
     # get_match_criteria
     # idname
-    
-    def check_ftype(self, ftype, fitstbl):
+
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
-            return self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') \
-                        & (fitstbl['exptime'] > 29)
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
         if ftype == 'bias':
-            return self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed') \
-                        & (fitstbl['exptime'] < 1)
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
         if ftype == 'pixelflat' or ftype == 'trace':
             # Flats and trace frames are typed together
-            return self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open') \
-                        & (fitstbl['exptime'] < 30)
+            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
         if ftype == 'pinhole' or ftype == 'dark':
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'arc':
-            return self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 'closed')
+            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 'closed')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
   
-    # TODO: Doesn't use self...
     def lamps(self, fitstbl, status):
+        """
+        Check the lamp status.
+
+        Args:
+            fitstbl (:obj:`astropy.table.Table`):
+                The table with the fits header meta data.
+            status (:obj:`str`):
+                The status to check.  Can be `off`, `arcs`, or `dome`.
+        
+        Returns:
+            numpy.ndarray: A boolean array selecting fits files that
+            meet the selected lamp status.
+
+        Raises:
+            ValueError:
+                Raised if the status is not one of the valid options.
+        """
         if status == 'off':
             # Check if all are off
             return np.all(np.array([ (fitstbl[k] == 'off') | (fitstbl[k] == 'None')

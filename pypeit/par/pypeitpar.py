@@ -103,7 +103,7 @@ class FrameGroupPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frametype=None, useframe=None, number=None, process=None):
+    def __init__(self, frametype=None, useframe=None, number=None, exprng=None, process=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -129,7 +129,15 @@ class FrameGroupPar(ParSet):
 
         defaults['number'] = 0
         dtypes['number'] = int
-        descr['number'] = 'Number of frames to use of this type'
+        descr['number'] = 'Used in matching calibration frames to science frames.  This sets ' \
+                          'the number of frames to use of this type'
+
+        defaults['exprng'] = [None, None]
+        dtypes['exprng'] = list
+        descr['exprng'] = 'Used in identifying frames of this type.  This sets the minimum ' \
+                          'and maximum allowed exposure times.  There must be two items in ' \
+                          'the list.  Use None to indicate no limit; i.e., to select exposures ' \
+                          'with any time greater than 30 sec, use exprng = [30, None].'
 
         defaults['process'] = ProcessImagesPar()
         dtypes['process'] = [ ParSet, dict ]
@@ -148,7 +156,7 @@ class FrameGroupPar(ParSet):
     @classmethod
     def from_dict(cls, frametype, cfg):
         k = cfg.keys()
-        parkeys = [ 'useframe', 'number' ]
+        parkeys = [ 'useframe', 'number', 'exprng' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -166,6 +174,8 @@ class FrameGroupPar(ParSet):
     def validate(self):
         if self.data['useframe'] is None:
             self.data['useframe'] = self.data['frametype']
+        if len(self.data['exprng']) != 2:
+            raise ValueError('exprng must be a list with two items.')
 
 
 class ProcessImagesPar(ParSet):
