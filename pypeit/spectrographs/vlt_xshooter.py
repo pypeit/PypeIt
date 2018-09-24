@@ -112,9 +112,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['maxshift'] = 3.
         par['calibrations']['slits']['pcatype'] = 'order'
         par['calibrations']['slits']['number'] = -1
-        par['calibrations']['tilts']['tracethresh'] = [50,50,50,50,50,50,50,50,50, 50, 50, 60, 60, 2000,2000,6000]
-        
-        # par['calibrations']['trim'] = False
+        par['calibrations']['tilts']['tracethresh'] = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+
         # par['calibrations']['tilts']['tracethresh'] = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
 
         # par['calibrations']['tilts']['tracethresh'] = [50, 50, 60, 60, 2000]
@@ -179,28 +178,17 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
             arcparam is modified in place
 
         """
-        debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'CdI', 'HgI']
-        if disperser == '600/4000':
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=0.63 # Ang per pixel (unbinned)
-            arcparam['b1']= 4.54698031e-04
-            arcparam['b2']= -6.86414978e-09
-            arcparam['wvmnx'][1] = 6000.
-            arcparam['wv_cen'] = 4000.
-        elif disperser == '400/3400':
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=1.02
-            arcparam['b1']= 2.72694493e-04
-            arcparam['b2']= -5.30717321e-09
-            arcparam['wvmnx'][1] = 6000.
-        elif disperser == '300/5000':
-            arcparam['n_first'] = 2
-            arcparam['wv_cen'] = 4500.
-            arcparam['disp'] = 1.43
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-
+        ## debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
+        arcparam['lamps'] = ['ThAr']
+        # arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'CdI', 'HgI']
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+        arcparam['min_ampl'] = 100.       # Minimum amplitude
+        arcparam['wvmnx'] = [5545.,10250]  # Guess at wavelength range
+        arcparam['n_first']=2 
+        arcparam['disp']=0.2 # Ang per pixel (unbinned)
+        arcparam['b1']= 0.
+        arcparam['b2']= 0.
+        arcparam['wv_cen'] = 7900.
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
