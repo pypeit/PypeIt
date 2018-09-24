@@ -183,7 +183,6 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
-    debug = True
     shape = flat.shape
     if shape != tilts_dict['tilts'].shape:
         msgs.error('Something is very wrong. Tilt image shape does not match flat field image shape')
