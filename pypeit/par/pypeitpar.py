@@ -404,7 +404,7 @@ class FlatFieldPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frame=None, illumflatten=None, tweak_slits = None, method=None): #, params=None, twodpca=None):
+    def __init__(self, frame=None, illumflatten=None, tweak_slits=None, method=None): #, params=None, twodpca=None):
     
         # Grab the parameter names and values from the function
         # arguments
