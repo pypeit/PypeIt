@@ -399,13 +399,13 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
-                            platescale      = 0.16, # average from order 17 and order 30, see manual
+                            platescale      = 0.161, # average from order 14 and order 24, see manual
                             darkcurr        = 0.0,
-                            saturation      = 65535.,
+                            saturation      = 65000.,
                             nonlinear       = 0.86,
                             numamplifiers   = 1,
-                            gain            = 0.595,
-                            ronoise         = 3.1,
+                            gain            = 1.61,
+                            ronoise         = 2.60,
                             datasec         = '[1:2000,10:2058]',
                             oscansec        = '[1:2000, 2060:2106]',
                             suffix          = '_UVB'
@@ -500,8 +500,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         arcparam['disp']=0.2 # Ang per pixel (unbinned)
         arcparam['b1']= 0.
         arcparam['b2']= 0.
-        arcparam['wvmnx'] = [5330.,10210.]
-        arcparam['wv_cen'] = 8000.
+        arcparam['wvmnx'] = [2950.,5650.]
+        arcparam['wv_cen'] = 4300.
 
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
