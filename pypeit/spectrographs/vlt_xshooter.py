@@ -50,8 +50,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['decker']  = 'HIERARCH ESO INS OPTI4 NAME'# FOR VIS
         def_keys[0]['decker']  = 'HIERARCH ESO INS OPTI5 NAME'# FOR NIR
         #
-        def_keys[0]['binspatial']  = 'HIERARCH ESO DET WIN1 BINX' # Binning along X-axis (HIERARCH ESO DET WIN1 BINY along Y)
-        def_keys[0]['binspectral'] = 'HIERARCH ESO DET WIN1 BINY' # Binning along X-axis (HIERARCH ESO DET WIN1 BINY along Y)
+        def_keys[0]['binning_x'] = 'HIERARCH ESO DET WIN1 BINX' # Binning along SPATIAL axis
+        def_keys[0]['binning_y'] = 'HIERARCH ESO DET WIN1 BINY' # Binning along SPECTRAL axis
 
         ## def_keys[0]['utc'] = 'HIERARCH ESO DET FRAM UTC'
 
@@ -180,9 +180,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         """
         ## debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
         arcparam['lamps'] = ['ThAr']
-        # arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'CdI', 'HgI']
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 100.       # Minimum amplitude
+        arcparam['min_ampl'] = 30.       # Minimum amplitude
         arcparam['wvmnx'] = [5545.,10250]  # Guess at wavelength range
         arcparam['n_first']=2 
         arcparam['disp']=0.2 # Ang per pixel (unbinned)
@@ -399,8 +398,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 1.61,
                             ronoise         = 2.60,
-                            datasec         = '[1:2000,10:2058]',
-                            oscansec        = '[1:2000, 2060:2106]',
+                            datasec         = '[49:2000,1:2999]',
+                            oscansec        = '[1:48, 1:2999]',
                             suffix          = '_UVB'
                             ),
             ]
