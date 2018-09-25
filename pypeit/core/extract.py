@@ -1244,13 +1244,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
 
     slit_spat_pos = (np.interp(slit_spec_pos, spec_vec, slit_left), np.interp(slit_spec_pos, spec_vec, slit_righ))
 
-    # Synthesize thismask, ximg, and edgmask  from slit boundaries. Doing this outside this
-    # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
-    #    pad =0
-    #    slitpix = pixels.slit_pixels(slit_left, slit_righ, frameshape, pad)
-    #    thismask = (slitpix > 0)
-
-#    if (ximg is None) | (edgmask is None):
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = trim_edg)
 
     # If a mask was not passed in, create it
@@ -1495,22 +1488,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
         # Do not do any kind of masking based on xerr1. Trace fitting is much more robust when masked pixels are simply
         # replaced by the tracing crutch
         # ToDO add maxdev functionality by adding kwargs_reject to xy2traceset
-        pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos1.T, ncoeff = 5)
+        pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos1.T, ncoeff = ncoeff)
         xfit1 = pos_set1.yfit.T
-        # OLD CODE IS BELOW USING ROBUST_POLYFIT
-        #xerr1 =np.ones_like(xerr1)
-        # Mask out anything that left the image. 0 = good, 1 = masked (convention from robust_polyfit)
-        #tracemask1[off_image] = 1
-        #tracemask1 = np.zeros_like(xpos0,dtype=int)
-        #off_image = (xpos1 < -0.2*nspat) | (xpos1 > 1.2*nspat)
-        #for iobj in range(nobj_reg):
-        #  # Mask out anything that has left the slit/order.
-        #  tracemask1[:,iobj] = tracemask1[:, iobj] | ((xpos1[:,iobj] < slit_left) | (xpos1[:,iobj] > slit_righ)).astype(int)
-        #  weight = np.ones_like(xpos1)
-        #  polymask, coeff_fit1 = utils.robust_polyfit(spec_vec,xpos1[:,iobj], ncoeff
-        #                                              , function = 'legendre',initialmask = tracemask1[:,iobj],forceimask=True)
-        #  xfit1[:,iobj] = utils.func_val(coeff_fit1, spec_vec, 'legendre')
-
         # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
         tracemask1 = xerr1 > 990.0 # bad pixels have errors set to 999 and are returned to lie on the input trace
         # Plot all the points that were not masked initially
@@ -1547,7 +1526,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
         # Do not do any kind of masking based on xerr2. Trace fitting is much more robust when masked pixels are simply
         # replaced by the tracing crutch
         # Mask out anything that left the image. 0 = good, 1 = masked (convention from robust_polyfit)
-        pos_set2 = pydl.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos2.T, ncoeff = 5)
+        pos_set2 = pydl.xy2traceset(np.outer(np.ones(nobj_reg),spec_vec), xpos2.T, ncoeff = ncoeff)
         xfit2 = pos_set2.yfit.T
         # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
         tracemask2 = xerr2 > 990.0
