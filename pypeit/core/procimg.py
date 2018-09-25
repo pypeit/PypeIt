@@ -461,7 +461,7 @@ def gain_frame(datasec_img, namp, gain_list):
     # the previous command was: gain_img = np.zeros_like(datasec_img)
     # but it returns an array of integers, so if the gain was <0.6 it
     # was rounded to 0 causing a lot of problems.
-    gain_img = np.float32(np.zeros_like(datasec_img))
+    gain_img = np.zeros_like(datasec_img,dtype=float)
     for ii in range(namp):
         amp = ii+1
         amppix = datasec_img == amp
