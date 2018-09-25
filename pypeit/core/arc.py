@@ -54,7 +54,13 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
 
     # Instrument/disperser specific
     disperser = fitstbl["dispname"][arc_idx]
-    binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
+    try:
+        if(fitstbl['binning_x'][arc_idx]):
+            # for XSHOOTER
+            msgs.warn("Binning is imported from binning_x and binning_y.")
+            binspatial, binspectral = fitstbl['binning_x'][arc_idx], fitstbl['binning_y'][arc_idx]
+    except:
+        binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
     # ToDo JFH: Why is the arcparam being modified in place instead of being passed back from the spectrograh class.
     # This code looks rather sloppy.
     modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl,
@@ -472,7 +478,7 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan
         tampl_bad = np.interp(pixt[~good], xrng, arc_in)
-        plt.plot(xrng, arc_in, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc')
+        plt.plot(xrng, detns, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc')
         plt.plot(tcent[~good], tampl_bad,'r+', markersize =6.0, label = 'bad peaks')
         plt.plot(tcent[good], tampl[good],'g+', markersize =6.0, label = 'good peaks')
         plt.title('Good Lines = {:d}'.format(np.sum(good)) + ',  Bad Lines = {:d}'.format(np.sum(~good)))
