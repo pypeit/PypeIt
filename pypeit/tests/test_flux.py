@@ -57,7 +57,7 @@ def test_gen_sensfunc():
 
     # Get the sensitivity function
     extinction_data = flux.load_extinction_data(telescope['longitude'], telescope['latitude'])
-    extinction_corr = flux.extinction_correction(specobjs[0][0].boxcar['wave'],
+    extinction_corr = flux.extinction_correction(specobjs[0][0].boxcar['WAVE'],
                                                    fitstbl['airmass'][4], extinction_data)
     sensfunc = flux.generate_sensfunc(specobjs[0][0], RA, DEC, fitstbl['exptime'][4],
                                         extinction_corr)
@@ -72,7 +72,7 @@ def test_find_standard():
     std_ra = '05:06:36.6'
     std_dec = '52:52:01.0'
     # Grab
-    std_dict = flux.find_standard_file((std_ra, std_dec))
+    std_dict = flux.find_standard_file(std_ra, std_dec)
     # Test
     assert std_dict['name'] == 'G191B2B'
     assert std_dict['file'] == '/data/standards/calspec/g191b2b_mod_005.fits'
@@ -81,7 +81,7 @@ def test_find_standard():
     # near G191b2b
     std_ra = '05:06:36.6'
     std_dec = '52:22:01.0'
-    std_dict = flux.find_standard_file((std_ra,std_dec))
+    std_dict = flux.find_standard_file(std_ra,std_dec)
     assert std_dict is None
 
 

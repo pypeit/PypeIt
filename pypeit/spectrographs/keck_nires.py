@@ -6,8 +6,10 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit.par.pypeitpar import DetectorPar
+from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
+from pypeit.core import fsort
 
 from pypeit import debugger
 
@@ -22,6 +24,7 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'keck_nires'
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'NIRES'
+        self.numhead = 3
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext         = 0,
@@ -46,6 +49,64 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
 
     def metadata_keys(self):
         return ['filename', 'date', 'frametype', 'target', 'exptime']
+
+    @staticmethod
+    def default_pypeit_par():
+        """
+        Set default parameters for Shane Kast Blue reductions.
+        """
+        par = pypeitpar.PypeItPar()
+        # TODO: Make self.spectrograph a class attribute?
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+        # Frame numbers
+        par['calibrations']['standardframe']['number'] = 1
+        par['calibrations']['biasframe']['number'] = 0
+        par['calibrations']['pixelflatframe']['number'] = 5
+        par['calibrations']['traceframe']['number'] = 5
+        par['calibrations']['arcframe']['number'] = 1
+        # Bias
+        par['calibrations']['biasframe']['useframe'] = 'overscan'
+        # Set slits and tilts parameters
+        par['calibrations']['tilts']['order'] = 2
+        par['calibrations']['tilts']['tracethresh'] = [50, 50, 60, 60, 2000]
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 3.
+        par['calibrations']['slits']['pcatype'] = 'order'
+        # Scienceimage default parameters
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Do not correct for flexure
+        par['flexure'] = None
+        return par
+
+    def nires_header_keys(self):
+        def_keys = self.default_header_keys()
+
+        def_keys[0]['target'] = 'OBJECT'
+        def_keys[0]['exptime'] = 'ITIME'
+        return def_keys
+
+    def header_keys(self):
+        head_keys = self.nires_header_keys()
+        return head_keys
+
+    def get_match_criteria(self):
+        """Set the general matching criteria for Shane Kast."""
+        match_criteria = {}
+        for key in fsort.ftype_list:
+            match_criteria[key] = {}
+
+        match_criteria['standard']['match'] = {}
+
+        match_criteria['pixelflat']['match'] = {}
+
+        match_criteria['trace']['match'] = {}
+
+        match_criteria['arc']['match'] = {}
+
+        return match_criteria
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
@@ -92,38 +153,24 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
 
         """
 
-        """ OLD VERSION
-        arcparam = dict(llist='',
-                        disp=2.,  # Ang/unbinned pixel
-                        b1=0.,  # Pixel fit term (binning independent)
-                        b2=0.,  # Pixel fit term
-                        lamps=['OH_triplespec'],  # Line lamps on
-                        wv_cen=0.,  # Estimate of central wavelength
-                        wvmnx=[9000., 25000.],  # Guess at wavelength range
-                        disp_toler=0.1,  # 10% tolerance
-                        match_toler=3.,  # Matching tolerance (pixels)
-                        min_ampl=1000.,  # Minimum amplitude
-                        func='legendre',  # Function for fitting
-                        n_first=1,  # Order of polynomial for first fit
-                        n_final=3,  # Order of polynomial for final fit
-                        nsig_rej=2.,  # Number of sigma for rejection
-                        nsig_rej_final=2.0,  # Number of sigma for rejection (final fit)
-                        Nstrong=13)  # Number of lines for auto-analysis """
-
-        # NEW VERSION
-        arcparam['llist'] = ''
-        arcparam['disp'] = 2.              # Ang/unbinned pixel
-        arcparam['b1'] = 0.                # Pixel fit term (binning independent)
-        arcparam['b2'] = 0.                # Pixel fit term
         arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
-        arcparam['wv_cen'] = 0.            # Estimate of central wavelength
-        arcparam['wvmnx'] = [9000., 25000.] # Guess at wavelength range
-        arcparam['disp_toler'] = 0.1       # 10% tolerance
-        arcparam['match_toler'] = 3.       # Matching tolerance (pixels)
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
         arcparam['min_ampl'] = 1000.       # Minimum amplitude
-        arcparam['func'] = 'legendre'      # Function for fitting
-        arcparam['n_first'] = 1            # Order of polynomial for first fit
-        arcparam['n_final'] = 3            # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2.          # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 2.0   # Number of sigma for rejection (final fit)
-        arcparam['Nstrong'] = 13           # Number of lines for auto-analysis
+        arcparam['wvmnx'] = [8000., 26000.] # Guess at wavelength range
+
+
+#        arcparam['llist'] = ''
+#        arcparam['disp'] = 2.              # Ang/unbinned pixel
+#        arcparam['b1'] = 0.                # Pixel fit term (binning independent)
+#        arcparam['b2'] = 0.                # Pixel fit term
+#        arcparam['wv_cen'] = 0.            # Estimate of central wavelength
+#        arcparam['wvmnx'] = [9000., 25000.] # Guess at wavelength range
+#        arcparam['disp_toler'] = 0.1       # 10% tolerance
+#        arcparam['match_toler'] = 3.       # Matching tolerance (pixels)
+#        arcparam['func'] = 'legendre'      # Function for fitting
+#        arcparam['n_first'] = 1            # Order of polynomial for first fit
+#        arcparam['n_final'] = 3            # Order of polynomial for final fit
+#        arcparam['nsig_rej'] = 2.          # Number of sigma for rejection
+#        arcparam['nsig_rej_final'] = 2.0   # Number of sigma for rejection (final fit)
+#        arcparam['Nstrong'] = 13           # Number of lines for auto-analysis
+

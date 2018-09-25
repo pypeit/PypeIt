@@ -254,6 +254,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
         """
         arcparam['lamps'] = ['CdI','HgI','HeI']
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
         if disperser == '600/4310':
             arcparam['disp']=1.02
             arcparam['b1']=6.88935788e-04
@@ -348,19 +349,21 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         """
         arcparam['lamps'] = ['NeI','HgI','HeI','ArI']
-        if disperser == '600/7500':
-            arcparam['disp']=1.30
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-            arcparam['wvmnx'][0] = 5000.
-            arcparam['n_first']=2 # Should be able to lock on
-        elif disperser == '1200/5000':
-            arcparam['disp']=0.63
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-            arcparam['wvmnx'][0] = 5000.
-            arcparam['n_first']=2 # Should be able to lock on
-            arcparam['wv_cen'] = 6600.
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+
+#        if disperser == '600/7500':
+#            arcparam['disp']=1.30
+#            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
+#            arcparam['wvmnx'][0] = 5000.
+#            arcparam['n_first']=2 # Should be able to lock on
+#        elif disperser == '1200/5000':
+#            arcparam['disp']=0.63
+#            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
+#            arcparam['wvmnx'][0] = 5000.
+#            arcparam['n_first']=2 # Should be able to lock on
+#            arcparam['wv_cen'] = 6600.
+#        else:
+#            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 
 class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
@@ -453,16 +456,18 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
 
         """
         arcparam['lamps'] = ['NeI','HgI','HeI','ArI']
-        if disperser == '600/7500':
-            arcparam['disp']=2.35
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-            arcparam['wvmnx'][0] = 5000.
-            arcparam['n_first']=2 # Should be able to lock on
-        elif disperser == '1200/5000':
-            arcparam['disp']=1.17
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-            arcparam['wvmnx'][0] = 5000.
-            arcparam['n_first']=2 # Should be able to lock on
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+
+#        if disperser == '600/7500':
+#            arcparam['disp']=2.35
+#            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
+#            arcparam['wvmnx'][0] = 5000.
+#            arcparam['n_first']=2 # Should be able to lock on
+#        elif disperser == '1200/5000':
+#            arcparam['disp']=1.17
+#            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
+#            arcparam['wvmnx'][0] = 5000.
+#            arcparam['n_first']=2 # Should be able to lock on
+#        else:
+#            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 

@@ -13,20 +13,43 @@
   subtraction. 
 - Turn off 2.7 Travis testing
 - Integrated arclines into PypeIt
+- Added KDTree algorithm to the wavelength calibration routines
 - Modified debug/developer modes
 - Update SpecObjs class; ndarray instead of list;  set() method
 - Completely revamped object finding, global sky subtraction and local
   sky subtraction with new algorithms.
-- Added -s optiont to run_pypeit for interactive outputs.
+- Added -s option to run_pypeit for interactive outputs.
 - Improved pypeit_show_spec2d script. 
 - Fixed bug whereby -m --use_master was not being used by run_pypeit
   script.
 - Overhaul of general algorithm for wavelength calibration
 - Hot fix for bspline + requirements update
+- Fixed issue with biases being written to disk as untrimmed. 
+- Completely reworked flat fielding algorithm. 
+- Fixed some parsing issues with the .pypeit file for cases where there
+  is a whitepsace in the path.
+- Implemented interactive plots with the -s option which allow the
+  reduction to continue running.
+- Modified global sky subtraction significantly to now do a polynomial
+  fit. This greatly improves results for large slits.
+- Updated loading of spectra and pypeit_show_1dspec script to work with
+  new output data model.
+- Implemeneted a new peak finding algorithm for arc lines which
+  significantly improved wavelength fits.
+- Added filtering of saturated arc lines which fixed issues with
+  wavelength fits. 
+- Added algorithms and data files for telluric correction of near-IR
+  spectra.
+- Revamped flat field roiutine to tweak slit boundaries based on slit
+  illumination profile. Reworked calibrations class to accomodate the
+  updated slit boundaries and tilts images as well as update the master
+  files.
 - Include BitMask class from MaNGA DAP.
 - Change the way frame types are include in PypeItSetup.fitstbl
 - Edited KeckLRISSpectrograph header keywords
 - Edited how headers are read from the provided files
+- Created metadata.PypeItMetaData class to handle what was previously
+  `fitstbl`
 
 0.8.1
 -----

@@ -16,6 +16,7 @@ from pypeit.core import masters
 from pypeit.core import save
 from pypeit import utils
 from pypeit import masterframe
+from pypeit import specobjs
 
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
@@ -72,14 +73,16 @@ class FluxSpec(masterframe.MasterFrame):
       List of SpecObj objects to be fluxed (or that were fluxed)
     sci_header : dict-like
       Used for the airmass, exptime of the science spectra
+    spectrograph : dict-like
+      Used for extinction correction
     """
 
     # Frametype is a class attribute
     frametype = 'sensfunc'
 
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
-                 std_specobjs=None, std_header=None, spectrograph=None, multi_det=None,
-                 setup=None, root_path=None, mode=None):
+                 std_specobjs=None, std_header=None, spectrograph=None, telluric=False,
+                 multi_det=None, setup=None, root_path=None, mode=None):
 
         # Load standard files
         std_spectro = None
@@ -128,15 +131,18 @@ class FluxSpec(masterframe.MasterFrame):
         elif isinstance(_spectrograph, Spectrograph):
             spectrograph_name = _spectrograph.spectrograph
             msgs.info("Spectrograph set to {0}, from argument object".format(_spectrograph))
-    
+
+        if spectrograph_name is not None:
+            self.spectrograph = load_spectrograph(spectrograph=_spectrograph)
+
         # MasterFrame
-        directory_path = None
+        master_dir = None
         if root_path is not None:
-            directory_path = root_path
+            master_dir = root_path
             if spectrograph_name is not None:
-                directory_path += '_'+spectrograph_name
+                master_dir += '_'+spectrograph_name
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         directory_path=directory_path, mode=mode)
+                                         master_dir=master_dir, mode=mode)
         # Get the extinction data
         self.extinction_data = None
         if _spectrograph is not None:
@@ -155,6 +161,10 @@ class FluxSpec(masterframe.MasterFrame):
         # Parameters
         self.sens_file = sens_file
         self.multi_det = multi_det
+
+        # Set telluric option
+        self.telluric = telluric
+        print(self.telluric)
 
         # Main outputs
         self.sensfunc = None if self.sens_file is None \
@@ -195,9 +205,9 @@ class FluxSpec(masterframe.MasterFrame):
             std_splice = sv_stds[0].copy()
             # Append
             for ostd in sv_stds[1:]:
-                std_splice.boxcar['wave'] = np.append(std_splice.boxcar['wave'].value,
-                                                      ostd.boxcar['wave'].value) * units.AA
-                for key in ['counts', 'var']:
+                std_splice.boxcar['WAVE'] = np.append(std_splice.boxcar['WAVE'].value,
+                                                      ostd.boxcar['WAVE'].value) * units.AA
+                for key in ['COUNTS', 'COUNTS_IVAR']:
                     std_splice.boxcar[key] = np.append(std_splice.boxcar[key], ostd.boxcar[key])
             self.std = std_splice
         else:
@@ -233,12 +243,22 @@ class FluxSpec(masterframe.MasterFrame):
             return None
 
         # Get extinction correction
-        extinction_corr = flux.extinction_correction(self.std.boxcar['wave'],
-                                                       self.std_header['AIRMASS'],
-                                                       self.extinction_data)
-        self.sensfunc = flux.generate_sensfunc(self.std, self.std_header['RA'],
-                                                 self.std_header['DEC'],
-                                                 self.std_header['EXPTIME'], extinction_corr)
+        # extinction_corr = flux.extinction_correction(self.std.boxcar['WAVE'],
+        #                                              self.std_header['AIRMASS'],
+        #                                              self.extinction_data)
+
+
+        self.sensfunc = flux.generate_sensfunc(self.std.boxcar['WAVE'],
+                                               self.std.boxcar['COUNTS'],
+                                               self.std.boxcar['COUNTS_IVAR'],
+                                               self.std_header['AIRMASS'],
+                                               self.std_header['EXPTIME'],
+                                               self.spectrograph,
+                                               telluric=self.telluric,
+                                               RA=self.std_header['RA'],
+                                               DEC=self.std_header['DEC'])
+
+#                                              extinction_corr)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -267,7 +287,7 @@ class FluxSpec(masterframe.MasterFrame):
             if sci_obj is not None:
                 # Do it
                 flux.apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime,
-                                      self.extinction_data)
+                                    self.spectrograph)
 
     def flux_science(self):
         """
@@ -281,7 +301,7 @@ class FluxSpec(masterframe.MasterFrame):
         """
         for sci_obj in self.sci_specobjs:
             flux.apply_sensfunc(sci_obj, self.sensfunc, self.sci_header['AIRMASS'],
-                                  self.sci_header['EXPTIME'], self.extinction_data)
+                                  self.sci_header['EXPTIME'], self.spectrograph)
         self.steps.append(inspect.stack()[0][3])
 
     def _set_std_obj(self, obj_id):
@@ -429,7 +449,14 @@ class FluxSpec(masterframe.MasterFrame):
             telescope = TelescopePar(longitude=self.sci_header['LON-OBS'],
                                      latitude=self.sci_header['LAT-OBS'],
                                      elevation=self.sci_header['ALT-OBS'])
-        save.save_1d_spectra_fits(self.sci_specobjs, self.sci_header, outfile,
+        # KLUDGE ME
+        if isinstance(self.sci_specobjs, list):
+            specObjs = specobjs.SpecObjs(self.sci_specobjs)
+        elif isinstance(self.sci_specobjs, specobjs.SpecObjs):
+            specObjs = self.sci_specobjs
+        else:
+            msgs.error("BAD INPUT")
+        save.save_1d_spectra_fits(specObjs, self.sci_header, outfile,
                                     helio_dict=helio_dict, telescope=telescope, clobber=True)
         # Step
         self.steps.append(inspect.stack()[0][3])

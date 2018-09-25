@@ -227,7 +227,8 @@ class bspline(object):
         new_bspline = bspline(None, from_dict=dictionary)
     """
 
-    def __init__(self, x, nord=4, npoly=1, bkpt=None, fullbkpt = None, bkspread=1.0,
+    # ToDO Consider refactoring the argument list so that there are no kwargs
+    def __init__(self, x, fullbkpt = None, nord=4, npoly=1, bkpt=None, bkspread=1.0,
                  verbose=False, from_dict=None, **kwargs):
         """Init creates an object whose attributes are similar to the
         structure returned by the create_bspline function.
@@ -236,7 +237,6 @@ class bspline(object):
         # as it goes
         fullbkpt1 = copy.copy(fullbkpt)
         bkpt1 = copy.copy(bkpt)
-        #ToDO Consider refactoring the argument list so that there are no kwargs
         if from_dict is not None:
             self.nord=from_dict['nord'],
             self.npoly=from_dict['npoly'],
@@ -247,6 +247,19 @@ class bspline(object):
             self.xmin=from_dict['xmin'],
             self.xmax=from_dict['xmax'],
             self.funcname=from_dict['funcname']
+            return
+        # Instantiate empty if neither fullbkpt or x is set
+        elif x is None and fullbkpt is None:
+            self.nord = None
+            self.npoly = None
+            self.breakpoints= None
+            self.mask= None
+            self.coeff= None
+            self.icoeff= None
+            self.xmin= None
+            self.xmax= None
+            self.funcname= None
+            return
         else:
             #
             # Set the breakpoints.
@@ -344,6 +357,21 @@ class bspline(object):
             else:
                 self.funcname = 'legendre'
 
+        return
+
+    def copy(self):
+
+        bsp_copy = bspline(None)
+        bsp_copy.nord = self.nord
+        bsp_copy.npoly = self.npoly
+        bsp_copy.breakpoints = np.copy(self.breakpoints)
+        bsp_copy.mask = np.copy(self.mask)
+        bsp_copy.coeff = np.copy(self.coeff)
+        bsp_copy.icoeff = np.copy(self.icoeff)
+        bsp_copy.xmin = self.xmin
+        bsp_copy.xmax = self.xmax
+        bsp_copy.funcname = self.funcname
+        return bsp_copy
 
     def to_dict(self):
         """Write bspline parameters to a dict.
@@ -672,12 +700,14 @@ class bspline(object):
         goodbkpt = np.where(self.mask)[0]
         nbkpt = len(goodbkpt)
         if nbkpt <= 2*self.nord:
+            msgs.warn('Fewer good break points than order of b-spline. Returning...')
             return -2
         # Find the unique ones for the polynomial
         hmm = err[uniq(err//self.npoly)]//self.npoly
 
         n = nbkpt - self.nord
         if np.any(hmm >= n):
+            msgs.warn('Note enough unique points in cholesky_band decomposition of b-spline matrix. Returning...')
             return -2
         test = np.zeros(nbkpt, dtype='bool')
         for jj in range(-int(np.ceil(self.nord/2)), int(self.nord/2.)):
@@ -730,6 +760,7 @@ class bspline(object):
         goodbk = self.mask[self.nord:]
         nn = goodbk.sum()
         if nn < self.nord:
+            msgs.warn('Fewer good break points than order of b-spline. Returning...')
             yfit = np.zeros(ydata.shape, dtype='f')
             return (-2, yfit)
         nfull = nn * self.npoly
@@ -814,9 +845,18 @@ def cholesky_band(l, mininf=0.0):
     bw, nn = lower.shape
     n = nn - bw
     negative = lower[0, 0:n] <= mininf
-    if negative.any() or not np.all(np.isfinite(lower)):
-        msgs.warn('Bad entries: ' + str(negative.nonzero()[0]))
+    # JFH changed this below to make it more consistent with IDL version. Not sure
+    # why the np.all(np.isfinite(lower)) was added. The code could return an empty
+    # list for negative.nonzero() and crash if all elements in lower are NaN.
+    if negative.any():
+        msgs.warn('Found {:d}'.format(len(negative.nonzero()[0])) +
+                  ' bad entries: ' + str(negative.nonzero()[0]))
         return (negative.nonzero()[0], l)
+#    negative = (lower[0, 0:n] <= mininf)
+#    if negative.any() or not np.all(np.isfinite(lower)):
+#        msgs.warn('Found {:d}'.format(len(negative.nonzero()[0])) +
+#                  ' bad entries: ' + str(negative.nonzero()[0]))
+#        return (negative.nonzero()[0], l)
     kn = bw - 1
     spot = np.arange(kn, dtype='i4') + 1
     bi = np.arange(kn, dtype='i4')
@@ -865,7 +905,7 @@ def cholesky_solve(a, bb):
     return (-1, b)
 
 
-def iterfit(xdata, ydata, invvar=None, upper=5, lower=5, x2=None,
+def iterfit(xdata, ydata, invvar=None, inmask = None, upper=5, lower=5, x2=None,
             maxiter=10, nord = 4, bkpt = None, fullbkpt = None, kwargs_bspline={}, kwargs_reject={}):
     """Iteratively fit a b-spline set to data, with rejection.
 
@@ -909,6 +949,10 @@ def iterfit(xdata, ydata, invvar=None, upper=5, lower=5, x2=None,
         if var == 0:
             var = 1.0
         invvar = np.ones(ydata.shape, dtype=ydata.dtype)/var
+
+    if inmask is None:
+        inmask = invvar > 0.0
+
     if x2 is not None:
         if x2.size != nx:
             raise ValueError('Dimensions of xdata and x2 do not agree.')
@@ -918,7 +962,7 @@ def iterfit(xdata, ydata, invvar=None, upper=5, lower=5, x2=None,
     else:
         outmask = np.ones(invvar.shape, dtype='bool')
     xsort = xdata.argsort()
-    maskwork = (outmask & (invvar > 0))[xsort]
+    maskwork = (outmask & inmask & (invvar > 0.0))[xsort]
     if 'oldset' in kwargs_bspline:
         sset = kwargs_bspline['oldset']
         sset.mask = True
@@ -985,13 +1029,13 @@ def iterfit(xdata, ydata, invvar=None, upper=5, lower=5, x2=None,
             error, yfit = sset.fit(xwork, ywork, invwork*maskwork,
                                    x2=x2work)
         iiter += 1
-        inmask = maskwork
+        inmask_rej = maskwork
         if error == -2:
 
             return (sset, outmask)
         elif error == 0:
             maskwork, qdone = djs_reject(ywork, yfit, invvar=invwork,
-                                         inmask=inmask, outmask=maskwork,
+                                         inmask=inmask_rej, outmask=maskwork,
                                          upper=upper, lower=lower,**kwargs_reject)
         else:
             pass

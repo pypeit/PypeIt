@@ -62,24 +62,30 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         hdr_keys[1]['CCDNAME01'] = 'CCDNAME'
         hdr_keys[3]['CCDNAME02'] = 'CCDNAME'
 
-        hdr_keys[0]['lampstat01'] = 'MERCURY'
-        hdr_keys[0]['lampstat02'] = 'NEON'
-        hdr_keys[0]['lampstat03'] = 'ARGON'
-        hdr_keys[0]['lampstat04'] = 'CADMIUM'
-        hdr_keys[0]['lampstat05'] = 'ZINC'
-        hdr_keys[0]['lampstat06'] = 'KRYPTON'
-        hdr_keys[0]['lampstat07'] = 'XENON'
-        hdr_keys[0]['lampstat08'] = 'FEARGON'
-        hdr_keys[0]['lampstat09'] = 'DEUTERIUM'
-        hdr_keys[0]['lampstat10'] = 'FLAMP1'
-        hdr_keys[0]['lampstat11'] = 'FLAMP2'
-        hdr_keys[0]['lampstat11'] = 'HALOGEN'
+#        hdr_keys[0]['lampstat01'] = 'MERCURY'
+#        hdr_keys[0]['lampstat02'] = 'NEON'
+#        hdr_keys[0]['lampstat03'] = 'ARGON'
+#        hdr_keys[0]['lampstat04'] = 'CADMIUM'
+#        hdr_keys[0]['lampstat05'] = 'ZINC'
+#        hdr_keys[0]['lampstat06'] = 'KRYPTON'
+#        hdr_keys[0]['lampstat07'] = 'XENON'
+#        hdr_keys[0]['lampstat08'] = 'FEARGON'
+#        hdr_keys[0]['lampstat09'] = 'DEUTERI'
+#        hdr_keys[0]['lampstat10'] = 'FLAMP1'
+#        hdr_keys[0]['lampstat11'] = 'FLAMP2'
+#        hdr_keys[0]['lampstat11'] = 'HALOGEN'
+
+        lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
+                      'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
+        for kk,lamp_name in enumerate(lamp_names):
+            hdr_keys[0]['lampstat{:02d}'.format(kk+1)] = lamp_name
 
         return hdr_keys
 
     def metadata_keys(self):
         return super(KeckLRISSpectrograph, self).metadata_keys() \
                     + ['binning', 'dichroic', 'dispangle']
+
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -183,6 +189,67 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         # Return
         return match_criteria
+
+    def lris_cond_dict(self, ftype):
+        """
+
+        Args:
+            ftype: str
+
+        Returns:
+
+        """
+        cond_dict = {}
+
+        if ftype == 'science':
+            cond_dict['condition1'] = 'lampstat01=off&lampstat02=off&lampstat03=off' \
+                                      '&lampstat04=off&lampstat05=off&lampstat06=off' \
+                                      '&lampstat07=off&lampstat08=off&lampstat09=off' \
+                                      '&lampstat10=off&lampstat11=off&lampstat12=off'
+            cond_dict['condition2'] = 'hatch=open'
+            cond_dict['condition2'] = 'exptime>29'
+        elif ftype == 'bias':
+            cond_dict['condition1'] = 'lampstat01=off&lampstat02=off&lampstat03=off' \
+                                      '&lampstat04=off&lampstat05=off&lampstat06=off' \
+                                      '&lampstat07=off&lampstat08=off&lampstat09=off' \
+                                      '&lampstat10=off&lampstat11=off&lampstat12=off'
+            cond_dict['condition2'] = 'exptime<1'
+        elif ftype == 'pixelflat':
+            cond_dict['condition1'] = 'exptime<30&exptime>1'
+            cond_dict['condition2'] = 'hatch=open'  # Dome, not internal
+        elif ftype == 'pinhole':
+            cond_dict['condition1'] = 'exptime>99999999'
+        elif ftype == 'trace':
+            cond_dict['condition1'] = 'exptime<30&exptime>1'
+            cond_dict['condition2'] = 'hatch=open'  # Dome, not internal
+        elif ftype == 'arc':
+            cond_dict['condition1'] = 'lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on' \
+                                      '|lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on' \
+                                      '|lampstat05=on'
+            cond_dict['condition2'] = 'hatch=closed'
+        else:
+            pass
+
+        return cond_dict
+
+    def check_ftype(self, ftype, fitstbl):
+        """
+        Check the frame type
+
+        Args:
+            ftype:
+            fitstbl:
+
+        Returns:
+
+        """
+        # Load up
+        cond_dict = self.lris_cond_dict(ftype)
+
+        # Do it
+        gd_chk = fsort.chk_all_conditions(fitstbl, cond_dict)
+
+        return gd_chk
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
@@ -289,6 +356,9 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         """
         arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
+        # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
+        # detector and there is no mechanism in place to create that yet
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
         if disperser == '600/4000':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.63 # Ang per pixel (unbinned)
@@ -527,6 +597,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         #arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
         # Should set according to the lamps that were on
         arcparam['lamps'] = ['ArI','NeI','HgI','KrI','XeI']
+        # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
+        # detector and there is no mechanism in place to create that yet
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+
         '''
         if disperser == '600/7500':
             arcparam['n_first']=3 # Too much curvature for 1st order

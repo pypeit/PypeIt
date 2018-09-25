@@ -2899,7 +2899,7 @@ def tc_indices(tc_dict):
 
 
 def slit_trace_qa(frame, ltrace, rtrace, extslit, setup, desc="",
-                  normalize=True, use_slitid=None):
+                  normalize=True, use_slitid=None, out_dir=None):
     """ Generate a QA plot for the slit traces
 
     Parameters
@@ -2928,7 +2928,7 @@ def slit_trace_qa(frame, ltrace, rtrace, extslit, setup, desc="",
 
     # Outfile
     method = inspect.stack()[0][3]
-    outfile = qa.set_qa_filename(setup, method)
+    outfile = qa.set_qa_filename(setup, method, out_dir=out_dir)
     ntrc = ltrace.shape[1]
     ycen = np.arange(frame.shape[0])
     # Normalize flux in the traces

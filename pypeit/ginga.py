@@ -22,10 +22,6 @@ from astropy.io import fits
 
 from pypeit import msgs
 
-# TODO: There needs to be a way to call show_image() without importing
-# arlris, requires a code refactor
-# from pypeit import arlris
-
 def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     """ Connect to an active RC Ginga
     Parameters
@@ -55,7 +51,8 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     return viewer
 
 
-def show_image(inp, chname='Image', wcs_img=None, bitmask=None, mask=None, exten=0, cuts=None):
+def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten=0, cuts=None,
+               clear=False, wcs_match=False):
     """
     Display an image using Ginga.
 
@@ -69,9 +66,10 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask=None, mask=None, exten
             name of a fits image that can be read by `astropy.io.fits`.
         chname (:obj:`str`, optional):
             The name of the ginga channel to use.
-        wcs_image (:obj:`str`, optional):
+        waveimg (:obj:`str`, optional):
             The name of a fits image with the relevant WCS coordinates
-            in its header.  If None, no WCS is used.
+            in its header, mainly for wavelength array.  If None, no WCS
+            is used.
         bitmask (:class:`pypeit.bitmask.BitMask`, optional):
             The object used to unpack the mask values.  If this is
             provided, mask must also be provided and the expectation is
@@ -87,6 +85,11 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask=None, mask=None, exten
             Initial cut levels to apply when displaying the image.  This
             object must have a length of 2 with the lower and upper
             levels, respectively.
+        clear (:obj:`bool`, optional):
+            Clear any existing ginga viewer and its channels.
+        wcs_match(:obj:`bool`, optional):
+            Use this as a reference image for the WCS and match all
+            image in other channels to it.
 
     Returns:
         ginga.util.grc.RemoteClient, ginga.util.grc._channel_proxy: The
@@ -107,14 +110,23 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask=None, mask=None, exten
     # string and astropy.io.fits cannot read the image.
     img = fits.open(inp)[exten].data if isinstance(inp, basestring) else inp
 
+    # Instantiate viewer
     viewer = connect_to_ginga()
+    if clear:
+        # Clear existing channels
+        shell = viewer.shell()
+        chnames = shell.get_channel_names()
+        for ch in chnames:
+            shell.delete_channel(ch)
     ch = viewer.channel(chname)
+
     # Header
     header = {}
     header['NAXIS1'] = img.shape[1]
     header['NAXIS2'] = img.shape[0]
-    if wcs_img is not None:
-        header['WCS-XIMG'] = wcs_img
+    if waveimg is not None:
+        header['WCS-XIMG'] = waveimg
+
     # Giddy up
     ch.load_np(chname, img, 'fits', header)
     canvas = viewer.canvas(ch._chname)
@@ -129,6 +141,13 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask=None, mask=None, exten
     out = ch.set_color_algorithm('linear')
     out = ch.restore_contrast()
     out = ch.restore_cmap()
+
+    # WCS Match this to other images with this as the reference image?
+    if wcs_match:
+        # After displaying all the images since up the images with WCS_MATCH
+        shell = viewer.shell()
+        out = shell.start_global_plugin('WCSMatch')
+        out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname], {})
 
     # TODO: I would prefer to change the color map to indicate these
     # pixels rather than overplot points. Because for large numbers of

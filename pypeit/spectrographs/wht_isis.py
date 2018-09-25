@@ -169,6 +169,8 @@ class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
         modify_dict = dict(NeI={'min_wave': 3000.,'min_intensity': 299,
                                 'min_Aki': 0.},ArI={'min_intensity': 399.})
         arcparam['lamps']=['CuI','NeI','ArI']
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+
         if fitstbl["dichroic"][arc_idx].strip() == '5300':
             arcparam['wvmnx'][1] = 6000.
         else:

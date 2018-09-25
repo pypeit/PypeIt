@@ -743,7 +743,7 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
                 tslices = parse_sec2slice('[:10,10:]', transpose=True)
 
     Returns:
-        list: A list of slice objects, one per dimension of the
+        tuple: A tuple of slice objects, one per dimension of the
         prospective array.
 
     Raises:
@@ -787,7 +787,7 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
         # Append the new slice
         slices += [slice(*_s)]
 
-    return slices[::-1] if transpose else slices
+    return tuple(slices[::-1] if transpose else slices)
 
 
 

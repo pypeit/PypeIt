@@ -198,7 +198,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, satval,
     dnum = parse.get_dnum(det)
 
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
-    tampl, tcent, twid, w, _ = arc.detect_lines(censpec)
+    tampl, tcent, twid, _, w, _ = arc.detect_lines(censpec)
 
     # TODO: Validate satval value?
 #    satval = settings_det['saturation']*settings_det['nonlinear']
@@ -768,9 +768,44 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
     return final_tilts, satmask, outpar
 '''
 
+def coeff2tilts(coeff2,shape,func2D,max_tilt = 1.2, min_tilt = -0.2):
+
+    # Compute the tilts image
+    polytilts = utils.polyval2d_general(coeff2, np.linspace(0.0, 1.0, shape[1]),
+                                        np.linspace(0.0, 1.0, shape[0]),
+                                        minx=0., maxx=1., miny=0., maxy=1., function=func2D)
+    # y normalization and subtract
+    ynorm = np.outer(np.linspace(0., 1., shape[0]), np.ones(shape[1]))
+    polytilts = ynorm - polytilts/(shape[0] - 1)
+    # JFH Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
+    # wavelength solution fitting
+    polytilts = np.fmax(np.fmin(polytilts, max_tilt), min_tilt)
+
+    return polytilts
+
 # TODO: Change yorder to "dispaxis_order"?
 def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', maskval=-999999.9,
-              setup=None, doqa=True, show_QA=False):
+              setup=None, doqa=True, show_QA=False, out_dir=None):
+
+    # ToDO please add some docs.
+    """
+
+    Args:
+        msarc:
+        slit:
+        all_tilts:
+        order:
+        yorder:
+        func2D:
+        maskval:
+        setup:
+        doqa:
+        show_QA:
+        out_dir:
+
+    Returns:
+
+    """
     # Unpack
     xtilt, ytilt, mtilt, wtilt = all_tilts
     #
@@ -783,9 +818,9 @@ def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', mask
     coeff2 = utils.polyfit2d_general(xtilt[wgd], mtilt[wgd]/(msarc.shape[0]-1),
                                        mtilt[wgd]-ytilt[wgd], fitxy,
                                        minx=0., maxx=1., miny=0., maxy=1., function=func2D)
-    polytilts = utils.polyval2d_general(coeff2, np.linspace(0.0, 1.0, msarc.shape[1]),
-                                          np.linspace(0.0, 1.0, msarc.shape[0]),
-                                          minx=0., maxx=1., miny=0., maxy=1., function=func2D)
+
+    # Compute the tilts image
+    polytilts = coeff2tilts(coeff2, msarc.shape, func2D)
 
     # TODO -- Add a rejection iteration (or two)
 
@@ -798,19 +833,11 @@ def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', mask
 
     # QA
     if doqa:
-        plot_tiltres(setup, mtilt[wgd], ytilt[wgd], yfit, slit=slit, show_QA=show_QA)
-
-    # y normalization and subtract
-    ynorm = np.outer(np.linspace(0., 1., msarc.shape[0]), np.ones(msarc.shape[1]))
-    polytilts = ynorm - polytilts/(msarc.shape[0]-1)
-
-    # JFH Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
-    # wavelength solution fitting
-    polytilts = np.fmax(np.fmin(polytilts, 1.2), -0.2)
+        plot_tiltres(setup, mtilt[wgd], ytilt[wgd], yfit, slit=slit, show_QA=show_QA, out_dir=out_dir)
 
     # Return
     outpar = None
-    return polytilts, outpar
+    return polytilts, coeff2, outpar
 
 
 '''
@@ -1163,7 +1190,7 @@ def plot_orderfits(setup, model, ydata, xdata=None, xmodl=None, textplt="Slit",
 
 
 
-def plot_tiltres(setup, mtilt, ytilt, yfit, slit=None, outfile=None, show_QA=False):
+def plot_tiltres(setup, mtilt, ytilt, yfit, slit=None, outfile=None, show_QA=False, out_dir=None):
     """ Generate a QA plot of the residuals for the fit to the tilts
     One slit at a time
 
@@ -1177,7 +1204,7 @@ def plot_tiltres(setup, mtilt, ytilt, yfit, slit=None, outfile=None, show_QA=Fal
     # Outfil
     method = inspect.stack()[0][3]
     if (outfile is None) and (not show_QA):
-        outfile = qa.set_qa_filename(setup, method, slit=slit)
+        outfile = qa.set_qa_filename(setup, method, slit=slit, out_dir=out_dir)
 
     # Setup
     plt.figure(figsize=(8, 4.0))

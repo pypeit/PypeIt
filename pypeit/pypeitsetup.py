@@ -485,7 +485,7 @@ class PypeItSetup(object):
                                 else pypeit_file.replace('.pypeit', '.calib')
             pypsetup.write_calib(calib_file, self.setup_dict)
 
-        # Finish (depends on PYPIT run mode)
+        # Finish (depends on PypeIt run mode)
         if calibration_check:
             msgs.info("Inspect the .calib file: {:s}".format(calib_file))
             msgs.info("*********************************************************")

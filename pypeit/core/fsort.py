@@ -669,6 +669,7 @@ def match_to_science(calib_par, match_dict, fitstbl, calwin, setup=False, verbos
     msgs.info("Matching calibrations to Science frames")
 
     # New columns
+
     fitstbl['failures'] = False
     fitstbl['sci_ID'] = 0
 
@@ -904,7 +905,7 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     return srtframes
 
 
-def make_dirs(spectrograph, caldir, scidir, qadir, overwrite=False):
+def make_dirs(spectrograph, caldir, scidir, qadir, redux_path=None, overwrite=False):
     """
     Make the directories for the pypeit output.
 
@@ -923,14 +924,17 @@ def make_dirs(spectrograph, caldir, scidir, qadir, overwrite=False):
             The directory to use for the main reduction output files.
         qadir (str):
             The directory to use for the quality assessment output.
+        redux_dir (str):
+            The directory for the reductions
         overwrite(:obj:`bool`, optional):
             Flag to overwrite any existing files/directories.
     """
 
     # First, get the current working directory
-    currDIR = os.getcwd()
+    if redux_path is None:
+        redux_path = os.getcwd()
     msgs.info("Creating Science directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, scidir)
+    newdir = os.path.join(redux_path, scidir)
     if os.path.exists(newdir):
         msgs.info("The following directory already exists:"+msgs.newline()+newdir)
         if not overwrite:
@@ -991,7 +995,7 @@ def make_dirs(spectrograph, caldir, scidir, qadir, overwrite=False):
 
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Master Calibrations directory")
-    newdir = "{:s}/{:s}_{:s}".format(currDIR, caldir, spectrograph)
+    newdir = os.path.join(redux_path, caldir+'_'+spectrograph)
     if os.path.exists(newdir):
         if not overwrite:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
@@ -1013,7 +1017,7 @@ def make_dirs(spectrograph, caldir, scidir, qadir, overwrite=False):
     # TODO: I'd rather that this still consider overwrite and fault
     # instead of just proceeding
     msgs.info("Creating QA directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, qadir)
+    newdir = os.path.join(redux_path, qadir)
     if os.path.exists(newdir):
         msgs.warn("Pre-existing QA plots will be overwritten")
         '''

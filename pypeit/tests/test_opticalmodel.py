@@ -35,7 +35,7 @@ def test_deimos_distortion():
 def test_deimos_mask_coordinates():
     if skip_test:
         return
-    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M',
+    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M_8500',
                      'DE.20100913.22358.fits.gz')
     spec = KeckDEIMOSSpectrograph()
     spec.get_grating(f)
@@ -50,7 +50,7 @@ def test_deimos_mask_coordinates():
 def test_deimos_ccd_slits():
     if skip_test:
         return
-    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M',
+    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M_8500',
                      'DE.20100913.22358.fits.gz')
     spec = KeckDEIMOSSpectrograph()
     ximg, yimg, ccd, xpix, ypix = spec.mask_to_pixel_coordinates(filename=f)
@@ -61,4 +61,5 @@ def test_deimos_ccd_slits():
             'Should find slits on all CCDs'
     assert numpy.sum(n_per_ccd) == 106, 'Should return coordinates for all 106 slits'
     assert n_per_ccd[1] == 11, 'Incorrect number of slits on CCD 1'
+
 

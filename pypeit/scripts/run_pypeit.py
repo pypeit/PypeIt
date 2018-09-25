@@ -68,6 +68,7 @@ def main(args):
 
     from pypeit import check_requirements
     from pypeit import pypeit
+    from pypeit import pypeitsetup
     from pypeit import debugger
 
     # Initiate logging for bugs and command line help
@@ -83,10 +84,23 @@ def main(args):
         msgs.error("Bad extension for PypeIt reduction file."+msgs.newline()+".pypeit is required")
     logname = splitnm[0] + ".log"
 
-    pypeit.PypeIt(args.pypeit_file, setup_only=args.prep_setup, calibration_check=args.calcheck,
-                  use_header_id=args.hdrframetype, sort_dir=args.sort_dir,
-                  overwrite=args.overwrite, verbosity=args.verbosity,
-                  use_masters=args.use_masters, show = args.show, logname=logname)
+    # Load PypeIt file (might happen twice but that is ok)
+    pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(args.pypeit_file)
+
+    #
+    pypeIt = pypeit.instantiate_me(pypeitSetup.spectrograph,
+                                   verbosity=args.verbosity,
+                                   overwrite=args.overwrite, logname=logname, show=args.show)
+
+    # Init Setup
+    redux_dir = './'
+    pypeIt.init_setup(args.pypeit_file, redux_dir, calibration_check=True)
+    pypeIt.reduce_all(reuse_masters=args.use_masters)
+
+    msgs.info('Data reduction complete')
+    # QA HTML
+    msgs.info('Generating QA HTML')
+    pypeIt.build_qa()
 
     return 0
 

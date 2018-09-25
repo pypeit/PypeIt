@@ -10,20 +10,54 @@ from astropy import units
 
 import linetools.utils
 
+from pypeit.par import pypeitpar
 from pypeit import msgs
 
 from pypeit import debugger
 
+def set_master_dir(redux_path, spectrograph, par):
+    """
+    Set the master directory auto-magically
+
+    Args:
+        redux_path: str or None
+        spectrograph: Spectrograph or None
+        par: ParSet or None
+
+    Returns:
+        master_dir : str
+          Path of the MasterFrame directory
+
+    """
+    # Parameters
+    if par is None:
+        tmppar = pypeitpar.CalibrationsPar()
+    else:
+        if 'caldir' not in par.keys():
+            tmppar = pypeitpar.CalibrationsPar()
+        else:
+            tmppar = par
+    # Redux path
+    if redux_path is None:
+        redux_path = os.getcwd()
+    master_dir = os.path.join(redux_path, tmppar['caldir'])
+    # Spectrograph
+    if spectrograph is not None:
+        master_dir += '_'+spectrograph.spectrograph
+    # Return
+    return master_dir
 
 def master_name(ftype, setup, mdir):
     """ Default filenames for MasterFrames
 
     Parameters
     ----------
-    ftype
+    ftype : str
+      Frame type
     setup : str
+      Setup name
     mdir : str, optional
-      Master directory; usually taken from settings
+      Master directory
 
     Returns
     -------
@@ -33,13 +67,14 @@ def master_name(ftype, setup, mdir):
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, setup),
                      trace='{:s}/MasterTrace_{:s}'.format(mdir, setup),   # Just a root as FITS+JSON are generated
                      pinhole='{:s}/MasterPinhole_{:s}.fits'.format(mdir, setup),
-                     pixelflat='{:s}/MasterFlatField_{:s}.fits'.format(mdir, setup),
+                     pixelflat='{:s}/MasterPixelFlat_{:s}.fits'.format(mdir, setup),
+                     illumflat='{:s}/MasterIllumFlat_{:s}.fits'.format(mdir, setup),
                      arc='{:s}/MasterArc_{:s}.fits'.format(mdir, setup),
                      wave='{:s}/MasterWave_{:s}.fits'.format(mdir, setup),
                      wv_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, setup),
                      tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir, setup),
-                     slitprof='{:s}/MasterSlitProfile_{:s}.fits'.format(mdir, setup),
-                     sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.yaml'.format(mdir, setup[0], setup[-2:]),
+                     # sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.yaml'.format(mdir, setup[0], setup[-2:]),
+                     sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.fits'.format(mdir, setup[0], setup[-2:]),
                      )
     return name_dict[ftype]
 
@@ -170,8 +205,17 @@ def _load(name, exten=0, frametype='<None>', force=False):
         return sensfunc, None, [name]
     elif frametype == 'trace':
         msgs.error('Load from the class not this method')
+    elif frametype == 'tilts':
+        msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(frametype) + " from filename: {:}".format(name))
+        hdu = fits.open(name)
+        head0 = hdu[0].header
+        tilts = hdu[0].data
+        head1 = hdu[1].header
+        coeffs = hdu[1].data
+        tilts_dict = {'tilts':tilts,'coeffs':coeffs,'func2D': head1['FUNC2D']} # This is the tilts_dict
+        return tilts_dict, head0, [name]
     else:
-        msgs.info("Loading a pre-existing master calibration frame")
+        msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(frametype) + " from filename: {:}".format(name))
         hdu = fits.open(name)
         #msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
         head0 = hdu[0].header

@@ -1,4 +1,4 @@
-""" Output for PYPIT
+""" Output for PYPEIT
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
@@ -355,7 +355,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 '''
 
-def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=None, clobber=True):
+def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=None, clobber=True):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
@@ -399,7 +399,7 @@ def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=N
     # Loop on detectors
     npix = 0
     ext = 0
-    for sobj in specobjs.specobjs:
+    for sobj in specObjs.specobjs:
         if sobj is None:
             continue
         ext += 1
@@ -410,11 +410,16 @@ def save_1d_spectra_fits(specobjs, header, outfile, helio_dict=None, telescope=N
         # Add Spectrum Table
         cols = []
         # Trace
-        cols += [fits.Column(array=sobj.trace_spat, name=str('TRACE'), format=sobj.trace_spat.dtype)]
+        if sobj.trace_spat is not None:
+            cols += [fits.Column(array=sobj.trace_spat, name=str('TRACE'), format=sobj.trace_spat.dtype)]
         # FWHM fit from extraction
-        cols += [fits.Column(array=sobj.fwhmfit, name=str('FWHM'), format=sobj.fwhmfit.dtype)]
+        if sobj.fwhmfit is not None:
+            cols += [fits.Column(array=sobj.fwhmfit, name=str('FWHM'), format=sobj.fwhmfit.dtype)]
         if ext == 1:
-            npix = len(sobj.trace_spat)
+            # print(sobj)
+            # print(sobj.trace_spat)
+            if sobj.trace_spat is not None:
+                npix = len(sobj.trace_spat)
         # Boxcar
         for key in sobj.boxcar.keys():
             # Skip some
@@ -678,8 +683,8 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         tmp = str(head0['HISTORY']).replace('\n', ' ')
         prihdu.header.add_history(str(tmp))
 
-    # PYPIT
-    prihdu.header['PIPELINE'] = str('PYPIT')
+    # PYPEIT
+    prihdu.header['PIPELINE'] = str('PYPEIT')
     prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
     ssetup = setup.split('_') #settings.argflag['reduce']['masters']['setup'].split('_')
     prihdu.header['PYPCNFIG'] = str(ssetup[0])

@@ -20,8 +20,7 @@ with PypeIt.   The basic steps are:
  3. Generate the 1D wavelength fits
 
 For the primary step (#3), the preferred approach is a
-new pattern-searching algorithm currently packaged in the PypeIt
-repository named `arclines`.  It is designed to estimate
+new pattern-searching algorithm.  It is designed to estimate
 the dispersion and wavelength coverage of the spectrum with
 limited inputs and then automatically identify the known
 arc lines.
@@ -39,9 +38,9 @@ the `NIST database <http://physics.nist.gov/PhysRefData`_,
 *in vacuum*. These data are stored as ASCII tables in the
 `arclines` repository. Here are the available lamps:
 
-======  ==========  =============
+======  ==========  ==============
 Lamp    Range (A)   Last updated
-======  ==========  =============
+======  ==========  ==============
 ArI     3000-10000  21 April 2016
 CdI     3000-10000  21 April 2016
 CuI     3000-10000  13 June 2016
@@ -51,7 +50,13 @@ KrI     4000-12000  May 2018
 NeI     3000-10000  May 2018
 XeI     4000-12000  May 2018
 ZnI     2900-8000   2 May 2016
-======  ==========  =============
+ThAr    3000-11000  9 January 2018
+======  ==========  ==============
+
+In the case of the ThAr list, all of the lines are taken from
+the NIST database, and are labelled with a 'MURPHY' flag if the
+line also appears in the list of lines identified by
+`Murphy et al. (2007) MNRAS 378 221 <http://adsabs.harvard.edu/abs/2007MNRAS.378..221M>`_
 
 By-Hand Calibration
 ===================

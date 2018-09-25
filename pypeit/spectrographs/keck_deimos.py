@@ -419,22 +419,27 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         arcparam['wv_cen'] = fitstbl['dispangle'][arc_idx]
         # TODO -- Should set according to the lamps that were on
         arcparam['lamps'] = ['ArI','NeI','KrI','XeI']
-        if disperser == '830G': # Blaze 8640
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=0.47 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
-            arcparam['wvmnx'][0] = 550.
-            arcparam['wvmnx'][1] = 11000.
-            arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
-        elif disperser == '1200G': # Blaze 7760
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=0.32 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
-            arcparam['wvmnx'][0] = 550.
-            arcparam['wvmnx'][1] = 11000.
-            arcparam['min_ampl'] = 2000.  # Lines tend to be very strong
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+        arcparam['min_ampl'] = 1000.  # Lines tend to be very strong
+        arcparam['wvmnx'][0] = 4000.
+        arcparam['wvmnx'][1] = 11000.
+
+    #        if disperser == '830G': # Blaze 8640
+#            arcparam['n_first']=2 # Too much curvature for 1st order
+#            arcparam['disp']=0.47 # Ang per pixel (unbinned)
+#            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
+#            arcparam['wvmnx'][0] = 550.
+#            arcparam['wvmnx'][1] = 11000.
+#            arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
+#        elif disperser == '1200G': # Blaze 7760
+#            arcparam['n_first']=2 # Too much curvature for 1st order
+#            arcparam['disp']=0.32 # Ang per pixel (unbinned)
+#            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
+#            arcparam['wvmnx'][0] = 550.
+#            arcparam['wvmnx'][1] = 11000.
+#            arcparam['min_ampl'] = 2000.  # Lines tend to be very strong
+#        else:
+#            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
     def get_slitmask(self, filename):
         hdu = fits.open(filename)

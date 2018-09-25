@@ -7,6 +7,8 @@ import numpy as np
 import time
 import datetime
 
+from multiprocessing import Process
+
 from astropy.time import Time
 from astropy.stats import sigma_clipped_stats
 
@@ -178,7 +180,7 @@ class ScienceImage(processimages.ProcessImages):
         # SpecObjs object
         self.sobjs_obj = None # Only object finding but no extraction
         self.sobjs = None  # Final extracted object list with trace corrections applied
-
+        self.qa_proc_list = []
 
         # Other bookeeping internals
         self.exptime = None
@@ -316,7 +318,8 @@ class ScienceImage(processimages.ProcessImages):
 
         # Loop on slits
         for slit in gdslits:
-            msgs.info("Finding objects on slit: {:d}".format(slit +1))
+            qa_title ="Finding objects on slit # {:d}".format(slit +1)
+            msgs.info(qa_title)
             thismask = (self.tslits_dict['slitpix'] == slit + 1)
             inmask = (self.bitmask == 0) & thismask
             # Find objects
@@ -326,13 +329,15 @@ class ScienceImage(processimages.ProcessImages):
             # TODO we need to add QA paths and QA hooks. QA should be
             # done through objfind where all the relevant information
             # is. This will be a png file(s) per slit.
-            sobjs_slit, self.skymask[thismask], self.objmask[thismask] \
+            sobjs_slit, self.skymask[thismask], self.objmask[thismask], proc_list \
                     = extract.objfind(image, thismask, self.tslits_dict['lcen'][:,slit],
                                       self.tslits_dict['rcen'][:,slit], inmask=inmask,
                                       hand_extract_dict=self.par['manual'],
                                       specobj_dict=specobj_dict, show_peaks=show_peaks,
-                                      show_fits=show_fits,show_trace=show_trace)
+                                      show_fits=show_fits, show_trace=show_trace,
+                                      qa_title=qa_title)
             sobjs.add_sobj(sobjs_slit)
+            self.qa_proc_list += proc_list
 
         self.sobjs_obj = sobjs
         # Finish
@@ -407,7 +412,9 @@ class ScienceImage(processimages.ProcessImages):
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            self.show('global', slits=True)
+            # Global skysub is the first step in a new extraction so clear the channels here
+            self.show('global', slits=True, sobjs =self.sobjs_obj, clear=False)
+
 
         # Return
         return self.global_sky
@@ -496,6 +503,11 @@ class ScienceImage(processimages.ProcessImages):
             self.show('local', sobjs = self.sobjs, slits= True)
             self.show('resid', sobjs = self.sobjs, slits= True)
 
+        # Clean up any interactive windows that are still up
+        for proc in self.qa_proc_list:
+            proc.terminate()
+            proc.join()
+
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
@@ -519,7 +531,8 @@ class ScienceImage(processimages.ProcessImages):
                 return False
         return True
 
-    def process(self, bias_subtract, pixel_flat, bpm, apply_gain=True, trim=True):
+    def process(self, bias_subtract, pixel_flat, bpm, illum_flat=None, apply_gain=True, trim=True,
+                show=False):
         """ Process the image
 
         Wrapper to ProcessImages.process()
@@ -540,7 +553,8 @@ class ScienceImage(processimages.ProcessImages):
 
         self.sciimg = super(ScienceImage, self).process(bias_subtract=bias_subtract,
                                                         apply_gain=apply_gain,
-                                                        pixel_flat=pixel_flat, bpm=self.bpm,
+                                                        pixel_flat=pixel_flat,
+                                                        illum_flat=illum_flat, bpm=self.bpm,
                                                         trim=trim)
 
         # Construct raw variance image
@@ -551,6 +565,10 @@ class ScienceImage(processimages.ProcessImages):
         # Build CR mask
         self.crmask = self.build_crmask()
 
+        # Show the science image if an interactive run, only show the crmask
+        if show:
+            # Only mask the CRs in this image
+            self.show('image', image=self.sciimg*(self.crmask == 0), chname='sciimg', clear=True)
         return self.sciimg, self.sciivar, self.rn2img, self.crmask
 
 
@@ -589,9 +607,14 @@ class ScienceImage(processimages.ProcessImages):
         indx = self.sciimg <= self.spectrograph.detector[self.det - 1]['mincounts']
         bitmask[indx] = self.bm.turn_on(bitmask[indx], 'MINCOUNTS')
 
-        # Pixels excluded from any slit
-        indx = self.tslits_dict['slitpix'] == 0
-        bitmask[indx] = self.bm.turn_on(bitmask[indx], 'OFFSLITS')
+        # Pixels excluded from any slit.  Use a try/except block so that
+        # the bitmask can still be created even if tslits_dict has not
+        # been instantiated yet
+        try:
+            indx = self.tslits_dict['slitpix'] == 0
+            bitmask[indx] = self.bm.turn_on(bitmask[indx], 'OFFSLITS')
+        except:
+            pass
 
         # Undefined counts
         indx = np.invert(np.isfinite(self.sciimg))
@@ -631,7 +654,8 @@ class ScienceImage(processimages.ProcessImages):
         return self.maskslits
 
 
-    def show(self, attr, image=None, showmask=False, sobjs=None, chname=None, slits=False):
+    def show(self, attr, image=None, showmask=False, sobjs=None, chname=None, slits=False,
+             clear=False):
         """
         Show one of the internal images
 
@@ -676,8 +700,8 @@ class ScienceImage(processimages.ProcessImages):
                 cut_max = mean + 4.0 * sigma
                 ch_name = chname if chname is not None else 'global_sky'
                 viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in,
-                                              mask=mask_in)
-                #cuts=(cut_min, cut_max)
+                                              mask=mask_in, clear=clear, wcs_match=True)
+                                              #, cuts=(cut_min, cut_max))
         elif attr == 'local':
             # local sky subtraction
             if self.sciimg is not None and self.skymodel is not None \
@@ -690,8 +714,8 @@ class ScienceImage(processimages.ProcessImages):
                 cut_max = mean + 4.0 * sigma
                 ch_name = chname if chname is not None else 'local_sky'
                 viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in,
-                                              mask=mask_ine)
-                #cuts=(cut_min, cut_max),
+                                              mask=mask_in, clear=clear, wcs_match=True)
+                                              #, cuts=(cut_min, cut_max))
         elif attr == 'sky_resid':
             # sky residual map with object included
             if self.sciimg is not None and self.skymodel is not None \
@@ -701,7 +725,8 @@ class ScienceImage(processimages.ProcessImages):
                 image *= (self.bitmask == 0)
                 ch_name = chname if chname is not None else 'sky_resid'
                 viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
-                                              bitmask=bitmask_in, mask=mask_in)
+                                              bitmask=bitmask_in, mask=mask_in, clear=clear,
+                                              wcs_match=True)
         elif attr == 'resid':
             # full residual map with object model subtractede
             if self.sciimg is not None and self.skymodel is not None \
@@ -712,10 +737,11 @@ class ScienceImage(processimages.ProcessImages):
                 image *= (self.bitmask == 0)
                 ch_name = chname if chname is not None else 'resid'
                 viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
-                                              bitmask=bitmask_in, mask=mask_in)
+                                              bitmask=bitmask_in, mask=mask_in, clear=clear,
+                                              wcs_match=True)
         elif attr == 'image':
             ch_name = chname if chname is not None else 'image'
-            viewer, ch = ginga.show_image(image, chname=ch_name)
+            viewer, ch = ginga.show_image(image, chname=ch_name, clear=clear, wcs_match=True)
         else:
             msgs.warn("Not an option for show")
 

@@ -69,8 +69,10 @@ class WaveCalib(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'wv_calib'
 
-    def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, root_path=None,
-                 mode=None, fitstbl=None, sci_ID=None, arcparam=None):
+    # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
+    # parameters since instantiating without them does nothing. Make them required
+    def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
+                 mode=None, fitstbl=None, sci_ID=None, arcparam=None, redux_path=None, bpm = None):
 
         # Instantiate the spectograph
         if isinstance(spectrograph, str):
@@ -81,17 +83,17 @@ class WaveCalib(masterframe.MasterFrame):
             raise TypeError('Must provide a name or instance for the Spectrograph.')
 
         # MasterFrame
-        directory_path = None if root_path is None \
-                                else root_path+'_'+self.spectrograph.spectrograph
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         directory_path=directory_path, mode=mode)
+                                         master_dir=master_dir, mode=mode)
 
         # Required parameters (but can be None)
         self.msarc = msarc
+        self.bpm = bpm
 
         self.par = pypeitpar.WavelengthSolutionPar() if par is None else par
 
         # Optional parameters
+        self.redux_path = redux_path
         self.fitstbl = fitstbl
         self.sci_ID = sci_ID
         self.det = det
@@ -142,7 +144,7 @@ class WaveCalib(masterframe.MasterFrame):
         # QA
         if not skip_QA:
             for slit in ok_mask:
-                arc.arc_fit_qa(self.setup, self.wv_calib[str(slit)], slit)
+                arc.arc_fit_qa(self.setup, self.wv_calib[str(slit)], slit, out_dir=self.redux_path)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -177,7 +179,7 @@ class WaveCalib(masterframe.MasterFrame):
             msgs.error("Not an allowed method")
         return iwv_calib
 
-    def _extract_arcs(self, lordloc, rordloc, pixlocn):
+    def _extract_arcs(self, lordloc, rordloc, slitpix):
         """
         Extract an arc down the center of each slit/order
 
@@ -189,7 +191,7 @@ class WaveCalib(masterframe.MasterFrame):
           Left edges (from TraceSlit)
         rordloc : ndarray
           Right edges (from TraceSlit)
-        pixlocn : ndarray
+        slitpix : ndarray
 
         Returns
         -------
@@ -198,11 +200,9 @@ class WaveCalib(masterframe.MasterFrame):
         self.maskslits
 
         """
-        nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation'] \
-                                * self.spectrograph.detector[self.det-1]['nonlinear']
-        self.arccen, self.maskslits, _ \
-                    = arc.get_censpec(lordloc, rordloc, pixlocn, self.msarc, self.det,
-                                        nonlinear_counts=nonlinear_counts, gen_satmask=False)
+
+        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc, inmask=(self.bpm == 0))
+
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -285,7 +285,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.maskslits = mask
         return self.maskslits
 
-    def run(self, lordloc, rordloc, pixlocn, nonlinear=None, skip_QA=False):
+    def run(self, lordloc, rordloc, slitpix, nonlinear=None, skip_QA=False):
         """
         Main driver for wavelength calibration
 
@@ -301,8 +301,8 @@ class WaveCalib(masterframe.MasterFrame):
           From a TraceSlit object
         rordloc : ndarray
           From a TraceSlit object
-        pixlocn : ndarray
-          From a TraceSlit object
+        slitpix : ndarray
+          slitmask from tslits_dict
         nonlinear : float, optional
           Would be passed to arc.detect_lines but that routine is
           currently being run in arclines.holy
@@ -316,7 +316,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         ###############
         # Extract an arc down each slit
-        _, _ = self._extract_arcs(lordloc, rordloc, pixlocn)
+        _, _ = self._extract_arcs(lordloc, rordloc, slitpix)
 
         # Load the arcparam, if one was not passed in.
         if self.arcparam is None:

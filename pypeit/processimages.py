@@ -113,7 +113,7 @@ class ProcessImages(object):
         self.rn2img = None          # build_rn2img
         self.bpm = None             # passed as an argument to process(), flat_field()
         self.pixel_flat = None      # passed as an argument to process(), flat_field()
-        self.slitprof = None        # passed as an argument to process(), flat_field()
+        self.illum_flat = None        # passed as an argument to process(), flat_field()
 
     # TODO: This is currently only use by BiasFrame as a test.  Now that
     # ProcessImages takes in these other parameter sets, we'll need to
@@ -280,10 +280,13 @@ class ProcessImages(object):
         # Reset proc_images -- Is there any reason we wouldn't??
         numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
         for kk,image in enumerate(self.raw_images):
-
             # Bias subtract (move here from procimg)
+
             if isinstance(msbias, np.ndarray):
                 msgs.info("Subtracting bias image from raw frame")
+                # Trim?
+                if trim:
+                    image = procimg.trim_frame(image, datasec_img < 1)
                 temp = image-msbias
             elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
@@ -291,12 +294,11 @@ class ProcessImages(object):
                                                    self.oscansec,
                                                    method=self.proc_par['overscan'],
                                                    params=self.proc_par['overscan_par'])
+                # Trim?
+                if trim:
+                    temp = procimg.trim_frame(temp, datasec_img < 1)
             else:
                 msgs.error('Could not subtract bias level with the input bias approach.')
-
-            # Trim?
-            if trim:
-                temp = procimg.trim_frame(temp, datasec_img < 1)
 
             # Save
             if kk==0:
@@ -374,11 +376,11 @@ class ProcessImages(object):
         # Return
         return self.crmask
 
-    def flat_field(self, pixel_flat, bpm, slitprofile=None):
+    def flat_field(self, pixel_flat, bpm, illum_flat=None):
         """
         Flat field the stack image
 
-        pixel_flat and slitprofile are passed here to force users to
+        pixel_flat and illum_flat are passed here to force users to
         consider that they're needed when calling flat_field().
 
         Wrapper to arflat.flatfield()
@@ -392,18 +394,21 @@ class ProcessImages(object):
         # Assign the relevant data to self
         self.pixel_flat = pixel_flat
         self.bpm = bpm
-        self.slitprof = slitprofile
+        self.illum_flat = illum_flat
 
         # Check that the bad-pixel mask is available
         if self.bpm is None:
             msgs.error('No bpm for {0}'.format(self.spectrograph.spectrograph))
 
+        msgs.info("Flat fielding your image")
         # Flat-field the data and return the result
-        self.stack = flat.flatfield(self.stack, self.pixel_flat, self.bpm, slitprofile=self.slitprof)
+
+        from IPython import embed
+        self.stack = flat.flatfield(self.stack, self.pixel_flat, self.bpm, illum_flat=self.illum_flat)
         return self.stack
 
     def process(self, bias_subtract=None, apply_gain=False, trim=True, overwrite=False,
-                pixel_flat=None, bpm=None, slitprof=None):
+                pixel_flat=None, bpm=None, illum_flat=None):
         """
         Process the images from loading to combining
 
@@ -462,7 +467,7 @@ class ProcessImages(object):
 
         # Flat field?
         if pixel_flat is not None:
-            self.stack = self.flat_field(pixel_flat, bpm, slitprofile=slitprof)
+            self.stack = self.flat_field(pixel_flat, bpm, illum_flat=illum_flat)
 
         # Done
         return self.stack.copy()

@@ -30,8 +30,8 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
 
     root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
                     else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
-    directory_path = root_path+'_'+spectrograph.spectrograph
-                    
+    master_dir = root_path+'_'+spectrograph.spectrograph
+
     mode = 'reuse'
 
     # Load up the Masters
@@ -42,12 +42,12 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
 
     setup = 'A_01_aa'
     if aimg:
-        AImg = arcimage.ArcImage(spectrograph, setup=setup, root_path=root_path, mode=mode)
+        AImg = arcimage.ArcImage(spectrograph, setup=setup, master_dir=master_dir, mode=mode)
         msarc, header, _ = AImg.load_master_frame()
         ret.append(msarc)
 
     if tslits:
-        TSlits = traceslits.TraceSlits.from_master_files(os.path.join(directory_path,
+        TSlits = traceslits.TraceSlits.from_master_files(os.path.join(master_dir,
                                                                       'MasterTrace_A_01_aa'))
         TSlits._make_pixel_arrays()
         _ = TSlits._fill_tslits_dict()
@@ -55,7 +55,7 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
 
     if tilts:
         wvTilts = wavetilts.WaveTilts(None, spectrograph=spectrograph, setup=setup,
-                                      root_path=root_path, mode=mode)
+                                      master_dir=master_dir, mode=mode)
         tilts = wvTilts.master()
         ret.append(tilts)
 
@@ -65,7 +65,7 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
 
     if wvcalib:
         Wavecalib = wavecalib.WaveCalib(None, spectrograph=spectrograph, setup=setup,
-                                        root_path=root_path, mode=mode)
+                                        master_dir=master_dir, mode=mode)
         wv_calib = Wavecalib.master()
         ret.append(wv_calib)
 

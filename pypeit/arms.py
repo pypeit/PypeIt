@@ -54,9 +54,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None, show = False):
     status = 0
 
     # Generate sciexp list, if need be (it will be soon)
-    #sv_std_idx = []
     std_dict = {}
-    #sciexp = []
     all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
     numsci = len(all_sci_ID)
     basenames = [None]*numsci  # For fluxing at the very end
@@ -104,7 +102,8 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None, show = False):
         for kk in range(_spectrograph.ndet):
             det = kk + 1  # Detectors indexed from 1
             if _par['rdx']['detnum'] is not None:
-                if det not in map(int, _par['rdx']['detnum']):
+                detnum = [_par['rdx']['detnum']] if isinstance(_par['rdx']['detnum'],int) else _par['rdx']['detnum']
+                if det not in map(int, detnum):
                     msgs.warn("Skipping detector {:d}".format(det))
                     continue
                 else:
@@ -141,7 +140,7 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None, show = False):
             # Derive the spectral tilt
             mstilts, maskslits = caliBrate.get_tilts()
             # Prepare the pixel flat field frame
-            mspixflatnrm, slitprof = caliBrate.get_pixflatnrm()
+            mspixflatnrm, msillumflat = caliBrate.get_pixflatnrm(show = show)
             # Generate/load a master wave frame
             mswave = caliBrate.get_wave()
 
@@ -170,15 +169,16 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None, show = False):
                 basenames[sc] = basename
 
             # Process images (includes inverse variance image, rn2 image, and CR mask)
-            sciimg, sciivar, rn2img, crmask = sciI.process(msbias, mspixflatnrm, msbpm, apply_gain=True,trim=caliBrate.par['trim'])
+            sciimg, sciivar, rn2img, crmask = sciI.process(msbias, mspixflatnrm, msbpm, illum_flat = msillumflat,
+                                                           apply_gain=True,trim=caliBrate.par['trim'], show = show)
 
             # Object finding, first pass on frame without sky subtraction
             sobjs_obj0, nobj0 = sciI.find_objects(tslits_dict, skysub = False, maskslits=maskslits)
 
             # Global sky subtraction, first pass. Uses skymask from object finding
-            global_sky0 = sciI.global_skysub(tslits_dict, mstilts, use_skymask=True, maskslits = maskslits)
+            global_sky0 = sciI.global_skysub(tslits_dict, mstilts, use_skymask=True, maskslits = maskslits, show = show)
 
-            # Object finding, second pass on frame *with* sky subtraction
+            # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             sobjs_obj, nobj = sciI.find_objects(tslits_dict, skysub = True, maskslits=maskslits,show_peaks=show)
 
             # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion

@@ -161,7 +161,7 @@ def test_run_calcheck():
     # Run
     par, spectrograph, fitstbl, setup_dict = setupc.run(calibration_check=True)
     # Test
-    assert par == None
+    assert isinstance(par, pypeitpar.PypeItPar)
 
 def test_run_setup():
     if skip_test:

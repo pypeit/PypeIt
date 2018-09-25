@@ -42,6 +42,8 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
       Guides bias subtraction
     fitstbl : PypeItMetaData (optional)
       FITS info (mainly for filenames)
+    redux_path : str (optional)
+      Path for reduction
 
     Attributes
     ----------
@@ -57,8 +59,8 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'arc'
 
-    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, root_path=None,
-                 mode=None, fitstbl=None, sci_ID=None, msbias=None):
+    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None,
+                 master_dir=None, mode=None, fitstbl=None, sci_ID=None, msbias=None):
     
         # Parameters unique to this Object
         self.fitstbl = fitstbl
@@ -74,13 +76,11 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        directory_path = None if root_path is None \
-                                else root_path+'_'+self.spectrograph.spectrograph
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         directory_path=directory_path, mode=mode)
+                                         mode=mode, master_dir=master_dir)
 
 
-    def build_image(self):
+    def build_image(self, overwrite=False, trim=True):
         """
         Build the arc image from one or more arc files
 
@@ -93,7 +93,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         if self.nfiles == 0:
             self.file_list = fsort.list_of_files(self.fitstbl, self.frametype, self.sci_ID)
         # Combine
-        self.stack = self.process(bias_subtract=self.msbias)
+        self.stack = self.process(bias_subtract=self.msbias, overwrite=overwrite, trim=True)
         #
         return self.stack
 
