@@ -51,7 +51,7 @@ class Spectrograph(object):
     __metaclass__ = ABCMeta
 
     def __init__(self):
-        self.spectrograph = 'generic'
+        self.spectrograph = 'base'
         self.telescope = None
         self.camera = None
         self.detector = None
@@ -86,9 +86,6 @@ class Spectrograph(object):
     @staticmethod
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
-
-    def validate_fitstbl(self, fitstbl):
-        pass
 
     def _check_telescope(self):
         # Check the detector
@@ -375,6 +372,9 @@ class Spectrograph(object):
     def header_keys(self):
         return self.default_header_keys()
 
+    def validate_metadata(self, fitstbl):
+        pass
+
     def metadata_keys(self):
         return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker']
 
@@ -409,14 +409,12 @@ class Spectrograph(object):
     def get_match_criteria(self):
         pass
 
-    def frame_type_conditions(self, ftype):
-        msgs.warn('Frame typing conditions have not been set for {0}.'.format(self.spectrograph))
-        return dict()
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        raise NotImplementedError('Frame typing not defined for {0}.'.format(self.spectrograph))
 
     def idname(self, ftype):
         """
-        Convert a given file type into a string that would
-        occur in the header indicating it.
+        Return the `idname` for the selected frame type for this instrument.
 
         Args:
             ftype (str):
@@ -424,10 +422,12 @@ class Spectrograph(object):
                 :class:`pypeit.core.fsort.FrameTypeBitMask`.
 
         Returns:
-            str: The header keywidname: str
-
+            str: The value of `idname` that should be available in the
+            `PypeItMetaData` instance that identifies frames of this
+            type.
         """
-        raise NotImplementedError('Header keyword with frame type not set for this spectrograph.')
+        raise NotImplementedError('Header keyword with frame type not defined for {0}.'.format(
+                                  self.spectrograph))
 
     def check_headers(self, headers, expected_values=None):
         """

@@ -84,6 +84,9 @@ class PypeItMetaData:
         self.bitmask = framematch.FrameTypeBitMask()
         self.table = table.Table(data if file_list is None 
                                  else self._build(file_list, strict=strict))
+        # Instrument-specific validation of the header metadata. This
+        # alters self.table in place!
+        self.spectrograph.validate_metadata(self.table)
     
     def _build(self, file_list, strict=True):
         """
@@ -421,6 +424,8 @@ class PypeItMetaData:
             # combinations of the full set of metadata
             exprng = self.par['scienceframe']['exprng'] if ftype == 'science' \
                         else self.par['calibrations']['{0}frame'.format(ftype)]['exprng']
+            # TODO: Use & or | ?  Using idname above gets overwritten by
+            # this if the frames to meet the other checks in this call.
             indx &= self.spectrograph.check_frame_type(ftype, self.table, exprng=exprng)
     
             # Turn on the relevant bits

@@ -143,7 +143,7 @@ def test_setup_shane_kast_blue():
 
 @dev_suite_required
 def test_setup_shane_kast_red():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Shane_Kast_red/600_7500_d55/')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Shane_Kast_red/600_7500_d55')
     droot += '/'
     pargs = setup.parser([droot, 'shane_kast_red'])
     setup.main(pargs)
@@ -163,8 +163,50 @@ def test_setup_shane_kast_red():
 
 # TODO: We need a test data set for shane_kast_red_ret
 
+@dev_suite_required
+def test_setup_keck_deimos():
+
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_DEIMOS/830G_M_8600')
+    droot += '/'
+    pargs = setup.parser([droot, 'keck_deimos'])
+    setup.main(pargs)
+
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+
+    files = glob.glob(os.path.join(setup_dir, 'keck_deimos*'))
+    ext = [f.split('.')[-1] for f in files]
+    expected = ['lst', 'pypeit', 'setups', 'sorted']
+    assert np.all([e in ext for e in expected]), \
+            'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
+
 if __name__ == '__main__':
 #    test_setup_keck_lris_blue()
-    test_setup_shane_kast_red()
+    test_setup_keck_deimos()
 
+
+
+#    from pypeit.pypeitsetup import PypeItSetup
+#    file_list = glob.glob(os.path.join(os.environ['PYPEIT_DEV'],
+#                                       'RAW_DATA/Keck_DEIMOS/830G_M_8600', '*.fits.gz'))
+#    cfg_lines = ['[rdx]',
+#                 'spectrograph = keck_deimos',
+#                 '[calibrations]',
+#                 '[[pixelflatframe]]',
+#                 'number = 3',
+#                 '[[standardframe]]',
+#                 'number = 0']
+#    ps = PypeItSetup(file_list, cfg_lines=cfg_lines)
+#    ps.build_fitstbl()
+#    ps.get_frame_types(flag_unknown=True) #, use_header_id=True)
+#    
+#
+#    import pdb
+#    pdb.set_trace()
+
+    exit()
 
