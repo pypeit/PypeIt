@@ -36,6 +36,17 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         hdr_keys[3] = {}
         hdr_keys[4] = {}
 
+        # Copied over defaults
+        hdr_keys[0]['idname'] = 'OBSTYPE'
+        hdr_keys[0]['time'] = 'MJD-OBS'
+        hdr_keys[0]['date'] = 'DATE'
+        hdr_keys[0]['ra'] = 'RA'
+        hdr_keys[0]['dec'] = 'DEC'
+        hdr_keys[0]['airmass'] = 'AIRMASS'
+        hdr_keys[0]['binning'] = 'BINNING'
+        hdr_keys[0]['decker'] = 'SLITNAME'
+        hdr_keys[0]['dichroic'] = 'DICHNAME'
+
         hdr_keys[0]['target'] = 'TARGNAME'
         hdr_keys[0]['exptime'] = 'ELAPTIME'
         hdr_keys[0]['hatch'] = 'TRAPDOOR'
@@ -65,6 +76,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['lampstat11'] = 'HALOGEN'
 
         return hdr_keys
+
+    def metadata_keys(self):
+        return super(KeckLRISSpectrograph, self).metadata_keys() \
+                    + ['binning', 'dichroic', 'dispangle']
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -370,11 +385,12 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exptime'] = [None, 1]
-        par['calibrations']['pixelflatframe']['exptime'] = [None, 30]
-        par['calibrations']['traceframe']['exptime'] = [None, 30]
-        par['calibrations']['traceframe']['exptime'] = [None, 30]
-        par['scienceframe']['exptime'] = [None, 30]
+        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
+        par['calibrations']['traceframe']['exprng'] = [None, 30]
+        par['scienceframe']['exprng'] = [29, None]
         return par
 
     def header_keys(self):

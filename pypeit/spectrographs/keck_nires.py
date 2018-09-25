@@ -44,7 +44,8 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         # Uses default primary_hdrext
         # self.sky_file = ?
 
-
+    def metadata_keys(self):
+        return ['filename', 'date', 'frametype', 'target', 'exptime']
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """

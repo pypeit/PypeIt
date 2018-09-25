@@ -48,6 +48,10 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
         return def_keys
 
+    def metadata_keys(self):
+        return ['filename', 'date', 'frametype', 'target', 'exptime']
+
+
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     """
     Child to handle VLT/XSHOOTER specific code

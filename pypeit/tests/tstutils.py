@@ -14,6 +14,9 @@ from pypeit import wavetilts
 from pypeit.spectrographs.util import load_spectrograph
 
 
+dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,
+                                        reason='test requires dev suite')
+
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)

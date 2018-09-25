@@ -522,7 +522,7 @@ def pypeit_config_lines(ifile):
     
 
 def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setup_mode=False,
-                    setup_lines=None, sorted_files=None, paths=None):
+                     setup_lines=None, sorted_files=None, paths=None):
     """ Generate a default PYPIT file
 
     Parameters

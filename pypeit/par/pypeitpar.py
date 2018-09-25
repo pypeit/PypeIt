@@ -169,7 +169,8 @@ class FrameGroupPar(ParSet):
         """
         Return the list of valid frame types.
         """
-        return [ 'bias', 'pixelflat', 'arc', 'pinhole', 'trace', 'standard', 'science', 'all' ]
+        return [ 'bias', 'dark', 'pixelflat', 'arc', 'pinhole', 'trace', 'standard', 'science',
+                 'all' ]
 
     def validate(self):
         if self.data['useframe'] is None:
@@ -1720,9 +1721,9 @@ class CalibrationsPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, caldir=None, masters=None, setup=None, trim=None, badpix=None,
-                 biasframe=None, arcframe=None, pixelflatframe=None, pinholeframe=None,
-                 traceframe=None, standardframe=None, flatfield=None, wavelengths=None,
-                 slits=None, tilts=None):
+                 biasframe=None, darkframe=None, arcframe=None, pixelflatframe=None,
+                 pinholeframe=None, traceframe=None, standardframe=None, flatfield=None,
+                 wavelengths=None, slits=None, tilts=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1765,6 +1766,10 @@ class CalibrationsPar(ParSet):
         defaults['biasframe'] = FrameGroupPar(frametype='bias', number=5)
         dtypes['biasframe'] = [ ParSet, dict ]
         descr['biasframe'] = 'The frames and combination rules for the bias correction'
+
+        defaults['darkframe'] = FrameGroupPar(frametype='bias', number=0)
+        dtypes['darkframe'] = [ ParSet, dict ]
+        descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
 
         defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat', number=5)
         dtypes['pixelflatframe'] = [ ParSet, dict ]
@@ -1826,6 +1831,8 @@ class CalibrationsPar(ParSet):
         # Keywords that are ParSets
         pk = 'biasframe'
         kwargs[pk] = FrameGroupPar.from_dict('bias', cfg[pk]) if pk in k else None
+        pk = 'darkframe'
+        kwargs[pk] = FrameGroupPar.from_dict('dark', cfg[pk]) if pk in k else None
         pk = 'arcframe'
         kwargs[pk] = FrameGroupPar.from_dict('arc', cfg[pk]) if pk in k else None
         pk = 'pixelflatframe'

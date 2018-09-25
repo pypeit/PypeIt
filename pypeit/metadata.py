@@ -15,7 +15,7 @@ from astropy import table, coordinates, time
 from pypeit import msgs
 from pypeit.core import framematch
 from pypeit.core import flux
-from pypeit.spectrographs import Spectrograph
+from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.par import PypeItPar
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -83,9 +83,9 @@ class PypeItMetaData:
             raise TypeError('Input parameter set must be of type PypeItPar.')
         self.bitmask = framematch.FrameTypeBitMask()
         self.table = table.Table(data if file_list is None 
-                                 else self._build_data(file_list, strict=strict))
+                                 else self._build(file_list, strict=strict))
     
-    def _build_data(self, file_list, strict=True):
+    def _build(self, file_list, strict=True):
         """
         Returns a dictionary with the data to be included in the table.
         """
@@ -97,7 +97,7 @@ class PypeItMetaData:
 
         # The table is declared based on this input dictionary: The
         # directory, filename, instrument, utc are always included
-        data = {k:[] for k in FitsMetaData.default_keys()}
+        data = {k:[] for k in PypeItMetaData.default_keys()}
 
         # Add columns to the output table for each keyword.  The
         # keywords from all extensions must be unique.
@@ -161,7 +161,7 @@ class PypeItMetaData:
     
             # Now get the rest of the keywords
             for k in data.keys():
-                if k in FitsMetaData.default_keys():
+                if k in PypeItMetaData.default_keys():
                     continue
     
                 # Try to read the header item
@@ -179,10 +179,10 @@ class PypeItMetaData:
     
                 # Set the value
                 vtype = type(value)
-                if np.issubdtype(vtype, str):
+                if np.issubdtype(vtype, np.str_):
                     value = value.strip()
                 if np.issubdtype(vtype, np.integer) or np.issubdtype(vtype, np.floating) \
-                        or np.issubdtype(vtype, str) or np.issubdtype(vtype, np.bool_):
+                        or np.issubdtype(vtype, np.str_) or np.issubdtype(vtype, np.bool_):
                     data[k].append(value)
                 else:
                     msgs.bug('Unexpected type, {1:s}, for key {0:s}'.format(k,
@@ -200,27 +200,27 @@ class PypeItMetaData:
         
         return data
 
-    # TODO:  In this implementation, slicing the FitsMetaData object
-    # will return an astropy.table.Table, not a FitsMetaData object.
+    # TODO:  In this implementation, slicing the PypeItMetaData object
+    # will return an astropy.table.Table, not a PypeItMetaData object.
     def __getitem__(self, item):
         return self.table.__getitem__(item)
 
-    def __setitem__(self, item):
-        return self.table.__setitem__(item)
+    def __setitem__(self, item, value):
+        return self.table.__setitem__(item, value)
 
     def __len__(self):
         return self.table.__len__()
 
     def __repr__(self):
         return self.table._base_repr_(html=False,
-                            descr_vals=['FitsMetaData:\n',
+                            descr_vals=['PypeItMetaData:\n',
                                         '              spectrograph={0}\n'.format(
                                                                     self.spectrograph.spectrograph),
                                         '              length={0}\n'.format(len(self))])
 
     def _repr_html_(self):
         return self.table._base_repr_(html=True, max_width=-1,
-                            descr_vals=['FitsMetaData: spectrograph={0}, length={1}\n'.format(
+                            descr_vals=['PypeItMetaData: spectrograph={0}, length={1}\n'.format(
                                                     self.spectrograph.spectrograph, len(self))])
 
     @staticmethod
@@ -229,6 +229,9 @@ class PypeItMetaData:
 
     def keys(self):
         return self.table.keys()
+
+    def sort(self, col):
+        return self.table.sort(col)
 
     @staticmethod
     def get_utc(headarr):
@@ -307,7 +310,7 @@ class PypeItMetaData:
         if 'framebit' not in self.keys():
             raise ValueError('Frame types are not set.  First run get_frame_types.')
         indx = self.bitmask.flagged(self['framebit'], ftype)
-        return indx if sci_ID is None else indx & (self['sci_ID'] == sci_ID)
+        return indx if sci_ID is None else indx & (self['sci_ID'] & sci_ID > 0)
 
     def find_frame_files(self, ftype, sci_ID=None):
         """
@@ -346,14 +349,12 @@ class PypeItMetaData:
         
         Returns:
             `astropy.table.Table`: Table with two columns, the frame
-            type name and bits.  Nothing is returned if merge is True.
+            type name and bits.
         """
-        t = table.Table({'frametype': get_type_names(type_bits, bitmask=self.bitmask), 
-                                 'framebit': type_bits})
+        t = table.Table({'frametype':self.bitmask.type_names(type_bits), 'framebit':type_bits})
         if merge:
             self['frametype'] = t['frametype']
             self['framebit'] = t['framebit']
-            return
         return t
 
     def get_frame_types(self, flag_unknown=False, user=None, useIDname=False, merge=True):
@@ -464,7 +465,7 @@ class PypeItMetaData:
         msgs.info("Typing completed!")
         return self.set_frame_types(type_bits, merge=merge)
 
-    def write(self, ofile, columns=None, format=None):
+    def write(self, ofile, columns=None, format=None, overwrite=False):
         """
         Write the metadata for the files to reduce.
     
@@ -484,11 +485,20 @@ class PypeItMetaData:
             format (:obj:`str`, optional):
                 Format for the file output.  See
                 :func:`astropy.table.Table.write`.
+            overwrite (:obj:`bool`, optional):
+                Overwrite any existing file; otherwise raise an
+                exception.
 
         Raises:
             ValueError:
                 Raised if the columns to include are not unique.
+            FileExistsError:
+                Raised if overwrite is False and the file exists.
         """
+        if os.path.isfile(ofile) and not overwrite:
+            raise FileExistsError('File {0} already exists.'.format(ofile) 
+                                    + '  Change file name or set overwrite=True.')
+
         msgs.info('Writing fits file metadata to {0}.'.format(ofile))
     
         # Set the columns to include and check that they are unique
@@ -496,11 +506,11 @@ class PypeItMetaData:
         if len(np.unique(_columns)) != len(_columns):
             # TODO: A warning may suffice...
             raise ValueError('Column names must be unique!')
-    
+
         # Force the filename and frametype columns to go first
         col_order = [ 'filename', 'frametype' ]
-        col_order.append(list(set(_columns) - set(col_order)))
-    
+        col_order += list(set(_columns) - set(col_order))
+
         # Remove any columns that don't exist
         for c in col_order:
             if c not in self.keys():
@@ -508,7 +518,7 @@ class PypeItMetaData:
                 col_order.remove(c)
     
         # Write the output
-        self[col_order].write(ofile, format=format)
+        self.table[col_order].write(ofile, format=format, overwrite=overwrite)
     
     def match_to_science(self, calib_par, calwin, setup=False, verbose=True):
         """
@@ -542,18 +552,19 @@ class PypeItMetaData:
             if 'time' not in self.keys():
                 end = ', and cannot match calibrations based on time difference.' \
                         if calwin > 0.0 else '.'
-                warnings.warn('Table does not include time column!  Cannot sort calibration '
-                              'frames by observation time with respect to each science '
-                              'frame{0}'.format(end))
+                msgs.warn('Table does not include time column!  Cannot sort calibration frames '
+                          'by observation time with respect to each science frame{0}'.format(end))
         
         match_dict = self.spectrograph.get_match_criteria()
 
         # New columns
+        # TODO: Failures is never set to True!  Iterate through science
+        # frames and make sure they have an associated arc?
         self['failures'] = False
         self['sci_ID'] = 0
 
         # Loop on science frames
-        indx = numpy.arange(len(self))[self.find_frames('science')]
+        indx = np.arange(len(self))[self.find_frames('science')]
         for ss, sci_idx in enumerate(np.where(self.find_frames('science'))[0]):
             target = self['target'][sci_idx] if 'target' in self.keys() \
                             else self['filename'][sci_idx]
@@ -619,22 +630,22 @@ class PypeItMetaData:
                 # Have we identified enough of these calibration frames to continue?
                 if nmatch < np.abs(numfr):
                     code = framematch.match_warnings(calib_par, ftag, nmatch, numfr, target)
-                if code == 'break':
-                    self['failure'][sci_idx] = True
-                    self['sci_ID'][sci_idx] = -1  # This might break things but who knows..
-                    break
+                    if code == 'break':
+                        self['failure'][sci_idx] = True
+                        self['sci_ID'][sci_idx] = -1  # This might break things but who knows..
+                        break
                 else:
                     # Select the closest calibration frames to the science frame
                     wa = np.where(gd_match)[0]
                     if 'time' in self.keys():
-                        tdiff = np.abs(fitstbl['time'][wa]-fitstbl['time'][sci_idx])
+                        tdiff = np.abs(self['time'][wa]-self['time'][sci_idx])
                         wa = wa[np.argsort(tdiff)]
                     # Identify the relevant calibration frames with this
                     # science frame
                     if setup or (numfr < 0):
-                        fitstbl['sci_ID'][wa] |= 2**ss
+                        self['sci_ID'][wa] |= 2**ss
                     else:
-                        fitstbl['sci_ID'][wa[:numfr]] |= 2**ss
+                        self['sci_ID'][wa[:numfr]] |= 2**ss
         if verbose:
             msgs.info('Science frames successfully matched to calibration frames.')
 
@@ -697,7 +708,7 @@ class PypeItMetaData:
 
         while np.any(free):
             # Find the first science frame that hasn't been matched
-            indx = numpy.where(free)[0][0]
+            indx = np.where(free)[0][0]
             # Find other science frames that match the coordinates of
             # this science frame within the specified tolerance
             match = sci & (coords[indx].separation(coords).arcsec < max_targ_sep)

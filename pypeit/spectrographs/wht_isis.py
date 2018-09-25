@@ -24,6 +24,10 @@ class WhtIsisSpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'NULL'
         self.telescope = telescopes.WHTTelescopePar()
 
+    def metadata_keys(self):
+        return super(KeckLRISSpectrograph, self).metadata_keys() \
+                    + ['binning', 'dichroic', 'dispangle']
+
 class WhtIsisBlueSpectrograph(WhtIsisSpectrograph):
     """
     Child to handle WHT/ISIS blue specific code
