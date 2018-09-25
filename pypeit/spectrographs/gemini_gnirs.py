@@ -23,23 +23,23 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'gemini_gnirs'
         self.telescope = telescopes.GeminiNTelescopePar()
         self.camera = 'GNIRS'
-        self.numhead = 3
+        self.numhead = 1
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 0,
-                            dispaxis        = -1,
+                DetectorPar(dataext         = 1,
+                            dispaxis        = 0,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
-                            platescale      = 0.123,
-                            darkcurr        = 0.01,
-                            saturation      = 65535.,
+                            platescale      = 0.15,
+                            darkcurr        = 0.15,
+                            saturation      = 90000.,
                             nonlinear       = 0.76,
                             numamplifiers   = 1,
-                            gain            = 3.8,
-                            ronoise         = 5.0,
-                            datasec         = '[1:2048,1:1024]',
-                            oscansec        = '[1:2048,980:1024]'
+                            gain            = 13.5,
+                            ronoise         = 7.0,
+                            datasec         = '[1:1024,1:1022]',
+                            oscansec        = '[1:1024,1:1022]'
                             )
             ]
         # Uses default timeunit
@@ -82,11 +82,14 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         def_keys = self.default_header_keys()
 
         def_keys[0]['target'] = 'OBJECT'
-        def_keys[0]['exptime'] = 'ITIME'
+        def_keys[0]['time'] = 'MJD_OBS'
+        def_keys[0]['decker'] = 'SLIT'
+        def_keys[0]['dispname'] = 'GRATING'
         return def_keys
 
     def header_keys(self):
         head_keys = self.gnirs_header_keys()
+        print(head_keys)
         return head_keys
 
     def get_match_criteria(self):
