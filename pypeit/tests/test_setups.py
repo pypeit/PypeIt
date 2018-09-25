@@ -4,20 +4,19 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import matplotlib
-matplotlib.use('agg')  # For Travis
-
-# TEST_UNICODE_LITERALS
-
-import sys, os
-import pytest
+import os
 import glob
+import shutil
 
+import numpy as np
+
+import pytest
 import yaml
 
 from pypeit.par.util import parse_pypeit_file
 from pypeit.scripts import setup
 from pypeit.tests.tstutils import dev_suite_required
+
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -78,28 +77,26 @@ def test_setup_made_pypeit_file():
 #    pytest.set_trace()
 
 
-#@dev_suite_required
+@dev_suite_required
 def test_setup_keck_lris_red():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_LRIS_red/multi_400_8500_d560')
     droot += '/'
-    print(droot)
-    exit()
     pargs = setup.parser([droot, 'keck_lris_red'])
     setup.main(pargs)
 
-#    setup_file = glob.glob(data_path('setup_files/shane_kast_blue*.setups'))[0]
-#    # Load
-#    with open(setup_file, 'r') as infile:
-#        setup_dict = yaml.load(infile)
-#    # Test
-#    assert '01' in setup_dict['A'].keys()
-#    assert setup_dict['A']['--']['disperser']['name'] == '600/4310'
-#    # Failures
-#    pargs2 = setup.parser([droot, 'shane_kast_blu', '-c',
-#                              '--extension=fits.gz', '--redux_path={:s}'.format(data_path(''))])
-#    with pytest.raises(ValueError):
-#        setup.main(pargs2)
-#
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+
+    files = glob.glob(os.path.join(setup_dir, 'keck_lris_red*'))
+    ext = [f.split('.')[-1] for f in files]
+    expected = ['log', 'lst', 'pypeit', 'setups', 'sorted']
+    assert np.all([e in ext for e in expected]), \
+            'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
+
 
 if __name__ == '__main__':
     test_setup_keck_lris_red()
