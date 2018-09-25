@@ -602,16 +602,33 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
         names.append(specobj.idx)
         slits.append(specobj.slitid)
         spat_pixpos.append(specobj.spat_pixpos)
+
         # Boxcar width
         if 'BOX_RADIUS' in specobj.boxcar.keys():
             slit_pix = 2.0*specobj.boxcar['BOX_RADIUS']
             # Convert to arcsec
-            binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
+            try:
+                if(fitstbl['binning_x'][specobj.scidx]):
+                    # for XSHOOTER
+                    binspatial, binspectral = fitstbl['binning_x'][specobj.scidx], fitstbl['binning_y'][specobj.scidx]
+                    msgs.warn("Binning is imported from binning_x and binning_y.")
+                    msgs.warn("Spatial Binning {}".format(binspatial) + " -- Spectral Binning {}".format(binspectral))
+            except:
+                binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
             boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.det-1]['platescale'])
         else:
             boxsize.append(0.)
+
         # Optimal profile (FWHM)
-        binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
+        try:
+            if(fitstbl['binning_x'][specobj.scidx]):
+                # for XSHOOTER
+                binspatial, binspectral = fitstbl['binning_x'][specobj.scidx], fitstbl['binning_y'][specobj.scidx]
+                msgs.warn("Binning is imported from binning_x and binning_y.")
+                msgs.warn("Spatial Binning {}".format(binspatial) + " -- Spectral Binning {}".format(binspectral))
+        except:
+            binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
+        ## Old code binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
         opt_fwhm.append(np.median(specobj.fwhmfit)* binspatial
                                 * spectrograph.detector[specobj.det-1]['platescale'])
         # S2N -- default to boxcar
