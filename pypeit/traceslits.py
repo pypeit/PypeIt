@@ -172,7 +172,6 @@ class TraceSlits(masterframe.MasterFrame):
         self.rdiffarr = None
         self.rwghtarr = None
 
-
     @classmethod
     def from_master_files(cls, root, load_pix_obj=False):
         """
@@ -341,7 +340,7 @@ class TraceSlits(masterframe.MasterFrame):
             self._fit_edges('right')
             self._synchronize()
             self._pca()
-            self._trim_slits()
+            self._trim_slits(plate_scale = plate_scale)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
