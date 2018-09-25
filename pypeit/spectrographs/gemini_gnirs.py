@@ -27,7 +27,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext         = 1,
-                            dispaxis        = 0,
+                            dispaxis        = 2,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -38,8 +38,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 13.5,
                             ronoise         = 7.0,
-                            datasec         = '[1:1024,1:1022]',
-                            oscansec        = '[1:1024,1:1022]'
+                            datasec         = '[:,:]',#'[1:1024,1:1022]',
+                            oscansec        = '[:,:]',#'[1:1024,1:1022]'
                             )
             ]
         # Uses default timeunit
@@ -65,10 +65,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Set slits and tilts parameters
         par['calibrations']['tilts']['order'] = 2
-        par['calibrations']['tilts']['tracethresh'] = [50, 50, 60, 60, 2000]
-        par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 3.
+        par['calibrations']['tilts']['tracethresh'] = [1000, 50, 50, 50, 50,50]
+        par['calibrations']['slits']['polyorder'] = 3
+        #par['calibrations']['slits']['maxshift'] = 3.
         par['calibrations']['slits']['pcatype'] = 'order'
+        par['calibrations']['slits']['pcapar'] = [3, 2, 1]
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -153,12 +154,17 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         Returns:
 
         """
+        # ToDo need to parse the sigdetect parameter to be here for detect_lines function in arc.py
+        #      I force change sigdetect=5 for GNIRS.
 
         arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 1000.       # Minimum amplitude
-
-
+        arcparam['min_ampl'] = 10.       # Minimum amplitude
+        arcparam['wvmnx'] = [7500., 25000.] # Guess at wavelength range
+        arcparam['n_first'] = 1            # Order of polynomial for first fit
+        arcparam['n_final'] = 2            # Order of polynomial for final fit
+        arcparam['disp'] = 2.7  # Ang/unbinned pixel
+        arcparam['func'] = 'legendre'  # Function for fitting
 #        arcparam['llist'] = ''
 #        arcparam['disp'] = 2.              # Ang/unbinned pixel
 #        arcparam['b1'] = 0.                # Pixel fit term (binning independent)
