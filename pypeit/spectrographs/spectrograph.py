@@ -144,6 +144,7 @@ class Spectrograph(object):
         elif self.detector[_det - 1]['dispaxis'] == -1:
             img = np.flip(img.T, axis=0)
         elif self.detector[_det - 1]['dispaxis'] == 2:
+            #img = np.flip(np.flip(img, axis=0),axis=1)
             img = np.flip(img, axis=0)
 
         # Return

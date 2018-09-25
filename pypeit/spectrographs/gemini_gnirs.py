@@ -160,9 +160,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
         arcparam['min_ampl'] = 10.       # Minimum amplitude
-        arcparam['wvmnx'] = [7500., 25000.] # Guess at wavelength range
+        arcparam['wvmnx'] = [8500., 24000.] # Guess at wavelength range
         arcparam['n_first'] = 1            # Order of polynomial for first fit
-        arcparam['n_final'] = 2            # Order of polynomial for final fit
+        arcparam['n_final'] = 1            # Order of polynomial for final fit
         arcparam['disp'] = 2.7  # Ang/unbinned pixel
         arcparam['func'] = 'legendre'  # Function for fitting
 #        arcparam['llist'] = ''
@@ -170,7 +170,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 #        arcparam['b1'] = 0.                # Pixel fit term (binning independent)
 #        arcparam['b2'] = 0.                # Pixel fit term
 #        arcparam['wv_cen'] = 0.            # Estimate of central wavelength
-#        arcparam['wvmnx'] = [9000., 25000.] # Guess at wavelength range
 #        arcparam['disp_toler'] = 0.1       # 10% tolerance
 #        arcparam['match_toler'] = 3.       # Matching tolerance (pixels)
 #        arcparam['func'] = 'legendre'      # Function for fitting
