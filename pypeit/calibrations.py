@@ -487,13 +487,13 @@ class Calibrations(object):
             # Compute the plate scale in arcsec which is needed to trim short slits
             scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
             try:
-                if(fitstbl['binning_x'][scidx]):
+                if(self.fitstbl['binning_x'][scidx]):
                     # for XSHOOTER
-                    binspatial, binspectral = fitstbl['binning_x'][scidx], fitstbl['binning_y'][scidx]
+                    binspatial, binspectral = self.fitstbl['binning_x'][scidx], self.fitstbl['binning_y'][scidx]
                     msgs.warn("Binning is imported from binning_x and binning_y.")
                     msgs.warn("Spatial Binning {}".format(binspatial) + " -- Spectral Binning {}".format(binspectral))
             except:
-                binspatial, binspectral = parse.parse_binning(fitstbl['binning'][scidx])
+                binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
             ## Old code: binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
