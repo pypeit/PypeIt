@@ -112,8 +112,10 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['maxshift'] = 3.
         par['calibrations']['slits']['pcatype'] = 'order'
         par['calibrations']['slits']['number'] = -1
-        par['calibrations']['tilts']['tracethresh'] = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
 
+        par['calibrations']['tilts']['tracethresh'] = 10.
+        #par['calibrations']['tilts']['tracethresh'] = [1000., 10000., 10000., 10000., 10000., 10000., 10000., \
+        #					       10000., 10000., 10000., 10000., 10000., 10000., 5000., 5000.]
         # par['calibrations']['tilts']['tracethresh'] = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
 
         # par['calibrations']['tilts']['tracethresh'] = [50, 50, 60, 60, 2000]
@@ -179,15 +181,25 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         """
         ## debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['ThAr']
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 30.       # Minimum amplitude
-        arcparam['wvmnx'] = [5545.,10250]  # Guess at wavelength range
-        arcparam['n_first']=2 
-        arcparam['disp']=0.2 # Ang per pixel (unbinned)
-        arcparam['b1']= 0.
-        arcparam['b2']= 0.
-        arcparam['wv_cen'] = 7900.
+
+
+        arcparam['disp'] = 0.1            # Ang/unbinned pixel
+        arcparam['b1'] = 10.              # Pixel fit term (binning independent) pix = b0 + b1*lambda + b2*lambda**2
+        arcparam['b2'] = 0.               # Pixel fit term pix = b0 + b1*lambda + b2*lambda**2
+        arcparam['lamps'] = ['ThAr']      # Line lamps on
+        arcparam['wv_cen'] = 7900.        # Guess at central wavelength
+        arcparam['wvmnx'] = [5545.,10250] # Guess at wavelength range
+        arcparam['disp_toler'] = 0.1      # 10% tolerance
+        arcparam['match_toler'] = 3.      # Matcing tolerance (pixels)
+        arcparam['min_ampl'] = 500.       # Minimum amplitude
+        arcparam['func'] = 'legendre'     # Function for fitting
+        arcparam['n_first'] = 0           # Order of polynomial for first fit
+        arcparam['n_final'] = 1           # Order of polynomial for final fit
+        arcparam['nsig_rej'] = 2.         # Number of sigma for rejection
+        arcparam['nsig_rej_final'] = 3.   # Number of sigma for rejection (final fit)
+        arcparam['Nstrong'] = 20          # Number of lines for auto-analysis
+
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation'] # non linear regime
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
