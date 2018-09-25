@@ -57,8 +57,9 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
     try:
         if(fitstbl['binning_x'][arc_idx]):
             # for XSHOOTER
-            msgs.warn("Binning is imported from binning_x and binning_y.")
             binspatial, binspectral = fitstbl['binning_x'][arc_idx], fitstbl['binning_y'][arc_idx]
+            msgs.warn("Binning is imported from binning_x and binning_y.")
+            msgs.warn("Spatial Binning {}".format(binspatial) + " -- Spectral Binning {}".format(binspectral))
     except:
         binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
     # ToDo JFH: Why is the arcparam being modified in place instead of being passed back from the spectrograh class.
