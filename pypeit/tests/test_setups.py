@@ -90,7 +90,7 @@ def test_setup_keck_lris_red():
 
     files = glob.glob(os.path.join(setup_dir, 'keck_lris_red*'))
     ext = [f.split('.')[-1] for f in files]
-    expected = ['log', 'lst', 'pypeit', 'setups', 'sorted']
+    expected = ['lst', 'pypeit', 'setups', 'sorted']
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -98,7 +98,7 @@ def test_setup_keck_lris_red():
     shutil.rmtree(setup_dir)
 
 
-if __name__ == '__main__':
-    test_setup_keck_lris_red()
+#if __name__ == '__main__':
+#    test_setup_keck_lris_red()
 
 

@@ -14,6 +14,7 @@ from __future__ import (print_function, absolute_import, division,
 import argparse
 
 def parser(options=None):
+    # TODO: Add argument that specifies the log file
     parser = argparse.ArgumentParser(description="Script to setup a PypeIt run [v2]")
     parser.add_argument("files_root", type=str, help="File path+root, e.g. /data/Kast/b ")
     parser.add_argument("spectrograph", type=str, help="Name of spectrograph")
@@ -66,9 +67,8 @@ def main(args):
     pypeIt.build_setup_files(args.files_root)
 
     # Custom?
-    if not args.custom:
-        return
-    else:
+    if args.custom:
         pypeIt.build_custom_pypeitfiles()
-
+    
+    return 0
 

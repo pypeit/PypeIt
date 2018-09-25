@@ -11,18 +11,18 @@ import numpy as np
 from collections import OrderedDict
 
 from pypeit import msgs
-from pypeit.core import fsort
-from pypeit.core import qa
-from pypeit.par.util import make_pypeit_file, parse_pypeit_file
-
 from pypeit import pypeitsetup
-from pypeit.scripts import run_pypeit
-from pypeit.core import pypsetup
 from pypeit import calibrations
 from pypeit import scienceimage
-from pypeit.core import wave
 from pypeit import specobjs
+from pypeit.core import fsort
+from pypeit.core import qa
+from pypeit.core import pypsetup
+from pypeit.core import wave
 from pypeit.core import save
+from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit.scripts import run_pypeit
+from pypeit.par.util import make_pypeit_file, parse_pypeit_file
 
 from pypeit import debugger
 
@@ -49,8 +49,8 @@ class PypeIt(object):
         overwrite (:obj:`bool`, optional):
             Flag to overwrite any existing files/directories.
         logname (:obj:`str`, optional):
-          The name of an ascii log file with the details of the
-          reduction.
+            The name of an ascii log file with the details of the
+            reduction.
         show: (:obj:`bool`, optional):
             Show reduction steps via plots (which will block further
             execution until clicked on) and outputs to ginga. Requires
@@ -558,7 +558,8 @@ class PypeIt(object):
                 = self.pypeitSetup.run(setup_only=setup_only, calibration_check=calibration_check,
                                        use_header_id=use_header_id, sort_dir=sort_dir)
         # Write the fits table
-        self.pypeitSetup.write_fitstbl()
+        # This is now done in run()
+        #self.pypeitSetup.write_metadata(setup_only=setup_only, sort_dir=sort_dir)
 
     def show_science(self):
         """
@@ -583,7 +584,7 @@ class MultiSlit(PypeIt):
 
     """
     def __init__(self, spectrograph, **kwargs):
-        PypeIt.__init__(self, spectrograph, **kwargs)
+        super(MultiSlit, self).__init__(spectrograph, **kwargs)
 
     def calibrate_one(self, sci_ID, det):
         """
