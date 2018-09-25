@@ -404,7 +404,7 @@ class FlatFieldPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frame=None, illumflatten=None, tweak_slits = None, method=None): #, params=None, twodpca=None):
+    def __init__(self, frame=None, illumflatten=None, tweak_slits=None, method=None): #, params=None, twodpca=None):
     
         # Grab the parameter names and values from the function
         # arguments
@@ -516,6 +516,11 @@ class FlatFieldPar(ParSet):
             raise ValueError('Provided frame file name does not exist: {0}'.format(
                                 self.data['frame']))
 
+        # Check that if tweak slits is true that illumflatten is alwo true
+        if self.data['tweak_slits'] and not self.data['illumflatten']:
+            raise ValueError('In order to tweak slits illumflatten must be set to True')
+
+
 
 class FlexurePar(ParSet):
     """
@@ -541,7 +546,6 @@ class FlexurePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-
         defaults['method'] = 'boxcar'
         options['method'] = FlexurePar.valid_methods()
         dtypes['method'] = str
@@ -987,7 +991,8 @@ class ReducePar(ParSet):
         # be rethought.
         return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
-                'wht_isis_blue', 'vlt_xshooter_vis', 'vlt_xshooter_nir']
+                'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 
+                'vlt_xshooter_nir']
 
     @staticmethod
     def valid_pipelines():
@@ -1900,7 +1905,8 @@ class PypeItPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None, flexure=None, fluxcalib=None):
+    def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None,
+                 flexure=None, fluxcalib=None):
 
         # Grab the parameter names and values from the function
         # arguments

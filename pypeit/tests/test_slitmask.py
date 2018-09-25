@@ -20,7 +20,7 @@ else:
 def test_deimosslitmask():
     if skip_test:
         return
-    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M',
+    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M_8500',
                      'DE.20100913.22358.fits.gz')
     spec = KeckDEIMOSSpectrograph()
     spec.get_slitmask(f)
