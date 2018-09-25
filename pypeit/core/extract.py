@@ -1244,12 +1244,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, FWHM = 3.0,
 
     slit_spat_pos = (np.interp(slit_spec_pos, spec_vec, slit_left), np.interp(slit_spec_pos, spec_vec, slit_righ))
 
-    # Synthesize thismask, ximg, and edgmask  from slit boundaries. Doing this outside this
-    # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
-    #    pad =0
-    #    slitpix = pixels.slit_pixels(slit_left, slit_righ, frameshape, pad)
-    #    thismask = (slitpix > 0)
-
 #    if (ximg is None) | (edgmask is None):
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = trim_edg)
 
