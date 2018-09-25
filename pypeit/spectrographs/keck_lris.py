@@ -26,9 +26,44 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'keck_lris'
         self.telescope = telescopes.KeckTelescopePar()
 
-    def lris_header_keys(self):
-#        def_keys = self.default_header_keys()
+    @staticmethod
+    def default_pypeit_par():
+        """
+        Set default parameters for Keck LRISr reductions.
+        """
+        par = pypeitpar.PypeItPar()
+        # Use the ARMS pipeline
+        par['rdx']['pipeline'] = 'ARMS'
+        # Set wave tilts order
+        par['calibrations']['slits']['sigdetect'] = 30.
+        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+        # Always sky subtract, starting with default parameters
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypeitpar.FlexurePar()
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
+        par['calibrations']['traceframe']['exprng'] = [None, 30]
+        par['scienceframe']['exprng'] = [29, None]
+        return par
 
+    def header_keys(self):
+        """
+        Return a dictionary with the header keywords to read from the
+        fits file.
+
+        Returns:
+
+            dict: A nested dictionary with the header keywords to read.
+            The first level gives the extension to read and the second
+            level gives the common name for header values that is passed
+            on to the PypeItMetaData object.
+        """
         hdr_keys = {}
         hdr_keys[0] = {}
         hdr_keys[1] = {}
@@ -62,19 +97,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         hdr_keys[1]['CCDNAME01'] = 'CCDNAME'
         hdr_keys[3]['CCDNAME02'] = 'CCDNAME'
 
-#        hdr_keys[0]['lampstat01'] = 'MERCURY'
-#        hdr_keys[0]['lampstat02'] = 'NEON'
-#        hdr_keys[0]['lampstat03'] = 'ARGON'
-#        hdr_keys[0]['lampstat04'] = 'CADMIUM'
-#        hdr_keys[0]['lampstat05'] = 'ZINC'
-#        hdr_keys[0]['lampstat06'] = 'KRYPTON'
-#        hdr_keys[0]['lampstat07'] = 'XENON'
-#        hdr_keys[0]['lampstat08'] = 'FEARGON'
-#        hdr_keys[0]['lampstat09'] = 'DEUTERI'
-#        hdr_keys[0]['lampstat10'] = 'FLAMP1'
-#        hdr_keys[0]['lampstat11'] = 'FLAMP2'
-#        hdr_keys[0]['lampstat11'] = 'HALOGEN'
-
         lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
                       'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
         for kk,lamp_name in enumerate(lamp_names):
@@ -86,7 +108,61 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         return super(KeckLRISSpectrograph, self).metadata_keys() \
                     + ['binning', 'dichroic', 'dispangle']
 
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype == 'science':
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
+        if ftype == 'bias':
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
+        if ftype == 'pixelflat' or ftype == 'trace':
+            # Flats and trace frames are typed together
+            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
+        if ftype == 'pinhole' or ftype == 'dark':
+            # Don't type pinhole or dark frames
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype == 'arc':
+            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 'closed')
 
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+  
+    def lamps(self, fitstbl, status):
+        """
+        Check the lamp status.
+
+        Args:
+            fitstbl (:obj:`astropy.table.Table`):
+                The table with the fits header meta data.
+            status (:obj:`str`):
+                The status to check.  Can be `off`, `arcs`, or `dome`.
+        
+        Returns:
+            numpy.ndarray: A boolean array selecting fits files that
+            meet the selected lamp status.
+
+        Raises:
+            ValueError:
+                Raised if the status is not one of the valid options.
+        """
+        if status == 'off':
+            # Check if all are off
+            return np.all(np.array([ (fitstbl[k] == 'off') | (fitstbl[k] == 'None')
+                                        for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
+        if status == 'arcs':
+            # Check if any arc lamps are on
+            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,9) ]
+            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
+                                            if k in arc_lamp_stat]), axis=0)
+        if status == 'dome':
+            # Check if any dome lamps are on
+            dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(9,13) ]
+            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
+                                            if k in dome_lamp_stat]), axis=0)
+        raise ValueError('No implementation for status = {0}'.format(status))
+        
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
         Wrapper to the raw image reader for LRIS
@@ -307,39 +383,36 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     @staticmethod
     def default_pypeit_par():
         """
-        Set default parameters for Keck LRISb reductions.
+        Set default parameters for Keck LRISr reductions.
         """
-        par = pypeitpar.PypeItPar()
+        par = KeckLRISSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'keck_lris_blue'
-        # Use the ARMS pipeline
-        par['rdx']['pipeline'] = 'ARMS'
-        # Set wave tilts order
-        par['calibrations']['slits']['sigdetect'] = 30.
-        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
-        # Always sky subtract, starting with default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         return par
 
     def check_headers(self, headers):
-        """Validate elements of the header."""
-        chk_dict = {}
-        # chk_dict is 1-indexed!
-        chk_dict[2] = {}
-        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[2]['NAXIS'] = 2
-        # Check the CCD name
-        chk_dict[2]['CCDGEOM'] = 'e2v (Marconi) CCD44-82'
-        chk_dict[2]['CCDNAME'] = '00151-14-1'
-        return chk_dict
+        """
+        Check headers match expectations for an LRISb exposure.
+
+        See also
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+
+        Args:
+            headers (list):
+                A list of headers read from a fits file
+        """
+        expected_values = { '0.INSTRUME': 'LRISBLUE',
+                               '1.NAXIS': 2,
+                               '2.NAXIS': 2,
+                               '3.NAXIS': 2,
+                               '4.NAXIS': 2,
+                             '1.CCDGEOM': 'e2v (Marconi) CCD44-82',
+                             '1.CCDNAME': '00151-14-1' }
+        super(KeckLRISBSpectrograph, self).check_headers(headers, expected_values=expected_values)
 
     def header_keys(self):
-        head_keys = self.lris_header_keys()
-        head_keys[0]['filter1'] = 'BLUFILT'
-        return head_keys
+        hdr_keys = super(KeckLRISBSpectrograph, self).header_keys()
+        hdr_keys[0]['filter1'] = 'BLUFILT'
+        return hdr_keys
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
@@ -441,31 +514,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         """
         Set default parameters for Keck LRISr reductions.
         """
-        par = pypeitpar.PypeItPar()
+        par = KeckLRISSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'keck_lris_red'
-        # Use the ARMS pipeline
-        par['rdx']['pipeline'] = 'ARMS'
-        # Set wave tilts order
-        par['calibrations']['slits']['sigdetect'] = 30.
-        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
-        # Always sky subtract, starting with default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
-        # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
-        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
-        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
-        par['calibrations']['traceframe']['exprng'] = [None, 30]
-        par['scienceframe']['exprng'] = [29, None]
         return par
-
-    def header_keys(self):
-        head_keys = self.lris_header_keys()
-        return head_keys
 
     def check_headers(self, headers):
         """
@@ -487,67 +538,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                              '1.CCDNAME': '19-3',
                              '3.CCDNAME': '19-2' }
         super(KeckLRISRSpectrograph, self).check_headers(headers, expected_values=expected_values)
+
+    # Uses parent header_keys() function
             
-    # get_headarr
-    # get_match_criteria
-    # idname
-
-    def check_frame_type(self, ftype, fitstbl, exprng=None):
-        """
-        Check for frames of the provided type.
-        """
-        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype == 'science':
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
-        if ftype == 'bias':
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
-        if ftype == 'pixelflat' or ftype == 'trace':
-            # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
-        if ftype == 'pinhole' or ftype == 'dark':
-            # Don't type pinhole or dark frames
-            return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
-            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 'closed')
-
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
-        return np.zeros(len(fitstbl), dtype=bool)
-  
-    def lamps(self, fitstbl, status):
-        """
-        Check the lamp status.
-
-        Args:
-            fitstbl (:obj:`astropy.table.Table`):
-                The table with the fits header meta data.
-            status (:obj:`str`):
-                The status to check.  Can be `off`, `arcs`, or `dome`.
-        
-        Returns:
-            numpy.ndarray: A boolean array selecting fits files that
-            meet the selected lamp status.
-
-        Raises:
-            ValueError:
-                Raised if the status is not one of the valid options.
-        """
-        if status == 'off':
-            # Check if all are off
-            return np.all(np.array([ (fitstbl[k] == 'off') | (fitstbl[k] == 'None')
-                                        for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
-        if status == 'arcs':
-            # Check if any arc lamps are on
-            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,9) ]
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
-                                            if k in arc_lamp_stat]), axis=0)
-        if status == 'dome':
-            # Check if any dome lamps are on
-            dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(9,13) ]
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
-                                            if k in dome_lamp_stat]), axis=0)
-        raise ValueError('No implementation for status = {0}'.format(status))
-        
-
     def bpm(self, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 
@@ -1006,3 +999,4 @@ def convert_lowredux_pixelflat(infil, outfil):
     hdulist = fits.HDUList(hdus)
     hdulist.writeto(outfil, clobber=True)
     print('Wrote {:s}'.format(outfil))
+

@@ -98,7 +98,30 @@ def test_setup_keck_lris_red():
     shutil.rmtree(setup_dir)
 
 
-#if __name__ == '__main__':
-#    test_setup_keck_lris_red()
+#@dev_suite_required
+def test_setup_keck_lris_blue():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_LRIS_blue/multi_600_4000_d560')
+    droot += '/'
+    pargs = setup.parser([droot, 'keck_lris_blue'])
+    setup.main(pargs)
+    # The setup works but there's a problem with the trace image that's
+    # included in the DevSuite
+    exit()
+
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+
+    files = glob.glob(os.path.join(setup_dir, 'keck_lris_blue*'))
+    ext = [f.split('.')[-1] for f in files]
+    expected = ['lst', 'pypeit', 'setups', 'sorted']
+    assert np.all([e in ext for e in expected]), \
+            'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
+
+if __name__ == '__main__':
+    test_setup_keck_lris_blue()
 
 
