@@ -16,9 +16,9 @@ from pypeit import pypeitsetup
 
 from pypeit import debugger
 
-def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False,
-          sort_dir=None, quick=False, ncpus=1, overwrite=True, verbosity=2,
-          use_masters=False, show = False, logname=None):
+def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_id=False,
+           sort_dir=None, quick=False, ncpus=1, overwrite=True, verbosity=2,
+           use_masters=False, show = False, logname=None):
     """
     Execute PYPIT.
 
@@ -45,7 +45,7 @@ def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_fr
             setup and exist on disk.  Pypit is expected to execute in a
             way that ends after this class is fully instantiated such
             that the user can inspect the results before proceeding. 
-        use_header_frametype (bool):
+        use_header_id (:obj:`bool`, optional):
             Allow setup to use the frame types drawn from the file
             headers using the instrument specific keywords.
         sort_dir (str):
@@ -91,17 +91,19 @@ def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_fr
     setup = pypeitsetup.PypeItSetup.from_pypeit_file(pypeit_file)
     par, spectrograph, fitstbl, setup_dict = setup.run(setup_only=setup_only,
                                                        calibration_check=calibration_check,
-                                                       use_header_frametype=use_header_frametype,
+                                                       use_header_id=use_header_id,
                                                        sort_dir=sort_dir)
 
-    # TODO This --use_masters flag should probably be passed as an argument to setup instead of modifying the parset here
+    # TODO: se_masters flag should be passed as an argument to setup
+    # instead of modifying the parset here
     # If the --use_masters flag was set change the parset to make this so
     if use_masters:
         par['calibrations']['masters'] = 'reuse'
         msgs.info('PypeIt will REUSE master files when they exist')
 
     # Write the fits table
-    setup.write_fitstbl()
+    # Now done in run()
+#    setup.write_metadata(setup_only=setup_only, sort_dir=sort_dir)
 
     # Exit if finished
     if setup_only:

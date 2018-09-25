@@ -15,9 +15,9 @@ import glob
 
 import yaml
 
-from pypeit import msgs
 from pypeit.par.util import parse_pypeit_file
 from pypeit.scripts import setup
+from pypeit.tests.tstutils import dev_suite_required
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -50,6 +50,7 @@ def test_run_setup():
     with pytest.raises(ValueError):
         setup.main(pargs2)
 
+
 def test_setup_made_pypeit_file():
     """ Test the .pypeit file(s) made by pypeit_setup
     This test depends on the one above
@@ -62,17 +63,45 @@ def test_setup_made_pypeit_file():
     assert frametype['b1.fits.gz'] == 'arc'
     assert setups[0] == 'A'
 
-'''
-def test_setup_pfile():
-    """ This won't run because of msgs issue..
-    """
-    from pypit.scripts import setup
-    # Try from .pypit file
-    sfiles = glob.glob('*.setup')
-    pypit_file = sfiles[0].replace('.setup', '.pypit')
-    for sfile in sfiles:
-        os.remove(sfile)
-    pargs2 = setup.parser([pypit_file, 'shane_kast_blue', '--pypit_file', '-d'])
-    setup.main(pargs2)
-    pytest.set_trace()
-'''
+
+#def test_setup_pfile():
+#    """ This won't run because of msgs issue..
+#    """
+#    from pypit.scripts import setup
+#    # Try from .pypit file
+#    sfiles = glob.glob('*.setup')
+#    pypit_file = sfiles[0].replace('.setup', '.pypit')
+#    for sfile in sfiles:
+#        os.remove(sfile)
+#    pargs2 = setup.parser([pypit_file, 'shane_kast_blue', '--pypit_file', '-d'])
+#    setup.main(pargs2)
+#    pytest.set_trace()
+
+
+#@dev_suite_required
+def test_setup_keck_lris_red():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_LRIS_red/multi_400_8500_d560')
+    droot += '/'
+    print(droot)
+    exit()
+    pargs = setup.parser([droot, 'keck_lris_red'])
+    setup.main(pargs)
+
+#    setup_file = glob.glob(data_path('setup_files/shane_kast_blue*.setups'))[0]
+#    # Load
+#    with open(setup_file, 'r') as infile:
+#        setup_dict = yaml.load(infile)
+#    # Test
+#    assert '01' in setup_dict['A'].keys()
+#    assert setup_dict['A']['--']['disperser']['name'] == '600/4310'
+#    # Failures
+#    pargs2 = setup.parser([droot, 'shane_kast_blu', '-c',
+#                              '--extension=fits.gz', '--redux_path={:s}'.format(data_path(''))])
+#    with pytest.raises(ValueError):
+#        setup.main(pargs2)
+#
+
+if __name__ == '__main__':
+    test_setup_keck_lris_red()
+
+

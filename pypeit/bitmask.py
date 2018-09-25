@@ -362,3 +362,20 @@ class BitMask:
         value[indx] = self.turn_on(value[indx], consolidated_flag)
         return value
 
+    def unpack(self, value, flag=None):
+        """
+        Construct boolean arrays with the selected bits flagged.
+
+        Args:
+            value (numpy.ndarray):
+                The bitmask values to unpack.
+            flag (:obj:`str`, :obj:`list`, optional):
+                The specific bits to unpack.  If None, all values are
+                unpacked.
+        Returns:
+            tuple: A tuple of boolean numpy.ndarrays flagged according
+            to each bit.
+        """
+        _flag = self._prep_flags(flag)
+        return tuple([ self.flagged(value, flag=f) for f in _flag])
+

@@ -114,7 +114,6 @@ def ARMS(fitstbl, setup_dict, par=None, spectrograph=None, show = False):
             sci_dict[det] = {}
 
             setup, setup_dict = pypsetup.instr_setup(sci_ID, det, fitstbl, setup_dict=setup_dict,
-                                                _spectrograph.detector[det-1]['numamplifiers'],
                                                      must_exist=True)
 
             #-----------------------------------------------------------

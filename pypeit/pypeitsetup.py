@@ -457,14 +457,14 @@ class PypeItSetup(object):
             self.get_frame_types(flag_unknown=setup_only or calibration_check,
                                  use_header_id=use_header_id)
 
-        # Write metadata
-        self.write_metadata(setup_only=setup_only, sort_dir=sort_dir)
-
         # Match calibs to science
         self.match_to_science(setup_only=setup_only)
 
         if self.par['scienceimage'] is not None and self.par['scienceimage']['nodding']:
             self.match_ABBA()
+
+        # Write metadata
+        self.write_metadata(setup_only=setup_only, sort_dir=sort_dir)
 
         # Setup dict
         self.build_setup_dict(setup_only=setup_only)
