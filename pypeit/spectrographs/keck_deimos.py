@@ -12,12 +12,12 @@ from scipy import interpolate
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit.core import parse
-from pypeit.par.pypeitpar import DetectorPar
-from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
+from pypeit.core import parse
+from pypeit.core import framematch
 from pypeit.core import fsort
 from pypeit.par import pypeitpar
+from pypeit.spectrographs import spectrograph
 
 from pypeit.spectrographs.slitmask import SlitMask
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
@@ -36,7 +36,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.camera = 'DEIMOS'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 1,
+                pypeitpar.DetectorPar(
+                            dataext         = 1,
                             dispaxis        = 0,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -51,10 +52,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             datasec         = '',       # These are provided by read_deimos
                             oscansec        = '',
                             suffix          = '_01'
-
                             ),
                 # Detector 2
-                DetectorPar(dataext         = 2,
+                pypeitpar.DetectorPar(
+                            dataext         = 2,
                             dispaxis        = 0,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -71,7 +72,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             suffix          = '_02'
                             ),
                 # Detector 3
-                DetectorPar(dataext         = 3,
+                pypeitpar.DetectorPar(
+                            dataext         = 3,
                             dispaxis        = 0,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -88,7 +90,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             suffix          = '_03'
                             ),
                 # Detector 4
-                DetectorPar(dataext         = 4,
+                pypeitpar.DetectorPar(
+                            dataext         = 4,
                             dispaxis        = 0,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -105,7 +108,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             suffix          = '_04'
                             ),
                 # Detector 5
-                DetectorPar(dataext         = 5,
+                pypeitpar.DetectorPar(
+                            dataext         = 5,
                             dispaxis        = 0,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -122,7 +126,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             suffix          = '_05'
                             ),
                 # Detector 6
-                DetectorPar(dataext         = 6,
+                pypeitpar.DetectorPar(
+                            dataext         = 6,
                             dispaxis        = 0,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -139,7 +144,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             suffix          = '_06'
                             ),
                 # Detector 7
-                DetectorPar(dataext         = 7,
+                pypeitpar.DetectorPar(
+                            dataext         = 7,
                             dispaxis        = 0,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -155,7 +161,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             oscansec        = '',
                             suffix          = '_07'),
                 # Detector 8
-                DetectorPar(dataext         = 8,
+                pypeitpar.DetectorPar(
+                            dataext         = 8,
                             dispaxis        = 0,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -170,8 +177,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             datasec         = '',       # These are provided by read_deimos
                             oscansec        = '',
                             suffix          = '_08'
-                            )
-            ]
+                            )]
         self.numhead = 9
         # Uses default timeunit
         # Uses default primary_hdrext
@@ -211,25 +217,61 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
+
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['biasframe']['exprng'] = [None, 2]
+        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
+        par['calibrations']['traceframe']['exprng'] = [None, 30]
+        par['scienceframe']['exprng'] = [30, None]
+
         return par
 
     def header_keys(self):
-        def_keys = self.default_header_keys()
+        """
+        Return a dictionary with the header keywords to read from the
+        fits file.
 
-        def_keys[0]['target'] = 'TARGNAME'
-        def_keys[0]['exptime'] = 'ELAPTIME'
-        def_keys[0]['hatch'] = 'HATCHPOS'
-        def_keys[0]['lamps'] = 'LAMPS'
-        def_keys[0]['detrot'] = 'ROTATVAL'
-        def_keys[0]['decker'] = 'SLMSKNAM'
-        def_keys[0]['filter1'] = 'DWFILNAM'
-        def_keys[0]['dispname'] = 'GRATENAM'
+        Returns:
+            dict: A nested dictionary with the header keywords to read.
+            The first level gives the extension to read and the second
+            level gives the common name for header values that is passed
+            on to the PypeItMetaData object.
+        """
 
-        def_keys[0]['gratepos'] = 'GRATEPOS'
-        def_keys[0]['g3tltwav'] = 'G3TLTWAV'
-        def_keys[0]['g4tltwav'] = 'G4TLTWAV'
-        def_keys[0]['dispangle'] = 'G3TLTWAV'
-        return def_keys
+        hdr_keys = {}
+        hdr_keys[0] = {}
+        hdr_keys[1] = {}
+
+        # Copied over defaults
+        hdr_keys[0]['idname'] = 'OBSTYPE'
+        hdr_keys[0]['time'] = 'MJD-OBS'
+        hdr_keys[0]['date'] = 'DATE'
+        hdr_keys[0]['ra'] = 'RA'
+        hdr_keys[0]['dec'] = 'DEC'
+        hdr_keys[0]['airmass'] = 'AIRMASS'
+        hdr_keys[0]['binning'] = 'BINNING'
+        hdr_keys[0]['decker'] = 'SLMSKNAM'
+
+        hdr_keys[0]['target'] = 'TARGNAME'
+        hdr_keys[0]['exptime'] = 'ELAPTIME'
+        hdr_keys[0]['hatch'] = 'HATCHPOS'
+        hdr_keys[0]['lamps'] = 'LAMPS'
+        hdr_keys[0]['detrot'] = 'ROTATVAL'
+        hdr_keys[0]['decker'] = 'SLMSKNAM'
+        hdr_keys[0]['filter1'] = 'DWFILNAM'
+        hdr_keys[0]['dispname'] = 'GRATENAM'
+
+        hdr_keys[0]['gratepos'] = 'GRATEPOS'
+        hdr_keys[0]['g3tltwav'] = 'G3TLTWAV'
+        hdr_keys[0]['g4tltwav'] = 'G4TLTWAV'
+        hdr_keys[0]['dispangle'] = 'G3TLTWAV'   # TODO: This depends on the setup!
+
+        hdr_keys[1]['naxis0'] = 'NAXIS2'
+        hdr_keys[1]['naxis1'] = 'NAXIS1'
+
+        return hdr_keys
 
     def validate_fitstbl(self, fitstbl):
         for gval in [3,4]:

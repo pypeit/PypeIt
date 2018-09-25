@@ -8,12 +8,12 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
+from pypeit import telescopes
 from pypeit.core import parse
-from pypeit.core import fsort
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pypeit import telescopes
+
 from pypeit import debugger
 
 class KeckLRISSpectrograph(spectrograph.Spectrograph):
@@ -58,7 +58,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         fits file.
 
         Returns:
-
             dict: A nested dictionary with the header keywords to read.
             The first level gives the extension to read and the second
             level gives the common name for header values that is passed
@@ -266,67 +265,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Return
         return match_criteria
 
-    def lris_cond_dict(self, ftype):
-        """
-
-        Args:
-            ftype: str
-
-        Returns:
-
-        """
-        cond_dict = {}
-
-        if ftype == 'science':
-            cond_dict['condition1'] = 'lampstat01=off&lampstat02=off&lampstat03=off' \
-                                      '&lampstat04=off&lampstat05=off&lampstat06=off' \
-                                      '&lampstat07=off&lampstat08=off&lampstat09=off' \
-                                      '&lampstat10=off&lampstat11=off&lampstat12=off'
-            cond_dict['condition2'] = 'hatch=open'
-            cond_dict['condition2'] = 'exptime>29'
-        elif ftype == 'bias':
-            cond_dict['condition1'] = 'lampstat01=off&lampstat02=off&lampstat03=off' \
-                                      '&lampstat04=off&lampstat05=off&lampstat06=off' \
-                                      '&lampstat07=off&lampstat08=off&lampstat09=off' \
-                                      '&lampstat10=off&lampstat11=off&lampstat12=off'
-            cond_dict['condition2'] = 'exptime<1'
-        elif ftype == 'pixelflat':
-            cond_dict['condition1'] = 'exptime<30&exptime>1'
-            cond_dict['condition2'] = 'hatch=open'  # Dome, not internal
-        elif ftype == 'pinhole':
-            cond_dict['condition1'] = 'exptime>99999999'
-        elif ftype == 'trace':
-            cond_dict['condition1'] = 'exptime<30&exptime>1'
-            cond_dict['condition2'] = 'hatch=open'  # Dome, not internal
-        elif ftype == 'arc':
-            cond_dict['condition1'] = 'lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on' \
-                                      '|lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on' \
-                                      '|lampstat05=on'
-            cond_dict['condition2'] = 'hatch=closed'
-        else:
-            pass
-
-        return cond_dict
-
-    def check_ftype(self, ftype, fitstbl):
-        """
-        Check the frame type
-
-        Args:
-            ftype:
-            fitstbl:
-
-        Returns:
-
-        """
-        # Load up
-        cond_dict = self.lris_cond_dict(ftype)
-
-        # Do it
-        gd_chk = fsort.chk_all_conditions(fitstbl, cond_dict)
-
-        return gd_chk
-
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     """
@@ -373,8 +311,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                             datasec         = ['',''],      # These are provided by read_lris
                             oscansec        = ['',''],
                             suffix          = '_02blue'
-                            )
-            ]
+                            )]
         self.numhead = 5
         # Uses default timeunit
         # Uses default primary_hdrext
@@ -501,8 +438,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                             datasec         = ['',''],      # These are provided by read_lris
                             oscansec        = ['',''],
                             suffix          ='_02red'
-                            )
-            ]
+                            )]
         self.numhead = 5
         # Uses default timeunit
         # Uses default primary_hdrext

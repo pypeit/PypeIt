@@ -365,22 +365,11 @@ class Spectrograph(object):
         """
         return self.empty_bpm(shape=shape, filename=filename, det=det, force=force)
 
+    # TODO: (KBW) I've removed all the defaults.  Should maybe revisit
+    # this
     def default_header_keys(self):
         def_head_keys = {}
         def_head_keys[0] = {}
-        def_head_keys[0]['target'] = 'OBJECT'     # Header keyword for the name given by the observer to a given frame
-        def_head_keys[0]['idname'] = 'OBSTYPE'    # The keyword that identifies the frame type (i.e. bias, flat, etc.)
-        def_head_keys[0]['time'] = 'MJD-OBS'      # The time stamp of the observation (i.e. decimal MJD)
-        def_head_keys[0]['date'] = 'DATE'         # The UT date of the observation which is used for heliocentric (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
-        def_head_keys[0]['ra'] = 'RA'             # Right Ascension of the target
-        def_head_keys[0]['dec'] = 'DEC'           # Declination of the target
-        def_head_keys[0]['airmass'] = 'AIRMASS'   # Airmass at start of observation
-        def_head_keys[0]['binning'] = 'BINNING'   # Binning
-        def_head_keys[0]['exptime'] = 'EXPTIME'   # Exposure time keyword
-        def_head_keys[0]['decker'] = 'SLITNAME'
-        def_head_keys[0]['dichroic'] = 'DICHNAME' # Dichroic name
-        def_head_keys[0]['dispname'] = 'GRISNAME' # Grism name
-        # Return
         return def_head_keys
 
     def header_keys(self):
