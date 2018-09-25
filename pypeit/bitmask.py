@@ -377,5 +377,5 @@ class BitMask:
             to each bit.
         """
         _flag = self._prep_flags(flag)
-        return tuple([ self.flagged(value, flag=f) for f in _flag])
+        return tuple([self.flagged(value, flag=f) for f in _flag])
 
