@@ -46,7 +46,7 @@ def load_spectrograph(spectrograph=None):
         return spectrographs.keck_lris.KeckLRISRSpectrograph()
 
     if spectrograph == 'keck_nires':
-        return spectrographs.keck_nires.KeckNIRESpectrograph()
+        return spectrographs.keck_nires.KeckNIRESSpectrograph()
 
     if spectrograph == 'keck_nirspec':
         return spectrographs.keck_nirspec.KeckNIRSPECSpectrograph()

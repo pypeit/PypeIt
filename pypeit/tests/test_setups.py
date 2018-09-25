@@ -184,29 +184,51 @@ def test_setup_keck_deimos():
     # Clean-up
     shutil.rmtree(setup_dir)
 
+@dev_suite_required
+def test_setup_keck_nires():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_NIRES')
+    droot += '/'
+    pargs = setup.parser([droot, 'keck_nires'])
+    setup.main(pargs)
+
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+
+    files = glob.glob(os.path.join(setup_dir, 'keck_nires*'))
+    ext = [f.split('.')[-1] for f in files]
+    expected = ['lst', 'pypeit', 'setups', 'sorted']
+    assert np.all([e in ext for e in expected]), \
+            'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
+
 if __name__ == '__main__':
 #    test_setup_keck_lris_blue()
-    test_setup_keck_deimos()
-
-
-
-#    from pypeit.pypeitsetup import PypeItSetup
-#    file_list = glob.glob(os.path.join(os.environ['PYPEIT_DEV'],
-#                                       'RAW_DATA/Keck_DEIMOS/830G_M_8600', '*.fits.gz'))
-#    cfg_lines = ['[rdx]',
-#                 'spectrograph = keck_deimos',
-#                 '[calibrations]',
-#                 '[[pixelflatframe]]',
-#                 'number = 3',
-#                 '[[standardframe]]',
-#                 'number = 0']
-#    ps = PypeItSetup(file_list, cfg_lines=cfg_lines)
-#    ps.build_fitstbl()
-#    ps.get_frame_types(flag_unknown=True) #, use_header_id=True)
-#    
-#
-#    import pdb
-#    pdb.set_trace()
+    test_setup_keck_nires()
 
     exit()
+
+    from pypeit.pypeitsetup import PypeItSetup
+    file_list = glob.glob(os.path.join(os.environ['PYPEIT_DEV'],
+                                       'RAW_DATA/Keck_NIRES', '*.fits.gz'))
+    cfg_lines = ['[rdx]',
+                 'spectrograph = keck_nires',
+                 '[calibrations]',
+                 '[[pixelflatframe]]',
+                 'number = 3',
+                 '[[standardframe]]',
+                 'number = 0']
+    ps = PypeItSetup(file_list, cfg_lines=cfg_lines)
+    ps.build_fitstbl()
+    ps.get_frame_types(flag_unknown=True) #, use_header_id=True)
+    
+    import pdb
+    pdb.set_trace()
+
+    exit()
+
+
+
 
