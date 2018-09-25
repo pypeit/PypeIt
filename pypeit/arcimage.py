@@ -1,5 +1,5 @@
 # Module for generating the Arc image
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
 import inspect
@@ -15,30 +15,32 @@ from pypeit import debugger
 
 class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     """
-    This class is primarily designed to generate an Arc Image from one or more arc frames
-      The master() method returns the image (loaded or built)
+    Generate an Arc Image from one or more arc frames.
 
-    Parameters
-    ----------
-    file_list : list (optional)
-      List of filenames
-    spectrograph : str (optional)
-       Used to specify properties of the detector (for processing)
-       Passed to ProcessImages
-       Attempts to set with settings['run']['spectrograph'] if not input
-    settings : dict (optional)
-       Passed to ProcessImages
-       Settings for image combining+detector
-    setup : str (optional)
-      Setup tag;  required for MasterFrame functionality
-    det : int, optional
-      Detector index, starts at 1
+    Args:
+        spectrograph (:obj:`str`,
+            :class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The string or `Spectrograph` instance that sets the
+            instrument used to take the observations.  Used to set
+            :attr:`spectrograph`.
+        file_list (:obj:`list`, optional):
+            The list of files to process.  Can be an empty list.
+        det (:obj:`int`, optional):
+            The 1-indexed detector number to process.
+        par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
+            The parameters used to type and process the arc frames.
+        setup (:obj:`str`, optional):
+            The string identifier for the instrument configuration.  See
+            :class:`pypeit.masterframe.MasterFrame`.
+
+        root_path (:obj:`str`, optional):
+            
     sci_ID : int (optional)
       Science ID value
       used to match bias frames to the current science exposure
     msbias : ndarray or str
       Guides bias subtraction
-    fitstbl : Table (optional)
+    fitstbl : PypeItMetaData (optional)
       FITS info (mainly for filenames)
 
     Attributes
