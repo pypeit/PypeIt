@@ -205,6 +205,15 @@ def _load(name, exten=0, frametype='<None>', force=False):
         return sensfunc, None, [name]
     elif frametype == 'trace':
         msgs.error('Load from the class not this method')
+    elif frametype == 'tilts':
+        msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(frametype) + " from filename: {:}".format(name))
+        hdu = fits.open(name)
+        head0 = hdu[0].header
+        tilts = hdu[0].data
+        head1 = hdu[1].header
+        coeffs = hdu[1].data
+        tilts_dict = {'tilts':tilts,'coeffs':coeffs,'func2D': head1['FUNC2D']} # This is the tilts_dict
+        return tilts_dict, head0, [name]
     else:
         msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(frametype) + " from filename: {:}".format(name))
         hdu = fits.open(name)

@@ -74,9 +74,8 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
-        par['flexure']['method'] = None
+        # Do not correct for flexure
+        par['flexure'] = None
         return par
 
     def nires_header_keys(self):
@@ -155,6 +154,7 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
         arcparam['min_ampl'] = 1000.       # Minimum amplitude
+        arcparam['wvmnx'] = [8000., 26000.] # Guess at wavelength range
 
 
 #        arcparam['llist'] = ''

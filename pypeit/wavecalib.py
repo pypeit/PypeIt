@@ -72,7 +72,7 @@ class WaveCalib(masterframe.MasterFrame):
     # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
     # parameters since instantiating without them does nothing. Make them required
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
-                 mode=None, fitstbl=None, sci_ID=None, arcparam=None, redux_path=None):
+                 mode=None, fitstbl=None, sci_ID=None, arcparam=None, redux_path=None, bpm = None):
 
         # Instantiate the spectograph
         if isinstance(spectrograph, str):
@@ -88,6 +88,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Required parameters (but can be None)
         self.msarc = msarc
+        self.bpm = bpm
 
         self.par = pypeitpar.WavelengthSolutionPar() if par is None else par
 
@@ -178,7 +179,7 @@ class WaveCalib(masterframe.MasterFrame):
             msgs.error("Not an allowed method")
         return iwv_calib
 
-    def _extract_arcs(self, lordloc, rordloc, pixlocn):
+    def _extract_arcs(self, lordloc, rordloc, slitpix):
         """
         Extract an arc down the center of each slit/order
 
@@ -190,7 +191,7 @@ class WaveCalib(masterframe.MasterFrame):
           Left edges (from TraceSlit)
         rordloc : ndarray
           Right edges (from TraceSlit)
-        pixlocn : ndarray
+        slitpix : ndarray
 
         Returns
         -------
@@ -200,13 +201,8 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
 
-        # ToDO JFH As far as I can tell, passing in nonlinear_counts with gen_satmask = False does absolutely nothing.
-        # Not sure what was intended here.
-        nonlinear_counts = self.spectrograph.detector[self.det - 1]['saturation'] * \
-                          self.spectrograph.detector[self.det - 1]['nonlinear']
-        self.arccen, self.maskslits, _ \
-                    = arc.get_censpec(lordloc, rordloc, pixlocn, self.msarc, self.det,
-                                        nonlinear_counts=nonlinear_counts, gen_satmask=False)
+        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc, inmask=(self.bpm == 0))
+
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -289,7 +285,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.maskslits = mask
         return self.maskslits
 
-    def run(self, lordloc, rordloc, pixlocn, nonlinear=None, skip_QA=False):
+    def run(self, lordloc, rordloc, slitpix, nonlinear=None, skip_QA=False):
         """
         Main driver for wavelength calibration
 
@@ -305,8 +301,8 @@ class WaveCalib(masterframe.MasterFrame):
           From a TraceSlit object
         rordloc : ndarray
           From a TraceSlit object
-        pixlocn : ndarray
-          From a TraceSlit object
+        slitpix : ndarray
+          slitmask from tslits_dict
         nonlinear : float, optional
           Would be passed to arc.detect_lines but that routine is
           currently being run in arclines.holy
@@ -320,7 +316,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         ###############
         # Extract an arc down each slit
-        _, _ = self._extract_arcs(lordloc, rordloc, pixlocn)
+        _, _ = self._extract_arcs(lordloc, rordloc, slitpix)
 
         # Load the arcparam, if one was not passed in.
         if self.arcparam is None:

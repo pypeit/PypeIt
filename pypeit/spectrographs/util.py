@@ -15,7 +15,7 @@ def valid_spectrographs():
     # TODO: Is there a more clever way to do this?
     return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
             'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
-            'wht_isis_blue', 'vlt_xshooter_vis']
+            'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir']
 
 def load_spectrograph(spectrograph=None):
     """
@@ -65,6 +65,9 @@ def load_spectrograph(spectrograph=None):
     
     if spectrograph == 'tng_dolores':
         return spectrographs.tng_dolores.TngDoloresSpectrograph()
+
+    if spectrograph == 'vlt_xshooter_uvb':
+        return spectrographs.vlt_xshooter.VLTXShooterUVBSpectrograph()
 
     if spectrograph == 'vlt_xshooter_vis':
         return spectrographs.vlt_xshooter.VLTXShooterVISSpectrograph()

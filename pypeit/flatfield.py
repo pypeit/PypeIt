@@ -15,7 +15,10 @@ from pypeit import masterframe
 from pypeit.core import flat
 from pypeit import ginga
 from pypeit.par import pypeitpar
+from pypeit.core import pixels
 from pypeit.core import trace_slits
+from pypeit.core import tracewave
+
 
 from pypeit import debugger
 
@@ -63,7 +66,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'pixelflat'
 
     def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, master_dir=None,
-                 mode=None, flatpar=None, msbias=None, msbpm = None, tslits_dict=None, tilts=None):
+                 mode=None, flatpar=None, msbias=None, msbpm = None, tslits_dict=None, tilts_dict=None):
 
         # Image processing parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
@@ -80,7 +83,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Parameters unique to this Object
         self.msbias = msbias
         self.tslits_dict = tslits_dict
-        self.tilts = tilts
+        self.tilts_dict = tilts_dict
         self.msbpm = msbpm
         if master_dir is None:
             self.master_dir = os.getcwd()
@@ -170,6 +173,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         """
         return masters.load_master_frame('illumflat', self.setup, self.mdir)
 
+    # ToDO this routine is deprecated and no longer called
     def slit_profile(self, slit):
         """
         Generate the slit profile for a given slit
@@ -201,7 +205,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         slordloc = self.tslits_dict['lcen'][:,slit]
         srordloc = self.tslits_dict['rcen'][:,slit]
         modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit \
-                = flat.slit_profile(slit, self.mspixelflat, self.tilts, slordloc, srordloc,
+                = flat.slit_profile(slit, self.mspixelflat, self.tilts_dict['tilts'], slordloc, srordloc,
                                       self.tslits_dict['slitpix'], self.tslits_dict['pixwid'],
                                       ntckx=self.ntckx, ntcky=self.ntcky)
         # Step
@@ -246,24 +250,49 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.msillumflat = np.ones_like(self.rawflatimg)
         self.flat_model = np.zeros_like(self.rawflatimg)
 
+        final_tilts = np.zeros_like(self.rawflatimg)
+
         # Loop on slits
         for slit in range(self.nslits):
             msgs.info("Computing flat field image for slit: {:d}".format(slit + 1))
             thismask = (self.tslits_dict['slitpix'] == slit + 1)
             if self.msbpm is not None:
-                inmask = thismask & ~self.msbpm
+                inmask = ~self.msbpm
             else:
-                inmask = thismask
-            # Fit flats for a single slit
-            self.mspixelflat[thismask], self.msillumflat[thismask], self.flat_model[thismask] = \
-                flat.fit_flat(self.rawflatimg, self.tilts, thismask,self.tslits_dict['lcen'][:, slit], self.tslits_dict['rcen'][:,slit],
-                              inmask = inmask, debug = debug)
+                inmask = np.ones_like(self.rawflatimg,dtype=bool)
 
+            # Fit flats for a single slit
+            this_tilts_dict = {'tilts':self.tilts_dict['tilts'], 'coeffs':self.tilts_dict['coeffs'][:,:,slit],
+                               'func2D':self.tilts_dict['func2D']}
+            nonlinear_counts = self.spectrograph.detector[self.det - 1]['nonlinear']*\
+                               self.spectrograph.detector[self.det - 1]['saturation']
+            pixelflat, illumflat, flat_model, thismask_out, slit_left_out, slit_righ_out = \
+                flat.fit_flat(self.rawflatimg, this_tilts_dict, thismask,self.tslits_dict['lcen'][:, slit],
+                              self.tslits_dict['rcen'][:,slit],inmask=inmask,tweak_slits = self.flatpar['tweak_slits'],
+                              nonlinear_counts=nonlinear_counts, debug=debug)
+            self.mspixelflat[thismask_out] = pixelflat[thismask_out]
+            self.msillumflat[thismask_out] = illumflat[thismask_out]
+            self.flat_model[thismask_out] = flat_model[thismask_out]
+            # Did we tweak slit boundaries? If so, update the tslits_dict and the tilts_dict
+            if self.flatpar['tweak_slits']:
+                self.tslits_dict['lcen'][:, slit] = slit_left_out
+                self.tslits_dict['rcen'][:, slit] = slit_righ_out
+                this_tilts = tracewave.coeff2tilts(this_tilts_dict['coeffs'], self.rawflatimg.shape, self.tilts_dict['func2D'])
+                final_tilts[thismask_out] = this_tilts[thismask_out]
+
+        # If we tweaked the slits update the tslits_dict and the tilts_dict
+        if self.flatpar['tweak_slits']:
+            self.tilts_dict['tilts'] = final_tilts
+            # Update the tslits_dict
+            self.tslits_dict['slitpix']= pixels.slit_pixels(self.tslits_dict['lcen'], self.tslits_dict['rcen'], self.rawflatimg.shape, 0)
+            # ToDo no need to store the ximg and edgmask in the tslits_dict, they can be generated on the fly
+            ximg, edge_mask = pixels.ximg_and_edgemask(self.tslits_dict['lcen'], self.tslits_dict['rcen'], self.tslits_dict['slitpix'])
+            self.tslits_dict['ximg'] = ximg
+            self.tslits_dict['edge_mask'] = edge_mask
 
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show(slits=True, wcs_match = True)
-
 
         # Return
         return self.mspixelflat, self.msillumflat

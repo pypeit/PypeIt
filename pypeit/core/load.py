@@ -135,7 +135,6 @@ def load_headers(datlines, spectrograph, strict=True):
                     fitsdict[kw].append(value)
                 else:
                     msgs.bug("I didn't expect a useful header ({0:s}) to contain type {1:s}".format(kw, typv).replace('<type ','').replace('>',''))
-
         msgs.info("Successfully loaded headers for file:" + msgs.newline() + datlines[i])
 
     # Check if any other settings require header values to be loaded

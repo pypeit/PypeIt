@@ -725,7 +725,7 @@ class MultiSlit(PypeIt):
                                                    maskslits=maskslits)
 
         # Global sky subtraction, first pass. Uses skymask from object finding
-        global_sky0 = self.sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.mstilts,
+        global_sky0 = self.sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'],
                                               use_skymask=True, maskslits=maskslits, show=self.show)
 
         # Object finding, second pass on frame *with* sky subtraction. Show here if requested
@@ -736,7 +736,7 @@ class MultiSlit(PypeIt):
         vel_corr = None
         if nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
-            global_sky = self.sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.mstilts,
+            global_sky = self.sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'],
                                                  use_skymask=True, maskslits=maskslits, show=self.show)
 
             skymodel, objmodel, ivarmodel, outmask, sobjs = self.sciI.local_skysub_extract(self.caliBrate.mswave, maskslits=maskslits,
@@ -744,7 +744,7 @@ class MultiSlit(PypeIt):
 
 
             # Flexure correction?
-            if self.par['flexure'] is not None and self.par['flexure']['method'] is not None:
+            if self.par['flexure'] is not None:
                 sky_file, sky_spectrum = self.spectrograph.archive_sky_spectrum()
                 flex_list = wave.flexure_obj(sobjs, maskslits, self.par['flexure']['method'],
                                              sky_spectrum, sky_file=sky_file,

@@ -122,3 +122,4 @@ def test_run_and_master(kast_blue_bias_files):
     assert np.array_equal(bias2, bias3)
 
 # Should probably test overscan
+
