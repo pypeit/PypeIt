@@ -54,13 +54,7 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
 
     # Instrument/disperser specific
     disperser = fitstbl["dispname"][arc_idx]
-    try:
-        if(fitstbl['binning_x'][arc_idx]):
-            # for XSHOOTER
-            msgs.warn("Binning is imported from binning_x and binning_y.")
-            binspatial, binspectral = fitstbl['binning_x'][arc_idx], fitstbl['binning_y'][arc_idx]
-    except:
-        binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
+    binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
     # ToDo JFH: Why is the arcparam being modified in place instead of being passed back from the spectrograh class.
     # This code looks rather sloppy.
     modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl,
@@ -78,6 +72,8 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                                                      spectro_class.spectrograph,
                                                      wvmnx=arcparam['wvmnx'],
                                                      modify_parse_dict=modify_dict)
+
+    # JFH Do we need this line of code since we no longer use the other methods of arc_lines?
     # Binning
     arcparam['disp'] *= binspectral
 
@@ -94,14 +90,19 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
     maskslit = np.zeros(nslits, dtype=np.int)
     trace = slit_left + xfrac*(slit_righ - slit_left)
     arc_spec = np.zeros((nspec, nslits))
+    spat_img = np.outer(np.ones(nspec,dtype=int), np.arange(nspat,dtype=int)) # spatial position everywhere along image
+
 
     for islit in range(nslits):
         msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit + 1))
         # Create a mask for the pixels that will contribue to the arc
-        spat_img = np.outer(np.ones(nspec), np.arange(nspat))  # spatial position everywhere along image
         trace_img = np.outer(trace[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
         arcmask = (slitpix > 0) & inmask & (spat_img > (trace_img - box_rad)) & (spat_img < (trace_img + box_rad))
-        this_mean, this_med, this_sig = sigma_clipped_stats(arcimg, mask=~arcmask, sigma=3.0, axis=1)
+        # Trimming the image makes this much faster
+        left = np.fmax(spat_img[arcmask].min() - 4,0)
+        righ = np.fmin(spat_img[arcmask].max() + 5,nspat)
+        this_mean, this_med, this_sig = sigma_clipped_stats(arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ])
+                                                            , sigma=3.0, axis=1)
         arc_spec[:,islit] = this_med.data
         if not np.any(arc_spec[:,islit]):
             maskslit[islit] = 1
@@ -388,7 +389,7 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     plt.show()
 
 
-def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, debug=False):
+def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, debug=True):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
