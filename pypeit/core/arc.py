@@ -388,7 +388,7 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     plt.show()
 
 
-def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, debug=False):
+def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, debug=True):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -453,22 +453,44 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
 
     #detns = detns_smth
     # Find all significant detections
-    # TODO -- Need to add nonlinear back in here
-    pixt_old = np.where((detns > 0.0) &  # (detns < slf._nonlinear[det-1]) &
-                    (detns > np.roll(detns, 1)) & (detns >= np.roll(detns, -1)) &
-                    (np.roll(detns, 1) > np.roll(detns, 2)) & (np.roll(detns, -1) > np.roll(detns, -2)) &#)[0]
-                    (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3))&#)[0]
-                    (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)))[0]# & # )[0]
-#                    (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
+    # JFH Old peak finding
+    #pixt_old = np.where((detns > 0.0) &  # (detns < slf._nonlinear[det-1]) &
+    #                (detns > np.roll(detns, 1)) & (detns >= np.roll(detns, -1)) &
+    #                (np.roll(detns, 1) > np.roll(detns, 2)) & (np.roll(detns, -1) > np.roll(detns, -2)) &#)[0]
+    #                (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3))&#)[0]
+    #                (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)))[0]# & # )[0]
+#   #                 (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
 
-    samp_width = np.ceil(detns.size/cont_samp).astype(int)
-    cont  = utils.fast_running_median(detns, samp_width)
-    arc_in = detns - cont
-    (mean, med, stddev) = sigma_clipped_stats(arc_in, sigma_lower=3.0, sigma_upper=3.0)
-    thresh = med + sigdetect*stddev
-    pixt = detect_peaks(arc_in, mph = thresh, mpd = 3.0, show=debug)
+    niter = 3
+    nspec = detns.size
+    cont_mask = np.ones(detns.size, dtype=bool)
+    spec_vec = np.arange(nspec)
+    cont_now = np.arange(nspec)
+    mask_sm = np.round(FWHM/2.0).astype(int)
+    mask_odd = mask_sm + 1 if mask_sm % 2 == 0 else mask_sm
+    for iter in range(niter):
+        arc_now = detns - cont_now
+        (mean, med, stddev) = sigma_clipped_stats(arc_now[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
+        thresh = med + sigdetect*stddev
+        pixt_now = detect_peaks(arc_now, mph = thresh, mpd = 3.0)
+        # mask out the peaks we find for the next continuum iteration
+        cont_mask_fine = np.ones_like(cont_now)
+        cont_mask_fine[pixt_now] = 0.0
+        cont_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999)
+        # If more than half the spectrum is getting masked than short circuit this masking
+        if np.sum(cont_mask) < nspec//2:
+            msgs.warn('Too many pixels  masked in arc continuum definiton. Not masking....')
+            cont_mask = np.ones_like(cont_mask)
+        ngood = np.sum(cont_mask)
+        samp_width = np.ceil(ngood/cont_samp).astype(int)
+        cont_med = utils.fast_running_median(detns[cont_mask], samp_width)
+        cont_now = np.interp(spec_vec,spec_vec[cont_mask],cont_med)
+
+    # Final peak detection
+    arc = detns - cont_now
+    pixt = detect_peaks(arc, mph=thresh, mpd=3.0, show=debug)
     # Gaussian fitting appears to work better on the non-continuum subtracted data
-    tampl, tcent, twid, centerr = fit_arcspec(xrng, detns, pixt, nfitpix)
+    b, tampl, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
     #tampl, tcent, twid, centerr = fit_arcspec(xrng, arc_in, pixt, nfitpix)
 
     #         sigma finite  & sigma positive &  sigma < FWHM/2.35 & cen positive  &  cen on detector
@@ -477,14 +499,13 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
     ww = np.where(good)
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan
-        tampl_bad = np.interp(pixt[~good], xrng, arc_in)
-        plt.plot(xrng, detns, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc')
+        tampl_bad = np.interp(pixt[~good], xrng, arc)
+        plt.plot(xrng, arc, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc')
         plt.plot(tcent[~good], tampl_bad,'r+', markersize =6.0, label = 'bad peaks')
         plt.plot(tcent[good], tampl[good],'g+', markersize =6.0, label = 'good peaks')
         plt.title('Good Lines = {:d}'.format(np.sum(good)) + ',  Bad Lines = {:d}'.format(np.sum(~good)))
         plt.legend()
         plt.show()
-
 
     return tampl, tcent, twid, centerr, ww, detns
 
@@ -494,11 +515,11 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     # Setup the arrays with fit parameters
     sz_p = pixt.size
     sz_a = yarray.size
-    ampl, cent, widt, centerr = -1.0*np.ones(sz_p, dtype=np.float),\
-                                -1.0*np.ones(sz_p, dtype=np.float),\
-                                -1.0*np.ones(sz_p, dtype=np.float), \
-                                -1.0 * np.ones(sz_p, dtype=np.float)
-
+    b      = -1.0*np.ones(sz_p, dtype=np.float)
+    ampl   = -1.0*np.ones(sz_p, dtype=np.float)
+    cent   = -1.0*np.ones(sz_p, dtype=np.float)
+    widt   = -1.0*np.ones(sz_p, dtype=np.float)
+    centerr = -1.0*np.ones(sz_p, dtype=np.float)
 
     for p in range(sz_p):
         pmin = pixt[p]-(fitp-1)//2
@@ -513,14 +534,23 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
             continue  # Probably won't be a good solution
         # Fit the gaussian
         try:
-            popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3, return_errors=True)
-            ampl[p] = popt[0]
-            cent[p] = popt[1]
-            widt[p] = popt[2]
-            centerr[p] = pcov[1, 1]
+            #popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3, return_errors=True)
+            #ampl[p] = popt[0]
+            #cent[p] = popt[1]
+            #widt[p] = popt[2]
+            #centerr[p] = pcov[1, 1]
+            popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 4, return_errors=True)
+            b[p]    = popt[0]
+            ampl[p] = popt[1]
+            cent[p] = popt[2]
+            widt[p] = popt[3]
+            centerr[p] = pcov[2, 2]
+            #if not np.isfinite(ampl[p]):
+            #    from IPython import embed
+            #    embed()
         except RuntimeError:
             pass
-    return ampl, cent, widt, centerr
+    return b, ampl, cent, widt, centerr
 
 
 def simple_calib_driver(msarc, aparm, censpec, ok_mask, nfitpix=5, get_poly=False,
