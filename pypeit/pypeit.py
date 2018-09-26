@@ -721,20 +721,23 @@ class MultiSlit(PypeIt):
 
 def instantiate_me(spectrograph, **kwargs):
     """
-    Simple wrapper for grabbing the right PypeIt class
+    Instantiate the PypeIt subclass appropriate for the provided
+    spectrograph.
+
+    The class must be subclassed from PypeIt.  See :class:`PypeIt` for
+    the description of the valid keyword arguments.
 
     Args:
-        name: str
-          Allowed options are MultiSlit
-        spectrograph: Spectrograph
-        **kwargs:
+        spectrograph
+            (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The instrument used to collect the data to be reduced.
 
     Returns:
-
+        :class:`PypeIt`: One of the classes with :class:`PypeIt` as its
+        base.
     """
-    if spectrograph.pypeit_class() == 'MultiSlit':
-        pypeIt = MultiSlit(spectrograph, **kwargs)
-    else:
-        msgs.error("NOT READY FOR THIS TYPE OF REDUX")
-    # Return
-    return pypeIt
+    indx = [ c.__name__ == spectrograph.pypeline for c in PypeIt.__subclasses__() ]
+    if not np.any(indx):
+        msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
+    return PypeIt.__subclasses__()[np.where(indx)[0][0]](spectrograph, **kwargs)
+

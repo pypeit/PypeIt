@@ -32,8 +32,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Keck LRISr reductions.
         """
         par = pypeitpar.PypeItPar()
-        # Use the ARMS pipeline
-        par['rdx']['pipeline'] = 'ARMS'
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 30.
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]

@@ -196,8 +196,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_deimos'
-        # Use the ARMS pipeline
-        par['rdx']['pipeline'] = 'ARMS'
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['polyorder'] = 3

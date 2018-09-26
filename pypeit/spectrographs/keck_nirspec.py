@@ -12,6 +12,7 @@ from pypeit.spectrographs import spectrograph
 
 from pypeit import debugger
 
+# TODO: this is just the low-resolution version for now...
 class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/NIRSPEC specific code
@@ -52,8 +53,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_nirspec'
-        # Use the ARMS pipeline
-        par['rdx']['pipeline'] = 'ARMS'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
         par['calibrations']['biasframe']['number'] = 0

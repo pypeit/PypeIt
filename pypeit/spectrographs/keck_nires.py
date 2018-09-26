@@ -45,6 +45,10 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Uses default primary_hdrext
         # self.sky_file = ?
 
+    @property
+    def pypeline(self):
+        return 'Echelle'
+
     @staticmethod
     def default_pypeit_par():
         """

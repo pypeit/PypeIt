@@ -500,7 +500,8 @@ class Spectrograph(object):
         raise FileNotFoundError('Could not find archive sky spectrum: {0} or {1}'.format(
                                     self.sky_file, _sky_file))
 
-    def pypeit_class(self):
+    @property
+    def pypeline(self):
         return 'MultiSlit'
 
     def mm_per_pix(self, det=1):

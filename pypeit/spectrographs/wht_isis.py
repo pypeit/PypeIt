@@ -27,7 +27,7 @@ from pypeit import debugger
 #        return super(KeckLRISSpectrograph, self).metadata_keys() \
 #                    + ['binning', 'dichroic', 'dispangle']
 
-# TODO: Change this to WHTISISSpectrograph
+# TODO: Change this to WHTISISBlueSpectrograph
 class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle WHT/ISIS blue specific code
@@ -68,8 +68,6 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'wht_isis_blue'
-        # Use the ARMS pipeline
-        par['rdx']['pipeline'] = 'ARMS'
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]

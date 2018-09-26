@@ -940,10 +940,11 @@ class ReducePar(ParSet):
         descr['spectrograph'] = 'Spectrograph that provided the data to be reduced.  ' \
                                 'Options are: {0}'.format(', '.join(options['spectrograph']))
 
-        options['pipeline'] = ReducePar.valid_pipelines()
-        dtypes['pipeline'] = str
-        descr['pipeline'] = 'Pipeline options that pypeit can use for reductions.  ' \
-                            'Options are: {0}'.format(', '.join(options['pipeline']))
+#        default['pipeline'] = 'MultiSlit'
+#        options['pipeline'] = ReducePar.valid_pipelines()
+#        dtypes['pipeline'] = str
+#        descr['pipeline'] = 'PypeIt pipeline to use for reductions.  ' \
+#                            'Options are: {0}'.format(', '.join(options['pipeline']))
 
         dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices'
@@ -1005,10 +1006,10 @@ class ReducePar(ParSet):
                 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 
                 'vlt_xshooter_nir']
 
-    @staticmethod
-    def valid_pipelines():
-        """Return the list of allowed pipelines within pypit."""
-        return [ 'ARMS' , 'ARMED' ]
+#    @staticmethod
+#    def valid_pipelines():
+#        """Return the list of allowed pipelines within PypeIt."""
+#        return [ 'MultiSlit', 'Echelle' ]
 
     def validate(self):
         pass

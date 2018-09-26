@@ -26,14 +26,16 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'vlt_xshooter_base'
         self.telescope = telescopes.VLTTelescopePar()
 
+    @property
+    def pypeline(self):
+        return 'Echelle'
+
     @staticmethod
     def default_pypeit_par():
         """
         Set default parameters for VLT XSHOOTER reductions.
         """
         par = pypeitpar.PypeItPar()
-        # Use the ARMED pipeline
-        par['rdx']['pipeline'] = 'ARMED'
         # Correct for flexure using the default approach
         par['flexure'] = pypeitpar.FlexurePar()
         return par
