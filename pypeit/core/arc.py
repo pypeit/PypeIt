@@ -388,7 +388,7 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     plt.show()
 
 
-def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, debug=True):
+def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, debug=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -488,7 +488,7 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
 
     # Final peak detection
     arc = detns - cont_now
-    pixt = detect_peaks(arc, mph=thresh, mpd=3.0, show=debug)
+    pixt = detect_peaks(arc, mph=thresh, mpd=3.0) #, show=debug)
     # Gaussian fitting appears to work better on the non-continuum subtracted data
     b, tampl, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
     #tampl, tcent, twid, centerr = fit_arcspec(xrng, arc_in, pixt, nfitpix)
@@ -500,9 +500,13 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan
         tampl_bad = np.interp(pixt[~good], xrng, arc)
-        plt.plot(xrng, arc, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc')
+        plt.figure(figsize=(14, 6))
+        plt.plot(xrng, arc, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc', linewidth = 1.0)
         plt.plot(tcent[~good], tampl_bad,'r+', markersize =6.0, label = 'bad peaks')
         plt.plot(tcent[good], tampl[good],'g+', markersize =6.0, label = 'good peaks')
+        if nonlinear_counts < 1e9:
+            plt.hlines(nonlinear_counts,xrng.min(), xrng.max(), color='orange', linestyle='--',linewidth=2.0,
+                       label='nonlinear', zorder=10)
         plt.title('Good Lines = {:d}'.format(np.sum(good)) + ',  Bad Lines = {:d}'.format(np.sum(~good)))
         plt.legend()
         plt.show()
