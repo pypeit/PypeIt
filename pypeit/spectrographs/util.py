@@ -64,7 +64,7 @@ def load_spectrograph(spectrograph=None):
         return spectrographs.wht_isis.WhtIsisBlueSpectrograph()
     
     if spectrograph == 'tng_dolores':
-        return spectrographs.tng_dolores.TngDoloresSpectrograph()
+        return spectrographs.tng_dolores.TNGDoloresSpectrograph()
 
     if spectrograph == 'vlt_xshooter_uvb':
         return spectrographs.vlt_xshooter.VLTXShooterUVBSpectrograph()

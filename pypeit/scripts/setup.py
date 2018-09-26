@@ -64,7 +64,7 @@ def main(args):
     pypeIt = pypeit.instantiate_me(spectrograph, verbosity=args.verbosity,
                                    overwrite=args.overwrite, setups_path=args.setups_path)
 
-    pypeIt.build_setup_files(args.files_root)
+    pypeIt.build_setup_files(args.files_root, extension=args.extension)
 
     # Custom?
     if args.custom:

@@ -104,7 +104,7 @@ class PypeIt(object):
         self.setup_dict = None
 
 
-    def build_setup_files(self, files_root):
+    def build_setup_files(self, files_root, extension='.fits'):
         """
         Generate the setup files for PypeIt from a list of input files
 
@@ -119,7 +119,8 @@ class PypeIt(object):
         # Record the starting time
         self.tstart = time.time()
 
-        pargs, sort_dir, self.setup_pypeit_file = self._make_setup_pypeit_file(files_root)
+        pargs, sort_dir, self.setup_pypeit_file \
+                = self._make_setup_pypeit_file(files_root, extension=extension)
         self._setup(self.setup_pypeit_file, setup_only=True, calibration_check=False,
                     sort_dir=sort_dir)
 

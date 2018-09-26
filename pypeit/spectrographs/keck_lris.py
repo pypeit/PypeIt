@@ -23,7 +23,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
     def __init__(self):
         # Get it started
         super(KeckLRISSpectrograph, self).__init__()
-        self.spectrograph = 'keck_lris'
+        self.spectrograph = 'keck_lris_base'
         self.telescope = telescopes.KeckTelescopePar()
 
     @staticmethod
@@ -74,6 +74,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['idname'] = 'OBSTYPE'
         hdr_keys[0]['time'] = 'MJD-OBS'
         hdr_keys[0]['date'] = 'DATE'
+        hdr_keys[0]['utc'] = 'UTC'
+        hdr_keys[0]['ut'] = 'UT'
         hdr_keys[0]['ra'] = 'RA'
         hdr_keys[0]['dec'] = 'DEC'
         hdr_keys[0]['airmass'] = 'AIRMASS'

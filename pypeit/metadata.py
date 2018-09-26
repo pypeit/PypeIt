@@ -99,7 +99,7 @@ class PypeItMetaData:
         head_keys = self.spectrograph.header_keys()
 
         # The table is declared based on this input dictionary: The
-        # directory, filename, instrument, utc are always included
+        # directory, filename, instrument are always included
         data = {k:[] for k in PypeItMetaData.default_keys()}
 
         # Add columns to the output table for each keyword.  The
@@ -153,12 +153,12 @@ class PypeItMetaData:
             data['filename'].append(f)
             data['instrume'].append(self.spectrograph.spectrograph)
 
-            # Add the time of the observation
-            utc = self.get_utc(headarr)
-            data['utc'].append('None' if utc is None else utc)
-            if utc is None:
-                msgs.warn('UTC is not listed as a header keyword in file:' + msgs.newline()
-                          + file_list[i])
+#            # Add the time of the observation
+#            utc = self.get_utc(headarr)
+#            data['utc'].append('None' if utc is None else utc)
+#            if utc is None:
+#                msgs.warn('UTC is not listed as a header keyword in file:' + msgs.newline()
+#                          + file_list[i])
 
             # TODO: Read binning-dependent detector properties here? (maybe read speed too)
     
@@ -228,7 +228,7 @@ class PypeItMetaData:
 
     @staticmethod
     def default_keys():
-        return [ 'directory', 'filename', 'instrume', 'utc' ]
+        return [ 'directory', 'filename', 'instrume' ]
 
     def keys(self):
         return self.table.keys()
@@ -236,30 +236,30 @@ class PypeItMetaData:
     def sort(self, col):
         return self.table.sort(col)
 
-    @staticmethod
-    def get_utc(headarr):
-        """
-        Find and return the UTC for a file based on the headers read from
-        all extensions.
-    
-        The value returned is the first UT or UTC keyword found any in any
-        header object.
-    
-        Args:
-            headarr (list):
-                List of :obj:`astropy.io.fits.Header` objects to search
-                through for a UTC of the observation.
-        Returns:
-            object: The value of the header keyword.
-        """
-        for h in headarr:
-            if h == 'None':
-                continue
-            if 'UTC' in h.keys():
-                return h['UTC']
-            elif 'UT' in h.keys():
-                return h['UT']
-        return None
+#    @staticmethod
+#    def get_utc(headarr):
+#        """
+#        Find and return the UTC for a file based on the headers read from
+#        all extensions.
+#    
+#        The value returned is the first UT or UTC keyword found any in any
+#        header object.
+#    
+#        Args:
+#            headarr (list):
+#                List of :obj:`astropy.io.fits.Header` objects to search
+#                through for a UTC of the observation.
+#        Returns:
+#            object: The value of the header keyword.
+#        """
+#        for h in headarr:
+#            if h == 'None':
+#                continue
+#            if 'UTC' in h.keys():
+#                return h['UTC']
+#            elif 'UT' in h.keys():
+#                return h['UT']
+#        return None
 
     def convert_time(self, in_time):
         """

@@ -63,20 +63,6 @@ def test_setup_made_pypeit_file():
     assert setups[0] == 'A'
 
 
-#def test_setup_pfile():
-#    """ This won't run because of msgs issue..
-#    """
-#    from pypit.scripts import setup
-#    # Try from .pypit file
-#    sfiles = glob.glob('*.setup')
-#    pypit_file = sfiles[0].replace('.setup', '.pypit')
-#    for sfile in sfiles:
-#        os.remove(sfile)
-#    pargs2 = setup.parser([pypit_file, 'shane_kast_blue', '--pypit_file', '-d'])
-#    setup.main(pargs2)
-#    pytest.set_trace()
-
-
 @dev_suite_required
 def test_setup_keck_lris_red():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_LRIS_red/multi_400_8500_d560')
@@ -106,7 +92,7 @@ def test_setup_keck_lris_blue():
     setup.main(pargs)
     # The setup works but there's a problem with the trace image that's
     # included in the DevSuite
-    exit()
+    return
 
     cwd = os.getcwd()
     setup_dir = os.path.join(cwd, 'setup_files')
@@ -204,31 +190,103 @@ def test_setup_keck_nires():
     # Clean-up
     shutil.rmtree(setup_dir)
 
-if __name__ == '__main__':
-#    test_setup_keck_lris_blue()
-    test_setup_keck_nires()
+@dev_suite_required
+def test_setup_keck_nirspec():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_NIRSPEC/NIRSPEC-1')
+    droot += '/'
+    pargs = setup.parser([droot, 'keck_nirspec'])
+    setup.main(pargs)
 
-    exit()
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
 
-    from pypeit.pypeitsetup import PypeItSetup
-    file_list = glob.glob(os.path.join(os.environ['PYPEIT_DEV'],
-                                       'RAW_DATA/Keck_NIRES', '*.fits.gz'))
-    cfg_lines = ['[rdx]',
-                 'spectrograph = keck_nires',
-                 '[calibrations]',
-                 '[[pixelflatframe]]',
-                 'number = 3',
-                 '[[standardframe]]',
-                 'number = 0']
-    ps = PypeItSetup(file_list, cfg_lines=cfg_lines)
-    ps.build_fitstbl()
-    ps.get_frame_types(flag_unknown=True) #, use_header_id=True)
-    
-    import pdb
-    pdb.set_trace()
+    files = glob.glob(os.path.join(setup_dir, 'keck_nirspec*'))
+    ext = [f.split('.')[-1] for f in files]
+    expected = ['lst', 'pypeit', 'setups', 'sorted']
+    assert np.all([e in ext for e in expected]), \
+            'Did not find all setup file extensions: {0}'.format(expected)
 
-    exit()
+    # Clean-up
+    shutil.rmtree(setup_dir)
 
+@dev_suite_required
+def test_setup_wht_isis_blue():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/WHT_ISIS_blue/long_R300B_d5300')
+    droot += '/'
+    pargs = setup.parser([droot, 'wht_isis_blue', '--extension', '.fit'])
+    setup.main(pargs)
 
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
 
+    files = glob.glob(os.path.join(setup_dir, 'wht_isis_blue*'))
+    ext = [f.split('.')[-1] for f in files]
+    expected = ['lst', 'pypeit', 'setups', 'sorted']
+    assert np.all([e in ext for e in expected]), \
+            'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
+
+@dev_suite_required
+def test_setup_vlt_xshooter_uvb():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER/UVB_1x1')
+    droot += '/XSHO'
+    pargs = setup.parser([droot, 'vlt_xshooter_uvb'])
+    setup.main(pargs)
+
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+
+    files = glob.glob(os.path.join(setup_dir, 'vlt_xshooter_uvb*'))
+    ext = [f.split('.')[-1] for f in files]
+    expected = ['lst', 'pypeit', 'setups', 'sorted']
+    assert np.all([e in ext for e in expected]), \
+            'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
+
+@dev_suite_required
+def test_setup_vlt_xshooter_vis():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER/VIS_1x1')
+    droot += '/XSHO'
+    pargs = setup.parser([droot, 'vlt_xshooter_vis'])
+    setup.main(pargs)
+
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+
+    files = glob.glob(os.path.join(setup_dir, 'vlt_xshooter_vis*'))
+    ext = [f.split('.')[-1] for f in files]
+    expected = ['lst', 'pypeit', 'setups', 'sorted']
+    assert np.all([e in ext for e in expected]), \
+            'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
+
+@dev_suite_required
+def test_setup_vlt_xshooter_nir():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER/NIR')
+    droot += '/XSHO'
+    pargs = setup.parser([droot, 'vlt_xshooter_nir'])
+    setup.main(pargs)
+
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+
+    files = glob.glob(os.path.join(setup_dir, 'vlt_xshooter_nir*'))
+    ext = [f.split('.')[-1] for f in files]
+    expected = ['lst', 'pypeit', 'setups', 'sorted']
+    assert np.all([e in ext for e in expected]), \
+            'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
 
