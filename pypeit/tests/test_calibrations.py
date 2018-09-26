@@ -80,16 +80,16 @@ def test_instantiate():
     print(caliBrate)
 
 
-def test_datasec(multi_caliBrate):
-    if skip_test:
-        assert True
-        return
-    multi_caliBrate.par['trim'] = False
-    datasec_img = multi_caliBrate.get_datasec_img()
-    naxis0, naxis1 = datasec_img.shape
-    # Test
-    assert naxis0 == 2112
-    assert naxis1 == 350
+#def test_datasec(multi_caliBrate):
+#    if skip_test:
+#        assert True
+#        return
+#    multi_caliBrate.par['trim'] = False
+#    datasec_img = multi_caliBrate.get_datasec_img()
+#    naxis0, naxis1 = datasec_img.shape
+#    # Test
+#    assert naxis0 == 2112
+#    assert naxis1 == 350
 
 def test_pixlocn(multi_caliBrate):
     multi_caliBrate.shape = (2048,350)
@@ -126,7 +126,7 @@ def test_slits(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     _ = multi_caliBrate.get_pixlocn()
-    _ = multi_caliBrate.get_datasec_img()
+    #_ = multi_caliBrate.get_datasec_img()
     _ = multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     # Run
@@ -143,7 +143,7 @@ def test_wv_calib(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     _ = multi_caliBrate.get_pixlocn()
-    _ = multi_caliBrate.get_datasec_img()
+    #_ = multi_caliBrate.get_datasec_img()
     _ = multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     _ = multi_caliBrate.get_slits()
@@ -161,7 +161,7 @@ def test_tilts(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     _ = multi_caliBrate.get_pixlocn()
-    _ = multi_caliBrate.get_datasec_img()
+    #_ = multi_caliBrate.get_datasec_img()
     _ = multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     _ = multi_caliBrate.get_slits()
@@ -181,7 +181,7 @@ def test_flat(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     _ = multi_caliBrate.get_pixlocn()
-    _ = multi_caliBrate.get_datasec_img()
+    #_ = multi_caliBrate.get_datasec_img()
     _ = multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     _ = multi_caliBrate.get_slits()
@@ -201,7 +201,7 @@ def test_waveimg(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     _ = multi_caliBrate.get_pixlocn()
-    _ = multi_caliBrate.get_datasec_img()
+    #_ = multi_caliBrate.get_datasec_img()
     _ = multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     _ = multi_caliBrate.get_slits()
