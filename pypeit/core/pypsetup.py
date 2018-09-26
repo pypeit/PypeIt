@@ -320,15 +320,7 @@ def instr_setup(sci_ID, det, fitstbl, setup_dict, numamplifiers,
         slitlen = 'none'
 
     # Detector -- These may not be set properly from the header alone, e.g. LRIS
-    # for XSHOOTER
-    try:
-        if(fitstbl["binning_x"][idx[0]]):
-            # for XSHOOTER
-            binning = "{},{}".format(fitstbl["binning_x"][idx[0]],fitstbl["binning_y"][idx[0]])
-            msgs.warn("Binning is imported from binning_x and binning_y.")
-            msgs.warn("Binning is: {}".format(binning))
-    except:
-        binning = fitstbl["binning"][idx[0]]
+    binning = fitstbl["binning"][idx[0]]
 
     namp = numamplifiers
 

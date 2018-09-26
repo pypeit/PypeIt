@@ -54,14 +54,7 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
 
     # Instrument/disperser specific
     disperser = fitstbl["dispname"][arc_idx]
-    try:
-        if(fitstbl['binning_x'][arc_idx]):
-            # for XSHOOTER
-            binspatial, binspectral = fitstbl['binning_x'][arc_idx], fitstbl['binning_y'][arc_idx]
-            msgs.warn("Binning is imported from binning_x and binning_y.")
-            msgs.warn("Spatial Binning {}".format(binspatial) + " -- Spectral Binning {}".format(binspectral))
-    except:
-        binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
+    binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
     # ToDo JFH: Why is the arcparam being modified in place instead of being passed back from the spectrograh class.
     # This code looks rather sloppy.
     modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl,
@@ -434,6 +427,8 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
       had any "continuum" emission subtracted off
     """
 
+    debug = True
+
     # Detect the location of the arc lines
     msgs.info("Detecting lines...isolating the strongest, nonsaturated lines")
 
@@ -773,6 +768,11 @@ def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
     final_fit : dict
       Dict of fit info
     """
+
+    from IPython import embed
+    embed()
+    aparm
+
     if ok_mask is None:
         ok_mask = np.arange(spec.shape[1])
 

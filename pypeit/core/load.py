@@ -99,8 +99,21 @@ def load_headers(datlines, spectrograph, strict=True):
                 try:
                     value = headarr[head_idx][hkey]
                 except KeyError: # Keyword not found in header
-                    msgs.warn("{:s} keyword not in header. Setting to None".format(hkey))
-                    value = str('None')
+                    if kw == 'binning':
+                        for kw_bin, hkey_bin in head_keys[head_idx].items():
+                            if kw_bin == 'binning_x':
+                                bin_x = headarr[head_idx][hkey_bin]
+                            if kw_bin == 'binning_y':
+                                bin_y = headarr[head_idx][hkey_bin]
+                        try:
+                            value = "{},{}".format(bin_x,bin_y)
+                            msgs.warn("{:s} keyword set from binning_x and binning_y.".format(hkey))
+                        except KeyError: # Keyword not found in header
+                            msgs.warn("{:s} keyword not in header. Setting to None".format(hkey))
+                            value = str('None')
+                    else:
+                        msgs.warn("{:s} keyword not in header. Setting to None".format(hkey))
+                        value = str('None')
 #                except IndexError:
 #                    debugger.set_trace()
                 # Convert the input time into hours -- Should we really do this here??
