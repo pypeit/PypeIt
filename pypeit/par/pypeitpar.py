@@ -453,22 +453,6 @@ class FlatFieldPar(ParSet):
         descr['method'] = 'Method used to flat field the data; use None to skip flat-fielding.  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
-        # JFH These parameters below are all now deprecated.
-        #defaults['params'] = [20]
-        #dtypes['params'] = [int, list]
-        #descr['params'] = 'Flat-field method parameters.  For \'PolyScan\', set params = order, ' \
-        #                  'numPixels, repeat ; for bspline, set params = spacing '
-
-        # TODO:  How is twodpca used?  Is it just another method that is
-        # only used for ARMED?  Could we remove twodpca and just add
-        # another method option?
-        #defaults['twodpca'] = 0
-        #dtypes['twodpca'] = int
-        #descr['twodpca'] = 'Perform a simple 2D PCA on the echelle blaze fits if the value of ' \
-        #                   'this argument is >1. The argument value is equal to the number of ' \
-        #                   'PCA components. 0 means that no PCA will be performed.  **This is ' \
-        #                   'only used with ARMED pipeline.'
-
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -918,8 +902,8 @@ class ReducePar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, spectrograph=None, pipeline=None, detnum=None, sortroot=None, calwin=None,
-                 scidir=None, qadir=None, redux_path=None):
+    def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
+                 qadir=None, redux_path=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -939,12 +923,6 @@ class ReducePar(ParSet):
         dtypes['spectrograph'] = str
         descr['spectrograph'] = 'Spectrograph that provided the data to be reduced.  ' \
                                 'Options are: {0}'.format(', '.join(options['spectrograph']))
-
-#        default['pipeline'] = 'MultiSlit'
-#        options['pipeline'] = ReducePar.valid_pipelines()
-#        dtypes['pipeline'] = str
-#        descr['pipeline'] = 'PypeIt pipeline to use for reductions.  ' \
-#                            'Options are: {0}'.format(', '.join(options['pipeline']))
 
         dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices'
@@ -986,8 +964,8 @@ class ReducePar(ParSet):
         k = cfg.keys()
 
         # Basic keywords
-        parkeys = [ 'spectrograph', 'pipeline', 'detnum', 'sortroot', 'calwin', 'scidir',
-                    'qadir', 'redux_path']
+        parkeys = [ 'spectrograph', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
+                    'redux_path']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1005,11 +983,6 @@ class ReducePar(ParSet):
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
                 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 
                 'vlt_xshooter_nir']
-
-#    @staticmethod
-#    def valid_pipelines():
-#        """Return the list of allowed pipelines within PypeIt."""
-#        return [ 'MultiSlit', 'Echelle' ]
 
     def validate(self):
         pass
@@ -1387,7 +1360,7 @@ class WaveTiltsPar(ParSet):
         defaults['order'] = 2
         dtypes['order'] = int
         descr['order'] = 'Order of the polynomial function to be used for the tilt of an ' \
-                         'individual arc line.  Must be 1 for eschelle data (ARMED pipeline).'
+                         'individual arc line.  Must be 1 for echelle data (Echelle pipeline).'
 
         defaults['function'] = 'legendre'
         # TODO: Allowed values?
@@ -1397,7 +1370,7 @@ class WaveTiltsPar(ParSet):
         defaults['yorder'] = 4
         dtypes['yorder'] = int
         descr['yorder'] = 'Order of the polynomial function to be used to fit the tilts ' \
-                          'along the y direction.  TODO: Only used by ARMED pipeline?'
+                          'along the y direction.'
 
         defaults['func2D'] = 'legendre'
         # TODO: Allowed values?
@@ -1502,8 +1475,8 @@ class TraceObjectsPar(ParSet):
         defaults['method'] = 'pca'
         options['method'] = TraceObjectsPar.valid_methods()
         dtypes['method'] = str
-        descr['method'] = 'Method to use for tracing each object; only used with ARMED pipeline.' \
-                          '  Options are: {0}'.format(', '.join(options['method']))
+        descr['method'] = 'Method to use for tracing each object; only used with Echelle ' \
+                          'pipeline.  Options are: {0}'.format(', '.join(options['method']))
 
         defaults['params'] = [1, 0]
         dtypes['params'] = [int, list]

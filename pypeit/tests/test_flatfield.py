@@ -15,23 +15,11 @@ import numpy as np
 
 from astropy.table import Table
 
-from pypeit.tests import tstutils
+from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
 from pypeit import flatfield
 
 from pypeit import debugger
 
-# These tests are not run on Travis
-if os.getenv('PYPEIT_DEV') is None:
-    skip_test=True
-else:
-    skip_test=False
-
-def chk_for_files(root):
-    files = glob.glob(root+'*')
-    if len(files) == 0:
-        return False
-    else:
-        return True
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -43,8 +31,8 @@ def data_path(filename):
 #        return
 #    # Masters
 #    spectrograph, TSlits, tilts, datasec_img \
-#                = tstutils.load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True,
-#                                                  datasec=True)
+#                = load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True,
+#                                         datasec=True)
 #    # Instantiate
 #    flatField = flatfield.FlatField(spectrograph, det=1, tilts=tilts,
 #                                    tslits_dict=TSlits.tslits_dict.copy())
@@ -61,14 +49,13 @@ def data_path(filename):
 #    flatField.mspixelflatnrm[word] /= nrmvals
 #    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0267346)
 
+# TODO: Fails because of cooked file
+@dev_suite_required
 def test_run():
-    if skip_test:
-        assert True
-        return
     # Masters
     spectrograph, TSlits, tilts, datasec_img \
-                = tstutils.load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True,
-                                                  datasec=True)
+                = load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True,
+                                         datasec=True)
     # Instantiate
     flatField = flatfield.FlatField(spectrograph=spectrograph, det=1, tilts=tilts,
                                     tslits_dict=TSlits.tslits_dict.copy())

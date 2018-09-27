@@ -290,7 +290,7 @@ class PypeItMetaData:
         
         msgs.error('Bad time unit')
 
-    def find_frames(self, ftype, sci_ID=None):
+    def find_frames(self, ftype, sci_ID=None, index=False):
         """
         Find the rows with the associated frame type.
 
@@ -312,8 +312,12 @@ class PypeItMetaData:
         """
         if 'framebit' not in self.keys():
             raise ValueError('Frame types are not set.  First run get_frame_types.')
+        if ftype is 'unknown':
+            return self['framebit'] == 0
         indx = self.bitmask.flagged(self['framebit'], ftype)
-        return indx if sci_ID is None else indx & (self['sci_ID'] & sci_ID > 0)
+        if sci_ID is not None:
+            indx &= (self['sci_ID'] & sci_ID > 0)
+        return np.where(indx)[0] if index else indx
 
     def find_frame_files(self, ftype, sci_ID=None):
         """
@@ -795,31 +799,25 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='./', noty
         fitsdict['dec'][5] = '+30:20:50.5'
         fitsdict['decker'] = ['0.5 arcsec'] * nfile
 
-#    elif spectrograph == 'none':
-#        pass
-
     # arrays
     for k in fitsdict.keys():
         fitsdict[k] = np.array(fitsdict[k])
 
-    # Table me
-    fitstbl = Table(fitsdict)
+    fitstbl = PypeItMetaData(load_spectrograph(spectrograph), data=fitsdict)
     fitstbl['instrume'] = spectrograph
+    type_bits = np.zeros(len(fitstbl), dtype=fitstbl.bitmask.minimum_dtype())
 
     # Image typing
     if not notype:
-        for ftype in ftype_list:
-            fitstbl[ftype] = np.zeros(len(fitstbl), dtype=bool)
         if spectrograph == 'shane_kast_blue':
             fitstbl['sci_ID'] = 1  # This links all the files to the science object
-            fitstbl['bias'][0] = True
-            fitstbl['arc'][1] = True
-            fitstbl['trace'][2:4] = True
-            fitstbl['pixelflat'][2:4] = True
-            fitstbl['standard'][4] = True
-            fitstbl['science'][5:] = True
+            type_bits[0] = fitstbl.bitmask.turn_on(type_bits[0], flag='bias')
+            type_bits[1] = fitstbl.bitmask.turn_on(type_bits[1], flag='arc')
+            type_bits[2:4] = fitstbl.bitmask.turn_on(type_bits[2:4], flag=['pixelflat', 'trace'])
+            type_bits[4] = fitstbl.bitmask.turn_on(type_bits[4], flag='standard')
+            type_bits[5:] = fitstbl.bitmask.turn_on(type_bits[5:], flag='science')
+            fitstbl.set_frame_types(type_bits)
 
-    # Return
-    return PypeItMetaData(load_spectrograph(spectrograph), data=fitstbl)
+    return fitstbl
 
 

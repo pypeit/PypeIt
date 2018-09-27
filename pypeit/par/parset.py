@@ -294,6 +294,9 @@ class ParSet(object):
             else:
                 data_table[i+1,1] = ParSet._data_string(self.data[k])
                 data_table[i+1,2] = ParSet._data_string(self.default[k])
+            if self.dtype[k] is None:
+                import pdb
+                pdb.set_trace()
             data_table[i+1,3] = ', '.join([t.__name__ for t in self.dtype[k]])
             data_table[i+1,4] = self.can_call[k].__repr__()
 

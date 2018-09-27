@@ -24,7 +24,7 @@ import linetools.utils
 from pypeit.core import flux
 from pypeit.core import load
 from pypeit import utils
-from pypeit.core import fsort
+from pypeit import metadata
 from pypeit import telescopes
 
 #from xastropy.xutils import afits as xafits
@@ -51,16 +51,16 @@ def test_gen_sensfunc():
     sfile = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     specobjs = load.load_specobj(sfile)
     telescope = telescopes.ShaneTelescopePar()
-    fitstbl = fsort.dummy_fitstbl()
+    fitstbl = metadata.dummy_fitstbl()
     RA = '05:06:36.6'
     DEC = '52:52:01.0'
 
     # Get the sensitivity function
     extinction_data = flux.load_extinction_data(telescope['longitude'], telescope['latitude'])
     extinction_corr = flux.extinction_correction(specobjs[0][0].boxcar['WAVE'],
-                                                   fitstbl['airmass'][4], extinction_data)
+                                                 fitstbl['airmass'][4], extinction_data)
     sensfunc = flux.generate_sensfunc(specobjs[0][0], RA, DEC, fitstbl['exptime'][4],
-                                        extinction_corr)
+                                      extinction_corr)
 
     # Test
     assert isinstance(sensfunc, dict)

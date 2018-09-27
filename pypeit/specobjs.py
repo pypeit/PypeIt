@@ -412,8 +412,7 @@ class SpecObjs(object):
         return self.summary.keys()
 
 # ToDO This method is deprecated I think
-def init_exp(lcen, rcen, shape, maskslits,
-             det, scidx, fitstbl, tracelist, ypos=0.5, **kwargs):
+def init_exp(lcen, rcen, shape, maskslits, det, scidx, fitstbl, tracelist, ypos=0.5, **kwargs):
     """ Generate a list of SpecObjExp objects for a given exposure
 
     Parameters
@@ -433,10 +432,7 @@ def init_exp(lcen, rcen, shape, maskslits,
 
     # Init
     specobjs = []
-    if fitstbl is None:
-        fitsrow = None
-    else:
-        fitsrow = fitstbl[scidx]
+    fitsrow = None if fitstbl is None else fitstbl[scidx]
     config = instconfig(fitsrow=fitsrow, binning=kwargs['binning'])
     slits = range(len(tracelist))
     gdslits = np.where(~maskslits)[0]
@@ -623,7 +619,7 @@ def dummy_specobj(fitstbl, det=1, extraction=True):
     """ Generate dummy specobj classes
     Parameters
     ----------
-    fitstbl : Table
+    fitstbl : Table/PypeItMetaData
       Expecting the fitsdict from dummy_fitsdict
     Returns
     sobj_list: list
@@ -681,3 +677,4 @@ def lst_to_array(lst, mask=None):
         tbl = Table(clms, names=attrib)
         # Return
         return tbl
+

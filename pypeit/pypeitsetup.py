@@ -86,7 +86,7 @@ class PypeItSetup(object):
             An instance of the `PypitPar` class that provides the
             parameters to all the algorthms that pypeit uses to reduce
             the data.
-        fitstbl (:class:`astropy.table.Table`):
+        fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
             A `Table` that provides the salient metadata for the fits
             files to be reduced.
         filetypeflags(:class:`astropy.table.Table`):
@@ -180,7 +180,8 @@ class PypeItSetup(object):
     
         Returns:
             :obj:`astropy.table.Table`: Table with the metadata for each
-            fits file to reduce.
+            fits file to reduce.  Note this is different from
+            :attr:`fitstbl`.
         """
         # Build and sort the table
         self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, file_list=self.file_list,
@@ -328,7 +329,7 @@ class PypeItSetup(object):
         # Include finished processing step
         self.steps.append(inspect.stack()[0][3])
 
-    def load_fitstbl(self, fits_file):
+    def load_metadata(self, fits_file):
         """
           Load the fitstbl from disk (a binary FITS table)
 
@@ -348,9 +349,9 @@ class PypeItSetup(object):
 #        except:
 #            pass
         msgs.info("Loaded fitstbl from {:s}".format(fits_file))
-        return self.fitstbl
+        return self.fitstbl.table
 
-    def write_metadata(self, setup_only=False, sort_dir=None):
+    def write_metadata(self, setup_only=False, sort_dir=None, ofile=None):
         """
         Write :attr:`fitstbl` to a file.
 
@@ -381,17 +382,20 @@ class PypeItSetup(object):
                 Raised if the output file cannot be determined from the
                 input and attributes.
         """
-        if self.pypeit_file is None and sort_dir is None:
-            ofile = self.spectrograph.spectrograph + '.lst'
-        elif setup_only and self.pypeit_file is not None:
-            ofile = self.pypeit_file.replace('.pypeit', '.lst')
-        elif not setup_only and sort_dir is not None:
-            ofile = sort_dir + '.lst'
-        else:
-            raise ValueError('Could not determine name for output file.')
+        if ofile is None:
+            if self.pypeit_file is None and sort_dir is None:
+                ofile = self.spectrograph.spectrograph + '.lst'
+            elif setup_only and self.pypeit_file is not None:
+                ofile = self.pypeit_file.replace('.pypeit', '.lst')
+            elif not setup_only and sort_dir is not None:
+                ofile = sort_dir + '.lst'
+            else:
+                raise ValueError('Could not determine name for output file.')
 
-        self.fitstbl.write(ofile, columns=self.spectrograph.metadata_keys(),
-                           format='ascii.fixed_width', overwrite=True)
+        format = None if '.fits' in ofile else 'ascii.fixed_width'
+        self.fitstbl.write(ofile,
+                           columns=None if format is None else self.spectrograph.metadata_keys(),
+                           format=format, overwrite=True)
 
     def run(self, setup_only=False, calibration_check=False, use_header_id=False, sort_dir=None):
         """
@@ -490,19 +494,18 @@ class PypeItSetup(object):
             msgs.info("Inspect the .calib file: {:s}".format(calib_file))
             msgs.info("*********************************************************")
             msgs.info("Calibration check complete and successful!")
-            msgs.info("Set 'run calcheck False' to continue with data reduction")
+#            msgs.info("Set 'run calcheck False' to continue with data reduction")
             msgs.info("*********************************************************")
-            return None, None, None, None
+            #TODO: Why should this not return the same as when setup_only is True
 
         if setup_only:
             for idx in np.where(self.fitstbl['failures'])[0]:
                 msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(
-                    self.fitstbl['target'][idx],self.fitstbl['filename'][idx]))
+                            self.fitstbl['target'][idx],self.fitstbl['filename'][idx]))
             msgs.info("Setup is complete.")
             msgs.info("Inspect the .setups file")
             return None, None, None, None
 
-        return self.par, self.spectrograph, self.fitstbl, self.setup_dict
-
+        return self.par, self.spectrograph, self.fitstbl.table, self.setup_dict
 
 

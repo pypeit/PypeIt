@@ -19,7 +19,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
     """
 
     def __init__(self):
-        super(TngDoloresSpectrograph, self).__init__()
+        super(TNGDoloresSpectrograph, self).__init__()
         self.spectrograph = 'tng_dolores'
         self.telescope = telescopes.TNGTelescopePar()
         self.camera = 'DOLORES'

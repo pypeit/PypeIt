@@ -15,7 +15,6 @@ from pypeit.core import pypsetup
 from pypeit.pypmsgs import PypeItError
 from pypeit.spectrographs.util import load_spectrograph
 
-
 @pytest.fixture
 def fitstbl():
     return fsort.dummy_fitstbl()

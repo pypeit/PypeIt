@@ -442,7 +442,7 @@ def geomotion_correct(specObjs, maskslits, fitstbl, scidx, time, longitude, lati
     ----------
     specObjs : SpecObjs object
     maskslits
-    fitstbl : Table
+    fitstbl : Table/PypeItMetaData
       Containing the properties of every fits file
     scidx
     time

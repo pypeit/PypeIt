@@ -201,7 +201,8 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
 
-        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc, inmask=(self.bpm == 0))
+        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,
+                                                      inmask=(self.bpm == 0))
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -254,9 +255,9 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         # Setup arc parameters (e.g. linelist)
-        arc_idx = fsort.ftype_indices(self.fitstbl, 'arc', self.sci_ID)
+        arc_idx = self.fitstbl.find_frames('arc', sci_ID=self.sci_ID, index=True)
         self.arcparam = arc.setup_param(self.spectrograph, self.msarc.shape, self.fitstbl,
-                                          arc_idx[0], calibrate_lamps=calibrate_lamps)
+                                        arc_idx[0], calibrate_lamps=calibrate_lamps)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return

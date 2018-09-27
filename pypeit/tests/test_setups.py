@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 import yaml
 
+from pypeit.pypmsgs import PypeItError
 from pypeit.par.util import parse_pypeit_file
 from pypeit.scripts import setup
 from pypeit.tests.tstutils import dev_suite_required
@@ -84,7 +85,7 @@ def test_setup_keck_lris_red():
     shutil.rmtree(setup_dir)
 
 
-#@dev_suite_required
+@dev_suite_required
 def test_setup_keck_lris_blue():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_LRIS_blue/multi_600_4000_d560')
     droot += '/'
@@ -175,20 +176,23 @@ def test_setup_keck_nires():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_NIRES')
     droot += '/'
     pargs = setup.parser([droot, 'keck_nires'])
-    setup.main(pargs)
+    # TODO: There currently is no Echelle PypeIt class, so this should
+    # fail
+    with pytest.raises(PypeItError):
+        setup.main(pargs)
 
-    cwd = os.getcwd()
-    setup_dir = os.path.join(cwd, 'setup_files')
-    assert os.path.isdir(setup_dir), 'No setup_files directory created'
-
-    files = glob.glob(os.path.join(setup_dir, 'keck_nires*'))
-    ext = [f.split('.')[-1] for f in files]
-    expected = ['lst', 'pypeit', 'setups', 'sorted']
-    assert np.all([e in ext for e in expected]), \
-            'Did not find all setup file extensions: {0}'.format(expected)
-
-    # Clean-up
-    shutil.rmtree(setup_dir)
+#    cwd = os.getcwd()
+#    setup_dir = os.path.join(cwd, 'setup_files')
+#    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+#
+#    files = glob.glob(os.path.join(setup_dir, 'keck_nires*'))
+#    ext = [f.split('.')[-1] for f in files]
+#    expected = ['lst', 'pypeit', 'setups', 'sorted']
+#    assert np.all([e in ext for e in expected]), \
+#            'Did not find all setup file extensions: {0}'.format(expected)
+#
+#    # Clean-up
+#    shutil.rmtree(setup_dir)
 
 @dev_suite_required
 def test_setup_keck_nirspec():
@@ -235,58 +239,67 @@ def test_setup_vlt_xshooter_uvb():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER/UVB_1x1')
     droot += '/XSHO'
     pargs = setup.parser([droot, 'vlt_xshooter_uvb'])
-    setup.main(pargs)
+    # TODO: There currently is no Echelle PypeIt class, so this should
+    # fail
+    with pytest.raises(PypeItError):
+        setup.main(pargs)
 
-    cwd = os.getcwd()
-    setup_dir = os.path.join(cwd, 'setup_files')
-    assert os.path.isdir(setup_dir), 'No setup_files directory created'
-
-    files = glob.glob(os.path.join(setup_dir, 'vlt_xshooter_uvb*'))
-    ext = [f.split('.')[-1] for f in files]
-    expected = ['lst', 'pypeit', 'setups', 'sorted']
-    assert np.all([e in ext for e in expected]), \
-            'Did not find all setup file extensions: {0}'.format(expected)
-
-    # Clean-up
-    shutil.rmtree(setup_dir)
+#    cwd = os.getcwd()
+#    setup_dir = os.path.join(cwd, 'setup_files')
+#    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+#
+#    files = glob.glob(os.path.join(setup_dir, 'vlt_xshooter_uvb*'))
+#    ext = [f.split('.')[-1] for f in files]
+#    expected = ['lst', 'pypeit', 'setups', 'sorted']
+#    assert np.all([e in ext for e in expected]), \
+#            'Did not find all setup file extensions: {0}'.format(expected)
+#
+#    # Clean-up
+#    shutil.rmtree(setup_dir)
 
 @dev_suite_required
 def test_setup_vlt_xshooter_vis():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER/VIS_1x1')
     droot += '/XSHO'
     pargs = setup.parser([droot, 'vlt_xshooter_vis'])
-    setup.main(pargs)
+    # TODO: There currently is no Echelle PypeIt class, so this should
+    # fail
+    with pytest.raises(PypeItError):
+        setup.main(pargs)
 
-    cwd = os.getcwd()
-    setup_dir = os.path.join(cwd, 'setup_files')
-    assert os.path.isdir(setup_dir), 'No setup_files directory created'
-
-    files = glob.glob(os.path.join(setup_dir, 'vlt_xshooter_vis*'))
-    ext = [f.split('.')[-1] for f in files]
-    expected = ['lst', 'pypeit', 'setups', 'sorted']
-    assert np.all([e in ext for e in expected]), \
-            'Did not find all setup file extensions: {0}'.format(expected)
-
-    # Clean-up
-    shutil.rmtree(setup_dir)
+#    cwd = os.getcwd()
+#    setup_dir = os.path.join(cwd, 'setup_files')
+#    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+#
+#    files = glob.glob(os.path.join(setup_dir, 'vlt_xshooter_vis*'))
+#    ext = [f.split('.')[-1] for f in files]
+#    expected = ['lst', 'pypeit', 'setups', 'sorted']
+#    assert np.all([e in ext for e in expected]), \
+#            'Did not find all setup file extensions: {0}'.format(expected)
+#
+#    # Clean-up
+#    shutil.rmtree(setup_dir)
 
 @dev_suite_required
 def test_setup_vlt_xshooter_nir():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER/NIR')
     droot += '/XSHO'
     pargs = setup.parser([droot, 'vlt_xshooter_nir'])
-    setup.main(pargs)
+    # TODO: There currently is no Echelle PypeIt class, so this should
+    # fail
+    with pytest.raises(PypeItError):
+        setup.main(pargs)
 
-    cwd = os.getcwd()
-    setup_dir = os.path.join(cwd, 'setup_files')
-    assert os.path.isdir(setup_dir), 'No setup_files directory created'
-
-    files = glob.glob(os.path.join(setup_dir, 'vlt_xshooter_nir*'))
-    ext = [f.split('.')[-1] for f in files]
-    expected = ['lst', 'pypeit', 'setups', 'sorted']
-    assert np.all([e in ext for e in expected]), \
-            'Did not find all setup file extensions: {0}'.format(expected)
-
-    # Clean-up
-    shutil.rmtree(setup_dir)
+#    cwd = os.getcwd()
+#    setup_dir = os.path.join(cwd, 'setup_files')
+#    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+#
+#    files = glob.glob(os.path.join(setup_dir, 'vlt_xshooter_nir*'))
+#    ext = [f.split('.')[-1] for f in files]
+#    expected = ['lst', 'pypeit', 'setups', 'sorted']
+#    assert np.all([e in ext for e in expected]), \
+#            'Did not find all setup file extensions: {0}'.format(expected)
+#
+#    # Clean-up
+#    shutil.rmtree(setup_dir)
 

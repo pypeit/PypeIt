@@ -11,6 +11,7 @@ from pypeit.par.util import parse_pypeit_file
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.tests.tstutils import dev_suite_required
 
+
 @dev_suite_required
 def test_lris_red_multi_400():
     file_list = glob.glob(os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_LRIS_red',

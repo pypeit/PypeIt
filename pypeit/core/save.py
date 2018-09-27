@@ -762,3 +762,4 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
     outfile = outdir+'/spec2d_{:s}.fits'.format(basename)
     hdulist.writeto(outfile, overwrite=clobber)
     msgs.info("Wrote: {:s}".format(outfile))
+

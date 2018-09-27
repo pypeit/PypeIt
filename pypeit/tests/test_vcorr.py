@@ -13,7 +13,7 @@ from astropy import units
 
 from pypeit.core import wave
 from pypeit import specobjs
-from pypeit.core import fsort
+from pypeit import metadata
 from pypeit.tests.tstutils import load_kast_blue_masters
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -28,7 +28,7 @@ alt = 4160.0               # Elevation of the telescope (in m)
 
 @pytest.fixture
 def fitstbl():
-    return fsort.dummy_fitstbl()
+    return metadata.dummy_fitstbl()
 
 
 def test_geovelocity():

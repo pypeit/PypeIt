@@ -30,6 +30,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         """
         Set default parameters for Shane Kast Blue reductions.
         """
+        print('base par')
         par = pypeitpar.PypeItPar()
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
@@ -95,7 +96,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         Check for frames of the provided type.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype == 'science':
+        if ftype in ['science', 'standard']:
             return good_exp & self.lamps(fitstbl, 'off')
         if ftype == 'bias':
             return good_exp
@@ -209,12 +210,16 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # Uses default primary_hdrext
         self.sky_file = 'sky_kastb_600.fits'
 
-    def default_pypeit_par(self):
+    @staticmethod
+    def default_pypeit_par():
         """
         Set default parameters for Shane Kast Blue reductions.
         """
-        par = super(ShaneKastBlueSpectrograph, self).default_pypeit_par()
+        print('blue par')
+        par = ShaneKastSpectrograph.default_pypeit_par()
+        print(type(par))
         par['rdx']['spectrograph'] = 'shane_kast_blue'
+        print(par['rdx']['spectrograph'])
         return par
 
     def check_headers(self, headers):
@@ -309,11 +314,12 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         # Uses default primary_hdrext
         # self.sky_file = ?
 
-    def default_pypeit_par(self):
+    @staticmethod
+    def default_pypeit_par():
         """
-        Set default parameters for Shane Kast Blue reductions.
+        Set default parameters for Shane Kast Red reductions.
         """
-        par = super(ShaneKastRedSpectrograph, self).default_pypeit_par()
+        par = ShaneKastSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_red'
         return par
 
@@ -413,11 +419,12 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         # Uses default primary_hdrext
         # self.sky_file = ?
 
-    def default_pypeit_par(self):
+    @staticmethod
+    def default_pypeit_par():
         """
-        Set default parameters for Shane Kast Blue reductions.
+        Set default parameters for Shane Kast Red Ret reductions.
         """
-        par = super(ShaneKastRedRetSpectrograph, self).default_pypeit_par()
+        par = ShaneKastSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_red_ret'
         par['calibrations']['pixelflatframe']['number'] = 3
         par['calibrations']['traceframe']['number'] = 3

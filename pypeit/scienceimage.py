@@ -76,7 +76,7 @@ class ScienceImage(processimages.ProcessImages):
     objtype : str
       'science'
       'standard'
-    fitstbl : Table
+    fitstbl : PypeItMetaData
       Header info
     scidx : int
       Row in the fitstbl corresponding to the exposure
@@ -216,7 +216,7 @@ class ScienceImage(processimages.ProcessImages):
         timeunit = self.spectrograph.timeunit
         camera = self.spectrograph.camera
 
-        self.fitstbl =fitstbl
+        self.fitstbl = fitstbl
 
         # TODO: Given that we just read the file header to get the
         # datasec_img in the init function above, I don't see why I need
