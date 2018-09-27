@@ -692,7 +692,7 @@ class MultiSlit(PypeIt):
             save_masters=True, write_qa=True, show=self.show)
 
 
-    def _extract_one(self):
+    def _extract_one(self, std=False):
         """
         Extract a single exposure/detector pair
 
@@ -713,33 +713,81 @@ class MultiSlit(PypeIt):
         # TODO -- Should check the Calibs were done already
         scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
 
+        # Standard star specific
+        if std:
+            # Dict
+            msgs.info("Processing standard star")
+            if self.std_idx in self.std_dict.keys():
+                if self.det in self.std_dict[self.std_idx].keys():
+                    return
+            else:
+                self.std_dict[self.std_idx] = {}
+            # Files
+            std_image_files = fsort.list_of_files(self.fitstbl, 'standard', self.sci_ID)
+            if self.par['calibrations']['standardframe'] is None:
+                msgs.warn('No standard frame parameters provided.  Using default parameters.')
+
+            # Instantiate for the Standard
+            # TODO: Uses the same trace and extraction parameter sets used for the science
+            # frames.  Should these be different for the standards?
+            self.stdI = scienceimage.ScienceImage(self.spectrograph, file_list=std_image_files,
+                                                  frame_par=self.par['calibrations']['standardframe'],
+                                                  det=self.det,
+                                                  setup=self.setup, scidx=self.std_idx,
+                                                  objtype='standard', par=self.par['scienceimage'])
+            # Names and time
+            _, self.std_basename = self.stdI.init_time_names(self.fitstbl)
+            #
+            sciI = self.stdI
+        else:
+            sciI = self.sciI
+
         # Process images (includes inverse variance image, rn2 image, and CR mask)
-        sciimg, sciivar, rn2img, crmask = self.sciI.process(
+        sciimg, sciivar, rn2img, crmask = sciI.process(
             self.caliBrate.msbias, self.caliBrate.mspixflatnrm, self.caliBrate.msbpm,
             illum_flat=self.caliBrate.msillumflat, apply_gain=True, trim=self.caliBrate.par['trim'],
             show=self.show)
 
         # Object finding, first pass on frame without sky subtraction
         maskslits = self.caliBrate.maskslits.copy()
-        sobjs_obj0, nobj0 = self.sciI.find_objects(self.caliBrate.tslits_dict, skysub=False,
+        if not std:
+            sobjs_obj0, nobj0 = sciI.find_objects(self.caliBrate.tslits_dict, skysub=False,
                                                    maskslits=maskslits)
 
         # Global sky subtraction, first pass. Uses skymask from object finding
-        global_sky0 = self.sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'],
-                                              use_skymask=True, maskslits=maskslits, show=self.show)
+        global_sky0 = sciI.global_skysub(self.caliBrate.tslits_dict,
+                                         self.caliBrate.tilts_dict['tilts'],
+                                         use_skymask=True, maskslits=maskslits, show=self.show)
 
         # Object finding, second pass on frame *with* sky subtraction. Show here if requested
-        sobjs_obj, nobj = self.sciI.find_objects(self.caliBrate.tslits_dict, skysub=True,
+        sobjs_obj, nobj = sciI.find_objects(self.caliBrate.tslits_dict, skysub=True,
                                                  maskslits=maskslits, show_peaks=self.show)
+
+        if std:
+            if nobj == 0:
+                msgs.warn('No objects to extract for standard frame' + msgs.newline()
+                      + self.fitstbl['filename'][self.scidx])
+                return
+            # Extract
+            skymodel, objmodel, ivarmodel, outmask, sobjs = self.stdI.local_skysub_extract(
+                self.caliBrate.mswave, maskslits=maskslits,
+                show_profile=self.show, show=self.show)
+
+            # Save for fluxing and output later
+            self.std_dict[self.std_idx][self.det] = {}
+            self.std_dict[self.std_idx][self.det]['basename'] = self.std_basename
+            self.std_dict[self.std_idx][self.det]['specobjs'] = sobjs
+            # Done
+            return
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         vel_corr = None
         if nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
-            global_sky = self.sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'],
+            global_sky = sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'],
                                                  use_skymask=True, maskslits=maskslits, show=self.show)
 
-            skymodel, objmodel, ivarmodel, outmask, sobjs = self.sciI.local_skysub_extract(self.caliBrate.mswave,
+            skymodel, objmodel, ivarmodel, outmask, sobjs = sciI.local_skysub_extract(self.caliBrate.mswave,
                                                                                            maskslits=maskslits,
                                                                                            show_profile=self.show, show=self.show)
 
@@ -780,65 +828,13 @@ class MultiSlit(PypeIt):
             skymodel = global_sky0  # set to first pass global sky
             objmodel = np.zeros_like(sciimg)
             ivarmodel = np.copy(sciivar)  # Set to sciivar. Could create a model but what is the point?
-            outmask = self.sciI.bitmask  # Set to inmask in case on objects were found
+            outmask = sciI.bitmask  # Set to inmask in case on objects were found
             sobjs = sobjs_obj  # empty specobjs object from object finding
 
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
 
     def _extract_std(self):
-        #
-        msgs.info("Processing standard star")
-
-        if self.std_idx in self.std_dict.keys():
-            if self.det in self.std_dict[self.std_idx].keys():
-                return
-        else:
-            self.std_dict[self.std_idx] = {}
-
-        # Load up the files
-        std_image_files = fsort.list_of_files(self.fitstbl, 'standard', self.sci_ID)
-        if self.par['calibrations']['standardframe'] is None:
-            msgs.warn('No standard frame parameters provided.  Using default parameters.')
-
-        # Instantiate for the Standard
-        # TODO: Uses the same trace and extraction parameter sets used for the science
-        # frames.  Should these be different for the standards?
-        self.stdI = scienceimage.ScienceImage(self.spectrograph, file_list=std_image_files,
-                                         frame_par=self.par['calibrations']['standardframe'],
-                                         det=self.det,
-                                         setup=self.setup, scidx=self.std_idx,
-                                         objtype='standard', par=self.par['scienceimage'])
-        # Names and time
-        _, self.std_basename = self.stdI.init_time_names(self.fitstbl)
-
-        # Process images (includes inverse variance image, rn2 image, and CR mask)
-        sciimg, sciivar, rn2img, crmask = self.stdI.process(
-            self.caliBrate.msbias, self.caliBrate.mspixflatnrm, self.caliBrate.msbpm,
-            illum_flat=self.caliBrate.msillumflat, apply_gain=True, trim=self.caliBrate.par['trim'])
-        # Global sky subtraction, first pass. Uses skymask from object finding
-        maskslits = self.caliBrate.maskslits.copy()
-        global_sky = self.stdI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'],
-                                              use_skymask=True, maskslits=maskslits, show=self.show)
-        # Object finding, second pass on frame *with* sky subtraction. Show here if requested
-        sobjs_obj, nobj = self.stdI.find_objects(self.caliBrate.tslits_dict, skysub=True,
-                                                 maskslits=maskslits)
-        if nobj == 0:
-            msgs.warn('No objects to extract for standard frame' + msgs.newline()
-                      + self.fitstbl['filename'][self.scidx])
-            return
-
-        # Extract
-        skymodel, objmodel, ivarmodel, outmask, sobjs = self.stdI.local_skysub_extract(
-            self.caliBrate.mswave, maskslits=maskslits,
-            show_profile=self.show, show=self.show)
-
-        # Save for fluxing and output later
-        self.std_dict[self.std_idx][self.det] = {}
-        self.std_dict[self.std_idx][self.det]['basename'] = self.std_basename
-        self.std_dict[self.std_idx][self.det]['specobjs'] = sobjs
-
-        # Return
-        return
+        self._extract_one(std=True)
 
     # THESE ARENT USED YET BUT WE SHOULD CONSIDER IT
     @staticmethod
