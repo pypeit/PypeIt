@@ -126,7 +126,7 @@ def test_one_shot():
 
 # JFH I think this test should be discarded. Ultimately if the dev suite runs it is a much more powerful test of the functionality
 # of arclines. Furthermore, if things jiggle around a bit in any of the algorithms, then this test breaks but that is not necessarily
-# a failure. It just means the nubmber of lines or quality of the solution changed a bit. 
+# a failure. It just means the nubmber of lines or quality of the solution changed a bit.
 def test_wavecalib_general():
 
     # LRISb 600/4000 with the longslit
