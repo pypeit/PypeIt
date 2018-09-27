@@ -33,8 +33,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                             ysize           = 1.,
                             platescale      = 0.15,
                             darkcurr        = 0.15,
-                            saturation      = 90000.,
-                            nonlinear       = 0.76,
+                            saturation      = 7000.,
+                            nonlinear       = 0.71,
                             numamplifiers   = 1,
                             gain            = 13.5,
                             ronoise         = 7.0,
@@ -66,11 +66,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Set slits and tilts parameters
         par['calibrations']['tilts']['order'] = 2
         par['calibrations']['tilts']['tracethresh'] = [1000, 50, 50, 50, 50]
-        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['polyorder'] = 4
         #par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['pcatype'] = 'order'
-        par['calibrations']['slits']['sigdetect'] = 100
-        #par['calibrations']['slits']['pcapar'] = [3, 2, 1,0]
+        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['slits']['sigdetect'] = 500
+        par['calibrations']['slits']['pcapar'] = [3, 2, 1,0]
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -160,7 +160,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 10.       # Minimum amplitude
+        arcparam['min_ampl'] = 5.       # Minimum amplitude
+        arcparam['lowest_ampl'] = 0.    #Todo there is a bug in arc.py, do not parse this value.
         arcparam['wvmnx'] = [8500., 24000.] # Guess at wavelength range
         arcparam['n_first'] = 1            # Order of polynomial for first fit
         arcparam['n_final'] = 1            # Order of polynomial for final fit
