@@ -66,11 +66,11 @@ def test_run():
         assert True
         return
     # Masters
-    spectrograph, TSlits, tilts, datasec_img \
+    spectrograph, TSlits, tilts_dict, datasec_img \
                 = tstutils.load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True,
                                                   datasec=True)
     # Instantiate
-    flatField = flatfield.FlatField(spectrograph=spectrograph, det=1, tilts=tilts,
+    flatField = flatfield.FlatField(spectrograph=spectrograph, det=1, tilts_dict=tilts_dict,
                                     tslits_dict=TSlits.tslits_dict.copy())
     # Use mstrace
     flatField.rawflatimg = TSlits.mstrace.copy()
