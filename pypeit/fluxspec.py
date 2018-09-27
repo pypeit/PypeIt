@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
-# import yaml
+import linetools
 import json
 
 #from importlib import reload
@@ -405,13 +405,21 @@ class FluxSpec(masterframe.MasterFrame):
         #     yamlf.write(yaml.dump(ysens))
         #  #
         # msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
-        
+
+        from IPython import embed
+        embed()
+	
         # jsonify
-        jsens = linetools.utils.jsonify(self.sensfunc)
+
+        jsensfunc = self.sensfunc.copy()
+        jsensfunc['bspline'] = jsensfunc['bspline'].to_dict()
+        jsensfunc['mag_set'] = jsensfunc['mag_set'].to_dict()
+        jsensfunc = linetools.utils.jsonify(jsensfunc)
         with open(outfile, 'w') as jsonf:
-            json.dump(sens_dict, jsonf, sort_keys=True, indent=4)
-    msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))            
-    
+            linetools.utils.savejson(outfile, jsensfunc, overwrite=True, indent=4, easy_to_read=True)
+
+        msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))            
+
     def show_sensfunc(self):
         """
         Plot the sensitivity function
