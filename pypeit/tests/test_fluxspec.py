@@ -13,6 +13,7 @@ import pytest
 
 from pypeit import fluxspec
 from pypeit.scripts import flux_spec
+from pypeit.spectrographs import util as sutil
 
 # These tests are not run on Travis
 if os.getenv('PYPEIT_DEV') is None:

@@ -83,6 +83,7 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime,
         extract['FLAM_SIG'] = (sensfit / exptime) / (np.sqrt(extract['COUNTS_IVAR']))
         extract['FLAM_IVAR'] = extract['COUNTS_IVAR'] / (sensfit / exptime) **2
 
+
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
                       star_mag=None, RA=None, DEC=None, BALM_MASK_WID=5., nresln=None):
     """ Function to generate the sensitivity function.
@@ -102,7 +103,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     Parameters:
     ----------
     wave : array
-      Wavelength of the star with units
+      Wavelength of the star [no longer with units]
     counts : array
       Flux (in counts) of the star
     counts_ivar : array
@@ -147,6 +148,10 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     wave_star = wave.copy()
     flux_star = counts.copy() / exptime
     ivar_star = counts_ivar.copy() * exptime ** 2
+
+    # Units
+    if not isinstance(wave_star, units.Quantity):
+        wave_star = wave_star * units.AA
 
     # ToDo
     # This should be changed. At the moment the extinction correction procedure
@@ -292,18 +297,18 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     if ~telluric:
         # Mask telluric absorption
         msgs.info("Masking Telluric")
-        tell = np.any([((wave >= 7580.00 * units.AA) & (wave <= 7750.00 * units.AA)),
-                       ((wave >= 7160.00 * units.AA) & (wave <= 7340.00 * units.AA)),
-                       ((wave >= 6860.00 * units.AA) & (wave <= 6930.00 * units.AA)),
-                       ((wave >= 9310.00 * units.AA) & (wave <= 9665.00 * units.AA)),
-                       ((wave >= 11120.0 * units.AA) & (wave <= 11615.0 * units.AA)),
-                       ((wave >= 12610.0 * units.AA) & (wave <= 12720.0 * units.AA)),
-                       ((wave >= 13160.0 * units.AA) & (wave <= 15065.0 * units.AA)),
-                       ((wave >= 15700.0 * units.AA) & (wave <= 15770.0 * units.AA)),
-                       ((wave >= 16000.0 * units.AA) & (wave <= 16100.0 * units.AA)),
-                       ((wave >= 16420.0 * units.AA) & (wave <= 16580.0 * units.AA)),
-                       ((wave >= 17310.0 * units.AA) & (wave <= 20775.0 * units.AA)),
-                       (wave >= 22680.0 * units.AA)], axis=0)
+        tell = np.any([((wave_star >= 7580.00 * units.AA) & (wave_star <= 7750.00 * units.AA)),
+                       ((wave_star >= 7160.00 * units.AA) & (wave_star <= 7340.00 * units.AA)),
+                       ((wave_star >= 6860.00 * units.AA) & (wave_star <= 6930.00 * units.AA)),
+                       ((wave_star >= 9310.00 * units.AA) & (wave_star <= 9665.00 * units.AA)),
+                       ((wave_star >= 11120.0 * units.AA) & (wave_star <= 11615.0 * units.AA)),
+                       ((wave_star >= 12610.0 * units.AA) & (wave_star <= 12720.0 * units.AA)),
+                       ((wave_star >= 13160.0 * units.AA) & (wave_star <= 15065.0 * units.AA)),
+                       ((wave_star >= 15700.0 * units.AA) & (wave_star <= 15770.0 * units.AA)),
+                       ((wave_star >= 16000.0 * units.AA) & (wave_star <= 16100.0 * units.AA)),
+                       ((wave_star >= 16420.0 * units.AA) & (wave_star <= 16580.0 * units.AA)),
+                       ((wave_star >= 17310.0 * units.AA) & (wave_star <= 20775.0 * units.AA)),
+                       (wave_star >= 22680.0 * units.AA)], axis=0)
         msk_star[tell] = False
 
     # Apply mask
@@ -338,7 +343,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
 
 
 def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, lower=2,
-                   kwargs_bspline={}, kwargs_reject={}, debug=False):
+                   kwargs_bspline={}, kwargs_reject={}, debug=False, show_QA=False):
     """
     Perform a bspline fit to the flux ratio of standard to
     observed counts. Used to generate a sensitivity function.
@@ -543,7 +548,8 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
 
     # QA
     msgs.work("Add QA for sensitivity function")
-    qa_bspline_magfit(wave_obs, bset_log1, magfunc, masktot)
+    if show_QA:
+        qa_bspline_magfit(wave_obs, bset_log1, magfunc, masktot)
 
 
     """

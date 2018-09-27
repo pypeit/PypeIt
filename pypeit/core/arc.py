@@ -85,6 +85,22 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
     return arcparam
 
 def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 3, xfrac = 0.5):
+    """
+    Entirely undocumented code, by unknown person
+    Not JXP
+
+    Args:
+        slit_left:
+        slit_righ:
+        slitpix:
+        arcimg:
+        inmask:
+        box_rad:
+        xfrac:
+
+    Returns:
+
+    """
 
     if inmask is None:
         inmask = (slitpix > 0)
@@ -100,7 +116,10 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
         # Create a mask for the pixels that will contribue to the arc
         spat_img = np.outer(np.ones(nspec), np.arange(nspat))  # spatial position everywhere along image
         trace_img = np.outer(trace[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
-        arcmask = (slitpix > 0) & inmask & (spat_img > (trace_img - box_rad)) & (spat_img < (trace_img + box_rad))
+        try:
+            arcmask = (slitpix > 0) & inmask & (spat_img > (trace_img - box_rad)) & (spat_img < (trace_img + box_rad))
+        except:
+            debugger.set_trace()
         this_mean, this_med, this_sig = sigma_clipped_stats(arcimg, mask=~arcmask, sigma=3.0, axis=1)
         arc_spec[:,islit] = this_med.data
         if not np.any(arc_spec[:,islit]):

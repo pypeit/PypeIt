@@ -739,8 +739,9 @@ class MultiSlit(PypeIt):
             global_sky = self.sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'],
                                                  use_skymask=True, maskslits=maskslits, show=self.show)
 
-            skymodel, objmodel, ivarmodel, outmask, sobjs = self.sciI.local_skysub_extract(self.caliBrate.mswave, maskslits=maskslits,
-                                                                                      show_profile=self.show, show=self.show)
+            skymodel, objmodel, ivarmodel, outmask, sobjs = self.sciI.local_skysub_extract(self.caliBrate.mswave,
+                                                                                           maskslits=maskslits,
+                                                                                           show_profile=self.show, show=self.show)
 
 
             # Flexure correction?
@@ -816,7 +817,7 @@ class MultiSlit(PypeIt):
             illum_flat=self.caliBrate.msillumflat, apply_gain=True, trim=self.caliBrate.par['trim'])
         # Global sky subtraction, first pass. Uses skymask from object finding
         maskslits = self.caliBrate.maskslits.copy()
-        global_sky0 = self.stdI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.mstilts,
+        global_sky = self.stdI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'],
                                               use_skymask=True, maskslits=maskslits, show=self.show)
         # Object finding, second pass on frame *with* sky subtraction. Show here if requested
         sobjs_obj, nobj = self.stdI.find_objects(self.caliBrate.tslits_dict, skysub=True,

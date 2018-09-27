@@ -73,7 +73,7 @@ class FluxSpec(masterframe.MasterFrame):
       List of SpecObj objects to be fluxed (or that were fluxed)
     sci_header : dict-like
       Used for the airmass, exptime of the science spectra
-    spectrograph : dict-like
+    spectrograph : Spectrograph
       Used for extinction correction
     """
 
@@ -113,26 +113,22 @@ class FluxSpec(masterframe.MasterFrame):
 
         # Instantiate the spectograph
         _spectrograph = spectrograph
-        spectrograph_name = None
         if _spectrograph is None:
             _spectrograph = std_spectro
-            spectrograph_name = _spectrograph
             if _spectrograph is not None:
                 msgs.info("Spectrograph set to {0} from standard file".format(_spectrograph))
+            self.spectrograph = load_spectrograph(spectrograph=_spectrograph)
         if _spectrograph is None:
             _spectrograph = sci_spectro
-            spectrograph_name = _spectrograph
             if _spectrograph is not None:
                 msgs.info("Spectrograph set to {0} from science file".format(_spectrograph))
-        if isinstance(_spectrograph, str):
-            spectrograph_name = _spectrograph
-            msgs.info("Spectrograph set to {0}, from argument string".format(_spectrograph))
-        elif isinstance(_spectrograph, Spectrograph):
-            spectrograph_name = _spectrograph.spectrograph
-            msgs.info("Spectrograph set to {0}, from argument object".format(_spectrograph))
-
-        if spectrograph_name is not None:
             self.spectrograph = load_spectrograph(spectrograph=_spectrograph)
+        if isinstance(_spectrograph, str):
+            msgs.info("Spectrograph set to {0}, from argument string".format(_spectrograph))
+            self.spectrograph = load_spectrograph(spectrograph=_spectrograph)
+        elif isinstance(_spectrograph, Spectrograph):
+            msgs.info("Spectrograph set to {0}, from argument object".format(_spectrograph))
+            self.spectrograph = _spectrograph
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
@@ -158,7 +154,6 @@ class FluxSpec(masterframe.MasterFrame):
 
         # Set telluric option
         self.telluric = telluric
-        print(self.telluric)
 
         # Main outputs
         self.sensfunc = None if self.sens_file is None \

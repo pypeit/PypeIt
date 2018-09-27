@@ -169,7 +169,7 @@ def test_tilts(multi_caliBrate):
     _ = multi_caliBrate.get_wv_calib()
     # Run
     mstilts, maskslits = multi_caliBrate.get_tilts()
-    assert mstilts.shape == (2048,350)
+    assert isinstance(mstilts, dict)
     assert isinstance(maskslits, np.ndarray)
 
 
@@ -189,7 +189,7 @@ def test_flat(multi_caliBrate):
     _ = multi_caliBrate.get_wv_calib()
     _ = multi_caliBrate.get_tilts()
     # Run
-    mspixflatnrm, slitprof = multi_caliBrate.get_pixflatnrm()
+    mspixflatnrm, slitprof = multi_caliBrate.get_flats()
     assert mspixflatnrm.shape == (2048,350)
     assert slitprof.shape == (2048,350)
 
@@ -208,7 +208,8 @@ def test_waveimg(multi_caliBrate):
     _ = multi_caliBrate.get_arc()
     _ = multi_caliBrate.get_wv_calib()
     _ = multi_caliBrate.get_tilts()
-    _ = multi_caliBrate.get_pixflatnrm()
+    #_ = multi_caliBrate.get_pixflatnrm()
+    _, _ = multi_caliBrate.get_flats()
     # Run
     mswave = multi_caliBrate.get_wave()
     assert mswave.shape == (2048,350)

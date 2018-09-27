@@ -84,6 +84,7 @@ def test_step_by_step():
                                     master_dir=master_dir, mode='reuse', fitstbl=fitstbl,
                                     sci_ID=1, det=1)
     # Extract arcs
+    pytest.set_trace()
     arccen, maskslits = waveCalib._extract_arcs(TSlits.lcen, TSlits.rcen, TSlits.pixlocn)
     assert arccen.shape == (2048, 1)
     # Arcparam

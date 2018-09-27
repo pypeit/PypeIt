@@ -268,8 +268,8 @@ def load_specobj(fname):
                                        slitid=1, det=det,
                                        spat_pixpos=100)  # DUMMY
         except:
-            msgs.error("BUG ME")
             debugger.set_trace()
+            msgs.error("BUG ME")
         # TODO -- Figure out if this is a default
         # Add trace
         try:
