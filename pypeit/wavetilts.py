@@ -90,7 +90,8 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Parameters (but can be None)
         self.msarc = msarc
-        self.bpm = bpm
+        if bpm is None:
+            self.bpm = np.zeros_like(msarc)
         self.tslits_dict = tslits_dict
 
         # Optional parameters
@@ -231,6 +232,7 @@ class WaveTilts(masterframe.MasterFrame):
         Returns
         -------
         self.tilts : ndarray
+        coeffs
 
         """
         self.tilts, coeffs, self.outpar = tracewave.fit_tilts(self.msarc, slit, self.all_ttilts[slit],
