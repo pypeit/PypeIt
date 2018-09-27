@@ -84,8 +84,7 @@ def test_step_by_step():
                                     master_dir=master_dir, mode='reuse', fitstbl=fitstbl,
                                     sci_ID=1, det=1)
     # Extract arcs
-    pytest.set_trace()
-    arccen, maskslits = waveCalib._extract_arcs(TSlits.lcen, TSlits.rcen, TSlits.pixlocn)
+    arccen, maskslits = waveCalib._extract_arcs(TSlits.lcen, TSlits.rcen, TSlits.slitpix)
     assert arccen.shape == (2048, 1)
     # Arcparam
     arcparam = waveCalib._load_arcparam()
@@ -116,7 +115,7 @@ def test_one_shot():
     # Do it
     waveCalib = wavecalib.WaveCalib(msarc, spectrograph='shane_kast_blue', setup=setup,
                                     master_dir=master_dir, fitstbl=fitstbl, sci_ID=1, det=1)
-    wv_calib2, _ = waveCalib.run(TSlits.lcen, TSlits.rcen, TSlits.pixlocn, skip_QA=True)
+    wv_calib2, _ = waveCalib.run(TSlits.lcen, TSlits.rcen, TSlits.slitpix, skip_QA=True)
     #
     assert 'arcparam' in wv_calib2.keys()
 
@@ -231,11 +230,13 @@ def test_wavecalib_general():
             spec = hdf['arcs/{:d}/spec'.format(fidx)].value
 
         arcfitter = autoid.General(spec.reshape((spec.size, 1)), lines, min_ampl=min_ampl, rms_threshold=score['rms'])
+        pytest.set_trace()
         final_fit = arcfitter._all_final_fit
 
         # Score
         grade = True
         slit = '0'
+        pytest.set_trace()
         if final_fit[slit]['rms'] > score['rms']:
             grade = False
             print("Solution for {:s} failed RMS!!".format(name))

@@ -53,8 +53,8 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
     if tilts:
         wvTilts = wavetilts.WaveTilts(None, spectrograph=spectrograph, setup=setup,
                                       master_dir=master_dir, mode=mode)
-        tilts = wvTilts.master()
-        ret.append(tilts)
+        tilts_dict = wvTilts.master()
+        ret.append(tilts_dict)
 
     if datasec:
         datasec_img = spectrograph.get_datasec_img(data_path('b1.fits.gz'), 1)

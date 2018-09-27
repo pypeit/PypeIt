@@ -49,7 +49,7 @@ def test_build_me():
     master_dir = root_path+'_'+spectrograph.spectrograph
     mode = 'reuse'
     maskslits = np.zeros(TSlits.nslit, dtype=bool)
-    wvImg = waveimage.WaveImage(TSlits.slitpix, tilts, wv_calib, setup=setup, maskslits=maskslits,
+    wvImg = waveimage.WaveImage(TSlits.slitpix, tilts['tilts'], wv_calib, setup=setup, maskslits=maskslits,
                                 master_dir=master_dir, mode=mode)
     # Build
     wave = wvImg._build_wave()
