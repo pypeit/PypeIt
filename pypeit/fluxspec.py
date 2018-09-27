@@ -3,7 +3,8 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
-import yaml
+# import yaml
+import json
 
 #from importlib import reload
 
@@ -380,7 +381,7 @@ class FluxSpec(masterframe.MasterFrame):
 
     def save_master(self, outfile=None):
         """
-        Over-load the save_master() method in MasterFrame to write a YAML file
+        Over-load the save_master() method in MasterFrame to write a JSON file
 
         Parameters
         ----------
@@ -398,13 +399,19 @@ class FluxSpec(masterframe.MasterFrame):
             outfile = self.ms_name
         # Add steps
         self.sensfunc['steps'] = self.steps
-        # yamlify
-        ysens = utils.yamlify(self.sensfunc)
-        with open(outfile, 'w') as yamlf:
-            yamlf.write(yaml.dump(ysens))
-        #
-        msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
-
+        # # yamlify
+        # ysens = utils.yamlify(self.sensfunc)
+        # with open(outfile, 'w') as yamlf:
+        #     yamlf.write(yaml.dump(ysens))
+        #  #
+        # msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
+        
+        # jsonify
+        jsens = linetools.utils.jsonify(self.sensfunc)
+        with open(outfile, 'w') as jsonf:
+            json.dump(sens_dict, jsonf, sort_keys=True, indent=4)
+    msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))            
+    
     def show_sensfunc(self):
         """
         Plot the sensitivity function
