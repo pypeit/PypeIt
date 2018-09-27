@@ -61,7 +61,7 @@ class WaveTilts(masterframe.MasterFrame):
     frametype = 'tilts'
 
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
-                 mode=None, tslits_dict=None, redux_path=None, bpm = None):
+                 mode=None, tslits_dict=None, redux_path=None, bpm=None):
 
         # TODO: (KBW) Why was setup='' in this argument list and
         # setup=None in all the others?  Is it because of the
@@ -92,6 +92,8 @@ class WaveTilts(masterframe.MasterFrame):
         self.msarc = msarc
         if bpm is None:
             self.bpm = np.zeros_like(msarc)
+        else:
+            self.bpm = bpm
         self.tslits_dict = tslits_dict
 
         # Optional parameters
