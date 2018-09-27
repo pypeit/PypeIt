@@ -103,7 +103,7 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
     """
 
     if inmask is None:
-        inmask = (slitpix > 0)
+        inmask = slitpix > 0
 
     nslits = slit_left.shape[1]
     (nspec, nspat) = arcimg.shape
@@ -116,10 +116,7 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
         # Create a mask for the pixels that will contribue to the arc
         spat_img = np.outer(np.ones(nspec), np.arange(nspat))  # spatial position everywhere along image
         trace_img = np.outer(trace[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
-        try:
-            arcmask = (slitpix > 0) & inmask & (spat_img > (trace_img - box_rad)) & (spat_img < (trace_img + box_rad))
-        except:
-            debugger.set_trace()
+        arcmask = (slitpix > 0) & inmask & (spat_img > (trace_img - box_rad)) & (spat_img < (trace_img + box_rad))
         this_mean, this_med, this_sig = sigma_clipped_stats(arcimg, mask=~arcmask, sigma=3.0, axis=1)
         arc_spec[:,islit] = this_med.data
         if not np.any(arc_spec[:,islit]):
@@ -129,7 +126,7 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
 
 
 # ToDO this code needs to be replaced. It is not masking outliers, and zeros out orders that leave the detector
-def get_censpec_old(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, gen_satmask=False):
+def get_censpec_old(lordloc, rordloc, pixlocn, frame, nonlinear_counts=None, gen_satmask=False):
     """ Extract a simple spectrum down the center of each slit
     Parameters
     ----------
@@ -151,8 +148,6 @@ def get_censpec_old(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None
       Saturation mask
       None if gen_satmask=False
     """
-    dnum = parse.get_dnum(det)
-
     ordcen = 0.5*(lordloc+rordloc)
     ordwid = 0.5*np.abs(lordloc-rordloc)
     satsnd = None
