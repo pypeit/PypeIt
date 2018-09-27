@@ -230,13 +230,11 @@ def test_wavecalib_general():
             spec = hdf['arcs/{:d}/spec'.format(fidx)].value
 
         arcfitter = autoid.General(spec.reshape((spec.size, 1)), lines, min_ampl=min_ampl, rms_threshold=score['rms'])
-        pytest.set_trace()
         final_fit = arcfitter._all_final_fit
 
         # Score
         grade = True
         slit = '0'
-        pytest.set_trace()
         if final_fit[slit]['rms'] > score['rms']:
             grade = False
             print("Solution for {:s} failed RMS!!".format(name))
