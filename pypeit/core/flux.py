@@ -66,7 +66,8 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime,
         msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
                   "{}".format(spec_obj))
         wave = np.copy(np.array(extract['WAVE']))
-        magfit, _ = sensfunc['mag_set'].value(wave)
+        bsplinesensfunc = pydl.bspline(wave,from_dict=sensfunc['mag_set'])
+        magfit, _ = bsplinesensfunc.value(wave)
         sensfit = np.power(10.0, 0.4 * np.maximum(np.minimum(magfit, MAGFUNC_MAX), MAGFUNC_MIN))
 
         msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")

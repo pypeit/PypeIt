@@ -406,15 +406,12 @@ class FluxSpec(masterframe.MasterFrame):
         #  #
         # msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
 
-        from IPython import embed
-        embed()
-	
         # jsonify
-
         jsensfunc = self.sensfunc.copy()
         jsensfunc['bspline'] = jsensfunc['bspline'].to_dict()
         jsensfunc['mag_set'] = jsensfunc['mag_set'].to_dict()
         jsensfunc = linetools.utils.jsonify(jsensfunc)
+        for key in jsensfunc: print(key)
         with open(outfile, 'w') as jsonf:
             linetools.utils.savejson(outfile, jsensfunc, overwrite=True, indent=4, easy_to_read=True)
 

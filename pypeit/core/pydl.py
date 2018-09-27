@@ -238,14 +238,14 @@ class bspline(object):
         fullbkpt1 = copy.copy(fullbkpt)
         bkpt1 = copy.copy(bkpt)
         if from_dict is not None:
-            self.nord=from_dict['nord'],
-            self.npoly=from_dict['npoly'],
-            self.breakpoints=np.array(from_dict['breakpoints']),
-            self.mask=np.array(from_dict['mask']),
-            self.coeff=np.array(from_dict['coeff']),
-            self.icoeff=np.array(from_dict['icoeff']),
-            self.xmin=from_dict['xmin'],
-            self.xmax=from_dict['xmax'],
+            self.nord=from_dict['nord']
+            self.npoly=from_dict['npoly']
+            self.breakpoints=np.array(from_dict['breakpoints'])
+            self.mask=np.array(from_dict['mask'])
+            self.coeff=np.array(from_dict['coeff'])
+            self.icoeff=np.array(from_dict['icoeff'])
+            self.xmin=from_dict['xmin']
+            self.xmax=from_dict['xmax']
             self.funcname=from_dict['funcname']
             return
         # Instantiate empty if neither fullbkpt or x is set
