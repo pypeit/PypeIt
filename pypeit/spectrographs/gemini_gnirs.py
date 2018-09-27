@@ -69,7 +69,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['polyorder'] = 4
         #par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['pcatype'] = 'pixel'
-        par['calibrations']['slits']['sigdetect'] = 500
+        par['calibrations']['slits']['sigdetect'] = 30
         par['calibrations']['slits']['pcapar'] = [3, 2, 1,0]
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
