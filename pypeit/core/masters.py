@@ -199,7 +199,9 @@ def _load(name, exten=0, frametype='<None>', force=False):
         return ldict, None, [name]
     elif frametype == 'sensfunc':
         with open(name, 'r') as f:
-            sensfunc = yaml.load(f)
+            # going to json
+            # sensfunc = yaml.load(f)
+            sensfunc = json.load(f)
         sensfunc['wave_max'] = sensfunc['wave_max']*units.AA
         sensfunc['wave_min'] = sensfunc['wave_min']*units.AA
         return sensfunc, None, [name]
