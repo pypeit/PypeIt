@@ -25,6 +25,7 @@ class KeckTelescopePar(TelescopePar):
                                                longitude=155.47833,
                                                latitude=19.82833,
                                                elevation=4160.0,
+                                               fratio=15,
                                                diameter=10)
 
 class ShaneTelescopePar(TelescopePar):
