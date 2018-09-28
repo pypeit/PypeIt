@@ -26,6 +26,7 @@ from pypeit.core import load
 from pypeit import utils
 from pypeit.core import fsort
 from pypeit import telescopes
+from pypeit.spectrographs import util as sutil
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
@@ -33,6 +34,8 @@ from pypeit import telescopes
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
+
+kastb = sutil.load_spectrograph('shane_kast_blue')
 
 def test_bspline_fit():
     # Testing the bspline works ok (really testing bkspace)
@@ -56,11 +59,16 @@ def test_gen_sensfunc():
     DEC = '52:52:01.0'
 
     # Get the sensitivity function
-    extinction_data = flux.load_extinction_data(telescope['longitude'], telescope['latitude'])
-    extinction_corr = flux.extinction_correction(specobjs[0][0].boxcar['WAVE'],
-                                                   fitstbl['airmass'][4], extinction_data)
-    sensfunc = flux.generate_sensfunc(specobjs[0][0], RA, DEC, fitstbl['exptime'][4],
-                                        extinction_corr)
+    #extinction_data = flux.load_extinction_data(telescope['longitude'], telescope['latitude'])
+    #extinction_corr = flux.extinction_correction(specobjs[0][0].boxcar['WAVE'],
+    #                                               fitstbl['airmass'][4], extinction_data)
+    sensfunc = flux.generate_sensfunc(specobjs[0][0].boxcar['WAVE'],
+                                      specobjs[0][0].boxcar['COUNTS'],
+                                      specobjs[0][0].boxcar['COUNTS_IVAR'],
+                                      fitstbl['airmass'][4], fitstbl['exptime'][4], kastb,
+                                      RA=RA, DEC=DEC)
+    #sensfunc = flux.generate_sensfunc(specobjs[0][0], RA, DEC, fitstbl['exptime'][4],
+    #                                    extinction_corr)
 
     # Test
     assert isinstance(sensfunc, dict)

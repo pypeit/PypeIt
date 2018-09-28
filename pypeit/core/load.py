@@ -268,10 +268,15 @@ def load_specobj(fname):
                                        slitid=1, det=det,
                                        spat_pixpos=100)  # DUMMY
         except:
-            msgs.error("BUG ME")
             debugger.set_trace()
+            msgs.error("BUG ME")
+        # TODO -- Figure out if this is a default
         # Add trace
-        specobj.trace = spec['TRACE']
+        try:
+            specobj.trace = spec['TRACE']
+        except:
+            # KLUDGE!
+            specobj.trace = np.arange(len(spec['BOX_WAVE']))
         # Add spectrum
         if 'BOX_COUNTS' in spec.keys():
             for skey in speckeys:

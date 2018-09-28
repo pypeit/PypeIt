@@ -3,7 +3,8 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
-import yaml
+import linetools
+import json
 
 #from importlib import reload
 
@@ -69,11 +70,11 @@ class FluxSpec(masterframe.MasterFrame):
       Used for the RA, DEC, AIRMASS, EXPTIME of the standard star spectrum
     std_idx : int or list
       Index that std is within the std_specbojs list
-    sci_specobjs : list
+    sci_specobjs : SpecObjs
       List of SpecObj objects to be fluxed (or that were fluxed)
     sci_header : dict-like
       Used for the airmass, exptime of the science spectra
-    spectrograph : dict-like
+    spectrograph : Spectrograph
       Used for extinction correction
     """
 
@@ -81,15 +82,14 @@ class FluxSpec(masterframe.MasterFrame):
     frametype = 'sensfunc'
 
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
-                 std_specobjs=None, std_header=None, spectrograph=None, telluric=False,
-                 multi_det=None, setup=None, root_path=None, mode=None):
+                 std_specobjs=None, std_header=None, spectrograph=None, multi_det=None,
+                 telluric=False, setup=None, master_dir=None, mode=None):
 
         # Load standard files
         std_spectro = None
         self.std_spec1d_file = std_spec1d_file
         # Need to unwrap these (sometimes)..
-        self.std_specobjs = std_specobjs if std_specobjs is None \
-                                            else utils.unravel_specobjs(std_specobjs)
+        self.std_specobjs = std_specobjs
         self.std_header = std_header
         if self.std_spec1d_file is not None:
             self.std_specobjs, self.std_header = load.load_specobj(self.std_spec1d_file)
@@ -114,33 +114,24 @@ class FluxSpec(masterframe.MasterFrame):
 
         # Instantiate the spectograph
         _spectrograph = spectrograph
-        spectrograph_name = None
         if _spectrograph is None:
             _spectrograph = std_spectro
-            spectrograph_name = _spectrograph
             if _spectrograph is not None:
                 msgs.info("Spectrograph set to {0} from standard file".format(_spectrograph))
+            self.spectrograph = load_spectrograph(spectrograph=_spectrograph)
         if _spectrograph is None:
             _spectrograph = sci_spectro
-            spectrograph_name = _spectrograph
             if _spectrograph is not None:
                 msgs.info("Spectrograph set to {0} from science file".format(_spectrograph))
-        if isinstance(_spectrograph, str):
-            spectrograph_name = _spectrograph
-            msgs.info("Spectrograph set to {0}, from argument string".format(_spectrograph))
-        elif isinstance(_spectrograph, Spectrograph):
-            spectrograph_name = _spectrograph.spectrograph
-            msgs.info("Spectrograph set to {0}, from argument object".format(_spectrograph))
-
-        if spectrograph_name is not None:
             self.spectrograph = load_spectrograph(spectrograph=_spectrograph)
+        if isinstance(_spectrograph, str):
+            msgs.info("Spectrograph set to {0}, from argument string".format(_spectrograph))
+            self.spectrograph = load_spectrograph(spectrograph=_spectrograph)
+        elif isinstance(_spectrograph, Spectrograph):
+            msgs.info("Spectrograph set to {0}, from argument object".format(_spectrograph))
+            self.spectrograph = _spectrograph
 
         # MasterFrame
-        master_dir = None
-        if root_path is not None:
-            master_dir = root_path
-            if spectrograph_name is not None:
-                master_dir += '_'+spectrograph_name
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
                                          master_dir=master_dir, mode=mode)
         # Get the extinction data
@@ -164,7 +155,6 @@ class FluxSpec(masterframe.MasterFrame):
 
         # Set telluric option
         self.telluric = telluric
-        print(self.telluric)
 
         # Main outputs
         self.sensfunc = None if self.sens_file is None \
@@ -243,6 +233,12 @@ class FluxSpec(masterframe.MasterFrame):
             return None
 
         # Get extinction correction
+        #extinction_corr = flux.extinction_correction(self.std.boxcar['WAVE'],
+                                                       #self.std_header['AIRMASS'],
+                                                       #self.extinction_data)
+        #self.sensfunc = flux.generate_sensfunc(self.std, self.std_header['RA'],
+                                                 #self.std_header['DEC'],
+                                                 #self.std_header['EXPTIME'], extinction_corr)
         # extinction_corr = flux.extinction_correction(self.std.boxcar['WAVE'],
         #                                              self.std_header['AIRMASS'],
         #                                              self.extinction_data)
@@ -385,7 +381,7 @@ class FluxSpec(masterframe.MasterFrame):
 
     def save_master(self, outfile=None):
         """
-        Over-load the save_master() method in MasterFrame to write a YAML file
+        Over-load the save_master() method in MasterFrame to write a JSON file
 
         Parameters
         ----------
@@ -403,12 +399,22 @@ class FluxSpec(masterframe.MasterFrame):
             outfile = self.ms_name
         # Add steps
         self.sensfunc['steps'] = self.steps
-        # yamlify
-        ysens = utils.yamlify(self.sensfunc)
-        with open(outfile, 'w') as yamlf:
-            yamlf.write(yaml.dump(ysens))
-        #
-        msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
+        # # yamlify
+        # ysens = utils.yamlify(self.sensfunc)
+        # with open(outfile, 'w') as yamlf:
+        #     yamlf.write(yaml.dump(ysens))
+        #  #
+        # msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
+
+        # jsonify
+        jsensfunc = self.sensfunc.copy()
+        jsensfunc['bspline'] = jsensfunc['bspline'].to_dict()
+        jsensfunc['mag_set'] = jsensfunc['mag_set'].to_dict()
+        jsensfunc = linetools.utils.jsonify(jsensfunc)
+        with open(outfile, 'w') as jsonf:
+            linetools.utils.savejson(outfile, jsensfunc, overwrite=True, indent=4, easy_to_read=True)
+
+        msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))            
 
     def show_sensfunc(self):
         """
