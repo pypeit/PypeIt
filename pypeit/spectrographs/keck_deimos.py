@@ -38,6 +38,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 1
                 DetectorPar(dataext         = 1,
                             dispaxis        = 0,
+                            dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -56,6 +57,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 2
                 DetectorPar(dataext         = 2,
                             dispaxis        = 0,
+                            dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -73,6 +75,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 3
                 DetectorPar(dataext         = 3,
                             dispaxis        = 0,
+                            dispflip=False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -90,6 +93,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 4
                 DetectorPar(dataext         = 4,
                             dispaxis        = 0,
+                            dispflip=False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -107,6 +111,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 5
                 DetectorPar(dataext         = 5,
                             dispaxis        = 0,
+                            dispflip=False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -124,6 +129,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 6
                 DetectorPar(dataext         = 6,
                             dispaxis        = 0,
+                            dispflip=False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -141,6 +147,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 7
                 DetectorPar(dataext         = 7,
                             dispaxis        = 0,
+                            dispflip=False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -157,6 +164,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 8
                 DetectorPar(dataext         = 8,
                             dispaxis        = 0,
+                            dispflip=False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1., 

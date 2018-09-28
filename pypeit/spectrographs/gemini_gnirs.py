@@ -1,4 +1,4 @@
-""" Module for Keck/NIRES specific codes
+""" Module for Gemini/GNIRS specific codes
 """
 from __future__ import absolute_import, division, print_function
 
@@ -13,35 +13,34 @@ from pypeit.core import fsort
 
 from pypeit import debugger
 
-# TODO: KeckNIRESSPectrograph instead (i.e. two SS) ?
-class KeckNIRESpectrograph(spectrograph.Spectrograph):
+class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Keck/NIRES specific code
+    Child to handle Gemini/GNIRS specific code
     """
     def __init__(self):
         # Get it started
-        super(KeckNIRESpectrograph, self).__init__()
-        self.spectrograph = 'keck_nires'
-        self.telescope = telescopes.KeckTelescopePar()
-        self.camera = 'NIRES'
-        self.numhead = 3
+        super(GeminiGNIRSSpectrograph, self).__init__()
+        self.spectrograph = 'gemini_gnirs'
+        self.telescope = telescopes.GeminiNTelescopePar()
+        self.camera = 'GNIRS'
+        self.numhead = 1
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 0,
+                DetectorPar(dataext         = 1,
                             dispaxis        = 1,
                             dispflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
-                            platescale      = 0.123,
-                            darkcurr        = 0.01,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
+                            platescale      = 0.15,
+                            darkcurr        = 0.15,
+                            saturation      = 7000.,
+                            nonlinear       = 0.71,
                             numamplifiers   = 1,
-                            gain            = 3.8,
-                            ronoise         = 5.0,
-                            datasec         = '[1:2048,1:1024]',
-                            oscansec        = '[1:2048,980:1024]'
+                            gain            = 13.5,
+                            ronoise         = 7.0,
+                            datasec         = '[:,:]',#'[1:1024,1:1022]',
+                            oscansec        = '[:,:]',#'[1:1024,1:1022]'
                             )
             ]
         # Uses default timeunit
@@ -51,7 +50,7 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
     @staticmethod
     def default_pypeit_par():
         """
-        Set default parameters for Shane Kast Blue reductions.
+        Set default parameters for Gemini GNIRS reductions.
         """
         par = pypeitpar.PypeItPar()
         # TODO: Make self.spectrograph a class attribute?
@@ -67,27 +66,33 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Set slits and tilts parameters
         par['calibrations']['tilts']['order'] = 2
-        par['calibrations']['tilts']['tracethresh'] = [50, 50, 60, 60, 2000]
-        par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 3.
-        par['calibrations']['slits']['pcatype'] = 'order'
+        par['calibrations']['tilts']['tracethresh'] = [1000, 50, 50, 50, 50]
+        par['calibrations']['slits']['polyorder'] = 4
+        #par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['slits']['sigdetect'] = 30
+        par['calibrations']['slits']['pcapar'] = [3, 2, 1,0]
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Do not correct for flexure
-        par['flexure'] = None
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypeitpar.FlexurePar()
+        par['flexure']['method'] = None
         return par
 
-    def nires_header_keys(self):
+    def gnirs_header_keys(self):
         def_keys = self.default_header_keys()
 
         def_keys[0]['target'] = 'OBJECT'
-        def_keys[0]['exptime'] = 'ITIME'
+        def_keys[0]['time'] = 'MJD_OBS'
+        def_keys[0]['decker'] = 'SLIT'
+        def_keys[0]['dispname'] = 'GRATING'
         return def_keys
 
     def header_keys(self):
-        head_keys = self.nires_header_keys()
+        head_keys = self.gnirs_header_keys()
+        print(head_keys)
         return head_keys
 
     def get_match_criteria(self):
@@ -126,7 +131,7 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
           0 = ok; 1 = Mask
 
         """
-        msgs.info("Custom bad pixel mask for NIRES")
+        msgs.info("Custom bad pixel mask for GNIRS")
         self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
             self.bpm_img[:, :20] = 1.
@@ -151,19 +156,23 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         Returns:
 
         """
+        # ToDo need to parse the sigdetect parameter to be here for detect_lines function in arc.py
+        #      I force change sigdetect=5 for GNIRS.
 
         arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 1000.       # Minimum amplitude
-        arcparam['wvmnx'] = [8000., 26000.] # Guess at wavelength range
-
-
+        arcparam['min_ampl'] = 5.       # Minimum amplitude
+        arcparam['lowest_ampl'] = 0.    #Todo there is a bug in arc.py, do not parse this value.
+        arcparam['wvmnx'] = [8500., 24000.] # Guess at wavelength range
+        arcparam['n_first'] = 1            # Order of polynomial for first fit
+        arcparam['n_final'] = 1            # Order of polynomial for final fit
+        arcparam['disp'] = 2.7  # Ang/unbinned pixel
+        arcparam['func'] = 'legendre'  # Function for fitting
 #        arcparam['llist'] = ''
 #        arcparam['disp'] = 2.              # Ang/unbinned pixel
 #        arcparam['b1'] = 0.                # Pixel fit term (binning independent)
 #        arcparam['b2'] = 0.                # Pixel fit term
 #        arcparam['wv_cen'] = 0.            # Estimate of central wavelength
-#        arcparam['wvmnx'] = [9000., 25000.] # Guess at wavelength range
 #        arcparam['disp_toler'] = 0.1       # 10% tolerance
 #        arcparam['match_toler'] = 3.       # Matching tolerance (pixels)
 #        arcparam['func'] = 'legendre'      # Function for fitting
