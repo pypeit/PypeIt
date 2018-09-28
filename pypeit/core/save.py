@@ -603,6 +603,7 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
         names.append(specobj.idx)
         slits.append(specobj.slitid)
         spat_pixpos.append(specobj.spat_pixpos)
+
         # Boxcar width
         if 'BOX_RADIUS' in specobj.boxcar.keys():
             slit_pix = 2.0*specobj.boxcar['BOX_RADIUS']
@@ -611,8 +612,10 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
             boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.det-1]['platescale'])
         else:
             boxsize.append(0.)
+
         # Optimal profile (FWHM)
         binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
+        ## Old code binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
         opt_fwhm.append(np.median(specobj.fwhmfit)* binspatial
                                 * spectrograph.detector[specobj.det-1]['platescale'])
         # S2N -- default to boxcar
