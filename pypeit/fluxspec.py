@@ -98,6 +98,19 @@ class FluxSpec(masterframe.MasterFrame):
                                 len(self.std_specobjs), self.std_spec1d_file))
             std_spectro = self.std_header['INSTRUME']
 
+        try:
+            self.std_ra = self.std_header['RA']
+        except:
+            self.std_ra = None
+        try:
+            self.std_dec = self.std_header['DEC']
+        except:
+            self.std_dec = None
+        try:
+            self.std_file = self.std_header['FILENAME']
+        except:
+            self.std_file = None
+
         # Load the science files
         sci_spectro = None
         self.sci_spec1d_file = sci_spec1d_file
@@ -243,7 +256,6 @@ class FluxSpec(masterframe.MasterFrame):
         #                                              self.std_header['AIRMASS'],
         #                                              self.extinction_data)
 
-
         self.sens_dict = flux.generate_sensfunc(self.std.boxcar['WAVE'],
                                                self.std.boxcar['COUNTS'],
                                                self.std.boxcar['COUNTS_IVAR'],
@@ -251,9 +263,9 @@ class FluxSpec(masterframe.MasterFrame):
                                                self.std_header['EXPTIME'],
                                                self.spectrograph,
                                                telluric=self.telluric,
-                                               ra=self.std_header['RA'],
-                                               dec=self.std_header['DEC'],
-                                               std_file = self.std_header['FILENAME'])
+                                               ra=self.std_ra,
+                                               dec=self.std_dec,
+                                               std_file = self.std_file)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
