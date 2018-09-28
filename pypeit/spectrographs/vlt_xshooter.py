@@ -371,7 +371,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                 # Detector 1
                 DetectorPar(dataext         = 0,
                             dispaxis        = 0,
-                            dispflip        = False,
+                            dispflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -382,8 +382,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 1.61,
                             ronoise         = 2.60,
-                            datasec         = '[49:2000,1:2999]',
-                            oscansec        = '[1:48, 1:2999]',
+                            datasec         = '[49:,1:]', # '[49:2000,1:2999]',
+                            oscansec        = '[1:48,1:]', # '[1:48, 1:2999]',
                             suffix          = '_UVB'
                             ),
             ]
@@ -399,14 +399,22 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'vlt_xshooter_uvb'
-        # Use the ARMED pipeline
         par['rdx']['pipeline'] = 'ARMED'
+
         # Set wave tilts order
-        par['calibrations']['slits']['polyorder'] = 5 # Might want 6 or 7
-        par['calibrations']['slits']['maxshift'] = 0.5  # Trace crude
+        par['calibrations']['slits']['sigdetect'] = 20.
+        par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 3.
-        par['calibrations']['slits']['pcatype'] = 'order'
+        par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slits']['number'] = -1
+
+        par['calibrations']['arcframe']['process']['overscan'] = 'median'
+        par['calibrations']['traceframe']['process']['overscan'] = 'median'
+
+        print(par['calibrations']['slits'])
+        from IPython import embed
+        embed()
+
         #par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
         # par['skysubtract'] = pypeitpar.SkySubtractionPar()
@@ -467,7 +475,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
         """
         debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['Th', 'ArI']
+        arcparam['lamps'] = ['ThAr']
         arcparam['n_first']=2 
         arcparam['disp']=0.2 # Ang per pixel (unbinned)
         arcparam['b1']= 0.
