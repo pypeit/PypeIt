@@ -53,8 +53,7 @@ def test_step_by_step():
     par = pypeitpar.WaveTiltsPar()
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
                                     master_dir=master_dir,
-                                    mode='reuse', pixlocn=TSlits.pixlocn,
-                                    tslits_dict=TSlits.tslits_dict)
+                                    mode='reuse', tslits_dict=TSlits.tslits_dict)
     # Extract arcs
     arccen, maskslits = waveTilts._extract_arcs()
     assert arccen.shape == (2048,1)
@@ -70,7 +69,7 @@ def test_step_by_step():
     # 2D Fit
     waveTilts.par['yorder'] = 4
     waveTilts.par['func2D'] = 'legendre'
-    tilts = waveTilts._fit_tilts(slit, doqa=False)
+    tilts, coeffs = waveTilts._fit_tilts(slit, doqa=False)
     assert np.max(tilts) < 1.0001
 
 
@@ -88,9 +87,9 @@ def test_run():
     spectrograph.detector[0]['nonlinear'] = 0.9
     par = pypeitpar.WaveTiltsPar()
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
-                                    master_dir=master_dir, mode='reuse', pixlocn=TSlits.pixlocn,
+                                    master_dir=master_dir, mode='reuse',
                                     tslits_dict=TSlits.tslits_dict)
     # Run
-    tilts, mask = waveTilts.run(doqa=False)
-    assert isinstance(tilts, np.ndarray)
+    tilts_dict, mask = waveTilts.run(doqa=False)
+    assert isinstance(tilts_dict['tilts'], np.ndarray)
 

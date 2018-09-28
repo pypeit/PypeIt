@@ -80,16 +80,16 @@ def test_instantiate():
     print(caliBrate)
 
 
-def test_datasec(multi_caliBrate):
-    if skip_test:
-        assert True
-        return
-    multi_caliBrate.par['trim'] = False
-    datasec_img = multi_caliBrate.get_datasec_img()
-    naxis0, naxis1 = datasec_img.shape
-    # Test
-    assert naxis0 == 2112
-    assert naxis1 == 350
+#def test_datasec(multi_caliBrate):
+#    if skip_test:
+#        assert True
+#        return
+#    multi_caliBrate.par['trim'] = False
+#    datasec_img = multi_caliBrate.get_datasec_img()
+#    naxis0, naxis1 = datasec_img.shape
+#    # Test
+#    assert naxis0 == 2112
+#    assert naxis1 == 350
 
 def test_pixlocn(multi_caliBrate):
     multi_caliBrate.shape = (2048,350)
@@ -126,7 +126,7 @@ def test_slits(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     _ = multi_caliBrate.get_pixlocn()
-    _ = multi_caliBrate.get_datasec_img()
+    #_ = multi_caliBrate.get_datasec_img()
     _ = multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     # Run
@@ -143,7 +143,7 @@ def test_wv_calib(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     _ = multi_caliBrate.get_pixlocn()
-    _ = multi_caliBrate.get_datasec_img()
+    #_ = multi_caliBrate.get_datasec_img()
     _ = multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     _ = multi_caliBrate.get_slits()
@@ -161,7 +161,7 @@ def test_tilts(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     _ = multi_caliBrate.get_pixlocn()
-    _ = multi_caliBrate.get_datasec_img()
+    #_ = multi_caliBrate.get_datasec_img()
     _ = multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     _ = multi_caliBrate.get_slits()
@@ -169,7 +169,7 @@ def test_tilts(multi_caliBrate):
     _ = multi_caliBrate.get_wv_calib()
     # Run
     mstilts, maskslits = multi_caliBrate.get_tilts()
-    assert mstilts.shape == (2048,350)
+    assert isinstance(mstilts, dict)
     assert isinstance(maskslits, np.ndarray)
 
 
@@ -181,7 +181,7 @@ def test_flat(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     _ = multi_caliBrate.get_pixlocn()
-    _ = multi_caliBrate.get_datasec_img()
+    #_ = multi_caliBrate.get_datasec_img()
     _ = multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     _ = multi_caliBrate.get_slits()
@@ -189,7 +189,7 @@ def test_flat(multi_caliBrate):
     _ = multi_caliBrate.get_wv_calib()
     _ = multi_caliBrate.get_tilts()
     # Run
-    mspixflatnrm, slitprof = multi_caliBrate.get_pixflatnrm()
+    mspixflatnrm, slitprof = multi_caliBrate.get_flats()
     assert mspixflatnrm.shape == (2048,350)
     assert slitprof.shape == (2048,350)
 
@@ -201,14 +201,15 @@ def test_waveimg(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     _ = multi_caliBrate.get_pixlocn()
-    _ = multi_caliBrate.get_datasec_img()
+    #_ = multi_caliBrate.get_datasec_img()
     _ = multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     _ = multi_caliBrate.get_slits()
     _ = multi_caliBrate.get_arc()
     _ = multi_caliBrate.get_wv_calib()
     _ = multi_caliBrate.get_tilts()
-    _ = multi_caliBrate.get_pixflatnrm()
+    #_ = multi_caliBrate.get_pixflatnrm()
+    _, _ = multi_caliBrate.get_flats()
     # Run
     mswave = multi_caliBrate.get_wave()
     assert mswave.shape == (2048,350)

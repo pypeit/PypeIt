@@ -85,9 +85,25 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
     return arcparam
 
 def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 3, xfrac = 0.5):
+    """
+    Entirely undocumented code, by unknown person
+    Not JXP
+
+    Args:
+        slit_left:
+        slit_righ:
+        slitpix:
+        arcimg:
+        inmask:
+        box_rad:
+        xfrac:
+
+    Returns:
+
+    """
 
     if inmask is None:
-        inmask = (slitpix > 0)
+        inmask = slitpix > 0
 
     nslits = slit_left.shape[1]
     (nspec, nspat) = arcimg.shape
@@ -110,7 +126,7 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
 
 
 # ToDO this code needs to be replaced. It is not masking outliers, and zeros out orders that leave the detector
-def get_censpec_old(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, gen_satmask=False):
+def get_censpec_old(lordloc, rordloc, pixlocn, frame, nonlinear_counts=None, gen_satmask=False):
     """ Extract a simple spectrum down the center of each slit
     Parameters
     ----------
@@ -132,8 +148,6 @@ def get_censpec_old(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None
       Saturation mask
       None if gen_satmask=False
     """
-    dnum = parse.get_dnum(det)
-
     ordcen = 0.5*(lordloc+rordloc)
     ordwid = 0.5*np.abs(lordloc-rordloc)
     satsnd = None

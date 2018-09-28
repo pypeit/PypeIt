@@ -3,7 +3,8 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 import numpy as np
 import os
-import yaml
+# import yaml
+import json
 
 from astropy.io import fits
 from astropy import units
@@ -199,9 +200,10 @@ def _load(name, exten=0, frametype='<None>', force=False):
         return ldict, None, [name]
     elif frametype == 'sensfunc':
         with open(name, 'r') as f:
-            sensfunc = yaml.load(f)
-        sensfunc['wave_max'] = sensfunc['wave_max']*units.AA
-        sensfunc['wave_min'] = sensfunc['wave_min']*units.AA
+            # going to json
+            sensfunc = json.load(f)
+        sensfunc['wave_max'] = sensfunc['wave_max']['value']*units.AA
+        sensfunc['wave_min'] = sensfunc['wave_min']['value']*units.AA
         return sensfunc, None, [name]
     elif frametype == 'trace':
         msgs.error('Load from the class not this method')

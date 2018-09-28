@@ -227,6 +227,31 @@ class ScienceImage(processimages.ProcessImages):
         return self.time, self.basename
 
 
+    def _chk_objs(self, items):
+        """
+
+        Args:
+            items:
+
+        Returns:
+
+        """
+        for obj in items:
+            if getattr(self, obj) is None:
+                msgs.warn("You need to generate {:s} prior to this calibration..".format(obj))
+                if obj in ['sciimg', 'sciivar', 'rn2_img']:
+                    msgs.warn("Run the process() method")
+                elif obj in ['sobjs_obj']:
+                    msgs.warn("Run the find_objects() method")
+                elif obj in['global_sky']:
+                    msgs.warn("Run the global_skysub() method")
+                elif obj in ['tilts', 'tslits_dict'] :
+                    msgs.warn("Calibraitons missing: these were required to run find_objects() and global_skysub()")
+                elif obj in ['waveimg']:
+                    msgs.warn("Calibraitons missing: waveimg must be input as a parameter. Try running calibrations")
+                return False
+        return True
+
     def find_objects(self, tslits_dict, maskslits = None, skysub = True, show_peaks= False, show_fits = False,show_trace=False,
                      show = False):
         """
@@ -313,6 +338,26 @@ class ScienceImage(processimages.ProcessImages):
 
         # Return
         return self.sobjs_obj, self.nobj
+
+    def _get_goodslits(self, maskslits):
+        """
+        Return the slits to be reduce by going through the maskslits logic below. If the input maskslits is None it
+        uses previously assigned maskslits
+
+        Returns
+        -------
+        gdslits
+            numpy array of slit numbers to be reduced
+        """
+
+        # Identify the slits that we want to consider.
+        if maskslits is not None:  # If maskslits was passed in use it, and update self
+            self.maskslits = maskslits
+        elif (self.maskslits is None):  # If maskslits was not passed, and it does not exist in self, reduce all slits
+            self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
+        else: # Otherwise, if self.maskslits exists, use the previously set maskslits
+            pass
+        return self.maskslits
 
     def global_skysub(self, tslits_dict, tilts, use_skymask=True, maskslits = None, show_fit = False,
                       show = False):
@@ -453,23 +498,6 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
-    # Chk attributest for running local_skysub_extract
-    def _chk_objs(self, items):
-        for obj in items:
-            if getattr(self, obj) is None:
-                msgs.warn("You need to generate {:s} prior to this calibration..".format(obj))
-                if obj in ['sciimg', 'sciivar', 'rn2_img']:
-                    msgs.warn("Run the process() method")
-                elif obj in ['sobjs_obj']:
-                    msgs.warn("Run the find_objects() method")
-                elif obj in['global_sky']:
-                    msgs.warn("Run the global_skysub() method")
-                elif obj in ['tilts', 'tslits_dict'] :
-                    msgs.warn("Calibraitons missing: these were required to run find_objects() and global_skysub()")
-                elif obj in ['waveimg']:
-                    msgs.warn("Calibraitons missing: waveimg must be input as a parameter. Try running calibrations")
-                return False
-        return True
 
     def process(self, bias_subtract, pixel_flat, bpm, illum_flat = None, apply_gain=True, trim=True, show=False):
         """ Process the image
@@ -511,7 +539,6 @@ class ScienceImage(processimages.ProcessImages):
             self.show('image', image=self.sciimg*(self.crmask == 0), chname='sciimg', clear=True)
         return self.sciimg, self.sciivar, self.rn2img, self.crmask
 
-
     def _build_bitmask(self):
         """
         Create the input mask for various extraction routines. Here is the bitwise key for interpreting masks
@@ -552,6 +579,26 @@ class ScienceImage(processimages.ProcessImages):
         bitmask[self.crmask == True] += np.uint64(2**1)
         bitmask[self.sciimg >= saturation] += np.uint64(2**2)
         bitmask[self.sciimg <= mincounts] += np.uint64(2**3)
+        bitmask[self.tslits_dict['slitpix'] == 0] += np.uint64(2**4)
+        bitmask[np.isfinite(self.sciimg) == False] += np.uint64(2**5)
+        bitmask[self.sciivar <= 0.0] += np.uint64(2**6)
+        bitmask[np.isfinite(self.sciivar) == False] += np.uint64(2**7)
+
+        #inmask = (self.bpm == False) & (self.crmask == False) & \
+        #         (self.sciivar > 0.0) & np.isfinite(self.sciivar) & \
+        #         np.isfinite(self.sciimg) & (self.sciimg < SATURATION) & (self.sciimg > MINCOUNTS)
+
+        return bitmask
+
+        # Create and assign the inmask
+        saturation = self.spectrograph.detector[self.det - 1]['saturation']
+        mincounts    = self.spectrograph.detector[self.det - 1]['mincounts']
+
+        bitmask = np.zeros_like(self.sciimg,dtype=np.uint64)
+        bitmask[self.bpm == True] += np.uint64(2**0)
+        bitmask[self.crmask == True] += np.uint64(2**1)
+        bitmask[self.sciimg >= saturation] += np.uint64(2**2)
+        bitmask[self.sciimg <= mincounts] += np.uint64(2**3)
         # This try except is here so that the bitmask can still be created even if tslits_dict has not been instantiated yet
         try:
             bitmask[self.tslits_dict['slitpix'] == 0] += np.uint64(2**4)
@@ -567,26 +614,15 @@ class ScienceImage(processimages.ProcessImages):
 
         return bitmask
 
-    def _get_goodslits(self, maskslits):
+    def run_the_steps(self):
         """
-        Return the slits to be reduce by going through the maskslits logic below. If the input maskslits is None it
-        uses previously assigned maskslits
+        Run full the full recipe of calibration steps
 
-        Returns
-        -------
-        gdslits
-            numpy array of slit numbers to be reduced
+        Returns:
+
         """
-
-        # Identify the slits that we want to consider.
-        if maskslits is not None:  # If maskslits was passed in use it, and update self
-            self.maskslits = maskslits
-        elif (self.maskslits is None):  # If maskslits was not passed, and it does not exist in self, reduce all slits
-            self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
-        else: # Otherwise, if self.maskslits exists, use the previously set maskslits
-            pass
-        return self.maskslits
-
+        for step in self.steps:
+            getattr(self, 'get_{:s}'.format(step))()
 
     def show(self, attr, image=None, showmask = False, sobjs = None, chname = None, slits = False, clear=False):
         """
