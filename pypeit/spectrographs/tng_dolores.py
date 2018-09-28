@@ -26,6 +26,7 @@ class TngDoloresSpectrograph(spectrograph.Spectrograph):
                 # Detector 1
                 DetectorPar(dataext         = 0,
                             dispaxis        = 1,
+                            dispflip=False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,

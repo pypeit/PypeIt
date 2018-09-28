@@ -222,6 +222,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                 # Detector 1
                 DetectorPar(dataext         = 1,
                             dispaxis        = 0,
+                            dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -239,6 +240,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                 #Detector 2
                 DetectorPar(dataext         = 2,
                             dispaxis        = 0,
+                            dispflip=False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -351,6 +353,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 # Detector 1
                 DetectorPar(dataext         =1,
                             dispaxis        =0,
+                            dispflip=False,
                             xgap            =0.,
                             ygap            =0.,
                             ysize           =1.,
@@ -368,6 +371,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 #Detector 2
                 DetectorPar(dataext         =2,
                             dispaxis        =0,
+                            dispflip=False,
                             xgap            =0.,
                             ygap            =0.,
                             ysize           =1.,

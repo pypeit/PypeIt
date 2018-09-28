@@ -73,6 +73,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                 # Detector 1
                 DetectorPar(dataext         = 0,
                             dispaxis        = 0,
+                            dispflip=False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -231,6 +232,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 # Detector 1
                 DetectorPar(dataext         = 0,
                             dispaxis        = 1,
+                            dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -390,6 +392,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                 # Detector 1
                 DetectorPar(dataext         = 0,
                             dispaxis        = 0,
+                            dispflip=False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
