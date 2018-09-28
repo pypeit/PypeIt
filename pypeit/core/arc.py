@@ -72,6 +72,8 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                                                      spectro_class.spectrograph,
                                                      wvmnx=arcparam['wvmnx'],
                                                      modify_parse_dict=modify_dict)
+
+    # JFH Do we need this line of code since we no longer use the other methods of arc_lines?
     # Binning
     arcparam['disp'] *= binspectral
 
@@ -88,14 +90,19 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
     maskslit = np.zeros(nslits, dtype=np.int)
     trace = slit_left + xfrac*(slit_righ - slit_left)
     arc_spec = np.zeros((nspec, nslits))
+    spat_img = np.outer(np.ones(nspec,dtype=int), np.arange(nspat,dtype=int)) # spatial position everywhere along image
+
 
     for islit in range(nslits):
         msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit + 1))
         # Create a mask for the pixels that will contribue to the arc
-        spat_img = np.outer(np.ones(nspec), np.arange(nspat))  # spatial position everywhere along image
         trace_img = np.outer(trace[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
         arcmask = (slitpix > 0) & inmask & (spat_img > (trace_img - box_rad)) & (spat_img < (trace_img + box_rad))
-        this_mean, this_med, this_sig = sigma_clipped_stats(arcimg, mask=~arcmask, sigma=3.0, axis=1)
+        # Trimming the image makes this much faster
+        left = np.fmax(spat_img[arcmask].min() - 4,0)
+        righ = np.fmin(spat_img[arcmask].max() + 5,nspat)
+        this_mean, this_med, this_sig = sigma_clipped_stats(arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ])
+                                                            , sigma=3.0, axis=1)
         arc_spec[:,islit] = this_med.data
         if not np.any(arc_spec[:,islit]):
             maskslit[islit] = 1
@@ -381,8 +388,8 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     # plt.grid()
     plt.show()
 
-
-def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, debug=True):
+# ToDO JFH nfitpix should be chosen based on the spectral sampling of the spectroscopic setup
+def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, debug=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -484,9 +491,9 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
 
     # Final peak detection
     arc = detns - cont_now
-    pixt = detect_peaks(arc, mph=thresh, mpd=3.0, show=debug)
+    pixt = detect_peaks(arc, mph=thresh, mpd=3.0) #, show=debug)
     # Gaussian fitting appears to work better on the non-continuum subtracted data
-    b, tampl, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
+    tampl, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
     #tampl, tcent, twid, centerr = fit_arcspec(xrng, arc_in, pixt, nfitpix)
 
     #         sigma finite  & sigma positive &  sigma < FWHM/2.35 & cen positive  &  cen on detector
@@ -496,10 +503,17 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan
         tampl_bad = np.interp(pixt[~good], xrng, arc)
-        plt.plot(xrng, arc, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc')
+        plt.figure(figsize=(14, 6))
+        plt.plot(xrng, arc, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc', linewidth = 1.0)
         plt.plot(tcent[~good], tampl_bad,'r+', markersize =6.0, label = 'bad peaks')
         plt.plot(tcent[good], tampl[good],'g+', markersize =6.0, label = 'good peaks')
+        plt.hlines(thresh, xrng.min(), xrng.max(), color='cornflowerblue', linestyle=':', linewidth=2.0,
+                   label='threshold', zorder=10)
+        if nonlinear_counts < 1e9:
+            plt.hlines(nonlinear_counts,xrng.min(), xrng.max(), color='orange', linestyle='--',linewidth=2.0,
+                       label='nonlinear', zorder=10)
         plt.title('Good Lines = {:d}'.format(np.sum(good)) + ',  Bad Lines = {:d}'.format(np.sum(~good)))
+        plt.ylim(-5.0*thresh, 1.5*arc.max())
         plt.legend()
         plt.show()
 
@@ -530,23 +544,20 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
             continue  # Probably won't be a good solution
         # Fit the gaussian
         try:
-            #popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3, return_errors=True)
-            #ampl[p] = popt[0]
-            #cent[p] = popt[1]
-            #widt[p] = popt[2]
-            #centerr[p] = pcov[1, 1]
-            popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 4, return_errors=True)
-            b[p]    = popt[0]
-            ampl[p] = popt[1]
-            cent[p] = popt[2]
-            widt[p] = popt[3]
-            centerr[p] = pcov[2, 2]
-            #if not np.isfinite(ampl[p]):
-            #    from IPython import embed
-            #    embed()
+            popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3, return_errors=True)
+            ampl[p] = popt[0]
+            cent[p] = popt[1]
+            widt[p] = popt[2]
+            centerr[p] = pcov[1, 1]
+            #popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 4, return_errors=True)
+            #b[p]    = popt[0]
+            #ampl[p] = popt[1]
+            #cent[p] = popt[2]
+            #widt[p] = popt[3]
+            #centerr[p] = pcov[2, 2]
         except RuntimeError:
             pass
-    return b, ampl, cent, widt, centerr
+    return ampl, cent, widt, centerr
 
 
 def simple_calib_driver(msarc, aparm, censpec, ok_mask, nfitpix=5, get_poly=False,
