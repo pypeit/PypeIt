@@ -75,7 +75,7 @@ def master_name(ftype, setup, mdir):
                      wv_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, setup),
                      tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir, setup),
                      # sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.yaml'.format(mdir, setup[0], setup[-2:]),
-                     sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.json'.format(mdir, setup[0], setup[-2:]),
+                     sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.fits'.format(mdir, setup[0], setup[-2:]),
                      )
     return name_dict[ftype]
 
@@ -199,12 +199,20 @@ def _load(name, exten=0, frametype='<None>', force=False):
         ldict = linetools.utils.loadjson(name)
         return ldict, None, [name]
     elif frametype == 'sensfunc':
-        with open(name, 'r') as f:
-            # going to json
-            sensfunc = json.load(f)
-        sensfunc['wave_max'] = sensfunc['wave_max']['value']*units.AA
-        sensfunc['wave_min'] = sensfunc['wave_min']['value']*units.AA
-        return sensfunc, None, [name]
+        msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(frametype) + " from filename: {:}".format(name))
+
+        hdu = fits.open(name)
+        head = hdu[0].header
+        tbl = hdu['SENSFUNC'].data
+        sens_dict = {}
+        sens_dict['wave'] = tbl['WAVE']
+        sens_dict['sensfunc'] = tbl['SENSFUNC']
+        for key in ['wave_min','wave_max','exptime','airmass','std_file','std_ra','std_dec','std_name','calibfile']:
+            try:
+                sens_dict[key] = head[key.upper()]
+            except:
+                pass
+        return sens_dict, head, [name]
     elif frametype == 'trace':
         msgs.error('Load from the class not this method')
     elif frametype == 'tilts':

@@ -25,8 +25,9 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-master_dir = data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
-    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
+#master_dir = data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
+#    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
+master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
 
 @pytest.fixture
 def deimos_files():
@@ -50,9 +51,14 @@ def kast_blue_files():
     return kast_blue_files
 
 def test_run_from_spec1d(kast_blue_files):
+
     if skip_test:
         assert True
         return
+
+    from IPython import embed
+    embed()
+
     # Instantiate
     std_file, sci_file = kast_blue_files
     FxSpec = fluxspec.FluxSpec(std_spec1d_file=std_file, sci_spec1d_file=sci_file,
@@ -88,7 +94,7 @@ def test_from_sens_func():
     # TODO: Should change this to a from_sens_file instance.  Most of
     # the class is uninstantiated and methods will fail if you
     # instantiate this way...
-    FxSpec3 = fluxspec.FluxSpec(sens_file=data_path('MF_shane_kast_blue/MasterSensFunc_A_aa.yaml'))
+    FxSpec3 = fluxspec.FluxSpec(sens_file=data_path('MF_shane_kast_blue/MasterSensFunc_A_aa.json'))
     assert isinstance(FxSpec3.sensfunc, dict)
 
 
