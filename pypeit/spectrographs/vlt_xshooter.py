@@ -34,7 +34,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
     def xshooter_header_keys(self):
         def_keys = self.default_header_keys()
-
+        # These are XSHOOTER specific keywords
         def_keys[0]['target']  = 'OBJECT'                     # Header keyword for the name given by the observer to a given frame
         def_keys[0]['idname']  = 'HIERARCH ESO DPR CATG'      # The keyword that identifies the frame type (i.e. bias, flat, etc.)
         def_keys[0]['time']    = 'MJD-OBS'                    # The time stamp of the observation (i.e. decimal MJD)
@@ -42,180 +42,16 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['ra']      = 'RA'                         # Right Ascension of the target
         def_keys[0]['dec']     = 'DEC'                        # Declination of the target
         def_keys[0]['airmass'] = 'HIERARCH ESO TEL AIRM START'# Airmass at start of observation
-        def_keys[0]['binning'] = 'HIERARCH ESO DET WIN1 BINX' # Binning along X-axis (HIERARCH ESO DET WIN1 BINY along Y)
+        def_keys[0]['binning'] = 'BINNING'                    # Binning will be redefined for XSHOOTER
         def_keys[0]['exptime'] = 'EXPTIME'                    # Exposure time keyword
         def_keys[0]['naxis0']  = 'NAXIS2'
         def_keys[0]['naxis1']  = 'NAXIS1'
-        def_keys[0]['decker']  = 'HIERARCH ESO INS OPTI3 NAME'# FOR UVB
-        def_keys[0]['decker']  = 'HIERARCH ESO INS OPTI4 NAME'# FOR VIS
-        def_keys[0]['decker']  = 'HIERARCH ESO INS OPTI5 NAME'# FOR NIR
-        #
-        def_keys[0]['binning_x'] = 'HIERARCH ESO DET WIN1 BINX' # Binning along SPATIAL axis
-        def_keys[0]['binning_y'] = 'HIERARCH ESO DET WIN1 BINY' # Binning along SPECTRAL axis
 
         ## def_keys[0]['utc'] = 'HIERARCH ESO DET FRAM UTC'
-
 
         # TODO: Should do something with the lamps
 
         return def_keys
-
-class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
-    """
-    Child to handle VLT/XSHOOTER specific code
-    """
-    def __init__(self):
-        # Get it started
-        super(VLTXShooterVISSpectrograph, self).__init__()
-        self.spectrograph = 'vlt_xshooter_vis'
-        self.camera = 'XShooter_VIS'
-        self.detector = [
-                # Detector 1
-                DetectorPar(dataext         = 0,
-                            dispaxis        = 0,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.16, # average from order 17 and order 30, see manual
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 0.595,
-                            ronoise         = 3.1,
-                            datasec         = '[1:2000,10:2058]',
-                            oscansec        = '[1:2000, 2060:2106]',
-                            suffix          = '_VIS'
-                            ),
-            ]
-        self.numhead = 1
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        #self.sky_file = 'sky_LRISb_600.fits'
-
-    @staticmethod
-    def default_pypeit_par():
-        """
-        Set default parameters for VLT XSHOOTER reductions.
-        """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'vlt_xshooter_vis'
-        # Use the ARMED pipeline
-        par['rdx']['pipeline'] = 'ARMED'
-        # Set wave tilts order
-
-        par['calibrations']['arcframe']['process']['overscan'] = 'median'
-        par['calibrations']['traceframe']['process']['overscan'] = 'median'
-        par['calibrations']['slits']['sigdetect'] = 310.
-        par['calibrations']['slits']['pcatype'] = 'pixel'
-        par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 3.
-        par['calibrations']['slits']['pcatype'] = 'order'
-        par['calibrations']['slits']['number'] = -1
-        par['calibrations']['tilts']['tracethresh'] = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
-
-        # par['calibrations']['tilts']['tracethresh'] = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
-
-        # par['calibrations']['tilts']['tracethresh'] = [50, 50, 60, 60, 2000]
-        # par['calibrations']['traceframe']['process']['overscan'] = 'median'
-        # par['calibrations']['arcframe']['process']['overscan'] = 'median'
-
-        #par['calibrations']['slits']['pcapar'] = [3,2,1,0]
-        # Always sky subtract, starting with default parameters
-        # par['skysubtract'] = pypeitpar.SkySubtractionPar()
-        # Always flux calibrate, starting with default parameters
-        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
-        return par
-
-    def check_header(self):
-        """Validate elements of the header."""
-        chk_dict = {}
-        # chk_dict is 1-indexed!
-        chk_dict[1] = {}
-        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[1]['NAXIS'] = 2
-        # Check the CCD name
-        chk_dict[1]['HIERARCH.ESO.DET.CHIP1.NAME'] = 'MIT/LL CCID-20'
-        return chk_dict
-
-    def header_keys(self):
-        head_keys = self.xshooter_header_keys()
-        if self.spectrograph == 'vlt_xshooter_uvb':
-            head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI3 NAME'# FOR UVB
-        if self.spectrograph == 'vlt_xshooter_vis':
-            head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI4 NAME'# FOR VIS
-        if self.spectrograph == 'vlt_xshooter_nir':
-            head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'# FOR NIR
-        return head_keys
-
-    def get_match_criteria(self):
-        """Set the general matching criteria for Xshooter vis."""
-        match_criteria = {}
-        for key in fsort.ftype_list:
-            match_criteria[key] = {}
-
-        match_criteria['standard']['match'] = {}
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['trace']['match'] = {}
-        match_criteria['arc']['match'] = {}
-        match_criteria['bias']['match'] = {}
-
-        return match_criteria
-
-    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        ## debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['ThAr']
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 30.       # Minimum amplitude
-        arcparam['wvmnx'] = [5545.,10250]  # Guess at wavelength range
-
-        # None of these parameters are used in current arclines. I'm commenting them out.
-#        arcparam['n_first']=2
-#        arcparam['disp']=0.2 # Ang per pixel (unbinned)
-#        arcparam['b1']= 0.
-#        arcparam['b2']= 0.
-#        arcparam['wv_cen'] = 7900.
-
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
-        """
-        Override parent bpm function with BPM specific to X-Shooter VIS.
-
-        .. todo::
-            Allow for binning changes.
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-            Captured and never used
-
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
-        """
-        self.empty_bpm(shape=shape, filename=filename, det=det)
-        if det == 1:
-            self.bpm_img[1456:, 841:845] = 1.
-
-        return self.bpm_img
-
 
 
 class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
@@ -308,12 +144,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
     def header_keys(self):
         head_keys = self.xshooter_header_keys()
-        if self.spectrograph == 'vlt_xshooter_uvb':
-            head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI3 NAME'# FOR UVB
-        if self.spectrograph == 'vlt_xshooter_vis':
-            head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI4 NAME'# FOR VIS
-        if self.spectrograph == 'vlt_xshooter_nir':
-            head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'# FOR NIR
+        # These are NIR-arm specific keywords
+        head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'# FOR NIR
         return head_keys
 
     def setup_arcparam(self, arcparam, msarc_shape=None, 
@@ -375,6 +207,158 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         """
         self.empty_bpm(shape=shape, filename=filename, det=det)
+        return self.bpm_img
+
+class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
+    """
+    Child to handle VLT/XSHOOTER specific code
+    """
+    def __init__(self):
+        # Get it started
+        super(VLTXShooterVISSpectrograph, self).__init__()
+        self.spectrograph = 'vlt_xshooter_vis'
+        self.camera = 'XShooter_VIS'
+        self.detector = [
+                # Detector 1
+                DetectorPar(dataext         = 0,
+                            dispaxis        = 0,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.16, # average from order 17 and order 30, see manual
+                            darkcurr        = 0.0,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 1,
+                            gain            = 0.595,
+                            ronoise         = 3.1,
+                            datasec         = '[1:2000,10:2058]',
+                            oscansec        = '[1:2000, 2060:2106]',
+                            suffix          = '_VIS'
+                            ),
+            ]
+        self.numhead = 1
+
+    @staticmethod
+    def default_pypeit_par():
+        """
+        Set default parameters for VLT XSHOOTER reductions.
+        """
+        par = pypeitpar.PypeItPar()
+
+        # Use the ARMED pipeline
+        par['rdx']['spectrograph'] = 'vlt_xshooter_vis'
+        par['rdx']['pipeline'] = 'ARMED'
+
+        par['calibrations']['arcframe']['process']['overscan'] = 'median'
+        par['calibrations']['traceframe']['process']['overscan'] = 'median'
+        par['calibrations']['slits']['sigdetect'] = 100.
+        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slits']['number'] = -1
+        par['calibrations']['tilts']['tracethresh'] = [100., 100., 100., 100., 100., 100., 100., 500., 500., 500., 500., 500., 500., 500.]
+
+        par['flexure'] = pypeitpar.FlexurePar()
+
+        # par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+        # Always sky subtract, starting with default parameters
+        # par['skysubtract'] = pypeitpar.SkySubtractionPar()
+        # Always flux calibrate, starting with default parameters
+        # par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+
+        return par
+
+    def check_header(self):
+        """Validate elements of the header."""
+        chk_dict = {}
+        # chk_dict is 1-indexed!
+        chk_dict[1] = {}
+        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
+        chk_dict[1]['NAXIS'] = 2
+        # Check the CCD name
+        chk_dict[1]['HIERARCH.ESO.DET.CHIP1.NAME'] = 'MIT/LL CCID-20'
+        return chk_dict
+
+    def header_keys(self):
+        head_keys = self.xshooter_header_keys()
+        # These are VIS-arm specific keywords
+        head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI4 NAME' # FOR VIS
+        head_keys[0]['binning_x'] = 'HIERARCH ESO DET WIN1 BINX' # Binning along SPATIAL axis
+        head_keys[0]['binning_y'] = 'HIERARCH ESO DET WIN1 BINY' # Binning along SPECTRAL axis
+        return head_keys
+
+    def get_match_criteria(self):
+        """Set the general matching criteria for Xshooter vis."""
+        match_criteria = {}
+        for key in fsort.ftype_list:
+            match_criteria[key] = {}
+        match_criteria['standard']['match'] = {}
+        match_criteria['pixelflat']['match'] = {}
+        match_criteria['trace']['match'] = {}
+        match_criteria['arc']['match'] = {}
+        match_criteria['bias']['match'] = {}
+        return match_criteria
+
+    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
+        """
+        Setup the arc parameters
+
+        Args:
+            arcparam: dict
+            disperser: str, REQUIRED
+            **null_kwargs:
+              Captured and never used
+
+        Returns:
+            arcparam is modified in place
+
+        """
+        ## debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
+
+
+        arcparam['disp'] = 0.1            # Ang/unbinned pixel
+        arcparam['b1'] = 10.              # Pixel fit term (binning independent) pix = b0 + b1*lambda + b2*lambda**2
+        arcparam['b2'] = 0.               # Pixel fit term pix = b0 + b1*lambda + b2*lambda**2
+        arcparam['lamps'] = ['ThAr']      # Line lamps on
+        arcparam['wv_cen'] = 7900.        # Guess at central wavelength
+        arcparam['wvmnx'] = [5545.,10250] # Guess at wavelength range
+        arcparam['disp_toler'] = 0.1      # 10% tolerance
+        arcparam['match_toler'] = 3.      # Matcing tolerance (pixels)
+        arcparam['min_ampl'] = 500.       # Minimum amplitude
+        arcparam['func'] = 'legendre'     # Function for fitting
+        arcparam['n_first'] = 0           # Order of polynomial for first fit
+        arcparam['n_final'] = 1           # Order of polynomial for final fit
+        arcparam['nsig_rej'] = 2.         # Number of sigma for rejection
+        arcparam['nsig_rej_final'] = 3.   # Number of sigma for rejection (final fit)
+        arcparam['Nstrong'] = 20          # Number of lines for auto-analysis
+
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation'] # non linear regime
+
+    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+        """
+        Override parent bpm function with BPM specific to X-Shooter VIS.
+
+        .. todo::
+            Allow for binning changes.
+
+        Parameters
+        ----------
+        det : int, REQUIRED
+        **null_kwargs:
+            Captured and never used
+
+        Returns
+        -------
+        bpix : ndarray
+          0 = ok; 1 = Mask
+
+        """
+        self.empty_bpm(shape=shape, filename=filename, det=det)
+        if det == 1:
+            self.bpm_img[1456:, 841:845] = 1.
+
         return self.bpm_img
 
 class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
@@ -447,12 +431,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
     def header_keys(self):
         head_keys = self.xshooter_header_keys()
-        if self.spectrograph == 'vlt_xshooter_uvb':
-            head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI3 NAME'# FOR UVB
-        if self.spectrograph == 'vlt_xshooter_vis':
-            head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI4 NAME'# FOR VIS
-        if self.spectrograph == 'vlt_xshooter_nir':
-            head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'# FOR NIR
+        # These are UVB-arm specific keywords
+        head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI3 NAME'# FOR UVB
         return head_keys
 
     def get_match_criteria(self):
