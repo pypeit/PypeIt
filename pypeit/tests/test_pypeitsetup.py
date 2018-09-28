@@ -55,12 +55,13 @@ def test_build_fitstbl():
     #
     fitstbl = setupc.build_fitstbl(files)
     assert isinstance(fitstbl, Table)
-    assert setupc.nfiles == 27
+    assert setupc.nfiles == 26
 
     # I/O
     setupc.write_metadata(ofile=data_path('fitstbl.fits'))
     tmp = setupc.load_metadata(data_path('fitstbl.fits'))
-    assert len(tmp) == 27
+    assert len(tmp) == 26
+
 
 @dev_suite_required
 def test_image_type():
@@ -94,11 +95,10 @@ def test_match():
                                      cfg_lines=cfg_lines)
     setupc.build_fitstbl(files)
     setupc.get_frame_types(flag_unknown=True)
-    par = setupc.spectrograph.default_pypeit_par()
     # Match to science
     fitstbl = setupc.match_to_science()
     indx = fitstbl.find_frames('science')
-    assert setupc.fitstbl['sci_ID'][indx].tolist() == [1,2,4]
+    assert setupc.fitstbl['sci_ID'][indx].tolist() == [1,2]
 
 #def test_match_ABBA():
 #    if skip_test:

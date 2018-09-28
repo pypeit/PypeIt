@@ -92,7 +92,8 @@ def load_specobj(fname):
         if hdu.name == 'PRIMARY':
             continue
         # Parse name
-        objp = hdu.name.split('-')
+        idx = hdu.name
+        objp = idx.split('-')
         if objp[-2][0:3] == 'DET':
             det = int(objp[-2][3:])
         else:
@@ -106,16 +107,17 @@ def load_specobj(fname):
         #                           float(objp[0][1:])/1000., 'unknown')
         # New and wrong
         try:
-            specobj = specobjs.SpecObj(shape, [float(objp[1][4:])/10000.]*2,
-                                       int(objp[0][4:]),
-                                       config='dummy_config',
-                                       slitid=1, det=det,
-                                       spat_pixpos=100)  # DUMMY
+            specobj = specobjs.SpecObj(shape, None, None, idx = idx)
         except:
-            msgs.error("BUG ME")
             debugger.set_trace()
+            msgs.error("BUG ME")
+        # TODO -- Figure out if this is a default
         # Add trace
-        specobj.trace = spec['TRACE']
+        try:
+            specobj.trace = spec['TRACE']
+        except:
+            # KLUDGE!
+            specobj.trace = np.arange(len(spec['BOX_WAVE']))
         # Add spectrum
         if 'BOX_COUNTS' in spec.keys():
             for skey in speckeys:

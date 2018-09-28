@@ -280,6 +280,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                 pypeitpar.DetectorPar(
                             dataext         = 1,
                             dispaxis        = 0,
+                            dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -298,6 +299,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                 pypeitpar.DetectorPar(
                             dataext         = 2,
                             dispaxis        = 0,
+                            dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -407,6 +409,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 pypeitpar.DetectorPar(
                             dataext         =1,
                             dispaxis        =0,
+                            dispflip        = False,
                             xgap            =0.,
                             ygap            =0.,
                             ysize           =1.,
@@ -425,6 +428,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 pypeitpar.DetectorPar(
                             dataext         =2,
                             dispaxis        =0,
+                            dispflip        = False,
                             xgap            =0.,
                             ygap            =0.,
                             ysize           =1.,

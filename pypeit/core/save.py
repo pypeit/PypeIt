@@ -375,7 +375,7 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
     prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
     # Add critical data to header
-    for key in ['ra', 'dec', 'exptime', 'date', 'target', 'airmass', 'instrume']:
+    for key in ['ra', 'dec', 'exptime', 'date', 'target', 'airmass', 'instrume','filename']:
         # Allow for fitstbl vs. header
         try:
             prihdu.header[key.upper()] = header[key.upper()]
@@ -416,10 +416,11 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         if sobj.fwhmfit is not None:
             cols += [fits.Column(array=sobj.fwhmfit, name=str('FWHM'), format=sobj.fwhmfit.dtype)]
         if ext == 1:
-            # print(sobj)
-            # print(sobj.trace_spat)
-            if sobj.trace_spat is not None:
-                npix = len(sobj.trace_spat)
+            # TODO -- FIX THIS KLUDGE
+            try:
+                npix = len(sobj['trace'])
+            except:  # THIS IS A DUMB KLUDGE
+                npix = len(sobj['trace_spat'])
         # Boxcar
         for key in sobj.boxcar.keys():
             # Skip some

@@ -53,11 +53,11 @@ def data_path(filename):
 @dev_suite_required
 def test_run():
     # Masters
-    spectrograph, TSlits, tilts, datasec_img \
+    spectrograph, TSlits, tilts_dict, datasec_img \
                 = load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True,
                                          datasec=True)
     # Instantiate
-    flatField = flatfield.FlatField(spectrograph=spectrograph, det=1, tilts=tilts,
+    flatField = flatfield.FlatField(spectrograph=spectrograph, det=1, tilts_dict=tilts_dict,
                                     tslits_dict=TSlits.tslits_dict.copy())
     # Use mstrace
     flatField.rawflatimg = TSlits.mstrace.copy()

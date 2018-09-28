@@ -74,30 +74,84 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                                                      spectro_class.spectrograph,
                                                      wvmnx=arcparam['wvmnx'],
                                                      modify_parse_dict=modify_dict)
+
+    # JFH Do we need this line of code since we no longer use the other methods of arc_lines?
     # Binning
     arcparam['disp'] *= binspectral
 
     # Return
     return arcparam
 
-def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 3, xfrac = 0.5):
+def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5):
+
+    """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> sn_gauss) in which
+    fit a simple Gaussian. Port of IDL LOWREDUX long_gprofile.pro
+
+
+    Parameters
+    ----------
+    slit_left:  float ndarray
+        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
+        or (nspec)
+
+    slit_righ:  float ndarray
+        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
+        or (nspec)
+
+
+    slitpix:  float  ndarray
+        Mask image specifying the pixels which lie on the slit/order to search for objects on. This is created by
+        traceslits in the tslits_dict, and has the convention that each slit/order has an integer index starting with one.
+        Locations with zeros are not on slits/orders.
+
+    arcimg:  float ndarray
+        Image to extract the arc from. This should be an arcimage or perhaps a frame with night sky lines.
+
+    Optional Parameters
+    ----------
+    inmask: boolean ndararay
+         Input mask image with same shape as arcimg. Convention True = good and False = bad. The default is None.
+
+    box_rad: float, [default = 3.0]
+        Size of boxcar window in pixels (as a floating point number) in the spatial direction used to extract the arc.
+
+    xfrac: float [default = 0.5]
+        Fraction location along the slit to extract the arc. The default is at the midpoint of the slit which is 0.5,
+        but this can be adjusted to an off center location.
+
+    Returns
+    -------
+    :func:`tuple`
+         A tuple containing the (arc_spec, maskslit)
+
+            arc_spec: float ndarray with shape (nspec, nslits)
+                Array containing the extracted arc spectrum for each slit.
+
+            maskslit: int ndarray with shape (nslits)
+               output mask indicating whether a slit is good or bad. 0 = good, 1 = bad.
+     """
 
     if inmask is None:
-        inmask = (slitpix > 0)
+        inmask = slitpix > 0
 
     nslits = slit_left.shape[1]
     (nspec, nspat) = arcimg.shape
     maskslit = np.zeros(nslits, dtype=np.int)
     trace = slit_left + xfrac*(slit_righ - slit_left)
     arc_spec = np.zeros((nspec, nslits))
+    spat_img = np.outer(np.ones(nspec,dtype=int), np.arange(nspat,dtype=int)) # spatial position everywhere along image
+
 
     for islit in range(nslits):
         msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit + 1))
         # Create a mask for the pixels that will contribue to the arc
-        spat_img = np.outer(np.ones(nspec), np.arange(nspat))  # spatial position everywhere along image
         trace_img = np.outer(trace[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
         arcmask = (slitpix > 0) & inmask & (spat_img > (trace_img - box_rad)) & (spat_img < (trace_img + box_rad))
-        this_mean, this_med, this_sig = sigma_clipped_stats(arcimg, mask=~arcmask, sigma=3.0, axis=1)
+        # Trimming the image makes this much faster
+        left = np.fmax(spat_img[arcmask].min() - 4,0)
+        righ = np.fmin(spat_img[arcmask].max() + 5,nspat)
+        this_mean, this_med, this_sig = sigma_clipped_stats(arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ])
+                                                            , sigma=3.0, axis=1)
         arc_spec[:,islit] = this_med.data
         if not np.any(arc_spec[:,islit]):
             maskslit[islit] = 1
@@ -106,7 +160,7 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
 
 
 # ToDO this code needs to be replaced. It is not masking outliers, and zeros out orders that leave the detector
-def get_censpec_old(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None, gen_satmask=False):
+def get_censpec_old(lordloc, rordloc, pixlocn, frame, nonlinear_counts=None, gen_satmask=False):
     """ Extract a simple spectrum down the center of each slit
     Parameters
     ----------
@@ -128,8 +182,6 @@ def get_censpec_old(lordloc, rordloc, pixlocn, frame, det, nonlinear_counts=None
       Saturation mask
       None if gen_satmask=False
     """
-    dnum = parse.get_dnum(det)
-
     ordcen = 0.5*(lordloc+rordloc)
     ordwid = 0.5*np.abs(lordloc-rordloc)
     satsnd = None
@@ -383,8 +435,9 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     # plt.grid()
     plt.show()
 
-
-def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, debug=False):
+# ToDO JFH nfitpix should be chosen based on the spectral sampling of the spectroscopic setup
+def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, niter_cont = 3,
+                 debug=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -408,6 +461,9 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
     nonlinear_counts: float, default = 1e10
        Value above which to mask saturated arc lines. This should be nonlinear_counts= nonlinear*saturation according to pypeit parsets.
        Default is 1e10 which is to not mask.
+
+    niter_cont: int, default = 3
+       Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
 
     debug: boolean, default = False
        Make plots showing results of peak finding and final arc lines that are used.
@@ -449,22 +505,43 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
 
     #detns = detns_smth
     # Find all significant detections
-    # TODO -- Need to add nonlinear back in here
-    pixt_old = np.where((detns > 0.0) &  # (detns < slf._nonlinear[det-1]) &
-                    (detns > np.roll(detns, 1)) & (detns >= np.roll(detns, -1)) &
-                    (np.roll(detns, 1) > np.roll(detns, 2)) & (np.roll(detns, -1) > np.roll(detns, -2)) &#)[0]
-                    (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3))&#)[0]
-                    (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)))[0]# & # )[0]
-#                    (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
+    # JFH Old peak finding
+    #pixt_old = np.where((detns > 0.0) &  # (detns < slf._nonlinear[det-1]) &
+    #                (detns > np.roll(detns, 1)) & (detns >= np.roll(detns, -1)) &
+    #                (np.roll(detns, 1) > np.roll(detns, 2)) & (np.roll(detns, -1) > np.roll(detns, -2)) &#)[0]
+    #                (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3))&#)[0]
+    #                (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)))[0]# & # )[0]
+#   #                 (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
 
-    samp_width = np.ceil(detns.size/cont_samp).astype(int)
-    cont  = utils.fast_running_median(detns, samp_width)
-    arc_in = detns - cont
-    (mean, med, stddev) = sigma_clipped_stats(arc_in, sigma_lower=3.0, sigma_upper=3.0)
-    thresh = med + sigdetect*stddev
-    pixt = detect_peaks(arc_in, mph = thresh, mpd = 3.0, show=debug)
+    nspec = detns.size
+    cont_mask = np.ones(detns.size, dtype=bool)
+    spec_vec = np.arange(nspec)
+    cont_now = np.arange(nspec)
+    mask_sm = np.round(FWHM/2.0).astype(int)
+    mask_odd = mask_sm + 1 if mask_sm % 2 == 0 else mask_sm
+    for iter in range(niter_cont):
+        arc_now = detns - cont_now
+        (mean, med, stddev) = sigma_clipped_stats(arc_now[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
+        thresh = med + sigdetect*stddev
+        pixt_now = detect_peaks(arc_now, mph = thresh, mpd = 3.0)
+        # mask out the peaks we find for the next continuum iteration
+        cont_mask_fine = np.ones_like(cont_now)
+        cont_mask_fine[pixt_now] = 0.0
+        cont_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999)
+        # If more than half the spectrum is getting masked than short circuit this masking
+        if np.sum(cont_mask) < nspec//2:
+            msgs.warn('Too many pixels  masked in arc continuum definiton. Not masking....')
+            cont_mask = np.ones_like(cont_mask)
+        ngood = np.sum(cont_mask)
+        samp_width = np.ceil(ngood/cont_samp).astype(int)
+        cont_med = utils.fast_running_median(detns[cont_mask], samp_width)
+        cont_now = np.interp(spec_vec,spec_vec[cont_mask],cont_med)
+
+    # Final peak detection
+    arc = detns - cont_now
+    pixt = detect_peaks(arc, mph=thresh, mpd=3.0) #, show=debug)
     # Gaussian fitting appears to work better on the non-continuum subtracted data
-    tampl, tcent, twid, centerr = fit_arcspec(xrng, detns, pixt, nfitpix)
+    tampl, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
     #tampl, tcent, twid, centerr = fit_arcspec(xrng, arc_in, pixt, nfitpix)
 
     #         sigma finite  & sigma positive &  sigma < FWHM/2.35 & cen positive  &  cen on detector
@@ -473,14 +550,20 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
     ww = np.where(good)
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan
-        tampl_bad = np.interp(pixt[~good], xrng, arc_in)
-        plt.plot(xrng, detns, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc')
+        tampl_bad = np.interp(pixt[~good], xrng, arc)
+        plt.figure(figsize=(14, 6))
+        plt.plot(xrng, arc, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc', linewidth = 1.0)
         plt.plot(tcent[~good], tampl_bad,'r+', markersize =6.0, label = 'bad peaks')
         plt.plot(tcent[good], tampl[good],'g+', markersize =6.0, label = 'good peaks')
+        plt.hlines(thresh, xrng.min(), xrng.max(), color='cornflowerblue', linestyle=':', linewidth=2.0,
+                   label='threshold', zorder=10)
+        if nonlinear_counts < 1e9:
+            plt.hlines(nonlinear_counts,xrng.min(), xrng.max(), color='orange', linestyle='--',linewidth=2.0,
+                       label='nonlinear', zorder=10)
         plt.title('Good Lines = {:d}'.format(np.sum(good)) + ',  Bad Lines = {:d}'.format(np.sum(~good)))
+        plt.ylim(-5.0*thresh, 1.5*arc.max())
         plt.legend()
         plt.show()
-
 
     return tampl, tcent, twid, centerr, ww, detns
 
@@ -490,11 +573,11 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     # Setup the arrays with fit parameters
     sz_p = pixt.size
     sz_a = yarray.size
-    ampl, cent, widt, centerr = -1.0*np.ones(sz_p, dtype=np.float),\
-                                -1.0*np.ones(sz_p, dtype=np.float),\
-                                -1.0*np.ones(sz_p, dtype=np.float), \
-                                -1.0 * np.ones(sz_p, dtype=np.float)
-
+    b      = -1.0*np.ones(sz_p, dtype=np.float)
+    ampl   = -1.0*np.ones(sz_p, dtype=np.float)
+    cent   = -1.0*np.ones(sz_p, dtype=np.float)
+    widt   = -1.0*np.ones(sz_p, dtype=np.float)
+    centerr = -1.0*np.ones(sz_p, dtype=np.float)
 
     for p in range(sz_p):
         pmin = pixt[p]-(fitp-1)//2
@@ -514,6 +597,12 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
             cent[p] = popt[1]
             widt[p] = popt[2]
             centerr[p] = pcov[1, 1]
+            #popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 4, return_errors=True)
+            #b[p]    = popt[0]
+            #ampl[p] = popt[1]
+            #cent[p] = popt[2]
+            #widt[p] = popt[3]
+            #centerr[p] = pcov[2, 2]
         except RuntimeError:
             pass
     return ampl, cent, widt, centerr

@@ -219,16 +219,7 @@ def instr_setup(sci_ID, det, fitstbl, setup_dict=None, must_exist=False, skip_cs
     decker = fitstbl['decker'][idx] if 'decker' in fitstbl.keys() else 'none'
     slitwid = fitstbl['slitwid'][idx] if 'slitwid' in fitstbl.keys() else 'none'
     slitlen = fitstbl['slitlen'][idx] if 'slitlen' in fitstbl.keys() else 'none'
-
-    # TODO: Make binning in fits table consistent between instruments
     binning = fitstbl['binning'][idx] if 'binning' in fitstbl.keys() else 'none'
-    if binning == 'none':
-        try:
-            # Stop-gap solution for difference of header keywords in
-            # XSHOOTER data
-            binning = "{0},{1}".format(fitstbl['binning_x'][idx],fitstbl['binning_y'][idx])
-        except:
-            pass
 
     # Generate the relevant dictionaries
     cdict = dict(disperser={'name':dispname, 'angle':dispangle},

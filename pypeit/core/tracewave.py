@@ -162,7 +162,7 @@ def tilts_image(tilts, lordloc, rordloc, pad, sz_y):
 
 def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, satval,
                idsonly=False, censpec=None, maskval=-999999.9,
-               tracethresh=1000.0, nsmth=0, method="fweight", wv_calib=None):
+               tracethresh=1000.0, nsmth=0, method="fweight", wv_calib=None, nonlinear_counts = 1e10):
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
                tracethresh=1000.0, nsmth=0):
@@ -198,7 +198,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, satval,
     dnum = parse.get_dnum(det)
 
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
-    tampl, tcent, twid, _, w, _ = arc.detect_lines(censpec)
+    tampl, tcent, twid, _, w, _ = arc.detect_lines(censpec, nfitpix=7, nonlinear_counts=nonlinear_counts)
 
     # TODO: Validate satval value?
 #    satval = settings_det['saturation']*settings_det['nonlinear']

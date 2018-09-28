@@ -200,9 +200,9 @@ class WaveCalib(masterframe.MasterFrame):
         self.maskslits
 
         """
-
+        inmask = (self.bpm == 0) if self.bpm is not None else None
         self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,
-                                                      inmask=(self.bpm == 0))
+                                                      inmask=inmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])

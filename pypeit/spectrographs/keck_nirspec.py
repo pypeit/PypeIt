@@ -28,6 +28,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             pypeitpar.DetectorPar(
                             dataext         = 0,
                             dispaxis        = 0,
+                            dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,

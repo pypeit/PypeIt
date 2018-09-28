@@ -26,6 +26,7 @@ from pypeit.core import load
 from pypeit import utils
 from pypeit import metadata
 from pypeit import telescopes
+from pypeit.spectrographs import util as sutil
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
@@ -34,15 +35,18 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-def test_bspline_fit():
-    # Testing the bspline works ok (really testing bkspace)
-    fit_dict = linetools.utils.loadjson(data_path('flux_data.json'))
-    wave = np.array(fit_dict['wave'])
-    magfunc = np.array(fit_dict['magf'])
-    logivar = np.array(fit_dict['logiv'])
-    bspline_par = dict(bkspace=fit_dict['bkspec'])
-    mask, tck = utils.robust_polyfit(wave, magfunc, 3, function='bspline',
-                                       weights=np.sqrt(logivar), bspline_par=bspline_par)
+kastb = sutil.load_spectrograph('shane_kast_blue')
+
+# JFH This test is defunct
+#def test_bspline_fit():
+#    # Testing the bspline works ok (really testing bkspace)
+#    fit_dict = linetools.utils.loadjson(data_path('flux_data.json'))
+#    wave = np.array(fit_dict['wave'])
+#    magfunc = np.array(fit_dict['magf'])
+#    logivar = np.array(fit_dict['logiv'])
+#    bspline_par = dict(bkspace=fit_dict['bkspec'])
+#    mask, tck = utils.robust_polyfit(wave, magfunc, 3, function='bspline',
+#                                       weights=np.sqrt(logivar), bspline_par=bspline_par)
 
 
 def test_gen_sensfunc():
@@ -56,15 +60,15 @@ def test_gen_sensfunc():
     DEC = '52:52:01.0'
 
     # Get the sensitivity function
-    extinction_data = flux.load_extinction_data(telescope['longitude'], telescope['latitude'])
-    extinction_corr = flux.extinction_correction(specobjs[0][0].boxcar['WAVE'],
-                                                 fitstbl['airmass'][4], extinction_data)
-    sensfunc = flux.generate_sensfunc(specobjs[0][0], RA, DEC, fitstbl['exptime'][4],
-                                      extinction_corr)
+    sens_dict = flux.generate_sensfunc(specobjs[0][0].boxcar['WAVE'],
+                                      specobjs[0][0].boxcar['COUNTS'],
+                                      specobjs[0][0].boxcar['COUNTS_IVAR'],
+                                      fitstbl['airmass'][4], fitstbl['exptime'][4], kastb,
+                                      ra=RA, dec=DEC)
 
     # Test
-    assert isinstance(sensfunc, dict)
-    assert isinstance(sensfunc['wave_min'], units.Quantity)
+    assert isinstance(sens_dict, dict)
+    assert isinstance(sens_dict['wave_min'], units.Quantity)
 
 
 def test_find_standard():
@@ -75,7 +79,7 @@ def test_find_standard():
     std_dict = flux.find_standard_file(std_ra, std_dec)
     # Test
     assert std_dict['name'] == 'G191B2B'
-    assert std_dict['file'] == '/data/standards/calspec/g191b2b_mod_005.fits'
+    assert std_dict['calibfile'] == '/data/standards/calspec/g191b2b_mod_005.fits'
     assert std_dict['fmt'] == 1
     # Fail to find
     # near G191b2b

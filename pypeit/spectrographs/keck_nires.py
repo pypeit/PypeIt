@@ -26,8 +26,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            dispaxis        = -1,
+                            dispaxis        = 1,
+                            dispflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -152,6 +152,10 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         match_criteria = {}
         for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
+
+        # Bias
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['binning'] = ''
 
         match_criteria['standard']['match'] = {}
         match_criteria['pixelflat']['match'] = {}

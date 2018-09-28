@@ -71,14 +71,6 @@ def test_instantiate(fitstbl):
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
     print(caliBrate)
 
-#@dev_suite_required
-#def test_datasec(multi_caliBrate):
-#    multi_caliBrate.par['trim'] = False
-#    datasec_img = multi_caliBrate.get_datasec_img()
-#    naxis0, naxis1 = datasec_img.shape
-#    # Test
-#    assert naxis0 == 2112
-#    assert naxis1 == 350
 
 def test_pixlocn(multi_caliBrate):
     multi_caliBrate.shape = (2048,350)
@@ -111,7 +103,6 @@ def test_slits(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     multi_caliBrate.get_pixlocn()
-#    multi_caliBrate.get_datasec_img()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     # Run
@@ -126,7 +117,6 @@ def test_wv_calib(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     multi_caliBrate.get_pixlocn()
-#    multi_caliBrate.get_datasec_img()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     multi_caliBrate.get_slits()
@@ -142,7 +132,6 @@ def test_tilts(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     multi_caliBrate.get_pixlocn()
-#    multi_caliBrate.get_datasec_img()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     multi_caliBrate.get_slits()
@@ -150,8 +139,7 @@ def test_tilts(multi_caliBrate):
     multi_caliBrate.get_wv_calib()
     # Run
     tilts_dict, maskslits = multi_caliBrate.get_tilts()
-    # TODO: Include a test of tilts_dict!
-#    assert mstilts.shape == (2048,350)
+    assert tilts_dict['tilts'].shape == (2048,350)
     assert isinstance(maskslits, np.ndarray)
 
 
@@ -160,7 +148,6 @@ def test_flat(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     multi_caliBrate.get_pixlocn()
-#    multi_caliBrate.get_datasec_img()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     multi_caliBrate.get_slits()
@@ -178,7 +165,6 @@ def test_waveimg(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     multi_caliBrate.get_pixlocn()
-#    multi_caliBrate.get_datasec_img()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     multi_caliBrate.get_slits()

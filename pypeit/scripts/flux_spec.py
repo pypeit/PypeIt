@@ -24,7 +24,7 @@ def parser(options=None):
     parser.add_argument("--std_obj", type=str, help="Standard star identifier, e.g. O479-S5009-D01-I0023")
     parser.add_argument("--sci_file", type=str, help="File containing the science 1d spectra")
     parser.add_argument("--instr", type=str, help="Instrument name (required to generate sensfunc)")
-    parser.add_argument("--sensfunc_file", type=str, help="File containing the sensitivity function (input or output)")
+    parser.add_argument("--sensfunc_file", type=str, help="YAML file containing the sensitivity function (input or output)")
     parser.add_argument("--flux_file", type=str, help="Output filename for fluxed science spectra")
     parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
     parser.add_argument("--multi_det", type=str, help="Multiple detectors (e.g. 3,7 for DEIMOS)")

@@ -138,8 +138,8 @@ class Spectrograph(object):
         # Transpose?
         if self.detector[_det-1]['dispaxis'] == 1:
             img = img.T
-        elif self.detector[_det - 1]['dispaxis'] == -1:
-            img = np.flip(img.T, axis=0)
+        if self.detector[_det-1]['dispflip'] is True:
+            img = np.flip(img, axis=0)
 
         # Return
         return img, head0

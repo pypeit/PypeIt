@@ -979,7 +979,7 @@ class ReducePar(ParSet):
         # to be redefined here.   To fix this, spectrograph specific
         # parameter sets (like DetectorPar) and where they go needs to
         # be rethought.
-        return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
+        return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
                 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 
                 'vlt_xshooter_nir']
@@ -2270,7 +2270,7 @@ class DetectorPar(ParSet):
     class, and an explanation of how to define a new instrument, see
     :ref:`instruments`.
     """
-    def __init__(self, dataext=None, dispaxis=None, xgap=None, ygap=None, ysize=None,
+    def __init__(self, dataext=None, dispaxis=None, dispflip=None, xgap=None, ygap=None, ysize=None,
                  platescale=None, darkcurr=None, saturation=None, mincounts = None, nonlinear=None,
                  numamplifiers=None, gain=None, ronoise=None, datasec=None, oscansec=None,
                  suffix=None):
@@ -2295,10 +2295,16 @@ class DetectorPar(ParSet):
 
         # TODO: Should this be detector-specific, or camera-specific?
         defaults['dispaxis'] = 0
-        options['dispaxis'] = [ 0, 1, -1]
+        options['dispaxis'] = [ 0, 1]
         dtypes['dispaxis'] = int
-        descr['dispaxis'] = 'Spectra are dispersed along this axis (0 for row, 1 for column,' \
-                            'negative sign means there will be a flip because wavelengths will always be increasing upward)'
+        descr['dispaxis'] = 'Spectra are dispersed along this axis. Allowed values are 0 ' \
+                            '(first dimension for a numpy array shape) or 1 (second dimension for numpy array shape)'
+
+
+        defaults['dispflip'] = False
+        dtypes['dispflip'] = bool
+        descr['dispflip'] = 'If this is True then the dispersion dimension (specificed by the dispaxis) will be ' \
+                            'flipped so that wavelengths are always an increasing function of array index'
 
         defaults['xgap'] = 0.0
         dtypes['xgap'] = [int, float]
@@ -2387,7 +2393,7 @@ class DetectorPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'dataext', 'dispaxis', 'xgap', 'ygap', 'ysize', 'platescale', 'darkcurr',
+        parkeys = [ 'dataext', 'dispaxis', 'dispflip', 'xgap', 'ygap', 'ysize', 'platescale', 'darkcurr',
                     'saturation', 'mincounts','nonlinear', 'numamplifiers', 'gain', 'ronoise', 'datasec',
                     'oscansec', 'suffix' ]
         kwargs = {}
@@ -2494,7 +2500,7 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT' ]
+        return [ 'GEMININ','KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT' ]
 
     def validate(self):
         pass

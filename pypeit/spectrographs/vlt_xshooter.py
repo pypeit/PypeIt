@@ -150,6 +150,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                 pypeitpar.DetectorPar(
                             dataext         = 0,
                             dispaxis        = 0,
+                            dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -241,11 +242,13 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
         arcparam['min_ampl'] = 30.       # Minimum amplitude
         arcparam['wvmnx'] = [5545.,10250]  # Guess at wavelength range
-        arcparam['n_first']=2 
-        arcparam['disp']=0.2 # Ang per pixel (unbinned)
-        arcparam['b1']= 0.
-        arcparam['b2']= 0.
-        arcparam['wv_cen'] = 7900.
+
+        # None of these parameters are used in current arclines. I'm commenting them out.
+#        arcparam['n_first']=2
+#        arcparam['disp']=0.2 # Ang per pixel (unbinned)
+#        arcparam['b1']= 0.
+#        arcparam['b2']= 0.
+#        arcparam['wv_cen'] = 7900.
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
@@ -288,6 +291,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 pypeitpar.DetectorPar(
                             dataext         = 0,
                             dispaxis        = 1,
+                            dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -423,6 +427,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                 pypeitpar.DetectorPar(
                             dataext         = 0,
                             dispaxis        = 0,
+                            dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
