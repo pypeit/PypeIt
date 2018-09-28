@@ -331,6 +331,9 @@ class FluxSpec(masterframe.MasterFrame):
         # Return
         return self.std
 
+    # JFH This should not be called master if it is applying the flux calibration. All the other master methods simply
+    # return the master file whereas this is doing something very different. The control flow of the actual things this
+    # class does should be somewhere else.
     def master(self, row_fitstbl, clobber=False, save=True):
         """
         Load or generate+save the MasterFrame sensitivity function
@@ -407,9 +410,7 @@ class FluxSpec(masterframe.MasterFrame):
         # msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
 
         # jsonify
-
         self.sensfunc['mag_set'] = self.sensfunc['mag_set'].to_dict()
-
         jsensfunc = self.sensfunc.copy()
         jsensfunc['bspline'] = jsensfunc['bspline'].to_dict()
         jsensfunc = linetools.utils.jsonify(jsensfunc)
