@@ -434,7 +434,8 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     plt.show()
 
 # ToDO JFH nfitpix should be chosen based on the spectral sampling of the spectroscopic setup
-def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, debug=False):
+def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, niter_cont = 3,
+                 debug=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -458,6 +459,9 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
     nonlinear_counts: float, default = 1e10
        Value above which to mask saturated arc lines. This should be nonlinear_counts= nonlinear*saturation according to pypeit parsets.
        Default is 1e10 which is to not mask.
+
+    niter_cont: int, default = 3
+       Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
 
     debug: boolean, default = False
        Make plots showing results of peak finding and final arc lines that are used.
@@ -507,14 +511,13 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
     #                (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)))[0]# & # )[0]
 #   #                 (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
 
-    niter = 3
     nspec = detns.size
     cont_mask = np.ones(detns.size, dtype=bool)
     spec_vec = np.arange(nspec)
     cont_now = np.arange(nspec)
     mask_sm = np.round(FWHM/2.0).astype(int)
     mask_odd = mask_sm + 1 if mask_sm % 2 == 0 else mask_sm
-    for iter in range(niter):
+    for iter in range(niter_cont):
         arc_now = detns - cont_now
         (mean, med, stddev) = sigma_clipped_stats(arc_now[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
         thresh = med + sigdetect*stddev
