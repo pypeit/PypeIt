@@ -1,4 +1,5 @@
 
+from pypeit.spectrographs import gemini_gnirs
 from pypeit.spectrographs import keck_deimos
 from pypeit.spectrographs import keck_lris
 from pypeit.spectrographs import keck_nires

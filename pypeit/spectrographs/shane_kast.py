@@ -212,6 +212,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(dataext         = 0,
                                      dispaxis        = 1,
+                                     dispflip       = False,
                                      xgap            = 0.,
                                      ygap            = 0.,
                                      ysize           = 1.,
@@ -305,6 +306,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(dataext         = 0,
                                      dispaxis        = 0,
+                                     dispflip=False,
                                      xgap            = 0.,
                                      ygap            = 0.,
                                      ysize           = 1.,
@@ -405,6 +407,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(dataext         = 0,
                                      dispaxis        = 1,
+                                     dispflip=False,
                                      xgap            = 0.,
                                      ygap            = 0.,
                                      ysize           = 1.,
