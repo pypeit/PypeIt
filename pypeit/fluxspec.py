@@ -9,6 +9,7 @@ import json
 #from importlib import reload
 
 from astropy import units
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit.core import flux
@@ -97,6 +98,19 @@ class FluxSpec(masterframe.MasterFrame):
                                 len(self.std_specobjs), self.std_spec1d_file))
             std_spectro = self.std_header['INSTRUME']
 
+        try:
+            self.std_ra = self.std_header['RA']
+        except:
+            self.std_ra = None
+        try:
+            self.std_dec = self.std_header['DEC']
+        except:
+            self.std_dec = None
+        try:
+            self.std_file = self.std_header['FILENAME']
+        except:
+            self.std_file = None
+
         # Load the science files
         sci_spectro = None
         self.sci_spec1d_file = sci_spec1d_file
@@ -157,8 +171,7 @@ class FluxSpec(masterframe.MasterFrame):
         self.telluric = telluric
 
         # Main outputs
-        self.sensfunc = None if self.sens_file is None \
-                            else masters._load(self.sens_file, frametype=self.frametype)[0]
+        self.sens_dict = None if self.sens_file is None else masters._load(self.sens_file, frametype=self.frametype)[0]
 
         # Attributes
         self.steps = []
@@ -243,23 +256,20 @@ class FluxSpec(masterframe.MasterFrame):
         #                                              self.std_header['AIRMASS'],
         #                                              self.extinction_data)
 
-
-        self.sensfunc = flux.generate_sensfunc(self.std.boxcar['WAVE'],
+        self.sens_dict = flux.generate_sensfunc(self.std.boxcar['WAVE'],
                                                self.std.boxcar['COUNTS'],
                                                self.std.boxcar['COUNTS_IVAR'],
                                                self.std_header['AIRMASS'],
                                                self.std_header['EXPTIME'],
                                                self.spectrograph,
                                                telluric=self.telluric,
-                                               RA=self.std_header['RA'],
-                                               DEC=self.std_header['DEC'])
-
-#                                              extinction_corr)
-
+                                               ra=self.std_ra,
+                                               dec=self.std_dec,
+                                               std_file = self.std_file)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
-        return self.sensfunc
+        return self.sens_dict
 
     def flux_specobjs(self, specobjs, airmass, exptime):
         """
@@ -282,7 +292,7 @@ class FluxSpec(masterframe.MasterFrame):
         for sci_obj in utils.unravel_specobjs(specobjs):
             if sci_obj is not None:
                 # Do it
-                flux.apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime,
+                flux.apply_sensfunc(sci_obj, self.sens_dict, airmass, exptime,
                                     self.spectrograph)
 
     def flux_science(self):
@@ -296,7 +306,7 @@ class FluxSpec(masterframe.MasterFrame):
 
         """
         for sci_obj in self.sci_specobjs:
-            flux.apply_sensfunc(sci_obj, self.sensfunc, self.sci_header['AIRMASS'],
+            flux.apply_sensfunc(sci_obj, self.sens_dict, self.sci_header['AIRMASS'],
                                   self.sci_header['EXPTIME'], self.spectrograph)
         self.steps.append(inspect.stack()[0][3])
 
@@ -331,6 +341,9 @@ class FluxSpec(masterframe.MasterFrame):
         # Return
         return self.std
 
+    # JFH This should not be called master if it is applying the flux calibration. All the other master methods simply
+    # return the master file whereas this is doing something very different. The control flow of the actual things this
+    # class does should be somewhere else.
     def master(self, row_fitstbl, clobber=False, save=True):
         """
         Load or generate+save the MasterFrame sensitivity function
@@ -350,9 +363,9 @@ class FluxSpec(masterframe.MasterFrame):
         self.sensfunc
 
         """
-        self.sensfunc, _, _ = self.load_master_frame()
+        self.sens_dict, _, _ = self.load_master_frame()
         # Sensitivity Function
-        if (self.sensfunc is None) or clobber:
+        if (self.sens_dict is None) or clobber:
             if self.std_specobjs is None:
                 msgs.warn("You need to load in the Standard spectra first!")
                 return None
@@ -363,7 +376,7 @@ class FluxSpec(masterframe.MasterFrame):
             # Kludge a header
             if self.std_header is None:
                 self.std_header={}
-                for key in ['ra','dec','airmass','exptime']:
+                for key in ['ra','dec','airmass','exptime','filename']:
                     self.std_header[key.upper()] = row_fitstbl[key]
 
             # Sensitivity
@@ -377,9 +390,55 @@ class FluxSpec(masterframe.MasterFrame):
         if len(self.sci_specobjs) > 0:
             self.flux_science()
         # Return
-        return self.sensfunc
+        return self.sens_dict
+
 
     def save_master(self, outfile=None):
+        """
+        Over-load the save_master() method in MasterFrame to write a JSON file
+
+        Parameters
+        ----------
+        outfile : str, optional
+          Use this input instead of the 'proper' (or unattainable) MasterFrame name
+
+        Returns
+        -------
+
+        """
+
+
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Allow one to over-ride output name
+        if outfile is None:
+            outfile = self.ms_name
+        # Add steps
+        self.sens_dict['steps'] = self.steps
+        prihdu = fits.PrimaryHDU()
+        hdus = [prihdu]
+        # Add critical keys from sens_dict to header
+        for key in ['wave_min', 'wave_max','exptime','airmass','std_file','std_ra','std_dec','std_name','calibfile']:
+            try:
+                prihdu.header[key.upper()] = self.sens_dict[key].value
+            except:
+                prihdu.header[key.upper()] = self.sens_dict[key]
+
+        cols = []
+        cols += [fits.Column(array=self.sens_dict['wave'], name=str('WAVE'), format=self.sens_dict['wave'].dtype)]
+        cols += [fits.Column(array=self.sens_dict['sensfunc'], name=str('SENSFUNC'), format=self.sens_dict['sensfunc'].dtype)]
+        # Finish
+        coldefs = fits.ColDefs(cols)
+        tbhdu = fits.BinTableHDU.from_columns(coldefs)
+        tbhdu.name = 'SENSFUNC'
+        hdus += [tbhdu]
+        # Finish
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto(outfile, overwrite=True)
+        msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
+
+
+    def save_master_old(self, outfile=None):
         """
         Over-load the save_master() method in MasterFrame to write a JSON file
 
@@ -398,7 +457,7 @@ class FluxSpec(masterframe.MasterFrame):
         if outfile is None:
             outfile = self.ms_name
         # Add steps
-        self.sensfunc['steps'] = self.steps
+        self.sens_dict['steps'] = self.steps
         # # yamlify
         # ysens = utils.yamlify(self.sensfunc)
         # with open(outfile, 'w') as yamlf:
@@ -407,16 +466,14 @@ class FluxSpec(masterframe.MasterFrame):
         # msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
 
         # jsonify
-
         self.sensfunc['mag_set'] = self.sensfunc['mag_set'].to_dict()
-
         jsensfunc = self.sensfunc.copy()
         jsensfunc['bspline'] = jsensfunc['bspline'].to_dict()
         jsensfunc = linetools.utils.jsonify(jsensfunc)
         with open(outfile, 'w') as jsonf:
             linetools.utils.savejson(outfile, jsensfunc, overwrite=True, indent=4, easy_to_read=True)
 
-        msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))            
+        msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
 
     def show_sensfunc(self):
         """

@@ -82,6 +82,7 @@ class WaveTilts(masterframe.MasterFrame):
         else:
             raise TypeError('Must provide a name or instance for the Spectrograph.')
 
+
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
                                          master_dir=master_dir, mode=mode)
@@ -214,8 +215,9 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Extract an arc down each slit/order
+        inmask = (self.bpm == 0) if self.bpm is not None else None
         self.arccen, self.arc_maskslit = arc.get_censpec(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
-                                                     self.tslits_dict['slitpix'], self.msarc, inmask = (self.bpm == 0))
+                                                     self.tslits_dict['slitpix'], self.msarc, inmask = inmask)
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.arccen, self.arc_maskslit
@@ -276,10 +278,11 @@ class WaveTilts(masterframe.MasterFrame):
                                 * self.spectrograph.detector[self.det-1]['nonlinear']
 
         trcdict = tracewave.trace_tilt(self.tslits_dict['pixcen'], self.tslits_dict['lcen'],
-                                         self.tslits_dict['rcen'], self.det, self.msarc, slit,
-                                         nonlinear_counts, idsonly=self.par['idsonly'],
-                                         censpec=self.arccen[:, slit], nsmth=3,
-                                         tracethresh=tracethresh, wv_calib=wv_calib)
+                                       self.tslits_dict['rcen'], self.det, self.msarc, slit,
+                                       nonlinear_counts, idsonly=self.par['idsonly'],
+                                       censpec=self.arccen[:, slit], nsmth=3,
+                                       tracethresh=tracethresh, wv_calib=wv_calib,
+                                       nonlinear_counts = nonlinear_counts)
         # Load up
         self.all_trcdict[slit] = trcdict.copy()
         # Step

@@ -244,16 +244,16 @@ class PypeIt(object):
                 FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs.specobjs, spectrograph=self.spectrograph,
                                            setup=self.setup, master_dir=self.caliBrate.master_dir,
                                            mode=self.par['calibrations']['masters'])
-                sensfunc = FxSpec.master(self.fitstbl[std_idx])
+                sens_dict = FxSpec.master(self.fitstbl[std_idx])
             else:
                 # User provided it
                 FxSpec = fluxspec.FluxSpec(sens_file=self.par['fluxcalib']['sensfunc'],
                                            spectrograph=self.spectrograph, master_dir=self.caliBrate.master_dir,
                                            mode=self.par['calibrations']['masters'])
-                sensfunc = FxSpec.sensfunc
+                sens_dict = FxSpec.sens_dict
 
             # Apply the flux calibration
-            msgs.info("Fluxing with {:s}".format(sensfunc['std']['name']))
+            msgs.info("Fluxing with {:s}".format(sens_dict['std_name']))
             save_format = 'fits'
             for kk, sci_ID in enumerate(all_sci_ID):
                 # Load from disk (we zero'd out the object to free memory)
