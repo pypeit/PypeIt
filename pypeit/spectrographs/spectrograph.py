@@ -141,10 +141,7 @@ class Spectrograph(object):
         # Transpose?
         if self.detector[_det-1]['dispaxis'] == 1:
             img = img.T
-        elif self.detector[_det - 1]['dispaxis'] == -1:
-            img = np.flip(img.T, axis=0)
-        elif self.detector[_det - 1]['dispaxis'] == 2:
-            #flip to ensure wavelengths will always be increasing upward
+        if self.detector[_det-1]['dispflip'] is True:
             img = np.flip(img, axis=0)
 
         # Return

@@ -27,7 +27,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext         = 1,
-                            dispaxis        = 2,
+                            dispaxis        = 1,
+                            dispflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,

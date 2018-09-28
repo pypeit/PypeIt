@@ -28,7 +28,8 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         self.detector = [
                 # Detector 1
                 DetectorPar(dataext         = 0,
-                            dispaxis        = -1,
+                            dispaxis        = 1,
+                            dispflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
