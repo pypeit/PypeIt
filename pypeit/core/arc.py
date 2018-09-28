@@ -80,23 +80,54 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
     # Return
     return arcparam
 
-def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 3, xfrac = 0.5):
-    """
-    Entirely undocumented code, by unknown person
-    Not JXP
+def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5):
 
-    Args:
-        slit_left:
-        slit_righ:
-        slitpix:
-        arcimg:
-        inmask:
-        box_rad:
-        xfrac:
+    """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> sn_gauss) in which
+    fit a simple Gaussian. Port of IDL LOWREDUX long_gprofile.pro
 
-    Returns:
 
-    """
+    Parameters
+    ----------
+    slit_left:  float ndarray
+        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
+        or (nspec)
+
+    slit_righ:  float ndarray
+        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
+        or (nspec)
+
+
+    slitpix:  float  ndarray
+        Mask image specifying the pixels which lie on the slit/order to search for objects on. This is created by
+        traceslits in the tslits_dict, and has the convention that each slit/order has an integer index starting with one.
+        Locations with zeros are not on slits/orders.
+
+    arcimg:  float ndarray
+        Image to extract the arc from. This should be an arcimage or perhaps a frame with night sky lines.
+
+    Optional Parameters
+    ----------
+    inmask: boolean ndararay
+         Input mask image with same shape as arcimg. Convention True = good and False = bad. The default is None.
+
+    box_rad: float, [default = 3.0]
+        Size of boxcar window in pixels (as a floating point number) in the spatial direction used to extract the arc.
+
+    xfrac: float [default = 0.5]
+        Fraction location along the slit to extract the arc. The default is at the midpoint of the slit which is 0.5,
+        but this can be adjusted to an off center location.
+
+    Returns
+    -------
+    :func:`tuple`
+         A tuple containing the (arc_spec, maskslit)
+
+            arc_spec: float ndarray with shape (nspec, nslits)
+                Array containing the extracted arc spectrum for each slit.
+
+            maskslit: int ndarray with shape (nslits)
+               output mask indicating whether a slit is good or bad. 0 = good, 1 = bad.
+     """
 
     if inmask is None:
         inmask = slitpix > 0
