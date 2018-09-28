@@ -506,8 +506,7 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
     # Create sensitivity function
     newlogfit, _ = bset_log1.value(wave_obs)
     sensfit = np.power(10.0, 0.4 * np.maximum(np.minimum(newlogfit, MAGFUNC_MAX), MAGFUNC_MIN))
-
-        sensfit[~magfunc_mask] = 0.0
+    sensfit[~magfunc_mask] = 0.0
 
     if debug:
 
