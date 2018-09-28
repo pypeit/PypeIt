@@ -411,10 +411,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
 
-        print(par['calibrations']['slits'])
-        from IPython import embed
-        embed()
-
         #par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
         # par['skysubtract'] = pypeitpar.SkySubtractionPar()
@@ -474,7 +470,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
             arcparam is modified in place
 
         """
-        debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
+        ## debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
         arcparam['lamps'] = ['ThAr']
         arcparam['n_first']=2 
         arcparam['disp']=0.2 # Ang per pixel (unbinned)
