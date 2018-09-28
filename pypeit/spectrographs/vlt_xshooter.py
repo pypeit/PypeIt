@@ -97,24 +97,20 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # Use the ARMED pipeline
         par['rdx']['pipeline'] = 'ARMED'
         # Set wave tilts order
-        par['calibrations']['slits']['sigdetect'] = 500.
+        par['calibrations']['slits']['sigdetect'] = 700.
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['tilts']['tracethresh'] = [50,50,50,50,50,50,50,50,50, 50, 50, 60, 60, 2000,2000,6000]
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
-
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
-
-
         #par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
         # par['skysubtract'] = pypeitpar.SkySubtractionPar()
         # Always flux calibrate, starting with default parameters
         #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-
         return par
 
     def get_match_criteria(self):
@@ -122,13 +118,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         match_criteria = {}
         for key in fsort.ftype_list:
             match_criteria[key] = {}
-
         match_criteria['standard']['match'] = {}
         match_criteria['pixelflat']['match'] = {}
         match_criteria['trace']['match'] = {}
         match_criteria['arc']['match'] = {}
         match_criteria['bias']['match'] = {}
-
         return match_criteria
 
     def check_header(self):
@@ -206,6 +200,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
           0 = ok; 1 = Mask
 
         """
+        
         self.empty_bpm(shape=shape, filename=filename, det=det)
         return self.bpm_img
 
