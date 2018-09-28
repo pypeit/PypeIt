@@ -494,6 +494,9 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
     else:
         bset_log1 = bset1.copy()
 
+    # ToDo JFH I think we should move towards writing this out as a vector in a fits table
+    # rather than the b-spline.
+
     # Create sensitivity function
     newlogfit, _ = bset_log1.value(wave_obs)
     sensfit = np.power(10.0, 0.4 * np.maximum(np.minimum(newlogfit, MAGFUNC_MAX), MAGFUNC_MIN))
