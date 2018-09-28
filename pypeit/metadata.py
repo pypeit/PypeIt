@@ -411,7 +411,7 @@ class PypeItMetaData:
             if len(user.keys()) != len(self):
                 raise ValueError('The user-provided dictionary does not match table length.')
             msgs.info('Using user-provided frame types.')
-            for ifile,ftypes in ftdict.items():
+            for ifile,ftypes in user.items():
                 indx = self['filename'] == ifile
                 type_bits[indx] = self.bitmask.turn_on(type_bits[indx], flag=ftypes.split(','))
             return self.set_frame_types(type_bits, merge=merge)

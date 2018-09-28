@@ -78,10 +78,7 @@ class PypeIt(object):
         # Init
         self.verbosity = verbosity
         self.overwrite = overwrite
-        if setups_path is None:
-            self.setups_path = os.getcwd()
-        else:
-            self.setups_path = setups_path
+        self.setups_path = os.getcwd() if setups_path is None else setups_path
 
         # Internals
         self.pypeit_file = None
@@ -464,10 +461,11 @@ class PypeIt(object):
         # Generate a dummy .pypeit file
         date = str(datetime.date.today().strftime('%Y-%b-%d'))
         root = self.spectrograph.spectrograph+'_'+date
-        pypeit_file = outdir+'/'+root+'.pypeit'
+        pypeit_file = os.path.join(outdir, root+'.pypeit')
 
         # Generate
-        dfname = "{:s}*{:s}*".format(files_root, extension)
+        dfname = '{:s}/*{:s}*'.format(files_root, extension) \
+                    if os.path.isdir(files_root) else '{:s}*{:s}*'.format(files_root, extension)
         # configuration lines
         cfg_lines = ['[rdx]']
         cfg_lines += ['    spectrograph = {0}'.format(self.spectrograph.spectrograph)]
@@ -601,9 +599,9 @@ class MultiSlit(PypeIt):
 
         """
         # Setup
-        self.setup = pypsetup.instr_setup(sci_ID, det, self.fitstbl, self.setup_dict,
-                                          self.spectrograph.detector[det-1]['numamplifiers'],
-                                          must_exist=True)
+        self.setup, self.setup_dict = pypsetup.instr_setup(sci_ID, det, self.fitstbl,
+                                                           setup_dict=self.setup_dict,
+                                                           must_exist=True)
         # Setup
         self.caliBrate.reset(self.setup, det, sci_ID, self.par['calibrations'])
         # Run em
@@ -647,7 +645,7 @@ class MultiSlit(PypeIt):
 
         # TODO: Turn the following stream into a recipe like in
         # Calibrations.  Check the Calibs were done already.
-        scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
+        scidx = self.fitstbl.find_frames('science', sci_ID=self.sci_ID, index=True)[0]
 
         # Process images (includes inverse variance image, rn2 image,
         # and CR mask)

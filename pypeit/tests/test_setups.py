@@ -135,6 +135,9 @@ def test_setup_shane_kast_red():
     pargs = setup.parser([droot, 'shane_kast_red'])
     setup.main(pargs)
 
+    import pdb
+    pdb.set_trace()
+
     cwd = os.getcwd()
     setup_dir = os.path.join(cwd, 'setup_files')
     assert os.path.isdir(setup_dir), 'No setup_files directory created'
@@ -302,4 +305,7 @@ def test_setup_vlt_xshooter_nir():
 #
 #    # Clean-up
 #    shutil.rmtree(setup_dir)
+
+if __name__=='__main__':
+    test_setup_shane_kast_red()
 

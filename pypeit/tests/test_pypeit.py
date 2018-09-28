@@ -25,7 +25,7 @@ def test_initialization():
     make_pypeit_file(pypit_file, 'shane_kast_blue', [data_path('b*fits.gz')], setup_mode=True)
     # Perform the setup
     setup = pypeitsetup.PypeItSetup.from_pypeit_file(pypit_file)
-    par, spectrograph, fitstbl, setup_dict = setup.run(sort_dir=data_path('test'))
+    par, spectrograph, fitstbl, setup_dict = setup.run(sort_dir=data_path(''))
     # Test
     assert spectrograph.spectrograph == 'shane_kast_blue'
     assert len(fitstbl) == 2

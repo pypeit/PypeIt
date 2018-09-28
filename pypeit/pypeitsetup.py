@@ -1,6 +1,7 @@
 #  Class for organizing PYPIT setup
 from __future__ import absolute_import, division, print_function
 
+import os
 import inspect
 import numpy as np
 
@@ -351,46 +352,34 @@ class PypeItSetup(object):
         msgs.info("Loaded fitstbl from {:s}".format(fits_file))
         return self.fitstbl.table
 
-    def write_metadata(self, setup_only=False, sort_dir=None, ofile=None):
+    def write_metadata(self, sort_dir=None, ofile=None):
         """
-        Write :attr:`fitstbl` to a file.
+        Write the :class:`astropy.table.Table` object in :attr:`fitstbl`
+        to a file.
 
-        The default file is determined as follows:
-            - if both :attr:`pypeit_file` and `sort_dir` are None, the
-              output file is the name of the spectrograph with a '.lst'
-              extension.
-            - if `setup_only` is true and the pypeit file is valid, the
-              output file is the pypeit file name with the ".pypeit"
-              extension replaced by ".lst".
-            - if `setup_only` is false and `sort_dir` is not None, the
-              output file is simply `sort_dir` with '.lst' appended.
-            - if none of these conditions are met a ValueError is
-              raised.
+        If an output file is provided, the file is used.  If that file
+        name inclues '.fits', the output will be a fits file; otherwise
+        the format is ascii.fixed_width.
 
-        .. todo::
-            - Is the use of sort_dir right here?
+        If no output file, the default is an ascii table with an '.lst'
+        extension.  The root name of the file is either the spectrograph
+        name or the root name of the pypeit file, if the latter exists.
+
+        If a `sort_dir` is provided, the directory of the nominal output
+        file is changed to this directory.
 
         Args:
-            setup_only (:obj:`bool`, optional):
-                Code is being run for setup only, not to reduce the data.
             sort_dir (:obj:`str`, optional):
                 The full root of the name for the metadata table
                 ('.lst') file.
-
-        Raises:
-            ValueError:
-                Raised if the output file cannot be determined from the
-                input and attributes.
+            ofile (:obj:`str, optional):
+                The name of the file to write.  See description above.
         """
         if ofile is None:
-            if self.pypeit_file is None and sort_dir is None:
-                ofile = self.spectrograph.spectrograph + '.lst'
-            elif setup_only and self.pypeit_file is not None:
-                ofile = self.pypeit_file.replace('.pypeit', '.lst')
-            elif not setup_only and sort_dir is not None:
-                ofile = sort_dir + '.lst'
-            else:
-                raise ValueError('Could not determine name for output file.')
+            ofile = self.spectrograph.spectrograph + '.lst' if self.pypeit_file is None \
+                        else self.pypeit_file.replace('.pypeit', '.lst')
+            if sort_dir is not None:
+                ofile = os.path.join(sort_dir, os.path.split(ofile)[1])
 
         format = None if '.fits' in ofile else 'ascii.fixed_width'
         self.fitstbl.write(ofile,
@@ -468,7 +457,7 @@ class PypeItSetup(object):
             self.match_ABBA()
 
         # Write metadata
-        self.write_metadata(setup_only=setup_only, sort_dir=sort_dir)
+        self.write_metadata(sort_dir=sort_dir)
 
         # Setup dict
         self.build_setup_dict(setup_only=setup_only)
@@ -506,6 +495,6 @@ class PypeItSetup(object):
             msgs.info("Inspect the .setups file")
             return None, None, None, None
 
-        return self.par, self.spectrograph, self.fitstbl.table, self.setup_dict
+        return self.par, self.spectrograph, self.fitstbl, self.setup_dict
 
 

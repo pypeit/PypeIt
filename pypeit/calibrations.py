@@ -66,7 +66,7 @@ class Calibrations(object):
 
         # Check the type of the provided fits table
         if not isinstance(fitstbl, PypeItMetaData):
-            msgs.error("fitstbl must be an astropy.Table")
+            msgs.error('fitstbl must be an PypeItMetaData object')
 
         # Parameters unique to this Object
         self.fitstbl = fitstbl

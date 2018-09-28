@@ -30,7 +30,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         """
         Set default parameters for Shane Kast Blue reductions.
         """
-        print('base par')
         par = pypeitpar.PypeItPar()
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
@@ -53,6 +52,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['exprng'] = [0, None]
         par['calibrations']['traceframe']['exprng'] = [0, None]
         par['calibrations']['arcframe']['exprng'] = [None, 61]
+        par['calibrations']['standardframe']['exprng'] = [None, 61]
         par['scienceframe']['exprng'] = [1, None]
         return par
 
@@ -97,17 +97,19 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
-            return good_exp & self.lamps(fitstbl, 'off')
+            return good_exp & self.lamps(fitstbl, 'off') \
+                        & np.array([ t not in ['Arcs', 'Bias', 'Dome Flat']
+                                        for t in fitstbl['target']])
         if ftype == 'bias':
             return good_exp
         if ftype == 'pixelflat' or ftype == 'trace':
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome')
+            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['target'] == 'Dome Flat')
         if ftype == 'pinhole' or ftype == 'dark':
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'arc':
-            return good_exp & self.lamps(fitstbl, 'arcs')
+            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['target'] == 'Arcs')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -215,11 +217,8 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         """
         Set default parameters for Shane Kast Blue reductions.
         """
-        print('blue par')
         par = ShaneKastSpectrograph.default_pypeit_par()
-        print(type(par))
         par['rdx']['spectrograph'] = 'shane_kast_blue'
-        print(par['rdx']['spectrograph'])
         return par
 
     def check_headers(self, headers):

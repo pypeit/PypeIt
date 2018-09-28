@@ -597,7 +597,8 @@ class ScienceImage(processimages.ProcessImages):
         bitmask[self.bpm] = self.bm.turn_on(bitmask[self.bpm], 'BPM')
 
         # Cosmic rays
-        bitmask[self.crmask] = self.bm.turn_on(bitmask[self.crmask], 'CR')
+        indx = self.crmask.astype(bool)
+        bitmask[indx] = self.bm.turn_on(bitmask[indx], 'CR')
 
         # Saturated pixels
         indx = self.sciimg >= self.spectrograph.detector[self.det - 1]['saturation']
