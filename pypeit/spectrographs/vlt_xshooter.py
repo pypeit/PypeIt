@@ -252,7 +252,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
-        par['calibrations']['slits']['sigdetect'] = 1000.
+        par['calibrations']['slits']['sigdetect'] = 100.
         par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
