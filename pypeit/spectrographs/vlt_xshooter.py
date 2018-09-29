@@ -249,14 +249,20 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
-        par['calibrations']['slits']['sigdetect'] = 100.
-        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['slits']['sigdetect'] = 2.0
+        par['calibrations']['slits']['pcatype'] = 'order'
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['number'] = -1
-        par['calibrations']['tilts']['tracethresh'] = [100., 100., 100., 100., 100., 100., 100., 500., 500., 500., 500., 500., 500., 500.]
+        par['calibrations']['slits']['number'] = 15
+        par['calibrations']['slits']['fracignore'] = 0.0001
+        # par['calibrations']['slits']['pcaextrap'] = [1,0]
+
+        par['calibrations']['tilts']['tracethresh'] = [20., 100., 100., 100., 100., 100., 100., 100., 500., 500., 500., 500., 500., 500., 500.]
 
         par['flexure'] = pypeitpar.FlexurePar()
+
+        # from IPython import embed
+        # embed()
 
         # par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # Always sky subtract, starting with default parameters
