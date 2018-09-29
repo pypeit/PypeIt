@@ -173,9 +173,8 @@ class ScienceImage(processimages.ProcessImages):
         self.skymask = None
         self.objmask = None
         self.outmask = None
-        # TODO: (KBW) I'd like to change the bitmask nomenclature
-        self.bitmask = None
-        self.bm = ScienceImageBitMask()
+        self.mask = None                        # The composite bit value array
+        self.bitmask = ScienceImageBitMask()    # The bit mask interpreter
         self.extractmask = None
         # SpecObjs object
         self.sobjs_obj = None # Only object finding but no extraction
@@ -339,7 +338,7 @@ class ScienceImage(processimages.ProcessImages):
             image = self.sciimg
 
         # Build and assign the input mask
-        self.bitmask = self._build_bitmask()
+        self.mask = self._build_mask()
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
 
@@ -348,7 +347,7 @@ class ScienceImage(processimages.ProcessImages):
             qa_title ="Finding objects on slit # {:d}".format(slit +1)
             msgs.info(qa_title)
             thismask = (self.tslits_dict['slitpix'] == slit + 1)
-            inmask = (self.bitmask == 0) & thismask
+            inmask = (self.mask == 0) & thismask
             # Find objects
             specobj_dict = {'setup': self.setup, 'slitid': slit+1, 'scidx': self.scidx,
                             'det': self.det, 'objtype': self.objtype}
@@ -373,7 +372,7 @@ class ScienceImage(processimages.ProcessImages):
         # Steps
         self.steps.append(inspect.stack()[0][3])
         if show:
-            self.show('image', image=image*(self.bitmask == 0), chname = 'objfind',
+            self.show('image', image=image*(self.mask == 0), chname = 'objfind',
                       sobjs=self.sobjs_obj, slits=True)
 
         # Return
@@ -440,12 +439,12 @@ class ScienceImage(processimages.ProcessImages):
                         else np.ones_like(self.sciimg, dtype=bool)
 
         # Build and assign the input mask
-        self.bitmask = self._build_bitmask()
+        self.mask = self._build_mask()
         # Loop on slits
         for slit in gdslits:
             msgs.info("Global sky subtraction for slit: {:d}".format(slit +1))
             thismask = (self.tslits_dict['slitpix'] == slit + 1)
-            inmask = (self.bitmask == 0) & thismask & skymask
+            inmask = (self.mask == 0) & thismask & skymask
             # Find sky
             self.global_sky[thismask] =  skysub.global_skysub(self.sciimg, self.sciivar,
                                                               self.tilts, thismask,
@@ -504,13 +503,13 @@ class ScienceImage(processimages.ProcessImages):
             msgs.error('All quantities necessary to run local_skysub_extract() have not been set.')
 
         # Build and assign the input mask
-        self.bitmask = self._build_bitmask()
+        self.mask = self._build_mask()
 
         # Allocate the images that are needed
-        # Initialize to bitmask in case no objects were found
-        self.outmask = np.copy(self.bitmask)
+        # Initialize to mask in case no objects were found
+        self.outmask = np.copy(self.mask)
         # Initialize to input mask in case no objects were found
-        self.extractmask = (self.bitmask == 0)
+        self.extractmask = (self.mask == 0)
         # Initialize to zero in case no objects were found
         self.objmodel = np.zeros_like(self.sciimg)
         # Set initially to global sky in case no objects were found
@@ -529,7 +528,7 @@ class ScienceImage(processimages.ProcessImages):
             if np.any(thisobj):
                 thismask = (self.tslits_dict['slitpix'] == slit + 1) # pixels for this slit
                 # True  = Good, False = Bad for inmask
-                inmask = (self.bitmask == 0) & thismask
+                inmask = (self.mask == 0) & thismask
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
                     self.extractmask[thismask] \
@@ -544,7 +543,7 @@ class ScienceImage(processimages.ProcessImages):
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
-        iextract = (self.bitmask == 0) & (self.extractmask == False)
+        iextract = (self.mask == 0) & (self.extractmask == False)
         self.outmask[iextract] += np.uint64(2**8)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -601,65 +600,65 @@ class ScienceImage(processimages.ProcessImages):
             self.show('image', image=self.sciimg*(self.crmask == 0), chname='sciimg', clear=True)
         return self.sciimg, self.sciivar, self.rn2img, self.crmask
 
-    def _build_bitmask(self):
+    def _build_mask(self):
         """
-        Return the bitmask used during extraction.
+        Return the bit value mask used during extraction.
         
         The mask keys are defined by :class:`ScienceImageBitMask`.  Any
-        pixel with bitmask == 0 is valid, otherwise the pixel has been
+        pixel with mask == 0 is valid, otherwise the pixel has been
         masked.  To determine why a given pixel has been masked::
 
-            bm = ScienceImageBitMask()
-            reasons = bm.flagged_bits(bitmask[i,j])
+            bitmask = ScienceImageBitMask()
+            reasons = bm.flagged_bits(mask[i,j])
 
         To get all the pixel masked for a specific set of reasons::
 
-            mask = bm.flagged(bitmask, flag=['CR', 'SATURATION'])
+            indx = bm.flagged(mask, flag=['CR', 'SATURATION'])
 
         Returns:
-            numpy.ndarray: The bitmask for the science image.
+            numpy.ndarray: The bit value mask for the science image.
         """
         # Instatiate the mask
-        bitmask = np.zeros_like(self.sciimg, dtype=self.bm.minimum_dtype(asuint=True))
+        mask = np.zeros_like(self.sciimg, dtype=self.bitmask.minimum_dtype(asuint=True))
 
         # Bad pixel mask
-        bitmask[self.bpm] = self.bm.turn_on(bitmask[self.bpm], 'BPM')
+        mask[self.bpm] = self.bitmask.turn_on(mask[self.bpm], 'BPM')
 
         # Cosmic rays
         indx = self.crmask.astype(bool)
-        bitmask[indx] = self.bm.turn_on(bitmask[indx], 'CR')
+        mask[indx] = self.bitmask.turn_on(mask[indx], 'CR')
 
         # Saturated pixels
         indx = self.sciimg >= self.spectrograph.detector[self.det - 1]['saturation']
-        bitmask[indx] = self.bm.turn_on(bitmask[indx], 'SATURATION')
+        mask[indx] = self.bitmask.turn_on(mask[indx], 'SATURATION')
 
         # Minimum counts
         indx = self.sciimg <= self.spectrograph.detector[self.det - 1]['mincounts']
-        bitmask[indx] = self.bm.turn_on(bitmask[indx], 'MINCOUNTS')
+        mask[indx] = self.bitmask.turn_on(mask[indx], 'MINCOUNTS')
 
         # Pixels excluded from any slit.  Use a try/except block so that
-        # the bitmask can still be created even if tslits_dict has not
+        # the mask can still be created even if tslits_dict has not
         # been instantiated yet
         # TODO: Is this still necessary?
         try:
             indx = self.tslits_dict['slitpix'] == 0
-            bitmask[indx] = self.bm.turn_on(bitmask[indx], 'OFFSLITS')
+            mask[indx] = self.bitmask.turn_on(mask[indx], 'OFFSLITS')
         except:
             pass
 
         # Undefined counts
         indx = np.invert(np.isfinite(self.sciimg))
-        bitmask[indx] = self.bm.turn_on(bitmask[indx], 'IS_NAN')
+        mask[indx] = self.bitmask.turn_on(mask[indx], 'IS_NAN')
 
         # Bad inverse variance values
         indx = np.invert(self.sciivar > 0.0)
-        bitmask[indx] = self.bm.turn_on(bitmask[indx], 'IVAR0')
+        mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR0')
 
         # Undefined inverse variances
         indx = np.invert(np.isfinite(self.sciivar))
-        bitmask[indx] = self.bm.turn_on(bitmask[indx], 'IVAR_NAN')
+        mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR_NAN')
 
-        return bitmask
+        return mask
 
     def run_the_steps(self):
         """
@@ -699,19 +698,18 @@ class ScienceImage(processimages.ProcessImages):
         """
 
         if showmask:
-            mask_in = self.bitmask
-            bitmask_in = self.bm
+            mask_in = self.mask
+            bitmask_in = self.bitmask
         else:
             mask_in = None
             bitmask_in = None
 
         if attr == 'global':
             # global sky subtraction
-            if self.sciimg is not None and self.global_sky is not None \
-                    and self.bitmask is not None:
+            if self.sciimg is not None and self.global_sky is not None and self.mask is not None:
                 # sky subtracted image
-                image = (self.sciimg - self.global_sky)*(self.bitmask == 0)
-                mean, med, sigma = sigma_clipped_stats(image[self.bitmask == 0], sigma_lower=5.0,
+                image = (self.sciimg - self.global_sky)*(self.mask == 0)
+                mean, med, sigma = sigma_clipped_stats(image[self.mask == 0], sigma_lower=5.0,
                                                        sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
@@ -721,11 +719,10 @@ class ScienceImage(processimages.ProcessImages):
                                               #, cuts=(cut_min, cut_max))
         elif attr == 'local':
             # local sky subtraction
-            if self.sciimg is not None and self.skymodel is not None \
-                    and self.bitmask is not None:
+            if self.sciimg is not None and self.skymodel is not None and self.mask is not None:
                 # sky subtracted image
-                image = (self.sciimg - self.skymodel)*(self.bitmask == 0)
-                mean, med, sigma = sigma_clipped_stats(image[self.bitmask == 0], sigma_lower=5.0,
+                image = (self.sciimg - self.skymodel)*(self.mask == 0)
+                mean, med, sigma = sigma_clipped_stats(image[self.mask == 0], sigma_lower=5.0,
                                                        sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
@@ -737,9 +734,9 @@ class ScienceImage(processimages.ProcessImages):
             # sky residual map with object included
             if self.sciimg is not None and self.skymodel is not None \
                     and self.objmodel is not None and self.ivarmodel is not None \
-                    and self.bitmask is not None:
+                    and self.mask is not None:
                 image = (self.sciimg - self.skymodel) * np.sqrt(self.ivarmodel)
-                image *= (self.bitmask == 0)
+                image *= (self.mask == 0)
                 ch_name = chname if chname is not None else 'sky_resid'
                 viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                               bitmask=bitmask_in, mask=mask_in, clear=clear,
@@ -748,10 +745,10 @@ class ScienceImage(processimages.ProcessImages):
             # full residual map with object model subtractede
             if self.sciimg is not None and self.skymodel is not None \
                     and self.objmodel is not None and self.ivarmodel is not None \
-                    and self.bitmask is not None:
+                    and self.mask is not None:
                 # full model residual map
                 image = (self.sciimg - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
-                image *= (self.bitmask == 0)
+                image *= (self.mask == 0)
                 ch_name = chname if chname is not None else 'resid'
                 viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                               bitmask=bitmask_in, mask=mask_in, clear=clear,
@@ -789,52 +786,3 @@ class ScienceImage(processimages.ProcessImages):
 
 
 
-#def unpack_bitmask(bitmask):
-#    """
-#    Utility function to unpack the bitmask into its respective masks.
-#
-#    Parameters
-#    ----------
-#    bitmask  - ndarray dtype = uint64 created following _build_bitmask() method above
-#
-#    Returns
-#    -------
-#        mask_tuple  = (bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask,ivarnanmask, extractmask)
-#
-#        tuple of 8 masks corresponding to each bit that can be set in the bitmask
-#
-#
-#        Bit Key
-#        ---
-#        BPM            0
-#        CR             1
-#        SATURATION     2
-#        MINCOUNTS      3
-#        OFFSLITS        4
-#        IS_NAN         5
-#        IVAR0          6
-#        IVAR_NAN       7
-#        EXTRACT        8
-#
-#        bitmask = 0 is good, bitmask > 0 has been masked.
-#
-#        To figure out why it has been masked for example you can type
-#
-#
-#        crmask = (inmask & np.uint64(2**1)) > 0
-#
-#        etc.
-#    
-#    """
-#    bpm         = (bitmask & np.uint64(2 ** 0)) > 0
-#    crmask      = (bitmask & np.uint64(2 ** 1)) > 0
-#    satmask     = (bitmask & np.uint64(2 ** 2)) > 0
-#    minmask     = (bitmask & np.uint64(2 ** 3)) > 0
-#    offslitmask    = (bitmask & np.uint64(2 ** 4)) > 0
-#    nanmask     = (bitmask & np.uint64(2 ** 5)) > 0
-#    ivar0mask   = (bitmask & np.uint64(2 ** 6)) > 0
-#    ivarnanmask = (bitmask & np.uint64(2 ** 7)) > 0
-#    extractmask = (bitmask & np.uint64(2 ** 8)) > 0
-#
-#    return (bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask,ivarnanmask, extractmask)
-#
