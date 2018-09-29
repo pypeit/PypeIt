@@ -403,7 +403,6 @@ class ProcessImages(object):
         msgs.info("Flat fielding your image")
         # Flat-field the data and return the result
 
-        from IPython import embed
         self.stack = flat.flatfield(self.stack, self.pixel_flat, self.bpm, illum_flat=self.illum_flat)
         return self.stack
 
