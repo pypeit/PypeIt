@@ -9,7 +9,6 @@ from __future__ import unicode_literals
 import os
 import sys
 
-import pdb
 import numpy as np
 import pytest
 

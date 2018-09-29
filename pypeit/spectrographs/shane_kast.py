@@ -28,7 +28,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
     @staticmethod
     def default_pypeit_par():
         """
-        Set default parameters for Shane Kast Blue reductions.
+        Set default parameters for Shane Kast reductions.
         """
         par = pypeitpar.PypeItPar()
         # Frame numbers
@@ -97,19 +97,20 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
-            return good_exp & self.lamps(fitstbl, 'off') \
-                        & np.array([ t not in ['Arcs', 'Bias', 'Dome Flat']
-                                        for t in fitstbl['target']])
+            return good_exp & self.lamps(fitstbl, 'off')
+#            \
+#                        & np.array([ t not in ['Arcs', 'Bias', 'Dome Flat']
+#                                        for t in fitstbl['target']])
         if ftype == 'bias':
-            return good_exp
+            return good_exp # & (fitstbl['target'] == 'Bias')
         if ftype == 'pixelflat' or ftype == 'trace':
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['target'] == 'Dome Flat')
+            return good_exp & self.lamps(fitstbl, 'dome') # & (fitstbl['target'] == 'Dome Flat')
         if ftype == 'pinhole' or ftype == 'dark':
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'arc':
-            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['target'] == 'Arcs')
+            return good_exp & self.lamps(fitstbl, 'arcs')#  & (fitstbl['target'] == 'Arcs')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)

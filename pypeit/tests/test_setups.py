@@ -91,9 +91,6 @@ def test_setup_keck_lris_blue():
     droot += '/'
     pargs = setup.parser([droot, 'keck_lris_blue'])
     setup.main(pargs)
-    # The setup works but there's a problem with the trace image that's
-    # included in the DevSuite
-    return
 
     cwd = os.getcwd()
     setup_dir = os.path.join(cwd, 'setup_files')
@@ -134,9 +131,6 @@ def test_setup_shane_kast_red():
     droot += '/'
     pargs = setup.parser([droot, 'shane_kast_red'])
     setup.main(pargs)
-
-    import pdb
-    pdb.set_trace()
 
     cwd = os.getcwd()
     setup_dir = os.path.join(cwd, 'setup_files')
