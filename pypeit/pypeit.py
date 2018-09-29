@@ -16,7 +16,7 @@ from pypeit import calibrations
 from pypeit import scienceimage
 from pypeit import specobjs
 from pypeit import fluxspec
-from pypeit.core import fsort
+from pypeit.core import paths
 from pypeit.core import qa
 from pypeit.core import pypsetup
 from pypeit.core import wave
@@ -196,7 +196,7 @@ class PypeIt(object):
 
     def _chk_for_std(self):
         # Can only reduce these frames if the mask is the same
-        std_idx = fsort.ftype_indices(self.fitstbl, 'standard', self.sci_ID)
+        std_idx = self.fitstbl.find_frames('standard', sci_ID=self.sci_ID, index=True)
         if len(std_idx) > 0:
             std_idx = std_idx[0]
             return std_idx
@@ -523,7 +523,7 @@ class PypeIt(object):
         else:
             self.par['rdx']['redux_path'] = os.getcwd()
         msgs.info("Setting reduction path to {:s}".format(self.par['rdx']['redux_path']))
-        fsort.make_dirs(self.spectrograph.spectrograph, self.par['calibrations']['caldir'],
+        paths.make_dirs(self.spectrograph.spectrograph, self.par['calibrations']['caldir'],
                         self.par['rdx']['scidir'], self.par['rdx']['qadir'],
                         overwrite=self.overwrite, redux_path=self.par['rdx']['redux_path'])
         # Instantiate Calibration class
@@ -748,7 +748,7 @@ class MultiSlit(PypeIt):
             else:
                 self.std_dict[self.std_idx] = {}
             # Files
-            std_image_files = fsort.list_of_files(self.fitstbl, 'standard', self.sci_ID)
+            std_image_files = self.fitstbl.find_frame_files('standard', sci_ID=self.sci_ID)
             if self.par['calibrations']['standardframe'] is None:
                 msgs.warn('No standard frame parameters provided.  Using default parameters.')
 

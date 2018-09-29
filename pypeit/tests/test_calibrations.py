@@ -14,14 +14,11 @@ import glob
 import numpy as np
 
 from pypeit import metadata
-from pypeit.core import fsort
-
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit import calibrations
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 
-from pypeit.tests import tstutils
-from pypeit.tests.tstutils import dev_suite_required
+from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -51,7 +48,7 @@ def multi_caliBrate(fitstbl):
     setup = 'A_01_aa'
     det = 1
     sci_ID = 1
-    spectrograph = tstutils.load_kast_blue_masters(get_spectrograph=True)[0]
+    spectrograph = load_kast_blue_masters(get_spectrograph=True)[0]
 
     # Only changing the defaults
     calib_par = pypeitpar.CalibrationsPar(badpix=False,

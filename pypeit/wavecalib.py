@@ -13,7 +13,6 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc
 from pypeit.core import masters
-from pypeit.core import fsort
 from pypeit.par import pypeitpar
 
 from pypeit.spectrographs.spectrograph import Spectrograph

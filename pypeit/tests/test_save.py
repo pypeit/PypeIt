@@ -14,7 +14,6 @@ from astropy.io import fits
 
 from pypeit import specobjs
 from pypeit import metadata
-from pypeit.core import fsort
 from pypeit.core import save
 
 def data_path(filename):

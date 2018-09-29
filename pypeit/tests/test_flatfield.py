@@ -25,6 +25,8 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+
+# TODO: Bring this test back in some way?
 #def test_step_by_step():
 #    if skip_test:
 #        assert True
@@ -49,7 +51,7 @@ def data_path(filename):
 #    flatField.mspixelflatnrm[word] /= nrmvals
 #    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0267346)
 
-# TODO: Fails because of cooked file
+
 @dev_suite_required
 def test_run():
     # Masters

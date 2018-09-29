@@ -14,6 +14,8 @@ from pypeit import spectrographs
 
 from pypeit.tests.tstutils import dev_suite_required
 
+# TODO: Add a test for Gemini GNIRS
+
 @dev_suite_required
 def test_keckdeimos():
     s = spectrographs.keck_deimos.KeckDEIMOSSpectrograph()

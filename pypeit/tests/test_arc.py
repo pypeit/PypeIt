@@ -38,6 +38,5 @@ def test_detect_lines():
     arx_amp, arx_cent, arx_wid, arx_centerr, arx_w, arx_yprep \
             = arc.detect_lines(arx_sky.flux.value)
     # TODO: Check that this updated value is correct
-#    assert len(arx_w[0]) == 1767
-    assert len(arx_w[0]) == 1057
+    assert len(arx_w[0]) == 1266
 

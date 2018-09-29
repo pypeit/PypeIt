@@ -15,7 +15,6 @@ from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import parse
 from pypeit.core import framematch
-from pypeit.core import fsort
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 

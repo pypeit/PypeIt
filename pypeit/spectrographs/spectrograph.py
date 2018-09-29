@@ -419,7 +419,7 @@ class Spectrograph(object):
         Args:
             ftype (str):
                 File type, which should be one of the keys in
-                :class:`pypeit.core.fsort.FrameTypeBitMask`.
+                :class:`pypeit.core.framematch.FrameTypeBitMask`.
 
         Returns:
             str: The value of `idname` that should be available in the

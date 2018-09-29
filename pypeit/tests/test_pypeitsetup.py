@@ -18,6 +18,7 @@ from astropy.table import Table
 
 from pypeit import pypeitsetup
 from pypeit.par import pypeitpar
+from pypeit.metadata import PypeItMetaData
 
 from pypeit.tests.tstutils import dev_suite_required
 
@@ -136,7 +137,7 @@ def test_run():
     par, spectrograph, fitstbl, setup_dict = setupc.run()
     # Test
     assert isinstance(par, pypeitpar.PypeItPar)
-    assert isinstance(fitstbl, Table)
+    assert isinstance(fitstbl, PypeItMetaData)
     assert isinstance(setup_dict, dict)
 
 @dev_suite_required

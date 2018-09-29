@@ -15,43 +15,31 @@ import numpy as np
 
 from pypeit import processimages
 from pypeit import biasframe
-
-# These tests are not run on Travis
-if os.getenv('PYPEIT_DEV') is None:
-    skip_test=True
-else:
-    skip_test=False
+from pypeit.tests.tstutils import dev_suite_required
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
 @pytest.fixture
+@dev_suite_required
 def deimos_flat_files():
-    if not skip_test:
-        # Longslit in dets 3,7
-        deimos_flat_files = [os.path.join(os.getenv('PYPEIT_DEV'),
-                                          '/RAW_DATA/Keck_DEIMOS/830G_L/', ifile) \
-                                    for ifile in ['d0914_0014.fits', 'd0914_0015.fits'] ]
-        assert len(deimos_flat_files) == 2
-    else:
-        deimos_flat_files = None
+    # Longslit in dets 3,7
+    deimos_flat_files = [os.path.join(os.getenv('PYPEIT_DEV'),
+                                      '/RAW_DATA/Keck_DEIMOS/830G_L/', ifile) \
+                            for ifile in ['d0914_0014.fits', 'd0914_0015.fits'] ]
+    assert len(deimos_flat_files) == 2
     return deimos_flat_files
 
 @pytest.fixture
+@dev_suite_required
 def kast_blue_bias_files():
-    if not skip_test:
-        kast_blue_bias_files = glob.glob(os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
-                                                      'Shane_Kast_blue', '600_4310_d55',
-                                                      'b1?.fits*'))
-    else:
-        kast_blue_bias_files = None
+    kast_blue_bias_files = glob.glob(os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
+                                                  'Shane_Kast_blue', '600_4310_d55', 'b1?.fits*'))
     return kast_blue_bias_files
 
+@dev_suite_required
 def test_instantiate(kast_blue_bias_files):
-    if skip_test:
-        assert True
-        return
     # Empty
     bias_frame0 = biasframe.BiasFrame('shane_kast_blue')
     assert bias_frame0.nfiles == 0
@@ -59,10 +47,8 @@ def test_instantiate(kast_blue_bias_files):
     bias_frame1 = biasframe.BiasFrame('shane_kast_blue', file_list=kast_blue_bias_files)
     assert bias_frame1.nfiles == 10
 
+@dev_suite_required
 def test_process(kast_blue_bias_files):
-    if skip_test:
-        assert True
-        return
     # Instantiate
     bias_frame = biasframe.BiasFrame('shane_kast_blue', file_list=kast_blue_bias_files)
     # Run
@@ -72,10 +58,8 @@ def test_process(kast_blue_bias_files):
     assert bias_frame.steps[-1] == 'combine'
 
 
+@dev_suite_required
 def test_read_write(kast_blue_bias_files):
-    if skip_test:
-        assert True
-        return
     # Instantiate
     bias_frame = biasframe.BiasFrame('shane_kast_blue', file_list=kast_blue_bias_files)
     # Run
@@ -89,10 +73,8 @@ def test_read_write(kast_blue_bias_files):
 #    assert np.array_equal(bias_frame2.stack, bias_img)
 
 
+@dev_suite_required
 def test_run_and_master(kast_blue_bias_files):
-    if skip_test:
-        assert True
-        return
 
     root_path = data_path('MF')
     setup = 'A_01_aa'

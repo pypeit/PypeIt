@@ -40,7 +40,7 @@ class FrameTypeBitMask(BitMask):
               :class:`pypeit.bitmask.BitMask`
     
         Args:
-            type_bits (int):
+            type_bits (int, list, numpy.ndarray):
                 The bit mask for each frame.
             bitmask (:class:`pypeit.bitmask.BitMask`, optional):
                 The bit mask used to pull out the bit names.  Uses
@@ -55,13 +55,14 @@ class FrameTypeBitMask(BitMask):
             have multiple types, meaning the 2nd axis is not necessarily the
             same length for all frames.
         """
+        _type_bits = np.atleast_1d(type_bits)
         out = []
-        for b in type_bits:
+        for b in _type_bits:
             n = self.flagged_bits(b)
             if len(n) == 0:
                 n = ['None']
             out += [','.join(n)] if join else [n]
-        return out
+        return out[0] if isinstance(type_bits, np.integer) else out
     
 
 def check_frame_exptime(exptime, exprng):

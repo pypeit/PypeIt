@@ -364,6 +364,24 @@ class PypeItMetaData:
             self['framebit'] = t['framebit']
         return t
 
+    def edit_frame_type(self, indx, frame_type, append=False):
+        """
+        Edit the frame type by hand.
+
+        Args:
+            indx (:obj:`int`):
+                The 0-indexed row in the table to edit
+            frame_type (:obj:`str`, :obj:`list`):
+                One or more frame types to append/overwrite.
+            append (:obj:`bool`, optional):
+                Append the frame type.  If False, all existing frame
+                types are overwitten by the provided types.
+        """
+        if not append:
+            self['framebit'][indx] = 0
+        self['framebit'][indx] = self.bitmask.turn_on(self['framebit'][indx], flag=frame_type)
+        self['frametype'][indx] = self.bitmask.type_names(self['framebit'][indx])
+
     def get_frame_types(self, flag_unknown=False, user=None, useIDname=False, merge=True):
         """
         Generate a table of frame types from the input metadata object.
@@ -397,8 +415,8 @@ class PypeItMetaData:
         # Checks
         if 'frametype' in self.keys() or 'framebit' in self.keys():
             msgs.warn('Removing existing frametype and framebit columns.')
-            del self['frametype']
-            del self['framebit']
+            del self.table['frametype']
+            del self.table['framebit']
         if useIDname and 'idname' not in self.keys():
             raise ValueError('idname is not set in table; cannot use it for file typing.')
 
@@ -739,7 +757,7 @@ class PypeItMetaData:
         # Return a new Table with the single column
         return t
 
-def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='./', notype=False):
+def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype=False):
     """
     Generate a dummy fitstbl for testing
 
