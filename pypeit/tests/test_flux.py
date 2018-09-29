@@ -25,7 +25,7 @@ from pypeit.core import load
 from pypeit import utils
 from pypeit import metadata
 from pypeit import telescopes
-from pypeit.spectrographs import util as sutil
+from pypeit.spectrographs.util import load_spectrograph
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
@@ -33,8 +33,6 @@ from pypeit.spectrographs import util as sutil
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
-
-kastb = sutil.load_spectrograph('shane_kast_blue')
 
 # JFH This test is defunct
 #def test_bspline_fit():
@@ -49,6 +47,8 @@ kastb = sutil.load_spectrograph('shane_kast_blue')
 
 
 def test_gen_sensfunc():
+
+    kastb = load_spectrograph('shane_kast_blue')
 
     # Load a random spectrum for the sensitivity function
     sfile = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')

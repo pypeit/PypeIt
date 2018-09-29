@@ -485,58 +485,6 @@ def geomotion_correct(specObjs, maskslits, fitstbl, scidx, time, longitude, lati
     return vel, vel_corr  # Mainly for debugging
 
 
-
-#def geomotion_correct_oldbuggyversion(specobjs, maskslits, fitstbl, scidx, time, longitude, latitude, elevation,
-#                      refframe):
-#    """ Correct the wavelength of every pixel to a barycentric/heliocentric frame.
-#
-#    Parameters
-#    ----------
-#    specobjs
-#    maskslits
-#    fitstbl : Table
-#      Containing the properties of every fits file
-#    scidx
-#    time
-#    settings_mosaic
-#    refframe
-#
-#    Returns
-#    -------
-#    vel : float
-#      The velocity correction that should be applied to the wavelength array.
-#    vel_corr : float
-#      The relativistic velocity correction that should be multiplied by the
-#      wavelength array to convert each wavelength into the user-specified
-#      reference frame.
-#
-#    """
-#    # Calculate
-#    vel = geomotion_calculate(fitstbl, scidx, time, longitude, latitude, elevation, refframe)
-#    vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
-#
-#    gdslits = np.where(~maskslits)[0]
-#    # Loop on slits to apply
-#    for sl in range(len(specobjs)):
-#        if sl not in gdslits:
-#            continue
-#        # Loop on objects
-#        for specobj in specobjs[sl]:
-#            if specobj is None:
-#                continue
-#            # Loop on extraction methods
-#            for attr in ['boxcar', 'optimal']:
-#                if not hasattr(specobj, attr):
-#                    continue
-#                if 'WAVE' in getattr(specobj, attr).keys():
-#                    msgs.info('Applying {0} correction to '.format(refframe)
-#                              + '{0} extraction for object:'.format(attr)
-#                              + msgs.newline() + "{0}".format(str(specobj)))
-#                    getattr(specobj, attr)['WAVE'] = getattr(specobj, attr)['WAVE'] * vel_corr
-#    # Return
-#    return vel, vel_corr  # Mainly for debugging
-
-
 def geomotion_velocity(time, skycoord, frame="heliocentric"):
     """ Perform a barycentric/heliocentric velocity correction.
 

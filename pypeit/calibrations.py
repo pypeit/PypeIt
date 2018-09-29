@@ -30,7 +30,6 @@ from pypeit.core import parse
 
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.spectrographs.spectrograph import Spectrograph
 
 from pypeit import debugger
 
@@ -75,18 +74,14 @@ class Calibrations(object):
         self.show = show
 
         # Spectrometer class
+        _spectrograph = spectrograph
         if spectrograph is None:
             # Set spectrograph from FITS table instrument header
             # keyword.
             if par is not None and par['rdx']['spectrograph'] != fitstbl['instrume'][0]:
                 msgs.error('Specified spectrograph does not match instrument in the fits table!')
-            self.spectrograph = load_spectrograph(spectrograph=fitstbl['instrume'][0])
-        elif isinstance(spectrograph, str):
-            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
-        elif isinstance(spectrograph, Spectrograph):
-            self.spectrograph = spectrograph
-        else:
-            raise TypeError('Could not instantiate Spectrograph!')
+            _spectrograph = fitstbl['instrume'][0]
+        self.spectrograph = load_spectrograph(_spectrograph)
 
         # Instantiate the parameters
         # TODO: How far down through the other classes to we propagate

@@ -15,7 +15,6 @@ import numpy as np
 
 from pypeit import metadata
 from pypeit import calibrations
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 
 from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters

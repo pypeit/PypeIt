@@ -16,11 +16,9 @@ from pypeit.core import arc
 from pypeit.core import tracewave
 from pypeit.core import masters
 from pypeit.par import pypeitpar
+from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import debugger
-
-from pypeit.spectrographs.spectrograph import Spectrograph
-from pypeit.spectrographs.util import load_spectrograph
 
 
 class WaveTilts(masterframe.MasterFrame):
@@ -72,16 +70,12 @@ class WaveTilts(masterframe.MasterFrame):
         # TODO: (KBW) Do we need this?  It's only used to get the
         # non-linear counts and the name of the master directory
 
-        ## JFH I think then name of the master directory is usually passed in via setup. I don't see why we need spectrograph
-        ## for that. If it is just saturation limits that are needed I would advocate passing those in as individual
-        ## keyword parameters to whatever method in this class uses them.
-        if isinstance(spectrograph, str):
-            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
-        elif isinstance(spectrograph, Spectrograph):
-            self.spectrograph = spectrograph
-        else:
-            raise TypeError('Must provide a name or instance for the Spectrograph.')
-
+        # JFH I think then name of the master directory is usually
+        # passed in via setup. I don't see why we need spectrograph for
+        # that. If it is just saturation limits that are needed I would
+        # advocate passing those in as individual keyword parameters to
+        # whatever method in this class uses them.
+        self.spectrograph = load_spectrograph(spectrograph)
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup,

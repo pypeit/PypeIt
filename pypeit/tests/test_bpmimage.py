@@ -16,7 +16,6 @@ import numpy as np
 from pypeit import bpmimage
 from pypeit.pypmsgs import PypeItError
 
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import dev_suite_required
 
 

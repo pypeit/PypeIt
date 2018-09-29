@@ -15,7 +15,6 @@ from astropy import table, coordinates, time
 from pypeit import msgs
 from pypeit.core import framematch
 from pypeit.core import flux
-from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.par import PypeItPar
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -45,11 +44,12 @@ class PypeItMetaData:
         then happen in PypeItSetup.
 
     Args:
-        spectrograph
-            (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+        spectrograph (:obj:`str`,
+            :class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The spectrograph used to collect the data save to each file.
             The class is used to provide the header keyword data to
             include in the table and specify any validation checks.
+
         file_list (:obj:`list`, optional):
             The list of files to include in the table.
         data (table-like, optional):
@@ -75,10 +75,9 @@ class PypeItMetaData:
             use in the data reduction.
     """
     def __init__(self, spectrograph, par=None, file_list=None, data=None, strict=True):
-        if not isinstance(spectrograph, Spectrograph):
-            raise TypeError('Input spectrograph must be of type Spectrograph.')
-        self.spectrograph = spectrograph
-        self.par = spectrograph.default_pypeit_par() if par is None else par
+
+        self.spectrograph = load_spectrograph(spectrograph)
+        self.par = self.spectrograph.default_pypeit_par() if par is None else par
         if not isinstance(self.par, PypeItPar):
             raise TypeError('Input parameter set must be of type PypeItPar.')
         self.bitmask = framematch.FrameTypeBitMask()
@@ -124,10 +123,10 @@ class PypeItMetaData:
         numfiles = len(file_list)
 
         # Loop on files
-        for i in range(numfiles):
+        for ifile in file_list:
 
             # Read the fits headers
-            headarr = self.spectrograph.get_headarr(file_list[i], strict=strict)
+            headarr = self.spectrograph.get_headarr(ifile, strict=strict)
 
             # Check that the header is valid
             # TODO: The check_headers function needs to be implemented
@@ -137,7 +136,7 @@ class PypeItMetaData:
                 # TODO: Move this into spectrograph.validate_fitstbl()
                 self.spectrograph.check_headers(headarr)
             except Exception as e:
-                msgs.warn('Reading of headers from file:' + msgs.newline() + file_list[i]
+                msgs.warn('Reading of headers from file:' + msgs.newline() + ifile
                           + msgs.newline() + 'failed with the following exception'
                           + msgs.newline() + e.__repr__() + msgs.newline() +
                           'Please check that the file was taken with the provided instrument:'
@@ -148,36 +147,27 @@ class PypeItMetaData:
                 continue
 
             # Add the directory, file name, and instrument to the table
-            d,f = os.path.split(file_list[i])
+            d,f = os.path.split(ifile)
             data['directory'].append(d)
             data['filename'].append(f)
             data['instrume'].append(self.spectrograph.spectrograph)
 
-#            # Add the time of the observation
-#            utc = self.get_utc(headarr)
-#            data['utc'].append('None' if utc is None else utc)
-#            if utc is None:
-#                msgs.warn('UTC is not listed as a header keyword in file:' + msgs.newline()
-#                          + file_list[i])
-
-            # TODO: Read binning-dependent detector properties here? (maybe read speed too)
-    
             # Now get the rest of the keywords
-            for k in data.keys():
-                if k in PypeItMetaData.default_keys():
+            for key in data.keys():
+                if key in PypeItMetaData.default_keys():
                     continue
     
                 # Try to read the header item
                 try:
-                    value = headarr[ext[k]][head_keys[ext[k]][k]]
+                    value = headarr[ext[key]][head_keys[ext[key]][key]]
                 except KeyError:
                     # Keyword not found in header
-                    msgs.warn("{:s} keyword not in header. Setting to None".format(k))
+                    msgs.warn("{0} keyword not in header. Setting to None".format(key))
                     value = 'None'
     
                 # Convert the time to hours
                 # TODO: Done here or as a method in Spectrograph?
-                if k == 'time' and value != 'None':
+                if key == 'time' and value != 'None':
                     value = self.convert_time(value)
     
                 # Set the value
@@ -186,20 +176,20 @@ class PypeItMetaData:
                     value = value.strip()
                 if np.issubdtype(vtype, np.integer) or np.issubdtype(vtype, np.floating) \
                         or np.issubdtype(vtype, np.str_) or np.issubdtype(vtype, np.bool_):
-                    data[k].append(value)
+                    data[key].append(value)
                 else:
-                    msgs.bug('Unexpected type, {1:s}, for key {0:s}'.format(k,
+                    msgs.bug('Unexpected type, {1}, for key {0}'.format(key,
                              vtype).replace('<type ','').replace('>',''))
     
-            msgs.info('Successfully loaded headers for file:' + msgs.newline() + file_list[i])
+            msgs.info('Successfully loaded headers for file:' + msgs.newline() + ifile)
 
         # Report
         msgs.info("Headers loaded for {0:d} files successfully".format(numfiles))
         if numfiles != len(file_list):
             msgs.warn("Headers were not loaded for {0:d} files".format(len(file_list) - numfiles))
         if numfiles == 0:
-            msgs.error("The headers could not be read from the input data files." + msgs.newline() +
-                    "Please check that the settings file matches the data.")
+            msgs.error("The headers could not be read from the input data files."
+                       + msgs.newline() + "Please check that the settings file matches the data.")
         
         return data
 
@@ -772,7 +762,7 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
 
     Returns
     -------
-    fitstbl : Table
+    fitstbl : PypeItMetaData
 
     """
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})

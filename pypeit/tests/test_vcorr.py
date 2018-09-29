@@ -55,7 +55,7 @@ def test_geocorrect(fitstbl):
     # Spectrograph
     # (KBW) Had to change this to keck to match the telecope parameters,
     # then just changed to use definitions above directly.
-#    spectrograph = load_spectrograph(spectrograph='keck_lris_blue')
+#    spectrograph = load_spectrograph('keck_lris_blue')
 
     # Specobjs (wrap in a list to mimic a slit)
     sobj_list = specobjs.dummy_specobj(fitstbl, extraction=True)

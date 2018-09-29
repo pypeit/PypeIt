@@ -22,7 +22,7 @@ from pypeit.core import pypsetup
 from pypeit.core import wave
 from pypeit.core import save
 from pypeit.core import load
-from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts import run_pypeit
 from pypeit.par.util import make_pypeit_file, parse_pypeit_file
 
@@ -70,12 +70,7 @@ class PypeIt(object):
                  overwrite=True, logname=None, show=False):
 
         # Spectrometer class
-        if isinstance(spectrograph, str):
-            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
-        elif isinstance(spectrograph, Spectrograph):
-            self.spectrograph = spectrograph
-        else:
-            raise TypeError('Could not instantiate Spectrograph!')
+        self.spectrograph = load_spectrograph(spectrograph)
 
         # Init
         self.verbosity = verbosity

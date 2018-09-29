@@ -24,7 +24,7 @@ def test_setup_param():
     Returns
     -------
     """
-    spectrograph = load_spectrograph(spectrograph='shane_kast_blue')
+    spectrograph = load_spectrograph('shane_kast_blue')
     fitstbl = metadata.dummy_fitstbl()
     # Run
     arcparm = arc.setup_param(spectrograph, (2048,2048), fitstbl, 0)

@@ -25,7 +25,7 @@ def data_path(filename):
 def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, tilts=False,
                            datasec=False, wvcalib=False):
 
-    spectrograph = load_spectrograph(spectrograph='shane_kast_blue')
+    spectrograph = load_spectrograph('shane_kast_blue')
     spectrograph.naxis = (2112,350)     # Image shape with overscan
 
     root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
