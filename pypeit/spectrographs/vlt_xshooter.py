@@ -136,6 +136,143 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         return match_criteria
 
 
+class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
+    """
+    Child to handle VLT/XSHOOTER specific code
+    """
+    def __init__(self):
+        # Get it started
+        super(VLTXShooterNIRSpectrograph, self).__init__()
+        self.spectrograph = 'vlt_xshooter_nir'
+        self.camera = 'XShooter_NIR'
+        self.detector = [
+                # Detector 1
+                pypeitpar.DetectorPar(
+                            dataext         = 0,
+                            dispaxis        = 1,
+                            dispflip        = False,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.197, # average between order 11 and order 30 see manual
+                            darkcurr        = 0.0,
+                            saturation      = 65535.,
+                            nonlinear       = 0.86,
+                            numamplifiers   = 1,
+                            gain            = 2.12,
+                            ronoise         = 8.0, # ?? more precise value?
+                            datasec         = '[20:,4:2044]',
+                            oscansec        = '[4:20,4:2044]',
+                            suffix          = '_NIR'
+                            )]
+        self.numhead = 1
+        # Uses default timeunit
+        # Uses default primary_hdrext
+        #self.sky_file = 'sky_LRISb_600.fits'
+
+    @staticmethod
+    def default_pypeit_par():
+        """
+        Set default parameters for Xshooter NIR reductions.
+        """
+        par = VLTXShooterSpectrograph.default_pypeit_par()
+        par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
+       
+        # Adjustments to slit and tilts for NIR
+        par['calibrations']['slits']['sigdetect'] = 500.
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['tilts']['tracethresh'] = [50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
+                                                       60, 60, 2000, 2000, 6000]
+        par['scienceframe']['process']['sigclip'] = 20.0
+        par['scienceframe']['process']['satpix'] ='nothing'
+
+        return par
+
+    def check_headers(self, headers):
+        """
+        Check headers match expectations for an LRISb exposure.
+
+        See also
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+
+        Args:
+            headers (list):
+                A list of headers read from a fits file
+        """
+        expected_values = { '0.INSTRUME': 'XSHOOTER',
+                            '0.HIERARCH ESO SEQ ARM': 'NIR',
+                               '0.NAXIS': 2 }
+        super(VLTXShooterNIRSpectrograph, self).check_headers(headers,
+                                                              expected_values=expected_values)
+
+    def header_keys(self):
+        hdr_keys = super(VLTXShooterNIRSpectrograph, self).header_keys()
+        hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'
+        hdr_keys[0]['utc'] = 'HIERARCH ESO DET EXP UTC'
+        return hdr_keys
+
+    def setup_arcparam(self, arcparam, msarc_shape=None, 
+                       disperser=None, **null_kwargs):
+        """
+        Setup the arc parameters
+
+        Args:
+            arcparam: dict
+            disperser: str, REQUIRED
+            **null_kwargs:
+              Captured and never used
+
+        Returns:
+            arcparam is modified in place
+
+        """
+        #debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
+        arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+        arcparam['min_ampl'] = 1000.       # Minimum amplitude
+        arcparam['wvmnx'] = [8000.,25000.]                     # Guess at wavelength range
+
+#        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+#        arcparam['disp'] = 0.6                                 # Ang/unbinned pixel
+#        arcparam['b1'] = 1./ arcparam['disp'] / msarc_shape[0] # Pixel fit term (binning independent)
+#        arcparam['b2'] = 0.                                    # Pixel fit term
+#        arcparam['lamps'] = ['OH_triplespec']                  # Line lamps on
+#        arcparam['wv_cen']=17370.                              # Estimate of central wavelength
+#        arcparam['disp_toler'] = 0.1                           # 10% tolerance
+#        arcparam['match_toler'] = 3.                           # Matching tolerance (pixels)
+#        arcparam['min_ampl'] = 1000.                           # Minimum amplitude
+#        arcparam['func'] = 'legendre'                          # Function for fitting
+#        arcparam['n_first'] = 1                                # Order of polynomial for first fit
+#        arcparam['n_final'] = 3                                # Order of polynomial for final fit
+#        arcparam['nsig_rej'] = 5.                              # Number of sigma for rejection
+#        arcparam['nsig_rej_final'] = 5.0                       # Number of sigma for rejection (final fit)
+#        arcparam['Nstrong'] = 20                               # Number of lines for auto-analysis
+
+    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+        """
+        Override parent bpm function with BPM specific to X-ShooterNIR.
+
+        .. todo::
+            Allow for binning changes.
+
+        Parameters
+        ----------
+        det : int, REQUIRED
+        **null_kwargs:
+            Captured and never used
+
+        Returns
+        -------
+        bpix : ndarray
+          0 = ok; 1 = Mask
+
+        """
+        self.empty_bpm(shape=shape, filename=filename, det=det)
+        return self.bpm_img
+
+
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     """
     Child to handle VLT/XSHOOTER specific code
@@ -275,143 +412,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         return self.bpm_img
 
-
-
-class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
-    """
-    Child to handle VLT/XSHOOTER specific code
-    """
-    def __init__(self):
-        # Get it started
-        super(VLTXShooterNIRSpectrograph, self).__init__()
-        self.spectrograph = 'vlt_xshooter_nir'
-        self.camera = 'XShooter_NIR'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            dispaxis        = 1,
-                            dispflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.197, # average between order 11 and order 30 see manual
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 2.12,
-                            ronoise         = 8.0, # ?? more precise value?
-                            datasec         = '[20:,4:2044]',
-                            oscansec        = '[4:20,4:2044]',
-                            suffix          = '_NIR'
-                            )]
-        self.numhead = 1
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        #self.sky_file = 'sky_LRISb_600.fits'
-
-    @staticmethod
-    def default_pypeit_par():
-        """
-        Set default parameters for Xshooter NIR reductions.
-        """
-        par = VLTXShooterSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
-       
-        # Adjustments to slit and tilts for NIR
-        par['calibrations']['slits']['sigdetect'] = 500.
-        par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['pcatype'] = 'pixel'
-        par['calibrations']['tilts']['tracethresh'] = [50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-                                                       60, 60, 2000, 2000, 6000]
-        par['scienceframe']['process']['sigclip'] = 20.0
-        par['scienceframe']['process']['satpix'] ='nothing'
-
-        return par
-
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an LRISb exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'XSHOOTER',
-                            '0.HIERARCH ESO SEQ ARM': 'NIR',
-                               '0.NAXIS': 2 }
-        super(VLTXShooterNIRSpectrograph, self).check_headers(headers,
-                                                              expected_values=expected_values)
-
-    def header_keys(self):
-        hdr_keys = super(VLTXShooterNIRSpectrograph, self).header_keys()
-        hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'
-        hdr_keys[0]['utc'] = 'HIERARCH ESO DET EXP UTC'
-        return hdr_keys
-
-    def setup_arcparam(self, arcparam, msarc_shape=None, 
-                       disperser=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        #debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 1000.       # Minimum amplitude
-        arcparam['wvmnx'] = [8000.,25000.]                     # Guess at wavelength range
-
-#        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-#        arcparam['disp'] = 0.6                                 # Ang/unbinned pixel
-#        arcparam['b1'] = 1./ arcparam['disp'] / msarc_shape[0] # Pixel fit term (binning independent)
-#        arcparam['b2'] = 0.                                    # Pixel fit term
-#        arcparam['lamps'] = ['OH_triplespec']                  # Line lamps on
-#        arcparam['wv_cen']=17370.                              # Estimate of central wavelength
-#        arcparam['disp_toler'] = 0.1                           # 10% tolerance
-#        arcparam['match_toler'] = 3.                           # Matching tolerance (pixels)
-#        arcparam['min_ampl'] = 1000.                           # Minimum amplitude
-#        arcparam['func'] = 'legendre'                          # Function for fitting
-#        arcparam['n_first'] = 1                                # Order of polynomial for first fit
-#        arcparam['n_final'] = 3                                # Order of polynomial for final fit
-#        arcparam['nsig_rej'] = 5.                              # Number of sigma for rejection
-#        arcparam['nsig_rej_final'] = 5.0                       # Number of sigma for rejection (final fit)
-#        arcparam['Nstrong'] = 20                               # Number of lines for auto-analysis
-
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
-        """
-        Override parent bpm function with BPM specific to X-ShooterNIR.
-
-        .. todo::
-            Allow for binning changes.
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-            Captured and never used
-
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
-        """
-        self.empty_bpm(shape=shape, filename=filename, det=det)
-        return self.bpm_img
 
 class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
     """
