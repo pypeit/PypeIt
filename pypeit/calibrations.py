@@ -463,6 +463,7 @@ class Calibrations(object):
             # Compute the plate scale in arcsec which is needed to trim short slits
             scidx = np.where(self.fitstbl.find_frames('science', sci_ID=self.sci_ID))[0][0]
             binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
+            ## Old code: binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
             # Now we go forth

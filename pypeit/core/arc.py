@@ -485,6 +485,8 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
       had any "continuum" emission subtracted off
     """
 
+    # debug = True
+
     # Detect the location of the arc lines
     msgs.info("Detecting lines...isolating the strongest, nonsaturated lines")
 
@@ -857,6 +859,7 @@ def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
     final_fit : dict
       Dict of fit info
     """
+
     if ok_mask is None:
         ok_mask = np.arange(spec.shape[1])
 

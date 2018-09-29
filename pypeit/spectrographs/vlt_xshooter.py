@@ -154,7 +154,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
-                            platescale      = 0.197, # average between order 11 and order 30 see manual
+                            platescale      = 0.197, # average between order 11 & 30, see manual
                             darkcurr        = 0.0,
                             saturation      = 65535.,
                             nonlinear       = 0.86,
@@ -179,7 +179,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
        
         # Adjustments to slit and tilts for NIR
-        par['calibrations']['slits']['sigdetect'] = 500.
+        par['calibrations']['slits']['sigdetect'] = 700.
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['pcatype'] = 'pixel'
@@ -269,6 +269,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
           0 = ok; 1 = Mask
 
         """
+        
         self.empty_bpm(shape=shape, filename=filename, det=det)
         return self.bpm_img
 
@@ -303,9 +304,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             suffix          = '_VIS'
                             )]
         self.numhead = 1
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        #self.sky_file = 'sky_LRISb_600.fits'
 
     @staticmethod
     def default_pypeit_par():
@@ -318,13 +316,16 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Adjustments to slit and tilts for VIS
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
-        par['calibrations']['slits']['sigdetect'] = 310.
-        par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 3.
+        par['calibrations']['slits']['sigdetect'] = 2.0
         par['calibrations']['slits']['pcatype'] = 'order'
-        par['calibrations']['slits']['number'] = -1
-        par['calibrations']['tilts']['tracethresh'] = [100, 100, 100, 100, 100, 100, 100, 100,
-                                                       100, 100, 100, 100, 100, 100, 100] 
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slits']['number'] = 15
+        par['calibrations']['slits']['fracignore'] = 0.0001
+
+        par['calibrations']['tilts']['tracethresh'] = [ 20., 100., 100., 100., 100., 100., 100.,
+                                                       100., 500., 500., 500., 500., 500., 500.,
+                                                       500.]
 
         # par['calibrations']['tilts']['tracethresh'] = [100, 100, 100, 100, 100, 100, 100,
         #                                                100, 100, 100, 100, 100, 100, 100, 100]
@@ -375,17 +376,25 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         """
         ## debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['ThAr']
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 30.       # Minimum amplitude
-        arcparam['wvmnx'] = [5545.,10250]  # Guess at wavelength range
+        arcparam['disp'] = 0.1              # Ang/unbinned pixel
+        arcparam['b1'] = 10.                # Pixel fit term (binning independent)
+                                            # pix = b0 + b1*lambda + b2*lambda**2
+        arcparam['b2'] = 0.                 # Pixel fit term pix = b0 + b1*lambda + b2*lambda**2
+        arcparam['lamps'] = ['ThAr']        # Line lamps on
+        arcparam['wv_cen'] = 7900.          # Guess at central wavelength
+        arcparam['wvmnx'] = [5545.,10250]   # Guess at wavelength range
+        arcparam['disp_toler'] = 0.1        # 10% tolerance
+        arcparam['match_toler'] = 3.        # Matcing tolerance (pixels)
+        arcparam['min_ampl'] = 500.         # Minimum amplitude
+        arcparam['func'] = 'legendre'       # Function for fitting
+        arcparam['n_first'] = 0             # Order of polynomial for first fit
+        arcparam['n_final'] = 1             # Order of polynomial for final fit
+        arcparam['nsig_rej'] = 2.           # Number of sigma for rejection
+        arcparam['nsig_rej_final'] = 3.     # Number of sigma for rejection (final fit)
+        arcparam['Nstrong'] = 20            # Number of lines for auto-analysis
 
-        # None of these parameters are used in current arclines. I'm commenting them out.
-#        arcparam['n_first']=2
-#        arcparam['disp']=0.2 # Ang per pixel (unbinned)
-#        arcparam['b1']= 0.
-#        arcparam['b2']= 0.
-#        arcparam['wv_cen'] = 7900.
+        # non linear regime
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
@@ -427,7 +436,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                 pypeitpar.DetectorPar(
                             dataext         = 0,
                             dispaxis        = 0,
-                            dispflip        = False,
+                            dispflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -439,8 +448,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 1.61,
                             ronoise         = 2.60,
-                            datasec         = '[49:2000,1:2999]',
-                            oscansec        = '[1:48, 1:2999]',
+                            datasec         = '[49:,1:]', # '[49:2000,1:2999]',
+                            oscansec        = '[1:48,1:]', # '[1:48, 1:2999]',
                             suffix          = '_UVB'
                             )]
         self.numhead = 1
@@ -457,10 +466,14 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_uvb'
 
         # Adjustments to slit and tilts for UVB
-        par['calibrations']['slits']['polyorder'] = 5 # Might want 6 or 7
-#        par['calibrations']['slits']['maxshift'] = 0.5  # Trace crude
-        par['calibrations']['slits']['maxshift'] = 3.
-        par['calibrations']['slits']['pcatype'] = 'order'
+        par['calibrations']['slits']['sigdetect'] = 20.
+        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slits']['number'] = -1
+
+        par['calibrations']['arcframe']['process']['overscan'] = 'median'
+        par['calibrations']['traceframe']['process']['overscan'] = 'median'
 
         return par
 
@@ -501,8 +514,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
             arcparam is modified in place
 
         """
-        debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['Th', 'ArI']
+        ## debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
+        arcparam['lamps'] = ['ThAr']
         arcparam['n_first']=2 
         arcparam['disp']=0.2 # Ang per pixel (unbinned)
         arcparam['b1']= 0.

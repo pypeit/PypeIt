@@ -18,7 +18,8 @@ from pypeit import specobjs
 from pypeit import debugger
 
 def load_extraction(name, frametype='<None>', wave=True):
-    msgs.info("Loading a pre-existing {0:s} extraction frame:".format(frametype)+msgs.newline()+name)
+    msgs.info('Loading a pre-existing {0} extraction frame:'.format(frametype)
+                + msgs.newline() + name)
     props_savas = dict({"ORDWN":"ordwnum"})
     props = dict({})
     props_allow = props_savas.keys()
