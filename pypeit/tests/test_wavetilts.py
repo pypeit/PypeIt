@@ -52,8 +52,7 @@ def test_step_by_step():
     spectrograph.detector[0]['nonlinear'] = 0.9
     par = pypeitpar.WaveTiltsPar()
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
-                                    master_dir=master_dir,
-                                    mode='reuse', tslits_dict=TSlits.tslits_dict)
+                                    master_dir=master_dir,mode='reuse', tslits_dict=TSlits.tslits_dict)
     # Extract arcs
     arccen, maskslits = waveTilts._extract_arcs()
     assert arccen.shape == (2048,1)
@@ -87,8 +86,7 @@ def test_run():
     spectrograph.detector[0]['nonlinear'] = 0.9
     par = pypeitpar.WaveTiltsPar()
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
-                                    master_dir=master_dir, mode='reuse',
-                                    tslits_dict=TSlits.tslits_dict)
+                                    master_dir=master_dir, mode='reuse', tslits_dict=TSlits.tslits_dict)
     # Run
     tilts_dict, mask = waveTilts.run(doqa=False)
     assert isinstance(tilts_dict['tilts'], np.ndarray)

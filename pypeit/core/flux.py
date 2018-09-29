@@ -35,7 +35,7 @@ MAGFUNC_MAX = 25.0
 MAGFUNC_MIN = -25.0
 SN2_MAX = (20.0) ** 2
 
-def apply_sensfunc(spec_obj, sensfunc, airmass, exptime,
+def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
                    spectrograph, MAX_EXTRAP=0.05):
     """ Apply the sensitivity function to the data
     We also correct for extinction.
@@ -44,7 +44,7 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime,
     ----------
     spec_obj : dict
       SpecObj
-    sensfunc : dict
+    sens_dict : dict
       Sens Function dict
     airmass : float
       Airmass
@@ -66,10 +66,13 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime,
         msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
                   "{}".format(spec_obj))
         wave = np.copy(np.array(extract['WAVE']))
-        bsplinesensfunc = pydl.bspline(wave,from_dict=sensfunc['mag_set'])
-        magfit, _ = bsplinesensfunc.value(wave)
-        sensfit = np.power(10.0, 0.4 * np.maximum(np.minimum(magfit, MAGFUNC_MAX), MAGFUNC_MIN))
+        #bsplinesensfunc = pydl.bspline(wave,from_dict=sensfunc['mag_set'])
+        #magfit, _ = bsplinesensfunc.value(wave)
+        #sensfit = np.power(10.0, 0.4 * np.maximum(np.minimum(magfit, MAGFUNC_MAX), MAGFUNC_MIN))
+        wave_sens = sens_dict['wave']
+        sensfunc = sens_dict['sensfunc']
 
+        sensfunc_obs = scipy.interpolate.interp1d(wave_sens, sensfunc, bounds_error = False, fill_value='extrapolate')(wave)
         msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
         # Apply Extinction if optical bands
         if np.max(wave) < 10000.:
@@ -77,16 +80,18 @@ def apply_sensfunc(spec_obj, sensfunc, airmass, exptime,
             extinct = load_extinction_data(spectrograph.telescope['longitude'],
                                            spectrograph.telescope['latitude'])
             ext_corr = extinction_correction(wave* units.AA, airmass, extinct)
-            sensfit = sensfit * ext_corr
+            senstot = sensfunc_obs * ext_corr
         else:
             msgs.info("Extinction correction not applied")
-        extract['FLAM'] = extract['COUNTS'] * sensfit / exptime
-        extract['FLAM_SIG'] = (sensfit / exptime) / (np.sqrt(extract['COUNTS_IVAR']))
-        extract['FLAM_IVAR'] = extract['COUNTS_IVAR'] / (sensfit / exptime) **2
+            senstot = sensfunc_obs
+
+        extract['FLAM'] = extract['COUNTS'] * senstot/ exptime
+        extract['FLAM_SIG'] = (senstot/exptime)/ (np.sqrt(extract['COUNTS_IVAR']))
+        extract['FLAM_IVAR'] = extract['COUNTS_IVAR'] / (senstot / exptime) **2
 
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
-                      star_mag=None, RA=None, DEC=None, BALM_MASK_WID=5., nresln=None):
+                      star_mag=None, ra=None, dec=None, std_file = None, BALM_MASK_WID=5., nresln=None):
     """ Function to generate the sensitivity function.
     This can work in different regimes:
     - If telluric=False and RA=None and Dec=None
@@ -172,11 +177,11 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         msgs.info("Extinction correction not applied")
 
     # Create star model
-    if (RA is not None) and (DEC is not None):
+    if (ra is not None) and (dec is not None):
         # Pull star spectral model from archive
         msgs.info("Get standard model")
         # Grab closest standard within a tolerance
-        std_dict = find_standard_file((RA, DEC))
+        std_dict = find_standard_file((ra, dec))
         # Load standard
         load_standard_file(std_dict)
         # Interpolate onto observed wavelengths
@@ -196,7 +201,8 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         std_dict['flux'] = 1e17 * star_flux * units.erg / units.s / units.cm ** 2 / units.AA
         # ToDO If the Kuruck model is used, rebin create weird features
         # I using scipy interpolate to avoid this
-        flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'], fill_value='extrapolate')(wave_star)
+        flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'], bounds_error = False,
+                                               fill_value='extrapolate')(wave_star)
 
     """
     plt.figure(1)
@@ -318,27 +324,34 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     # Fit in magnitudes
     kwargs_bspline = {'bkspace': resln.value * nresln}
     kwargs_reject = {'maxrej': 5}
-    mag_set = bspline_magfit(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,
-                             kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject)
+    sensfunc = bspline_magfit(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,
+                              kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject)
 
+    # JFH Left off here.
     # Creating the dict
-    msgs.work("Is min, max and wave_min, wave_max a duplicate?")
-    sens_dict = dict(bspline=mag_set, func='bspline', min=None, max=None, std=std_dict)
+    #msgs.work("Is min, max and wave_min, wave_max a duplicate?")
+    #sens_dict = dict(wave=wave_sens, sensfunc=sensfunc, min=None, max=None, std=std_dict)
 
     # Add in wavemin,wavemax
+    sens_dict = {}
+    sens_dict['wave'] = wave_star
+    sens_dict['sensfunc'] = sensfunc
     sens_dict['wave_min'] = np.min(wave_star)
     sens_dict['wave_max'] = np.max(wave_star)
-    sens_dict['wave'] = wave_star
-    sens_dict['msk_star'] = msk_star
-    sens_dict['mag_set'] = mag_set
+    sens_dict['exptime']= exptime
+    sens_dict['airmass']= airmass
+    sens_dict['std_file']= std_file
+    # Get other keys from standard dict
+    sens_dict['std_ra'] = std_dict['std_ra']
+    sens_dict['std_dec'] = std_dict['std_dec']
+    sens_dict['std_name'] = std_dict['name']
+    sens_dict['calibfile'] = std_dict['calibfile']
+    #sens_dict['std_dict'] = std_dict
+    #sens_dict['msk_star'] = msk_star
 
-    """
-    # Write the sens_dict to a json file
-    import json
-    msgs.info("Writing sens_dict into .json file")
-    with open('sens_dict.json', 'w') as fp:
-        json.dump(sens_dict, fp, sort_keys=True, indent=4)
-    """
+
+
+#    sens_dict['mag_set'] = mag_set
 
     return sens_dict
 
@@ -500,10 +513,12 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
     else:
         bset_log1 = bset1.copy()
 
+    # ToDo JFH I think we should move towards writing this out as a vector in a fits table
+    # rather than the b-spline.
+
     # Create sensitivity function
     newlogfit, _ = bset_log1.value(wave_obs)
     sensfit = np.power(10.0, 0.4 * np.maximum(np.minimum(newlogfit, MAGFUNC_MAX), MAGFUNC_MIN))
-
     sensfit[~magfunc_mask] = 0.0
 
     if debug:
@@ -559,7 +574,7 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
                           outfile=None, title=None)
     """
 
-    return bset_log1
+    return sensfit
 
 def qa_bspline_magfit(wave, bset, magfunc, mask):
     plt.close("all")
@@ -687,9 +702,9 @@ def find_standard_file(radec, toler=20. * units.arcmin, check=False):
                 return True
             else:
                 # Generate a dict
-                std_dict = dict(file=path + star_tbl[int(idx)]['File'], name=star_tbl[int(idx)]['Name'],
-                                fmt=std_file_fmt[qq], ra=star_tbl[int(idx)]['RA_2000'],
-                                dec=star_tbl[int(idx)]['DEC_2000'])
+                std_dict = dict(calibfile=path + star_tbl[int(idx)]['File'], name=star_tbl[int(idx)]['Name'],
+                                fmt=std_file_fmt[qq], std_ra=star_tbl[int(idx)]['RA_2000'],
+                                std_dec=star_tbl[int(idx)]['DEC_2000'])
                 # Return
                 msgs.info("Using standard star {:s}".format(std_dict['name']))
                 return std_dict
@@ -788,7 +803,7 @@ def load_standard_file(std_dict):
     std_flux : Quantity array
       Flux of standard star
     """
-    root = resource_filename('pypeit', std_dict['file'] + '*')
+    root = resource_filename('pypeit', std_dict['calibfile'] + '*')
     fil = glob.glob(root)
     if len(fil) == 0:
         msgs.error("No standard star file: {:s}".format(fil))

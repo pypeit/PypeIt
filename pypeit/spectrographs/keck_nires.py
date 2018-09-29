@@ -96,6 +96,10 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         for key in fsort.ftype_list:
             match_criteria[key] = {}
 
+        # Bias
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['binning'] = ''
+
         match_criteria['standard']['match'] = {}
 
         match_criteria['pixelflat']['match'] = {}
