@@ -14,34 +14,23 @@ import glob
 import numpy as np
 
 from pypeit import processimages
-
-# These tests are not run on Travis
-if os.getenv('PYPEIT_DEV') is None:
-    skip_test=True
-else:
-    skip_test=False
+from pypeit.tests.tstutils import dev_suite_required
 
 @pytest.fixture
+@dev_suite_required
 def deimos_flat_files():
-    if not skip_test:
-        # Longslit in dets 3,7
-        deimos_flat_files = [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS',
-                                          '830G_L_8400', ifile) 
-                                    for ifile in ['d0914_0014.fits.gz', 'd0914_0015.fits.gz']]
-        assert len(deimos_flat_files) == 2
-    else:
-        deimos_flat_files = None
+    # Longslit in dets 3,7
+    deimos_flat_files = [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS',
+                                      '830G_L_8400', ifile) 
+                            for ifile in ['d0914_0014.fits.gz', 'd0914_0015.fits.gz']]
+    assert len(deimos_flat_files) == 2
     return deimos_flat_files
 
 @pytest.fixture
+@dev_suite_required
 def kast_blue_bias_files():
-    if not skip_test:
-        kast_blue_bias_files = glob.glob(os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
-                                                      'Shane_Kast_blue', '600_4310_d55',
-                                                      'b1?.fits*'))
-    else:
-        kast_blue_bias_files = None
-    return kast_blue_bias_files
+    return glob.glob(os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Shane_Kast_blue',
+                                  '600_4310_d55', 'b1?.fits*'))
 
 
 def test_instantiate():
@@ -49,10 +38,8 @@ def test_instantiate():
     assert proc_img.nfiles == 0
 
 
+@dev_suite_required
 def test_load(deimos_flat_files, kast_blue_bias_files):
-    if skip_test:
-        assert True
-        return
     # DEIMOS
     deimos_flats = processimages.ProcessImages('keck_deimos', file_list=deimos_flat_files)
     # Load
@@ -69,10 +56,8 @@ def test_load(deimos_flat_files, kast_blue_bias_files):
     assert kastb_bias.datasec[0][0] == slice(0,1024,None)
 
 
+@dev_suite_required
 def test_bias_subtract(deimos_flat_files):
-    if skip_test:
-        assert True
-        return
     # DEIMOS
     deimos_flats = processimages.ProcessImages('keck_deimos', file_list=deimos_flat_files)
     # Load
@@ -84,10 +69,8 @@ def test_bias_subtract(deimos_flat_files):
     assert deimos_flats.proc_images.shape == (4096,2048,2)
 
 
+@dev_suite_required
 def test_combine(deimos_flat_files):
-    if skip_test:
-        assert True
-        return
     # DEIMOS
     deimos_flats = processimages.ProcessImages('keck_deimos', file_list=deimos_flat_files)
     # Load
@@ -99,4 +82,5 @@ def test_combine(deimos_flat_files):
     # Test
     assert isinstance(deimos_flats.stack, np.ndarray)
     assert deimos_flats.stack.shape == (4096,2048)
+
 

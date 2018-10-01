@@ -55,7 +55,7 @@ if __name__ == '__main__':
     lines += ['']
 
     p = pypeitpar.PypeItPar(flexure=pypeitpar.FlexurePar(),
-                          fluxcalib=pypeitpar.FluxCalibrationPar())
+                            fluxcalib=pypeitpar.FluxCalibrationPar())
 
     lines += par_hierarchy(p)
     lines += ['']

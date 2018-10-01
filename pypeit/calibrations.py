@@ -22,15 +22,14 @@ from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit import waveimage
 
-from pypeit.core import fsort
+from pypeit.metadata import PypeItMetaData
+
 from pypeit.core import masters
 from pypeit.core import procimg
 from pypeit.core import parse
 
-
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.spectrographs.spectrograph import Spectrograph
 
 from pypeit import debugger
 
@@ -65,8 +64,8 @@ class Calibrations(object):
                  save_masters=True, write_qa=True, show = False):
 
         # Check the type of the provided fits table
-        if not isinstance(fitstbl, Table):
-            msgs.error("fitstbl must be an astropy.Table")
+        if not isinstance(fitstbl, PypeItMetaData):
+            msgs.error('fitstbl must be an PypeItMetaData object')
 
         # Parameters unique to this Object
         self.fitstbl = fitstbl
@@ -75,18 +74,14 @@ class Calibrations(object):
         self.show = show
 
         # Spectrometer class
+        _spectrograph = spectrograph
         if spectrograph is None:
             # Set spectrograph from FITS table instrument header
             # keyword.
             if par is not None and par['rdx']['spectrograph'] != fitstbl['instrume'][0]:
                 msgs.error('Specified spectrograph does not match instrument in the fits table!')
-            self.spectrograph = load_spectrograph(spectrograph=fitstbl['instrume'][0])
-        elif isinstance(spectrograph, str):
-            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
-        elif isinstance(spectrograph, Spectrograph):
-            self.spectrograph = spectrograph
-        else:
-            raise TypeError('Could not instantiate Spectrograph!')
+            _spectrograph = fitstbl['instrume'][0]
+        self.spectrograph = load_spectrograph(_spectrograph)
 
         # Instantiate the parameters
         # TODO: How far down through the other classes to we propagate
@@ -265,43 +260,16 @@ class Calibrations(object):
         # Make sure shape is defined
         self._check_shape()
 
-        # TODO: This determination of scidx is done often.  It
-        # should get moved to a function.
-        scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) \
-                            & self.fitstbl['science'])[0][0]
-
-        example_file = os.path.join(self.fitstbl['directory'][scidx],
-                                    self.fitstbl['filename'][scidx])
         # Always use the example file
-        bpmImage = bpmimage.BPMImage(self.spectrograph, shape=self.shape, filename=example_file, det=self.det,
+        example_file = self.fitstbl.find_frame_files('science', sci_ID=self.sci_ID)[0]
+        bpmImage = bpmimage.BPMImage(self.spectrograph, filename=example_file, det=self.det,
+                                     shape=self.shape,
                                      msbias=self.msbias if self.par['badpix'] == 'bias' else None,
                                      trim=self.par['trim'])
         # Build, save, and return
         self.msbpm = bpmImage.build()
         self.calib_dict[self.setup]['bpm'] = self.msbpm
         return self.msbpm
-
-#    def get_datasec_img(self):
-#        """
-#        Generate the datasec image
-#
-#        Requirements:
-#           det, sci_ID, par
-#
-#        Returns:
-#            self.datasec_img: ndarray
-#
-#        """
-#        # Check internals
-#        self._chk_set(['det', 'sci_ID', 'par'])
-#        # Get an example science frame file name
-#        scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
-#        scifile = os.path.join(self.fitstbl['directory'][scidx], self.fitstbl['filename'][scidx])
-#        # Generate the spectrograph-specific amplifier ID image
-#        self.datasec_img = self.spectrograph.get_datasec_img(scifile, self.det)
-#        if self.par['trim']:
-#            self.datasec_img = procimg.trim_frame(self.datasec_img, self.datasec_img < 1)
-#        return self.datasec_img
 
     def get_flats(self, show=False):
         """
@@ -323,13 +291,14 @@ class Calibrations(object):
             # User does not want to flat-field
             self.mspixflatnrm = None
             self.msillumflat = None
-            msgs.warning('Parameter calibrations.flatfield.method is set to None. You are NOT flatfielding your data!!!')
+            msgs.warning('Parameter calibrations.flatfield.method is set to None. You are NOT '
+                         'flatfielding your data!!!')
             return self.mspixflatnrm, self.msillumflat
 
         # Check for existing data necessary to build flats
         if not self._chk_objs(['tslits_dict', 'tilts_dict']):
-            msgs.warning('Flats were requested, but there are quantities missing necessary to create flats. ' +
-                         'Proceeding without flat fielding....')
+            msgs.warning('Flats were requested, but there are quantities missing necessary to '
+                         'create flats.  Proceeding without flat fielding....')
             # User cannot flat-field
             self.mspixflatnrm = None
             self.msillumflat = None
@@ -346,13 +315,14 @@ class Calibrations(object):
             return self.mspixflatnrm, self.msillumflat
 
         # Instantiate
-        pixflat_image_files = fsort.list_of_files(self.fitstbl, 'pixelflat', self.sci_ID)
+        pixflat_image_files = self.fitstbl.find_frame_files('pixelflat', sci_ID=self.sci_ID)
         self.flatField = flatfield.FlatField(self.spectrograph, file_list=pixflat_image_files,
                                              det=self.det, par=self.par['pixelflatframe'],
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'],
                                              flatpar=self.par['flatfield'], msbias=self.msbias,
-                                             tslits_dict=self.tslits_dict, tilts_dict=self.tilts_dict)
+                                             tslits_dict=self.tslits_dict,
+                                             tilts_dict=self.tilts_dict)
 
         # --- Pixel flats
 
@@ -383,9 +353,10 @@ class Calibrations(object):
             # Run
             self.mspixflatnrm, self.msillumflat = self.flatField.run(show=self.show)
 
-            # If we tweaked the slits, update the tilts_dict and tslits_dict to reflect new slit edges
+            # If we tweaked the slits, update the tilts_dict and
+            # tslits_dict to reflect new slit edges
             if self.par['flatfield']['tweak_slits']:
-                msgs.info('Using slit boundary tweaks from IllumFlat, and corresponding updated tilts image')
+                msgs.info('Using slit boundary tweaks from IllumFlat and updated tilts image')
                 self.tslits_dict = self.flatField.tslits_dict
                 self.tilts_dict = self.flatField.tilts_dict
 
@@ -399,7 +370,7 @@ class Calibrations(object):
                                                                        self.master_dir))
                 # If we tweaked the slits update the master files for tilts and slits
                 if self.par['flatfield']['tweak_slits']:
-                    msgs.info('Updating MasterTrace and MasterTilts using new tweaked slit boundaries')
+                    msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
                     # Add tweaked boundaries to the MasterTrace file
                     self.traceSlits.lcen_tweak = self.flatField.tslits_dict['lcen']
                     self.traceSlits.rcen_tweak = self.flatField.tslits_dict['rcen']
@@ -408,20 +379,21 @@ class Calibrations(object):
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
                     self.waveTilts.save_master()
 
-
-
-        # 4) If we still don't have a pixel flat, then just use unity everywhere and print out a warning
+        # 4) If we still don't have a pixel flat, then just use unity
+        # everywhere and print out a warning
         if self.mspixflatnrm is None:
             self.mspixflatnrm = np.ones_like(self.tilts_dict['tilts'])
             msgs.warn('You are not pixel flat fielding your data!!!')
 
         # --- Illumination flats
 
-        # 1) If we ran the flat field algorithm above, then the illumination file was created. So check msillumflat is set
+        # 1) If we ran the flat field algorithm above, then the
+        # illumination file was created. So check msillumflat is set
         if self.msillumflat is None:
             # 2) If no illumination file is set yet, try to read it in from a master
             self.msillumflat, _, _ = self.flatField.load_master_illumflat()
-            # 3) If there is no master file, then set illumflat to unit and war user that they are not illumflatting their data
+            # 3) If there is no master file, then set illumflat to unit
+            # and war user that they are not illumflatting their data
             if self.msillumflat is None:
                 self.msillumflat = np.ones_like(self.tilts_dict['tilts'])
                 msgs.warn('You are not illumination flat fielding your data!')
@@ -475,7 +447,7 @@ class Calibrations(object):
         # Load via master, as desired
         if not self.traceSlits.master():
             # Build the trace image first
-            trace_image_files = fsort.list_of_files(self.fitstbl, 'trace', self.sci_ID)
+            trace_image_files = self.fitstbl.find_frame_files('trace', sci_ID=self.sci_ID)
             traceImage = traceimage.TraceImage(self.spectrograph,
                                            file_list=trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
@@ -485,7 +457,7 @@ class Calibrations(object):
             _ = self.traceSlits.make_binarr()
 
             # Compute the plate scale in arcsec which is needed to trim short slits
-            scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
+            scidx = np.where(self.fitstbl.find_frames('science', sci_ID=self.sci_ID))[0][0]
             binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
             ## Old code: binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
@@ -607,14 +579,15 @@ class Calibrations(object):
                                              par=self.par['wavelengths'], det=self.det,
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], fitstbl=self.fitstbl,
-                                             sci_ID=self.sci_ID,
-                                             redux_path=self.redux_path, bpm = self.msbpm)
+                                             sci_ID=self.sci_ID, redux_path=self.redux_path,
+                                             bpm=self.msbpm)
         # Load from disk (MasterFrame)?
         self.wv_calib = self.waveCalib.master()
         # Build?
         if self.wv_calib is None:
             self.wv_calib, _ = self.waveCalib.run(self.tslits_dict['lcen'],
-                                                  self.tslits_dict['rcen'], self.tslits_dict['slitpix'],
+                                                  self.tslits_dict['rcen'],
+                                                  self.tslits_dict['slitpix'],
                                                   nonlinear=nonlinear, skip_QA=(not self.write_qa))
             # Save to Masters
             if self.save_masters:
@@ -691,7 +664,8 @@ class Calibrations(object):
                                              par=self.par['tilts'], det=self.det,
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'],
-                                             tslits_dict=self.tslits_dict, redux_path=self.redux_path, bpm=self.msbpm)
+                                             tslits_dict=self.tslits_dict,
+                                             redux_path=self.redux_path, bpm=self.msbpm)
         # Master
         self.tilts_dict = self.waveTilts.master()
         if self.tilts_dict is None:

@@ -8,7 +8,6 @@ import os
 
 from pypeit import msgs
 from pypeit.core import masters
-from pypeit.core import fsort
 from pypeit import processimages
 from pypeit import masterframe
 from pypeit.par import pypeitpar
@@ -40,7 +39,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
       Setup tag
     det : int, optional
       Detector index, starts at 1
-    fitstbl : Table (optional)
+    fitstbl : PypeItMetaData (optional)
       FITS info (mainly for filenames)
     sci_ID : int (optional)
       Science ID value
@@ -77,7 +76,8 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.frametype, setup, mode=mode, master_dir=master_dir)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup, mode=mode,
+                                         master_dir=master_dir)
 
         # Parameters unique to this Object
         self.fitstbl = fitstbl
@@ -101,7 +101,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         """
         # Get all of the bias frames for this science frame
         if self.nfiles == 0:
-            self.file_list = fsort.list_of_files(self.fitstbl, 'bias', self.sci_ID)
+            self.file_list = self.fitstbl.find_frame_files(self.frametype, sci_ID=self.sci_ID)
         # Combine
         self.stack = self.process(bias_subtract=None, trim=trim, overwrite=overwrite)
         #

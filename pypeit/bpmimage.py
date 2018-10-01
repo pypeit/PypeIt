@@ -6,12 +6,11 @@ import os
 
 from pypeit import msgs
 from pypeit.core import procimg
+from pypeit.core import parse
 
-from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import debugger
-from pypeit.core import parse
 
 
 class BPMImage(object):
@@ -67,13 +66,9 @@ class BPMImage(object):
     def __init__(self, spectrograph=None, shape=None, filename=None, det=None, msbias=None,
                  trim=True):
 
-        # Spectrograph is required
-        if isinstance(spectrograph, str):
-            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
-        elif isinstance(spectrograph, Spectrograph):
-            self.spectrograph = spectrograph
-        else:
-            self.spectrograph = None
+        # This function interprets both strings and spectrograph
+        # instances now
+        self.spectrograph = load_spectrograph(spectrograph)
 
         # Used to construct the BPM using the spectrograph class
         self.shape = shape

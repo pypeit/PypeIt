@@ -103,7 +103,7 @@ class FrameGroupPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frametype=None, useframe=None, number=None, process=None):
+    def __init__(self, frametype=None, useframe=None, number=None, exprng=None, process=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -129,7 +129,15 @@ class FrameGroupPar(ParSet):
 
         defaults['number'] = 0
         dtypes['number'] = int
-        descr['number'] = 'Number of frames to use of this type'
+        descr['number'] = 'Used in matching calibration frames to science frames.  This sets ' \
+                          'the number of frames to use of this type'
+
+        defaults['exprng'] = [None, None]
+        dtypes['exprng'] = list
+        descr['exprng'] = 'Used in identifying frames of this type.  This sets the minimum ' \
+                          'and maximum allowed exposure times.  There must be two items in ' \
+                          'the list.  Use None to indicate no limit; i.e., to select exposures ' \
+                          'with any time greater than 30 sec, use exprng = [30, None].'
 
         defaults['process'] = ProcessImagesPar()
         dtypes['process'] = [ ParSet, dict ]
@@ -148,7 +156,7 @@ class FrameGroupPar(ParSet):
     @classmethod
     def from_dict(cls, frametype, cfg):
         k = cfg.keys()
-        parkeys = [ 'useframe', 'number' ]
+        parkeys = [ 'useframe', 'number', 'exprng' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -161,11 +169,14 @@ class FrameGroupPar(ParSet):
         """
         Return the list of valid frame types.
         """
-        return [ 'bias', 'pixelflat', 'arc', 'pinhole', 'trace', 'standard', 'science', 'all' ]
+        return [ 'bias', 'dark', 'pixelflat', 'arc', 'pinhole', 'trace', 'standard', 'science',
+                 'all' ]
 
     def validate(self):
         if self.data['useframe'] is None:
             self.data['useframe'] = self.data['frametype']
+        if len(self.data['exprng']) != 2:
+            raise ValueError('exprng must be a list with two items.')
 
 
 class ProcessImagesPar(ParSet):
@@ -441,22 +452,6 @@ class FlatFieldPar(ParSet):
         dtypes['method'] = str
         descr['method'] = 'Method used to flat field the data; use None to skip flat-fielding.  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
-
-        # JFH These parameters below are all now deprecated.
-        #defaults['params'] = [20]
-        #dtypes['params'] = [int, list]
-        #descr['params'] = 'Flat-field method parameters.  For \'PolyScan\', set params = order, ' \
-        #                  'numPixels, repeat ; for bspline, set params = spacing '
-
-        # TODO:  How is twodpca used?  Is it just another method that is
-        # only used for ARMED?  Could we remove twodpca and just add
-        # another method option?
-        #defaults['twodpca'] = 0
-        #dtypes['twodpca'] = int
-        #descr['twodpca'] = 'Perform a simple 2D PCA on the echelle blaze fits if the value of ' \
-        #                   'this argument is >1. The argument value is equal to the number of ' \
-        #                   'PCA components. 0 means that no PCA will be performed.  **This is ' \
-        #                   'only used with ARMED pipeline.'
 
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
@@ -907,8 +902,8 @@ class ReducePar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, spectrograph=None, pipeline=None, detnum=None, sortroot=None, calwin=None,
-                 scidir=None, qadir=None, redux_path=None):
+    def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
+                 qadir=None, redux_path=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -928,11 +923,6 @@ class ReducePar(ParSet):
         dtypes['spectrograph'] = str
         descr['spectrograph'] = 'Spectrograph that provided the data to be reduced.  ' \
                                 'Options are: {0}'.format(', '.join(options['spectrograph']))
-
-        options['pipeline'] = ReducePar.valid_pipelines()
-        dtypes['pipeline'] = str
-        descr['pipeline'] = 'Pipeline options that pypeit can use for reductions.  ' \
-                            'Options are: {0}'.format(', '.join(options['pipeline']))
 
         dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices'
@@ -974,8 +964,8 @@ class ReducePar(ParSet):
         k = cfg.keys()
 
         # Basic keywords
-        parkeys = [ 'spectrograph', 'pipeline', 'detnum', 'sortroot', 'calwin', 'scidir',
-                    'qadir', 'redux_path']
+        parkeys = [ 'spectrograph', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
+                    'redux_path']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -994,11 +984,6 @@ class ReducePar(ParSet):
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
                 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
                 'vlt_xshooter_nir']
-
-    @staticmethod
-    def valid_pipelines():
-        """Return the list of allowed pipelines within pypit."""
-        return [ 'ARMS' , 'ARMED' ]
 
     def validate(self):
         pass
@@ -1376,7 +1361,7 @@ class WaveTiltsPar(ParSet):
         defaults['order'] = 2
         dtypes['order'] = int
         descr['order'] = 'Order of the polynomial function to be used for the tilt of an ' \
-                         'individual arc line.  Must be 1 for eschelle data (ARMED pipeline).'
+                         'individual arc line.  Must be 1 for echelle data (Echelle pipeline).'
 
         defaults['function'] = 'legendre'
         # TODO: Allowed values?
@@ -1386,7 +1371,7 @@ class WaveTiltsPar(ParSet):
         defaults['yorder'] = 4
         dtypes['yorder'] = int
         descr['yorder'] = 'Order of the polynomial function to be used to fit the tilts ' \
-                          'along the y direction.  TODO: Only used by ARMED pipeline?'
+                          'along the y direction.'
 
         defaults['func2D'] = 'legendre'
         # TODO: Allowed values?
@@ -1491,8 +1476,8 @@ class TraceObjectsPar(ParSet):
         defaults['method'] = 'pca'
         options['method'] = TraceObjectsPar.valid_methods()
         dtypes['method'] = str
-        descr['method'] = 'Method to use for tracing each object; only used with ARMED pipeline.' \
-                          '  Options are: {0}'.format(', '.join(options['method']))
+        descr['method'] = 'Method to use for tracing each object; only used with Echelle ' \
+                          'pipeline.  Options are: {0}'.format(', '.join(options['method']))
 
         defaults['params'] = [1, 0]
         dtypes['params'] = [int, list]
@@ -1645,13 +1630,14 @@ class ExtractObjectsPar(ParSet):
 # ToDO place holder to be updated by JFH
 class ScienceImagePar(ParSet):
     """
-    The parameter set used to hold arguments for sky subtraction, object finding and extraction in the ScienceImage class
+    The parameter set used to hold arguments for sky subtraction, object
+    finding and extraction in the ScienceImage class
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, maxnumber=None,manual=None, nodding = None):
+    def __init__(self, bspline_spacing=None, maxnumber=None, manual=None, nodding=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1693,11 +1679,11 @@ class ScienceImagePar(ParSet):
 
         # Instantiate the parameter set
         super(ScienceImagePar, self).__init__(list(pars.keys()),
-                                                values=list(pars.values()),
-                                                defaults=list(defaults.values()),
-                                                options=list(options.values()),
-                                                dtypes=list(dtypes.values()),
-                                                descr=list(descr.values()))
+                                              values=list(pars.values()),
+                                              defaults=list(defaults.values()),
+                                              options=list(options.values()),
+                                              dtypes=list(dtypes.values()),
+                                              descr=list(descr.values()))
         self.validate()
 
     @classmethod
@@ -1727,9 +1713,9 @@ class CalibrationsPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, caldir=None, masters=None, setup=None, trim=None, badpix=None,
-                 biasframe=None, arcframe=None, pixelflatframe=None, pinholeframe=None,
-                 traceframe=None, standardframe=None, flatfield=None, wavelengths=None,
-                 slits=None, tilts=None):
+                 biasframe=None, darkframe=None, arcframe=None, pixelflatframe=None,
+                 pinholeframe=None, traceframe=None, standardframe=None, flatfield=None,
+                 wavelengths=None, slits=None, tilts=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1772,6 +1758,10 @@ class CalibrationsPar(ParSet):
         defaults['biasframe'] = FrameGroupPar(frametype='bias', number=5)
         dtypes['biasframe'] = [ ParSet, dict ]
         descr['biasframe'] = 'The frames and combination rules for the bias correction'
+
+        defaults['darkframe'] = FrameGroupPar(frametype='bias', number=0)
+        dtypes['darkframe'] = [ ParSet, dict ]
+        descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
 
         defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat', number=5)
         dtypes['pixelflatframe'] = [ ParSet, dict ]
@@ -1833,6 +1823,8 @@ class CalibrationsPar(ParSet):
         # Keywords that are ParSets
         pk = 'biasframe'
         kwargs[pk] = FrameGroupPar.from_dict('bias', cfg[pk]) if pk in k else None
+        pk = 'darkframe'
+        kwargs[pk] = FrameGroupPar.from_dict('dark', cfg[pk]) if pk in k else None
         pk = 'arcframe'
         kwargs[pk] = FrameGroupPar.from_dict('arc', cfg[pk]) if pk in k else None
         pk = 'pixelflatframe'
@@ -1940,25 +1932,8 @@ class PypeItPar(ParSet):
 
         defaults['scienceimage'] = ScienceImagePar()
         dtypes['scienceimage'] = [ParSet, dict]
-        descr['scienceimage'] = 'Parameters determining sky-subtraction, object finding, and extraction'
-
-## JFH commented out objects, extract, and skysubtract below. These parsets are all deprecated now
-#        defaults['objects'] = TraceObjectsPar()
-#        dtypes['objects'] = [ ParSet, dict ]
-#        descr['objects'] = 'Define how to tract the slit tilts using the trace frames'
-
-#        defaults['extract'] = ExtractObjectsPar()
-#        dtypes['extract'] = [ ParSet, dict ]
-#        descr['extract'] = 'Define how to extract 1D object spectra'
-
-        # Sky subtraction is turned OFF by default
-#        dtypes['skysubtract'] = [ ParSet, dict ]
-#        descr['skysubtract'] = 'Parameters used by the sky-subtraction procedure.  Sky ' \
-#                               'subtraction is not performed by default.  To turn on, either' \
-#                               'set the parameters in the \'skysubtract\' parameter group or ' \
-#                               'set \'skysubtract = True\' in the \'rdx\' parameter group ' \
-#                               'to use the default sky-subtraction parameters.'
-
+        descr['scienceimage'] = 'Parameters determining sky-subtraction, object finding, and ' \
+                                'extraction'
 
         # Flexure is turned OFF by default
         dtypes['flexure'] = [ ParSet, dict ]
@@ -2197,20 +2172,6 @@ class PypeItPar(ParSet):
         pk = 'scienceimage'
         kwargs[pk] = ScienceImagePar.from_dict(cfg[pk]) if pk in k else None
 
-        # JFH These lines here below are deprecated now
-        '''
-        pk = 'objects'
-        kwargs[pk] = TraceObjectsPar.from_dict(cfg[pk]) if pk in k else None
-
-        pk = 'extract'
-        kwargs[pk] = ExtractObjectsPar.from_dict(cfg[pk]) if pk in k else None
-
-        # Allow sky subtraction to be turned on using cfg['rdx']
-        pk = 'skysubtract'
-        default = SkySubtractionPar() \
-                        if pk in cfg['rdx'].keys() and cfg['rdx']['skysubtract'] else None
-        kwargs[pk] = SkySubtractionPar.from_dict(cfg[pk]) if pk in k else default
-        '''
         # Allow flexure to be turned on using cfg['rdx']
         pk = 'flexure'
         default = FlexurePar() if pk in cfg['rdx'].keys() and cfg['rdx']['flexure'] else None

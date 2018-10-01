@@ -1,6 +1,7 @@
 #  Class for organizing PYPIT setup
 from __future__ import absolute_import, division, print_function
 
+import os
 import inspect
 import numpy as np
 
@@ -9,10 +10,8 @@ import numpy as np
 from astropy.table import hstack, Table
 
 from pypeit import msgs
-from pypeit.core import load
-from pypeit.core import parse
-from pypeit.core import fsort
 from pypeit.core import pypsetup
+from pypeit.metadata import PypeItMetaData
 
 from pypeit.par import PypeItPar
 from pypeit.par.util import parse_pypeit_file
@@ -88,7 +87,7 @@ class PypeItSetup(object):
             An instance of the `PypitPar` class that provides the
             parameters to all the algorthms that pypeit uses to reduce
             the data.
-        fitstbl (:class:`astropy.table.Table`):
+        fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
             A `Table` that provides the salient metadata for the fits
             files to be reduced.
         filetypeflags(:class:`astropy.table.Table`):
@@ -136,7 +135,7 @@ class PypeItSetup(object):
         # Prepare internals for execution
         self.fitstbl = None
         self.filetypeflags = None
-        self.setup_dict = {}
+        self.setup_dict = None
         self.steps = []
 
     @classmethod
@@ -162,25 +161,41 @@ class PypeItSetup(object):
         """The number of files to reduce."""
         return 0 if self.fitstbl is None else len(self.fitstbl)
 
+    def __repr__(self):
+        txt = '<{:s}: nfiles={:d}>'.format(self.__class__.__name__,
+                                           self.nfiles)
+        return txt
+
     def build_fitstbl(self, strict=True):
         """
+        Construct the table with metadata for the frames to reduce.
 
-        Parameters
-        ----------
-        file_list : list
-          List of file names for generating fitstbl
+        Largely a wrapper for :func:`pypeit.core.load.create_fitstbl`.
 
-        Returns
-        -------
-        fitstbl : Table
-
+        Args:
+            strict (:obj:`bool`, optional):
+                Function will fault if :func:`fits.getheader` fails to
+                read the headers of any of the files in
+                :attr:`file_list`.  Set to False to only report a
+                warning and continue.
+    
+        Returns:
+            :obj:`astropy.table.Table`: Table with the metadata for each
+            fits file to reduce.  Note this is different from
+            :attr:`fitstbl`.
         """
         # Build and sort the table
-        self.fitstbl = load.load_headers(self.file_list, self.spectrograph, strict=strict)
-        self.fitstbl.sort('time')
-        # Step
+        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, file_list=self.file_list,
+                                      strict=strict)
+        # Sort by the time
+        if 'time' in self.fitstbl.keys():
+            self.fitstbl.sort('time')
+
+        # Add this to the completed steps
         self.steps.append(inspect.stack()[0][3])
-        return self.fitstbl
+
+        # Return the table
+        return self.fitstbl.table
 
     def build_group_dict(self, pypeit_file=None):
         """
@@ -193,14 +208,16 @@ class PypeItSetup(object):
           Dict describing the various setups
         """
         #
-        all_sci_idx = np.where(self.fitstbl['science'])[0]
-        all_sci_ID = self.fitstbl['sci_ID'][self.fitstbl['science']]
-        self.group_dict = pypsetup.build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx, all_sci_ID)
+        all_sci_idx = np.where(self.fitstbl.find_frames('science'))[0]
+        all_sci_ID = self.fitstbl['sci_ID'][all_sci_idx]
+        self.group_dict = pypsetup.build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx,
+                                                    all_sci_ID)
 
         # TODO: Move this to a method that writes the sorted file
         # Write .sorted file
         if len(self.group_dict) > 0:
-            group_file = 'tmp.sorted' if pypeit_file is None or len(pypeit_file) == 0 \
+            group_file = self.spectrograph.spectrograph + '.sorted' \
+                                if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.sorted')
             pypsetup.write_sorted(group_file, self.fitstbl, self.group_dict, self.setup_dict)
             msgs.info("Wrote group dict to {:s}".format(group_file))
@@ -225,16 +242,10 @@ class PypeItSetup(object):
         """
         # Run with masters?
         if self.par['calibrations']['masters'] == 'force':
-            print(self.par['calibrations']['masters'])
-            # TODO: This is now checked when validating the parameter
-            # set.  See CalibrationsPar.validate()
-#            # Check that setup was input
-#            if len(self.spectrograph.calib_par['setup']) == 0:
-#                msgs.error("When forcing use of master frames, you need to specify the You need to specify the following parameter in your PYPIT file:" 
-#                           + msgs.newline() + "reduce masters setup")
+            print('forcing!')
             # Generate a dummy setup_dict
-            self.setup_dict = pypsetup.dummy_setup_dict(self.fitstbl,
-                                                       self.par['calibrations']['setup'])
+            self.setup_dict = pypsetup.dummy_setup_dict(self.fitstbl.find_frame_files('science'),
+                                                        self.par['calibrations']['setup'])
             # Step
             self.steps.append(inspect.stack()[0][3])
             # Return
@@ -242,17 +253,18 @@ class PypeItSetup(object):
 
         # Run through the setups to fill setup_dict
         self.setupIDs = []
-        all_sci_ID = self.fitstbl['sci_ID'].data[self.fitstbl['science']]
+        all_sci_ID = self.fitstbl['sci_ID'][self.fitstbl.find_frames('science')]
         for sc in all_sci_ID:
             for kk in range(len(self.spectrograph.detector)):
                 cname = None if self.par['calibrations']['setup'] is None \
                                     else self.par['calibrations']['setup'][0]
                 # Amplifiers
-                namp = self.spectrograph.detector[kk]["numamplifiers"]
+                namp = self.spectrograph.detector[kk]['numamplifiers']
                 # Run
-                det = kk+1
-                setupID = pypsetup.instr_setup(sc, det, self.fitstbl, self.setup_dict, namp,
-                                              skip_cset=setup_only, config_name=cname)
+                setupID, self.setup_dict = pypsetup.instr_setup(sc, kk+1, self.fitstbl,
+                                                                setup_dict=self.setup_dict,
+                                                                skip_cset=setup_only,
+                                                                config_name=cname)
                 # Only save the first detector for run setup
                 if kk == 0:
                     self.setupIDs.append(setupID)
@@ -270,9 +282,7 @@ class PypeItSetup(object):
         self.fitstbl -- Updated with 'AB_frame' column
 
         """
-        self.fitstbl = fsort.match_ABBA(self.fitstbl)
-
-        # Step
+        self.fitstbl.match_ABBA()
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
 
@@ -286,52 +296,41 @@ class PypeItSetup(object):
         self.fitstbl -- Updated with 'sci_ID' and 'failures' columns
 
         """
-        self.fitstbl = fsort.match_to_science(self.par['calibrations'],
-                                               self.spectrograph.get_match_criteria(),
-                                               self.fitstbl, self.par['rdx']['calwin'],
-                                               setup=setup_only,
-                                               match_nods=self.par['scienceimage'] is not None \
-                                                            and self.par['scienceimage']['nodding'])
-        # Step
+        self.fitstbl.match_to_science(self.par['calibrations'], self.par['rdx']['calwin'],
+                                      setup=setup_only)
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
 
-    # TODO: This appends the data to fitstbl meaning that it should not
-    # be run multiple times.  Make it a "private" function?
-    def type_data(self, flag_unknown=False, use_header_frametype=False):
+    def get_frame_types(self, flag_unknown=False, use_header_id=False):
         """
-          Perform image typing on the full set of input files
-          Mainly a wrapper to arsort.type_data()
+        Include the frame types in the metadata table.
 
-        The table (filetypeflags) returned is horizontally stacked
-          onto the fitstbl.
+        This is mainly a wrapper for
+        :func:`PypeItMetaData.get_frame_types`.
 
-        Parameters
-        ----------
-        flag_unknown: bool, optional
-          Mark a frame as UNKNOWN instead of crashing out
-          Required when doing initial setup
+        .. warning::
+
+            Because this merges the frame types with the existing
+            :attr:`fitstbl` this should only be run once.
+
+        Args:
+            flag_unknown (:obj:`bool`, optional):
+                Allow for frames to have unknown types instead of
+                crashing.  This should be True for initial setup and
+                False otherwise.
 
         Returns
         -------
         self.filetypeflags
-
         """
-        # Allow for input file types from the PYPIT file
-        self.filetypeflags = fsort.type_data(self.spectrograph, self.fitstbl,
-                                              ftdict=self.frametype, flag_unknown=flag_unknown,
-                                              useIDname=use_header_frametype)
-
-        # hstack me -- Might over-write self.fitstbl here
-        msgs.info("Adding file type information to the fitstbl")
-        self.fitstbl = hstack([self.fitstbl, self.filetypeflags])
-
-        # Step
+        # Use PypeItMetaData methods to get the frame types
+        self.filetypeflags = self.fitstbl.get_frame_types(flag_unknown=flag_unknown,
+                                                          user=self.frametype,
+                                                          useIDname=use_header_id)
+        # Include finished processing step
         self.steps.append(inspect.stack()[0][3])
-        # Return
-        return self.filetypeflags
 
-    def load_fitstbl(self, fits_file):
+    def load_metadata(self, fits_file):
         """
           Load the fitstbl from disk (a binary FITS table)
 
@@ -344,30 +343,50 @@ class PypeItSetup(object):
         self.fitstbl
 
         """
-        self.fitstbl = Table.read(fits_file)
-        # Need to convert bytestrings back to unicode
-        try:
-            self.fitstbl.convert_bytestring_to_unicode()
-        except:
-            pass
+        self.fitstbl = PypeItMetaData(self.spectrograph, data=Table.read(fits_file))
+#        # Need to convert bytestrings back to unicode
+#        try:
+#            self.fitstbl.convert_bytestring_to_unicode()
+#        except:
+#            pass
         msgs.info("Loaded fitstbl from {:s}".format(fits_file))
-        return self.fitstbl
+        return self.fitstbl.table
 
-    def write_fitstbl(self, outfile=None, overwrite=True):
+    def write_metadata(self, sort_dir=None, ofile=None):
         """
-        Write fitstbl to FITS
+        Write the :class:`astropy.table.Table` object in :attr:`fitstbl`
+        to a file.
 
-        Parameters
-        ----------
-        outfile : str
-        overwrite : bool (optional)
+        If an output file is provided, the file is used.  If that file
+        name inclues '.fits', the output will be a fits file; otherwise
+        the format is ascii.fixed_width.
+
+        If no output file, the default is an ascii table with an '.lst'
+        extension.  The root name of the file is either the spectrograph
+        name or the root name of the pypeit file, if the latter exists.
+
+        If a `sort_dir` is provided, the directory of the nominal output
+        file is changed to this directory.
+
+        Args:
+            sort_dir (:obj:`str`, optional):
+                The full root of the name for the metadata table
+                ('.lst') file.
+            ofile (:obj:`str, optional):
+                The name of the file to write.  See description above.
         """
-        if outfile is None:
-            outfile = self.pypeit_file.replace('.pypeit', '.fits')
-        self.fitstbl.write(outfile, overwrite=overwrite)
+        if ofile is None:
+            ofile = self.spectrograph.spectrograph + '.lst' if self.pypeit_file is None \
+                        else self.pypeit_file.replace('.pypeit', '.lst')
+            if sort_dir is not None:
+                ofile = os.path.join(sort_dir, os.path.split(ofile)[1])
 
-    def run(self, setup_only=False, calibration_check=False, use_header_frametype=False,
-            sort_dir=None):
+        format = None if '.fits' in ofile else 'ascii.fixed_width'
+        self.fitstbl.write(ofile,
+                           columns=None if format is None else self.spectrograph.metadata_keys(),
+                           format=format, overwrite=True)
+
+    def run(self, setup_only=False, calibration_check=False, use_header_id=False, sort_dir=None):
         """
         Once instantiated, this is the main method used to construct the
         object.
@@ -388,7 +407,7 @@ class PypeItSetup(object):
         to do the actual setup before proceeding with the reductions.
 
         Args:
-            setup_only (bool):
+            setup_only (:obj:`bool`, optional):
                 Only this setup will be performed.  Pypit is expected to
                 execute in a way that ends after this class is fully
                 instantiated such that the user can inspect the results
@@ -396,16 +415,17 @@ class PypeItSetup(object):
                 more output describing the success of the setup and how
                 to proceed, and provides warnings (instead of errors)
                 for issues that may cause the reduction itself to fail.
-            calibration_check (bool):
+            calibration_check (obj:`bool`, optional):
                 Only check that the calibration frames are appropriately
                 setup and exist on disk.  Pypit is expected to execute
                 in a way that ends after this class is fully
                 instantiated such that the user can inspect the results
                 before proceeding. 
-            use_header_frametype (bool):
-                Allow setup to use the frame types drawn from the file
-                headers using the instrument specific keywords.
-            sort_dir (str):
+            use_header_id (:obj:`bool`, optional):
+                Allow setup to use the frame types drawn from single,
+                instrument-specific header keywords set to `idname` in
+                the metadata table (:attr:`fitstbl`).
+            sort_dir (:obj:`str`, optional):
                 The directory to put the '.sorted' file.
 
         Returns:
@@ -425,17 +445,19 @@ class PypeItSetup(object):
             self.build_fitstbl(strict=not setup_only)
 
         # File typing
-        self.type_data(flag_unknown=setup_only or calibration_check,
-                       use_header_frametype=use_header_frametype)
-
-        # Write?
-        if sort_dir is not None:
-            print('WRITING: {0}'.format(sort_dir))
-            fsort.write_lst(self.fitstbl, self.spectrograph.header_keys(), pypeit_file,
-                             setup=setup_only, sort_dir=sort_dir)
+        if 'frametype' not in self.fitstbl.keys():
+            # Add the frame type if it isn't already in the table
+            self.get_frame_types(flag_unknown=setup_only or calibration_check,
+                                 use_header_id=use_header_id)
 
         # Match calibs to science
         self.match_to_science(setup_only=setup_only)
+
+        if self.par['scienceimage'] is not None and self.par['scienceimage']['nodding']:
+            self.match_ABBA()
+
+        # Write metadata
+        self.write_metadata(sort_dir=sort_dir)
 
         # Setup dict
         self.build_setup_dict(setup_only=setup_only)
@@ -445,12 +467,14 @@ class PypeItSetup(object):
             self.build_group_dict(pypeit_file=pypeit_file)
 
             # Write the setup file
-            setup_file = 'tmp.setups' if pypeit_file is None or len(pypeit_file) == 0 \
+            setup_file = self.spectrograph.spectrograph + '.setups' \
+                                if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.setups')
-            pypsetup.write_setup(self.setup_dict, setup_file=setup_file)
+            pypsetup.write_setup(self.setup_dict, setup_file)
         else:
             # Write the calib file
-            calib_file = 'tmp.calib' if pypeit_file is None or len(pypeit_file) == 0 \
+            calib_file = self.spectrograph.spectrograph + '.calib' \
+                                if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.calib')
             pypsetup.write_calib(calib_file, self.setup_dict)
 
@@ -459,24 +483,18 @@ class PypeItSetup(object):
             msgs.info("Inspect the .calib file: {:s}".format(calib_file))
             msgs.info("*********************************************************")
             msgs.info("Calibration check complete and successful!")
-            msgs.info("Set 'run calcheck False' to continue with data reduction")
+#            msgs.info("Set 'run calcheck False' to continue with data reduction")
             msgs.info("*********************************************************")
+            #TODO: Why should this not return the same as when setup_only is True
 
         if setup_only:
             for idx in np.where(self.fitstbl['failures'])[0]:
                 msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(
-                    self.fitstbl['target'][idx],self.fitstbl['filename'][idx]))
+                            self.fitstbl['target'][idx],self.fitstbl['filename'][idx]))
             msgs.info("Setup is complete.")
             msgs.info("Inspect the .setups file")
             return None, None, None, None
 
         return self.par, self.spectrograph, self.fitstbl, self.setup_dict
-
-    def __repr__(self):
-        # Generate sets string
-        txt = '<{:s}: nfiles={:d}>'.format(self.__class__.__name__,
-                                           self.nfiles)
-        return txt
-
 
 

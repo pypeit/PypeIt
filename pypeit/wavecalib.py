@@ -13,10 +13,7 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc
 from pypeit.core import masters
-from pypeit.core import fsort
 from pypeit.par import pypeitpar
-
-from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import debugger
@@ -75,12 +72,7 @@ class WaveCalib(masterframe.MasterFrame):
                  mode=None, fitstbl=None, sci_ID=None, arcparam=None, redux_path=None, bpm = None):
 
         # Instantiate the spectograph
-        if isinstance(spectrograph, str):
-            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
-        elif isinstance(spectrograph, Spectrograph):
-            self.spectrograph = spectrograph
-        else:
-            raise TypeError('Must provide a name or instance for the Spectrograph.')
+        self.spectrograph = load_spectrograph(spectrograph)
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
@@ -200,9 +192,9 @@ class WaveCalib(masterframe.MasterFrame):
         self.maskslits
 
         """
-
         inmask = (self.bpm == 0) if self.bpm is not None else None
-        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc, inmask=inmask)
+        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,
+                                                      inmask=inmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -255,9 +247,9 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         # Setup arc parameters (e.g. linelist)
-        arc_idx = fsort.ftype_indices(self.fitstbl, 'arc', self.sci_ID)
+        arc_idx = self.fitstbl.find_frames('arc', sci_ID=self.sci_ID, index=True)
         self.arcparam = arc.setup_param(self.spectrograph, self.msarc.shape, self.fitstbl,
-                                          arc_idx[0], calibrate_lamps=calibrate_lamps)
+                                        arc_idx[0], calibrate_lamps=calibrate_lamps)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return

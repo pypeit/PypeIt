@@ -8,7 +8,6 @@ from __future__ import unicode_literals
 
 import os
 
-import pdb
 import pytest
 
 import numpy as np

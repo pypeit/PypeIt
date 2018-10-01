@@ -8,7 +8,9 @@ from pypeit import msgs
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
-from pypeit.core import fsort
+from pypeit.core import framematch
+from pypeit.par import pypeitpar
+from pypeit.spectrographs import spectrograph
 
 from pypeit import debugger
 
@@ -23,9 +25,10 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         self.camera = 'NIRSPEC'
         self.detector = [
                 # Detector 1
-            pypeitpar.DetectorPar(dataext         = 0,
+            pypeitpar.DetectorPar(
+                            dataext         = 0,
                             dispaxis        = 0,
-                            dispflip=False,
+                            dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -38,20 +41,18 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
                             ronoise         = 23,
                             datasec         = '[:,:]',
                             oscansec        = '[:,:]'
-                            )
-            ]
+                            )]
         self.numhead = 1
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
 
     @staticmethod
-    def nirspec_default_pypeit_par():
+    def default_pypeit_par():
         """
-        Set default parameters for NIRSPEC redutions
+        Set default parameters for NIRSPEC reductions
         """
         par = pypeitpar.PypeItPar()
-        # TODO: Make self.spectrograph a class attribute?
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
         par['calibrations']['biasframe']['number'] = 0
@@ -62,110 +63,144 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['order'] = 2
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
+        # Do not flux calibrate
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
-
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['biasframe']['exprng'] = [None, 2]
+        par['calibrations']['darkframe']['exprng'] = [None, 5]
+        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
+        par['calibrations']['traceframe']['exprng'] = [0, None]
+        par['calibrations']['standardframe']['exprng'] = [None,5]
+        par['scienceframe']['exprng'] = [1, None]
         return par
 
-    def nirspec_header_keys(self):
+    def check_headers(self, headers):
         """
-        Provide the relevant header keywords
+        Check headers match expectations for an LRISb exposure.
+
+        See also
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+
+        Args:
+            headers (list):
+                A list of headers read from a fits file
         """
-        def_keys = self.default_header_keys()
+        expected_values = { '0.INSTRUME': 'NIRSPEC',
+                               '0.NAXIS': 2,
+                              '0.NAXIS1': 1024,
+                              '0.NAXIS2': 1024 }
+        super(KeckNIRSPECSpectrograph, self).check_headers(headers,
+                                                           expected_values=expected_values)
 
-        # A time stamp of the observation; used to find calibrations
-        # proximate to science frames. The units of this value are
-        # specified by fits+timeunit below
-        #def_keys[0]['time'] = 'UTC'
-        # FIX TIME HERE
+    def header_keys(self):
+        """
+        Return a dictionary with the header keywords to read from the
+        fits file.
 
-        # Image size
-        # TODO: Check ordering
-        def_keys[0]['naxis0'] = 'NAXIS2'
-        def_keys[0]['naxis1'] = 'NAXIS1'
+        Returns:
+            dict: A nested dictionary with the header keywords to read.
+            The first level gives the extension to read and the second
+            level gives the common name for header values that is passed
+            on to the PypeItMetaData object.
+        """
+        hdr_keys = {}
+        hdr_keys[0] = {}
+        hdr_keys[0]['idname'] = 'IMAGETYP'
+        hdr_keys[0]['date'] = 'DATE-OBS'
+        hdr_keys[0]['utc'] = 'UTC'
+        hdr_keys[0]['target'] = 'OBJECT'
+        hdr_keys[0]['time'] = 'MJD-OBS'
+        hdr_keys[0]['ra'] = 'RA'
+        hdr_keys[0]['dec'] = 'DEC'
+        hdr_keys[0]['airmass'] = 'AIRMASS'
+        hdr_keys[0]['decker'] = 'SLITNAME'
+        hdr_keys[0]['echellepos'] = 'ECHLPOS'
+        hdr_keys[0]['crosspos'] = 'DISPPOS'
+        hdr_keys[0]['naxis0'] = 'NAXIS2'
+        hdr_keys[0]['naxis1'] = 'NAXIS1'
+        hdr_keys[0]['filter1'] = 'FILNAME'
+        hdr_keys[0]['dispname'] = 'DISPERS'
+        hdr_keys[0]['hatch'] = 'CALMPOS'
+        hdr_keys[0]['slitwid'] = 'SLITWIDT'
+        hdr_keys[0]['slitlen'] = 'SLITLEN'
+
+        # 'ELAPTIME' is added by KOA, but otherwise would need to do 'ITIME' * 'COADDS'
+        hdr_keys[0]['exptime'] = 'ELAPTIME'
 
         # Lamp names and statuses
-        def_keys[0]['lampstat01'] = 'NEON'
-        def_keys[0]['lampstat02'] = 'ARGON'
-        def_keys[0]['lampstat03'] = 'KRYPTON'
-        def_keys[0]['lampstat04'] = 'XENON'
-        def_keys[0]['lampstat05'] = 'ETALON'
-        def_keys[0]['lampstat06'] = 'FLAT'
+        lamp_names = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON', 'FLAT']
+        for kk,lamp_name in enumerate(lamp_names):
+            hdr_keys[0]['lampstat{:02d}'.format(kk+1)] = lamp_name
 
-        def_keys[0]['exptime'] = 'ELAPTIME' # 'ELAPTIME' is added by KOA, but otherwise would need to do 'ITIME' * 'COADDS'
-        def_keys[0]['dispname'] = 'DISPERS'
-        def_keys[0]['hatch'] = 'CALMPOS'
-        def_keys[0]['slitwid'] = 'SLITWIDT'
-        def_keys[0]['slitlen'] = 'SLITLEN'
-        def_keys[0]['imagetype'] = 'IMAGETYP'
+        return hdr_keys
 
-        return def_keys
+    def metadata_keys(self):
+        return super(KeckNIRSPECSpectrograph, self).metadata_keys() \
+                    + ['echellepos', 'crosspos', 'idname']
 
-    def nirspec_cond_dict(self, ftype):
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
-        Create dict for image typing (from header)
+        Check for frames of the provided type.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype in ['science', 'standard']:
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 0) \
+                        & (fitstbl['idname'] == 'object')
+        if ftype in ['bias', 'dark']:
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 0) \
+                        & (fitstbl['idname'] == 'dark')
+        if ftype in ['pixelflat', 'trace']:
+            # Flats and trace frames are typed together
+            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 1) \
+                        & (fitstbl['idname'] == 'flatlamp')
+        if ftype == 'pinhole':
+            # Don't type pinhole frames
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype == 'arc':
+            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 1) \
+                        & (fitstbl['idname'] == 'arclamp')
+
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+
+    def lamps(self, fitstbl, status):
+        """
+        Check the lamp status.
 
         Args:
-            ftype: str
+            fitstbl (:obj:`astropy.table.Table`):
+                The table with the fits header meta data.
+            status (:obj:`str`):
+                The status to check.  Can be `off`, `arcs`, or `dome`.
 
         Returns:
+            numpy.ndarray: A boolean array selecting fits files that
+            meet the selected lamp status.
 
+        Raises:
+            ValueError:
+                Raised if the status is not one of the valid options.
         """
-        cond_dict = {}
+        if status == 'off':
+            # Check if all are off
+            return np.all(np.array([fitstbl[k] == 0 for k in fitstbl.keys() if 'lampstat' in k]),
+                          axis=0)
+        if status == 'arcs':
+            # Check if any arc lamps are on
+            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
+            return np.any(np.array([ fitstbl[k] == 1 for k in fitstbl.keys()
+                                            if k in arc_lamp_stat]), axis=0)
+        if status == 'dome':
+            return fitstbl['lampstat06'] == 1
 
-        if ftype == 'science':
-            cond_dict['condition1'] = 'lampstat01=0&lampstat02=0&lampstat03=0' \
-                                      '&lampstat04=0&lampstat05=0&lampstat06=0' # 0 is 'off' for NIRSPEC
-            cond_dict['condition2'] = 'exptime>=1'
-            cond_dict['condition3'] = 'hatch=0'
-            cond_dict['condition4'] = 'imagetype=object'
-        elif ftype == 'bias':
-            cond_dict['condition1'] = 'exptime<1'
-            cond_dict['condition2'] = 'hatch=0'
-            cond_dict['condition3'] = 'imagetype=dark'
-        elif ftype == 'pixelflat':
-            cond_dict['condition1'] = 'lampstat06=1' # This is the dome flat lamp for NIRSPEC; 1 is 'on'
-            cond_dict['condition2'] = 'exptime>0'
-            cond_dict['condition3'] = 'hatch=1'
-            cond_dict['condition4'] = 'imagetype=flatlamp'
-        elif ftype == 'pinhole':
-            cond_dict['condition1'] = 'exptime>99999999'
-        elif ftype == 'trace':
-            cond_dict['condition1'] = 'lampstat06=1' # This is the dome flat lamp for NIRSPEC; 1 is 'on'
-            cond_dict['condition2'] = 'exptime>0'
-            cond_dict['conditoin3'] = 'hatch=1'
-        elif ftype == 'arc':
-            cond_dict['condition1'] = 'lampstat01=1|lampstat02=1|lampstat03=1|lampstat04=1|lampstat05=1'
-            cond_dict['condition2'] = 'hatch=1'
-            cond_dict['condition3'] = 'imagetype=arclamp'
-        else:
-            pass
-
-        return cond_dict
-
-    def check_ftype(self, ftype, fitstbl):
-        """
-        Check the frame type
-
-        Args:
-            ftype:
-            fitstbl:
-
-        Returns:
-
-        """
-        # Load up
-        cond_dict = self.nirspec_cond_dict(ftype)
-
-        # Do it
-        gd_chk = fsort.chk_all_conditions(fitstbl, cond_dict)
-
-        return gd_chk
+        raise ValueError('No implementation for status = {0}'.format(status))
 
     def get_match_criteria(self):
         """Set the general matching criteria for Keck NIRSPEC."""
         match_criteria = {}
-        for key in fsort.ftype_list:
+        for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
 
         match_criteria['standard']['match'] = {}
@@ -179,19 +214,21 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         match_criteria['pixelflat']['match'] = {}
         match_criteria['pixelflat']['match']['naxis0'] = '=0'
         match_criteria['pixelflat']['match']['naxis1'] = '=0'
+        match_criteria['pixelflat']['match']['decker'] = ''
         match_criteria['pixelflat']['match']['dispname'] = ''
 
         match_criteria['trace']['match'] = {}
         match_criteria['trace']['match']['naxis0'] = '=0'
         match_criteria['trace']['match']['naxis1'] = '=0'
+        match_criteria['trace']['match']['decker'] = ''
         match_criteria['trace']['match']['dispname'] = ''
 
         match_criteria['arc']['match'] = {}
         match_criteria['arc']['match']['naxis0'] = '=0'
         match_criteria['arc']['match']['naxis1'] = '=0'
+        match_criteria['arc']['match']['dispname'] = ''
 
         return match_criteria
-
 
     # TODO: This function is unstable to shape...
     def bpm(self, shape=None, **null_kwargs):
