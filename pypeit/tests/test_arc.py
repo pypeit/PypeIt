@@ -36,7 +36,7 @@ def test_setup_param():
 def test_detect_lines():
     # Using Paranal night sky as an 'arc'
     arx_sky = xspectrum1d.XSpectrum1D.from_file(pypeit.__path__[0]+'/data/sky_spec/paranal_sky.fits')
-    arx_amp, arx_cent, arx_wid, arx_w, arx_yprep = arc.detect_lines(arx_sky.flux.value)
+    arx_amp, arx_cent, arx_wid, arx_w, arx_yprep, nsig  = arc.detect_lines(arx_sky.flux.value)
     # Test
     assert len(arx_w[0]) == 1767
 '''
