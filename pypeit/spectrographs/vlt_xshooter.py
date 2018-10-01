@@ -11,6 +11,7 @@ import glob
 
 import numpy as np
 from astropy.io import fits
+from pkg_resources import resource_filename
 
 from pypeit import msgs
 from pypeit.core import parse
@@ -21,6 +22,9 @@ from pypeit import telescopes
 from pypeit.core import fsort
 
 from pypeit import debugger
+
+CAL_PATH = resource_filename('pypeit', 'data/static_calibs/vlt_xshoooter/')
+
 
 class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     """
@@ -201,8 +205,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
           0 = ok; 1 = Mask
 
         """
-        
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_file = CAL_PATH+'BP_MAP_RP_NIR.fits.gz'
+        if bpm_file is not None:
+            self.bpm(shape=shape, filename=bpm_file, det=det)
+        else:
+            self.empty_bpm(shape=shape, filename=filename, det=det)
+        from IPython import embed
+        embed()
         return self.bpm_img
 
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):

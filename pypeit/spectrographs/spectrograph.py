@@ -349,21 +349,33 @@ class Spectrograph(object):
         return self.bpm_img
 
     def bpm(self, shape=None, filename=None, det=1, force=True):
-        """
-        Generate a default bad-pixel mask.
+        """Generate a default bad-pixel mask.
 
-        Currently identical to calling :func:`empty_bpm`.
+        Currently identical to calling :func:`empty_bpm` in case
+        no static calibration file is defined. Otherwise create the
+        bpm from filename.
 
-        Args:
-            shape: tuple, REQUIRED
-            **null_kwargs:
+        Parameters
+        ----------
+        shape : tuple
+            REQUIRED if filename not defined
+        filename:
+            fits  fits.gz file containing the BPM.
 
         Returns:
-            bpm: ndarray, int
-              0=not masked; 1=masked
-
+        -------
+        bpm_img : ndarray, int
+            0=not masked; 1=masked
         """
-        return self.empty_bpm(shape=shape, filename=filename, det=det, force=force)
+        if filename is not None:
+            # bpm = self.empty_bpm(shape=shape, filename=filename, det=det, force=force)
+            self.bpm_img = np.int(self.load_raw_frame(filename, det=det)[0])
+            self.bpm_img[bpm>0] = 1
+            msgs.info("Loading bad pixel map. {:} bad pixels present.".format(np.sum(self.bpm_img)))
+        else:
+            msgs.warn("No static bad pixel map present. Creating an empty one.")
+            self.bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det, force=force)
+        return self.bpm_img
 
     def default_header_keys(self):
         def_head_keys = {}
