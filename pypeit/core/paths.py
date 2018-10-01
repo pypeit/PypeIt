@@ -5,6 +5,7 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 import os
 import shutil
+from pypeit import msgs
 
 def make_dirs(spectrograph, caldir, scidir, qadir, redux_path=None, overwrite=False):
     """
