@@ -1117,7 +1117,8 @@ class General:
     def solve_slit(self, slit, psols, msols, nstore=1, nselw=3, nseld=3):
         """
         Need some docs here. I think this routine creates a 2d histogram of the patterns and searches for the most
-        represented wave_cen and log10(disp)
+        represented wave_cen and log10(disp). Then it attempts to fit each value determined (default of 1) to
+        try to figure out if it is a reasonable fit.
 
         :param slit:
         :param psols:
