@@ -13,6 +13,9 @@ from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit.spectrographs.util import load_spectrograph
 
+# Create a decorator for tests that require the PypeIt dev suite
+dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,
+                                        reason='test requires dev suite')
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -22,7 +25,7 @@ def data_path(filename):
 def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, tilts=False,
                            datasec=False, wvcalib=False):
 
-    spectrograph = load_spectrograph(spectrograph='shane_kast_blue')
+    spectrograph = load_spectrograph('shane_kast_blue')
     spectrograph.naxis = (2112,350)     # Image shape with overscan
 
     root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \

@@ -5,11 +5,10 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 from pypeit import msgs
-from pypeit.par.pypeitpar import DetectorPar
+from pypeit import telescopes
+from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pypeit import telescopes
-from pypeit.core import fsort
 
 from pypeit import debugger
 
@@ -26,7 +25,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.numhead = 1
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 1,
+                pypeitpar.DetectorPar(
+                            dataext         = 1,
                             dispaxis        = 1,
                             dispflip        = True,
                             xgap            = 0.,
@@ -53,9 +53,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Gemini GNIRS reductions.
         """
         par = pypeitpar.PypeItPar()
-        # TODO: Make self.spectrograph a class attribute?
-        # Use the ARMS pipeline
-        par['rdx']['pipeline'] = 'ARMS'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
         par['calibrations']['biasframe']['number'] = 0
@@ -76,29 +73,32 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
-        par['flexure']['method'] = None
+        # Do not flexure correct
+        par['flexure'] = None
         return par
 
-    def gnirs_header_keys(self):
-        def_keys = self.default_header_keys()
-
-        def_keys[0]['target'] = 'OBJECT'
-        def_keys[0]['time'] = 'MJD_OBS'
-        def_keys[0]['decker'] = 'SLIT'
-        def_keys[0]['dispname'] = 'GRATING'
-        return def_keys
-
     def header_keys(self):
-        head_keys = self.gnirs_header_keys()
-        print(head_keys)
-        return head_keys
+        hdr_keys = {}
+        hdr_keys[0] = {}
+        hdr_keys[0]['target'] = 'OBJECT'
+        hdr_keys[0]['idname'] = 'OBSTYPE'
+        hdr_keys[0]['time'] = 'MJD_OBS'
+        hdr_keys[0]['date'] = 'DATE'
+        hdr_keys[0]['ra'] = 'RA'
+        hdr_keys[0]['dec'] = 'DEC'
+        hdr_keys[0]['airmass'] = 'AIRMASS'
+        hdr_keys[0]['binning'] = 'BINNING'
+        hdr_keys[0]['exptime'] = 'EXPTIME'
+        hdr_keys[0]['decker'] = 'SLIT'
+        hdr_keys[0]['dichroic'] = 'DICHNAME'
+        hdr_keys[0]['dispname'] = 'GRATING'
+        print(hdr_keys)
+        return hdr_keys
 
     def get_match_criteria(self):
         """Set the general matching criteria for Shane Kast."""
         match_criteria = {}
-        for key in fsort.ftype_list:
+        for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
 
         match_criteria['standard']['match'] = {}

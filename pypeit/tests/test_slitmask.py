@@ -10,16 +10,10 @@ import numpy
 import pytest
 
 from pypeit.spectrographs.keck_deimos import KeckDEIMOSSpectrograph
+from pypeit.tests.tstutils import dev_suite_required
 
-# These tests are not run on Travis
-if os.getenv('PYPEIT_DEV') is None:
-    skip_test=True
-else:
-    skip_test=False
-
+@dev_suite_required
 def test_deimosslitmask():
-    if skip_test:
-        return
     f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M_8500',
                      'DE.20100913.22358.fits.gz')
     spec = KeckDEIMOSSpectrograph()

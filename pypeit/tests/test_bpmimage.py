@@ -16,13 +16,8 @@ import numpy as np
 from pypeit import bpmimage
 from pypeit.pypmsgs import PypeItError
 
-from pypeit.spectrographs.util import load_spectrograph
+from pypeit.tests.tstutils import dev_suite_required
 
-# These tests are not run on Travis
-if os.getenv('PYPEIT_DEV') is None:
-    skip_test=True
-else:
-    skip_test=False
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -53,6 +48,7 @@ def test_instantiate():
 #    with pytest.raises(PypitError):
 #        _ = bpmimage.BPMImage(reduce_badpix='bias')
 
+
 def test_dummy_image():
     # Simple
     shape=(2048,2048)
@@ -62,9 +58,9 @@ def test_dummy_image():
     assert bpm.shape == shape
     assert np.sum(bpm) == 0
 
+
+@dev_suite_required
 def test_keck_lris_red():
-    if skip_test:
-        return
     example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_LRIS_red',
                                 'long_600_7500_d560', 'LR.20160216.05529.fits.gz')
     # Simple
@@ -72,15 +68,16 @@ def test_keck_lris_red():
     bpm = bpmImage.build()
     assert np.sum(bpm) > 0
 
+
+@dev_suite_required
 def test_keck_deimos():
-    if skip_test:
-        return
     example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L_8400',
                                 'd0914_0002.fits.gz')
     # Simple
     bpmImage = bpmimage.BPMImage(spectrograph='keck_deimos', filename=example_file, det=4)
     bpm = bpmImage.build()
     assert bpm[0,0] == 1
+
 
 def test_bpm_from_bias():
     bias = np.full((1024,1024), 1000, dtype=float)

@@ -2,23 +2,17 @@
 """
 from __future__ import absolute_import, division, print_function
 
-try:
-    basestring
-except NameError:  # For Python 3
-    basestring = str
-
 import glob
 
 import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
+from pypeit import telescopes
 from pypeit.core import parse
-from pypeit.par.pypeitpar import DetectorPar
+from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pypeit import telescopes
-from pypeit.core import fsort
 
 from pypeit import debugger
 
@@ -29,29 +23,117 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     def __init__(self):
         # Get it started
         super(VLTXShooterSpectrograph, self).__init__()
-        self.spectrograph = 'vlt_xshooter_vis'
+        self.spectrograph = 'vlt_xshooter_base'
         self.telescope = telescopes.VLTTelescopePar()
 
-    def xshooter_header_keys(self):
-        def_keys = self.default_header_keys()
-        # These are XSHOOTER specific keywords
-        def_keys[0]['target']  = 'OBJECT'                     # Header keyword for the name given by the observer to a given frame
-        def_keys[0]['idname']  = 'HIERARCH ESO DPR CATG'      # The keyword that identifies the frame type (i.e. bias, flat, etc.)
-        def_keys[0]['time']    = 'MJD-OBS'                    # The time stamp of the observation (i.e. decimal MJD)
-        def_keys[0]['date']    = 'DATE-OBS'                   # The UT date of the observation which is used for heliocentric (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
-        def_keys[0]['ra']      = 'RA'                         # Right Ascension of the target
-        def_keys[0]['dec']     = 'DEC'                        # Declination of the target
-        def_keys[0]['airmass'] = 'HIERARCH ESO TEL AIRM START'# Airmass at start of observation
-        def_keys[0]['binning'] = 'BINNING'                    # Binning will be redefined for XSHOOTER
-        def_keys[0]['exptime'] = 'EXPTIME'                    # Exposure time keyword
-        def_keys[0]['naxis0']  = 'NAXIS2'
-        def_keys[0]['naxis1']  = 'NAXIS1'
+    @property
+    def pypeline(self):
+        return 'Echelle'
 
-        ## def_keys[0]['utc'] = 'HIERARCH ESO DET FRAM UTC'
+    @staticmethod
+    def default_pypeit_par():
+        """
+        Set default parameters for VLT XSHOOTER reductions.
+        """
+        par = pypeitpar.PypeItPar()
+        # Correct for flexure using the default approach
+        par['flexure'] = pypeitpar.FlexurePar()
+        return par
 
-        # TODO: Should do something with the lamps
+    def header_keys(self):
+        hdr_keys = {}
+        hdr_keys[0] = {}
+        
+        # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+        hdr_keys[0]['idname']  = 'HIERARCH ESO DPR CATG'
+        # Header keyword for the name given by the observer to a given frame
+        hdr_keys[0]['target']  = 'OBJECT'
+        # The time stamp of the observation (i.e. decimal MJD)
+        hdr_keys[0]['time']    = 'MJD-OBS'
+        # The UT date of the observation which is used for heliocentric
+        # (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+        hdr_keys[0]['date']    = 'DATE-OBS'
+        # Right Ascension of the target
+        hdr_keys[0]['ra']      = 'RA'
+        # Declination of the target
+        hdr_keys[0]['dec']     = 'DEC'
+        # Airmass at start of observation
+        hdr_keys[0]['airmass'] = 'HIERARCH ESO TEL AIRM START'
+        # Exposure time keyword
+        hdr_keys[0]['exptime'] = 'EXPTIME'
+        hdr_keys[0]['naxis0']  = 'NAXIS2'
+        hdr_keys[0]['naxis1']  = 'NAXIS1'
+        # Binning along SPATIAL axis
+        hdr_keys[0]['binning_x'] = 'HIERARCH ESO DET WIN1 BINX'
+        # Binning along SPECTRAL axis
+        hdr_keys[0]['binning_y'] = 'HIERARCH ESO DET WIN1 BINY'
+        # UTC, decker are arm dependent
+        return hdr_keys
 
-        return def_keys
+    def validate_metadata(self, fitstbl):
+        indx = fitstbl['binning_x'] == 'None'
+        fitstbl['binning_x'][indx] = 1
+        indx = fitstbl['binning_y'] == 'None'
+        fitstbl['binning_y'][indx] = 1
+        fitstbl['binning'] = np.array(['{0},{1}'.format(bx,by) 
+                                for bx,by in zip(fitstbl['binning_x'], fitstbl['binning_y'])])
+
+    def metadata_keys(self):
+        return ['filename', 'date', 'frametype', 'idname', 'target', 'exptime', 'decker',
+                'binning']
+
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        # TODO: Allow for 'sky' frame type, for now include sky in
+        # 'science' category
+        if ftype == 'science':
+            return good_exp & ((fitstbl['idname'] == 'SCIENCE')
+                                | (fitstbl['target'] == 'STD,TELLURIC')
+                                | (fitstbl['target'] == 'STD,SKY'))
+        if ftype == 'standard':
+            return good_exp & (fitstbl['target'] == 'STD,FLUX')
+        if ftype == 'bias':
+            return good_exp & (fitstbl['target'] == 'BIAS')
+        if ftype == 'dark':
+            return good_exp & (fitstbl['target'] == 'DARK')
+        if ftype == 'pixelflat' or ftype == 'trace':
+            # Flats and trace frames are typed together
+            return good_exp & ((fitstbl['target'] == 'LAMP,DFLAT') 
+                               | (fitstbl['target'] == 'LAMP,QFLAT')
+                               | (fitstbl['target'] == 'LAMP,FLAT'))
+        if ftype == 'pinhole':
+            # Don't type pinhole
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype == 'arc':
+            return good_exp & (fitstbl['target'] == 'LAMP,WAVE') 
+
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+ 
+    def get_match_criteria(self):
+        # TODO: Matching needs to be looked at...
+        match_criteria = {}
+        for key in framematch.FrameTypeBitMask().keys():
+            match_criteria[key] = {}
+        #
+        match_criteria['standard']['match'] = {}
+        match_criteria['standard']['match']['binning'] = ''
+        match_criteria['standard']['match']['decker'] = ''
+        # Bias
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['binning'] = ''
+        # Pixelflat
+        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
+        # Traceflat
+        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
+        # Arc
+        match_criteria['arc']['match'] = match_criteria['bias']['match'].copy()
+
+        # Return
+        return match_criteria
 
 
 class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
@@ -65,13 +147,14 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         self.camera = 'XShooter_NIR'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 0,
+                pypeitpar.DetectorPar(
+                            dataext         = 0,
                             dispaxis        = 1,
                             dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
-                            platescale      = 0.197, # average between order 11 and order 30 see manual
+                            platescale      = 0.197, # average between order 11 & 30, see manual
                             darkcurr        = 0.0,
                             saturation      = 65535.,
                             nonlinear       = 0.86,
@@ -81,8 +164,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             datasec         = '[20:,4:2044]',
                             oscansec        = '[4:20,4:2044]',
                             suffix          = '_NIR'
-                            ),
-            ]
+                            )]
         self.numhead = 1
         # Uses default timeunit
         # Uses default primary_hdrext
@@ -93,55 +175,43 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         """
         Set default parameters for Xshooter NIR reductions.
         """
-        par = pypeitpar.PypeItPar()
+        par = VLTXShooterSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
-        # Use the ARMED pipeline
-        par['rdx']['pipeline'] = 'ARMED'
-        # Set wave tilts order
+       
+        # Adjustments to slit and tilts for NIR
         par['calibrations']['slits']['sigdetect'] = 700.
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['pcatype'] = 'pixel'
-        par['calibrations']['tilts']['tracethresh'] = [50,50,50,50,50,50,50,50,50, 50, 50, 60, 60, 2000,2000,6000]
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
+        par['calibrations']['tilts']['tracethresh'] = [50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
+                                                       60, 60, 2000, 2000, 6000]
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
-        #par['calibrations']['slits']['pcapar'] = [3,2,1,0]
-        # Always sky subtract, starting with default parameters
-        # par['skysubtract'] = pypeitpar.SkySubtractionPar()
-        # Always flux calibrate, starting with default parameters
-        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+
         return par
 
-    def get_match_criteria(self):
-        """Set the general matching criteria for Xshooter vis."""
-        match_criteria = {}
-        for key in fsort.ftype_list:
-            match_criteria[key] = {}
-        match_criteria['standard']['match'] = {}
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['trace']['match'] = {}
-        match_criteria['arc']['match'] = {}
-        match_criteria['bias']['match'] = {}
-        return match_criteria
+    def check_headers(self, headers):
+        """
+        Check headers match expectations for an LRISb exposure.
 
-    def check_header(self):
-        """Validate elements of the header."""
-        chk_dict = {}
-        # chk_dict is 1-indexed!
-        chk_dict[1] = {}
-        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[1]['NAXIS'] = 2
-        # Check the CCD name
-        chk_dict[1]['HIERARCH.ESO.DET.CHIP1.NAME'] = 'MIT/LL CCID-20'
-        return chk_dict
+        See also
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+
+        Args:
+            headers (list):
+                A list of headers read from a fits file
+        """
+        expected_values = { '0.INSTRUME': 'XSHOOTER',
+                            '0.HIERARCH ESO SEQ ARM': 'NIR',
+                               '0.NAXIS': 2 }
+        super(VLTXShooterNIRSpectrograph, self).check_headers(headers,
+                                                              expected_values=expected_values)
 
     def header_keys(self):
-        head_keys = self.xshooter_header_keys()
-        # These are NIR-arm specific keywords
-        head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'# FOR NIR
-        return head_keys
+        hdr_keys = super(VLTXShooterNIRSpectrograph, self).header_keys()
+        hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'
+        hdr_keys[0]['utc'] = 'HIERARCH ESO DET EXP UTC'
+        return hdr_keys
 
     def setup_arcparam(self, arcparam, msarc_shape=None, 
                        disperser=None, **null_kwargs):
@@ -180,8 +250,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 #        arcparam['nsig_rej_final'] = 5.0                       # Number of sigma for rejection (final fit)
 #        arcparam['Nstrong'] = 20                               # Number of lines for auto-analysis
 
-
-
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
         Override parent bpm function with BPM specific to X-ShooterNIR.
@@ -205,6 +273,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         self.empty_bpm(shape=shape, filename=filename, det=det)
         return self.bpm_img
 
+
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     """
     Child to handle VLT/XSHOOTER specific code
@@ -216,7 +285,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         self.camera = 'XShooter_VIS'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 0,
+                pypeitpar.DetectorPar(
+                            dataext         = 0,
                             dispaxis        = 0,
                             dispflip        = False,
                             xgap            = 0.,
@@ -232,21 +302,18 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             datasec         = '[1:2000,10:2058]',
                             oscansec        = '[1:2000, 2060:2106]',
                             suffix          = '_VIS'
-                            ),
-            ]
+                            )]
         self.numhead = 1
 
     @staticmethod
     def default_pypeit_par():
         """
-        Set default parameters for VLT XSHOOTER reductions.
+        Set default parameters for VLT XSHOOTER VIS reductions.
         """
-        par = pypeitpar.PypeItPar()
-
-        # Use the ARMED pipeline
+        par = VLTXShooterSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'vlt_xshooter_vis'
-        par['rdx']['pipeline'] = 'ARMED'
 
+        # Adjustments to slit and tilts for VIS
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
         par['calibrations']['slits']['sigdetect'] = 2.0
@@ -255,54 +322,44 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['number'] = 15
         par['calibrations']['slits']['fracignore'] = 0.0001
-        # par['calibrations']['slits']['pcaextrap'] = [1,0]
 
-        par['calibrations']['tilts']['tracethresh'] = [20., 100., 100., 100., 100., 100., 100., 100., 500., 500., 500., 500., 500., 500., 500.]
+        par['calibrations']['tilts']['tracethresh'] = [ 20., 100., 100., 100., 100., 100., 100.,
+                                                       100., 500., 500., 500., 500., 500., 500.,
+                                                       500.]
 
-        par['flexure'] = pypeitpar.FlexurePar()
+        # par['calibrations']['tilts']['tracethresh'] = [100, 100, 100, 100, 100, 100, 100,
+        #                                                100, 100, 100, 100, 100, 100, 100, 100]
 
-        # from IPython import embed
-        # embed()
+        # par['calibrations']['tilts']['tracethresh'] = [50, 50, 60, 60, 2000]
+        # par['calibrations']['traceframe']['process']['overscan'] = 'median'
+        # par['calibrations']['arcframe']['process']['overscan'] = 'median'
 
         # par['calibrations']['slits']['pcapar'] = [3,2,1,0]
-        # Always sky subtract, starting with default parameters
-        # par['skysubtract'] = pypeitpar.SkySubtractionPar()
-        # Always flux calibrate, starting with default parameters
-        # par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Always correct for flexure, starting with default parameters
 
         return par
 
-    def check_header(self):
-        """Validate elements of the header."""
-        chk_dict = {}
-        # chk_dict is 1-indexed!
-        chk_dict[1] = {}
-        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[1]['NAXIS'] = 2
-        # Check the CCD name
-        chk_dict[1]['HIERARCH.ESO.DET.CHIP1.NAME'] = 'MIT/LL CCID-20'
-        return chk_dict
+    def check_headers(self, headers):
+        """
+        Check headers match expectations for an LRISb exposure.
+
+        See also
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+
+        Args:
+            headers (list):
+                A list of headers read from a fits file
+        """
+        expected_values = { '0.INSTRUME': 'XSHOOTER',
+                            '0.HIERARCH ESO SEQ ARM': 'VIS',
+                               '0.NAXIS': 2 }
+        super(VLTXShooterVISSpectrograph, self).check_headers(headers,
+                                                              expected_values=expected_values)
 
     def header_keys(self):
-        head_keys = self.xshooter_header_keys()
-        # These are VIS-arm specific keywords
-        head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI4 NAME' # FOR VIS
-        head_keys[0]['binning_x'] = 'HIERARCH ESO DET WIN1 BINX' # Binning along SPATIAL axis
-        head_keys[0]['binning_y'] = 'HIERARCH ESO DET WIN1 BINY' # Binning along SPECTRAL axis
-        return head_keys
-
-    def get_match_criteria(self):
-        """Set the general matching criteria for Xshooter vis."""
-        match_criteria = {}
-        for key in fsort.ftype_list:
-            match_criteria[key] = {}
-        match_criteria['standard']['match'] = {}
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['trace']['match'] = {}
-        match_criteria['arc']['match'] = {}
-        match_criteria['bias']['match'] = {}
-        return match_criteria
+        hdr_keys = super(VLTXShooterVISSpectrograph, self).header_keys()
+        hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI4 NAME'
+        hdr_keys[0]['utc'] = 'UTC'      # Some have UTC, most do not
+        return hdr_keys
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
@@ -319,25 +376,25 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         """
         ## debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
+        arcparam['disp'] = 0.1              # Ang/unbinned pixel
+        arcparam['b1'] = 10.                # Pixel fit term (binning independent)
+                                            # pix = b0 + b1*lambda + b2*lambda**2
+        arcparam['b2'] = 0.                 # Pixel fit term pix = b0 + b1*lambda + b2*lambda**2
+        arcparam['lamps'] = ['ThAr']        # Line lamps on
+        arcparam['wv_cen'] = 7900.          # Guess at central wavelength
+        arcparam['wvmnx'] = [5545.,10250]   # Guess at wavelength range
+        arcparam['disp_toler'] = 0.1        # 10% tolerance
+        arcparam['match_toler'] = 3.        # Matcing tolerance (pixels)
+        arcparam['min_ampl'] = 500.         # Minimum amplitude
+        arcparam['func'] = 'legendre'       # Function for fitting
+        arcparam['n_first'] = 0             # Order of polynomial for first fit
+        arcparam['n_final'] = 1             # Order of polynomial for final fit
+        arcparam['nsig_rej'] = 2.           # Number of sigma for rejection
+        arcparam['nsig_rej_final'] = 3.     # Number of sigma for rejection (final fit)
+        arcparam['Nstrong'] = 20            # Number of lines for auto-analysis
 
-
-        arcparam['disp'] = 0.1            # Ang/unbinned pixel
-        arcparam['b1'] = 10.              # Pixel fit term (binning independent) pix = b0 + b1*lambda + b2*lambda**2
-        arcparam['b2'] = 0.               # Pixel fit term pix = b0 + b1*lambda + b2*lambda**2
-        arcparam['lamps'] = ['ThAr']      # Line lamps on
-        arcparam['wv_cen'] = 7900.        # Guess at central wavelength
-        arcparam['wvmnx'] = [5545.,10250] # Guess at wavelength range
-        arcparam['disp_toler'] = 0.1      # 10% tolerance
-        arcparam['match_toler'] = 3.      # Matcing tolerance (pixels)
-        arcparam['min_ampl'] = 500.       # Minimum amplitude
-        arcparam['func'] = 'legendre'     # Function for fitting
-        arcparam['n_first'] = 0           # Order of polynomial for first fit
-        arcparam['n_final'] = 1           # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2.         # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.   # Number of sigma for rejection (final fit)
-        arcparam['Nstrong'] = 20          # Number of lines for auto-analysis
-
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation'] # non linear regime
+        # non linear regime
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
@@ -364,6 +421,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         return self.bpm_img
 
+
 class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
     """
     Child to handle VLT/XSHOOTER specific code
@@ -375,13 +433,15 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         self.camera = 'XShooter_UVB'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 0,
+                pypeitpar.DetectorPar(
+                            dataext         = 0,
                             dispaxis        = 0,
                             dispflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
-                            platescale      = 0.161, # average from order 14 and order 24, see manual
+                            # average from order 14 and order 24, see manual
+                            platescale      = 0.161,
                             darkcurr        = 0.0,
                             saturation      = 65000.,
                             nonlinear       = 0.86,
@@ -391,8 +451,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             datasec         = '[49:,1:]', # '[49:2000,1:2999]',
                             oscansec        = '[1:48,1:]', # '[1:48, 1:2999]',
                             suffix          = '_UVB'
-                            ),
-            ]
+                            )]
         self.numhead = 1
         # Uses default timeunit
         # Uses default primary_hdrext
@@ -401,13 +460,12 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
     @staticmethod
     def default_pypeit_par():
         """
-        Set default parameters for VLT XSHOOTER reductions.
+        Set default parameters for VLT XSHOOTER UVB reductions.
         """
-        par = pypeitpar.PypeItPar()
+        par = VLTXShooterSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'vlt_xshooter_uvb'
-        par['rdx']['pipeline'] = 'ARMED'
 
-        # Set wave tilts order
+        # Adjustments to slit and tilts for UVB
         par['calibrations']['slits']['sigdetect'] = 20.
         par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['slits']['polyorder'] = 5
@@ -417,50 +475,30 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
 
-        #par['calibrations']['slits']['pcapar'] = [3,2,1,0]
-        # Always sky subtract, starting with default parameters
-        # par['skysubtract'] = pypeitpar.SkySubtractionPar()
-        # Always flux calibrate, starting with default parameters
-        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         return par
 
-    def check_header(self):
-        """Validate elements of the header."""
-        chk_dict = {}
-        # chk_dict is 1-indexed!
-        chk_dict[1] = {}
-        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[1]['NAXIS'] = 2
-        # Check the CCD name
-        chk_dict[1]['HIERARCH.ESO.DET.CHIP1.NAME'] = 'MIT/LL CCID-20'
-        return chk_dict
+    def check_headers(self, headers):
+        """
+        Check headers match expectations for an LRISb exposure.
+
+        See also
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+
+        Args:
+            headers (list):
+                A list of headers read from a fits file
+        """
+        expected_values = { '0.INSTRUME': 'XSHOOTER',
+                            '0.HIERARCH ESO SEQ ARM': 'UVB',
+                               '0.NAXIS': 2 }
+        super(VLTXShooterUVBSpectrograph, self).check_headers(headers,
+                                                              expected_values=expected_values)
 
     def header_keys(self):
-        head_keys = self.xshooter_header_keys()
-        # These are UVB-arm specific keywords
-        head_keys[0]['decker'] = 'HIERARCH ESO INS OPTI3 NAME'# FOR UVB
-        return head_keys
-
-    def get_match_criteria(self):
-        """Set the general matching criteria for Xshooter uvb."""
-        match_criteria = {}
-        for key in fsort.ftype_list:
-            match_criteria[key] = {}
-
-        match_criteria['standard']['match'] = {}
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['trace']['match'] = {}
-        match_criteria['arc']['match'] = {}
-        match_criteria['bias']['match'] = {}
-
-        # binning
-        # match_criteria['standard']['match']['binning'] = ''
-        # match_criteria['bias']['match']['binning'] = ''
-
-
-        return match_criteria
+        hdr_keys = super(VLTXShooterUVBSpectrograph, self).header_keys()
+        hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI3 NAME'
+        # TODO: UVB does not have a utc keyword?
+        return hdr_keys
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
@@ -484,7 +522,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         arcparam['b2']= 0.
         arcparam['wvmnx'] = [2950.,5650.]
         arcparam['wv_cen'] = 4300.
-
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """

@@ -15,7 +15,7 @@ from pypeit.spectrographs.util import load_spectrograph
 
 @pytest.fixture
 def spectrograph():
-    return load_spectrograph(spectrograph='shane_kast_blue')
+    return load_spectrograph('shane_kast_blue')
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')

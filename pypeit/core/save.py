@@ -667,7 +667,7 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
     # Original header
     path = fitstbl['directory'][scidx]
     ifile = fitstbl['filename'][scidx]
-    head0 = fits.getheader(path+ifile, ext=ext0)
+    head0 = fits.getheader(os.path.join(path, ifile), ext=ext0)
 
     # Primary HDU for output
     prihdu = fits.PrimaryHDU()
@@ -766,3 +766,4 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
     outfile = outdir+'/spec2d_{:s}.fits'.format(basename)
     hdulist.writeto(outfile, overwrite=clobber)
     msgs.info("Wrote: {:s}".format(outfile))
+

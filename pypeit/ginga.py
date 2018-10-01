@@ -13,17 +13,14 @@ import time
 
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
 #from pypeit import ardebug as debugger
-import pdb as debugger
+#import pdb as debugger
+#from pypeit import scienceimage
 
 from ginga.util import grc
 
 from astropy.io import fits
 
 from pypeit import msgs
-
-# TODO: There needs to be a way to call show_image() without importing
-# arlris, requires a code refactor
-# from pypeit import arlris
 
 def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     """ Connect to an active RC Ginga
@@ -54,60 +51,88 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     return viewer
 
 
-def show_image(inp, chname='Image', waveimg=None, bitmask = None, exten = 0, cuts = None, clear=False, wcs_match = False):
-    """ Displays input image in Ginga viewer
-    Supersedes method in xastropy
-
-    Parameters
-    ----------
-    inp : str or ndarray (2D)
-      If str, assumes the image is written to disk
-
-    Optional Parameters
-    ----------
-    waveimg : str, optional
-      If included, use this in WCS.  Mainly to show wavelength array
-
-    bitmask: ndarray (2D)
-      bitmask produced by PypeIt extraction illustrating which pixels were masked and why
-
-    exten: int, optional
-      extension of image in fits file. Only passed in if inp is a file
-
-    Returns
-    -------
-
+def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten=0, cuts=None,
+               clear=False, wcs_match=False):
     """
+    Display an image using Ginga.
 
-    from pypeit import scienceimage
-    if isinstance(inp, basestring):
-        if '.fits' in inp:
-            hdu = fits.open(inp)
-            img = hdu[exten].data
-    else:
-        img = inp
-# TODO implement instrument specific reading
+    .. todo::
+        - implement instrument specific reading
+        - use the `mask` as a boolean mask if `bitmask` is not provided.
 
+    Args:
+        inp (:obj:`str`, numpy.ndarray):
+            The image to view.  If a string is provided, it must be the
+            name of a fits image that can be read by `astropy.io.fits`.
+        chname (:obj:`str`, optional):
+            The name of the ginga channel to use.
+        waveimg (:obj:`str`, optional):
+            The name of a fits image with the relevant WCS coordinates
+            in its header, mainly for wavelength array.  If None, no WCS
+            is used.
+        bitmask (:class:`pypeit.bitmask.BitMask`, optional):
+            The object used to unpack the mask values.  If this is
+            provided, mask must also be provided and the expectation is
+            that a extraction image is being shown.
+        mask (numpy.ndarray, optional):
+            A boolean or bitmask array that designates a pixel as being
+            masked.  Currently this is only used when displaying the
+            spectral extraction result.
+        exten (:obj:`int`, optional):
+            The extension of the fits file with the image to show.  This
+            is only used if the input is a file name.
+        cuts (array-like, optional):
+            Initial cut levels to apply when displaying the image.  This
+            object must have a length of 2 with the lower and upper
+            levels, respectively.
+        clear (:obj:`bool`, optional):
+            Clear any existing ginga viewer and its channels.
+        wcs_match(:obj:`bool`, optional):
+            Use this as a reference image for the WCS and match all
+            image in other channels to it.
+
+    Returns:
+        ginga.util.grc.RemoteClient, ginga.util.grc._channel_proxy: The
+        ginga remote client and the channel with the displayed image.
+
+    Raises:
+        ValueError:
+            Raised if `cuts` is provided and does not have two elements
+            or if bitmask is provided but mask is not.
+    """
+    # Input checks
+    if cuts is not None and len(cuts) != 2:
+        raise ValueError('Input cuts must only have two elements, the lower and upper cut.')
+    if bitmask is not None and mask is None:
+        raise ValueError('If providing a bitmask, must also provide the mask values.')
+
+    # Read or set the image data.  This will fail if the input is a
+    # string and astropy.io.fits cannot read the image.
+    img = fits.open(inp)[exten].data if isinstance(inp, basestring) else inp
+
+    # Instantiate viewer
     viewer = connect_to_ginga()
-    # Should we clear all the channels?
     if clear:
+        # Clear existing channels
         shell = viewer.shell()
         chnames = shell.get_channel_names()
         for ch in chnames:
             shell.delete_channel(ch)
-
     ch = viewer.channel(chname)
+
     # Header
     header = {}
     header['NAXIS1'] = img.shape[1]
     header['NAXIS2'] = img.shape[0]
     if waveimg is not None:
         header['WCS-XIMG'] = waveimg
-        #header['WCS-XIMG'] = '/home/xavier/REDUX/Keck/LRIS/2017mar20/lris_red_setup_C/MF_lris_red/MasterWave_C_02_aa.fits'
+
     # Giddy up
     ch.load_np(chname, img, 'fits', header)
     canvas = viewer.canvas(ch._chname)
-    # These commands set up the viewer. They can be found at ginga/ginga/ImageView.py
+
+    # These commands set up the viewer. They can be found at
+    # ginga/ginga/ImageView.py
     out = canvas.clear()
     if cuts is not None:
         out = ch.cut_levels(cuts[0], cuts[1])
@@ -124,15 +149,17 @@ def show_image(inp, chname='Image', waveimg=None, bitmask = None, exten = 0, cut
         out = shell.start_global_plugin('WCSMatch')
         out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname], {})
 
+    # TODO: I would prefer to change the color map to indicate these
+    # pixels rather than overplot points. Because for large numbers of
+    # masked pixels, this is super slow. Need to ask ginga folks how to
+    # do that.
 
-    #ToDO I would prefer to change the color map to indicate these pixels rather than overplot points. Because for
-    # large numbers of masked pixels, this is super slow. Need to ask ginga folks how to do that.
-
-    # If bitmask was passed in, expand it into the constituent masks and plot them
+    # If bitmask was passed in, assume this is an extraction qa image
+    # and use the mask to identify why each pixel was masked
     if bitmask is not None:
         # Unpack the bitmask
-        (bpm, crmask, satmask, minmask, offslitmask,
-         nanmask, ivar0mask, ivarnanmask, extractmask) = scienceimage.unpack_bitmask(bitmask)
+        bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
+                = bitmask.unpack(mask)
 
         # These are the pixels that were masked by the bpm
         spec_bpm, spat_bpm = np.where(bpm & ~offslitmask)
@@ -156,9 +183,11 @@ def show_image(inp, chname='Image', waveimg=None, bitmask = None, exten = 0, cut
                             kwargs=dict(style='plus', color='red')) for i in range(next)]
 
         # These are the pixels that were masked for any other reason
-        spec_oth, spat_oth = np.where(satmask | minmask | nanmask | ivar0mask | ivarnanmask & ~offslitmask)
+        spec_oth, spat_oth = np.where(satmask | minmask | nanmask | ivar0mask | ivarnanmask
+                                      & ~offslitmask)
         noth = len(spec_oth)
-        # note: must cast numpy floats to regular python floats to pass the remote interface
+        # note: must cast numpy floats to regular python floats to pass
+        # the remote interface
         points_oth = [dict(type='point', args=(float(spat_oth[i]), float(spec_oth[i]), 2),
                             kwargs=dict(style='plus', color='yellow')) for i in range(noth)]
 
@@ -177,7 +206,8 @@ def show_image(inp, chname='Image', waveimg=None, bitmask = None, exten = 0, cut
         text_oth = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 90, 'OTHER'),
                           kwargs=dict(color='yellow', fontsize=20))]
 
-        canvas_list = points_bpm + points_cr + points_ext + points_oth + text_bpm + text_cr + text_ext + text_oth
+        canvas_list = points_bpm + points_cr + points_ext + points_oth + text_bpm + text_cr \
+                        + text_ext + text_oth
         canvas.add('constructedcanvas', canvas_list)
 
     return viewer, ch

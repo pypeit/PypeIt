@@ -96,7 +96,6 @@ def test_mergecfg():
 
     # Make some modifications
     p['rdx']['spectrograph'] = 'keck_lris_blue'
-    p['rdx']['pipeline'] = 'ARMS'
     p['calibrations']['biasframe']['useframe'] = 'overscan'
 
     # Write the modified config
@@ -108,7 +107,6 @@ def test_mergecfg():
 
     # Check the values are correctly read in
     assert p['rdx']['spectrograph'] == 'keck_lris_blue', 'Test spectrograph is incorrect!'
-    assert p['rdx']['pipeline'] == 'ARMS', 'Test pipeline is incorrect!'
     assert p['calibrations']['biasframe']['useframe'] == 'overscan', \
                 'Test biasframe:useframe is incorrect!'
 
@@ -144,7 +142,6 @@ def test_pypeit_file():
     # This is a PypeItPar default that's not changed
     assert p['calibrations']['pinholeframe']['number'] == 0
     # These are spectrograph specific defaults
-    assert p['rdx']['pipeline'] == 'ARMS'
     assert p['fluxcalib'] is not None
     # These are user-level changes
     assert p['calibrations']['arcframe']['number'] == 1

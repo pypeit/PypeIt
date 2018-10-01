@@ -26,7 +26,7 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
     ----------
     spectrograph : str
     msarc_shape : tuple
-    fitstbl : Table
+    fitstbl : Table/PypeItMetaData
       Contains relevant information from fits header files
     arc_idx : int
       Index of the arc frame in the fitstbl
@@ -53,10 +53,12 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                     Nstrong=13)          # Number of lines for auto-analysis
 
     # Instrument/disperser specific
-    disperser = fitstbl["dispname"][arc_idx]
+    disperser = fitstbl['dispname'][arc_idx]
     binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
-    # ToDo JFH: Why is the arcparam being modified in place instead of being passed back from the spectrograh class.
-    # This code looks rather sloppy.
+
+    # TODO: JFH: Why is the arcparam being modified in place instead of
+    # being passed back from the spectrograh class.  This code looks
+    # rather sloppy.
     modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl,
                                                arc_idx=arc_idx, binspatial=binspatial,
                                                binspectral=binspectral, msarc_shape=msarc_shape)
