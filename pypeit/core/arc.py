@@ -54,7 +54,10 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
 
     # Instrument/disperser specific
     disperser = fitstbl['dispname'][arc_idx]
-    binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
+    try:
+        binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
+    except KeyError: # JXP -- THIS IS THE SAME KLUDGE AS ELSEWHERE;  NEED A BETTER SOLUTION
+        binspatial, binspectral = 1, 1
 
     # TODO: JFH: Why is the arcparam being modified in place instead of
     # being passed back from the spectrograh class.  This code looks

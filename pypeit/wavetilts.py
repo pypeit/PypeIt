@@ -299,7 +299,7 @@ class WaveTilts(masterframe.MasterFrame):
         ----------
         maskslits : ndarray (bool), optional
         doqa : bool
-        wv_calib : dict
+        wv_calib : dict, optional
         gen_satmask : bool, optional
           Generate a saturation mask?
 
