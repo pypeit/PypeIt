@@ -96,6 +96,10 @@ def main(args):
     redux_dir = './'
     pypeIt.init_setup(args.pypeit_file, redux_dir, calibration_check=True)
     pypeIt.reduce_all(reuse_masters=args.use_masters)
+    if args.calcheck:
+        msgs.info('Done checking calibrations.  Exiting..')
+        return 0
+
 
     msgs.info('Data reduction complete')
     # QA HTML
