@@ -159,10 +159,20 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         """
         #debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 1000.       # Minimum amplitude
-        arcparam['wvmnx'] = [8000.,25000.]                     # Guess at wavelength range
+        arcparam['lamps'] = ['OH_XSHOOTER'] # Line lamps on
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation'] # lines abovet this are masked
+        arcparam['min_nsig'] = 30.0      # Minimum amplitude
+        arcparam['wvmnx'] = [8000.,26000.]  # Guess at wavelength range
+        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
+        arcparam['match_toler'] = 3         # Matcing tolerance (pixels)
+        arcparam['func'] = 'legendre'       # Function for fitting
+        arcparam['n_first'] = 2             # Order of polynomial for first fit
+        arcparam['n_final'] = 4             # Order of polynomial for final fit
+        arcparam['nsig_rej'] = 2            # Number of sigma for rejection
+        arcparam['nsig_rej_final'] = 3.0    # Number of sigma for rejection (final fit)
+
+
+
 
 #        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
 #        arcparam['disp'] = 0.6                                 # Ang/unbinned pixel
