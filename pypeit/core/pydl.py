@@ -227,7 +227,8 @@ class bspline(object):
         new_bspline = bspline(None, from_dict=dictionary)
     """
 
-    def __init__(self, x, nord=4, npoly=1, bkpt=None, fullbkpt = None, bkspread=1.0,
+    # ToDO Consider refactoring the argument list so that there are no kwargs
+    def __init__(self, x, fullbkpt = None, nord=4, npoly=1, bkpt=None, bkspread=1.0,
                  verbose=False, from_dict=None, **kwargs):
         """Init creates an object whose attributes are similar to the
         structure returned by the create_bspline function.
@@ -236,17 +237,29 @@ class bspline(object):
         # as it goes
         fullbkpt1 = copy.copy(fullbkpt)
         bkpt1 = copy.copy(bkpt)
-        #ToDO Consider refactoring the argument list so that there are no kwargs
         if from_dict is not None:
-            self.nord=from_dict['nord'],
-            self.npoly=from_dict['npoly'],
-            self.breakpoints=np.array(from_dict['breakpoints']),
-            self.mask=np.array(from_dict['mask']),
-            self.coeff=np.array(from_dict['coeff']),
-            self.icoeff=np.array(from_dict['icoeff']),
-            self.xmin=from_dict['xmin'],
-            self.xmax=from_dict['xmax'],
+            self.nord=from_dict['nord']
+            self.npoly=from_dict['npoly']
+            self.breakpoints=np.array(from_dict['breakpoints'])
+            self.mask=np.array(from_dict['mask'])
+            self.coeff=np.array(from_dict['coeff'])
+            self.icoeff=np.array(from_dict['icoeff'])
+            self.xmin=from_dict['xmin']
+            self.xmax=from_dict['xmax']
             self.funcname=from_dict['funcname']
+            return
+        # Instantiate empty if neither fullbkpt or x is set
+        elif x is None and fullbkpt is None:
+            self.nord = None
+            self.npoly = None
+            self.breakpoints= None
+            self.mask= None
+            self.coeff= None
+            self.icoeff= None
+            self.xmin= None
+            self.xmax= None
+            self.funcname= None
+            return
         else:
             #
             # Set the breakpoints.
@@ -344,6 +357,21 @@ class bspline(object):
             else:
                 self.funcname = 'legendre'
 
+        return
+
+    def copy(self):
+
+        bsp_copy = bspline(None)
+        bsp_copy.nord = self.nord
+        bsp_copy.npoly = self.npoly
+        bsp_copy.breakpoints = np.copy(self.breakpoints)
+        bsp_copy.mask = np.copy(self.mask)
+        bsp_copy.coeff = np.copy(self.coeff)
+        bsp_copy.icoeff = np.copy(self.icoeff)
+        bsp_copy.xmin = self.xmin
+        bsp_copy.xmax = self.xmax
+        bsp_copy.funcname = self.funcname
+        return bsp_copy
 
     def to_dict(self):
         """Write bspline parameters to a dict.

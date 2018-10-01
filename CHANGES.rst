@@ -22,7 +22,12 @@
 - Fixed some parsing issues with the .pypeit file for cases where there is a whitepsace in the path.
 - Implemented interactive plots with the -s option which allow the reduction to continue running.
 - Modified global sky subtraction significantly to now do a polynomial fit. This greatly improves results for large slits.
-- Updated loading of spectra and pypeit_show_1dspec script to work with new output data model. 
+- Updated loading of spectra and pypeit_show_1dspec script to work with new output data model.
+- Implemeneted a new peak finding algorithm for arc lines which significantly improved wavelength fits.
+- Added filtering of saturated arc lines which fixed issues with wavelength fits. 
+- Added algorithms and data files for telluric correction of near-IR spectra.
+- Revamped flat field roiutine to tweak slit boundaries based on slit illumination profile. Reworked calibrations class
+to accomodate the updated slit boundaries and tilts images as well as update the master files.
 
 0.8.1
 -----

@@ -25,6 +25,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
                 # Detector 1
             pypeitpar.DetectorPar(dataext         = 0,
                             dispaxis        = 0,
+                            dispflip=False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -127,7 +128,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             cond_dict['condition2'] = 'exptime>0'
             cond_dict['condition3'] = 'hatch=1'
             cond_dict['condition4'] = 'imagetype=flatlamp'
-            condict
         elif ftype == 'pinhole':
             cond_dict['condition1'] = 'exptime>99999999'
         elif ftype == 'trace':
@@ -271,7 +271,10 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
 
         """
         arcparam['lamps'] = ['OH_R24000']
-        if fitstbl['filter'][arc_idx] == 'NIRSPEC-1':
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+        arcparam['min_ampl'] = 1000.       # Minimum amplitude
+
+        if fitstbl['filter1'][arc_idx] == 'NIRSPEC-1':
             arcparam['n_first'] = 2  # Too much curvature for 1st order
             arcparam['disp'] = 2.1093  # Ang per pixel for Low-Res, NIRSPEC-1 filter
             arcparam['b1'] = 1. / arcparam['disp'] / msarc_shape[0]

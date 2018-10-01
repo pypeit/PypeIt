@@ -48,6 +48,63 @@ def bspline_inner_knots(all_knots):
     i1=pos[-1]
     return all_knots[i0:i1]
 
+ # This code taken from this cookbook and slightly modified: https://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
+def smooth(x, window_len, window='flat'):
+    """smooth the data using a window with requested size.
+
+    This method is based on the convolution of a scaled window with the signal.
+    The signal is prepared by introducing reflected copies of the signal
+    (with the window size) in both ends so that edge effects are minimize at the beginning and end part of the signal.
+
+
+    input:
+        x: the input signal
+        window_len: the dimension of the smoothing window; should be an odd integer
+        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
+            flat window will produce a moving average smoothing., default is 'flat'
+
+    output:
+        the smoothed signal, same shape as x
+
+    example:
+
+    t=linspace(-2,2,0.1)
+    x=sin(t)+randn(len(t))*0.1
+    y=smooth(x)
+
+    see also:
+
+    numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
+    scipy.signal.lfilter
+
+    TODO: the window parameter could be the window itself if an array instead of a string
+    NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
+    """
+
+    if x.ndim != 1:
+        raise ValueError("smooth only accepts 1 dimension arrays.")
+
+    if x.size < window_len:
+        raise ValueError("Input vector needs to be bigger than window size.")
+
+    if window_len < 3:
+        return x
+
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+
+    s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
+    # print(len(s))
+    if window == 'flat':  # moving average
+        w = np.ones(window_len, 'd')
+    else:
+        w = eval('np.' + window + '(window_len)')
+
+    y = np.convolve(w / w.sum(), s, mode='same')
+
+    return y[(window_len-1):(y.size-(window_len-1))]
+
+
 def fast_running_median(seq, window_size):
     """
       Compute the median of sequence of numbers with a running window. The boundary conditions are identical to the
@@ -449,22 +506,33 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
     elif func in ["gaussian"]:
         # Guesses
         if guesses is None:
-            mx, cent, sigma = guess_gauss(x, y)
+            ampl, cent, sigma = guess_gauss(x, y)
+            # As first guess choose slope and intercept to be zero
+            b = 0
+            m = 0
         else:
             if deg == 2:
-                mx, sigma = guesses
+                ampl, sigma = guesses
             elif deg == 3:
-                mx, cent, sigma = guesses
+                ampl, cent, sigma = guesses
+            elif deg == 4:
+                b, ampl, cent, sigma = guesses
+            elif deg == 5:
+                m, b, ampl, cent, sigma = guesses
         # Error
         if w is not None:
             sig_y = 1./w
         else:
             sig_y = None
         if deg == 2:  # 2 parameter fit
-            popt, pcov = curve_fit(gauss_2deg, x, y, p0=[mx, sigma], sigma=sig_y)
+            popt, pcov = curve_fit(gauss_2deg, x, y, p0=[ampl, sigma], sigma=sig_y)
         elif deg == 3:  # Standard 3 parameters
-            popt, pcov = curve_fit(gauss_3deg, x, y, p0=[mx, cent, sigma],
+            popt, pcov = curve_fit(gauss_3deg, x, y, p0=[ampl, cent, sigma],
                                    sigma=sig_y)
+        elif deg == 4:  # 4 parameters
+            popt, pcov = curve_fit(gauss_4deg, x, y, p0=[b, ampl, cent, sigma],sigma=sig_y)
+        elif deg == 5:  # 5 parameters
+            popt, pcov = curve_fit(gauss_5deg, x, y, p0=[m, b, ampl, cent, sigma],sigma=sig_y)
         else:
             msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
         # Return
@@ -475,8 +543,8 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
     elif func in ["moffat"]:
         # Guesses
         if guesses is None:
-            mx, cent, sigma = guess_gauss(x, y)
-            p0 = mx
+            ampl, cent, sigma = guess_gauss(x, y)
+            p0 = ampl
             p2 = 3. # Standard guess
             p1 = (2.355*sigma)/(2*np.sqrt(2**(1./p2)-1))
         else:
@@ -780,6 +848,39 @@ def gauss_3deg(x,ampl,cent,sigm):
     """
     return ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
 
+
+def gauss_4deg(x,b, ampl,cent,sigm):
+    """  Simple 3 parameter Gaussian
+    Parameters
+    ----------
+    x
+    ampl
+    cent
+    sigm
+
+    Returns
+    -------
+    Evaluated Gausssian
+    """
+    return b + ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
+
+
+def gauss_5deg(x,m, b, ampl,cent,sigm):
+    """  Simple 3 parameter Gaussian
+    Parameters
+    ----------
+    x
+    ampl
+    cent
+    sigm
+
+    Returns
+    -------
+    Evaluated Gausssian
+    """
+    return b + m*x + ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
+
+
 def guess_gauss(x,y):
     """ Guesses Gaussian parameters with basic stats
 
@@ -792,13 +893,17 @@ def guess_gauss(x,y):
     -------
 
     """
-    cent = np.sum(y*x)/np.sum(y)
-    sigma = np.sqrt(np.abs(np.sum((x-cent)**2*y)/np.sum(y))) # From scipy doc
-    # Calculate mx from pixels within +/- sigma/2
-    cen_pix = np.where(np.abs(x-cent)<sigma/2)
-    mx = np.median(y[cen_pix])
+    ypos = y - y.min()
+    cent = np.sum(ypos*x)/np.sum(ypos)
+    sigma = np.sqrt(np.abs(np.sum((x-cent)**2*ypos)/np.sum(ypos))) # From scipy doc
+    # Calculate ampl from pixels within +/- sigma/2
+    cen_pix= np.abs(x-cent)<sigma/2
+    if np.any(cen_pix):
+        ampl = np.median(y[cen_pix])
+    else:
+        ampl = y.max()
     # Return
-    return mx, cent, sigma
+    return ampl, cent, sigma
 
 
 def poly_to_gauss(coeffs):

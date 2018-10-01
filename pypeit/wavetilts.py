@@ -61,7 +61,7 @@ class WaveTilts(masterframe.MasterFrame):
     frametype = 'tilts'
 
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
-                 mode=None, pixlocn=None, tslits_dict=None, redux_path=None):
+                 mode=None, tslits_dict=None, redux_path=None, bpm=None):
 
         # TODO: (KBW) Why was setup='' in this argument list and
         # setup=None in all the others?  Is it because of the
@@ -82,6 +82,7 @@ class WaveTilts(masterframe.MasterFrame):
         else:
             raise TypeError('Must provide a name or instance for the Spectrograph.')
 
+
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
                                          master_dir=master_dir, mode=mode)
@@ -90,8 +91,11 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Parameters (but can be None)
         self.msarc = msarc
+        if bpm is None:
+            self.bpm = np.zeros_like(msarc)
+        else:
+            self.bpm = bpm
         self.tslits_dict = tslits_dict
-        self.pixlocn = pixlocn
 
         # Optional parameters
         self.det = det
@@ -112,6 +116,8 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Main outputs
         self.final_tilts = None
+        self.coeffs = None
+        self.tilts_dict = None
 
     @classmethod
     def from_master_files(cls, setup, mdir='./'):
@@ -140,11 +146,12 @@ class WaveTilts(masterframe.MasterFrame):
         hdul = fits.open(mstilts_file)
         slf.final_tilts = hdul[0].data
         slf.tilts = slf.final_tilts
+        self.coeffs = slf.hdu[1].data
 
         # Dict
         slf.all_trcdict = []
         islit = 0
-        for hdu in hdul[1:]:
+        for hdu in hdul[2:]:
             if hdu.name == 'FWM{:03d}'.format(islit):
                 # Setup
                 fwm_img = hdu.data
@@ -195,7 +202,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return self.badlines
 
-    def _extract_arcs(self, gen_satmask=False):
+    def _extract_arcs(self):
         """
         Extract the arcs down each slit/order
 
@@ -208,11 +215,9 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Extract an arc down each slit/order
-        self.arccen, self.arc_maskslit, _ = arc.get_censpec(self.tslits_dict['lcen'],
-                                                              self.tslits_dict['rcen'],
-                                                              self.pixlocn, self.msarc, self.det,
-                                                              gen_satmask=gen_satmask)
-        self.satmask = np.zeros_like(self.msarc)
+        inmask = (self.bpm == 0) if self.bpm is not None else None
+        self.arccen, self.arc_maskslit = arc.get_censpec(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
+                                                     self.tslits_dict['slitpix'], self.msarc, inmask = inmask)
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.arccen, self.arc_maskslit
@@ -231,9 +236,10 @@ class WaveTilts(masterframe.MasterFrame):
         Returns
         -------
         self.tilts : ndarray
+        coeffs
 
         """
-        self.tilts, self.outpar = tracewave.fit_tilts(self.msarc, slit, self.all_ttilts[slit],
+        self.tilts, coeffs, self.outpar = tracewave.fit_tilts(self.msarc, slit, self.all_ttilts[slit],
                                                         order=self.par['order'],
                                                         yorder=self.par['yorder'],
                                                         func2D=self.par['func2D'],
@@ -241,7 +247,7 @@ class WaveTilts(masterframe.MasterFrame):
                                                         doqa=doqa, out_dir=self.redux_path)
         # Step
         self.steps.append(inspect.stack()[0][3])
-        return self.tilts
+        return self.tilts, coeffs
 
     def _trace_tilts(self, slit, wv_calib=None):
         """
@@ -272,10 +278,11 @@ class WaveTilts(masterframe.MasterFrame):
                                 * self.spectrograph.detector[self.det-1]['nonlinear']
 
         trcdict = tracewave.trace_tilt(self.tslits_dict['pixcen'], self.tslits_dict['lcen'],
-                                         self.tslits_dict['rcen'], self.det, self.msarc, slit,
-                                         nonlinear_counts, idsonly=self.par['idsonly'],
-                                         censpec=self.arccen[:, slit], nsmth=3,
-                                         tracethresh=tracethresh, wv_calib=wv_calib)
+                                       self.tslits_dict['rcen'], self.det, self.msarc, slit,
+                                       nonlinear_counts, idsonly=self.par['idsonly'],
+                                       censpec=self.arccen[:, slit], nsmth=3,
+                                       tracethresh=tracethresh, wv_calib=wv_calib,
+                                       nonlinear_counts = nonlinear_counts)
         # Load up
         self.all_trcdict[slit] = trcdict.copy()
         # Step
@@ -317,7 +324,7 @@ class WaveTilts(masterframe.MasterFrame):
             maskslits = np.zeros(self.nslit, dtype=bool)
 
         # Extract the arc spectra for all slits
-        self.arccen, self.arc_maskslit = self._extract_arcs(gen_satmask=gen_satmask)
+        self.arccen, self.arc_maskslit = self._extract_arcs()
 
         # maskslit
         self.mask = maskslits & (self.arc_maskslit==1)
@@ -325,6 +332,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Final tilts image
         self.final_tilts = np.zeros_like(self.msarc)
+        self.coeffs = np.zeros((self.par['order'] + 2,self.par['yorder'] +1,self.nslit))
         # Loop on all slits
         for slit in gdslits:
             # Trace
@@ -335,13 +343,14 @@ class WaveTilts(masterframe.MasterFrame):
 
             # 2D model of the tilts
             #   Includes QA
-            self.tilts = self._fit_tilts(slit, doqa=doqa)
+            self.tilts, self.coeffs[:,:,slit] = self._fit_tilts(slit, doqa=doqa)
 
             # Save to final image
             word = self.tslits_dict['slitpix'] == slit+1
             self.final_tilts[word] = self.tilts[word]
 
-        return self.final_tilts, maskslits
+        self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'func2D':self.par['func2D']}
+        return self.tilts_dict, maskslits
 
     def _qa(self, slit):
         """
@@ -381,6 +390,9 @@ class WaveTilts(masterframe.MasterFrame):
         #
         hdu0 = fits.PrimaryHDU(self.final_tilts)
         hdul = [hdu0]
+        hdu_coeff = fits.ImageHDU(self.coeffs)
+        hdu_coeff.header['FUNC2D'] = self.par['func2D']
+        hdul.append(hdu_coeff)
 
         for slit in range(self.nslit):
             # Bad slit?

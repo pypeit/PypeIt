@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Script for fluxing PYPIT 1d spectra
+Script for fluxing PYPEIT 1d spectra
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -12,6 +12,9 @@ import argparse
 
 # pypeit_flux_spec sensfunc --std_file=spec1d_Feige66_KASTb_2015May20T041246.96.fits  --instr=shane_kast_blue --sensfunc_file=tmp.yaml
 # pypeit_flux_spec flux --sci_file=spec1d_J1217p3905_KASTb_2015May20T045733.56.fits --sensfunc_file=tmp.yaml --flux_file=tmp.fits
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# pypeit_flux_spec sensfunc --std_file=spec1d_G191b2b_KASTr_2015Jan23T024320.75.fits  --instr=shane_kast_red_ret --sensfunc_file=tmp.yaml --telluric
+# pypeit_flux_spec flux     --sci_file=spec1d_J0025-0312_KASTr_2015gen23T025323.85.fits --sensfunc_file=tmp.yaml --flux_file=tmp.fits
 
 
 def parser(options=None):
@@ -21,10 +24,11 @@ def parser(options=None):
     parser.add_argument("--std_obj", type=str, help="Standard star identifier, e.g. O479-S5009-D01-I0023")
     parser.add_argument("--sci_file", type=str, help="File containing the science 1d spectra")
     parser.add_argument("--instr", type=str, help="Instrument name (required to generate sensfunc)")
-    parser.add_argument("--sensfunc_file", type=str, help="File containing the sensitivity function (input or output)")
+    parser.add_argument("--sensfunc_file", type=str, help="YAML file containing the sensitivity function (input or output)")
     parser.add_argument("--flux_file", type=str, help="Output filename for fluxed science spectra")
     parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
     parser.add_argument("--multi_det", type=str, help="Multiple detectors (e.g. 3,7 for DEIMOS)")
+    parser.add_argument("--telluric", default=False, action="store_true", help="Correct for telluric absorptions?")
 
     if options is None:
         args = parser.parse_args()
@@ -74,6 +78,7 @@ def main(args, unit_test=False):
     FxSpec = fluxspec.FluxSpec(std_spec1d_file=args.std_file,
                                sci_spec1d_file=args.sci_file,
                                spectrograph=args.instr,
+                               telluric=args.telluric,
                                sens_file=sfile,
                                multi_det=multi_det)
     # Step through

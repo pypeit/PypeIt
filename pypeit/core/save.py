@@ -1,4 +1,4 @@
-""" Output for PYPIT
+""" Output for PYPEIT
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
@@ -375,7 +375,7 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
     prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
     # Add critical data to header
-    for key in ['ra', 'dec', 'exptime', 'date', 'target', 'airmass', 'instrume']:
+    for key in ['ra', 'dec', 'exptime', 'date', 'target', 'airmass', 'instrume','filename']:
         # Allow for fitstbl vs. header
         try:
             prihdu.header[key.upper()] = header[key.upper()]
@@ -416,7 +416,11 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         if sobj.fwhmfit is not None:
             cols += [fits.Column(array=sobj.fwhmfit, name=str('FWHM'), format=sobj.fwhmfit.dtype)]
         if ext == 1:
-            npix = len(sobj.trace_spat)
+            # TODO -- FIX THIS KLUDGE
+            try:
+                npix = len(sobj['trace'])
+            except:  # THIS IS A DUMB KLUDGE
+                npix = len(sobj['trace_spat'])
         # Boxcar
         for key in sobj.boxcar.keys():
             # Skip some
@@ -599,6 +603,7 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
         names.append(specobj.idx)
         slits.append(specobj.slitid)
         spat_pixpos.append(specobj.spat_pixpos)
+
         # Boxcar width
         if 'BOX_RADIUS' in specobj.boxcar.keys():
             slit_pix = 2.0*specobj.boxcar['BOX_RADIUS']
@@ -607,8 +612,10 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
             boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.det-1]['platescale'])
         else:
             boxsize.append(0.)
+
         # Optimal profile (FWHM)
         binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
+        ## Old code binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
         opt_fwhm.append(np.median(specobj.fwhmfit)* binspatial
                                 * spectrograph.detector[specobj.det-1]['platescale'])
         # S2N -- default to boxcar
@@ -680,8 +687,8 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         tmp = str(head0['HISTORY']).replace('\n', ' ')
         prihdu.header.add_history(str(tmp))
 
-    # PYPIT
-    prihdu.header['PIPELINE'] = str('PYPIT')
+    # PYPEIT
+    prihdu.header['PIPELINE'] = str('PYPEIT')
     prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
     ssetup = setup.split('_') #settings.argflag['reduce']['masters']['setup'].split('_')
     prihdu.header['PYPCNFIG'] = str(ssetup[0])

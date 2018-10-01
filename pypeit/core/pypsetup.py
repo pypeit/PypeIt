@@ -322,6 +322,7 @@ def instr_setup(sci_ID, det, fitstbl, setup_dict, numamplifiers,
 
     # Detector -- These may not be set properly from the header alone, e.g. LRIS
     binning = fitstbl["binning"][idx[0]]
+
     namp = numamplifiers
 
     # Generate

@@ -210,6 +210,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(dataext         = 0,
                                      dispaxis        = 1,
+                                     dispflip       = False,
                                      xgap            = 0.,
                                      ygap            = 0.,
                                      ysize           = 1.,
@@ -275,6 +276,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
         """
         arcparam['lamps'] = ['CdI','HgI','HeI']
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
         if disperser == '600/4310':
             arcparam['disp']=1.02
             arcparam['b1']=6.88935788e-04
@@ -302,6 +304,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(dataext         = 0,
                                      dispaxis        = 0,
+                                     dispflip=False,
                                      xgap            = 0.,
                                      ygap            = 0.,
                                      ysize           = 1.,
@@ -371,6 +374,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         """
         arcparam['lamps'] = ['NeI','HgI','HeI','ArI']
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+
 #        if disperser == '600/7500':
 #            arcparam['disp']=1.30
 #            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
@@ -400,6 +405,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(dataext         = 0,
                                      dispaxis        = 1,
+                                     dispflip=False,
                                      xgap            = 0.,
                                      ygap            = 0.,
                                      ysize           = 1.,
@@ -478,6 +484,8 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
 
         """
         arcparam['lamps'] = ['NeI','HgI','HeI','ArI']
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+
 #        if disperser == '600/7500':
 #            arcparam['disp']=2.35
 #            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral

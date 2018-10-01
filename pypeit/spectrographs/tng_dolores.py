@@ -26,6 +26,7 @@ class TngDoloresSpectrograph(spectrograph.Spectrograph):
                 # Detector 1
                 DetectorPar(dataext         = 0,
                             dispaxis        = 1,
+                            dispflip=False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -62,6 +63,8 @@ class TngDoloresSpectrograph(spectrograph.Spectrograph):
 
         """
         arcparam['lamps'] = ['NeI', 'HgI']
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+
         if disperser == 'LR-R':
             arcparam['n_first'] = 2  # Too much curvature for 1st order
             arcparam['disp'] = 2.61  # Ang per pixel (unbinned)

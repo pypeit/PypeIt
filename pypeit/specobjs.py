@@ -69,7 +69,7 @@ class SpecObj(object):
     # Init
 
     # TODO
-    def __init__(self, shape, slit_spat_pos, slit_spec_pos, det=1, setup=None,
+    def __init__(self, shape, slit_spat_pos, slit_spec_pos, det=1, setup=None, idx = None,
                  slitid=999, scidx=1, objtype='unknown', spat_pixpos=None, config=None):
 
 
@@ -88,7 +88,6 @@ class SpecObj(object):
 
         # Object finding attributes
         self.objid = None
-        self.idx = None
         self.spat_fracpos = None
         self.smash_peakflux = None
         self.fwhm = None
@@ -121,8 +120,10 @@ class SpecObj(object):
         #self.objid = int(np.round(xobj*1e3))
 
         # Set index
-        self.set_idx()
-
+        if idx is None:
+            self.set_idx()
+        else:
+            self.idx = idx
         #
 
     def set_idx(self):

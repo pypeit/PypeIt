@@ -69,12 +69,12 @@ def test_build_fitstbl():
     #
     fitstbl = setupc.build_fitstbl(files)
     assert isinstance(fitstbl, Table)
-    assert setupc.nfiles == 27
+    assert setupc.nfiles == 26
 
     # I/O
     setupc.write_fitstbl(data_path('fitstbl.fits'))
     tmp = setupc.load_fitstbl(data_path('fitstbl.fits'))
-    assert len(tmp) == 27
+    assert len(tmp) == 26
 
 def test_image_type():
     if skip_test:
@@ -105,7 +105,8 @@ def test_match():
 
     # Match to science
     fitstbl = setupc.match_to_science()
-    assert fitstbl['sci_ID'][fitstbl['science']].tolist() == [1,2,4]
+
+    assert fitstbl['sci_ID'][fitstbl['science']].tolist() == [1,2]
 
 '''
 def test_match_ABBA():

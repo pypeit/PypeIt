@@ -222,6 +222,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                 # Detector 1
                 DetectorPar(dataext         = 1,
                             dispaxis        = 0,
+                            dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -239,6 +240,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                 #Detector 2
                 DetectorPar(dataext         = 2,
                             dispaxis        = 0,
+                            dispflip=False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -311,6 +313,9 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         """
         arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
+        # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
+        # detector and there is no mechanism in place to create that yet
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
         if disperser == '600/4000':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.63 # Ang per pixel (unbinned)
@@ -348,6 +353,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 # Detector 1
                 DetectorPar(dataext         =1,
                             dispaxis        =0,
+                            dispflip=False,
                             xgap            =0.,
                             ygap            =0.,
                             ysize           =1.,
@@ -365,6 +371,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 #Detector 2
                 DetectorPar(dataext         =2,
                             dispaxis        =0,
+                            dispflip=False,
                             xgap            =0.,
                             ygap            =0.,
                             ysize           =1.,
@@ -461,6 +468,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         #arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
         # Should set according to the lamps that were on
         arcparam['lamps'] = ['ArI','NeI','HgI','KrI','XeI']
+        # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
+        # detector and there is no mechanism in place to create that yet
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+
         '''
         if disperser == '600/7500':
             arcparam['n_first']=3 # Too much curvature for 1st order

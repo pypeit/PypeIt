@@ -3,7 +3,8 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 import numpy as np
 import os
-import yaml
+# import yaml
+import json
 
 from astropy.io import fits
 from astropy import units
@@ -73,7 +74,8 @@ def master_name(ftype, setup, mdir):
                      wave='{:s}/MasterWave_{:s}.fits'.format(mdir, setup),
                      wv_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, setup),
                      tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir, setup),
-                     sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.yaml'.format(mdir, setup[0], setup[-2:]),
+                     # sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.yaml'.format(mdir, setup[0], setup[-2:]),
+                     sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.fits'.format(mdir, setup[0], setup[-2:]),
                      )
     return name_dict[ftype]
 
@@ -197,13 +199,31 @@ def _load(name, exten=0, frametype='<None>', force=False):
         ldict = linetools.utils.loadjson(name)
         return ldict, None, [name]
     elif frametype == 'sensfunc':
-        with open(name, 'r') as f:
-            sensfunc = yaml.load(f)
-        sensfunc['wave_max'] = sensfunc['wave_max']*units.AA
-        sensfunc['wave_min'] = sensfunc['wave_min']*units.AA
-        return sensfunc, None, [name]
+        msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(frametype) + " from filename: {:}".format(name))
+
+        hdu = fits.open(name)
+        head = hdu[0].header
+        tbl = hdu['SENSFUNC'].data
+        sens_dict = {}
+        sens_dict['wave'] = tbl['WAVE']
+        sens_dict['sensfunc'] = tbl['SENSFUNC']
+        for key in ['wave_min','wave_max','exptime','airmass','std_file','std_ra','std_dec','std_name','calibfile']:
+            try:
+                sens_dict[key] = head[key.upper()]
+            except:
+                pass
+        return sens_dict, head, [name]
     elif frametype == 'trace':
         msgs.error('Load from the class not this method')
+    elif frametype == 'tilts':
+        msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(frametype) + " from filename: {:}".format(name))
+        hdu = fits.open(name)
+        head0 = hdu[0].header
+        tilts = hdu[0].data
+        head1 = hdu[1].header
+        coeffs = hdu[1].data
+        tilts_dict = {'tilts':tilts,'coeffs':coeffs,'func2D': head1['FUNC2D']} # This is the tilts_dict
+        return tilts_dict, head0, [name]
     else:
         msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(frametype) + " from filename: {:}".format(name))
         hdu = fits.open(name)

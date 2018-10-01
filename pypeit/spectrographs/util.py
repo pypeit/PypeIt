@@ -14,9 +14,9 @@ from pypeit import debugger
 def valid_spectrographs():
     # TODO: Is there a more clever way to do this?
     raise DeprecationWarning("THIS DOES NOTHING, I THINK")
-    return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec_low',
+    return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec_low',
             'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
-            'wht_isis_blue', 'vlt_xshooter_vis']
+            'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir']
 
 def load_spectrograph(spectrograph=None):
     """
@@ -36,6 +36,9 @@ def load_spectrograph(spectrograph=None):
 
     if spectrograph is None:
         return None
+
+    if spectrograph == 'gemini_gnirs':
+        return spectrographs.gemini_gnirs.GeminiGNIRSSpectrograph()
 
     if spectrograph == 'keck_deimos':
         return spectrographs.keck_deimos.KeckDEIMOSSpectrograph()
@@ -67,12 +70,16 @@ def load_spectrograph(spectrograph=None):
     if spectrograph == 'tng_dolores':
         return spectrographs.tng_dolores.TngDoloresSpectrograph()
 
+    if spectrograph == 'vlt_xshooter_uvb':
+        return spectrographs.vlt_xshooter.VLTXShooterUVBSpectrograph()
+
     if spectrograph == 'vlt_xshooter_vis':
         return spectrographs.vlt_xshooter.VLTXShooterVISSpectrograph()
 
     if spectrograph == 'vlt_xshooter_nir':
         return spectrographs.vlt_xshooter.VLTXShooterNIRSpectrograph()
 
+    debugger.set_trace()
     msgs.error("Spectrograph not supported")
 
 
