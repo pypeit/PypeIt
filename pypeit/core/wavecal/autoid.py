@@ -1476,7 +1476,6 @@ class General:
                       '  Central wavelength           = {:g}A'.format(centwave) + msgs.newline() +
                       '  Central dispersion           = {:g}A/pix'.format(centdisp) + msgs.newline() +
                       '  Central wave/disp             = {:g}'.format(centwave/centdisp) + msgs.newline() +
-                      '  Central log10(dispersion)    = {:g}'.format(np.log10(centdisp)) + msgs.newline() +
                       '  Final RMS of fit             = {:g}'.format(self._all_final_fit[st]['rms']))
         return
 
