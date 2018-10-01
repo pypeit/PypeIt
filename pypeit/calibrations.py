@@ -458,7 +458,10 @@ class Calibrations(object):
 
             # Compute the plate scale in arcsec which is needed to trim short slits
             scidx = np.where(self.fitstbl.find_frames('science', sci_ID=self.sci_ID))[0][0]
-            binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
+            try:
+                binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
+            except KeyError:  # JXP 10/1/2018 -- THIS IS KLUDGY;  MIGHT WANT A BINNING METHOD IN SPECTROGRAPHS
+                binspatial, binspectral = 1, 1
             ## Old code: binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 

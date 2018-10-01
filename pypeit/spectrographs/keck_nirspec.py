@@ -264,13 +264,6 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         self.spectrograph = 'keck_nirspec_low'
 
 
-    def default_pypeit_par(self):
-        """
-        Set default parameters for NIRSPEC low-dispersion reductions
-        """
-        par = self.nirspec_default_pypeit_par()
-        return par
-
     def check_header(self, headers):
         """Validate elements of the header."""
         chk_dict = {}
@@ -280,6 +273,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         chk_dict[1]['NAXIS'] = 2
         return chk_dict
 
+    '''
     def header_keys(self):
         """
         Header keys specific to keck_nirspec
@@ -291,6 +285,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         # Add the name of the filter used
         head_keys[0]['filter'] = 'FILNAME'
         return head_keys
+    '''
 
     def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None, msarc_shape=None,
                        binspectral=None, **null_kwargs):
