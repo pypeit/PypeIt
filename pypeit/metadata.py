@@ -649,6 +649,8 @@ class PypeItMetaData:
 
                 # Have we identified enough of these calibration frames to continue?
                 if nmatch < np.abs(numfr):
+                    if ftag == 'standard':
+                        import pdb; pdb.set_trace()
                     code = framematch.match_warnings(calib_par, ftag, nmatch, numfr, target)
                     if code == 'break':
                         self['failure'][sci_idx] = True

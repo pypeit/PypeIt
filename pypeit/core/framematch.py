@@ -429,6 +429,7 @@ def match_warnings(calib_par, ftag, nmatch, numfr, target, setup=False):
             msgs.warn('No {0} frames for {1}'.format(ftag, target)
                       + ', but will use MasterFrames.')
         else:
+            import pdb; pdb.set_trace()
             insufficient_frame_error(ftag)
 
     # Errors for insufficient ARC frames
