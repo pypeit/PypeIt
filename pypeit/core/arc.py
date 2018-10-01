@@ -46,6 +46,7 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                     disp_toler=0.1,      # 10% tolerance
                     match_toler=3.,      # Matching tolerance (pixels)
                     min_nsig=30.,        # Minimum significance
+                    lower_nsig=10.,      # Lowest significance for weak lines
                     func='legendre',     # Function for fitting
                     n_first=1,           # Order of polynomial for first fit
                     n_final=4,           # Order of polynomial for final fit
@@ -883,7 +884,7 @@ def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
     else:
         # Now preferred
         arcfitter = autoid.General(spec, aparm['lamps'], ok_mask=ok_mask, fit_parm=aparm, min_nsig=aparm['min_nsig'],
-                                   nonlinear_counts = aparm['nonlinear_counts'])
+                                   lowest_nsig=aparm['lowest_nsig'], nonlinear_counts = aparm['nonlinear_counts'])
         patt_dict, final_fit = arcfitter.get_results()
     return final_fit
 
