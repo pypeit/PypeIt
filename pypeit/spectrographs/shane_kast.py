@@ -377,7 +377,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         """
         arcparam['lamps'] = ['NeI','HgI','HeI','ArI']
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_nsigl'] = 30.         # Minimum signififance
+        arcparam['min_nsig'] = 30.0         # Minimum signififance
+        arcparam['lowest_nsig'] = 10.0      # Min significance for arc lines to be used
         arcparam['wvmnx'] = [3000.,11000.]  # Guess at wavelength range
         # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
         arcparam['match_toler'] = 3         # Matcing tolerance (pixels)
@@ -499,7 +500,8 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         """
         arcparam['lamps'] = ['NeI','HgI','HeI','ArI']
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_nsigl'] = 30.         # Minimum signififance
+        arcparam['min_nsig'] = 30.         # Minimum signififance
+        arcparam['lowest_nsig'] = 10.0      # Min significance for arc lines to be used
         arcparam['wvmnx'] = [3000.,11000.]  # Guess at wavelength range
         # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
         arcparam['match_toler'] = 3         # Matcing tolerance (pixels)
