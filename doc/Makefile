@@ -8,7 +8,7 @@ SPHINXOPTS    = -aE -w ./sphinx_warnings.out
 SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = _build
-LOCALFILES    = $(BUILDDIR)/* api module.rst pypit.rst pypit.*.rst sphinx_warnings.out pypit_par.rst
+LOCALFILES    = $(BUILDDIR)/* api module.rst pypeit.rst pypeit.*.rst sphinx_warnings.out pypeit_par.rst
 
 
 # User-friendly check for sphinx-build
@@ -57,7 +57,7 @@ clean:
 
 html:
 	export SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT)
-	$(SPHINXAPI) -o . ../pypit --separate
+	$(SPHINXAPI) -o . ../pypeit --separate
 	python3 ./scripts/build_par_rst.py
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
@@ -94,9 +94,9 @@ qthelp:
 	@echo
 	@echo "Build finished; now you can run "qcollectiongenerator" with the" \
 	      ".qhcp project file in $(BUILDDIR)/qthelp, like this:"
-	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/PYPIT.qhcp"
+	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/PypeIt.qhcp"
 	@echo "To view the help file:"
-	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/PYPIT.qhc"
+	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/PypeIt.qhc"
 
 applehelp:
 	$(SPHINXBUILD) -b applehelp $(ALLSPHINXOPTS) $(BUILDDIR)/applehelp
@@ -111,8 +111,8 @@ devhelp:
 	@echo
 	@echo "Build finished."
 	@echo "To view the help file:"
-	@echo "# mkdir -p $$HOME/.local/share/devhelp/PYPIT"
-	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/PYPIT"
+	@echo "# mkdir -p $$HOME/.local/share/devhelp/PypeIt"
+	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/PypeIt"
 	@echo "# devhelp"
 
 epub:

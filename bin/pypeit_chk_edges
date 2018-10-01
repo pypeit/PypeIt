@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+
+"""
+Show the trace image in a Ginga window with edges
+"""
+
+import pypeit.scripts.chk_edges as chk_edges
+
+if __name__ == '__main__':
+    args = chk_edges.parser()
+    chk_edges.main(args)

@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+#
+# See top-level LICENSE file for Copyright information
+#
+# -*- coding: utf-8 -*-
+
+"""
+This script pushes a FITS file to ginga
+"""
+
+import pypeit.scripts.view_fits as view_fits
+
+if __name__ == '__main__':
+    args = view_fits.parser()
+    view_fits.main(args)

@@ -14,19 +14,20 @@ import glob
 
 from setuptools import setup, find_packages
 
+
 def get_data_files():
     """ Build the list of data files to include.  """
     data_files = []
 
     # Walk through the data directory, adding all files
-    data_generator = os.walk('pypit/data')
+    data_generator = os.walk('pypeit/data')
     for path, directories, files in data_generator:
         for f in files:
             data_path = '/'.join(path.split('/')[1:])
             data_files.append(os.path.join(data_path, f))
 
     # Add pipeline and spectrograph settings
-    settings = glob.glob('pypit/settings/settings.*')
+    settings = glob.glob('pypeit/settings/settings.*')
     settings = ['/'.join(path.split('/')[1:]) for path in settings]
     data_files.extend(settings)
 
@@ -44,7 +45,7 @@ def get_scripts():
 
 def get_requirements():
     """ Get the requirements from a system file.  """
-    name = 'pypit/requirements.txt'
+    name = 'pypeit/requirements.txt'
 
     requirements_file = os.path.join(os.path.dirname(__file__), name)
     install_requires = [line.strip().replace('==', '>=') for line in open(requirements_file)
@@ -52,9 +53,9 @@ def get_requirements():
     return install_requires
 
 
-NAME = 'pypit'
+NAME = 'pypeit'
 # do not use x.x.x-dev.  things complain.  instead use x.x.xdev
-VERSION = '0.8.0dev'
+VERSION = '0.8.2dev'
 RELEASE = 'dev' not in VERSION
 
 def run_setup(data_files, scripts, packages, install_requires):
@@ -66,18 +67,18 @@ def run_setup(data_files, scripts, packages, install_requires):
           provides=NAME,                                                # *
           version=VERSION,
           license='BSD3',
-          description='PYPIT Spectroscopic Reduction',
+          description='PypeIt Spectroscopic Reduction',
           long_description=open('README.md').read(),
-          author='PYPIT Collaboration',
-          author_email='pypit@ucolick.org',
-          keywords='pypit PYPIT astronomy Keck UCO Lick data reduction',
-          url='https://github.com/pypit/pypit',
+          author='PypeIt Collaboration',
+          author_email='pypeit@ucolick.org',
+          keywords='pypeit PypeIt astronomy Keck UCO Lick data reduction',
+          url='https://github.com/pypeit/PypeIt',
           packages=packages,
-          package_data={'pypit': data_files, '': ['*.rst', '*.txt']},
+          package_data={'pypeit': data_files, '': ['*.rst', '*.txt']},
           include_package_data=True,
           scripts=scripts,
           install_requires=install_requires,
-          requires=[ 'Python (>2.7.0)' ],                               # *
+          requires=[ 'Python (>3.6.0)' ],                               # *
           zip_safe=False,                                               # *
           use_2to3=False,                                               # *
           setup_requires=[ 'pytest-runner' ],
@@ -89,7 +90,6 @@ def run_setup(data_files, scripts, packages, install_requires):
               'Natural Language :: English',
               'Operating System :: OS Independent',
               'Programming Language :: Python',
-              'Programming Language :: Python :: 2.7',
               'Programming Language :: Python :: 3.6',
               'Topic :: Documentation :: Sphinx',
               'Topic :: Scientific/Engineering :: Astronomy',

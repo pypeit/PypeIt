@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+
+"""
+Flux the spectra and/or generate a sensitity function
+"""
+
+import pypeit.scripts.flux_spec as flux_spec
+
+if __name__ == '__main__':
+    args = flux_spec.parser()
+    flux_spec.main(args)

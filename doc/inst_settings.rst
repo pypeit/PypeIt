@@ -5,7 +5,7 @@ Instrument Settings
 *******************
 
 This document will detail aspects of the
-instrument settings files used in PYPIT.
+instrument settings files used in PypeIt.
 
 These are mainly notes for the lead developers.
 
@@ -79,7 +79,7 @@ Here are some of the standard ones::
 
 * Run
 * Add arc solution
-  * set debug['arc'] = True in run_pypit
+  * set debug['arc'] = True in run_pypeit
 
 * Add extinction file if a new observatory
   * Add file in data/extinction

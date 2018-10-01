@@ -1,13 +1,13 @@
-.. PYPIT documentation master file, created by
+.. PypeIt documentation master file, created by
    sphinx-quickstart on Fri Nov 13 13:39:35 2015.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to PYPIT's documentation!
+Welcome to PypeIt's documentation!
 =================================
 
 
-PYPIT is a Python based data reduction pipeline (DRP) written
+PypeIt is a Python based data reduction pipeline (DRP) written
 oringinally for echelle spectroscopy and since expanded
 to low-resolution spectrometers.  This documentation details
 the code, how to run it, and what it produces.
@@ -26,16 +26,16 @@ Getting Started
    installing
    code_flow
 
-Running PYPIT
-+++++++++++++
+Running PypeIt
+++++++++++++++
 
 .. toctree::
    :maxdepth: 2
 
-   pypit_par
+   pypeit_par
    cookbook
    setups
-   pypit_file
+   pypeit_file
    calcheck
    running
 
@@ -109,7 +109,7 @@ Contents
 .. toctree::
    :maxdepth: 4
 
-   pypit
+   pypeit
 
 Indices and tables
 ++++++++++++++++++

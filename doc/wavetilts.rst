@@ -26,7 +26,7 @@ Here is the code flow:
     iii.  2D Fit to the offset from pixcen
     iv. Save
 
-See this `WaveTilts <https://github.com/PYPIT/PYPIT/blob/master/doc/nb/WaveCalib.ipynb>`_
+See this `WaveTilts <https://github.com/pypeit/pypeit/blob/master/doc/nb/WaveCalib.ipynb>`_
 Notebook for some examples.
 
 QA
@@ -38,13 +38,13 @@ It should be possible to achieve an RMS < 0.05 pixels.
 Scripts
 =======
 
-pypit_chk_tilts
+pypeit_chk_tilts
 ---------------
 
 This script displays several aspects of the tilts solution
 on the Arc frame.  Here is the usage::
 
-    usage: pypit_chk_tilts [-h] [--slit SLIT] option setup
+    usage: pypeit_chk_tilts [-h] [--slit SLIT] option setup
 
     Display MasterArc image in a previously launched RC Ginga viewer with tilts
 
@@ -58,9 +58,9 @@ on the Arc frame.  Here is the usage::
 
 And here is an example or two::
 
-        pypit_chk_tilts fweight A_01_aa --slit 0
-        pypit_chk_tilts model A_01_aa --slit 0
-        pypit_chk_tilts tilts A_01_aa --slit 0
+        pypeit_chk_tilts fweight A_01_aa --slit 0
+        pypeit_chk_tilts model A_01_aa --slit 0
+        pypeit_chk_tilts tilts A_01_aa --slit 0
 
 These will displace in a RC Ginga window.
 

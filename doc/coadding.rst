@@ -7,9 +7,9 @@ Coadd 1D Spectra
 This document will describe how to combine the 1D spectra
 from multiple exposures of the same object.
 
-PYPIT currently only offers the coadding of spectra in
+PypeIt currently only offers the coadding of spectra in
 1D and must be done outside of the data reduction pipeline,
-i.e. PYPIT will *not* coadd your spectra as
+i.e. PypeIt will *not* coadd your spectra as
 part of the data reduction process.
 
 The current defaults use the Optimal extraction
@@ -18,11 +18,11 @@ and fluxed data.
 Coadd 1dspec
 ++++++++++++
 
-The primary script is called `pypit_coadd_1dspec` and takes
+The primary script is called `pypeit_coadd_1dspec` and takes
 an input YAML file to guide the process.  Here is the usage::
 
-    wolverine> pypit_coadd_1dspec -h
-    usage: pypit_coadd_1dspec [-h] [--debug] infile
+    wolverine> pypeit_coadd_1dspec -h
+    usage: pypeit_coadd_1dspec [-h] [--debug] infile
 
     Script to coadd a set of spec1D files and 1 or more slits and 1 or more
     objects. Current defaults use Optimal + Fluxed extraction. [v1.1]
@@ -40,11 +40,11 @@ and likely hit as set_trace in the code.
 Input File
 ++++++++++
 
-The information PYPIT's coadder uses is contained
+The information PypeIt's coadder uses is contained
 within a .yaml file. At the most basic level, the file must
 include the names of the files to be coadded, and a series
 of dicts, labeled by 'a', 'b', 'c', etc., each of
-which has a  PYPIT
+which has a  PypeIt
 object identifier string (used to ID the object)
 and the name of an output file.  Here is an example
 case::
@@ -56,7 +56,7 @@ case::
 
 The default behavior of the coadder is to use one object identifier 
 string for all the files to be coadded. There are hard coded tolerance
-values in PYPIT (10 for the object identifier string and 50 for the
+values in PypeIt (10 for the object identifier string and 50 for the
 slit identifier string) that work to find the same object across all
 the specified files. However, if the object changes positions along the
 slit over the exposures (e.g., you dithered while observing the object)
@@ -84,9 +84,9 @@ Common keywords for coadding algorithms are
 listed below (:ref:`more_coadd_keys`).
 
 The list of object identifiers in a given spec1d file can be
-output with the pypit_show_1dspec script, e.g.::
+output with the pypeit_show_1dspec script, e.g.::
 
-    pypit_show_1dspec filename.fits --list
+    pypeit_show_1dspec filename.fits --list
 
 These can also be recovered from the object info files in the Science/folder
 (one per exposure).
@@ -174,7 +174,7 @@ deviant pixels from large deviations off the median.
 
 Additional Coadding Parameters
 ++++++++++++++++++++++++++++++
-You can adjust the default methods by which PYPIT coadds
+You can adjust the default methods by which PypeIt coadds
 spectra by adding a dict named 'global' or a 'local' dict
 in the object block::
 
@@ -262,7 +262,7 @@ Running the Coadd Code
 Once you have this .yaml file set up, you can coadd your
 1d spectra by running the command::
 
-    pypit_coadd_1dspec name_of_yaml_file.yaml
+    pypeit_coadd_1dspec name_of_yaml_file.yaml
 
 The coadder will also produce a quality assurance (QA) file
 named 'root_of_outfile.pdf'. In the left panel, the QA shows the chi-
