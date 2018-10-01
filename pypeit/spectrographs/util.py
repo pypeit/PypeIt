@@ -14,7 +14,7 @@ def valid_spectrographs():
     # names, we could do something like what's done in
     # pypeit.instantiate_me.
     return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires',
-            'keck_nirspec', 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret',
+            'keck_nirspec_low', 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret',
             'tng_dolores', 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
             'vlt_xshooter_nir']
 
@@ -61,8 +61,8 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'keck_nires':
         return spectrographs.keck_nires.KeckNIRESSpectrograph()
 
-    if spectrograph == 'keck_nirspec':
-        return spectrographs.keck_nirspec.KeckNIRSPECSpectrograph()
+    if spectrograph == 'keck_nirspec_low':
+        return spectrographs.keck_nirspec.KeckNIRSPECLowSpectrograph()
 
     if spectrograph == 'shane_kast_blue':
         return spectrographs.shane_kast.ShaneKastBlueSpectrograph()
