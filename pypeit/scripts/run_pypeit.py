@@ -100,6 +100,10 @@ def main(args):
         return 0
 
     pypeIt.reduce_all(reuse_masters=args.use_masters)
+    if args.calcheck:
+        msgs.info('Done checking calibrations.  Exiting..')
+        return 0
+
 
     msgs.info('Data reduction complete')
     # QA HTML
