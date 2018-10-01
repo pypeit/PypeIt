@@ -12,7 +12,7 @@ import scipy
 from scipy.optimize import curve_fit
 
 
-def arc_lines_from_spec(spec, min_ampl=300., nonlinear_counts = 1e10):
+def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10):
     """
     Parameters
     ----------
@@ -26,16 +26,20 @@ def arc_lines_from_spec(spec, min_ampl=300., nonlinear_counts = 1e10):
     """
 
     # Find peaks
-    tampl, tcent, twid, centerr, w, yprep = arc.detect_lines(spec, nfitpix=7, nonlinear_counts = nonlinear_counts)
+    tampl, tcent, twid, centerr, w, yprep, nsig = arc.detect_lines(spec, nfitpix=7, nonlinear_counts = nonlinear_counts)
     all_tcent = tcent[w]
     all_tampl = tampl[w]
     all_ecent = centerr[w]
+    all_nsig = nsig[w]
 
-
+    # Old code cut on amplitude
     # Cut on Amplitude
-    cut_amp = all_tampl > min_ampl
-    cut_tcent = all_tcent[cut_amp]
-    icut = np.where(cut_amp)[0]
+    #cut_amp = all_tampl > min_ampl
+
+    # Cut on significance
+    cut_sig = all_nsig > min_nsig
+    cut_tcent = all_tcent[cut_sig]
+    icut = np.where(cut_sig)[0]
 
     # Return
     return all_tcent, all_ecent, cut_tcent, icut
