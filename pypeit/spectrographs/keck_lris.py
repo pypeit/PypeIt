@@ -316,29 +316,40 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
         # detector and there is no mechanism in place to create that yet
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        if disperser == '600/4000':
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=0.63 # Ang per pixel (unbinned)
-            arcparam['b1']= 4.54698031e-04
-            arcparam['b2']= -6.86414978e-09
-            arcparam['wvmnx'][1] = 6000.
-            arcparam['wv_cen'] = 4000.
-            arcparam['min_ampl'] = 1000.0
-        elif disperser == '400/3400':
-            pass
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=1.02
-            arcparam['b1']= 2.72694493e-04
-            arcparam['b2']= -5.30717321e-09
-            arcparam['wvmnx'][1] = 6000.
-            arcparam['min_ampl'] = 1000.0
-        elif disperser == '300/5000':
-            arcparam['n_first'] = 2
-            arcparam['wv_cen'] = 4500.
-            arcparam['disp'] = 1.43
-            arcparam['min_ampl'] = 1000.0
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+        arcparam['min_nsigl'] = 30.  # Minimum signififance
+        arcparam['wvmnx'] = [3000., 11000.]  # Guess at wavelength range
+        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
+        arcparam['match_toler'] = 3  # Matcing tolerance (pixels)
+        arcparam['func'] = 'legendre'  # Function for fitting
+        arcparam['n_first'] = 2  # Order of polynomial for first fit
+        arcparam['n_final'] = 4  # Order of polynomial for final fit
+        arcparam['nsig_rej'] = 2  # Number of sigma for rejection
+        arcparam['nsig_rej_final'] = 3.0  # Number of sigma for rejection (final fit)
+
+
+#    if disperser == '600/4000':
+#            arcparam['n_first']=2 # Too much curvature for 1st order
+#            arcparam['disp']=0.63 # Ang per pixel (unbinned)
+#            arcparam['b1']= 4.54698031e-04
+#            arcparam['b2']= -6.86414978e-09
+#            arcparam['wvmnx'][1] = 6000.
+#            arcparam['wv_cen'] = 4000.
+#            arcparam['min_ampl'] = 1000.0
+#        elif disperser == '400/3400':
+#            pass
+#            arcparam['n_first']=2 # Too much curvature for 1st order
+#            arcparam['disp']=1.02
+#            arcparam['b1']= 2.72694493e-04
+#            arcparam['b2']= -5.30717321e-09
+#            arcparam['wvmnx'][1] = 6000.
+#            arcparam['min_ampl'] = 1000.0
+#        elif disperser == '300/5000':
+#            arcparam['n_first'] = 2
+#            arcparam['wv_cen'] = 4500.
+#            arcparam['disp'] = 1.43
+#            arcparam['min_ampl'] = 1000.0
+#        else:
+#            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
@@ -471,6 +482,16 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
         # detector and there is no mechanism in place to create that yet
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+        arcparam['min_nsigl'] = 30.  # Minimum signififance
+        arcparam['wvmnx'] = [3000., 11000.]  # Guess at wavelength range
+        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
+        arcparam['match_toler'] = 3  # Matcing tolerance (pixels)
+        arcparam['func'] = 'legendre'  # Function for fitting
+        arcparam['n_first'] = 2  # Order of polynomial for first fit
+        arcparam['n_final'] = 4  # Order of polynomial for final fit
+        arcparam['nsig_rej'] = 2  # Number of sigma for rejection
+        arcparam['nsig_rej_final'] = 3.0  # Number of sigma for rejection (final fit)
+
 
         '''
         if disperser == '600/7500':
