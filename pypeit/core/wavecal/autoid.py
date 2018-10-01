@@ -25,9 +25,10 @@ from pypeit import utils
 
 from pypeit import msgs
 from pypeit import debugger
+from matplotlib import pyplot as plt
 
 
-def basic(spec, lines, wv_cen, disp, min_ampl=300.,nonlinear_counts = 1e10,
+def basic(spec, lines, wv_cen, disp, min_nsig=20.,nonlinear_counts = 1e10,
           swv_uncertainty=350., pix_tol=2, plot_fil=None, min_nmatch=5,
           **kwargs):
     """ Basic algorithm to wavelength calibrate spectroscopic data
@@ -42,8 +43,8 @@ def basic(spec, lines, wv_cen, disp, min_ampl=300.,nonlinear_counts = 1e10,
       Guess at central wavelength
     disp : float
       Dispersion A/pix
-    min_ampl : float
-      Minimum amplitude of the arc lines that will be used in the fit
+    min_nsig : float
+      Minimum significance of the arc lines that will be used in the fit
     swv_uncertainty : float
 
     pix_tol : float
@@ -69,7 +70,7 @@ def basic(spec, lines, wv_cen, disp, min_ampl=300.,nonlinear_counts = 1e10,
     wvdata = wvdata[isrt]
 
     # Find peaks
-    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=min_ampl, nonlinear_counts = nonlinear_counts)
+    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_nsig=min_nsig, nonlinear_counts = nonlinear_counts)
 
     # Matching
     match_idx, scores = patterns.run_quad_match(cut_tcent, wave, wvdata,
@@ -117,9 +118,9 @@ def basic(spec, lines, wv_cen, disp, min_ampl=300.,nonlinear_counts = 1e10,
     return status, ngd_match, match_idx, scores, final_fit
 
 
-def semi_brute(spec, lines, wv_cen, disp, min_ampl=300., nonlinear_counts = 1e10,
+def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
                outroot=None, debug=False, do_fit=True, verbose=False,
-               fit_parm=None, min_nmatch=3, lowest_ampl=200.):
+               fit_parm=None, min_nmatch=3, lowest_nsig=20.):
     """
     Parameters
     ----------
@@ -128,14 +129,14 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300., nonlinear_counts = 1e10
     wv_cen
     disp
     siglev
-    min_ampl
+    min_nsig
     outroot
     debug
     do_fit
     verbose
     fit_parm
     min_nmatch
-    lowest_ampl
+    lowest_nsig
 
     Returns
     -------
@@ -154,11 +155,11 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300., nonlinear_counts = 1e10
     npix = spec.size
 
     # Lines
-    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=min_ampl, nonlinear_counts = nonlinear_counts)
+    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_nsig=min_nsig, nonlinear_counts = nonlinear_counts)
 
     # Best
-    best_dict = dict(nmatch=0, ibest=-1, bwv=0., min_ampl=min_ampl, unknown=False,
-                     pix_tol=1, ampl=min_ampl)
+    best_dict = dict(nmatch=0, ibest=-1, bwv=0., min_nsig=min_nsig, unknown=False,
+                     pix_tol=1, nsig=min_nsig)
 
     # 3 things to fiddle:
     #  pix_tol -- higher for fewer lines  1/2
@@ -181,16 +182,16 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300., nonlinear_counts = 1e10
             # Scan on wavelengths
             patterns.scan_for_matches(wv_cen, disp, npix, cut_tcent, wvdata,
                                       best_dict=best_dict, pix_tol=pix_tol)
-            # Lower minimum amplitude
-            ampl = min_ampl
+            # Lower minimum significance
+            nsig = min_nsig
             #pdb.set_trace()
             while(best_dict['nmatch'] < min_nmatch):
-                ampl /= 2.
-                if ampl < lowest_ampl:
+                nsig /= 2.
+                if nsig < lowest_nsig:
                     break
-                all_tcent, cut_tcent, icut = wvutils(spec, min_ampl=ampl, nonlinear_counts = nonlinear_counts)
+                all_tcent, cut_tcent, icut = wvutils(spec, min_nsig=nsig, nonlinear_counts = nonlinear_counts)
                 patterns.scan_for_matches(wv_cen, disp, npix, cut_tcent, wvdata,
-                                          best_dict=best_dict, pix_tol=pix_tol, ampl=ampl)
+                                          best_dict=best_dict, pix_tol=pix_tol, nsig=nsig)
 
         #if debug:
         #    pdb.set_trace()
@@ -198,7 +199,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300., nonlinear_counts = 1e10
         if best_dict['nmatch'] > sav_nmatch:
             best_dict['line_list'] = tot_list.copy()
             best_dict['unknown'] = unknown
-            best_dict['ampl'] = ampl
+            best_dict['nsig'] = nsig
             best_dict['pix_tol'] = pix_tol
 
     # Try to pick up some extras by turning off/on unknowns
@@ -212,7 +213,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300., nonlinear_counts = 1e10
     tmp_dict['nmatch'] = 0
     patterns.scan_for_matches(best_dict['bwv'], disp, npix, cut_tcent, wvdata,
                               best_dict=tmp_dict, pix_tol=best_dict['pix_tol'],
-                              ampl=best_dict['ampl'], wvoff=1.)
+                              nsig=best_dict['nsig'], wvoff=1.)
     for kk,ID in enumerate(tmp_dict['IDs']):
         if (ID > 0.) and (best_dict['IDs'][kk] == 0.):
             best_dict['IDs'][kk] = ID
@@ -288,7 +289,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_ampl=300., nonlinear_counts = 1e10
                 imsk[kk] = False
         ifit = ifit[imsk]
         # Allow for weaker lines in the fit
-        all_tcent, weak_cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_ampl=lowest_ampl, nonlinear_counts = nonlinear_counts)
+        all_tcent, weak_cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_nsig=lowest_nsig, nonlinear_counts = nonlinear_counts)
         add_weak = []
         for weak in weak_cut_tcent:
             if np.min(np.abs(cut_tcent-weak)) > 5.:
@@ -316,8 +317,8 @@ class General:
     lines : list
       List of arc lamps on
     ok_mask : ndarray
-    min_ampl : float
-      Minimum amplitude of the arc lines that will be used in the fit
+    min_nsig : float
+      Minimum significance of the arc lines that will be used in the fit
     nonlinear_counts : float, default = 1e10
       value above which to mask saturated arc lines. This should  be nonlinear_counts= nonlinear*saturation according to pypeit parsets.
       Default is 1e10 which is to not mask.
@@ -332,8 +333,8 @@ class General:
       and lines are rejected. This is mostly helpful for developing the algorithm.
     fit_parm : dict
       Fitting parameter dictionary (see fitting.iterative_fitting)
-    lowest_ampl : float
-      Lowest amplitude of an arc line that will be used in teh final fit
+    lowest_nsig : float
+      Lowest significance of an arc line that will be used in teh final fit
     rms_threshold : float
       Maximum RMS dispersion that is considered acceptable for a good solution
     binw : ndarray, optional
@@ -356,9 +357,9 @@ class General:
       final best guess of the line IDs
     """
 
-    def __init__(self, spec, lines, ok_mask=None, min_ampl=1000., nonlinear_counts = 1e10, islinelist=False,
-              outroot=None, debug=False, verbose=False,
-              fit_parm=None, lowest_ampl=200., rms_threshold=0.15,
+    def __init__(self, spec, lines, ok_mask=None, min_nsig=50.0, nonlinear_counts = 1e10, islinelist=False,
+              outroot=None, debug = False, verbose=False,
+              fit_parm=None, lowest_nsig=10., rms_threshold=0.15,
               binw=None, bind=None, nstore=1, use_unknowns=True):
 
         # Set some default parameters
@@ -374,8 +375,8 @@ class General:
         else:
             self._ok_mask = ok_mask
 
-        self._min_ampl = min_ampl
-        self._lowest_ampl = lowest_ampl
+        self._min_nsig = min_nsig
+        self._lowest_nsig = lowest_nsig
         self._nonlinear_counts = nonlinear_counts
 
 
@@ -453,11 +454,11 @@ class General:
     def run_brute_loop(self, slit, arrerr=None, wavedata=None):
         # Set the parameter space that gets searched
         rng_poly = [3, 4]            # Range of algorithms to check (only trigons+tetragons are supported)
-        rng_list = range(3, 6)      # Number of lines to search over for the linelist
-        rng_detn = range(3, 6)      # Number of lines to search over for the detected lines
+        rng_list = range(3, 6)       # Number of lines to search over for the linelist
+        rng_detn = range(3, 6)       # Number of lines to search over for the detected lines
         rng_pixt = [1.0]             # Pixel tolerance
         idthresh = 0.5               # Criteria for early return (at least this fraction of lines must have
-                                     #    an ID on either side of the spectrum)
+                                     # an ID on either side of the spectrum)
 
         best_patt_dict, best_final_fit = None, None
         # Loop through parameter space
@@ -503,9 +504,9 @@ class General:
                 continue
             # Detect lines, and decide which tcent to use
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_ampl=self._min_ampl, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_nsig=self._min_nsig, nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_ampl=self._lowest_ampl, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_nsig=self._lowest_nsig, nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit))
                 continue
@@ -584,9 +585,9 @@ class General:
                 continue
             # Detect lines, and decide which tcent to use
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._min_ampl, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit], min_nsig=self._min_nsig, nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit], min_ampl=self._lowest_ampl, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit], min_nsig=self._lowest_nsig, nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit+ 1))
                 continue
@@ -720,9 +721,7 @@ class General:
             if np.array_equal(gdmsk, ogdmsk):
                 break
 
-        debug = False
-        if debug:
-            from matplotlib import pyplot as plt
+        if self._debug:
             xplt = np.arange(dwvc_val.size)
             plt.plot(xplt, dwvc_val, 'rx')
             plt.plot(xplt[gdmsk], dwvc_val[gdmsk], 'bo')
@@ -758,9 +757,7 @@ class General:
                 strfact = (self._npix + stretch - 1)/(self._npix - 1)
                 gsdet, _ = self.get_use_tcent(sign, arrerr=self._detections[str(gs)], weak=True)
                 gsdet_ss = shift + gsdet * strfact
-                debug = False
-                if debug:
-                    from matplotlib import pyplot as plt
+                if self._debug:
                     xplt = np.arange(self._npix)
                     plt.plot(xplt, self._spec[:, bs], 'k-', drawstyle='steps')
                     plt.plot(bsdet, np.zeros(bsdet.size), 'ro')
@@ -786,7 +783,7 @@ class General:
                         dindex = np.append(dindex, dd)
             # Finalize the best guess of each line
             # Initialise the patterns dictionary
-            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_ampl=self._min_ampl,
+            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_nsig=self._min_nsig,
                              mask=np.zeros(bsdet.size, dtype=np.bool))
             patt_dict['sign'] = sign
             patt_dict['bwv'] = np.median(wcen[wcen != 0.0])
@@ -811,9 +808,7 @@ class General:
                 new_bad_slits = np.append(new_bad_slits, bs)
             self._all_patt_dict[str(bs)] = copy.deepcopy(patt_dict)
             self._all_final_fit[str(bs)] = copy.deepcopy(final_fit)
-            debug = False
-            if debug:
-                from matplotlib import pyplot as plt
+            if self._debug:
                 xplt = np.linspace(0.0, 1.0, self._npix)
                 yplt = utils.func_val(final_fit['fitc'], xplt, 'legendre', minv=0.0, maxv=1.0)
                 plt.plot(final_fit['xfit'], final_fit['yfit'], 'bx')
@@ -849,10 +844,7 @@ class General:
         # TODO: maybe rethink the model at this point? Using the derived
         # central wavelength and dispersion identify liens in all orders?
 
-        debug = False
-        if debug:
-            from matplotlib import pyplot as plt
-
+        if self._debug:
             plt.subplot(211)
             plt.plot(xplt, wavemodel, 'r-')
             ww = np.where(mask==0)
@@ -961,7 +953,7 @@ class General:
 
             # Finalize the best guess of each line
             # Initialise the patterns dictionary
-            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_ampl=self._min_ampl,
+            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_nsig=self._min_nsig,
                              mask=np.zeros(dets.size, dtype=np.bool))
             patt_dict['sign'] = sign
             patt_dict['bwv'] = wvcen
@@ -995,9 +987,7 @@ class General:
                 new_bad_slits = np.append(new_bad_slits, slit)
             self._all_patt_dict[str(slit)] = copy.deepcopy(patt_dict)
             self._all_final_fit[str(slit)] = copy.deepcopy(final_fit)
-            debug = True
-            if debug:
-                from matplotlib import pyplot as plt
+            if self._debug:
                 xplt = np.linspace(0.0, 1.0, self._npix)
                 yplt = utils.func_val(final_fit['fitc'], xplt, 'legendre', minv=0.0, maxv=1.0)
                 plt.plot(final_fit['xfit'], final_fit['yfit'], 'bx')
@@ -1006,8 +996,7 @@ class General:
                 pdb.set_trace()
 
         # debugging
-        debug = False
-        if debug:
+        if self._debug:
             # First determine the central wavelength and dispersion of every slit, using the known good solutions
             xplt = np.arange(self._nslit)
             yplt, dplt = np.zeros(self._nslit), np.zeros(self._nslit)
@@ -1021,7 +1010,6 @@ class General:
             mask, fit = utils.robust_polyfit(xplt, yplt, 2, function='polynomial', sigma=2,
                                              initialmask=imsk, forceimask=True)
 
-            from matplotlib import pyplot as plt
             ymodel = utils.func_val(fit, xplt, 'polynomial')
             plt.subplot(211)
             plt.plot(xplt, ymodel, 'r-')
@@ -1056,7 +1044,17 @@ class General:
             return (self._npix - 1.0) - arr[::-1], err[::-1]
 
     def results_brute(self, poly=3, pix_tol=0.5, detsrch=5, lstsrch=5, wavedata=None, arrerr=None):
+        """
+        Need some docs here. I think this routine generates the patterns, either triangles are quadrangles.
 
+        :param poly:     algorithms to use for pattern matching. Only triangles (3) and quadrangles (4) are supported
+        :param pix_tol:  Pixel tolerance
+        :param detsrch:  Number of lines to search over for the detected lines
+        :param lstsrch:  Number of lines to search over for the detected lines
+        :param wavedata:
+        :param arrerr:
+        :return:
+        """
         # Import the pattern matching algorithms
         if poly == 3:
             from pypeit.core.wavecal.patterns import triangles as generate_patterns
@@ -1117,6 +1115,18 @@ class General:
         return dind, lind, wvcent, wvdisp
 
     def solve_slit(self, slit, psols, msols, nstore=1, nselw=3, nseld=3):
+        """
+        Need some docs here. I think this routine creates a 2d histogram of the patterns and searches for the most
+        represented wave_cen and log10(disp)
+
+        :param slit:
+        :param psols:
+        :param msols:
+        :param nstore:
+        :param nselw:
+        :param nseld:
+        :return:
+        """
 
         # Extract the solutions
         dindexp, lindexp, wvcenp, dispsp = psols
@@ -1152,11 +1162,24 @@ class General:
         # Find the indices of the nstore largest peaks
         bidx = np.unravel_index(np.argpartition(np.abs(histpeaks*histimg), -nstore, axis=None)[-nstore:], histimg.shape)
 
-        debug = False
-        if debug:# or slit==2:
-            from matplotlib import pyplot as plt
+        # Get the peak value of central wavelength and dispersion
+        allwcen = self._binw[bidx[0]]
+        alldisp = self._bind[bidx[1]]
+        allhnum = np.abs(histimg[bidx])
+
+        #debug = False
+        if self._debug:# or slit==2:
+            this_hist = histimg
             plt.clf()
+            rect_image = [0.10, 0.05, 0.9, 0.9]
+            fx = plt.figure(1, figsize=(12, 8))
+            ax_image = fx.add_axes(rect_image)
             extent = [self._binw[0], self._binw[-1], self._bind[0], self._bind[-1]]
+            #X0 = self._binw
+            #Y0 = np.power(10.0,self._bind)
+            #X, Y = np.meshgrid(X0, Y0)
+            #cimg = ax_image.pcolormesh(X, Y, this_hist.T, vmin=this_hist.min(), vmax=this_hist.max(), cmap='Set1',
+            #                           edgecolors='None')
             # plt.subplot(221)
             # plt.imshow((np.abs(histimg[:, ::-1].T)), extent=extent, aspect='auto')
             # plt.subplot(222)
@@ -1166,21 +1189,30 @@ class General:
             # plt.subplot(224)
             # plt.imshow((np.abs(histimgm[:, ::-1].T)), extent=extent, aspect='auto')
             #plt.imshow((np.abs(sm_histimg[:, ::-1].T)), extent=extent, aspect='auto')
-            plt.imshow(histimg[:, ::-1].T, extent=extent, aspect='auto')
+            cimg = ax_image.imshow(this_hist.T, extent=extent, aspect='auto',vmin=this_hist.min(),vmax=this_hist.max(),
+                       interpolation='nearest',origin='lower',cmap='Set1')
+            nm = histimg.max() - histimg.min()
+            ticks = np.arange(this_hist.min(),this_hist.max() + 1,1)
+            cbar = fx.colorbar(cimg, ax=ax_image,ticks = ticks) #, cax=ax_color)
+            cbar.set_ticklabels(ticks)
+            cbar.set_label('# of Occurences')
+            ax_image.set_xlabel('Central Wavelength (Angstroms)')
+            ax_image.set_ylabel('log10(Dispersion/(Ang/pixel))')
+            delta_wv = np.median(self._binw - np.roll(self._binw,1))
+            delta_disp = np.median(self._bind - np.roll(self._bind,1))
+            label = 'Maximum: (lam, log10(disp)) = ({:8.2f}'.format(allwcen[0]) + ',{:5.3f})'.format(alldisp[0])
+            ax_image.plot(allwcen + delta_wv/2.0, alldisp + delta_disp/2.0, color='red', marker='+', markersize=10.0, fillstyle='none',
+                     linestyle='None', zorder = 10,label=label)
+            ax_image.legend()
             #plt.plot(self._binw[bidx[0]], self._bind[bidx[1]], 'r+')
-            #plt.axvline(self._binw[self._bidx[0]], color='r', linestyle='--')
-            #plt.axhline(self._bind[self._bidx[1]], color='r', linestyle='--')
+#            ax_image.axvline(allwcen, color='r', linestyle='--')
+#            ax_image.axhline(alldisp, color='r', linestyle='--')
             plt.show()
-            if False:
-                pdb.set_trace()
-                plt.clf()
-                plt.imshow(histimgp[:, ::-1].T, extent=extent, aspect='auto')
-                plt.show()
+            #if False:
+            #    plt.clf()
+            #    plt.imshow(histimgp[:, ::-1].T, extent=extent, aspect='auto',vmin=0.0,vmax=1.0)
+            #    plt.show()
 
-        # Get the peak value of central wavelength and dispersion
-        allwcen = self._binw[bidx[0]]
-        alldisp = self._bind[bidx[1]]
-        allhnum = np.abs(histimg[bidx])
 
         # Find all good solutions
         bestlist = []
@@ -1241,7 +1273,7 @@ class General:
             signtxt = "anticorrelate"
 
         # Initialise the patterns dictionary
-        patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_ampl=self._min_ampl,
+        patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_nsig=self._min_nsig,
                          mask=np.zeros(use_tcent.size, dtype=np.bool))
         patterns.solve_triangles(use_tcent, self._wvdata, dindex, lindex, patt_dict)
         # Check if a solution was found
@@ -1270,6 +1302,7 @@ class General:
                       '  Number of acceptable matches = {:d}'.format(patt_dict['nmatch']) + msgs.newline() +
                       '  Best central wavelength      = {:g}A'.format(patt_dict['bwv']) + msgs.newline() +
                       '  Best dispersion              = {:g}A/pix'.format(patt_dict['bdisp']) + msgs.newline() +
+                      '  Best lam/dlam                = {:g}'.format(patt_dict['bwv']/patt_dict['bdisp']) + msgs.newline() +
                       '---------------------------------------------------')
         return patt_dict
 
@@ -1403,6 +1436,7 @@ class General:
                       '  Number of pattern matches    = {:d}'.format(best_patt_dict['nmatch']) + msgs.newline() +
                       '  Best central wavelength      = {:g}A'.format(best_patt_dict['bwv']) + msgs.newline() +
                       '  Best dispersion              = {:g}A/pix'.format(best_patt_dict['bdisp']) + msgs.newline() +
+                      '  Best wave/disp               = {:g}'.format(best_patt_dict['bwv']/best_patt_dict['bdisp']) + msgs.newline() +
                       '  Final RMS of fit             = {:g}'.format(best_final_fit['rms']) + msgs.newline() +
                       '---------------------------------------------------')
             self._all_patt_dict[str(slit)] = copy.deepcopy(best_patt_dict)
@@ -1441,6 +1475,8 @@ class General:
                       '  Number of lines analyzed     = {:d}'.format(len(self._all_final_fit[st]['xfit'])) + msgs.newline() +
                       '  Central wavelength           = {:g}A'.format(centwave) + msgs.newline() +
                       '  Central dispersion           = {:g}A/pix'.format(centdisp) + msgs.newline() +
+                      '  Central wave/disp             = {:g}'.format(centwave/centdisp) + msgs.newline() +
+                      '  Central log10(dispersion)    = {:g}'.format(np.log10(centdisp)) + msgs.newline() +
                       '  Final RMS of fit             = {:g}'.format(self._all_final_fit[st]['rms']))
         return
 
