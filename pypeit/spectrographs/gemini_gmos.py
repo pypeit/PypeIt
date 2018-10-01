@@ -12,14 +12,12 @@ import glob
 import numpy as np
 from astropy.io import fits
 
-from pypit import msgs
-from pypit.core import arsort
-from pypit import arparse
-from pypit import ardebug as debugger
-from pypit.spectrographs import spectrograph
-from ..par.pypitpar import DetectorPar
-from pypit.par.pypitpar import CalibrationsPar
+from pypeit import msgs
+from pypeit.spectrographs import spectrograph
+from ..par.pypeitpar import DetectorPar
+from pypeit.par.pypeitpar import CalibrationsPar
 from .. import telescopes
+from pypeit.core import framematch
 
 class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
@@ -31,7 +29,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(GeminiGMOSSpectrograph, self).__init__()
         self.spectrograph = 'gemini_gmos'
-        self.telescope = telescopes.GeminiTelescopePar()
         self.timeunit = 'decimalyear'
 
     def gemini_header_keys(self):
@@ -159,7 +156,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
     def gemini_get_match_criteria(self):
         match_criteria = {}
-        for key in arsort.ftype_list:
+        for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
         # Science
         match_criteria['science']['number'] = 1
@@ -187,14 +184,49 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Return
         return match_criteria
 
+    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
+        """
+        Setup the arc parameters
+
+        Args:
+            arcparam: dict
+            disperser: str, REQUIRED
+            **null_kwargs:
+              Captured and never used
+
+        Returns:
+            arcparam is modified in place
+
+        """
+        arcparam['lamps'] = ['CuAr']
+        if 'R150' in disperser:
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.63 # Ang per pixel (unbinned)
+            arcparam['b1']= 4.54698031e-04
+            arcparam['b2']= -6.86414978e-09
+            arcparam['wvmnx'][1] = 6000.
+            arcparam['wv_cen'] = 4000.
+        elif 'B600' in disperser:
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.63 # Ang per pixel (unbinned)
+            arcparam['b1']= 4.54698031e-04
+            arcparam['b2']= -6.86414978e-09
+            arcparam['wvmnx'][0] = 3800.
+            arcparam['wvmnx'][1] = 8000.
+            arcparam['wv_cen'] = 4000.
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+
+
 class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
     """
-    Child to handle Keck/LRISb specific code
+    Child to handle Gemini/GMOS-S instrument
     """
     def __init__(self):
 
         # Get it started
         super(GeminiGMOSSSpectrograph, self).__init__()
+        self.telescope = telescopes.GeminiSTelescopePar()
         self.spectrograph = 'gemini_gmos_south'
         self.camera = 'GMOS-S'
         self.detector = [
@@ -253,38 +285,73 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
     def get_match_criteria(self):
         return self.gemini_get_match_criteria()
 
-    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
-        """
-        Setup the arc parameters
+class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
+    """
+    Child to handle Gemini/GMOS-N instrument
+    """
+    def __init__(self):
 
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
+        # Get it started
+        super(GeminiGMOSNSpectrograph, self).__init__()
+        self.telescope = telescopes.GeminiNTelescopePar()
+        self.spectrograph = 'gemini_gmos_north'
+        self.camera = 'GMOS-N'
+        self.detector = [  #  Hamamatsu (since 2011)
+            # Detector 1
+            DetectorPar(dataext         = 1,  # Not sure this is used
+                        dispaxis        = 0,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.080,
+                        darkcurr        = 0.0,
+                        saturation      = 129000.,
+                        nonlinear       = 0.95,
+                        numamplifiers   = 4,
+                        gain            = [1.63]*4,
+                        ronoise         = [4.14]*4,
+                        suffix          = '_01'
+                        ),
+            # Detector 2
+            DetectorPar(dataext         = 2,  # Not sure this is used
+                        dispaxis        = 0,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.080,
+                        darkcurr        = 0.0,
+                        saturation      = 123000.,
+                        nonlinear       = 0.95,
+                        numamplifiers   = 4,
+                        gain            = [1.63]*4,
+                        ronoise         = [4.14]*4,
+                        suffix          = '_02'
+                        ),
+            # Detector 3
+            DetectorPar(dataext         = 3,  # Not sure this is used
+                        dispaxis        = 0,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.080,
+                        darkcurr        = 0.0,
+                        saturation      = 125000.,
+                        nonlinear       = 0.95,
+                        numamplifiers   = 4,
+                        gain            = [1.63]*4,
+                        ronoise         = [4.14]*4,
+                        suffix          = '_03'
+                        ),
+        ]
+        self.numhead = 13
 
-        Returns:
-            arcparam is modified in place
+    def header_keys(self):
+        head_keys = self.gemini_header_keys()
+        return head_keys
 
-        """
-        arcparam['lamps'] = ['CuAr']
-        if 'R150' in disperser:
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=0.63 # Ang per pixel (unbinned)
-            arcparam['b1']= 4.54698031e-04
-            arcparam['b2']= -6.86414978e-09
-            arcparam['wvmnx'][1] = 6000.
-            arcparam['wv_cen'] = 4000.
-        elif 'B600' in disperser:
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=0.63 # Ang per pixel (unbinned)
-            arcparam['b1']= 4.54698031e-04
-            arcparam['b2']= -6.86414978e-09
-            arcparam['wvmnx'][0] = 3800.
-            arcparam['wvmnx'][1] = 8000.
-            arcparam['wv_cen'] = 4000.
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+    def get_match_criteria(self):
+        return self.gemini_get_match_criteria()
+
 
 
 def read_gmos(raw_file, det=1):
