@@ -28,17 +28,37 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Get it started
         super(GeminiGMOSSpectrograph, self).__init__()
-        self.spectrograph = 'gemini_gmos'
         self.timeunit = 'decimalyear'
 
     def gemini_header_keys(self):
         def_keys = self.default_header_keys()
         def_keys[0]['time'] = 'OBSEPOCH'      # The time stamp of the observation (i.e. decimal MJD)
         def_keys[0]['dispname'] = 'GRATING'      # The time stamp of the observation (i.e. decimal MJD)
+        def_keys[0]['idname'] = 'OBSTYPE'     # Frame type
+        def_keys[0]['decker'] = 'MASKNAME'
+        def_keys[0]['wavecen'] = 'CENTWAVE'
+        def_keys[0]['exptime'] = 'EXPOSURE'
         return def_keys
 
     def _set_calib_par(self, user_supplied=None):
         self.calib_par = CalibrationsPar()
+
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype == 'science':
+            return good_exp & (fitstbl['idname'] == 'OBJECT')
+        if ftype == 'arc':
+            return good_exp & (fitstbl['idname'] == 'ARC')
+        if ftype == 'pixelflat' or ftype == 'trace':
+            return good_exp & (fitstbl['idname'] == 'FLAT')
+        if ftype == 'bias':
+            return good_exp & (fitstbl['idname'] == 'BIAS')
+
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
@@ -61,38 +81,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         return raw_img, head0
 
-    '''
-    def get_datasec(self, filename, det, settings_det):
-        """
-        Load up the datasec and oscansec and also naxis0 and naxis1
-
-        Args:
-            filename: str
-              data filename
-            det: int
-              Detector specification
-            settings_det: ParSet
-              numamplifiers
-
-        Returns:
-            datasec: list
-            oscansec: list
-            naxis0: int
-            naxis1: int
-        """
-        datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
-        temp, head0, secs = read_gmos(filename, det)
-        for kk in range(settings_det['numamplifiers']):
-            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
-            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
-
-        # Need naxis0, naxis1 too
-        naxis0 = temp.shape[0]
-        naxis1 = temp.shape[1]
-
-        # Return
-        return datasec, oscansec, naxis0, naxis1
-    '''
 
     def get_image_shape(self, filename=None, det=None, **null_kwargs):
         """
@@ -294,8 +282,26 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
         # Get it started
         super(GeminiGMOSNSpectrograph, self).__init__()
         self.telescope = telescopes.GeminiNTelescopePar()
-        self.spectrograph = 'gemini_gmos_north'
         self.camera = 'GMOS-N'
+
+    def header_keys(self):
+        head_keys = self.gemini_header_keys()
+        return head_keys
+
+    def get_match_criteria(self):
+        return self.gemini_get_match_criteria()
+
+
+class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
+    """
+    Child to handle Gemini/GMOS-N instrument with Hamamatsu detector
+    """
+    def __init__(self):
+
+        # Get it started
+        super(GeminiGMOSNHamSpectrograph, self).__init__()
+        self.spectrograph = 'gemini_gmos_north_ham'
+
         self.detector = [  #  Hamamatsu (since 2011)
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
@@ -303,7 +309,7 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
-                        platescale      = 0.080,
+                        platescale      = 0.0807,
                         darkcurr        = 0.0,
                         saturation      = 129000.,
                         nonlinear       = 0.95,
@@ -318,7 +324,7 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
-                        platescale      = 0.080,
+                        platescale      = 0.0807,
                         darkcurr        = 0.0,
                         saturation      = 123000.,
                         nonlinear       = 0.95,
@@ -333,7 +339,7 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
-                        platescale      = 0.080,
+                        platescale      = 0.0807,
                         darkcurr        = 0.0,
                         saturation      = 125000.,
                         nonlinear       = 0.95,
@@ -345,12 +351,66 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
         ]
         self.numhead = 13
 
-    def header_keys(self):
-        head_keys = self.gemini_header_keys()
-        return head_keys
 
-    def get_match_criteria(self):
-        return self.gemini_get_match_criteria()
+class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
+    """
+    Child to handle Gemini/GMOS-N instrument with E2V detector
+    """
+    def __init__(self):
+
+        # Get it started
+        super(GeminiGMOSNE2VSpectrograph, self).__init__()
+
+        self.spectrograph = 'gemini_gmos_north_e2v'
+
+        self.detector = [  #  E2V
+            # Detector 1
+            DetectorPar(dataext         = 1,  # Not sure this is used
+                        dispaxis        = 0,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.0728,  # arcsec per pixel
+                        darkcurr        = 0.0,
+                        saturation      = 110900.,
+                        nonlinear       = 0.95,
+                        numamplifiers   = 2,
+                        gain            = [2.27]*2,
+                        ronoise         = [3.32]*2,
+                        suffix          = '_01'
+                        ),
+            # Detector 2
+            DetectorPar(dataext         = 2,  # Not sure this is used
+                        dispaxis        = 0,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.0728,
+                        darkcurr        = 0.0,
+                        saturation      = 115500.,
+                        nonlinear       = 0.95,
+                        numamplifiers   = 2,
+                        gain            = [2.27]*2,
+                        ronoise         = [3.32]*2,
+                        suffix          = '_02'
+                        ),
+            # Detector 3
+            DetectorPar(dataext         = 3,  # Not sure this is used
+                        dispaxis        = 0,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.0728,
+                        darkcurr        = 0.0,
+                        saturation      = 116700.,
+                        nonlinear       = 0.95,
+                        numamplifiers   = 2,
+                        gain            = [2.27]*2,
+                        ronoise         = [3.32]*2,
+                        suffix          = '_03'
+                        ),
+        ]
+        self.numhead = 7
 
 
 

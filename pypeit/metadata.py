@@ -164,7 +164,9 @@ class PypeItMetaData:
                     # Keyword not found in header
                     msgs.warn("{0} keyword not in header. Setting to None".format(key))
                     value = 'None'
-    
+                except TypeError:
+                    import pdb; pdb.set_trace()
+
                 # Convert the time to hours
                 # TODO: Done here or as a method in Spectrograph?
                 if key == 'time' and value != 'None':
