@@ -540,7 +540,7 @@ class PypeItMetaData:
         # Write the output
         self.table[col_order].write(ofile, format=format, overwrite=overwrite)
     
-    def match_to_science(self, calib_par, calwin, setup=False, verbose=True):
+    def match_to_science(self, calib_par, calwin, fluxcalib_par, setup=False, verbose=True):
         """
 
         For a given set of identified data, match calibration frames to
@@ -559,6 +559,8 @@ class PypeItMetaData:
             calwin (:obj:`float`):
                 The minimum time difference between a calibration and
                 science exposure allowed.
+            fluxcalib_par (:class:`pypeit.par.pypitpar.FluxCalibPar`):
+                Needed for worrying about standard stars
             setup (:obj:`bool`, optional):
                 The operation is being executed only for an initial
                 setup.  **Need a good description of the behavior this
@@ -649,9 +651,8 @@ class PypeItMetaData:
 
                 # Have we identified enough of these calibration frames to continue?
                 if nmatch < np.abs(numfr):
-                    if ftag == 'standard':
-                        import pdb; pdb.set_trace()
-                    code = framematch.match_warnings(calib_par, ftag, nmatch, numfr, target)
+                    code = framematch.match_warnings(calib_par, ftag, nmatch, numfr, target,
+                                                     fluxpar=fluxcalib_par)
                     if code == 'break':
                         self['failure'][sci_idx] = True
                         self['sci_ID'][sci_idx] = -1  # This might break things but who knows..
