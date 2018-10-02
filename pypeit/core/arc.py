@@ -46,7 +46,7 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                     disp_toler=0.1,      # 10% tolerance
                     match_toler=3.,      # Matching tolerance (pixels)
                     min_nsig=30.,        # Minimum significance
-                    lower_nsig=10.,      # Lowest significance for weak lines
+                    lowest_nsig=10.,      # Lowest significance for weak lines
                     func='legendre',     # Function for fitting
                     n_first=1,           # Order of polynomial for first fit
                     n_final=4,           # Order of polynomial for final fit
