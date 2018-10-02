@@ -23,6 +23,8 @@ from pypeit.core import fsort
 
 from pypeit import debugger
 
+# Set location of static calibrations for 
+# VLT XSHOOTER spectrograph
 CAL_PATH = resource_filename('pypeit', 'data/static_calibs/vlt_xshoooter/')
 
 
@@ -38,22 +40,24 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
     def xshooter_header_keys(self):
         def_keys = self.default_header_keys()
-        # These are XSHOOTER specific keywords
+        # These are XSHOOTER specific header keywords
         def_keys[0]['target']  = 'OBJECT'                     # Header keyword for the name given by the observer to a given frame
-        def_keys[0]['idname']  = 'HIERARCH ESO DPR CATG'      # The keyword that identifies the frame type (i.e. bias, flat, etc.)
-        def_keys[0]['time']    = 'MJD-OBS'                    # The time stamp of the observation (i.e. decimal MJD)
+        def_keys[0]['idname']  = 'HIERARCH ESO DPR CATG'      # Frame type (i.e. bias, flat, etc.)
+        def_keys[0]['time']    = 'MJD-OBS'                    # Time stamp of the observation (i.e. decimal MJD)
         def_keys[0]['date']    = 'DATE-OBS'                   # The UT date of the observation which is used for heliocentric (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
         def_keys[0]['ra']      = 'RA'                         # Right Ascension of the target
         def_keys[0]['dec']     = 'DEC'                        # Declination of the target
         def_keys[0]['airmass'] = 'HIERARCH ESO TEL AIRM START'# Airmass at start of observation
-        def_keys[0]['binning'] = 'BINNING'                    # Binning will be redefined for XSHOOTER
+        def_keys[0]['binning'] = 'BINNING'                    # Binning, for XSHOOTER will be redefined
         def_keys[0]['exptime'] = 'EXPTIME'                    # Exposure time keyword
         def_keys[0]['naxis0']  = 'NAXIS2'
         def_keys[0]['naxis1']  = 'NAXIS1'
 
-        ## def_keys[0]['utc'] = 'HIERARCH ESO DET FRAM UTC'
+        # ToDo:
+        # def_keys[0]['utc'] = 'HIERARCH ESO DET FRAM UTC'
 
-        # TODO: Should do something with the lamps
+        # ToDo:
+        # Should do something with the lamps
 
         return def_keys
 
@@ -69,22 +73,22 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         self.camera = 'XShooter_NIR'
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 0,
-                            dispaxis        = 1,
-                            dispflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.197, # average between order 11 and order 30 see manual
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 2.12,
-                            ronoise         = 8.0, # ?? more precise value?
-                            datasec         = '[20:,4:2044]',
-                            oscansec        = '[4:20,4:2044]',
-                            suffix          = '_NIR'
+                DetectorPar(dataext       = 0,
+                            dispaxis      = 1,
+                            dispflip      = False,
+                            xgap          = 0.,
+                            ygap          = 0.,
+                            ysize         = 1.,
+                            platescale    = 0.197,# average between order 11 and order 30, see manual
+                            darkcurr      = 0.0,
+                            saturation    = 65535.,
+                            nonlinear     = 0.86,
+                            numamplifiers = 1,
+                            gain          = 2.12,
+                            ronoise       = 8.0, # ?? more precise value?
+                            datasec       = '[20:,4:2044]',
+                            oscansec      = '[4:20,4:2044]',
+                            suffix        = '_NIR'
                             ),
             ]
         self.numhead = 1
@@ -188,9 +192,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
-        Override parent bpm function with BPM specific to X-ShooterNIR.
+        Override parent bpm function with BPM specific to XSHOOTER NIR.
 
-        .. todo::
+        .. ToDo:
             Allow for binning changes.
 
         Parameters
@@ -206,12 +210,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         """
         bpm_file = CAL_PATH+'BP_MAP_RP_NIR.fits.gz'
-        if bpm_file is not None:
-            self.bpm(shape=shape, filename=bpm_file, det=det)
-        else:
-            self.empty_bpm(shape=shape, filename=filename, det=det)
-        from IPython import embed
-        embed()
+        
+        # Correct for BPM size
+        self.bpm_img = self.make_bpm(shape=shape, filename=bpm_file, det=det)
+
+        print(self.bpm_img.shape)
         return self.bpm_img
 
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
