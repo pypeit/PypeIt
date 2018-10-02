@@ -485,6 +485,13 @@ def read_gmos(raw_file, det=1):
             order = range(3,5)
         elif det == 3: # BLUEST DETECTOR
             order = range(1,3)
+    elif numamp == 4:
+        if det == 1: # BLUEST DETECTOR
+            order = range(12,8,-1)
+        elif det == 2: # BLUEST DETECTOR
+            order = range(8,4,-1)
+        elif det == 3: # BLUEST DETECTOR
+            order = range(4,0,-1)
     else:
         debugger.set_trace()
 
@@ -492,7 +499,6 @@ def read_gmos(raw_file, det=1):
     for kk, jj in enumerate(order):
 
         # grab complete extension...
-        print(jj)
         data, overscan, datasec, biassec, x1, x2 = gemini_read_amp(hdu, jj)
                             #, linebias=linebias, nobias=nobias, $
                             #x1=x1, x2=x2, y1=y1, y2=y2, gaindata=gaindata)

@@ -447,12 +447,12 @@ class Calibrations(object):
         # Load via master, as desired
         if not self.traceSlits.master():
             # Build the trace image first
-            trace_image_files = self.fitstbl.find_frame_files('trace', sci_ID=self.sci_ID)
-            traceImage = traceimage.TraceImage(self.spectrograph,
-                                           file_list=trace_image_files, det=self.det,
+            self.trace_image_files = self.fitstbl.find_frame_files('trace', sci_ID=self.sci_ID)
+            self.traceImage = traceimage.TraceImage(self.spectrograph,
+                                           file_list=self.trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
             # Load up and get ready
-            self.traceSlits.mstrace = traceImage.process(bias_subtract=self.msbias,
+            self.traceSlits.mstrace = self.traceImage.process(bias_subtract=self.msbias,
                                                          trim=self.par['trim'], apply_gain=True)
             _ = self.traceSlits.make_binarr()
 
