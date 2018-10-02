@@ -78,7 +78,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             head0: Header
 
         """
-        raw_img, head0, _ = read_gmos(raw_file, self.detector, det=det)
+        raw_img, head0, _ = read_gmos(raw_file, det=det)
 
         return raw_img, head0
 
@@ -134,7 +134,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             their order transposed.
         """
         # Read the file
-        temp, head0, secs = read_gmos(filename, self.detector, det=det)
+        temp, head0, secs = read_gmos(filename, det=det)
         if section == 'datasec':
             return secs[0], False, False, False
         elif section == 'oscansec':
@@ -415,7 +415,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
 
 
 
-def read_gmos(raw_file, detector_par, det=1):
+def read_gmos(raw_file, det=1):
     """
     Read the GMOS data file
 
@@ -448,6 +448,9 @@ def read_gmos(raw_file, detector_par, det=1):
     head0 = hdu[0].header
     head1 = hdu[1].header
 
+    # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
+    numamp = (len(hdu)-1)//3
+
     # Setup for datasec, oscansec
     dsec = []
     osec = []
@@ -466,7 +469,6 @@ def read_gmos(raw_file, detector_par, det=1):
     nxb = b2-b1 + 1
 
     # determine the output array size...
-    numamp = detector_par[det-1]['numamplifiers']
     nx = x2*numamp + nxb*numamp
     ny = y2-y1+1
 

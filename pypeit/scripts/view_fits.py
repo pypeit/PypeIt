@@ -38,10 +38,10 @@ def main(args):
 
     from astropy.io import fits
 
-    from pypit import msgs
-    from pypit.spectrographs import keck_lris
-    from pypit.spectrographs import keck_deimos
-    from pypit.spectrographs import gemini_gmos
+    from pypeit import msgs
+    from pypeit.spectrographs import keck_lris
+    from pypeit.spectrographs import keck_deimos
+    from pypeit.spectrographs import gemini_gmos
     from pypeit import msgs
     from pypeit import ginga
 
@@ -76,7 +76,7 @@ def main(args):
 
     # RAW_GEMINI??
     if args.raw_gmos:
-        #
+        # Need to figure out the number of amps
         img, head, _ = gemini_gmos.read_gmos(args.file, det=args.det)
         ginga.show_image(img)
 
