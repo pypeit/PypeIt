@@ -404,7 +404,7 @@ class General:
             self.run_kdtree()
         else:
             # Set up the grids to be used for pattern matching
-            self.set_grids() 
+            self.set_grids()
             msgs.info("Using brute force pattern matching algorithm to wavelength calibrate")
             self.run_brute()
 
