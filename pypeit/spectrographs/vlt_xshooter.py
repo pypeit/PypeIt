@@ -102,7 +102,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['pcatype'] = 'pixel'
-        par['calibrations']['tilts']['tracethresh'] = [50,50,50,50,50,50,50,50,50, 50, 50, 60, 60, 2000,2000,6000]
+        par['calibrations']['tilts']['tracethresh'] = [10,10,10,10,10,10,10,10,10, 10, 10, 20, 20, 20,20,10]
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         par['scienceframe']['process']['sigclip'] = 20.0
@@ -165,10 +165,10 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         arcparam['lowest_nsig'] = 10.0         # Min significance for arc lines to be used
         arcparam['wvmnx'] = [8000.,26000.]  # Guess at wavelength range
         # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3         # Matcing tolerance (pixels)
+        arcparam['match_toler'] = 3 # 3 was default, 1 seems to work better        # Matcing tolerance (pixels)
         arcparam['func'] = 'legendre'       # Function for fitting
         arcparam['n_first'] = 2             # Order of polynomial for first fit
-        arcparam['n_final'] = 4             # Order of polynomial for final fit
+        arcparam['n_final'] = 4  #was default    # Order of polynomial for final fit
         arcparam['nsig_rej'] = 2            # Number of sigma for rejection
         arcparam['nsig_rej_final'] = 3.0    # Number of sigma for rejection (final fit)
 
