@@ -334,7 +334,7 @@ class General:
     fit_parm : dict
       Fitting parameter dictionary (see fitting.iterative_fitting)
     lowest_nsig : float
-      Lowest significance of an arc line that will be used in teh final fit
+      Lowest significance of an arc line that will be used in the final fit
     rms_threshold : float
       Maximum RMS dispersion that is considered acceptable for a good solution
     binw : ndarray, optional
@@ -404,7 +404,7 @@ class General:
             self.run_kdtree()
         else:
             # Set up the grids to be used for pattern matching
-            self.set_grids()
+            self.set_grids() 
             msgs.info("Using brute force pattern matching algorithm to wavelength calibrate")
             self.run_brute()
 
@@ -1048,7 +1048,7 @@ class General:
         Need some docs here. I think this routine generates the patterns, either triangles are quadrangles.
 
         :param poly:     algorithms to use for pattern matching. Only triangles (3) and quadrangles (4) are supported
-        :param pix_tol:  Pixel tolerance
+        :param pix_tol:  tolerance that is used to determine if a pattern match is successful (in units of pixels)
         :param detsrch:  Number of lines to search over for the detected lines
         :param lstsrch:  Number of lines to search over for the detected lines
         :param wavedata:
@@ -1123,10 +1123,12 @@ class General:
         :param slit:
         :param psols:
         :param msols:
-        :param nstore:
-        :param nselw:
-        :param nseld:
-        :return:
+        :param nstore: Number of pattern matches to store and fit
+        :param nselw:  All solutions around the best central wavelength solution within +- nselw are selected to be fit
+        :param nseld:  All solutions around the best log10(dispersion) solution within +- nseld are selected to be fit
+        :return:  patt_dict, final_dict
+                patt_dict = ??
+                final_dict = ??
         """
 
         # Extract the solutions
@@ -1172,15 +1174,10 @@ class General:
         if self._debug:# or slit==2:
             this_hist = histimg
             plt.clf()
-            rect_image = [0.10, 0.05, 0.9, 0.9]
+            rect_image = [0.12, 0.05, 0.85, 0.9]
             fx = plt.figure(1, figsize=(12, 8))
             ax_image = fx.add_axes(rect_image)
             extent = [self._binw[0], self._binw[-1], self._bind[0], self._bind[-1]]
-            #X0 = self._binw
-            #Y0 = np.power(10.0,self._bind)
-            #X, Y = np.meshgrid(X0, Y0)
-            #cimg = ax_image.pcolormesh(X, Y, this_hist.T, vmin=this_hist.min(), vmax=this_hist.max(), cmap='Set1',
-            #                           edgecolors='None')
             # plt.subplot(221)
             # plt.imshow((np.abs(histimg[:, ::-1].T)), extent=extent, aspect='auto')
             # plt.subplot(222)
@@ -1190,11 +1187,12 @@ class General:
             # plt.subplot(224)
             # plt.imshow((np.abs(histimgm[:, ::-1].T)), extent=extent, aspect='auto')
             #plt.imshow((np.abs(sm_histimg[:, ::-1].T)), extent=extent, aspect='auto')
-            cimg = ax_image.imshow(this_hist.T, extent=extent, aspect='auto',vmin=this_hist.min(),vmax=this_hist.max(),
+            cimg = ax_image.imshow(this_hist.T, extent=extent, aspect='auto',vmin=-2.0,vmax=5.0,
                        interpolation='nearest',origin='lower',cmap='Set1')
             nm = histimg.max() - histimg.min()
             ticks = np.arange(this_hist.min(),this_hist.max() + 1,1)
-            cbar = fx.colorbar(cimg, ax=ax_image,ticks = ticks) #, cax=ax_color)
+            cbar = fx.colorbar(cimg, ax=ax_image,ticks = ticks,drawedges = True, extend ='both',
+                               spacing = 'proporational',orientation ='horizontal')
             cbar.set_ticklabels(ticks)
             cbar.set_label('# of Occurences')
             ax_image.set_xlabel('Central Wavelength (Angstroms)')
@@ -1303,7 +1301,7 @@ class General:
                       '  Number of acceptable matches = {:d}'.format(patt_dict['nmatch']) + msgs.newline() +
                       '  Best central wavelength      = {:g}A'.format(patt_dict['bwv']) + msgs.newline() +
                       '  Best dispersion              = {:g}A/pix'.format(patt_dict['bdisp']) + msgs.newline() +
-                      '  Best lam/dlam                = {:g}'.format(patt_dict['bwv']/patt_dict['bdisp']) + msgs.newline() +
+                      '  Best wave/disp                = {:g}'.format(patt_dict['bwv']/patt_dict['bdisp']) + msgs.newline() +
                       '---------------------------------------------------')
         return patt_dict
 
