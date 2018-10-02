@@ -212,10 +212,18 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         bpm_file = CAL_PATH+'BP_MAP_RP_NIR.fits.gz'
         
         # Correct for BPM size
-        self.bpm_img = self.make_bpm(shape=shape, filename=bpm_file, det=det)
+        self.bpm = np.flipud(self.make_bpm(shape=shape, filename=bpm_file, det=det).T)
+        # Now the size of the image is wrong.
+        self.bpm = np.insert(self.bpm,np.arange(0,44),0,axis=1)
+        self.bpm = np.insert(self.bpm,np.arange(0,8),0,axis=0)
+        self.bpm.shape
 
-        print(self.bpm_img.shape)
+        ## test_img = np.zeros_like(self.datasec_img)
+        ## from IPython import embed
+        ## embed()
+        
         return self.bpm_img
+
 
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     """
