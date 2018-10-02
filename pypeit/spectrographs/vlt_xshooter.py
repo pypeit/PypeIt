@@ -112,7 +112,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
- 
+
     def get_match_criteria(self):
         # TODO: Matching needs to be looked at...
         match_criteria = {}
@@ -166,18 +166,15 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             suffix          = '_NIR'
                             )]
         self.numhead = 1
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        #self.sky_file = 'sky_LRISb_600.fits'
 
     @staticmethod
     def default_pypeit_par():
         """
-        Set default parameters for Xshooter NIR reductions.
+        Set default parameters for XSHOOTER NIR reductions.
         """
         par = VLTXShooterSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
-       
+
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slits']['sigdetect'] = 700.
         par['calibrations']['slits']['polyorder'] = 5
@@ -192,7 +189,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
     def check_headers(self, headers):
         """
-        Check headers match expectations for an LRISb exposure.
+        Check headers match expectations for an VLT/XSHOOTER exposure.
 
         See also
         :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
@@ -203,7 +200,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         """
         expected_values = { '0.INSTRUME': 'XSHOOTER',
                             '0.HIERARCH ESO SEQ ARM': 'NIR',
-                               '0.NAXIS': 2 }
+                            '0.NAXIS': 2 }
         super(VLTXShooterNIRSpectrograph, self).check_headers(headers,
                                                               expected_values=expected_values)
 
@@ -229,10 +226,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         """
         #debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
+        # Line lamps on
+        arcparam['lamps'] = ['OH_triplespec'] 
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 1000.       # Minimum amplitude
-        arcparam['wvmnx'] = [8000.,25000.]                     # Guess at wavelength range
+        # Minimum amplitude
+        arcparam['min_ampl'] = 1000.
+        # Guess at wavelength range
+        arcparam['wvmnx'] = [8000.,25000.]
 
 #        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
 #        arcparam['disp'] = 0.6                                 # Ang/unbinned pixel
@@ -269,7 +269,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
           0 = ok; 1 = Mask
 
         """
-        
+
         self.empty_bpm(shape=shape, filename=filename, det=det)
         return self.bpm_img
 
@@ -327,20 +327,13 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                                                        100., 500., 500., 500., 500., 500., 500.,
                                                        500.]
 
-        # par['calibrations']['tilts']['tracethresh'] = [100, 100, 100, 100, 100, 100, 100,
-        #                                                100, 100, 100, 100, 100, 100, 100, 100]
-
-        # par['calibrations']['tilts']['tracethresh'] = [50, 50, 60, 60, 2000]
-        # par['calibrations']['traceframe']['process']['overscan'] = 'median'
-        # par['calibrations']['arcframe']['process']['overscan'] = 'median'
-
-        # par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+#       par['calibrations']['slits']['pcapar'] = [3,2,1,0]
 
         return par
 
     def check_headers(self, headers):
         """
-        Check headers match expectations for an LRISb exposure.
+        Check headers match expectations for a VLT/XSHOOTER exposure.
 
         See also
         :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
@@ -351,7 +344,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         """
         expected_values = { '0.INSTRUME': 'XSHOOTER',
                             '0.HIERARCH ESO SEQ ARM': 'VIS',
-                               '0.NAXIS': 2 }
+                            '0.NAXIS': 2 }
         super(VLTXShooterVISSpectrograph, self).check_headers(headers,
                                                               expected_values=expected_values)
 
@@ -453,9 +446,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             suffix          = '_UVB'
                             )]
         self.numhead = 1
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        #self.sky_file = 'sky_LRISb_600.fits'
 
     @staticmethod
     def default_pypeit_par():
@@ -479,7 +469,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
     def check_headers(self, headers):
         """
-        Check headers match expectations for an LRISb exposure.
+        Check headers match expectations for a VLT/XSHOOTER exposure.
 
         See also
         :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
