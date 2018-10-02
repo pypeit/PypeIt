@@ -1,5 +1,4 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
-from future.utils import iteritems
 
 try:
     basestring
@@ -16,11 +15,8 @@ from multiprocessing import cpu_count
 import numpy as np
 
 from astropy.time import Time
+from pypeit import debugger
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
 
 # Logging
 from pypeit import msgs

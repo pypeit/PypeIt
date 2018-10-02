@@ -2,10 +2,6 @@
 """
 from __future__ import absolute_import, division, print_function
 
-try:
-    basestring
-except NameError:  # For Python 3
-    basestring = str
 
 import glob
 
@@ -18,6 +14,8 @@ from ..par.pypeitpar import DetectorPar
 from pypeit.par.pypeitpar import CalibrationsPar
 from .. import telescopes
 from pypeit.core import framematch
+from pypeit.core import parse
+from pypeit import debugger
 
 class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
@@ -28,7 +26,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Get it started
         super(GeminiGMOSSpectrograph, self).__init__()
-        self.timeunit = 'decimalyear'
+        self.timeunit = 'isot'  # Synthesizes date+time
 
     def gemini_header_keys(self):
         def_keys = self.default_header_keys()
@@ -38,6 +36,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['decker'] = 'MASKNAME'
         def_keys[0]['wavecen'] = 'CENTWAVE'
         def_keys[0]['exptime'] = 'EXPOSURE'
+        def_keys[0]['date'] = 'DATE-OBS'
+        def_keys[0]['time'] = 'TIME-OBS'
+        def_keys[0]['target'] = 'OBJECT'
         return def_keys
 
     def _set_calib_par(self, user_supplied=None):
@@ -77,7 +78,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             head0: Header
 
         """
-        raw_img, head0, _ = read_gmos(raw_file, det=det)
+        raw_img, head0, _ = read_gmos(raw_file, self.detector, det=det)
 
         return raw_img, head0
 
@@ -133,7 +134,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             their order transposed.
         """
         # Read the file
-        temp, head0, secs = read_gmos(filename, det)
+        temp, head0, secs = read_gmos(filename, self.detector, det=det)
         if section == 'datasec':
             return secs[0], False, False, False
         elif section == 'oscansec':
@@ -414,7 +415,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
 
 
 
-def read_gmos(raw_file, det=1):
+def read_gmos(raw_file, detector_par, det=1):
     """
     Read the GMOS data file
 
@@ -422,6 +423,8 @@ def read_gmos(raw_file, det=1):
     ----------
     raw_file : str
       Filename
+    detector_par : ParSet
+      Needed for numamplifiers if not other things
     det : int, optional
       Detector number; Default = 1
 
@@ -457,25 +460,22 @@ def read_gmos(raw_file, det=1):
     n_ext = len(hdu)-1  # Number of extensions (usually 12)
 
     datasec = head1['DATASEC']
-    x1, x2, y1, y2 = np.array(arparse.load_sections(datasec, fmt_iraf=False)).flatten()
+    x1, x2, y1, y2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
     biassec = head1['BIASSEC']
-    b1, b2, b3, b4 = np.array(arparse.load_sections(biassec, fmt_iraf=False)).flatten()
+    b1, b2, b3, b4 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
     nxb = b2-b1 + 1
 
     # determine the output array size...
-    nx = x2*4 + nxb*4
+    numamp = detector_par[det-1]['numamplifiers']
+    nx = x2*numamp + nxb*numamp
     ny = y2-y1+1
 
     # Deal with detectors
-    if det in [1,2,3,4]:
+    if det in range(1,1+numamp): #[1,2,3,4]:
         n_ext = n_ext // 3
-        det_idx = np.arange(n_ext, dtype=np.int) + (det-1)*n_ext
-        ndet = 1
-        order = range((det-1)*4+1,(det-1)*4+5)
+        order = range((det-1)*numamp+1,(det-1)*numamp+(numamp+1))
     elif det is 'all':
         debugger.set_trace() # NEED TO SET THIS UP
-        ndet = 2
-        det_idx = np.arange(n_ext).astype(int)
     else:
         raise ValueError('Bad value for det')
 
@@ -546,7 +546,7 @@ def gemini_read_amp(inp, ext):
     ;------------------------------------------------------------------------
     """
     # Parse input
-    if isinstance(inp, basestring):
+    if isinstance(inp, str):
         hdu = fits.open(inp)
     else:
         hdu = inp
@@ -565,18 +565,18 @@ def gemini_read_amp(inp, ext):
     # parse the DETSEC keyword to determine the size of the array.
     header = hdu[ext].header
     detsec = header['DETSEC']
-    x1, x2, y1, y2 = np.array(arparse.load_sections(detsec, fmt_iraf=False)).flatten()
+    x1, x2, y1, y2 = np.array(parse.load_sections(detsec, fmt_iraf=False)).flatten()
 
     # parse the DATASEC keyword to determine the size of the science region (unbinned)
     datasec = header['DATASEC']
-    xdata1, xdata2, ydata1, ydata2 = np.array(arparse.load_sections(datasec, fmt_iraf=False)).flatten()
+    xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
 
     # grab the components...
     data = temp[xdata1-1:xdata2,:]
 
     # Overscan
     biassec = header['BIASSEC']
-    xdata1, xdata2, ydata1, ydata2 = np.array(arparse.load_sections(biassec, fmt_iraf=False)).flatten()
+    xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
     overscan = temp[xdata1-1:xdata2,:]
 
     # Return

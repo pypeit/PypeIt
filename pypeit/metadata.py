@@ -17,6 +17,7 @@ from pypeit.core import framematch
 from pypeit.core import flux
 from pypeit.par import PypeItPar
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit import debugger
 
 # Initially tried to subclass this from astropy.table.Table, but that
 # proved too difficult.
@@ -170,7 +171,12 @@ class PypeItMetaData:
                 # Convert the time to hours
                 # TODO: Done here or as a method in Spectrograph?
                 if key == 'time' and value != 'None':
-                    value = self.convert_time(value)
+                    # HERE IS A KULDGE
+                    if 'date' in data.keys():
+                        idate = headarr[ext['date']][head_keys[ext['date']]['date']]
+                    else:
+                        idate = None
+                    value = self.convert_time(value, date=idate)
     
                 # Set the value
                 vtype = type(value)
@@ -253,7 +259,7 @@ class PypeItMetaData:
 #                return h['UT']
 #        return None
 
-    def convert_time(self, in_time):
+    def convert_time(self, in_time, date=None):
         """
         Convert the time read from a file header to hours for all
         spectrographs.
@@ -261,6 +267,8 @@ class PypeItMetaData:
         Args:
             in_time (str):
                 The time read from the file header
+            date (str, optional):
+                The date read from the file header
 
         Returns:
             float: The time in hours.
@@ -275,6 +283,8 @@ class PypeItMetaData:
 
         # Convert from an astropy.Time format
         if self.spectrograph.timeunit in time.Time.FORMATS.keys():
+            if date is not None:
+                in_time = date+'T'+in_time
             ival = float(in_time) if self.spectrograph.timeunit == 'mjd' else in_time
             tval = time.Time(ival, scale='tt', format=self.spectrograph.timeunit)
             # Put MJD in hours
