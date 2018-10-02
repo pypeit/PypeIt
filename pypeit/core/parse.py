@@ -636,6 +636,7 @@ def parse_binning(binning):
         if ',' in binning:
             binspatial, binspectral = [int(item) for item in binning.split(',')]  # Keck standard, I think
         else:
+            binspatial, binspectral = [int(item) for item in binning.strip().split(' ')]  # Gemini
             pass
     else:
         pass

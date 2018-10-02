@@ -256,7 +256,6 @@ class ProcessImages(object):
         -------
 
         """
-        reload(arprocimg)
         # Check if the bias has already been subtracted
         if (inspect.stack()[0][3] in self.steps) & (not force):
             msgs.warn("Images already bias subtracted.  Use force=True to reset proc_images "

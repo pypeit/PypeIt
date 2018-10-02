@@ -39,6 +39,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['date'] = 'DATE-OBS'
         def_keys[0]['time'] = 'TIME-OBS'
         def_keys[0]['target'] = 'OBJECT'
+        
+        def_keys[1] = {}
+        def_keys[1]['binning'] = 'CCDSUM'
         return def_keys
 
     def _set_calib_par(self, user_supplied=None):
