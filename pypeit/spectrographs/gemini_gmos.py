@@ -475,23 +475,25 @@ def read_gmos(raw_file, det=1):
     nx = x2*numamp + nxb*numamp
     ny = y2-y1+1
 
-    # Deal with detectors
-    if det in range(1,1+numamp): #[1,2,3,4]:
-        n_ext = n_ext // 3
-        order = range((det-1)*numamp+1,(det-1)*numamp+(numamp+1))
-    elif det is 'all':
-        debugger.set_trace() # NEED TO SET THIS UP
-    else:
-        raise ValueError('Bad value for det')
-
     # allocate output array...
     array = np.zeros( (nx, ny) )
+    
+    if numamp == 2:
+        if det == 1: # BLUEST DETECTOR
+            order = range(6,4,-1)
+        elif det == 2: # BLUEST DETECTOR
+            order = range(3,5)
+        elif det == 3: # BLUEST DETECTOR
+            order = range(1,3)
+    else:
+        debugger.set_trace()
 
     # insert extensions into master image...
-    for kk, i in enumerate(order):
+    for kk, jj in enumerate(order):
 
         # grab complete extension...
-        data, overscan, datasec, biassec, x1, x2 = gemini_read_amp(hdu, i+1)
+        print(jj)
+        data, overscan, datasec, biassec, x1, x2 = gemini_read_amp(hdu, jj)
                             #, linebias=linebias, nobias=nobias, $
                             #x1=x1, x2=x2, y1=y1, y2=y2, gaindata=gaindata)
         # insert components into output array...
@@ -504,7 +506,7 @@ def read_gmos(raw_file, det=1):
         #section = '[:,{:d}:{:d}]'.format(xs, xe)  # Eliminate lines
         section = '[{:d}:{:d},:]'.format(xs, xe)  # Eliminate lines
         dsec.append(section)
-        array[xs:xe, :] = data
+        array[xs:xe, :] = np.flipud(data)
 
         #; insert postdata...
         xs = nx - n_ext*nxb + kk*nxb
