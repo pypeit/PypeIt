@@ -1256,10 +1256,11 @@ class TraceSlitsPar(ParSet):
                            'irregular.  Order is used for echelle spectroscopy or for slits ' \
                            'with separations that are a smooth function of the slit number.'
 
-        defaults['pcapar'] = [ 3, 2, 1, 0, 0, 0 ]
+        defaults['pcapar'] = [ 3, 2, 1, 0]
         dtypes['pcapar'] = list
         descr['pcapar'] = 'Order of the polynomials to be used to fit the principle ' \
-                          'components.  TODO: Provide more explanation'
+                          'components.  The list length must be equal to or less than polyorder+1. ' \
+                          'TODO: Provide more explanation'
 
         defaults['pcaextrap'] = [0, 0]
         dtypes['pcaextrap'] = list
