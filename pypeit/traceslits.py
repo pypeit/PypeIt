@@ -708,7 +708,6 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         plxbin = self.pixlocn[:, :, 0].copy()
-        debugger.set_trace()
         self.lcen, self.rcen, self.extrapord \
                 = trace_slits.pca_pixel_slit_edges(self.binarr, self.edgearr, self.lcoeff,
                                                     self.rcoeff, self.ldiffarr, self.rdiffarr,

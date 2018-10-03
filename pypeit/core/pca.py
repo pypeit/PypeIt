@@ -11,6 +11,8 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit.core import qa
 
+from pypeit import debugger
+
 def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None,
           function='polynomial'):
     nrow = xfit.shape[0]
@@ -200,6 +202,7 @@ def get_pc(data, k, tol=0.0, maxiter=20, nofix=False, noortho=False):
         msgs.error("You need to supply more components in the PCA")
     #n = np.size(data)/p
     if k > p:
+        debugger.set_trace()
         msgs.error("The number of principal components must be less than or equal" + msgs.newline() +
                    "to the order of the fitting function")
 
