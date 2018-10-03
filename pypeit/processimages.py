@@ -16,7 +16,6 @@ from pypeit.core import parse
 
 from pypeit.par import pypeitpar
 
-from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import debugger
@@ -72,13 +71,7 @@ class ProcessImages(object):
         if not isinstance(file_list, list):
             raise IOError("file_list input to ProcessImages must be list. Empty is fine")
         self.file_list = file_list
-
-        if isinstance(spectrograph, str):
-            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
-        elif isinstance(spectrograph, Spectrograph):
-            self.spectrograph = spectrograph
-        else:
-            raise TypeError('Must provide a name or instance for the Spectrograph.')
+        self.spectrograph = load_spectrograph(spectrograph)
 
         # Optional
         self.det = det

@@ -15,44 +15,38 @@ import numpy as np
 
 from astropy.table import Table
 
-from pypeit.tests import tstutils
+from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
 from pypeit import wavetilts
 from pypeit.par import pypeitpar
 
-# These tests are not run on Travis
-if os.getenv('PYPEIT_DEV') is None:
-    skip_test=True
-else:
-    skip_test=False
-
-def chk_for_files(root):
-    files = glob.glob(root+'*')
-    if len(files) == 0:
-        return False
-    else:
-        return True
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-master_dir = data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
-    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
 
-def test_step_by_step():
-    if skip_test:
-        assert True
-        return
+@pytest.fixture
+@dev_suite_required
+def master_dir():
+    # Any test that uses this directory also requires the DevSuite!
+#    return data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
+#            else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
+    return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
+
+
+@dev_suite_required
+def test_step_by_step(master_dir):
     # Masters
-    spectrograph, msarc, TSlits \
-            = tstutils.load_kast_blue_masters(get_spectrograph=True, aimg=True, tslits=True)
+    spectrograph, msarc, TSlits = load_kast_blue_masters(get_spectrograph=True, aimg=True,
+                                                         tslits=True)
     # Instantiate
     setup = 'A_01_aa'
     spectrograph.detector[0]['saturation'] = 60000.
     spectrograph.detector[0]['nonlinear'] = 0.9
     par = pypeitpar.WaveTiltsPar()
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
-                                    master_dir=master_dir,mode='reuse', tslits_dict=TSlits.tslits_dict)
+                                    master_dir=master_dir,mode='reuse',
+                                    tslits_dict=TSlits.tslits_dict)
     # Extract arcs
     arccen, maskslits = waveTilts._extract_arcs()
     assert arccen.shape == (2048,1)
@@ -72,21 +66,19 @@ def test_step_by_step():
     assert np.max(tilts) < 1.0001
 
 
-def test_run():
-    if skip_test:
-        assert True
-        return
-
+@dev_suite_required
+def test_run(master_dir):
     # Masters
-    spectrograph, msarc, TSlits \
-            = tstutils.load_kast_blue_masters(get_spectrograph=True, aimg=True, tslits=True)
+    spectrograph, msarc, TSlits = load_kast_blue_masters(get_spectrograph=True, aimg=True,
+                                                         tslits=True)
     # Instantiate
     setup = 'A_01_aa'
     spectrograph.detector[0]['saturation'] = 60000.
     spectrograph.detector[0]['nonlinear'] = 0.9
     par = pypeitpar.WaveTiltsPar()
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
-                                    master_dir=master_dir, mode='reuse', tslits_dict=TSlits.tslits_dict)
+                                    master_dir=master_dir, mode='reuse',
+                                    tslits_dict=TSlits.tslits_dict)
     # Run
     tilts_dict, mask = waveTilts.run(doqa=False)
     assert isinstance(tilts_dict['tilts'], np.ndarray)

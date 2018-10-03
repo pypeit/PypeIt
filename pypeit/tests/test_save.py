@@ -13,7 +13,7 @@ from astropy import units
 from astropy.io import fits
 
 from pypeit import specobjs
-from pypeit.core import fsort
+from pypeit import metadata
 from pypeit.core import save
 
 def data_path(filename):
@@ -38,9 +38,9 @@ def mk_specobj(flux=5, objid=500):
 def test_save2d_fits():
     #settings.dummy_settings()
     #fitsdict = arutils.dummy_fitsdict(nfile=1, spectrograph='none', directory=data_path(''))
-    fitstbl = fsort.dummy_fitstbl(directory=data_path(''))
+    fitstbl = metadata.dummy_fitstbl(directory=data_path(''))
     # Kludge
-    fitstbl.remove_column('filename')
+    fitstbl.table.remove_column('filename')
     fitstbl['filename'] = 'b1.fits.gz'
     # Settings
     #settings.argflag['run']['directory']['science'] = data_path('')
@@ -55,9 +55,8 @@ def test_save2d_fits():
     sci_dict[0]['finalsky'] = dum + 0.1
     basename = 'test'
     scidx = 5
-    save.save_2d_images(sci_dict, fitstbl, scidx, 0, setup,
-                          data_path('MF')+'_'+spectrograph, # MFDIR
-        data_path(''), basename)
+    save.save_2d_images(sci_dict, fitstbl, scidx, 0, setup, data_path('MF')+'_'+spectrograph,
+                        data_path(''), basename)
     # Read and test
     head0 = fits.getheader(data_path('spec2d_test.fits'))
     assert head0['PYPCNFIG'] == 'A'
@@ -69,7 +68,7 @@ def test_save1d_fits():
     """ save1d to FITS and HDF5
     """
     # Init
-    fitstbl = fsort.dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
+    fitstbl = metadata.dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
     sobj = mk_specobj()
     specObjs = specobjs.SpecObjs([sobj])
     # Write to FITS

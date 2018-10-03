@@ -9,7 +9,6 @@ from __future__ import unicode_literals
 import os
 import sys
 
-import pdb
 import numpy as np
 import pytest
 
@@ -24,9 +23,9 @@ import linetools.utils
 from pypeit.core import flux
 from pypeit.core import load
 from pypeit import utils
-from pypeit.core import fsort
+from pypeit import metadata
 from pypeit import telescopes
-from pypeit.spectrographs import util as sutil
+from pypeit.spectrographs.util import load_spectrograph
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
@@ -34,8 +33,6 @@ from pypeit.spectrographs import util as sutil
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
-
-kastb = sutil.load_spectrograph('shane_kast_blue')
 
 # JFH This test is defunct
 #def test_bspline_fit():
@@ -51,25 +48,22 @@ kastb = sutil.load_spectrograph('shane_kast_blue')
 
 def test_gen_sensfunc():
 
+    kastb = load_spectrograph('shane_kast_blue')
+
     # Load a random spectrum for the sensitivity function
     sfile = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     specobjs = load.load_specobj(sfile)
     telescope = telescopes.ShaneTelescopePar()
-    fitstbl = fsort.dummy_fitstbl()
+    fitstbl = metadata.dummy_fitstbl()
     RA = '05:06:36.6'
     DEC = '52:52:01.0'
 
     # Get the sensitivity function
-    #extinction_data = flux.load_extinction_data(telescope['longitude'], telescope['latitude'])
-    #extinction_corr = flux.extinction_correction(specobjs[0][0].boxcar['WAVE'],
-    #                                               fitstbl['airmass'][4], extinction_data)
     sens_dict = flux.generate_sensfunc(specobjs[0][0].boxcar['WAVE'],
                                       specobjs[0][0].boxcar['COUNTS'],
                                       specobjs[0][0].boxcar['COUNTS_IVAR'],
                                       fitstbl['airmass'][4], fitstbl['exptime'][4], kastb,
                                       ra=RA, dec=DEC)
-    #sensfunc = flux.generate_sensfunc(specobjs[0][0], RA, DEC, fitstbl['exptime'][4],
-    #                                    extinction_corr)
 
     # Test
     assert isinstance(sens_dict, dict)
@@ -81,7 +75,7 @@ def test_find_standard():
     std_ra = '05:06:36.6'
     std_dec = '52:52:01.0'
     # Grab
-    std_dict = flux.find_standard_file((std_ra, std_dec))
+    std_dict = flux.find_standard_file(std_ra, std_dec)
     # Test
     assert std_dict['name'] == 'G191B2B'
     assert std_dict['calibfile'] == '/data/standards/calspec/g191b2b_mod_005.fits'
@@ -90,7 +84,7 @@ def test_find_standard():
     # near G191b2b
     std_ra = '05:06:36.6'
     std_dec = '52:22:01.0'
-    std_dict = flux.find_standard_file((std_ra,std_dec))
+    std_dict = flux.find_standard_file(std_ra,std_dec)
     assert std_dict is None
 
 
