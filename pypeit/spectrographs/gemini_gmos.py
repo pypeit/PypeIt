@@ -16,6 +16,7 @@ from .. import telescopes
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit import debugger
+from pypeit.par import pypeitpar
 
 class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
@@ -63,6 +64,37 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
+    @staticmethod
+    def default_pypeit_par():
+        """
+        Set default parameters for Keck LRISb reductions.
+        """
+        par = pypeitpar.PypeItPar()
+        # Set wave tilts order
+        par['calibrations']['slits']['sigdetect'] = 20.
+        par['calibrations']['slits']['polyorder'] = 3
+        par['calibrations']['slits']['fracignore'] = 0.02
+        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+
+        # Overscan subtract the images
+        #par['calibrations']['biasframe']['useframe'] = 'overscan'
+
+        # Alter the method used to combine pixel flats
+        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
+        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
+
+        # Scienceimage default parameters
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypeitpar.FlexurePar()
+
+        # Set the default exposure time ranges for the frame typing
+        #par['scienceframe']['exprng'] = [30, None]
+
+        return par
 
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """

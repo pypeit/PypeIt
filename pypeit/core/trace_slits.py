@@ -2086,8 +2086,10 @@ def pca_pixel_slit_edges(binarr, edgearr, lcoeff, rcoeff, ldiffarr, rdiffarr,
         msgs.info("Performing a PCA on the slit traces")
         ordsnd = np.arange(binarr.shape[1])
         xcen = xv[:, np.newaxis].repeat(binarr.shape[1], axis=1)
-        fitted, outpar = pca.basis(xcen, trcval, tcoeff, lnpc, ofit, weights=pxwght,
-                                     x0in=ordsnd, mask=maskrw, skipx0=False, function=function)
+        from importlib import reload
+        reload(pca)
+        debugger.set_trace()
+        fitted, outpar = pca.basis(xcen, trcval, tcoeff, lnpc, ofit, weights=pxwght, x0in=ordsnd, mask=maskrw, skipx0=False, function=function)
 #        if doqa:
 #            # JXP -- NEED TO REMOVE SLF FROM THE NEXT BIT
 #            msgs.warn("NEED TO REMOVE SLF FROM THE NEXT BIT")
