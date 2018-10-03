@@ -408,7 +408,6 @@ class TraceSlits(masterframe.MasterFrame):
         """
         Build a simple object holding the key trace bits and pieces that PYPIT wants
 
-
         Returns
         -------
         self.trace_slits_dict : dict
