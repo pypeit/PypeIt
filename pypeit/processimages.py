@@ -286,6 +286,7 @@ class ProcessImages(object):
                 temp = image-msbias
             elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
+                #debugger.set_trace()
                 temp = procimg.subtract_overscan(image, numamplifiers, self.datasec,
                                                    self.oscansec,
                                                    method=self.proc_par['overscan'],

@@ -224,7 +224,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         self.detector = [
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        dispaxis        = 0,
+                        dispaxis        = 1,  # I think this is ignored, even if true
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -239,7 +239,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        dispaxis        = 0,
+                        dispaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -254,7 +254,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        dispaxis        = 0,
+                        dispaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -309,7 +309,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         self.detector = [  #  Hamamatsu (since 2011)
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        dispaxis        = 0,
+                        dispaxis        = 1,  # I think this is ignored, even if true
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -324,7 +324,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        dispaxis        = 0,
+                        dispaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -339,7 +339,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        dispaxis        = 0,
+                        dispaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -370,7 +370,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         self.detector = [  #  E2V
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        dispaxis        = 0,
+                        dispaxis        = 0,  # I think this is ignored
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -463,8 +463,6 @@ def read_gmos(raw_file, det=1):
     xbin, ybin = [int(ibin) for ibin in binning.split(' ')]
 
     # First read over the header info to determine the size of the output array...
-    n_ext = len(hdu)-1  # Number of extensions (usually 12)
-
     datasec = head1['DATASEC']
     x1, x2, y1, y2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
     biassec = head1['BIASSEC']
@@ -472,12 +470,12 @@ def read_gmos(raw_file, det=1):
     nxb = b2-b1 + 1
 
     # determine the output array size...
-    nx = x2*numamp + nxb*numamp
+    nx = (x2-x1+1)*numamp + nxb*numamp
     ny = y2-y1+1
 
     # allocate output array...
     array = np.zeros( (nx, ny) )
-    
+
     if numamp == 2:
         if det == 1: # BLUEST DETECTOR
             order = range(6,4,-1)
@@ -515,11 +513,12 @@ def read_gmos(raw_file, det=1):
         array[xs:xe, :] = np.flipud(data)
 
         #; insert postdata...
-        xs = nx - n_ext*nxb + kk*nxb
+        xs = nx - numamp*nxb + kk*nxb
         xe = xs + nxb
+        #debugger.set_trace()
         #section = '[:,{:d}:{:d}]'.format(xs, xe)
-        section = '[{:d}:{:d},:]'.format(xs, xe)  # TRANSPOSED FOR WHAT COMES
-        osec.append(section)
+        osection = '[{:d}:{:d},:]'.format(xs, xe)  # TRANSPOSED FOR WHAT COMES
+        osec.append(osection)
         array[xs:xe, :] = overscan
 
     # make sure BZERO is a valid integer for IRAF
