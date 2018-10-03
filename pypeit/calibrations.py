@@ -579,7 +579,7 @@ class Calibrations(object):
                                              par=self.par['wavelengths'], det=self.det,
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], fitstbl=self.fitstbl,
-                                             sci_ID=self.sci_ID, maskslits=self.maskslits,
+                                             sci_ID=self.sci_ID, #maskslits=self.maskslits,
                                              redux_path=self.redux_path, bpm=self.msbpm)
         # Load from disk (MasterFrame)?
         self.wv_calib = self.waveCalib.master()

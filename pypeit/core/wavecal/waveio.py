@@ -6,6 +6,8 @@ import numpy as np
 import os
 import datetime
 
+from pkg_resources import resource_filename
+
 from astropy.table import Table, Column, vstack
 from astropy.io import fits
 
@@ -15,8 +17,9 @@ from pypeit import msgs
 
 import pypeit  # For path
 from pypeit.core.wavecal import defs
-line_path = pypeit.__path__[0]+'/data/arc_lines/lists/'
-nist_path = pypeit.__path__[0]+'/data/arc_lines/NIST/'
+
+line_path = resource_filename('pypeit', '/data/arc_lines/lists/')
+nist_path = resource_filename('pypeit','/data/arc_lines/NIST/')
 
 
 def load_by_hand():

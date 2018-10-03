@@ -222,7 +222,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             arcparam is modified in place
 
         """
-        arcparam['lamps'] = ['CuAr']
+        arcparam['lamps'] = ['CuI', 'ArI', 'ArII'] #  May be a handful of CuII lines too
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
         if 'R150' in disperser:
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.63 # Ang per pixel (unbinned)
@@ -230,6 +231,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 6000.
             arcparam['wv_cen'] = 4000.
+        elif 'R400' in disperser:
+            arcparam['disp']=0.67 # Ang per pixel (unbinned) :: E2V  --  Hamamatsu is 0.74
+            arcparam['min_ampl'] = 1000.0
         elif 'B600' in disperser:
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.63 # Ang per pixel (unbinned)
