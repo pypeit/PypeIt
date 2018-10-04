@@ -435,7 +435,7 @@ class General:
         self._wvdata.sort()
         return
 
-    def set_grids(self, ngridw=200, ngridd=2000):
+    def set_grids(self, ngridw = 200, ngridd=2000): #ngridw = 200, ngridd=2000):
         # Set the wavelength grid
         if self._binw is None:
             # Ideally, you want binw to roughly sample the A/pix of the spectrograph
@@ -446,7 +446,12 @@ class General:
         # Set the dispersion grid
         if self._bind is None:
             self._ngridd = ngridd
-            self._bind = np.linspace(-3.0, 1.0, self._ngridd)
+            #self._bind = np.linspace(-3.0, 1.0, self._ngridd)
+            # JFH I have no idea why this goes down as low as -3.0. 3000/10^(-3.0) would be R ~ 3e6. No spectrograph
+            # has a dispersion that high. I'm changing this to be -1.5 which would be R ~ 100,000 at 3000A. In this regime
+            # one would anyway use the ThAr routine. I'm rasing
+            # the upper limit to be 2.0 to handle low-resolution data (i.e in the near-IR 2.5e4/100 = R ~ 250
+            self._bind = np.linspace(-1.5, 2.0, self._ngridd)
         else:
             self._ngridd = self._bind.size
         return
