@@ -47,6 +47,7 @@ def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10):
 def match_peaks(inspec1, inspec2, smooth=5.0, debug=False):
     """ Stretch and shift inspec2 until it matches inspec1
     """
+
     # Initial estimate
     p0 = np.array([0.0])
     nspec = inspec1.size
@@ -72,6 +73,7 @@ def match_peaks(inspec1, inspec2, smooth=5.0, debug=False):
 
     return stretch, shift
 
+
 # JFH I think this should be done with scipy.optimize to find the maximum value of the cc correlation as a function of
 # shift and stretch, rather than with curve_fit
 def shift_stretch(specs, p, retshift=False):
@@ -93,6 +95,40 @@ def shift_stretch(specs, p, retshift=False):
         return np.array([stretch]), shift
     else:
         return np.array([stretch])
+
+# JFH These codes are under development by JFH to try to improve the problems with match_peaks. 
+def match_peaks2(inspec1, inspec2, smooth=5.0, debug=False):
+
+    # Initial estimate
+    p0 = np.array([0.0])
+    nspec = inspec1.size
+    # differential evolution optimizer appears to behave better
+    print('Optimizing with IGM')
+    guess = np.array([0.0,0.0])
+    bounds = [(-nspec, nspec), (-nspec, nspec)]
+    result = op.differential_evolution(xcorr_stretch, args=(inspec1, inspec2,smooth), bounds=bounds, popsize=25, recombination=0.7,
+                                         disp=True, polish=True) # ToDO Should we polish?
+
+
+
+
+# JFH I think this should be done with scipy.optimize to find the maximum value of the cc correlation as a function of
+# shift and stretch, rather than with curve_fit
+def xcorr_stretch(theta, inspec1, inspec2, smooth):
+
+    y1 = gaussian_filter(inspec1, smooth)
+    y2 = gaussian_filter(inspec2, smooth)
+    y1size = y1.size
+    y2size = int(y1size + theta[0])
+    y2 = resample(y2, y2size)
+    df = np.min([y1size // 2 - 1, y2size // 2 - 1])
+    size = y1size + y2size - 1
+    fsize = 2 ** np.int(np.ceil(np.log2(size)))  # Use this size for a more efficient computation
+    conv = np.fft.fft(y1, fsize)
+    conv *= scipy.conj(np.fft.fft(y2, fsize))
+    cc = scipy.ifft(conv)  # [df:df+y1size]
+    shift = np.argmax(np.abs(cc))
+    return np.max(np.abs(cc))
 
 
 @nb.jit(nopython=True, cache=True)
