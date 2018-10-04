@@ -179,6 +179,14 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 
     def gemini_get_match_criteria(self):
+        """
+        Note: match the acs on central wavelengths for dithered spectra (chip gap avoidance).
+        Does not match the flats so there could be some weirdness at the edges (MW).
+
+        Returns:
+            dict: dict of header keywords to match the files on.
+
+        """
         match_criteria = {}
         for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
