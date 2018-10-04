@@ -1368,9 +1368,9 @@ class WaveTiltsPar(ParSet):
         descr['idsonly'] = 'Only use the arc lines that have an identified wavelength to trace ' \
                            'tilts'
 
-        defaults['tracethresh'] = 1000.
+        defaults['tracethresh'] = 20.
         dtypes['tracethresh'] = [int, float, list, numpy.ndarray]
-        descr['tracethresh'] = 'TODO: X fill in the doc for this'
+        descr['tracethresh'] = 'Significance threshold for arcs to be used in tracing wavelength tilts.'
 
         defaults['order'] = 2
         dtypes['order'] = int
