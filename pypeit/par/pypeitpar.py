@@ -996,7 +996,7 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, reference=None, method=None, lamps=None, detection=None, numsearch=None,
+    def __init__(self, reference=None, method=None, lamps=None, rms_threshold=None, detection=None, numsearch=None,
                  nfitpix=None, IDpixels=None, IDwaves=None, medium=None, frame=None):
         # Grab the parameter names and values from the function
         # arguments
@@ -1038,6 +1038,10 @@ class WavelengthSolutionPar(ParSet):
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
                          'None for no calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['lamps']))
+
+        defaults['rms_threshold'] = 0.15
+        dtypes['rms_threshold'] = float
+        descr['rms_threshold'] = 'Minimum RMS for keeping a slit solution'
 
         # TODO: Not used
         defaults['detection'] = 6.0
@@ -1088,7 +1092,7 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'reference', 'method', 'lamps', 'detection', 'numsearch', 'nfitpix',
+        parkeys = [ 'reference', 'method', 'lamps', 'rms_threshold', 'detection', 'numsearch', 'nfitpix',
                     'IDpixels', 'IDwaves', 'medium', 'frame' ]
         kwargs = {}
         for pk in parkeys:

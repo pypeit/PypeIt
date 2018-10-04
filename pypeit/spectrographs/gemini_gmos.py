@@ -77,6 +77,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['fracignore'] = 0.02
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
 
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.40  # Might be grating dependent..
+
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
 

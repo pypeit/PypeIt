@@ -313,7 +313,7 @@ class General:
     Parameters
     ----------
     spec : ndarray
-      Extracted 1D Arc Spectrum
+      2D array of arcline spectra (npix,nslit)
     lines : list
       List of arc lamps on
     ok_mask : ndarray
@@ -346,8 +346,6 @@ class General:
     use_unknowns : bool
       If True, arc lines that are known to be present in the spectra, but
       have not been attributed to an element+ion, will be included in the fit.
-    sigdetect : float
-      Nsigma for detecting arc lines
 
     Returns
     -------
@@ -388,7 +386,6 @@ class General:
         self._outroot = outroot
         self._fit_parm = fit_parm
         self._rms_threshold = rms_threshold
-        self.sigdetect = sigdetect
 
         self._debug = debug
         self._verbose = verbose
@@ -526,7 +523,6 @@ class General:
 
         # Now that all slits have been inspected, cross match to generate a
         # master list of all lines in every slit, and refit all spectra
-        debugger.set_trace()
         if self._nslit > 1:
             obad_slits = self.cross_match(good_fit)
             cntr = 0  # Introduce a counter to stop the while loop, just in case the loop gets stuck
@@ -543,7 +539,6 @@ class General:
                     break
 
         # With the updates to the fits of each slit, determine the final fit, and save the QA
-        debugger.set_trace()
         self.finalize_fit()
 
         # Print the final report of all lines
@@ -1263,9 +1258,9 @@ class General:
                 # First time a fit is found
                 patt_dict, final_dict = tpatt_dict, tfinal_dict
                 continue
-            elif tfinal_fit['rms'] < self._rms_threshold:
+            elif tfinal_dict['rms'] < self._rms_threshold:
                 # Has a better fit been identified (i.e. more lines ID)?
-                if len(tfinal_fit['xfit']) > len(final_fit['xfit']):
+                if len(tfinal_dict['xfit']) > len(final_dict['xfit']):
                     patt_dict, final_dict = copy.deepcopy(tpatt_dict), copy.deepcopy(tfinal_dict)
         return patt_dict, final_dict
 
