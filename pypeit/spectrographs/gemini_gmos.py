@@ -188,6 +188,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
         match_criteria['standard']['match'] = {}
         match_criteria['standard']['match']['decker'] = ''
+        match_criteria['standard']['match']['wavecen'] = ''
         # Bias
         match_criteria['bias']['number'] = 5
         match_criteria['bias']['match'] = {}
@@ -204,6 +205,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         match_criteria['arc']['number'] = 1
         match_criteria['arc']['match'] = {}
         match_criteria['arc']['match']['decker'] = ''
+        match_criteria['arc']['match']['wavecen'] = ''
 
         # Return
         return match_criteria
