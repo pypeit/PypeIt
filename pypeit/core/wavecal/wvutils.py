@@ -96,7 +96,7 @@ def shift_stretch(specs, p, retshift=False):
     else:
         return np.array([stretch])
 
-# JFH These codes are under development by JFH to try to improve the problems with match_peaks. 
+# JFH These codes are under development by JFH to try to improve the problems with match_peaks.
 def match_peaks2(inspec1, inspec2, smooth=5.0, debug=False):
 
     # Initial estimate
