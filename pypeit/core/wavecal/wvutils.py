@@ -43,16 +43,18 @@ def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10):
      # Return
     return all_tcent, all_ecent, cut_tcent, icut
 
-
+# JFH ToDo This algorithm for computing the shift and stretch is unstable and often hangs. It needs to be replaced.
 def match_peaks(inspec1, inspec2, smooth=5.0, debug=False):
     """ Stretch and shift inspec2 until it matches inspec1
     """
-
     # Initial estimate
     p0 = np.array([0.0])
+    nspec = inspec1.size
     specs = (inspec1, inspec2, smooth,)
+
     try:
-        res = curve_fit(shift_stretch, specs, np.array([0.0]), p0, epsfcn=1.0)
+        res = curve_fit(shift_stretch, specs, np.array([0.0]), p0,  bounds = (-nspec, nspec))
+        #res = curve_fit(shift_stretch, specs, np.array([0.0]), p0, epsfcn=1.0)
     except ValueError:
         # Probably no overlap of the two spectra
         return None, None
@@ -70,7 +72,8 @@ def match_peaks(inspec1, inspec2, smooth=5.0, debug=False):
 
     return stretch, shift
 
-
+# JFH I think this should be done with scipy.optimize to find the maximum value of the cc correlation as a function of
+# shift and stretch, rather than with curve_fit
 def shift_stretch(specs, p, retshift=False):
     inspec1, inspec2, smooth = specs
     y1 = gaussian_filter(inspec1, smooth)
