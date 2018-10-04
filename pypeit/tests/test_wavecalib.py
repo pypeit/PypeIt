@@ -61,7 +61,7 @@ def test_user_redo():
     waveCalib = wavecalib.WaveCalib(None, spectrograph='shane_kast_blue')
     waveCalib.load_wv_calib(wvcalib_file)
     # Do it
-    waveCalib.arcparam['min_ampl'] = 1000.
+    waveCalib.arcparam['min_nsig'] = 30.
     new_wv_calib = waveCalib.calibrate_spec(0)
     # Test
     assert new_wv_calib['0']['rms'] < 0.1
@@ -218,7 +218,7 @@ def test_wavecalib_general():
 
 
     # Favored parameters (should match those in the defaults)
-    min_ampl = 1000.
+    min_nsig = 20.
     nonlinear_counts = 5.6e4 # It woudl be better if we actually dug this out of the spectrograph class for each instrument
 
     # Run it
@@ -238,7 +238,7 @@ def test_wavecalib_general():
             hdf = h5py.File(data_path(spec_file), 'r')
             spec = hdf['arcs/{:d}/spec'.format(fidx)].value
 
-        arcfitter = autoid.General(spec.reshape((spec.size, 1)), lines, min_ampl=min_ampl,
+        arcfitter = autoid.General(spec.reshape((spec.size, 1)), lines, min_nsig=min_nsig,
                                    rms_threshold=score['rms'], nonlinear_counts=nonlinear_counts)
         final_fit = arcfitter._all_final_fit
 

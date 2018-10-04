@@ -52,6 +52,8 @@ def lines():
     line_dict['OH_triplespec'] = 2**9
     line_dict['CuI'] = 2**10
     line_dict['ArII'] = 2**11
+    line_dict['OH_XSHOOTER'] = 2**12
+
     #
     return line_dict
 
