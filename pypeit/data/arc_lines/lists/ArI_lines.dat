@@ -1,9 +1,14 @@
+# Creation Date: 2018-Oct-04
 # Creation Date: 2018-May-03
 # Creation Date: 2018-May-03
 # Creation Date: 2017-Mar-26
 # Creation Date: 2016-Dec-23
 # Creation Date: 2016-Dec-21
 | ion |       wave | NIST | Instr | amplitude |                    Source |
+| ArI |  4159.7620 |    1 |    64 |        94 | GMOS_R400_blue_1_fit.json |
+| ArI |  4334.7790 |    1 |    64 |        91 | GMOS_R400_blue_1_fit.json |
+| ArI |  4511.9980 |    1 |    64 |        72 | GMOS_R400_blue_1_fit.json |
+| ArI |  5189.1910 |    1 |    64 |        57 | GMOS_R400_blue_1_fit.json |
 | ArI |  6967.3520 |    1 |    25 |     15530 | lrisr_600_7500_PYPIT.json |
 | ArI |  7069.1670 |    1 |    17 |      6568 | lrisr_600_7500_PYPIT.json |
 | ArI |  7149.0120 |    1 |    17 |      1197 | lrisr_600_7500_PYPIT.json |
@@ -21,8 +26,8 @@
 | ArI |  8410.5210 |    1 |    17 |     60527 | lrisr_600_7500_PYPIT.json |
 | ArI |  8523.7830 |    1 |    17 |     29544 | lrisr_600_7500_PYPIT.json |
 | ArI |  8670.3250 |    1 |    17 |      8086 | lrisr_400_8500_PYPIT.json |
-| ArI |  9125.471  |    1 |    16 |     35000 |  deimos_830g_r_PYPIT.json |
+| ArI |  9125.4710 |    1 |    16 |     35000 |  deimos_830g_r_PYPIT.json |
 | ArI |  9227.0300 |    1 |    17 |     57170 | lrisr_400_8500_PYPIT.json |
 | ArI |  9356.7870 |    1 |    17 |      3521 | lrisr_400_8500_PYPIT.json |
-| ArI |  9660.435  |    1 |    16 |     35000 |  deimos_830g_r_PYPIT.json |
+| ArI |  9660.4350 |    1 |    16 |     35000 |  deimos_830g_r_PYPIT.json |
 | ArI |  9787.1860 |    1 |    17 |      8197 | lrisr_400_8500_PYPIT.json |
