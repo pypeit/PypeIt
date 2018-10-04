@@ -345,6 +345,8 @@ class General:
     use_unknowns : bool
       If True, arc lines that are known to be present in the spectra, but
       have not been attributed to an element+ion, will be included in the fit.
+    sigdetect : float
+      Nsigma for detecting arc lines
 
     Returns
     -------
@@ -357,7 +359,7 @@ class General:
     """
 
     def __init__(self, spec, lines, ok_mask=None, min_ampl=1000., nonlinear_counts = 1e10, islinelist=False,
-              outroot=None, debug=False, verbose=False,
+              outroot=None, debug=False, verbose=False, sigdetect=10.,
               fit_parm=None, lowest_ampl=200., rms_threshold=0.15,
               binw=None, bind=None, nstore=1, use_unknowns=True):
 
@@ -385,6 +387,7 @@ class General:
         self._outroot = outroot
         self._fit_parm = fit_parm
         self._rms_threshold = rms_threshold
+        self.sigdetect = sigdetect
 
         self._debug = debug
         self._verbose = verbose
@@ -503,9 +506,11 @@ class General:
                 continue
             # Detect lines, and decide which tcent to use
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_ampl=self._min_ampl, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_ampl=self._min_ampl,
+                                            nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_ampl=self._lowest_ampl, nonlinear_counts = self._nonlinear_counts)
+            debugger.set_trace()
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit))
                 continue
@@ -517,6 +522,7 @@ class General:
 
         # Now that all slits have been inspected, cross match to generate a
         # master list of all lines in every slit, and refit all spectra
+        debugger.set_trace()
         if self._nslit > 1:
             obad_slits = self.cross_match(good_fit)
             cntr = 0  # Introduce a counter to stop the while loop, just in case the loop gets stuck
@@ -533,6 +539,7 @@ class General:
                     break
 
         # With the updates to the fits of each slit, determine the final fit, and save the QA
+        debugger.set_trace()
         self.finalize_fit()
 
         # Print the final report of all lines

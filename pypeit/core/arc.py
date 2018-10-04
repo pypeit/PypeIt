@@ -573,6 +573,19 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
 
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
+    """
+    Fit an arc spectrum line
+
+    Args:
+        xarray:
+        yarray:
+        pixt:
+        fitp: int
+          Number of pixels to fit with
+
+    Returns:
+
+    """
 
     # Setup the arrays with fit parameters
     sz_p = pixt.size
@@ -623,7 +636,7 @@ def simple_calib_driver(msarc, aparm, censpec, ok_mask, nfitpix=5, get_poly=Fals
 
 
 def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
-                 IDpixels=None, IDwaves=None, debug=False):
+                 IDpixels=None, IDwaves=None, debug=False, sigdetect=10.):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -635,6 +648,8 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     censpec : ndarray
     get_poly : bool, optional
       Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
+    IDpixels : list
+    IDwaves : list
 
     Returns
     -------
@@ -644,7 +659,9 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, _, w, yprep = detect_lines(censpec, nfitpix=nfitpix, nonlinear_counts = aparm['nonlinear_counts'])
+    tampl, tcent, twid, _, w, yprep = detect_lines(censpec, nfitpix=nfitpix,
+                                                   sigdetect=sigdetect,
+                                                   nonlinear_counts=aparm['nonlinear_counts'])
 
     # Cut down to the good ones
     tcent = tcent[w]
@@ -963,8 +980,12 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None, out_d
 
     Parameters
     ----------
+    setup: str
+      For outfile
     fit : dict
       Wavelength fit for this slit
+    slit : int
+      For outfile
     arc_spec : ndarray
       Arc spectrum
     outfile : str, optional
