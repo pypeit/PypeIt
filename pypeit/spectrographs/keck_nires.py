@@ -67,7 +67,7 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Set slits and tilts parameters
         par['calibrations']['tilts']['order'] = 2
-        par['calibrations']['tilts']['tracethresh'] = [50, 50, 60, 60, 2000]
+        par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10]
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 3.
         par['calibrations']['slits']['pcatype'] = 'order'
@@ -158,8 +158,16 @@ class KeckNIRESpectrograph(spectrograph.Spectrograph):
 
         arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 1000.       # Minimum amplitude
-        arcparam['wvmnx'] = [8000., 26000.] # Guess at wavelength range
+        arcparam['min_nsig'] = 50.0         # Min significance for arc lines to be used
+        arcparam['lowest_nsig'] = 10.0         # Min significance for arc lines to be used
+        arcparam['wvmnx'] = [8000.,26000.]  # Guess at wavelength range
+        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
+        arcparam['match_toler'] = 3         # Matcing tolerance (pixels)
+        arcparam['func'] = 'legendre'       # Function for fitting
+        arcparam['n_first'] = 2             # Order of polynomial for first fit
+        arcparam['n_final'] = 4             # Order of polynomial for final fit
+        arcparam['nsig_rej'] = 2            # Number of sigma for rejection
+        arcparam['nsig_rej_final'] = 3.0    # Number of sigma for rejection (final fit)
 
 
 #        arcparam['llist'] = ''

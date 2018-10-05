@@ -16,13 +16,14 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
     if aparm is None:
         aparm = dict(llist='',
                     disp=disp,           # Ang/unbinned pixel
-                    disp_toler=0.1,      # 10% tolerance
                     match_toler=3.,      # Matcing tolerance (pixels)
                     func='legendre',     # Function for fitting
                     n_first=2,           # Order of polynomial for first fit
                     n_final=4,           # Order of polynomial for final fit
                     nsig_rej=2.,         # Number of sigma for rejection
                     nsig_rej_final=3.0)  # Number of sigma for rejection (final fit)
+            #  disp_toler=0.1,      # 10% tolerance  JFH disp_toler is never used.
+
     if weights is None:
         weights = np.ones(tcent.size)
 

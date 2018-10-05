@@ -34,6 +34,7 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
        List of lamps used
 
     """
+    # These defaults need to be updated to the General algorithm. Some of these tags are now defunct.
     # Defaults
     arcparam = dict(llist='',
                     disp=0.,             # Ang/unbinned pixel
@@ -44,7 +45,8 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                     wvmnx=[2900.,12000.],# Guess at wavelength range
                     disp_toler=0.1,      # 10% tolerance
                     match_toler=3.,      # Matching tolerance (pixels)
-                    min_ampl=300.,       # Minimum amplitude
+                    min_nsig=30.,        # Minimum significance
+                    lowest_nsig=10.,      # Lowest significance for weak lines
                     func='legendre',     # Function for fitting
                     n_first=1,           # Order of polynomial for first fit
                     n_final=4,           # Order of polynomial for final fit
@@ -434,7 +436,7 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     plt.show()
 
 # ToDO JFH nfitpix should be chosen based on the spectral sampling of the spectroscopic setup
-def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, niter_cont = 3,
+def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, FWHM = 10.0, cont_samp = 30, nonlinear_counts=1e10, niter_cont = 3,
                  debug=False):
     """
     Extract an arc down the center of the chip and identify
@@ -442,7 +444,7 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
 
     Parameters
     ----------
-    censpec : ndarray, optional
+    censpec : ndarray
       A 1D spectrum to be searched for significant detections
 
     Optional Parameters
@@ -478,9 +480,11 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
       The variance on tcent
     w : ndarray
       An index array indicating which detections are the most reliable.
-    detns : ndarray
-      The spectrum used to find detections. This spectrum has
-      had any "continuum" emission subtracted off
+    arc : ndarray
+      The continuum sutracted arc used to find detections.
+    nsig : ndarray
+      The significance of each line detected relative to the 1sigma variation in the continuum subtracted arc in the
+      the line free region. Bad lines are assigned a significance of -1, since they don't have an amplitude fit
     """
 
     # debug = True
@@ -541,19 +545,23 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
     arc = detns - cont_now
     pixt = detect_peaks(arc, mph=thresh, mpd=3.0) #, show=debug)
     # Gaussian fitting appears to work better on the non-continuum subtracted data
-    tampl, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
+    tampl_fit, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
     #tampl, tcent, twid, centerr = fit_arcspec(xrng, arc_in, pixt, nfitpix)
-
-    #         sigma finite  & sigma positive &  sigma < FWHM/2.35 & cen positive  &  cen on detector
-    # TESTING
-    good = (np.invert(np.isnan(twid))) & (twid > 0.0) & (twid < FWHM/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & (tampl < nonlinear_counts)
+    tampl_true = np.interp(pixt, xrng, detns)
+    tampl = np.interp(pixt, xrng, arc)
+    #         width is fine & width > 0.0 & width < FWHM/2.35 &  center positive  &  center on detector
+    #        & amplitude not nonlinear
+    good = (np.invert(np.isnan(twid))) & (twid > 0.0) & (twid < FWHM/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & \
+           (tampl_true < nonlinear_counts)
     ww = np.where(good)
+    # Compute the significance of each line, set the significance of bad lines to be -1
+    nsig = (tampl - med)/stddev
+
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan
-        tampl_bad = np.interp(pixt[~good], xrng, arc)
         plt.figure(figsize=(14, 6))
         plt.plot(xrng, arc, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc', linewidth = 1.0)
-        plt.plot(tcent[~good], tampl_bad,'r+', markersize =6.0, label = 'bad peaks')
+        plt.plot(tcent[~good], tampl[~good],'r+', markersize =6.0, label = 'bad peaks')
         plt.plot(tcent[good], tampl[good],'g+', markersize =6.0, label = 'good peaks')
         plt.hlines(thresh, xrng.min(), xrng.max(), color='cornflowerblue', linestyle=':', linewidth=2.0,
                    label='threshold', zorder=10)
@@ -565,7 +573,7 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 10.0, FWHM = 10.0, cont_samp = 
         plt.legend()
         plt.show()
 
-    return tampl, tcent, twid, centerr, ww, detns
+    return tampl, tcent, twid, centerr, ww, arc, nsig
 
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
@@ -640,7 +648,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, _, w, yprep = detect_lines(censpec, nfitpix=nfitpix, nonlinear_counts = aparm['nonlinear_counts'])
+    tampl, tcent, twid, _, w, yprep, nsig = detect_lines(censpec, nfitpix=nfitpix, nonlinear_counts = aparm['nonlinear_counts'])
 
     # Cut down to the good ones
     tcent = tcent[w]
@@ -865,7 +873,7 @@ def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
         final_fit = {}
         for slit in ok_mask:
             best_dict, ifinal_fit = autoid.semi_brute(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'],
-                                                      fit_parm=aparm, min_ampl=aparm['min_ampl'], nonlinear_counts= aparm['nonlinear_counts'])
+                                                      fit_parm=aparm, min_nsig=aparm['min_nsig'], nonlinear_counts= aparm['nonlinear_counts'])
             final_fit[str(slit)] = ifinal_fit.copy()
     elif use_method == "basic":
         final_fit = {}
@@ -875,7 +883,8 @@ def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
             final_fit[str(slit)] = ifinal_fit.copy()
     else:
         # Now preferred
-        arcfitter = autoid.General(spec, aparm['lamps'], ok_mask=ok_mask, fit_parm=aparm, min_ampl=aparm['min_ampl'], nonlinear_counts = aparm['nonlinear_counts'])
+        arcfitter = autoid.General(spec, aparm['lamps'], ok_mask=ok_mask, fit_parm=aparm, min_nsig=aparm['min_nsig'],
+                                   lowest_nsig=aparm['lowest_nsig'], nonlinear_counts = aparm['nonlinear_counts'])
         patt_dict, final_fit = arcfitter.get_results()
     return final_fit
 

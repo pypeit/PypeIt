@@ -188,7 +188,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
         xspec = std_xspec.rebin(wave_star)  # Conserves flambda
         flux_true = xspec.flux.value
-    else:
+    elif (star_mag is not None) and (star_type is not None):
         # Create star spectral model
         msgs.info("Creating standard model")
         # Create star model
@@ -203,18 +203,10 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         # I using scipy interpolate to avoid this
         flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'], bounds_error = False,
                                                fill_value='extrapolate')(wave_star)
+    else:
+        msgs.error('Insufficient information provided for fluxing. '
+                   'Either the coordinates of the standard or a stellar type and magnitude are needed.')
 
-    """
-    plt.figure(1)
-    plt.plot(std_dict['wave'],std_dict['flux'],label='Orig')
-    plt.scatter(wave_star,flux_true,s=5,c='red', label='rebin scipy')
-    plt.plot(wave_star,flux_true2,label='rebin X')
-
-    plt.xlim(np.min(wave_star.value),np.max(wave_star.value))
-    plt.ylim(np.min(flux_true),np.max(flux_true))
-    plt.legend()
-    plt.show()
-    """
 
     if np.min(flux_true) == 0.:
         msgs.warn('Your spectrum extends beyond calibrated standard star.')
@@ -567,12 +559,6 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
     if show_QA:
         qa_bspline_magfit(wave_obs, bset_log1, magfunc, masktot)
 
-
-    """
-    bspline_magfit_new_qa(wave_obs, magfunc, logfit1,
-                          newlogfit, bset1.breakpoints,
-                          outfile=None, title=None)
-    """
 
     return sensfit
 
