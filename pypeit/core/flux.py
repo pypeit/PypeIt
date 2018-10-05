@@ -209,17 +209,6 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
                    'Either the coordinates of the standard or a stellar type and magnitude are needed.')
 
 
-#    plt.figure(1)
-#    plt.plot(std_dict['wave'],std_dict['flux'],label='Orig')
-#    plt.scatter(wave_star,flux_true,s=5,c='red', label='rebin scipy')
-#    plt.plot(wave_star,flux_true2,label='rebin X')
-
-#    plt.xlim(np.min(wave_star.value),np.max(wave_star.value))
-#    plt.ylim(np.min(flux_true),np.max(flux_true))
-#    plt.legend()
-#    plt.show()
-
-
     if np.min(flux_true) == 0.:
         msgs.warn('Your spectrum extends beyond calibrated standard star.')
 
@@ -571,12 +560,6 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
     if show_QA:
         qa_bspline_magfit(wave_obs, bset_log1, magfunc, masktot)
 
-
-    """
-    bspline_magfit_new_qa(wave_obs, magfunc, logfit1,
-                          newlogfit, bset1.breakpoints,
-                          outfile=None, title=None)
-    """
 
     return sensfit
 

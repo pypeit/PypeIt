@@ -448,7 +448,7 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, FWHM = 10.0, cont_samp = 3
 
     Parameters
     ----------
-    censpec : ndarray, optional
+    censpec : ndarray
       A 1D spectrum to be searched for significant detections
 
     Optional Parameters
@@ -553,8 +553,8 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, FWHM = 10.0, cont_samp = 3
     #tampl, tcent, twid, centerr = fit_arcspec(xrng, arc_in, pixt, nfitpix)
     tampl_true = np.interp(pixt, xrng, detns)
     tampl = np.interp(pixt, xrng, arc)
-    #         sigma finite  & sigma positive &  sigma < FWHM/2.35 & cen positive  &  cen on detector
-    # TESTING
+    #         width is fine & width > 0.0 & width < FWHM/2.35 &  center positive  &  center on detector
+    #        & amplitude not nonlinear
     good = (np.invert(np.isnan(twid))) & (twid > 0.0) & (twid < FWHM/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & \
            (tampl_true < nonlinear_counts)
     ww = np.where(good)
@@ -644,7 +644,7 @@ def simple_calib_driver(msarc, aparm, censpec, ok_mask, nfitpix=5, get_poly=Fals
 
 
 def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
-                 IDpixels=None, IDwaves=None, debug=False, sigdetect=10.):
+                 IDpixels=None, IDwaves=None, debug=False):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -884,6 +884,8 @@ def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
     final_fit : dict
       Dict of fit info
     """
+    raise DeprecationWarning("THIS HAS BEEN MOVED INSIDE wavecalib.py")
+    assert False
 
     if ok_mask is None:
         ok_mask = np.arange(spec.shape[1])
@@ -903,7 +905,8 @@ def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
     else:
         # Now preferred
         arcfitter = autoid.General(spec, aparm['lamps'], ok_mask=ok_mask, fit_parm=aparm, min_nsig=aparm['min_nsig'],
-                                   lowest_nsig=aparm['lowest_nsig'], nonlinear_counts = aparm['nonlinear_counts'])
+                                   lowest_nsig=aparm['lowest_nsig'], nonlinear_counts = aparm['nonlinear_counts'],
+                                   rms_threshold=aparm['rms_threshold'])
         patt_dict, final_fit = arcfitter.get_results()
     return final_fit
 
@@ -1092,7 +1095,7 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None, out_d
     if outfile == 'show':
         plt.show()
     else:
-        plt.savefig(outfile, dpi=800)
+        plt.savefig(outfile, dpi=400)
     plt.close()
 
     plt.rcdefaults()
