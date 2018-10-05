@@ -44,7 +44,7 @@ def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10):
     return all_tcent, all_ecent, cut_tcent, icut
 
 # JFH ToDo This algorithm for computing the shift and stretch is unstable. It was hanging but that has been fixed
-# by ading the bounds. However, I think it is producing bogus results in many cases. 
+# by ading the bounds. However, I think it is producing bogus results in many cases.
 def match_peaks(inspec1, inspec2, smooth=5.0, debug=False):
     """ Stretch and shift inspec2 until it matches inspec1
     """
