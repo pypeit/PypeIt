@@ -444,7 +444,7 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, FWHM = 10.0, cont_samp = 3
 
     Parameters
     ----------
-    censpec : ndarray, optional
+    censpec : ndarray
       A 1D spectrum to be searched for significant detections
 
     Optional Parameters
