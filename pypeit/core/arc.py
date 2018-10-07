@@ -784,7 +784,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     flg_quit = False
     fmin, fmax = -1., 1.
     msgs.info('Iterative wavelength fitting..')
-    debug=True
+    #debug=True
     while (n_order <= aparm['n_final']) and (flg_quit is False):
         #msgs.info('n_order={:d}'.format(n_order))
         # Fit with rejection

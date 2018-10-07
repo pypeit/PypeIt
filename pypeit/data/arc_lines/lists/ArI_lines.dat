@@ -1,3 +1,4 @@
+# Creation Date: 2018-Oct-07
 # Creation Date: 2018-Oct-05
 # Creation Date: 2018-Oct-04
 # Creation Date: 2018-Oct-04
@@ -33,15 +34,17 @@
 | ArI |  6768.4800 |    1 |    64 |        58 | GMOS_R400_blue_38_fit.json |
 | ArI |  6873.1850 |    1 |    64 |       514 | GMOS_R400_blue_38_fit.json |
 | ArI |  6890.0740 |    1 |    64 |        45 | GMOS_R400_blue_38_fit.json |
-| ArI |  6967.3520 |    1 |    25 |     15530 |  lrisr_600_7500_PYPIT.json |
+| ArI |  6967.3520 |    1 |    89 |     15530 |  lrisr_600_7500_PYPIT.json |
 | ArI |  7032.1900 |    1 |    64 |       504 | GMOS_R400_chip2_8_fit.json |
 | ArI |  7069.1670 |    1 |    81 |      6568 |  lrisr_600_7500_PYPIT.json |
 | ArI |  7149.0120 |    1 |    81 |      1197 |  lrisr_600_7500_PYPIT.json |
+| ArI |  7208.9660 |    1 |    64 |        65 |  GMOS_R400_long_2_fit.json |
 | ArI |  7274.9400 |    1 |    81 |      5595 |  lrisr_600_7500_PYPIT.json |
 | ArI |  7355.3190 |    1 |    64 |       297 | GMOS_R400_chip2_8_fit.json |
 | ArI |  7386.0140 |    1 |    89 |     19023 |  lrisr_600_7500_PYPIT.json |
+| ArI |  7437.4160 |    1 |    64 |        50 |  GMOS_R400_long_2_fit.json |
 | ArI |  7505.9350 |    1 |    89 |     26328 |  lrisr_600_7500_PYPIT.json |
-| ArI |  7516.7210 |    1 |    17 |     22574 |  lrisr_600_7500_PYPIT.json |
+| ArI |  7516.7210 |    1 |    81 |     22574 |  lrisr_600_7500_PYPIT.json |
 | ArI |  7637.2080 |    1 |    88 |      2186 |  kastr_600_7500_PYPIT.json |
 | ArI |  7725.8870 |    1 |     8 |       734 |  kastr_600_7500_PYPIT.json |
 | ArI |  7726.3330 |    1 |    65 |     63716 |  lrisr_400_8500_PYPIT.json |

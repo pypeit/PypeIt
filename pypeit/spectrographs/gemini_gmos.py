@@ -337,6 +337,55 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         head_keys = self.gemini_header_keys()
         return head_keys
 
+    def bpm(self, filename=None, det=None, **null_kwargs):
+        """ Generate a BPM
+
+        Parameters
+        ----------
+        det : int, REQUIRED
+        **null_kwargs:
+           Captured and never used
+
+        Returns
+        -------
+        badpix : ndarray
+
+        """
+        # Get the empty bpm: force is always True
+        self.empty_bpm(filename=filename, det=det)
+
+        if det == 1:
+            msgs.info("Using hard-coded BPM for det=1 on GMOSs")
+
+            # Get the binning
+            hdu = fits.open(filename)
+            binning = hdu[1].header['CCDSUM']
+            hdu.close()
+
+            # Apply the mask
+            xbin = int(binning.split(' ')[0])
+            badc = 616//xbin
+            self.bpm_img[badc,:] = 1
+        elif det == 2:
+            msgs.info("Using hard-coded BPM for det=2 on GMOSs")
+
+            # Get the binning
+            hdu = fits.open(filename)
+            binning = hdu[1].header['CCDSUM']
+            hdu.close()
+
+            # Apply the mask
+            xbin = int(binning.split(' ')[0])
+            if xbin != 2:
+                debugger.set_trace() # NEED TO CHECK FOR YOUR BINNING
+            # Up high
+            badr = (898*2)//xbin # Transposed
+            self.bpm_img[badr:badr+(8*2)//xbin,:] = 1
+            # Down low
+            badr = (161*2)//xbin # Transposed
+            self.bpm_img[badr,:] = 1
+
+        return self.bpm_img
 
 class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
     """
