@@ -36,13 +36,14 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['idname'] = 'OBSTYPE'     # Frame type
         def_keys[0]['decker'] = 'MASKNAME'
         def_keys[0]['wavecen'] = 'CENTWAVE'
-        def_keys[0]['exptime'] = 'EXPOSURE'
+        def_keys[0]['exptime'] = 'EXPTIME'
         def_keys[0]['date'] = 'DATE-OBS'
         def_keys[0]['time'] = 'TIME-OBS'
         def_keys[0]['target'] = 'OBJECT'
         
         def_keys[1] = {}
         def_keys[1]['binning'] = 'CCDSUM'
+        # Return
         return def_keys
 
     def _set_calib_par(self, user_supplied=None):
@@ -313,9 +314,6 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         head_keys = self.gemini_header_keys()
         return head_keys
 
-    def get_match_criteria(self):
-        return self.gemini_get_match_criteria()
-
 class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
     """
     Child to handle Gemini/GMOS-N instrument
@@ -455,7 +453,10 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         ]
         self.numhead = 7
 
-
+    def header_keys(self):
+        head_keys = self.gemini_header_keys()
+        head_keys[0]['exptime'] = 'EXPOSURE'
+        return head_keys
 
 def read_gmos(raw_file, det=1):
     """
