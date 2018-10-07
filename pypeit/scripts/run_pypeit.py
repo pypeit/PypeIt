@@ -46,6 +46,7 @@ def parser(options=None):
                        help='Run pypeit to prepare the setup only')
     group.add_argument('-c', '--calcheck', default=False, action='store_true',
                        help='Run pypeit only as a check on the calibrations')
+    group.add_argument('-d', '--detector', default=None, help='Detector to limit reductions on')
 
 #    parser.add_argument('-q', '--quick', default=False, help='Quick reduction',
 #                        action='store_true')
@@ -98,6 +99,11 @@ def main(args):
     if args.calcheck:
         msgs.info('Done checking calibrations.  Exiting..')
         return 0
+
+    # Detector?
+    if args.detector is not None:
+        msgs.info("Restricting reductions to detector={}".format(args.detector))
+        pypeIt.par['rdx']['detnum'] = int(args.detector)
 
     pypeIt.reduce_all(reuse_masters=args.use_masters)
 

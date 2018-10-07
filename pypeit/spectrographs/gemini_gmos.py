@@ -37,10 +37,16 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['decker'] = 'MASKNAME'
         def_keys[0]['dispangle'] = 'CENTWAVE'
         def_keys[0]['exptime'] = 'EXPTIME'
+        #
         def_keys[0]['date'] = 'DATE-OBS'
         def_keys[0]['time'] = 'TIME-OBS'
+        def_keys[0]['airmass'] = 'AIRMASS'
+        #
         def_keys[0]['target'] = 'OBJECT'
-        
+        def_keys[0]['ra'] = 'RA'    # deg
+        def_keys[0]['dec'] = 'DEC'  # deg
+        #
+
         def_keys[1] = {}
         def_keys[1]['binning'] = 'CCDSUM'
         # Return
@@ -253,7 +259,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             arcparam['wvmnx'][1] = 6000.
             arcparam['wv_cen'] = 4000.
         elif 'R400' in disperser:
-            arcparam['disp']=0.67 # Ang per pixel (unbinned) :: E2V  --  Hamamatsu is 0.74
+            arcparam['disp']=0.74 # Ang per pixel (unbinned) :: E2V  is 0.67
             arcparam['min_ampl'] = 1000.0
         elif 'B600' in disperser:
             arcparam['n_first']=2 # Too much curvature for 1st order
