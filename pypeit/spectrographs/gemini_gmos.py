@@ -35,7 +35,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['dispname'] = 'GRATING'      # The time stamp of the observation (i.e. decimal MJD)
         def_keys[0]['idname'] = 'OBSTYPE'     # Frame type
         def_keys[0]['decker'] = 'MASKNAME'
-        def_keys[0]['wavecen'] = 'CENTWAVE'
+        def_keys[0]['dispangle'] = 'CENTWAVE'
         def_keys[0]['exptime'] = 'EXPTIME'
         def_keys[0]['date'] = 'DATE-OBS'
         def_keys[0]['time'] = 'TIME-OBS'
@@ -200,7 +200,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
         match_criteria['standard']['match'] = {}
         match_criteria['standard']['match']['decker'] = ''
-        match_criteria['standard']['match']['wavecen'] = ''
+        match_criteria['standard']['match']['dispangle'] = ''
         # Bias
         match_criteria['bias']['number'] = 5
         match_criteria['bias']['match'] = {}
@@ -217,10 +217,17 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         match_criteria['arc']['number'] = 1
         match_criteria['arc']['match'] = {}
         match_criteria['arc']['match']['decker'] = ''
-        match_criteria['arc']['match']['wavecen'] = ''
+        match_criteria['arc']['match']['dispangle'] = ''
 
         # Return
         return match_criteria
+
+    def get_match_criteria(self):
+        return self.gemini_get_match_criteria()
+
+    def metadata_keys(self):
+        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker', 'wavecen']
+
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
@@ -273,8 +280,8 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         self.camera = 'GMOS-S'
         self.detector = [
             # Detector 1
-            DetectorPar(dataext         = 1,  # Not sure this is used
-                        dispaxis        = 1,  # I think this is ignored, even if true
+            DetectorPar(dataext         = 1,
+                        dispaxis        = 0,  # Device is fussed with by the image reader
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -288,8 +295,8 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         suffix          = '_01'
                         ),
             # Detector 2
-            DetectorPar(dataext         = 2,  # Not sure this is used
-                        dispaxis        = 1,
+            DetectorPar(dataext         = 2,
+                        dispaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -303,8 +310,8 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         suffix          = '_02'
                         ),
             # Detector 3
-            DetectorPar(dataext         = 3,  # Not sure this is used
-                        dispaxis        = 1,
+            DetectorPar(dataext         = 3,
+                        dispaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -324,6 +331,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         head_keys = self.gemini_header_keys()
         return head_keys
 
+
 class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
     """
     Child to handle Gemini/GMOS-N instrument
@@ -338,9 +346,6 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
     def header_keys(self):
         head_keys = self.gemini_header_keys()
         return head_keys
-
-    def get_match_criteria(self):
-        return self.gemini_get_match_criteria()
 
 
 class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):

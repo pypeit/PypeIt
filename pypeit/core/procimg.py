@@ -585,7 +585,10 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
             c = np.polyfit(np.arange(osfit.size), osfit, params[0])
             ossub = np.polyval(c, np.arange(osfit.size))
         elif method.lower() == 'savgol':
-            ossub = signal.savgol_filter(osfit, params[1], params[0])
+            try:
+                ossub = signal.savgol_filter(osfit, params[1], params[0])
+            except:
+                debugger.set_trace()
         elif method.lower() == 'median':
             # Subtract scalar and continue
             nobias[_datasec[i]] -= osfit
