@@ -183,6 +183,14 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 
     def gemini_get_match_criteria(self):
+        """
+        Note: match the acs on central wavelengths for dithered spectra (chip gap avoidance).
+        Does not match the flats so there could be some weirdness at the edges (MW).
+
+        Returns:
+            dict: dict of header keywords to match the files on.
+
+        """
         match_criteria = {}
         for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
@@ -192,6 +200,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
         match_criteria['standard']['match'] = {}
         match_criteria['standard']['match']['decker'] = ''
+        match_criteria['standard']['match']['wavecen'] = ''
         # Bias
         match_criteria['bias']['number'] = 5
         match_criteria['bias']['match'] = {}
@@ -208,6 +217,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         match_criteria['arc']['number'] = 1
         match_criteria['arc']['match'] = {}
         match_criteria['arc']['match']['decker'] = ''
+        match_criteria['arc']['match']['wavecen'] = ''
 
         # Return
         return match_criteria
