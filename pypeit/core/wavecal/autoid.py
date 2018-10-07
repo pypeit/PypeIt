@@ -317,6 +317,7 @@ class General:
     lines : list
       List of arc lamps on
     ok_mask : ndarray
+      Array of good slits
     min_nsig : float
       Minimum significance of the arc lines that will be used in the fit
     nonlinear_counts : float, default = 1e10
@@ -370,10 +371,12 @@ class General:
         self._binw = binw
         self._bind = bind
 
+        # Mask info
         if ok_mask is None:
             self._ok_mask = np.arange(self._nslit)
         else:
             self._ok_mask = ok_mask
+        self._bad_slits = []  # List of bad slits
 
         self._min_nsig = min_nsig
         self._lowest_nsig = lowest_nsig
@@ -514,6 +517,7 @@ class General:
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_nsig=self._lowest_nsig, nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit))
+                self._detections[str(slit)] = [None,None]
                 continue
             self._detections[str(slit)] = [self._all_tcent_weak.copy(), self._all_ecent_weak.copy()]
             best_patt_dict, best_final_fit = self.run_brute_loop(slit)
@@ -573,6 +577,11 @@ class General:
           the closest distance to a pattern is < pixtol/npix, where npix
           is the number of pixels in the spectral direction. Ideally, this
           should depend on the pattern...
+
+        Internals
+        ---------
+
+        detections : list of lists
         """
 
         # Load the linelist KD Tree
@@ -745,6 +754,10 @@ class General:
         new_bad_slits = np.array([], dtype=np.int)
         for bs in bad_slits:
             if bs not in self._ok_mask:
+                continue
+            if self._detections[str(bs)][0] is None:  # No detections at all; slit is hopeless
+                msgs.warn("Slit {} has no arc line detections.  Likely this slit is junk!")
+                self._bad_slits.append(bs)
                 continue
             bsdet, _ = self.get_use_tcent(sign, arrerr=self._detections[str(bs)], weak=True)
             lindex = np.array([], dtype=np.int)

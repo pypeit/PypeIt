@@ -227,6 +227,13 @@ class ScienceImage(processimages.ProcessImages):
         self.exptime = self.fitstbl['exptime'][self.scidx]
         self.binning = self.fitstbl['binning'][self.scidx]
 
+        # This should have been set when we construct the fitstbl
+        try:
+            tval = Time(fitstbl['time'][self.scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
+        except:
+            debugger.set_trace()
+
+        '''
         tbname = None
         try:
             if 'T' in self.fitstbl['date'][self.scidx]:
@@ -244,16 +251,17 @@ class ScienceImage(processimages.ProcessImages):
                     # Really not ideal... just append date and time
                     tbname = self.fitstbl['date'][self.scidx] + 'T' \
                                     + str(self.fitstbl['time'][self.scidx])
+        '''
         # Time
-        tval = Time(tbname, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
-        dtime = datetime.datetime.strptime(tval.value, '%Y-%m-%dT%H:%M:%S.%f')
+        tiso = Time(tval, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
+        dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
         self.time = tval
         # Basename
         self.inst_name = camera
         self.target_name = self.fitstbl['target'][self.scidx].replace(" ", "")
         self.basename = self.target_name+'_'+self.inst_name+'_'+ \
                          datetime.datetime.strftime(dtime, '%Y%b%dT') + \
-                         tbname.split("T")[1].replace(':','')
+                         tiso.value.split("T")[1].replace(':','')
         # Return
         return self.time, self.basename
 

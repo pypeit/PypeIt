@@ -644,7 +644,7 @@ def simple_calib_driver(msarc, aparm, censpec, ok_mask, nfitpix=5, get_poly=Fals
 
 
 def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
-                 IDpixels=None, IDwaves=None, debug=False):
+                 IDpixels=None, IDwaves=None, debug=False, sigdetect=5.):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -667,7 +667,9 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, _, w, yprep, nsig = detect_lines(censpec, nfitpix=nfitpix, nonlinear_counts = aparm['nonlinear_counts'])
+    tampl, tcent, twid, _, w, yprep, nsig = detect_lines(censpec, nfitpix=nfitpix,
+                                                         sigdetect=sigdetect,
+                                                         nonlinear_counts = aparm['nonlinear_counts'])
 
     # Cut down to the good ones
     tcent = tcent[w]
@@ -782,11 +784,13 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     flg_quit = False
     fmin, fmax = -1., 1.
     msgs.info('Iterative wavelength fitting..')
+    debug=True
     while (n_order <= aparm['n_final']) and (flg_quit is False):
         #msgs.info('n_order={:d}'.format(n_order))
         # Fit with rejection
         xfit, yfit = tcent[ifit], all_ids[ifit]
         mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
+        rms_ang = utils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask == 0]) + sv_ifit
         # Find new points (should we allow removal of the originals?)
@@ -795,16 +799,16 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
             mn = np.min(np.abs(iwave-llist['wave']))
             if mn/aparm['disp'] < aparm['match_toler']:
                 imn = np.argmin(np.abs(iwave-llist['wave']))
-                #if debug:
-                #    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
+                if debug:
+                    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
                 # Update and append
                 all_ids[ss] = llist['wave'][imn]
                 all_idsion[ss] = llist['Ion'][imn]
                 ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit,dtype=int))
-        #if debug:
-        #    debugger.set_trace()
+        if debug:
+            debugger.set_trace()
         # Increment order
         if n_order < aparm['n_final']:
             n_order += 1

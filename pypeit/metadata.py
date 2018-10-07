@@ -271,7 +271,7 @@ class PypeItMetaData:
                 The date read from the file header
 
         Returns:
-            float: The time in hours.
+            float: The MJD time
         """
         # Convert seconds to hours
         if self.spectrograph.timeunit == 's':
@@ -287,8 +287,8 @@ class PypeItMetaData:
                 in_time = date+'T'+in_time
             ival = float(in_time) if self.spectrograph.timeunit == 'mjd' else in_time
             tval = time.Time(ival, scale='tt', format=self.spectrograph.timeunit)
-            # Put MJD in hours
-            return tval.mjd * 24.0
+            # Put MJD
+            return tval.mjd #* 24.0
         
         msgs.error('Bad time unit')
 
