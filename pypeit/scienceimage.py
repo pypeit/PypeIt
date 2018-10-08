@@ -225,7 +225,10 @@ class ScienceImage(processimages.ProcessImages):
         # Another option would be to put the datasec_img stuff in the
         # fitstbl for each detector
         self.exptime = self.fitstbl['exptime'][self.scidx]
-        self.binning = self.fitstbl['binning'][self.scidx]
+        try:
+            self.binning = self.fitstbl['binning'][self.scidx]
+        except KeyError:
+            self.binning = 1,1
 
         # This should have been set when we construct the fitstbl
         try:
@@ -366,6 +369,7 @@ class ScienceImage(processimages.ProcessImages):
             sobjs_slit, self.skymask[thismask], self.objmask[thismask], proc_list \
                     = extract.objfind(image, thismask, self.tslits_dict['lcen'][:,slit],
                                       self.tslits_dict['rcen'][:,slit], inmask=inmask,
+                                      nperslit=self.par['maxnumber'],
                                       hand_extract_dict=self.par['manual'],
                                       specobj_dict=specobj_dict, show_peaks=show_peaks,
                                       show_fits=show_fits, show_trace=show_trace,

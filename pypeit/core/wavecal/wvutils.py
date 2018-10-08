@@ -43,7 +43,6 @@ def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10):
     cut_tcent = all_tcent[cut_sig]
     icut = np.where(cut_sig)[0]
 
-    #debugger.set_trace()
     # Return
     return all_tcent, all_ecent, cut_tcent, icut
 
