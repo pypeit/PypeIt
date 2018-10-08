@@ -421,7 +421,7 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     plt.show()
 
 # ToDO JFH nfitpix should be chosen based on the spectral sampling of the spectroscopic setup
-def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, FWHM = 10.0, cont_samp = 30,
+def detect_lines(censpec, nfitpix=5, sigdetect=20.0, FWHM = 10.0, cont_samp = 30,
                  nonlinear_counts=1e10, niter_cont = 3, debug=False):
     """
     Extract an arc down the center of the chip and identify
