@@ -4,12 +4,14 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 import numpy as np
 import numba as nb
-from pypeit.core import arc
 
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import resample
 import scipy
 from scipy.optimize import curve_fit
+
+from pypeit.core import arc
+from pypeit import debugger
 
 
 def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10):
@@ -40,7 +42,9 @@ def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10):
     cut_sig = all_nsig > min_nsig
     cut_tcent = all_tcent[cut_sig]
     icut = np.where(cut_sig)[0]
-     # Return
+
+    #debugger.set_trace()
+    # Return
     return all_tcent, all_ecent, cut_tcent, icut
 
 # JFH ToDo This algorithm for computing the shift and stretch is unstable. It was hanging but that has been fixed

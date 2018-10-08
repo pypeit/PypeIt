@@ -545,8 +545,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
         # detector and there is no mechanism in place to create that yet
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_nsig'] = 30.  # Minimum signififance
-        arcparam['lowest_nsig'] = 10.0      # Min significance for arc lines to be used
         arcparam['wvmnx'] = [3000., 11000.]  # Guess at wavelength range
         # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
         arcparam['match_toler'] = 3  # Matcing tolerance (pixels)

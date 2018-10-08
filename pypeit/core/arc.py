@@ -5,6 +5,11 @@ import inspect
 import numpy as np
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
+
+from scipy.ndimage.filters import gaussian_filter
+
+from astropy.stats import sigma_clipped_stats
+
 from pypeit import ararclines
 from pypeit import debugger
 from pypeit import msgs
@@ -13,9 +18,7 @@ from pypeit.core import parse
 from pypeit.core import pixels
 from pypeit.core import qa
 from pypeit.core.wavecal import autoid
-from scipy.ndimage.filters import gaussian_filter
-from astropy.stats import sigma_clipped_stats
-
+from pypeit import debugger
 
 # TODO: This should not be a core algorithm
 def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
@@ -45,8 +48,6 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                     wvmnx=[2900.,12000.],# Guess at wavelength range
                     disp_toler=0.1,      # 10% tolerance
                     match_toler=3.,      # Matching tolerance (pixels)
-                    min_nsig=30.,        # Minimum significance
-                    lowest_nsig=10.,      # Lowest significance for weak lines
                     func='legendre',     # Function for fitting
                     n_first=1,           # Order of polynomial for first fit
                     n_final=4,           # Order of polynomial for final fit
@@ -61,6 +62,7 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
     # TODO: JFH: Why is the arcparam being modified in place instead of
     # being passed back from the spectrograh class.  This code looks
     # rather sloppy.
+    # It is very sloppy
     modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl,
                                                arc_idx=arc_idx, binspatial=binspatial,
                                                binspectral=binspectral, msarc_shape=msarc_shape)

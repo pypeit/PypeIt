@@ -86,6 +86,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.40  # Might be grating dependent..
+        par['calibrations']['wavelengths']['min_nsig'] = 30.  # Reddest chip
+        par['calibrations']['wavelengths']['lowest_nsig'] = 10.  # Reddest chip
 
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
@@ -384,6 +386,20 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
             # Down low
             badr = (161*2)//xbin # Transposed
             self.bpm_img[badr,:] = 1
+        elif det == 3:
+            msgs.info("Using hard-coded BPM for det=2 on GMOSs")
+
+            # Get the binning
+            hdu = fits.open(filename)
+            binning = hdu[1].header['CCDSUM']
+            hdu.close()
+
+            # Apply the mask
+            xbin = int(binning.split(' ')[0])
+            if xbin != 2:
+                debugger.set_trace() # NEED TO CHECK FOR YOUR BINNING
+            badr = (281*2)//xbin # Transposed
+            self.bpm_img[badr:badr+(2*2)//xbin,:] = 1
 
         return self.bpm_img
 
