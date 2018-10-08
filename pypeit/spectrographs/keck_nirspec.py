@@ -74,6 +74,12 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['exprng'] = [0, None]
         par['calibrations']['standardframe']['exprng'] = [None,5]
         par['scienceframe']['exprng'] = [1, None]
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Good for NIRSPEC-1
+        par['calibrations']['wavelengths']['lowest_nsig'] = 5.      # Good for NIRSPEC-1
+        par['calibrations']['wavelengths']['min_nsig'] = 5.      # Good for NIRSPEC-1
+
         return par
 
     def check_headers(self, headers):
@@ -108,7 +114,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         hdr_keys = {}
         hdr_keys[0] = {}
         hdr_keys[0]['idname'] = 'IMAGETYP'
-        hdr_keys[0]['date'] = 'DATE-OBS'
+        #hdr_keys[0]['date'] = 'DATE-OBS'
         hdr_keys[0]['utc'] = 'UTC'
         hdr_keys[0]['target'] = 'OBJECT'
         hdr_keys[0]['time'] = 'MJD-OBS'

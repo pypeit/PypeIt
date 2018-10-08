@@ -9,12 +9,16 @@ import numpy as np
 
 from matplotlib import pyplot as plt
 
+from astropy.table import vstack
+
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc
 from pypeit.core import masters
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.core.wavecal import autoid
+from pypeit.core.wavecal import waveio
 
 from pypeit import debugger
 
@@ -103,7 +107,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.arccen = None
 
 
-    def _build_wv_calib(self, method, skip_QA=False):
+    def _build_wv_calib(self, method, skip_QA=False, use_method='general'):
         """
         Main routine to generate the wavelength solutions in a loop over slits
 
@@ -126,12 +130,61 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Obtain calibration for all slits
         if method == 'simple':
+            # Should only run this on 1 slit
+            self.arcparam['n_first'] = 2
+            self.arcparam['n_final'] = 3
+            self.arcparam['func'] = 'legendre'
+            self.arcparam['nsig_rej'] = 2.
+            self.arcparam['nsig_rej_final'] = 3.
+            self.arcparam['match_toler'] = 3.
+            self.arcparam['disp_toler'] = 0.1
+            self.arcparam['Nstrong'] = 13
+
+            CuI = waveio.load_line_list('CuI', use_ion=True, NIST=True)
+            ArI = waveio.load_line_list('ArI', use_ion=True, NIST=True)
+            ArII = waveio.load_line_list('ArII', use_ion=True, NIST=True)
+            llist = vstack([CuI, ArI, ArII])
+            self.arcparam['llist'] = llist
+
             self.wv_calib = arc.simple_calib_driver(self.msarc, self.arcparam, self.arccen, ok_mask,
                                                     nfitpix=self.par['nfitpix'],
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'arclines':
-            self.wv_calib = arc.calib_with_arclines(self.arcparam, self.arccen, ok_mask=ok_mask)
+            #self.wv_calib = arc.calib_with_arclines(self.arcparam, self.arccen, ok_mask=ok_mask)
+            if ok_mask is None:
+                ok_mask = np.arange(self.arccen.shape[1])
+
+            if use_method == "semi-brute":
+                debugger.set_trace()  # THIS IS BROKEN
+                final_fit = {}
+                for slit in ok_mask:
+                    # HACKS BY JXP
+                    self.arcparam['wv_cen'] = 8670.
+                    self.arcparam['disp'] = 1.524
+                    best_dict, ifinal_fit = autoid.semi_brute(self.arccen[:, slit],
+                                                              self.arcparam['lamps'], self.arcparam['wv_cen'],
+                                                              self.arcparam['disp'],
+                                                              fit_parm=self.arcparam,
+                                                              min_nsig=self.par['min_nsig'],
+                                                              nonlinear_counts= self.arcparam['nonlinear_counts'])
+                    final_fit[str(slit)] = ifinal_fit.copy()
+            elif use_method == "basic":
+                final_fit = {}
+                for slit in ok_mask:
+                    status, ngd_match, match_idx, scores, ifinal_fit = \
+                        autoid.basic(self.arccen[:, slit], self.arcparam['lamps'], self.arcparam['wv_cen'], self.arcparam['disp'], nonlinear_counts = self.arcparam['nonlinear_counts'])
+                    final_fit[str(slit)] = ifinal_fit.copy()
+            else:
+                # Now preferred
+                #debugger.set_trace()
+                arcfitter = autoid.General(self.arccen, self.arcparam['lamps'], ok_mask=ok_mask,
+                                           fit_parm=self.arcparam, min_nsig=self.par['min_nsig'],
+                                           lowest_nsig=self.par['lowest_nsig'],
+                                           nonlinear_counts=self.arcparam['nonlinear_counts'],
+                                           rms_threshold=self.par['rms_threshold'], verbose=True)
+                patt_dict, final_fit = arcfitter.get_results()
+            self.wv_calib = final_fit
 
         # QA
         if not skip_QA:

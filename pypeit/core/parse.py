@@ -1,5 +1,4 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
-from future.utils import iteritems
 
 try:
     basestring
@@ -16,11 +15,8 @@ from multiprocessing import cpu_count
 import numpy as np
 
 from astropy.time import Time
+from pypeit import debugger
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
 
 # Logging
 from pypeit import msgs
@@ -640,6 +636,7 @@ def parse_binning(binning):
         if ',' in binning:
             binspatial, binspectral = [int(item) for item in binning.split(',')]  # Keck standard, I think
         else:
+            binspatial, binspectral = [int(item) for item in binning.strip().split(' ')]  # Gemini
             pass
     else:
         pass
@@ -670,7 +667,7 @@ def dummy_settings(pypeitdir=None, nfile=10, spectrograph='shane_kast_blue',
 
     """
     # Dummy argflag
-    if spectrograph not in ['shane_kast_blue', 'keck_nirspec', 'keck_deimos', 'keck_nires',
+    if spectrograph not in ['shane_kast_blue', 'keck_nirspec_low', 'keck_deimos', 'keck_nires',
                             'keck_lris_red']:
         msgs.error("Not setup for your instrument")  # You will need to fuss with scidx
     argf = get_argflag_class(("ARMS", spectrograph))

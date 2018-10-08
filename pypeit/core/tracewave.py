@@ -161,8 +161,9 @@ def tilts_image(tilts, lordloc, rordloc, pad, sz_y):
     return tiltsimg
 
 def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, satval,
-               idsonly=False, censpec=None, maskval=-999999.9,
-               tracethresh=1000.0, nsmth=0, method="fweight", wv_calib=None, nonlinear_counts = 1e10):
+               idsonly=False, censpec=None, maskval=-999999.9, tracethresh=20.0,
+               nsmth=0, method="fweight", wv_calib=None, nonlinear_counts = 1e10):
+
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
                tracethresh=1000.0, nsmth=0):
@@ -178,6 +179,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, satval,
     censpec
     maskval
     tracethresh : float, optional
+      This is now a significance whereas before it was an absolute threshold in counts
     nsmth
     method : str (fweight or cc)
 
@@ -198,18 +200,18 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, satval,
     dnum = parse.get_dnum(det)
 
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
-    tampl, tcent, twid, _, w, _ = arc.detect_lines(censpec, nfitpix=7, nonlinear_counts=nonlinear_counts)
+    tampl, tcent, twid, _, w, _ , tnsig = arc.detect_lines(censpec, nfitpix=7, nonlinear_counts=nonlinear_counts)
 
     # TODO: Validate satval value?
 #    satval = settings_det['saturation']*settings_det['nonlinear']
     # Order of the polynomials to be used when fitting the tilts.
     arcdet = (tcent[w]+0.5).astype(np.int)
-    ampl = tampl[w]
+    nsig = tnsig[w]
 
     # Determine the best lines to use to trace the tilts
     ncont = 15
     aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
-    w = np.where(ampl >= tracethresh)
+    w = np.where(nsig >= tracethresh)
     aduse[w] = 1
     # Remove lines that are within ncont pixels
     nuse = np.sum(aduse)
@@ -219,7 +221,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, satval,
     for s in range(nuse):
         w = np.where((np.abs(arcdet-detuse[s]) <= ncont) & (np.abs(arcdet-detuse[s]) >= 1.0))[0]
         for u in range(w.size):
-            if ampl[w[u]] > ampl[olduse][s]:
+            if nsig[w[u]] > nsig[olduse][s]:
                 aduse[idxuse[s]] = False
                 break
     # TODO Perhaps a more robust version of this code would only use the lines that were used in the wavelength solution. I guess

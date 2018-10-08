@@ -297,7 +297,7 @@ class PypeItSetup(object):
 
         """
         self.fitstbl.match_to_science(self.par['calibrations'], self.par['rdx']['calwin'],
-                                      setup=setup_only)
+                                      self.par['fluxcalib'], setup=setup_only)
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
 

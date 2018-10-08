@@ -230,6 +230,13 @@ class ScienceImage(processimages.ProcessImages):
         except KeyError:
             self.binning = 1,1
 
+        # This should have been set when we construct the fitstbl
+        try:
+            tval = Time(fitstbl['time'][self.scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
+        except:
+            debugger.set_trace()
+
+        '''
         tbname = None
         try:
             if 'T' in self.fitstbl['date'][self.scidx]:
@@ -247,16 +254,17 @@ class ScienceImage(processimages.ProcessImages):
                     # Really not ideal... just append date and time
                     tbname = self.fitstbl['date'][self.scidx] + 'T' \
                                     + str(self.fitstbl['time'][self.scidx])
+        '''
         # Time
-        tval = Time(tbname, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
-        dtime = datetime.datetime.strptime(tval.value, '%Y-%m-%dT%H:%M:%S.%f')
+        tiso = Time(tval, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
+        dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
         self.time = tval
         # Basename
         self.inst_name = camera
         self.target_name = self.fitstbl['target'][self.scidx].replace(" ", "")
         self.basename = self.target_name+'_'+self.inst_name+'_'+ \
                          datetime.datetime.strftime(dtime, '%Y%b%dT') + \
-                         tbname.split("T")[1].replace(':','')
+                         tiso.value.split("T")[1].replace(':','')
         # Return
         return self.time, self.basename
 
@@ -361,8 +369,8 @@ class ScienceImage(processimages.ProcessImages):
             sobjs_slit, self.skymask[thismask], self.objmask[thismask], proc_list \
                     = extract.objfind(image, thismask, self.tslits_dict['lcen'][:,slit],
                                       self.tslits_dict['rcen'][:,slit], inmask=inmask,
-                                      hand_extract_dict=self.par['manual'],
                                       nperslit=self.par['maxnumber'],
+                                      hand_extract_dict=self.par['manual'],
                                       specobj_dict=specobj_dict, show_peaks=show_peaks,
                                       show_fits=show_fits, show_trace=show_trace,
                                       qa_title=qa_title)
@@ -717,7 +725,7 @@ class ScienceImage(processimages.ProcessImages):
                                                        sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
-                ch_name = chname if chname is not None else 'global_sky'
+                ch_name = chname if chname is not None else 'global_sky_{}'.format(self.det)
                 viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in,
                                               mask=mask_in, clear=clear, wcs_match=True)
                                               #, cuts=(cut_min, cut_max))
@@ -730,7 +738,7 @@ class ScienceImage(processimages.ProcessImages):
                                                        sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
-                ch_name = chname if chname is not None else 'local_sky'
+                ch_name = chname if chname is not None else 'local_sky_{}'.format(self.det)
                 viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in,
                                               mask=mask_in, clear=clear, wcs_match=True)
                                               #, cuts=(cut_min, cut_max))
@@ -741,7 +749,7 @@ class ScienceImage(processimages.ProcessImages):
                     and self.mask is not None:
                 image = (self.sciimg - self.skymodel) * np.sqrt(self.ivarmodel)
                 image *= (self.mask == 0)
-                ch_name = chname if chname is not None else 'sky_resid'
+                ch_name = chname if chname is not None else 'sky_resid_{}'.format(self.det)
                 viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                               bitmask=bitmask_in, mask=mask_in, clear=clear,
                                               wcs_match=True)
@@ -753,7 +761,7 @@ class ScienceImage(processimages.ProcessImages):
                 # full model residual map
                 image = (self.sciimg - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
                 image *= (self.mask == 0)
-                ch_name = chname if chname is not None else 'resid'
+                ch_name = chname if chname is not None else 'resid_{}'.format(self.det)
                 viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                               bitmask=bitmask_in, mask=mask_in, clear=clear,
                                               wcs_match=True)

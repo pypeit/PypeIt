@@ -979,11 +979,10 @@ class ReducePar(ParSet):
         # to be redefined here.   To fix this, spectrograph specific
         # parameter sets (like DetectorPar) and where they go needs to
         # be rethought.
-        return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires',
-                'keck_nirspec_low',
+        return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec_low',
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
-                'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
-                'vlt_xshooter_nir']
+                'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 
+                'vlt_xshooter_nir', 'gemini_gmos_south', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham']
 
     def validate(self):
         pass
@@ -997,8 +996,8 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, reference=None, method=None, lamps=None, detection=None, numsearch=None,
-                 nfitpix=None, IDpixels=None, IDwaves=None, medium=None, frame=None):
+    def __init__(self, reference=None, method=None, lamps=None, rms_threshold=None, numsearch=None,
+                 nfitpix=None, IDpixels=None, IDwaves=None, medium=None, frame=None, min_nsig=None, lowest_nsig=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1040,10 +1039,17 @@ class WavelengthSolutionPar(ParSet):
                          'None for no calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['lamps']))
 
-        # TODO: Not used
-        defaults['detection'] = 6.0
-        dtypes['detection'] = [int, float]
-        descr['detection'] = 'Detection threshold for arc lines (in standard deviation)'
+        defaults['rms_threshold'] = 0.15
+        dtypes['rms_threshold'] = float
+        descr['rms_threshold'] = 'Minimum RMS for keeping a slit solution'
+
+        defaults['min_nsig'] = 30.0
+        dtypes['min_nsig'] = float
+        descr['min_nsig'] = 'Detection threshold for arc lines for "standard" lines'
+
+        defaults['lowest_nsig'] = 10.0
+        dtypes['lowest_nsig'] = float
+        descr['lowest_nsig'] = 'Detection threshold for arc lines for "weakest" lines'
 
         # TODO: Not used
         defaults['numsearch'] = 20
@@ -1056,7 +1062,7 @@ class WavelengthSolutionPar(ParSet):
         descr['nfitpix'] = 'Number of pixels to fit when deriving the centroid of the arc ' \
                            'lines (an odd number is best)'
 
-        dtypes['IDpixels'] = [int, list]
+        dtypes['IDpixels'] = [int, float, list]
         descr['IDpixels'] = 'One or more pixels at which to manually identify a line'
 
         dtypes['IDwaves'] = [int, float, list]
@@ -1089,8 +1095,8 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'reference', 'method', 'lamps', 'detection', 'numsearch', 'nfitpix',
-                    'IDpixels', 'IDwaves', 'medium', 'frame' ]
+        parkeys = [ 'reference', 'method', 'lamps', 'rms_threshold', 'numsearch', 'nfitpix',
+                    'IDpixels', 'IDwaves', 'medium', 'frame', 'min_nsig', 'lowest_nsig' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1257,10 +1263,11 @@ class TraceSlitsPar(ParSet):
                            'irregular.  Order is used for echelle spectroscopy or for slits ' \
                            'with separations that are a smooth function of the slit number.'
 
-        defaults['pcapar'] = [ 3, 2, 1, 0, 0, 0 ]
+        defaults['pcapar'] = [ 3, 2, 1, 0]
         dtypes['pcapar'] = list
         descr['pcapar'] = 'Order of the polynomials to be used to fit the principle ' \
-                          'components.  TODO: Provide more explanation'
+                          'components.  The list length must be equal to or less than polyorder+1. ' \
+                          'TODO: Provide more explanation'
 
         defaults['pcaextrap'] = [0, 0]
         dtypes['pcaextrap'] = list
@@ -1354,9 +1361,9 @@ class WaveTiltsPar(ParSet):
         descr['idsonly'] = 'Only use the arc lines that have an identified wavelength to trace ' \
                            'tilts'
 
-        defaults['tracethresh'] = 1000.
+        defaults['tracethresh'] = 20.
         dtypes['tracethresh'] = [int, float, list, numpy.ndarray]
-        descr['tracethresh'] = 'TODO: X fill in the doc for this'
+        descr['tracethresh'] = 'Significance threshold for arcs to be used in tracing wavelength tilts.'
 
         defaults['order'] = 2
         dtypes['order'] = int
@@ -2502,7 +2509,7 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'GEMININ','KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT' ]
+        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT' ]
 
     def validate(self):
         pass

@@ -373,7 +373,7 @@ def insufficient_frame_error(frametype):
                 + msgs.newline() + 'in the pypeit file')
 
 
-def match_warnings(calib_par, ftag, nmatch, numfr, target, setup=False):
+def match_warnings(calib_par, ftag, nmatch, numfr, target, setup=False, fluxpar=None):
     """
     Provide match warnings
 
@@ -386,6 +386,8 @@ def match_warnings(calib_par, ftag, nmatch, numfr, target, setup=False):
     target : str
       Name of the target
     settings_argflag : dict
+    fluxpar : ParSet, optional
+
 
     Returns
     -------
@@ -429,7 +431,11 @@ def match_warnings(calib_par, ftag, nmatch, numfr, target, setup=False):
             msgs.warn('No {0} frames for {1}'.format(ftag, target)
                       + ', but will use MasterFrames.')
         else:
-            insufficient_frame_error(ftag)
+            if fluxpar is not None:
+                insufficient_frame_error(ftag)
+            else:
+                msgs.warn('No {0} frames for {1}'.format(ftag, target)
+                          + ', but user does not want to flux anyways.')
 
     # Errors for insufficient ARC frames
     if ftag == 'arc' and (calib_par['wavelengths']['reference'] not in ['pixel', 'sky']):
