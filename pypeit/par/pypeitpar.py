@@ -982,8 +982,8 @@ class ReducePar(ParSet):
         return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires',
                 'keck_nirspec_low',
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
-                'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
-                'vlt_xshooter_nir']
+                'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 
+                'vlt_xshooter_nir', 'gemini_gmos_south', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham']
 
     def validate(self):
         pass
@@ -997,7 +997,7 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, reference=None, method=None, lamps=None, detection=None, numsearch=None,
+    def __init__(self, reference=None, method=None, lamps=None, rms_threshold=None, detection=None, numsearch=None,
                  nfitpix=None, IDpixels=None, IDwaves=None, medium=None, frame=None):
         # Grab the parameter names and values from the function
         # arguments
@@ -1039,6 +1039,10 @@ class WavelengthSolutionPar(ParSet):
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
                          'None for no calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['lamps']))
+
+        defaults['rms_threshold'] = 0.15
+        dtypes['rms_threshold'] = float
+        descr['rms_threshold'] = 'Minimum RMS for keeping a slit solution'
 
         # TODO: Not used
         defaults['detection'] = 6.0
@@ -1089,7 +1093,7 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'reference', 'method', 'lamps', 'detection', 'numsearch', 'nfitpix',
+        parkeys = [ 'reference', 'method', 'lamps', 'rms_threshold', 'detection', 'numsearch', 'nfitpix',
                     'IDpixels', 'IDwaves', 'medium', 'frame' ]
         kwargs = {}
         for pk in parkeys:
@@ -1257,10 +1261,11 @@ class TraceSlitsPar(ParSet):
                            'irregular.  Order is used for echelle spectroscopy or for slits ' \
                            'with separations that are a smooth function of the slit number.'
 
-        defaults['pcapar'] = [ 3, 2, 1, 0, 0, 0 ]
+        defaults['pcapar'] = [ 3, 2, 1, 0]
         dtypes['pcapar'] = list
         descr['pcapar'] = 'Order of the polynomials to be used to fit the principle ' \
-                          'components.  TODO: Provide more explanation'
+                          'components.  The list length must be equal to or less than polyorder+1. ' \
+                          'TODO: Provide more explanation'
 
         defaults['pcaextrap'] = [0, 0]
         dtypes['pcaextrap'] = list
@@ -1354,9 +1359,9 @@ class WaveTiltsPar(ParSet):
         descr['idsonly'] = 'Only use the arc lines that have an identified wavelength to trace ' \
                            'tilts'
 
-        defaults['tracethresh'] = 1000.
+        defaults['tracethresh'] = 20.
         dtypes['tracethresh'] = [int, float, list, numpy.ndarray]
-        descr['tracethresh'] = 'TODO: X fill in the doc for this'
+        descr['tracethresh'] = 'Significance threshold for arcs to be used in tracing wavelength tilts.'
 
         defaults['order'] = 2
         dtypes['order'] = int
@@ -2501,7 +2506,7 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'GEMININ','KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT' ]
+        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT' ]
 
     def validate(self):
         pass

@@ -1,9 +1,12 @@
 # Module for Processing Images, e.g. bias frames, arc frames
+
 from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
 import os
+
+from importlib import reload
 
 from astropy.io import fits
 
@@ -283,6 +286,7 @@ class ProcessImages(object):
                 temp = image-msbias
             elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
+                #debugger.set_trace()
                 temp = procimg.subtract_overscan(image, numamplifiers, self.datasec,
                                                    self.oscansec,
                                                    method=self.proc_par['overscan'],

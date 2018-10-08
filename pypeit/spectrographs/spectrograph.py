@@ -407,7 +407,7 @@ class Spectrograph(object):
         return headarr
 
     def get_match_criteria(self):
-        pass
+        msgs.error("You need match criteria for your spectrograph.")
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         raise NotImplementedError('Frame typing not defined for {0}.'.format(self.spectrograph))

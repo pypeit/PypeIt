@@ -17,6 +17,7 @@ from pypeit.core import framematch
 from pypeit.core import flux
 from pypeit.par import PypeItPar
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit import debugger
 
 # Initially tried to subclass this from astropy.table.Table, but that
 # proved too difficult.
@@ -164,11 +165,18 @@ class PypeItMetaData:
                     # Keyword not found in header
                     msgs.warn("{0} keyword not in header. Setting to None".format(key))
                     value = 'None'
-    
+                except TypeError:
+                    import pdb; pdb.set_trace()
+
                 # Convert the time to hours
                 # TODO: Done here or as a method in Spectrograph?
                 if key == 'time' and value != 'None':
-                    value = self.convert_time(value)
+                    # HERE IS A KULDGE
+                    if 'date' in data.keys():
+                        idate = headarr[ext['date']][head_keys[ext['date']]['date']]
+                    else:
+                        idate = None
+                    value = self.convert_time(value, date=idate)
     
                 # Set the value
                 vtype = type(value)
@@ -251,7 +259,7 @@ class PypeItMetaData:
 #                return h['UT']
 #        return None
 
-    def convert_time(self, in_time):
+    def convert_time(self, in_time, date=None):
         """
         Convert the time read from a file header to hours for all
         spectrographs.
@@ -259,9 +267,11 @@ class PypeItMetaData:
         Args:
             in_time (str):
                 The time read from the file header
+            date (str, optional):
+                The date read from the file header
 
         Returns:
-            float: The time in hours.
+            float: The MJD time
         """
         # Convert seconds to hours
         if self.spectrograph.timeunit == 's':
@@ -273,10 +283,12 @@ class PypeItMetaData:
 
         # Convert from an astropy.Time format
         if self.spectrograph.timeunit in time.Time.FORMATS.keys():
+            if date is not None:
+                in_time = date+'T'+in_time
             ival = float(in_time) if self.spectrograph.timeunit == 'mjd' else in_time
             tval = time.Time(ival, scale='tt', format=self.spectrograph.timeunit)
-            # Put MJD in hours
-            return tval.mjd * 24.0
+            # Put MJD
+            return tval.mjd #* 24.0
         
         msgs.error('Bad time unit')
 
@@ -538,7 +550,7 @@ class PypeItMetaData:
         # Write the output
         self.table[col_order].write(ofile, format=format, overwrite=overwrite)
     
-    def match_to_science(self, calib_par, calwin, setup=False, verbose=True):
+    def match_to_science(self, calib_par, calwin, fluxcalib_par, setup=False, verbose=True):
         """
 
         For a given set of identified data, match calibration frames to
@@ -557,6 +569,8 @@ class PypeItMetaData:
             calwin (:obj:`float`):
                 The minimum time difference between a calibration and
                 science exposure allowed.
+            fluxcalib_par (:class:`pypeit.par.pypitpar.FluxCalibPar`):
+                Needed for worrying about standard stars
             setup (:obj:`bool`, optional):
                 The operation is being executed only for an initial
                 setup.  **Need a good description of the behavior this
@@ -647,7 +661,8 @@ class PypeItMetaData:
 
                 # Have we identified enough of these calibration frames to continue?
                 if nmatch < np.abs(numfr):
-                    code = framematch.match_warnings(calib_par, ftag, nmatch, numfr, target)
+                    code = framematch.match_warnings(calib_par, ftag, nmatch, numfr, target,
+                                                     fluxpar=fluxcalib_par)
                     if code == 'break':
                         self['failure'][sci_idx] = True
                         self['sci_ID'][sci_idx] = -1  # This might break things but who knows..

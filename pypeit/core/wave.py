@@ -18,6 +18,7 @@ from astropy.coordinates import UnitSphericalRepresentation, CartesianRepresenta
 from astropy.time import Time
 
 from linetools.spectra import xspectrum1d
+from linetools import utils as ltu
 
 from pypeit import msgs
 from pypeit.core import arc
@@ -40,8 +41,8 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     """
     # Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
-    arx_amp, arx_cent, arx_wid, _, arx_w, arx_yprep = arc.detect_lines(arx_skyspec.flux.value)
-    obj_amp, obj_cent, obj_wid, _, obj_w, obj_yprep = arc.detect_lines(obj_skyspec.flux.value)
+    arx_amp, arx_cent, arx_wid, _, arx_w, arx_yprep, nsig = arc.detect_lines(arx_skyspec.flux.value)
+    obj_amp, obj_cent, obj_wid, _, obj_w, obj_yprep, nsig_obj= arc.detect_lines(obj_skyspec.flux.value)
 
     # Keep only 5 brightest amplitude lines (xxx_keep is array of
     # indices within arx_w of the 5 brightest)
@@ -144,8 +145,11 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     msgs.work("Consider taking median first [5 pixel]")
     everyn = obj_skyspec.npix // 20
     bspline_par = dict(everyn=everyn)
-    mask, ct = utils.robust_polyfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3,
+    try:
+        mask, ct = utils.robust_polyfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3,
                                     function='bspline', sigma=3., bspline_par=bspline_par)
+    except ValueError:
+        debugger.set_trace()
     obj_sky_cont = utils.func_val(ct, obj_skyspec.wavelength.value, 'bspline')
     obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
     mask, ct_arx = utils.robust_polyfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value, 3,
@@ -428,8 +432,9 @@ def geomotion_calculate(fitstbl, idx, time, longitude, latitude, altitude, reffr
     Correct the wavelength calibration solution to the desired reference frame
     """
     loc = (longitude * units.deg, latitude * units.deg, altitude * units.m,)
-    radec = SkyCoord(fitstbl["ra"][idx], fitstbl["dec"][idx], unit=(units.hourangle, units.deg),
-                     frame='fk5')
+    # Grab coord
+    radec = ltu.radec_to_coord((fitstbl["ra"][idx], fitstbl["dec"][idx]))
+    # Time
     obstime = Time(time.value, format=time.format, scale='utc', location=loc)
     return geomotion_velocity(obstime, radec, frame=refframe)
 

@@ -22,7 +22,9 @@ def parser(options=None):
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument('--raw_lris', action="store_true")
     parser.add_argument('--raw_deimos', action="store_true")
+    parser.add_argument('--raw_gmos', action="store_true")
     parser.add_argument('--exten', type=int, help="FITS extension")
+    parser.add_argument('--det', type=int, default=1, help="Detector number")
 
     if options is None:
         args = parser.parse_args()
@@ -37,9 +39,11 @@ def main(args):
     from astropy.io import fits
 
     from pypeit import msgs
-    from pypeit import ginga
     from pypeit.spectrographs import keck_lris
     from pypeit.spectrographs import keck_deimos
+    from pypeit.spectrographs import gemini_gmos
+    from pypeit import msgs
+    from pypeit import ginga
 
     # List only?
     if args.list:
@@ -70,5 +74,9 @@ def main(args):
         img, head, _ = keck_deimos.read_deimos(args.file)
         ginga.show_image(img)
 
-
+    # RAW_GEMINI??
+    if args.raw_gmos:
+        # Need to figure out the number of amps
+        img, head, _ = gemini_gmos.read_gmos(args.file, det=args.det)
+        ginga.show_image(img)
 

@@ -127,7 +127,7 @@ class Calibrations(object):
         self.mswave = None
         #self.datasec_img = None
 
-    def reset(self, setup, det, sci_ID, par):
+    def reset(self, setup, det, sci_ID, par=None):
         """
         Specify the parameters of the Calibrations class and reset all
         the internals to None. The internal dict is left unmodified.
@@ -144,7 +144,8 @@ class Calibrations(object):
         self.setup = setup
         self.det = det
         self.sci_ID = sci_ID
-        self.par = par
+        if par is not None:
+            self.par = par
 
         # Setup the calib_dict
         if self.setup not in self.calib_dict.keys():
@@ -404,7 +405,7 @@ class Calibrations(object):
 
         return self.mspixflatnrm, self.msillumflat
 
-    def get_slits(self, arms=True):
+    def get_slits(self, arms=True, redo=False):
         """
         Load or generate the slits.
         First, a trace flat image is generated
@@ -432,7 +433,7 @@ class Calibrations(object):
         self._chk_set(['setup', 'det', 'sci_ID', 'par'])
 
         # Return already generated data
-        if 'trace' in self.calib_dict[self.setup].keys():
+        if ('trace' in self.calib_dict[self.setup].keys()) and (not redo):
             self.tslits_dict = self.calib_dict[self.setup]['trace']
             self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
             return self.tslits_dict, self.maskslits
@@ -447,12 +448,12 @@ class Calibrations(object):
         # Load via master, as desired
         if not self.traceSlits.master():
             # Build the trace image first
-            trace_image_files = self.fitstbl.find_frame_files('trace', sci_ID=self.sci_ID)
-            traceImage = traceimage.TraceImage(self.spectrograph,
-                                           file_list=trace_image_files, det=self.det,
+            self.trace_image_files = self.fitstbl.find_frame_files('trace', sci_ID=self.sci_ID)
+            self.traceImage = traceimage.TraceImage(self.spectrograph,
+                                           file_list=self.trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
             # Load up and get ready
-            self.traceSlits.mstrace = traceImage.process(bias_subtract=self.msbias,
+            self.traceSlits.mstrace = self.traceImage.process(bias_subtract=self.msbias,
                                                          trim=self.par['trim'], apply_gain=True)
             _ = self.traceSlits.make_binarr()
 
@@ -582,8 +583,8 @@ class Calibrations(object):
                                              par=self.par['wavelengths'], det=self.det,
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], fitstbl=self.fitstbl,
-                                             sci_ID=self.sci_ID, redux_path=self.redux_path,
-                                             bpm=self.msbpm)
+                                             sci_ID=self.sci_ID, #maskslits=self.maskslits,
+                                             redux_path=self.redux_path, bpm=self.msbpm)
         # Load from disk (MasterFrame)?
         self.wv_calib = self.waveCalib.master()
         # Build?

@@ -8,7 +8,7 @@ from subprocess import Popen
 
 from scipy import ndimage
 
-#from importlib import reload
+from importlib import reload
 
 from astropy.io import fits
 
@@ -407,7 +407,6 @@ class TraceSlits(masterframe.MasterFrame):
     def _fill_tslits_dict(self):
         """
         Build a simple object holding the key trace bits and pieces that PYPIT wants
-
 
         Returns
         -------
@@ -866,15 +865,15 @@ class TraceSlits(masterframe.MasterFrame):
           'ginga' -- Display to an RC Ginga
         """
         if attr == 'edges':
-            viewer, ch = ginga.show_image(self.mstrace)
+            viewer, ch = ginga.show_image(self.mstrace, chname='edges')
             if self.lcen is not None:
                 ginga.show_slits(viewer, ch, self.lcen, self.rcen, slit_ids = np.arange(self.lcen.shape[1]) + 1, pstep=pstep)
         elif attr == 'edgearr':
             # TODO -- Figure out how to set the cut levels
-            debugger.show_image(self.edgearr)
+            debugger.show_image(self.edgearr, chname='edgearr')
         elif attr == 'siglev':
             # TODO -- Figure out how to set the cut levels
-            debugger.show_image(self.siglev)
+            debugger.show_image(self.siglev, chname='siglev')
 
     def save_master(self, root=None, gzip=True):
         """

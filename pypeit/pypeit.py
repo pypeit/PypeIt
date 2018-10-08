@@ -788,7 +788,7 @@ class MultiSlit(PypeIt):
         if std:
             if nobj == 0:
                 msgs.warn('No objects to extract for standard frame' + msgs.newline()
-                      + self.fitstbl['filename'][self.scidx])
+                      + self.fitstbl['filename'][self.sciI.scidx])
                 return
             # Extract
             skymodel, objmodel, ivarmodel, outmask, sobjs = self.stdI.local_skysub_extract(
@@ -816,7 +816,7 @@ class MultiSlit(PypeIt):
                                                 show_profile=self.show, show=self.show)
 
             # Flexure correction?
-            if self.par['flexure'] is not None:
+            if self.par['flexure']['method'] is not None:
                 sky_file, sky_spectrum = self.spectrograph.archive_sky_spectrum()
                 flex_list = wave.flexure_obj(sobjs, maskslits, self.par['flexure']['method'],
                                              sky_spectrum, sky_file=sky_file,
@@ -835,7 +835,7 @@ class MultiSlit(PypeIt):
                                                     self.caliBrate.par['wavelengths']['frame']))
 
                     vel, vel_corr \
-                            = wave.geomotion_correct(sobjs, maskslits, self.fitstbl, scidx,
+                            = wave.geomotion_correct(sobjs, maskslits, self.fitstbl, self.sciI.scidx,
                                                      self.obstime,
                                                      self.spectrograph.telescope['longitude'],
                                                      self.spectrograph.telescope['latitude'],
@@ -849,7 +849,7 @@ class MultiSlit(PypeIt):
 
         else:
             msgs.warn('No objects to extract for science frame' + msgs.newline()
-                      + self.fitstbl['filename'][scidx])
+                      + self.fitstbl['filename'][self.sciI.scidx])
             # set to first pass global sky
             skymodel = global_sky0
             objmodel = np.zeros_like(sciimg)
