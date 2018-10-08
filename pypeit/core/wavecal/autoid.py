@@ -155,7 +155,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
     npix = spec.size
 
     # Lines
-    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_nsig=min_nsig, nonlinear_counts = nonlinear_counts)
+    all_tcent, cut_tcent, icut, _ = wvutils.arc_lines_from_spec(spec, min_nsig=min_nsig, nonlinear_counts = nonlinear_counts)
 
     # Best
     best_dict = dict(nmatch=0, ibest=-1, bwv=0., min_nsig=min_nsig, unknown=False,
@@ -189,9 +189,9 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
                 nsig /= 2.
                 if nsig < lowest_nsig:
                     break
-                all_tcent, cut_tcent, icut = wvutils(spec, min_nsig=nsig, nonlinear_counts = nonlinear_counts)
+                all_tcent, cut_tcent, icut, _ = wvutils.arc_lines_from_spec(spec, min_nsig=nsig, nonlinear_counts = nonlinear_counts)
                 patterns.scan_for_matches(wv_cen, disp, npix, cut_tcent, wvdata,
-                                          best_dict=best_dict, pix_tol=pix_tol, nsig=nsig)
+                                          best_dict=best_dict, pix_tol=pix_tol)#, nsig=nsig)
 
         #if debug:
         #    pdb.set_trace()
@@ -212,8 +212,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
     tmp_dict = copy.deepcopy(best_dict)
     tmp_dict['nmatch'] = 0
     patterns.scan_for_matches(best_dict['bwv'], disp, npix, cut_tcent, wvdata,
-                              best_dict=tmp_dict, pix_tol=best_dict['pix_tol'],
-                              nsig=best_dict['nsig'], wvoff=1.)
+                              best_dict=tmp_dict, pix_tol=best_dict['pix_tol'], wvoff=1.)
     for kk,ID in enumerate(tmp_dict['IDs']):
         if (ID > 0.) and (best_dict['IDs'][kk] == 0.):
             best_dict['IDs'][kk] = ID
@@ -395,6 +394,9 @@ class General:
 
         # Load the linelist to be used for pattern matching
         self.load_linelist()
+        # HACK FOR NOW
+        #msgs.warn("REMOVE THIS!!")
+        #self._wvdata = self._wvdata[self._wvdata > 7400.]
 
         # Find the wavelength solution!
         # KD Tree algorithm only works for ThAr - check first that this is what is being used
@@ -454,6 +456,7 @@ class General:
             # has a dispersion that high. I'm changing this to be -1.5 which would be R ~ 100,000 at 3000A. In this regime
             # one would anyway use the ThAr routine. I'm rasing
             # the upper limit to be 2.0 to handle low-resolution data (i.e in the near-IR 2.5e4/100 = R ~ 250
+
             self._bind = np.linspace(-1.5, 2.0, self._ngridd)
         else:
             self._ngridd = self._bind.size
@@ -519,7 +522,11 @@ class General:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit))
                 self._detections[str(slit)] = [None,None]
                 continue
-            self._detections[str(slit)] = [self._all_tcent_weak.copy(), self._all_ecent_weak.copy()]
+            # Setup
+            #self._detections[str(slit)] = [self._all_tcent_weak.copy(), self._all_ecent_weak.copy()]
+            self._detections[str(slit)] = [self._all_tcent_weak[self._icut_weak].copy(),
+                                           self._all_ecent_weak[self._icut_weak].copy()]
+            # Run it
             best_patt_dict, best_final_fit = self.run_brute_loop(slit)
 
             # Print preliminary report
@@ -1042,17 +1049,36 @@ class General:
 
         return new_bad_slits
 
-    def get_use_tcent(self, corr, arrerr=None, weak=False):
-        """Set if pixels correlate with wavelength (corr==1) or anticorrelate (corr=-1)
-        """
+    def get_use_tcent(self, corr, cut=True, arrerr=None, weak=False):
+        """ Grab the lines to use
+            Args:
+                corr:  int
+                  Set if pixels correlate with wavelength (corr==1) or anticorrelate (corr=-1)
+                arrerr:
+                weak: bool, optional
+                   If True, return the weak lines
+                cut: bool, optional
+                   Cut on the lines according to significance
+
+            Returns:
+                arr: ndarray
+                err: ndarray
+
+            """
         # Decide which array to use
         if arrerr is None:
             if weak:
-                arr = self._all_tcent_weak.copy()
-                err = self._all_ecent_weak.copy()
+                if cut:
+                    arr = self._all_tcent_weak.copy()[self._icut_weak]
+                    err = self._all_ecent_weak.copy()[self._icut_weak]
+                else:
+                    debugger.set_trace()
             else:
-                arr = self._all_tcent.copy()
-                err = self._all_ecent.copy()
+                if cut:
+                    arr = self._all_tcent.copy()[self._icut]
+                    err = self._all_ecent.copy()[self._icut]
+                else:
+                    debugger.set_trace()
         else:
             arr, err = arrerr[0], arrerr[1]
         # Return the appropriate tcent
@@ -1349,9 +1375,6 @@ class General:
         # Perform final fit to the line IDs
         if self._thar:
             NIST_lines = (self._line_lists['NIST'] > 0) & (np.char.find(self._line_lists['Source'].data, 'MURPHY') >= 0)
-        elif 'OH_R24000' in self._lines:
-            # The OH lines aren't based on NIST, and should all be used
-            NIST_lines = self._line_lists['NIST'] == 0
         else:
             NIST_lines = self._line_lists['NIST'] > 0
         ifit = np.where(patt_dict['mask'])[0]

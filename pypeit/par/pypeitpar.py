@@ -979,8 +979,7 @@ class ReducePar(ParSet):
         # to be redefined here.   To fix this, spectrograph specific
         # parameter sets (like DetectorPar) and where they go needs to
         # be rethought.
-        return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires',
-                'keck_nirspec_low',
+        return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
                 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 
                 'vlt_xshooter_nir', 'gemini_gmos_south', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham']
@@ -997,8 +996,8 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, reference=None, method=None, lamps=None, rms_threshold=None, detection=None, numsearch=None,
-                 nfitpix=None, IDpixels=None, IDwaves=None, medium=None, frame=None):
+    def __init__(self, reference=None, method=None, lamps=None, rms_threshold=None, numsearch=None,
+                 nfitpix=None, IDpixels=None, IDwaves=None, medium=None, frame=None, min_nsig=None, lowest_nsig=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1044,10 +1043,13 @@ class WavelengthSolutionPar(ParSet):
         dtypes['rms_threshold'] = float
         descr['rms_threshold'] = 'Minimum RMS for keeping a slit solution'
 
-        # TODO: Not used
-        defaults['detection'] = 6.0
-        dtypes['detection'] = [int, float]
-        descr['detection'] = 'Detection threshold for arc lines (in standard deviation)'
+        defaults['min_nsig'] = 30.0
+        dtypes['min_nsig'] = float
+        descr['min_nsig'] = 'Detection threshold for arc lines for "standard" lines'
+
+        defaults['lowest_nsig'] = 10.0
+        dtypes['lowest_nsig'] = float
+        descr['lowest_nsig'] = 'Detection threshold for arc lines for "weakest" lines'
 
         # TODO: Not used
         defaults['numsearch'] = 20
@@ -1060,7 +1062,7 @@ class WavelengthSolutionPar(ParSet):
         descr['nfitpix'] = 'Number of pixels to fit when deriving the centroid of the arc ' \
                            'lines (an odd number is best)'
 
-        dtypes['IDpixels'] = [int, list]
+        dtypes['IDpixels'] = [int, float, list]
         descr['IDpixels'] = 'One or more pixels at which to manually identify a line'
 
         dtypes['IDwaves'] = [int, float, list]
@@ -1093,8 +1095,8 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'reference', 'method', 'lamps', 'rms_threshold', 'detection', 'numsearch', 'nfitpix',
-                    'IDpixels', 'IDwaves', 'medium', 'frame' ]
+        parkeys = [ 'reference', 'method', 'lamps', 'rms_threshold', 'numsearch', 'nfitpix',
+                    'IDpixels', 'IDwaves', 'medium', 'frame', 'min_nsig', 'lowest_nsig' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1670,7 +1672,6 @@ class ScienceImagePar(ParSet):
         dtypes['bspline_spacing'] = [int, float]
         descr['bspline_spacing'] = 'Break-point spacing for the bspline fit'
 
-        defaults['maxnumber'] = 10
         dtypes['maxnumber'] = int
         descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
                              'None for no limit.'

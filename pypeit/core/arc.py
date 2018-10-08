@@ -5,6 +5,11 @@ import inspect
 import numpy as np
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
+
+from scipy.ndimage.filters import gaussian_filter
+
+from astropy.stats import sigma_clipped_stats
+
 from pypeit import ararclines
 from pypeit import debugger
 from pypeit import msgs
@@ -13,9 +18,7 @@ from pypeit.core import parse
 from pypeit.core import pixels
 from pypeit.core import qa
 from pypeit.core.wavecal import autoid
-from scipy.ndimage.filters import gaussian_filter
-from astropy.stats import sigma_clipped_stats
-
+from pypeit import debugger
 
 # TODO: This should not be a core algorithm
 def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
@@ -64,6 +67,7 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
     # TODO: JFH: Why is the arcparam being modified in place instead of
     # being passed back from the spectrograh class.  This code looks
     # rather sloppy.
+    # It is very sloppy
     modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl,
                                                arc_idx=arc_idx, binspatial=binspatial,
                                                binspectral=binspectral, msarc_shape=msarc_shape)
@@ -761,7 +765,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     flg_quit = False
     fmin, fmax = -1., 1.
     msgs.info('Iterative wavelength fitting..')
-    debug=True
+    #debug=True
     while (n_order <= aparm['n_final']) and (flg_quit is False):
         #msgs.info('n_order={:d}'.format(n_order))
         # Fit with rejection
