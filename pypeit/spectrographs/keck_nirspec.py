@@ -74,6 +74,10 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['exprng'] = [0, None]
         par['calibrations']['standardframe']['exprng'] = [None,5]
         par['scienceframe']['exprng'] = [1, None]
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Good for NIRSPEC-1
+
         return par
 
     def check_headers(self, headers):
