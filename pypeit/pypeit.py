@@ -476,7 +476,7 @@ class PypeIt(object):
         sci_image_files = self.fitstbl.find_frame_files('science', sci_ID=sci_ID)
         scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
         self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
-                                              objtype='science', scidx=self.scidx, setup=self.setup,
+                                              objtype='science', scidx=scidx, setup=self.setup,
                                               par=self.par['scienceimage'],
                                               frame_par=self.par['scienceframe'])
         msgs.sciexp = self.sciI  # For QA on crash
