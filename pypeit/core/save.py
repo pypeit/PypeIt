@@ -608,13 +608,19 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
         if 'BOX_RADIUS' in specobj.boxcar.keys():
             slit_pix = 2.0*specobj.boxcar['BOX_RADIUS']
             # Convert to arcsec
-            binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
+            try:
+                binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
+            except KeyError:
+                binspatial, binspectral = 1,1
             boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.det-1]['platescale'])
         else:
             boxsize.append(0.)
 
         # Optimal profile (FWHM)
-        binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
+        try:
+            binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
+        except KeyError:
+            binspatial, binspatial = 1,1
         ## Old code binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
         opt_fwhm.append(np.median(specobj.fwhmfit)* binspatial
                                 * spectrograph.detector[specobj.det-1]['platescale'])

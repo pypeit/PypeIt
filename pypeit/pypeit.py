@@ -320,9 +320,9 @@ class PypeIt(object):
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
         #
-        scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
-        msgs.info("Reducing file {0:s}, target {1:s}".format(self.fitstbl['filename'][scidx],
-                                                             self.fitstbl['target'][scidx]))
+        self.scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
+        msgs.info("Reducing file {0:s}, target {1:s}".format(self.fitstbl['filename'][self.scidx],
+                                                             self.fitstbl['target'][self.scidx]))
 
         # Loop on Detectors
         for kk in range(self.spectrograph.ndet):
@@ -476,7 +476,7 @@ class PypeIt(object):
         sci_image_files = self.fitstbl.find_frame_files('science', sci_ID=sci_ID)
         scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
         self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
-                                              objtype='science', scidx=scidx, setup=self.setup,
+                                              objtype='science', scidx=self.scidx, setup=self.setup,
                                               par=self.par['scienceimage'],
                                               frame_par=self.par['scienceframe'])
         msgs.sciexp = self.sciI  # For QA on crash
@@ -833,7 +833,6 @@ class MultiSlit(PypeIt):
                 if sobjs is not None:
                     msgs.info("Performing a {0} correction".format(
                                                     self.caliBrate.par['wavelengths']['frame']))
-
                     vel, vel_corr \
                             = wave.geomotion_correct(sobjs, maskslits, self.fitstbl, self.sciI.scidx,
                                                      self.obstime,
