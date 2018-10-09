@@ -74,7 +74,7 @@ def test_run_from_spec1d(kast_blue_files, master_dir):
     # Load from Master
     sens_dict, _, _ = FxSpec.load_master_frame(force=True)
     assert 'FEIGE66' in sens_dict['std_name']
-    
+
 
 @dev_suite_required
 def test_from_sens_func(master_dir):
