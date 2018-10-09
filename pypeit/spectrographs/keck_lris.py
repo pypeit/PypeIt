@@ -468,6 +468,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         """
         par = KeckLRISSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'keck_lris_red'
+        #
+        par['calibrations']['slits']['sigdetect'] = 50.
         return par
 
     def check_headers(self, headers):
