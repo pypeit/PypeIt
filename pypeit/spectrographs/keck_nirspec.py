@@ -64,8 +64,9 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Do not flux calibrate
-        # Always correct for flexure, starting with default parameters
+        # NIRSPEC uses sky lines to calibrate; no need for flexure correction
         par['flexure'] = pypeitpar.FlexurePar()
+        par['flexure']['method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 2]
         par['calibrations']['darkframe']['exprng'] = [None, 5]

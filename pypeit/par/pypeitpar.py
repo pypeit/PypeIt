@@ -587,7 +587,7 @@ class FlexurePar(ParSet):
         """
         Return the valid flat-field methods
         """
-        return [ 'boxcar', 'slitcen' ]
+        return [ 'boxcar', 'slitcen', 'skip' ]
 
     def validate(self):
         """
@@ -2119,7 +2119,8 @@ class PypeItPar(ParSet):
         # Evaluate the strings if requested
         if evaluate:
             cfg = util.recursive_dict_evaluate(cfg)
-        
+        #import pdb; pdb.set_trace()
+
         # Instantiate the object based on the configuration dictionary
         return cls.from_dict(cfg)
 
@@ -2182,7 +2183,7 @@ class PypeItPar(ParSet):
 
         # Allow flexure to be turned on using cfg['rdx']
         pk = 'flexure'
-        default = FlexurePar() if pk in cfg['rdx'].keys() and cfg['rdx']['flexure'] else None
+        default = FlexurePar() #if pk in cfg['rdx'].keys() and cfg['rdx']['flexure'] else None
         kwargs[pk] = FlexurePar.from_dict(cfg[pk]) if pk in k else default
 
         # Allow flux calibration to be turned on using cfg['rdx']
