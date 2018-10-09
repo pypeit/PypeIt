@@ -53,6 +53,9 @@
 - Fussed with date/time driven by GMOS;  date is no longer required in `fitstbl`
 - Initial work on GMOS;  this is still work-in-progress
 - Pushed several arcparam items into the Wavelengths parset
+- Series of hacks for when binning is missing from the fitstbl
+- CuAr line lists for GMOS
+- New option to reduce only 1 det at a time
 
 0.8.1
 -----
