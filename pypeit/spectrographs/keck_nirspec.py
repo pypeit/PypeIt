@@ -64,7 +64,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Do not flux calibrate
-        # NIRSPEC uses sky lines to calibrate; no need for flexure correction
+        # NIRSPEC uses sky lines to wavelength calibrate; no need for flexure correction
         par['flexure'] = pypeitpar.FlexurePar()
         par['flexure']['method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
@@ -75,7 +75,8 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['exprng'] = [0, None]
         par['calibrations']['standardframe']['exprng'] = [None,5]
         par['scienceframe']['exprng'] = [1, None]
-
+        # Lower the default threshold for tilts
+        par['calibrations']['tilts']['tracethresh'] = 10.
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Good for NIRSPEC-1
         par['calibrations']['wavelengths']['lowest_nsig'] = 5.      # Good for NIRSPEC-1
