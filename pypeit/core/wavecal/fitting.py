@@ -7,6 +7,7 @@ import numpy as np
 
 from pypeit import utils
 from pypeit.core.wavecal import qa
+from pypeit import msgs
 
 from pypeit import debugger
 
@@ -50,7 +51,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
                                      aparm['func'], minv=fmin, maxv=fmax, weights=wfit[mask == 0])
         rms_pix = rms_ang/disp
         if verbose:
-            print("RMS = {:g}".format(rms_pix))
+            msgs.info("RMS = {:g}".format(rms_pix))
 
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask == 0]) + sv_ifit
@@ -87,7 +88,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp, plot_fil=None,
         if verbose:
             for kk, imask in enumerate(irej):
                 wave = utils.func_val(fit, xrej[kk], aparm['func'], minv=fmin, maxv=fmax)
-                print('Rejecting arc line {:g}; {:g}'.format(yfit[imask], wave))
+                msgs.info('Rejecting arc line {:g}; {:g}'.format(yfit[imask], wave))
     else:
         xrej = []
         yrej = []

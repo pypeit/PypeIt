@@ -180,7 +180,7 @@ class WaveCalib(masterframe.MasterFrame):
                                            fit_parm=self.arcparam, min_nsig=self.par['min_nsig'],
                                            lowest_nsig=self.par['lowest_nsig'],
                                            nonlinear_counts=self.arcparam['nonlinear_counts'],
-                                           rms_threshold=self.par['rms_threshold'], verbose=True)
+                                           rms_threshold=self.par['rms_threshold'])
                 patt_dict, final_fit = arcfitter.get_results()
             self.wv_calib = final_fit
 
