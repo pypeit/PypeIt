@@ -269,6 +269,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                              '6.CCDNAME': '14-4-3',
                              '7.CCDNAME': '14-4-2',
                              '8.CCDNAME': '14-5-2' }
+        headers[0]['INSTRUME'] = headers[0]['INSTRUME'][:6] # To handle both 'fresh' and KOA data
         super(KeckDEIMOSSpectrograph, self).check_headers(headers, expected_values=expected_values)
 
     def header_keys(self):
