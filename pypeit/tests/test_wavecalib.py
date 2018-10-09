@@ -61,14 +61,15 @@ def test_user_redo():
     waveCalib = wavecalib.WaveCalib(None, spectrograph='shane_kast_blue')
     waveCalib.load_wv_calib(wvcalib_file)
     # Setup
-    waveCalib.par['min_nsig'] = 10.
+    waveCalib.par['min_nsig'] = 5.
+    waveCalib.par['lowest_nsig'] = 5.
     nslit = 1
     _ = waveCalib._make_maskslits(nslit)
     npix = len(waveCalib.wv_calib['0']['spec'])
     waveCalib.arccen = np.zeros((npix,nslit))
     waveCalib.arccen[:,0] = waveCalib.wv_calib['0']['spec']
     # Do it
-    new_wv_calib = waveCalib._build_wv_calib('arclines')
+    new_wv_calib = waveCalib._build_wv_calib('arclines', skip_QA=True)
     #new_wv_calib = waveCalib.calibrate_spec(0)
     # Test
     assert new_wv_calib['0']['rms'] < 0.1
