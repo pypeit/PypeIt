@@ -97,7 +97,6 @@ class FluxSpec(masterframe.MasterFrame):
                                 len(self.std_specobjs), self.std_spec1d_file))
             std_spectro = self.std_header['INSTRUME']
 
-        debugger.set_trace()
         try:
             self.std_ra = self.std_header['RA']
         except:

@@ -258,10 +258,12 @@ class PypeIt(object):
                 #all_std_objs = []
                 #for det in self.std_dict[std_idx].keys():
                 #    all_std_objs += self.std_dict[std_idx][det]['specobjs']
-                debugger.set_trace()
-                FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs.specobjs, spectrograph=self.spectrograph,
-                                           setup=self.setup, master_dir=self.caliBrate.master_dir,
-                                           mode=self.par['calibrations']['masters'])
+                # Need the Header for RA/DEC
+                std_header = {}
+                for key in ['ra', 'dec', 'airmass', 'exptime']:
+                    std_header[key.upper()] = self.fitstbl[std_idx][key]
+                # Go
+                FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs.specobjs, spectrograph=self.spectrograph, setup=self.setup, master_dir=self.caliBrate.master_dir, std_header=std_header, mode=self.par['calibrations']['masters'])
                 sens_dict = FxSpec.master(self.fitstbl[std_idx])
             else:
                 # User provided it
