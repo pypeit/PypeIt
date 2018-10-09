@@ -375,7 +375,7 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
     prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
     # Add critical data to header
-    for key in ['ra', 'dec', 'exptime', 'date', 'target', 'airmass', 'instrume','filename']:
+    for key in ['ra', 'dec', 'exptime', 'target', 'airmass', 'instrume','filename']:
         # Allow for fitstbl vs. header
         try:
             prihdu.header[key.upper()] = header[key.upper()]

@@ -71,7 +71,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Copied over defaults
         hdr_keys[0]['idname'] = 'OBSTYPE'
         hdr_keys[0]['time'] = 'MJD-OBS'
-        hdr_keys[0]['date'] = 'DATE'
+        #hdr_keys[0]['date'] = 'DATE'
         hdr_keys[0]['utc'] = 'UTC'
         hdr_keys[0]['ut'] = 'UT'
         hdr_keys[0]['ra'] = 'RA'

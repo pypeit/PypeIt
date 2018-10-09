@@ -50,6 +50,9 @@
 - Edited how headers are read from the provided files
 - Created metadata.PypeItMetaData class to handle what was previously
   `fitstbl`
+- Fussed with date/time driven by GMOS;  date is no longer required in `fitstbl`
+- Initial work on GMOS;  this is still work-in-progress
+- Pushed several arcparam items into the Wavelengths parset
 
 0.8.1
 -----

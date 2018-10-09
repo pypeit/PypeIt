@@ -60,13 +60,20 @@ def test_user_redo():
     # Instantiate
     waveCalib = wavecalib.WaveCalib(None, spectrograph='shane_kast_blue')
     waveCalib.load_wv_calib(wvcalib_file)
+    # Setup
+    waveCalib.par['min_nsig'] = 10.
+    nslit = 1
+    _ = waveCalib._make_maskslits(nslit)
+    npix = len(waveCalib.wv_calib['0']['spec'])
+    waveCalib.arccen = np.zeros((npix,nslit))
+    waveCalib.arccen[:,0] = waveCalib.wv_calib['0']['spec']
     # Do it
-    waveCalib.arcparam['min_nsig'] = 30.
-    new_wv_calib = waveCalib.calibrate_spec(0)
+    new_wv_calib = waveCalib._build_wv_calib('arclines')
+    #new_wv_calib = waveCalib.calibrate_spec(0)
     # Test
     assert new_wv_calib['0']['rms'] < 0.1
 
-
+'''
 @dev_suite_required
 def test_step_by_step(master_dir):
     root_path = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
@@ -256,3 +263,4 @@ def test_wavecalib_general():
 #            print("Solution for {:s} failed N match!!".format(name))
         assert grade
 
+'''

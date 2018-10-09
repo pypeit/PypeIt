@@ -635,6 +635,8 @@ def parse_binning(binning):
     if isinstance(binning, basestring):
         if ',' in binning:
             binspatial, binspectral = [int(item) for item in binning.split(',')]  # Keck standard, I think
+        elif 'x' in binning:
+            binspatial, binspectral = [int(item) for item in binning.split('x')]  # LRIS
         else:
             binspatial, binspectral = [int(item) for item in binning.strip().split(' ')]  # Gemini
             pass

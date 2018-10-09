@@ -109,7 +109,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         hdr_keys = {}
         hdr_keys[0] = {}
         hdr_keys[0]['idname'] = 'IMAGETYP'
-        hdr_keys[0]['date'] = 'DATE-OBS'
+        #hdr_keys[0]['date'] = 'DATE-OBS'
         hdr_keys[0]['utc'] = 'UTC'
         hdr_keys[0]['target'] = 'OBJECT'
         hdr_keys[0]['time'] = 'MJD-OBS'
