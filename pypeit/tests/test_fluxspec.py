@@ -23,11 +23,8 @@ def data_path(filename):
 
 @pytest.fixture
 @dev_suite_required
-def master_dir():
-    # Any test that uses this directory also requires the DevSuite!
-#    return data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
-#            else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
-    return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
+def master_dir():  # THIS SHOULD NOT BE COOKED.  EVER
+    return data_path('MF_shane_kast_blue')
 
 
 # TODO: Not used
