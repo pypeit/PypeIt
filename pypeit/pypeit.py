@@ -258,6 +258,7 @@ class PypeIt(object):
                 #all_std_objs = []
                 #for det in self.std_dict[std_idx].keys():
                 #    all_std_objs += self.std_dict[std_idx][det]['specobjs']
+                debugger.set_trace()
                 FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs.specobjs, spectrograph=self.spectrograph,
                                            setup=self.setup, master_dir=self.caliBrate.master_dir,
                                            mode=self.par['calibrations']['masters'])

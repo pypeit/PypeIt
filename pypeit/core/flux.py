@@ -205,6 +205,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
                                                bounds_error=False,
                                                fill_value='extrapolate')(wave_star)
     else:
+        debugger.set_trace()
         msgs.error('Insufficient information provided for fluxing. '
                    'Either the coordinates of the standard or a stellar type and magnitude are needed.')
 
