@@ -53,7 +53,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['exprng'] = [0, None]
         par['calibrations']['arcframe']['exprng'] = [None, 61]
         par['calibrations']['standardframe']['exprng'] = [1, 61]
-        par['scienceframe']['exprng'] = [1, None]
+        par['scienceframe']['exprng'] = [61, None]
         return par
 
     def header_keys(self):
