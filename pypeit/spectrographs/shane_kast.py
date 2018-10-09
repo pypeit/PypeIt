@@ -52,7 +52,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['exprng'] = [0, None]
         par['calibrations']['traceframe']['exprng'] = [0, None]
         par['calibrations']['arcframe']['exprng'] = [None, 61]
-        par['calibrations']['standardframe']['exprng'] = [None, 61]
+        par['calibrations']['standardframe']['exprng'] = [1, 61]
         par['scienceframe']['exprng'] = [1, None]
         return par
 
