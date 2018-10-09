@@ -312,7 +312,7 @@ class General:
     Parameters
     ----------
     spec : ndarray
-      2D array of arcline spectra (npix,nslit)
+      2D array of arcline spectra (nspec,nslit)
     lines : list
       List of arc lamps on
     ok_mask : ndarray

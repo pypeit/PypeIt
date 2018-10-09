@@ -151,7 +151,6 @@ class WaveCalib(masterframe.MasterFrame):
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'arclines':
-            #self.wv_calib = arc.calib_with_arclines(self.arcparam, self.arccen, ok_mask=ok_mask)
             if ok_mask is None:
                 ok_mask = np.arange(self.arccen.shape[1])
 
@@ -177,7 +176,6 @@ class WaveCalib(masterframe.MasterFrame):
                     final_fit[str(slit)] = ifinal_fit.copy()
             else:
                 # Now preferred
-                #debugger.set_trace()
                 arcfitter = autoid.General(self.arccen, self.arcparam['lamps'], ok_mask=ok_mask,
                                            fit_parm=self.arcparam, min_nsig=self.par['min_nsig'],
                                            lowest_nsig=self.par['lowest_nsig'],

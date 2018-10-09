@@ -47,7 +47,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
     @property
     def pypeline(self):
-        return 'Echelle'
+        return 'MultiSlit'
 
     @staticmethod
     def default_pypeit_par():
