@@ -358,7 +358,7 @@ class General:
     """
 
     def __init__(self, spec, lines, ok_mask=None, min_nsig=50.0, nonlinear_counts = 1e10, islinelist=False,
-              outroot=None, debug = False, verbose=True,
+              outroot=None, debug = False, verbose=False,
               fit_parm=None, lowest_nsig=10., rms_threshold=0.15,
               binw=None, bind=None, nstore=1, use_unknowns=True):
 
