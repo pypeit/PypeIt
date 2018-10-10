@@ -56,8 +56,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_nires'
-        # Use the ARMS pipeline
-        par['rdx']['pipeline'] = 'ARMS'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
         par['calibrations']['biasframe']['number'] = 0
