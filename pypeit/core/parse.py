@@ -635,9 +635,13 @@ def parse_binning(binning):
     if isinstance(binning, basestring):
         if ',' in binning:
             binspatial, binspectral = [int(item) for item in binning.split(',')]  # Keck standard, I think
+        elif 'x' in binning:
+            binspatial, binspectral = [int(item) for item in binning.split('x')]  # LRIS
+        elif binning == 'None':
+            msgs.warn("Assuming unbinned, i.e.  1x1")
+            binspatial, binspectral = 1,1
         else:
             binspatial, binspectral = [int(item) for item in binning.strip().split(' ')]  # Gemini
-            pass
     else:
         pass
     # Finish

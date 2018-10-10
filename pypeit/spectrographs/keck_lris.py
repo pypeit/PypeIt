@@ -35,6 +35,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 30.
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+        # 1D wavelengths
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Always sky subtract, starting with default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -71,7 +73,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Copied over defaults
         hdr_keys[0]['idname'] = 'OBSTYPE'
         hdr_keys[0]['time'] = 'MJD-OBS'
-        hdr_keys[0]['date'] = 'DATE'
+        #hdr_keys[0]['date'] = 'DATE'
         hdr_keys[0]['utc'] = 'UTC'
         hdr_keys[0]['ut'] = 'UT'
         hdr_keys[0]['ra'] = 'RA'
@@ -468,6 +470,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         """
         par = KeckLRISSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'keck_lris_red'
+        #
+        par['calibrations']['slits']['sigdetect'] = 50.
         return par
 
     def check_headers(self, headers):

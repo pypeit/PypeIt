@@ -1043,11 +1043,11 @@ class WavelengthSolutionPar(ParSet):
         dtypes['rms_threshold'] = float
         descr['rms_threshold'] = 'Minimum RMS for keeping a slit solution'
 
-        defaults['min_nsig'] = 30.0
+        defaults['min_nsig'] = 5.
         dtypes['min_nsig'] = float
         descr['min_nsig'] = 'Detection threshold for arc lines for "standard" lines'
 
-        defaults['lowest_nsig'] = 10.0
+        defaults['lowest_nsig'] = 5.
         dtypes['lowest_nsig'] = float
         descr['lowest_nsig'] = 'Detection threshold for arc lines for "weakest" lines'
 

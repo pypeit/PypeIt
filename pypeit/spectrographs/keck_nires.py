@@ -47,7 +47,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
     @property
     def pypeline(self):
-        return 'Echelle'
+        return 'MultiSlit'
 
     @staticmethod
     def default_pypeit_par():
@@ -56,8 +56,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_nires'
-        # Use the ARMS pipeline
-        par['rdx']['pipeline'] = 'ARMS'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
         par['calibrations']['biasframe']['number'] = 0
@@ -119,7 +117,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Copied over defaults
         hdr_keys[0]['idname'] = 'OBSTYPE'
         hdr_keys[0]['time'] = 'MJD-OBS'
-        hdr_keys[0]['date'] = 'DATE-OBS'
+        #hdr_keys[0]['date'] = 'DATE-OBS'
         hdr_keys[0]['utc'] = 'UTC'
         hdr_keys[0]['ra'] = 'RA'
         hdr_keys[0]['dec'] = 'DEC'

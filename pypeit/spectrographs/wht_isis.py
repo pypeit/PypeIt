@@ -125,7 +125,7 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['idname'] = 'IMAGETYP'
         hdr_keys[0]['target'] = 'OBJECT'
         hdr_keys[0]['time'] = 'MJD-OBS'
-        hdr_keys[0]['date'] = 'DATE-OBS'
+        #hdr_keys[0]['date'] = 'DATE-OBS'
         hdr_keys[0]['utc'] = 'UT'
         hdr_keys[0]['ra'] = 'RA'
         hdr_keys[0]['dec'] = 'DEC'
