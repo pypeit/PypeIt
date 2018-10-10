@@ -393,31 +393,6 @@ class General:
         self._verbose = verbose
 
         # Load the linelist to be used for pattern matching
-        self.load_linelist()
-        # HACK FOR NOW
-        #msgs.warn("REMOVE THIS!!")
-        #self._wvdata = self._wvdata[self._wvdata > 7400.]
-
-        # Find the wavelength solution!
-        # KD Tree algorithm only works for ThAr - check first that this is what is being used
-        self._thar = False
-        if 'ThAr' in lines and len(lines) == 1:
-            self._thar = True
-            # Set up the grids to be used for pattern matching
-            self.set_grids(ngridw=5000, ngridd=1000)
-            msgs.info("Using KD Tree pattern matching algorithm to wavelength calibrate")
-            self.run_kdtree()
-        else:
-            # Set up the grids to be used for pattern matching
-            self.set_grids()
-            msgs.info("Using brute force pattern matching algorithm to wavelength calibrate")
-            self.run_brute()
-
-    def get_results(self):
-        return copy.deepcopy(self._all_patt_dict), copy.deepcopy(self._all_final_fit)
-
-    def load_linelist(self):
-        # Load line lists
         if self._islinelist:
             self._line_lists = self._lines
             self._unknwns = self._lines[:0].copy()
@@ -438,7 +413,25 @@ class General:
         # Generate the final linelist and sort
         self._wvdata = np.array(self._tot_list['wave'].data)  # Removes mask if any
         self._wvdata.sort()
-        return
+
+
+        # Find the wavelength solution!
+        # KD Tree algorithm only works for ThAr - check first that this is what is being used
+        self._thar = False
+        if 'ThAr' in lines and len(lines) == 1:
+            self._thar = True
+            # Set up the grids to be used for pattern matching
+            self.set_grids(ngridw=5000, ngridd=1000)
+            msgs.info("Using KD Tree pattern matching algorithm to wavelength calibrate")
+            self.run_kdtree()
+        else:
+            # Set up the grids to be used for pattern matching
+            self.set_grids()
+            msgs.info("Using brute force pattern matching algorithm to wavelength calibrate")
+            self.run_brute()
+
+    def get_results(self):
+        return copy.deepcopy(self._all_patt_dict), copy.deepcopy(self._all_final_fit)
 
     def set_grids(self, ngridw = 200, ngridd=2000): #ngridw = 200, ngridd=2000):
         # Set the wavelength grid
@@ -754,6 +747,8 @@ class General:
         bad_slits = np.setdiff1d(np.arange(self._nslit), good_slits, assume_unique=True)
         # Get the sign (i.e. if pixels correlate/anticorrelate with wavelength)
         # and dispersion (A/pix). Assume these are the same for all slits
+
+        # JFH I would take the median value here to be more robust
         sign = self._all_patt_dict[str(good_slits[0])]['sign']
         disp = self._all_patt_dict[str(good_slits[0])]['bdisp']
 
