@@ -52,7 +52,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['time']    = 'MJD-OBS'
         # The UT date of the observation which is used for heliocentric
         # (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
-        hdr_keys[0]['date']    = 'DATE-OBS'
+        #hdr_keys[0]['date']    = 'DATE-OBS'
         # Right Ascension of the target
         hdr_keys[0]['ra']      = 'RA'
         # Declination of the target
