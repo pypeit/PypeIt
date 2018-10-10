@@ -35,6 +35,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 30.
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+        # 1D wavelengths
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Always sky subtract, starting with default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
