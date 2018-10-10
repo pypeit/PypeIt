@@ -318,7 +318,11 @@ class PypeItMetaData:
             return self['framebit'] == 0
         indx = self.bitmask.flagged(self['framebit'], ftype)
         if sci_ID is not None:
-            indx &= (self['sci_ID'] & sci_ID > 0)
+            indx &= self['sci_ID']
+            if ftype == 'science':  # THIS IS KEY FOR near-IR where arc=science
+                indx &= self['sci_ID'] == sci_ID
+            else:
+                indx &= sci_ID > 0
         return np.where(indx)[0] if index else indx
 
     def find_frame_files(self, ftype, sci_ID=None):
