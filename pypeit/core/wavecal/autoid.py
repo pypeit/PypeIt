@@ -414,7 +414,6 @@ class General:
         self._wvdata = np.array(self._tot_list['wave'].data)  # Removes mask if any
         self._wvdata.sort()
 
-
         # Find the wavelength solution!
         # KD Tree algorithm only works for ThAr - check first that this is what is being used
         self._thar = False
@@ -771,11 +770,14 @@ class General:
                 stretch, shift = wvutils.match_peaks(self._spec[:, bs], self._spec[:, gs])
                 if stretch is None:
                     continue
+                # JFH Put in a cut on the cross-correlation value here in this logic
+                # so that we only consider slits that are sufficiently similar?
                 # Estimate wcen for this slit
                 wcen[cntr] = self._all_patt_dict[str(gs)]['bwv'] - shift*disp
-                # For each peak in the gs spectrum, identify the corresponding peaks in the bs spectrum
-                strfact = (self._npix + stretch - 1)/(self._npix - 1)
+                # For each peak in the gs spectrum, identify the corresponding peaks in the bs spectrum.
+                # Transform these gs line pixel locations ito the (shifted and stretched) bs frame
                 gsdet, _ = self.get_use_tcent(sign, arrerr=self._detections[str(gs)], weak=True)
+                strfact = (self._npix + stretch - 1)/(self._npix - 1)
                 gsdet_ss = shift + gsdet * strfact
                 if self._debug:
                     xplt = np.arange(self._npix)
@@ -784,20 +786,22 @@ class General:
                     plt.plot(gsdet_ss, 0.01*np.max(self._spec[:, bs])*np.ones(gsdet_ss.size), 'bo')
                     plt.show()
                     pdb.set_trace()
-                # Calculate wavelengths for the gsdet detections
+                # Calculate wavelengths for all of the gsdet detections
                 fitc = self._all_final_fit[str(gs)]['fitc']
                 xfit = gsdet/(self._npix - 1)
                 fitfunc = self._all_final_fit[str(gs)]['function']
                 fmin, fmax = 0.0, 1.0
                 wvval = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
+                # Loop over the bad slit line pixel detections and find the nearest good slit line
                 for dd in range(bsdet.size):
                     pdiff = np.abs(bsdet[dd]-gsdet_ss)
                     bstpx = np.argmin(pdiff)
                     # If a match is found within 2 pixels, consider this a successful match
                     if pdiff[bstpx] < 2.0:
+                        # Using the good slit wavelength solution, search for the nearest line in the line list
                         bstwv = np.abs(self._wvdata - wvval[bstpx])
+                        # This is probably not a good match
                         if bstwv[np.argmin(bstwv)] > 2.0*disp:
-                            # This is probably not a good match
                             continue
                         lindex = np.append(lindex, np.argmin(bstwv))
                         dindex = np.append(dindex, dd)
