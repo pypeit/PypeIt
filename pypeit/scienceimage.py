@@ -630,7 +630,8 @@ class ScienceImage(processimages.ProcessImages):
         mask = np.zeros_like(self.sciimg, dtype=self.bitmask.minimum_dtype(asuint=True))
 
         # Bad pixel mask
-        mask[self.bpm] = self.bitmask.turn_on(mask[self.bpm], 'BPM')
+        indx = self.bpm.astype(bool)
+        mask[indx] = self.bitmask.turn_on(mask[indx], 'BPM')
 
         # Cosmic rays
         indx = self.crmask.astype(bool)

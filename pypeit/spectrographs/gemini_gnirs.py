@@ -25,9 +25,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.numhead = 1
         self.detector = [
                 # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 1,
-                            dispaxis        = 1,
+            pypeitpar.DetectorPar(dataext         = 1,
+                            dispaxis        = 0,
                             dispflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -46,6 +45,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
+    @property
+    def pypeline(self):
+        return 'MultiSlit'
 
     @staticmethod
     def default_pypeit_par():
@@ -53,6 +55,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Gemini GNIRS reductions.
         """
         par = pypeitpar.PypeItPar()
+        # TODO: Make self.spectrograph a class attribute?
+        # Use the ARMS pipeline
+        #par['rdx']['pipeline'] = 'ARMS'
+        par['rdx']['spectrograph'] = 'gemini_gnirs'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
         par['calibrations']['biasframe']['number'] = 0
@@ -63,37 +69,37 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Set slits and tilts parameters
         par['calibrations']['tilts']['order'] = 2
-        par['calibrations']['tilts']['tracethresh'] = [1000, 50, 50, 50, 50]
-        par['calibrations']['slits']['polyorder'] = 4
-        #par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['pcatype'] = 'pixel'
-        par['calibrations']['slits']['sigdetect'] = 30
-        par['calibrations']['slits']['pcapar'] = [3, 2, 1,0]
+        par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10]
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slits']['min_slit_width'] = 4.0
+        par['calibrations']['slits']['number'] = 6
+        par['calibrations']['slits']['pcatype'] = 'order'
+        par['calibrations']['slits']['sigdetect'] = 300
+        par['calibrations']['slits']['pcapar'] = [4,3, 2, 1,0]
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Do not flexure correct
-        par['flexure'] = None
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypeitpar.FlexurePar()
+        par['flexure']['method'] = None
         return par
 
+    def gnirs_header_keys(self):
+        def_keys = self.default_header_keys()
+
+        def_keys[0]['target'] = 'OBJECT'
+        def_keys[0]['time'] = 'MJD_OBS'
+        def_keys[0]['decker'] = 'SLIT'
+        def_keys[0]['dispname'] = 'GRATING'
+        def_keys[0]['exptime'] = 'EXPTIME'
+        return def_keys
+
     def header_keys(self):
-        hdr_keys = {}
-        hdr_keys[0] = {}
-        hdr_keys[0]['target'] = 'OBJECT'
-        hdr_keys[0]['idname'] = 'OBSTYPE'
-        hdr_keys[0]['time'] = 'MJD_OBS'
-        hdr_keys[0]['date'] = 'DATE'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['binning'] = 'BINNING'
-        hdr_keys[0]['exptime'] = 'EXPTIME'
-        hdr_keys[0]['decker'] = 'SLIT'
-        hdr_keys[0]['dichroic'] = 'DICHNAME'
-        hdr_keys[0]['dispname'] = 'GRATING'
-        print(hdr_keys)
-        return hdr_keys
+        head_keys = self.gnirs_header_keys()
+        print(head_keys)
+        return head_keys
 
     def get_match_criteria(self):
         """Set the general matching criteria for Shane Kast."""

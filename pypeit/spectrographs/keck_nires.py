@@ -75,7 +75,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Do not correct for flexure
-        par['flexure'] = None
+        par['flexure'] = pypeitpar.FlexurePar()
+        par['flexure']['method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]
         par['calibrations']['arcframe']['exprng'] = [20, None]
@@ -117,7 +118,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Copied over defaults
         hdr_keys[0]['idname'] = 'OBSTYPE'
         hdr_keys[0]['time'] = 'MJD-OBS'
-        hdr_keys[0]['date'] = 'DATE-OBS'
+        #hdr_keys[0]['date'] = 'DATE-OBS'
         hdr_keys[0]['utc'] = 'UTC'
         hdr_keys[0]['ra'] = 'RA'
         hdr_keys[0]['dec'] = 'DEC'
@@ -126,6 +127,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['target'] = 'OBJECT'
         hdr_keys[0]['naxis0'] = 'NAXIS2'
         hdr_keys[0]['naxis1'] = 'NAXIS1'
+        hdr_keys[0]['binning'] = 1
+        hdr_keys[0]['dispname'] = 'INSTR'  # Should be 'spec' if in the spectroscopy mode
 
         return hdr_keys
 
@@ -153,7 +156,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         # Bias
         match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['binning'] = ''
+        #match_criteria['bias']['match']['binning'] = ''
 
         match_criteria['standard']['match'] = {}
         match_criteria['pixelflat']['match'] = {}
