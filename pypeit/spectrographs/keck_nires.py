@@ -153,7 +153,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         # Bias
         match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['binning'] = ''
+        #match_criteria['bias']['match']['binning'] = ''
 
         match_criteria['standard']['match'] = {}
         match_criteria['pixelflat']['match'] = {}
