@@ -402,9 +402,8 @@ def _read_data_file_table(lines, file_check=True):
     for i in range(nfiles):
         frametype[tbl['filename'][i]] = tbl['frametype'][i]
         filename = os.path.join(path, tbl['filename'][i])
-        if os.path.isfile(filename):
-            data_files.append(filename)
-        elif file_check:
+        data_files.append(filename)
+        if not os.path.isfile(filename) and file_check:
             msgs.error('File does not exist: {0}'.format(filename))
 
     return data_files, frametype, tbl
