@@ -21,11 +21,11 @@ def test_initialization():
     """ Load input PYPIT file
     """
     # Generate a PYPIT file
-    pypit_file = data_path('test.pypit')
+    pypit_file = data_path('test.pypeit')
     make_pypeit_file(pypit_file, 'shane_kast_blue', [data_path('b*fits.gz')], setup_mode=True)
     # Perform the setup
     setup = pypeitsetup.PypeItSetup.from_pypeit_file(pypit_file)
-    par, spectrograph, fitstbl, setup_dict = setup.run()
+    par, spectrograph, fitstbl, setup_dict = setup.run(sort_dir=data_path(''))
     # Test
     assert spectrograph.spectrograph == 'shane_kast_blue'
     assert len(fitstbl) == 2

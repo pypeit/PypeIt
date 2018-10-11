@@ -6,6 +6,8 @@ import numpy as np
 import os
 import datetime
 
+from pkg_resources import resource_filename
+
 from astropy.table import Table, Column, vstack
 from astropy.io import fits
 
@@ -15,8 +17,9 @@ from pypeit import msgs
 
 import pypeit  # For path
 from pypeit.core.wavecal import defs
-line_path = pypeit.__path__[0]+'/data/arc_lines/lists/'
-nist_path = pypeit.__path__[0]+'/data/arc_lines/NIST/'
+
+line_path = resource_filename('pypeit', '/data/arc_lines/lists/')
+nist_path = resource_filename('pypeit','/data/arc_lines/NIST/')
 
 
 def load_by_hand():
@@ -33,7 +36,7 @@ def load_by_hand():
     """
     str_len_dict = defs.str_len()
 
-    src_file = pypeit.__path__[0]+'/data/arc_lines/sources/by_hand_list.ascii'
+    src_file = resource_filename('pypeit', '/data/arc_lines/sources/by_hand_list.ascii')
     # Read
     line_list = Table.read(src_file, format='ascii.fixed_width', comment='#')
     # Add
@@ -59,14 +62,23 @@ def load_line_list(line_file, add_path=False, use_ion=False, NIST=False):
       Not yet implemented
     NIST : bool, optional
       NIST formatted table?
+    use_ion : bool, optional
+      Interpret line_file as an ion, e.g. CuI
 
     Returns
     -------
     line_list : Table
 
     """
+    if NIST:
+        path = nist_path
+    else:
+        path = line_path
     if use_ion:
-        line_file = line_path+'{:s}_lines.dat'.format(line_file)
+        if NIST:
+            line_file = path+'{:s}_vacuum.ascii'.format(line_file)
+        else:
+            line_file = path+'{:s}_lines.dat'.format(line_file)
     line_list = Table.read(line_file, format='ascii.fixed_width', comment='#')
     #  NIST?
     if NIST:

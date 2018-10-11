@@ -375,7 +375,7 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
     prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
     # Add critical data to header
-    for key in ['ra', 'dec', 'exptime', 'date', 'target', 'airmass', 'instrume','filename']:
+    for key in ['ra', 'dec', 'exptime', 'target', 'airmass', 'instrume','filename']:
         # Allow for fitstbl vs. header
         try:
             prihdu.header[key.upper()] = header[key.upper()]
@@ -667,7 +667,7 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
     # Original header
     path = fitstbl['directory'][scidx]
     ifile = fitstbl['filename'][scidx]
-    head0 = fits.getheader(path+ifile, ext=ext0)
+    head0 = fits.getheader(os.path.join(path, ifile), ext=ext0)
 
     # Primary HDU for output
     prihdu = fits.PrimaryHDU()
@@ -766,3 +766,4 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
     outfile = outdir+'/spec2d_{:s}.fits'.format(basename)
     hdulist.writeto(outfile, overwrite=clobber)
     msgs.info("Wrote: {:s}".format(outfile))
+

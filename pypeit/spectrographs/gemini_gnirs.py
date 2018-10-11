@@ -5,11 +5,10 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 from pypeit import msgs
-from pypeit.par.pypeitpar import DetectorPar
+from pypeit import telescopes
+from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pypeit import telescopes
-from pypeit.core import fsort
 
 from pypeit import debugger
 
@@ -26,8 +25,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.numhead = 1
         self.detector = [
                 # Detector 1
-                DetectorPar(dataext         = 1,
-                            dispaxis        = 1,
+            pypeitpar.DetectorPar(dataext         = 1,
+                            dispaxis        = 0,
                             dispflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -46,6 +45,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
+    @property
+    def pypeline(self):
+        return 'MultiSlit'
 
     @staticmethod
     def default_pypeit_par():
@@ -55,7 +57,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         # TODO: Make self.spectrograph a class attribute?
         # Use the ARMS pipeline
-        par['rdx']['pipeline'] = 'ARMS'
+        #par['rdx']['pipeline'] = 'ARMS'
+        par['rdx']['spectrograph'] = 'gemini_gnirs'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
         par['calibrations']['biasframe']['number'] = 0
@@ -66,12 +69,14 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Set slits and tilts parameters
         par['calibrations']['tilts']['order'] = 2
-        par['calibrations']['tilts']['tracethresh'] = [1000, 50, 50, 50, 50]
-        par['calibrations']['slits']['polyorder'] = 4
-        #par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['pcatype'] = 'pixel'
-        par['calibrations']['slits']['sigdetect'] = 30
-        par['calibrations']['slits']['pcapar'] = [3, 2, 1,0]
+        par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10]
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slits']['min_slit_width'] = 4.0
+        par['calibrations']['slits']['number'] = 6
+        par['calibrations']['slits']['pcatype'] = 'order'
+        par['calibrations']['slits']['sigdetect'] = 300
+        par['calibrations']['slits']['pcapar'] = [4,3, 2, 1,0]
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -88,6 +93,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         def_keys[0]['time'] = 'MJD_OBS'
         def_keys[0]['decker'] = 'SLIT'
         def_keys[0]['dispname'] = 'GRATING'
+        def_keys[0]['exptime'] = 'EXPTIME'
         return def_keys
 
     def header_keys(self):
@@ -98,7 +104,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     def get_match_criteria(self):
         """Set the general matching criteria for Shane Kast."""
         match_criteria = {}
-        for key in fsort.ftype_list:
+        for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
 
         match_criteria['standard']['match'] = {}

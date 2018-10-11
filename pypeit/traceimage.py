@@ -44,8 +44,6 @@ class TraceImage(processimages.ProcessImages):
       Detector index, starts at 1
     ind : list (optional)
       Indices for bias frames (if a Bias image may be generated)
-    fitstbl : Table (optional)
-      FITS info (mainly for filenames)
     par : ParSet
       PypitPar['calibrations']['traceframe']
 

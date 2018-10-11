@@ -51,7 +51,7 @@ class Spectrograph(object):
     __metaclass__ = ABCMeta
 
     def __init__(self):
-        self.spectrograph = 'generic'
+        self.spectrograph = 'base'
         self.telescope = None
         self.camera = None
         self.detector = None
@@ -86,9 +86,6 @@ class Spectrograph(object):
     @staticmethod
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
-
-    def add_to_fitstbl(self, fitstbl):
-        pass
 
     def _check_telescope(self):
         # Check the detector
@@ -365,66 +362,101 @@ class Spectrograph(object):
         """
         return self.empty_bpm(shape=shape, filename=filename, det=det, force=force)
 
+    # TODO: (KBW) I've removed all the defaults.  Should maybe revisit
+    # this
     def default_header_keys(self):
         def_head_keys = {}
         def_head_keys[0] = {}
-        def_head_keys[0]['target'] = 'OBJECT'     # Header keyword for the name given by the observer to a given frame
-        def_head_keys[0]['idname'] = 'OBSTYPE'    # The keyword that identifies the frame type (i.e. bias, flat, etc.)
-        def_head_keys[0]['time'] = 'MJD-OBS'      # The time stamp of the observation (i.e. decimal MJD)
-        def_head_keys[0]['date'] = 'DATE'         # The UT date of the observation which is used for heliocentric (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
-        def_head_keys[0]['ra'] = 'RA'             # Right Ascension of the target
-        def_head_keys[0]['dec'] = 'DEC'           # Declination of the target
-        def_head_keys[0]['airmass'] = 'AIRMASS'   # Airmass at start of observation
-        def_head_keys[0]['binning'] = 'BINNING'   # Binning
-        def_head_keys[0]['exptime'] = 'EXPTIME'   # Exposure time keyword
-        def_head_keys[0]['decker'] = 'SLITNAME'
-        def_head_keys[0]['dichroic'] = 'DICHNAME' # Dichroic name
-        def_head_keys[0]['dispname'] = 'GRISNAME' # Grism name
-        # Return
         return def_head_keys
 
     def header_keys(self):
         return self.default_header_keys()
 
+    def validate_metadata(self, fitstbl):
+        pass
+
+    def metadata_keys(self):
+        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker']
+
     def get_headarr(self, filename, strict=True):
-        headarr = ['None' for k in range(self.numhead)]
-        # Try to load em up
+        """
+        Read the header data from all the extensions in the file.
+
+        Args:
+            filename (:obj:`str`):
+                Name of the file to read.
+            strict (:obj:`bool`, optional):
+                Function will fault if :func:`fits.getheader` fails to
+                read any of the headers.  Set to False to report a
+                warning and continue.
+
+        Returns:
+            list: Returns a list of :attr:`numhead` :obj:`fits.Header`
+            objects with the extension headers.
+        """
+        headarr = ['None']*self.numhead
         try:
-            for k in range(self.numhead):
-                headarr[k] = fits.getheader(filename, ext=k)
+            headarr = [fits.getheader(filename, ext=k) for k in range(self.numhead)]
         except:
             if strict:
                 msgs.error("Error reading header from extension {0} of file:".format(filename))
             else:
-                msgs.warn("Bad header in extension of file:{:}".format(filename))
-                # TODO JFH Not following the logic of this error message which caused a crash. Changing to above.
-#               msgs.warn("Bad header in extension {0:d} of file:".format(filename))
-                msgs.warn("Proceeding on the hopes this was a calibration file, otherwise consider removing.")
+                msgs.warn('Bad header in extension of file: {0}'.format(filename) 
+                           + msgs.newline() + 'Proceeding on the hopes this was a '
+                           + 'calibration file, otherwise consider removing.')
         return headarr
 
     def get_match_criteria(self):
-        pass
+        msgs.error("You need match criteria for your spectrograph.")
 
-    def check_ftype(self, ftype, fitstbl):
-        return np.zeros(len(fitstbl), dtype=bool)
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        raise NotImplementedError('Frame typing not defined for {0}.'.format(self.spectrograph))
 
     def idname(self, ftype):
         """
-        Convert a given file type into a string that would
-        occur in the header indicating it.
+        Return the `idname` for the selected frame type for this instrument.
 
         Args:
-            ftype: str
-              File type, one of the items in arsort.ftype_list
+            ftype (str):
+                File type, which should be one of the keys in
+                :class:`pypeit.core.framematch.FrameTypeBitMask`.
 
         Returns:
-            idname: str
-
+            str: The value of `idname` that should be available in the
+            `PypeItMetaData` instance that identifies frames of this
+            type.
         """
-        return None
+        raise NotImplementedError('Header keyword with frame type not defined for {0}.'.format(
+                                  self.spectrograph))
 
-    def check_headers(self, headers):
-        pass
+    def check_headers(self, headers, expected_values=None):
+        """
+        Check headers match instrument-spectific expectations.
+
+        Args:
+            headers (list):
+                A list of headers read from a fits file
+
+        Raises:
+        """
+        # Check the number of headers provided
+        if len(headers) != self.numhead:
+            raise ValueError('Expected {0} headers, but only provided {1}'.format(self.numhead,
+                                                                                  len(headers)))
+
+        if expected_values is None:
+            msgs.warn('Specific header keyword checks have not been implemented for {0}.'.format(
+                                                                        self.spectrograph))
+            return
+
+        # Check a series of expected header keyword values
+        for k,v in expected_values.items():
+            ext, card = k.split('.')
+            ext = int(ext)
+            if headers[ext][card] != v:
+                raise ValueError('Keyword {0} in extension {1} has incorrect value.  '.format(
+                                    card, ext)
+                                 + 'Expected {0} but found {1}.'.format(v, headers[ext][card]))
 
     def setup_arcparam(self, **null_kwargs):
         return None
@@ -468,7 +500,8 @@ class Spectrograph(object):
         raise FileNotFoundError('Could not find archive sky spectrum: {0} or {1}'.format(
                                     self.sky_file, _sky_file))
 
-    def pypeit_class(self):
+    @property
+    def pypeline(self):
         return 'MultiSlit'
 
     def mm_per_pix(self, det=1):

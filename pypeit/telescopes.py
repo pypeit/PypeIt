@@ -14,7 +14,7 @@ from pypeit.par.pypeitpar import TelescopePar
 
 class GeminiNTelescopePar(TelescopePar):
     def __init__(self):
-        super(GeminiNTelescopePar, self).__init__(name='GEMININ',
+        super(GeminiNTelescopePar, self).__init__(name='GEMINI-N',
                                                longitude=155.47833,
                                                latitude=19.82833,
                                                elevation=4160.0)
@@ -62,3 +62,9 @@ class VLTTelescopePar(TelescopePar):
                                                longitude=70.404830556,
                                                latitude=-24.6271666666,
                                                elevation=2635.43)
+class GeminiSTelescopePar(TelescopePar):
+    def __init__(self):
+        super(GeminiSTelescopePar, self).__init__(name='GEMINI-S',
+                                              longitude=70.8062,              # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+                                              latitude=-30.1691,              # Latitude of the telescope
+                                              elevation=2200.0)               # Elevation of the telescope (in m)

@@ -11,23 +11,22 @@ import numpy as np
 from collections import OrderedDict
 
 from pypeit import msgs
-from pypeit.core import fsort
-from pypeit.core import qa
-from pypeit.par.util import make_pypeit_file, parse_pypeit_file
-
 from pypeit import pypeitsetup
-from pypeit.scripts import run_pypeit
-from pypeit.core import pypsetup
 from pypeit import calibrations
 from pypeit import scienceimage
-from pypeit.core import wave
 from pypeit import specobjs
-from pypeit.core import save
 from pypeit import fluxspec
+from pypeit.core import paths
+from pypeit.core import qa
+from pypeit.core import pypsetup
+from pypeit.core import wave
+from pypeit.core import save
 from pypeit.core import load
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.scripts import run_pypeit
+from pypeit.par.util import make_pypeit_file, parse_pypeit_file
 
 from pypeit import debugger
-
 
 class PypeIt(object):
     """
@@ -36,43 +35,47 @@ class PypeIt(object):
     .. todo::
         Improve docstring...
 
-    Parameters
-    ----------
-    spectrograph: Spectrograph
-    setups_path: str, optional
-      Path for files related to all setups
-    verbosity: int, optional
-      2=verbose
-    overwrite: bool, optional
-      Overwrite files
-    logname: str, optional
-      filename for log file
-    show: bool, optional
-      Show QA on screen along the way
+    Args:
+        spectrograph (:obj:`str`,
+            :class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The string or `Spectrograph` instance that sets the
+            instrument used to take the observations.  Used to set
+            :attr:`spectrograph`.
+        setups_path (:obj:`str`, optional):
+            Path for files related to all setups
+        verbosity (:obj:`int`, optional):
+            Verbosity level of system output.  Can be::
+                - 0: No output
+                - 1: Minimal output (default)
+                - 2: All output
+        overwrite (:obj:`bool`, optional):
+            Flag to overwrite any existing files/directories.
+        logname (:obj:`str`, optional):
+            The name of an ascii log file with the details of the
+            reduction.
+        show: (:obj:`bool`, optional):
+            Show reduction steps via plots (which will block further
+            execution until clicked on) and outputs to ginga. Requires
+            remote control ginga session via "ginga --modules=RC &"
 
-    Attributes
-    ----------
+    Attributes:
         pypeit_file (:obj:`str`):
             Name of the pypeit file to read.  Pypit files have a specific
             set of valid formats. A description can be found `here`_
             (include doc link).
-
-    Inherited Attributes
-    --------------------
     """
     __metaclass__ = ABCMeta
 
     def __init__(self, spectrograph, setups_path=None, verbosity=2,
                  overwrite=True, logname=None, show=False):
 
+        # Spectrometer class
+        self.spectrograph = load_spectrograph(spectrograph)
+
         # Init
-        self.spectrograph = spectrograph
         self.verbosity = verbosity
         self.overwrite = overwrite
-        if setups_path is None:
-            self.setups_path = os.getcwd()
-        else:
-            self.setups_path = setups_path
+        self.setups_path = os.getcwd() if setups_path is None else setups_path
 
         # Internals
         self.pypeit_file = None
@@ -84,8 +87,18 @@ class PypeIt(object):
         self.det = None
         self.sci_ID = None
 
+        self.tstart = None
+        self.fitstbl = None
+        self.par = None
+        self.caliBrate = None
+        self.basename = None
+        self.sciI = None
+        self.obstime = None
+        self.pypeitSetup = None
+        self.setup_dict = None
 
-    def build_setup_files(self, files_root):
+
+    def build_setup_files(self, files_root, extension='.fits'):
         """
         Generate the setup files for PypeIt from a list of input files
 
@@ -100,7 +113,8 @@ class PypeIt(object):
         # Record the starting time
         self.tstart = time.time()
 
-        pargs, sort_dir, self.setup_pypeit_file = self._make_setup_pypeit_file(files_root)
+        pargs, sort_dir, self.setup_pypeit_file \
+                = self._make_setup_pypeit_file(files_root, extension=extension)
         self._setup(self.setup_pypeit_file, setup_only=True, calibration_check=False,
                     sort_dir=sort_dir)
 
@@ -177,7 +191,7 @@ class PypeIt(object):
 
     def _chk_for_std(self):
         # Can only reduce these frames if the mask is the same
-        std_idx = fsort.ftype_indices(self.fitstbl, 'standard', self.sci_ID)
+        std_idx = self.fitstbl.find_frames('standard', sci_ID=self.sci_ID, index=True)
         if len(std_idx) > 0:
             std_idx = std_idx[0]
             return std_idx
@@ -191,8 +205,9 @@ class PypeIt(object):
         Generate all needed calibration files
 
         Args:
-            reuse_masters: bool, optional
-              Reuse MasterFrame files (where available)
+            reuse_masters (:obj:`bool`, optional):
+                Use the master frames if available (same as setting
+                par['calibrations']['masters'] = 'reuse'.
 
         Returns:
 
@@ -200,19 +215,20 @@ class PypeIt(object):
 
         self.tstart = time.time()
         self.std_dict = {}
-        all_sci_ID = self.fitstbl['sci_ID'].data[self.fitstbl['science']]  # Binary system: 1,2,4,8, etc.
+        # Science IDs are in a binary system: 1,2,4,8, etc.
+        all_sci_ID = self.fitstbl['sci_ID'][self.fitstbl.find_frames('science')]
         numsci = len(all_sci_ID)
         basenames = [None]*numsci  # For fluxing at the very end
 
         # Check par
-        required = [ 'rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib' ]
-        can_be_None = [ 'flexure', 'fluxcalib' ]
+        required = ['rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib']
+        can_be_None = ['flexure', 'fluxcalib']
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
         for kk,sci_ID in enumerate(all_sci_ID):
             sci_dict = self.reduce_exposure(sci_ID, reuse_masters=reuse_masters)
             # Save
-            scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
+            scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
             self.save_exposure(scidx, sci_dict, self.basename)
             basenames[kk] = self.basename
 
@@ -220,7 +236,8 @@ class PypeIt(object):
         for std_idx in self.std_dict.keys():
             # Basename
             ikey = list(self.std_dict[std_idx].keys())[0]  # Any will do, so take the first
-            std_spec_objs = self.save_exposure(std_idx, self.std_dict[std_idx], self.std_dict[std_idx][ikey]['basename'])
+            std_spec_objs = self.save_exposure(std_idx, self.std_dict[std_idx],
+                                               self.std_dict[std_idx][ikey]['basename'])
 
         # Flux?
         if self.par['fluxcalib'] is None or len(self.std_dict) == 0:
@@ -241,9 +258,12 @@ class PypeIt(object):
                 #all_std_objs = []
                 #for det in self.std_dict[std_idx].keys():
                 #    all_std_objs += self.std_dict[std_idx][det]['specobjs']
-                FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs.specobjs, spectrograph=self.spectrograph,
-                                           setup=self.setup, master_dir=self.caliBrate.master_dir,
-                                           mode=self.par['calibrations']['masters'])
+                # Need the Header for RA/DEC
+                std_header = {}
+                for key in ['ra', 'dec', 'airmass', 'exptime']:
+                    std_header[key.upper()] = self.fitstbl[std_idx][key]
+                # Go
+                FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs.specobjs, spectrograph=self.spectrograph, setup=self.setup, master_dir=self.caliBrate.master_dir, std_header=std_header, mode=self.par['calibrations']['masters'])
                 sens_dict = FxSpec.master(self.fitstbl[std_idx])
             else:
                 # User provided it
@@ -303,7 +323,7 @@ class PypeIt(object):
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
         #
-        scidx = np.where((self.fitstbl['sci_ID'] == sci_ID) & self.fitstbl['science'])[0][0]
+        scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(self.fitstbl['filename'][scidx],
                                                              self.fitstbl['target'][scidx]))
 
@@ -386,8 +406,8 @@ class PypeIt(object):
         # Write 1D spectra
         save_format = 'fits'
         if save_format == 'fits':
-            outfile = os.path.join(self.par['rdx']['redux_path'],
-                                   self.par['rdx']['scidir'], 'spec1d_{:s}.fits'.format(basename))
+            outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
+                                   'spec1d_{:s}.fits'.format(self.basename))
             helio_dict = dict(refframe='pixel'
             if self.caliBrate.par['wavelengths']['reference'] == 'pixel'
             else self.caliBrate.par['wavelengths']['frame'],
@@ -456,13 +476,12 @@ class PypeIt(object):
         self.sci_ID = sci_ID
         self.det = det
 
-        sci_image_files = fsort.list_of_files(self.fitstbl, 'science', sci_ID)
-        scidx = np.where((self.fitstbl['sci_ID'] == sci_ID) & self.fitstbl['science'])[0][0]
-        self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files,
-                                         det=det, objtype='science',
-                                         scidx=scidx, setup=self.setup,
-                                         par=self.par['scienceimage'],
-                                         frame_par=self.par['scienceframe'])
+        sci_image_files = self.fitstbl.find_frame_files('science', sci_ID=sci_ID)
+        scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
+        self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
+                                              objtype='science', scidx=scidx, setup=self.setup,
+                                              par=self.par['scienceimage'],
+                                              frame_par=self.par['scienceframe'])
         msgs.sciexp = self.sciI  # For QA on crash
 
         # Names and time
@@ -478,8 +497,12 @@ class PypeIt(object):
         Args:
             pypeit_file: str
             redux_path: str, optional
-            calibration_check: bool, optional
-              Check calibrations
+            calibration_check (:obj:`bool`, optional):
+                Only check that the calibration frames are appropriately
+                setup and exist on disk.  Pypit is expected to execute
+                in a way that ends after this class is fully
+                instantiated such that the user can inspect the results
+                before proceeding. 
 
         Returns:
 
@@ -498,9 +521,9 @@ class PypeIt(object):
         else:
             self.par['rdx']['redux_path'] = os.getcwd()
         msgs.info("Setting reduction path to {:s}".format(self.par['rdx']['redux_path']))
-        fsort.make_dirs(self.spectrograph.spectrograph, self.par['calibrations']['caldir'],
-                        self.par['rdx']['scidir'], self.par['rdx']['qadir'], overwrite=self.overwrite,
-                        redux_path=self.par['rdx']['redux_path'])
+        paths.make_dirs(self.spectrograph.spectrograph, self.par['calibrations']['caldir'],
+                        self.par['rdx']['scidir'], self.par['rdx']['qadir'],
+                        overwrite=self.overwrite, redux_path=self.par['rdx']['redux_path'])
         # Instantiate Calibration class
         self._init_calibrations()
 
@@ -530,15 +553,17 @@ class PypeIt(object):
         # Generate a dummy .pypeit file
         date = str(datetime.date.today().strftime('%Y-%b-%d'))
         root = self.spectrograph.spectrograph+'_'+date
-        pypeit_file = outdir+'/'+root+'.pypeit'
+        pypeit_file = os.path.join(outdir, root+'.pypeit')
 
         # Generate
-        dfname = "{:s}*{:s}*".format(files_root, extension)
+        dfname = '{:s}/*{:s}*'.format(files_root, extension) \
+                    if os.path.isdir(files_root) else '{:s}*{:s}*'.format(files_root, extension)
         # configuration lines
         cfg_lines = ['[rdx]']
         cfg_lines += ['    spectrograph = {0}'.format(self.spectrograph.spectrograph)]
         cfg_lines += ['    sortroot = {0}'.format(root)]
-        make_pypeit_file(pypeit_file, self.spectrograph, [dfname], cfg_lines=cfg_lines, setup_mode=True)
+        make_pypeit_file(pypeit_file, self.spectrograph, [dfname], cfg_lines=cfg_lines,
+                         setup_mode=True)
         msgs.info('Wrote template pypeit file: {0}'.format(pypeit_file))
 
         # Parser
@@ -572,19 +597,20 @@ class PypeIt(object):
         tend = time.time()
         codetime = tend-self.tstart
         if codetime < 60.0:
-            msgs.info('Data reduction execution time: {0:.2f}s'.format(codetime))
+            msgs.info('Execution time: {0:.2f}s'.format(codetime))
         elif codetime/60.0 < 60.0:
             mns = int(codetime/60.0)
             scs = codetime - 60.0*mns
-            msgs.info('Data reduction execution time: {0:d}m {1:.2f}s'.format(mns, scs))
+            msgs.info('Execution time: {0:d}m {1:.2f}s'.format(mns, scs))
         else:
             hrs = int(codetime/3600.0)
             mns = int(60.0*(codetime/3600.0 - hrs))
             scs = codetime - 60.0*mns - 3600.0*hrs
-            msgs.info('Data reduction execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs))
+            msgs.info('Execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs))
 
-
-    def _setup(self, pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False, sort_dir=None):
+    # TODO: deprecate use_header_id, not propagated anyway
+    def _setup(self, pypeit_file, setup_only=False, calibration_check=False, use_header_id=False,
+               sort_dir=None):
         """
         Setup PypeIt
            Check files for all calibrations
@@ -592,23 +618,24 @@ class PypeIt(object):
 
         Args:
             pypeit_file (str):
-            setup_only (bool, optional):
+            setup_only (:obj:`bool`, optional):
                 Only this setup will be performed.  Pypit is expected to
                 execute in a way that ends after this class is fully
                 instantiated such that the user can inspect the results
-                before proceeding.  This has the effect of providing more
-                output describing the success of the setup and how to
-                proceed, and provides warnings (instead of errors) for
-                issues that may cause the reduction itself to fail.
+                before proceeding.  This has the effect of providing
+                more output describing the success of the setup and how
+                to proceed, and provides warnings (instead of errors)
+                for issues that may cause the reduction itself to fail.
+
             calibration_check (bool, optional):
                 Only check that the calibration frames are appropriately
                 setup and exist on disk.  Pypit is expected to execute in a
                 way that ends after this class is fully instantiated such
                 that the user can inspect the results before proceeding.
-            use_header_frametype (bool, optional):
+            use_header_id (:obj:`bool`, optional):
                 Allow setup to use the frame types drawn from the file
                 headers using the instrument specific keywords.
-            sort_dir (str, optional):
+            sort_dir (:obj:`str`, optional):
                 The directory to put the '.sorted' file.
 
         Returns:
@@ -620,12 +647,12 @@ class PypeIt(object):
 
         # Perform the setup
         self.pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(pypeit_file)
-        self.par, _, self.fitstbl, self.setup_dict = self.pypeitSetup.run(setup_only=setup_only,
-                                                           calibration_check=calibration_check,
-                                                           use_header_frametype=use_header_frametype,
-                                                           sort_dir=sort_dir)
+        self.par, _, self.fitstbl, self.setup_dict \
+                = self.pypeitSetup.run(setup_only=setup_only, calibration_check=calibration_check,
+                                       use_header_id=use_header_id, sort_dir=sort_dir)
         # Write the fits table
-        self.pypeitSetup.write_fitstbl()
+        # This is now done in run()
+        #self.pypeitSetup.write_metadata(setup_only=setup_only, sort_dir=sort_dir)
 
     def show_science(self):
         """
@@ -634,14 +661,12 @@ class PypeIt(object):
         Returns:
 
         """
-        print(self.fitstbl[['target','ra','dec','exptime','dispname','sci_ID']][self.fitstbl['science']])
+        indx = self.fitstbl.find_frames('science')
+        print(self.fitstbl[['target','ra','dec','exptime','dispname','sci_ID']][indx])
 
     def __repr__(self):
         # Generate sets string
-        txt = '<{:s}: pypeit_file={}'.format(self.__class__.__name__,
-                                                          self.pypeit_file)
-        txt += '>'
-        return txt
+        return '<{:s}: pypeit_file={}>'.format(self.__class__.__name__, self.pypeit_file)
 
 
 class MultiSlit(PypeIt):
@@ -650,7 +675,7 @@ class MultiSlit(PypeIt):
 
     """
     def __init__(self, spectrograph, **kwargs):
-        PypeIt.__init__(self, spectrograph, **kwargs)
+        super(MultiSlit, self).__init__(spectrograph, **kwargs)
 
     def calibrate_one(self, sci_ID, det):
         """
@@ -666,9 +691,9 @@ class MultiSlit(PypeIt):
 
         """
         # Setup
-        self.setup = pypsetup.instr_setup(sci_ID, det, self.fitstbl, self.setup_dict,
-                                     self.spectrograph.detector[det-1]['numamplifiers'],
-                                     must_exist=True)
+        self.setup, self.setup_dict = pypsetup.instr_setup(sci_ID, det, self.fitstbl,
+                                                           setup_dict=self.setup_dict,
+                                                           must_exist=True)
         # Setup
         self.caliBrate.reset(self.setup, det, sci_ID, self.par['calibrations'])
         # Run em
@@ -685,11 +710,12 @@ class MultiSlit(PypeIt):
         """
         # TODO -- Need to make save_masters and write_qa optional
         # Init calib dict
-        self.caliBrate = calibrations.MultiSlitCalibrations(
-            self.fitstbl, spectrograph=self.spectrograph,
-            par=self.par['calibrations'],
-            redux_path=self.par['rdx']['redux_path'],
-            save_masters=True, write_qa=True, show=self.show)
+        self.caliBrate \
+                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
+                                                     par=self.par['calibrations'],
+                                                     redux_path=self.par['rdx']['redux_path'],
+                                                     save_masters=True, write_qa=True,
+                                                     show=self.show)
 
 
     def _extract_one(self, std=False):
@@ -709,9 +735,6 @@ class MultiSlit(PypeIt):
             vel_corr
 
         """
-        # TODO -- Turn the following stream into a recipe like in Calibrations
-        # TODO -- Should check the Calibs were done already
-        scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
 
         # Standard star specific
         if std:
@@ -723,7 +746,7 @@ class MultiSlit(PypeIt):
             else:
                 self.std_dict[self.std_idx] = {}
             # Files
-            std_image_files = fsort.list_of_files(self.fitstbl, 'standard', self.sci_ID)
+            std_image_files = self.fitstbl.find_frame_files('standard', sci_ID=self.sci_ID)
             if self.par['calibrations']['standardframe'] is None:
                 msgs.warn('No standard frame parameters provided.  Using default parameters.')
 
@@ -731,10 +754,9 @@ class MultiSlit(PypeIt):
             # TODO: Uses the same trace and extraction parameter sets used for the science
             # frames.  Should these be different for the standards?
             self.stdI = scienceimage.ScienceImage(self.spectrograph, file_list=std_image_files,
-                                                  frame_par=self.par['calibrations']['standardframe'],
-                                                  det=self.det,
-                                                  setup=self.setup, scidx=self.std_idx,
-                                                  objtype='standard', par=self.par['scienceimage'])
+                                          frame_par=self.par['calibrations']['standardframe'],
+                                          det=self.det, setup=self.setup, scidx=self.std_idx,
+                                          objtype='standard', par=self.par['scienceimage'])
             # Names and time
             _, self.std_basename = self.stdI.init_time_names(self.fitstbl)
             #
@@ -742,11 +764,12 @@ class MultiSlit(PypeIt):
         else:
             sciI = self.sciI
 
-        # Process images (includes inverse variance image, rn2 image, and CR mask)
-        sciimg, sciivar, rn2img, crmask = sciI.process(
-            self.caliBrate.msbias, self.caliBrate.mspixflatnrm, self.caliBrate.msbpm,
-            illum_flat=self.caliBrate.msillumflat, apply_gain=True, trim=self.caliBrate.par['trim'],
-            show=self.show)
+        # Process images (includes inverse variance image, rn2 image,
+        # and CR mask)
+        sciimg, sciivar, rn2img, crmask \
+                = sciI.process(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+                               self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
+                               apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
 
         # Object finding, first pass on frame without sky subtraction
         maskslits = self.caliBrate.maskslits.copy()
@@ -754,19 +777,21 @@ class MultiSlit(PypeIt):
             sobjs_obj0, nobj0 = sciI.find_objects(self.caliBrate.tslits_dict, skysub=False,
                                                    maskslits=maskslits)
 
-        # Global sky subtraction, first pass. Uses skymask from object finding
+        # Global sky subtraction, first pass. Uses skymask from object
+        # finding
         global_sky0 = sciI.global_skysub(self.caliBrate.tslits_dict,
                                          self.caliBrate.tilts_dict['tilts'],
                                          use_skymask=True, maskslits=maskslits, show=self.show)
 
-        # Object finding, second pass on frame *with* sky subtraction. Show here if requested
+        # Object finding, second pass on frame *with* sky subtraction.
+        # Show here if requested
         sobjs_obj, nobj = sciI.find_objects(self.caliBrate.tslits_dict, skysub=True,
-                                                 maskslits=maskslits, show_peaks=self.show)
+                                            maskslits=maskslits, show_peaks=self.show)
 
         if std:
             if nobj == 0:
                 msgs.warn('No objects to extract for standard frame' + msgs.newline()
-                      + self.fitstbl['filename'][self.scidx])
+                      + self.fitstbl['filename'][self.sciI.scidx])
                 return
             # Extract
             skymodel, objmodel, ivarmodel, outmask, sobjs = self.stdI.local_skysub_extract(
@@ -780,42 +805,45 @@ class MultiSlit(PypeIt):
             # Done
             return
 
-        # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
+        # If there are objects, do 2nd round of global_skysub,
+        # local_skysub_extract, flexure, geo_motion
         vel_corr = None
         if nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
-            global_sky = sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'],
-                                                 use_skymask=True, maskslits=maskslits, show=self.show)
+            global_sky = sciI.global_skysub(self.caliBrate.tslits_dict,
+                                            self.caliBrate.tilts_dict['tilts'], use_skymask=True,
+                                            maskslits=maskslits, show=self.show)
 
-            skymodel, objmodel, ivarmodel, outmask, sobjs = sciI.local_skysub_extract(self.caliBrate.mswave,
-                                                                                           maskslits=maskslits,
-                                                                                           show_profile=self.show, show=self.show)
-
+            skymodel, objmodel, ivarmodel, outmask, sobjs \
+                    = sciI.local_skysub_extract(self.caliBrate.mswave, maskslits=maskslits,
+                                                show_profile=self.show, show=self.show)
 
             # Flexure correction?
-            if self.par['flexure'] is not None:
+            if self.par['flexure']['method'] != 'skip':
                 sky_file, sky_spectrum = self.spectrograph.archive_sky_spectrum()
                 flex_list = wave.flexure_obj(sobjs, maskslits, self.par['flexure']['method'],
                                              sky_spectrum, sky_file=sky_file,
                                              mxshft=self.par['flexure']['maxshift'])
                 # QA
-                wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list, out_dir=self.par['rdx']['redux_path'])
+                wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list,
+                                out_dir=self.par['rdx']['redux_path'])
 
             # Helio
             # Correct Earth's motion
             # vel_corr = -999999.9
-            if (self.caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) and \
-                    (self.caliBrate.par['wavelengths']['reference'] != 'pixel'):
+            if (self.caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
+                    and (self.caliBrate.par['wavelengths']['reference'] != 'pixel'):
                 if sobjs is not None:
                     msgs.info("Performing a {0} correction".format(
-                        self.caliBrate.par['wavelengths']['frame']))
+                                                    self.caliBrate.par['wavelengths']['frame']))
 
-                    vel, vel_corr = wave.geomotion_correct(sobjs, maskslits, self.fitstbl, scidx,
-                                                           self.obstime,
-                                                           self.spectrograph.telescope['longitude'],
-                                                           self.spectrograph.telescope['latitude'],
-                                                           self.spectrograph.telescope['elevation'],
-                                                           self.caliBrate.par['wavelengths']['frame'])
+                    vel, vel_corr \
+                            = wave.geomotion_correct(sobjs, maskslits, self.fitstbl, self.sciI.scidx,
+                                                     self.obstime,
+                                                     self.spectrograph.telescope['longitude'],
+                                                     self.spectrograph.telescope['latitude'],
+                                                     self.spectrograph.telescope['elevation'],
+                                                     self.caliBrate.par['wavelengths']['frame'])
                 else:
                     msgs.info('There are no objects on detector {0} to perform a '.format(self.det)
                               + '{1} correction'.format(self.caliBrate.par['wavelengths']['frame']))
@@ -824,12 +852,16 @@ class MultiSlit(PypeIt):
 
         else:
             msgs.warn('No objects to extract for science frame' + msgs.newline()
-                      + self.fitstbl['filename'][scidx])
-            skymodel = global_sky0  # set to first pass global sky
+                      + self.fitstbl['filename'][self.sciI.scidx])
+            # set to first pass global sky
+            skymodel = global_sky0
             objmodel = np.zeros_like(sciimg)
-            ivarmodel = np.copy(sciivar)  # Set to sciivar. Could create a model but what is the point?
-            outmask = sciI.bitmask  # Set to inmask in case on objects were found
-            sobjs = sobjs_obj  # empty specobjs object from object finding
+            # Set to sciivar. Could create a model but what is the point?
+            ivarmodel = np.copy(sciivar)
+            # Set to inmask in case on objects were found
+            outmask = sciI.bitmask
+            # empty specobjs object from object finding
+            sobjs = sobjs_obj
 
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
 
@@ -845,22 +877,26 @@ class MultiSlit(PypeIt):
     def default_std_find_obj_steps():
         return ['process', 'global_skysub', 'find_objects']
 
+
 def instantiate_me(spectrograph, **kwargs):
     """
-    Simple wrapper for grabbing the right PypeIt class
+    Instantiate the PypeIt subclass appropriate for the provided
+    spectrograph.
+
+    The class must be subclassed from PypeIt.  See :class:`PypeIt` for
+    the description of the valid keyword arguments.
 
     Args:
-        name: str
-          Allowed options are MultiSlit
-        spectrograph: Spectrograph
-        **kwargs:
+        spectrograph
+            (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The instrument used to collect the data to be reduced.
 
     Returns:
-
+        :class:`PypeIt`: One of the classes with :class:`PypeIt` as its
+        base.
     """
-    if spectrograph.pypeit_class() == 'MultiSlit':
-        pypeIt = MultiSlit(spectrograph, **kwargs)
-    else:
-        msgs.error("NOT READY FOR THIS TYPE OF REDUX")
-    # Return
-    return pypeIt
+    indx = [ c.__name__ == spectrograph.pypeline for c in PypeIt.__subclasses__() ]
+    if not np.any(indx):
+        msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
+    return PypeIt.__subclasses__()[np.where(indx)[0][0]](spectrograph, **kwargs)
+

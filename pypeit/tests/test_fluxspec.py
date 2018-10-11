@@ -13,53 +13,44 @@ import pytest
 
 from pypeit import fluxspec
 from pypeit.scripts import flux_spec
-from pypeit.spectrographs import util as sutil
+from pypeit.tests.tstutils import dev_suite_required
 
-# These tests are not run on Travis
-if os.getenv('PYPEIT_DEV') is None:
-    skip_test=True
-else:
-    skip_test=False
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-master_dir = data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
-    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
-#master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
 
 @pytest.fixture
+@dev_suite_required
+def master_dir():  # THIS SHOULD NOT BE COOKED.  EVER
+    return data_path('MF_shane_kast_blue')
+
+
+# TODO: Not used
+@pytest.fixture
+@dev_suite_required
 def deimos_files():
-    if not skip_test:
-        deimos_std_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                                                 'spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits')
-    else:
-        deimos_std_file = None
-    return [deimos_std_file]
+    return [os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                         'spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits')]
+
 
 @pytest.fixture
+@dev_suite_required
 def kast_blue_files():
-    if not skip_test:
-        std_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                                          'spec1d_Feige66_KASTb_2015May20T041246.96.fits')
-        sci_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                                          'spec1d_J1217p3905_KASTb_2015May20T045733.56.fits')
-        kast_blue_files = [std_file, sci_file]
-    else:
-        kast_blue_files = None
-    return kast_blue_files
+    std_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                            'spec1d_Feige66_KASTb_2015May20T041246.96.fits')
+    sci_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                            'spec1d_J1217p3905_KASTb_2015May20T045733.56.fits')
+    return [std_file, sci_file]
 
-def test_run_from_spec1d(kast_blue_files):
 
-    if skip_test:
-        assert True
-        return
-
+@dev_suite_required
+def test_run_from_spec1d(kast_blue_files, master_dir):
     # Instantiate
     std_file, sci_file = kast_blue_files
     FxSpec = fluxspec.FluxSpec(std_spec1d_file=std_file, sci_spec1d_file=sci_file,
-                               spectrograph='shane_kast_blue', setup='A_01_aa',
+                             spectrograph='shane_kast_blue', setup='A_01_aa',
                                master_dir=master_dir)
     assert FxSpec.frametype == 'sensfunc'
     # Find the standard
@@ -82,12 +73,10 @@ def test_run_from_spec1d(kast_blue_files):
     assert 'FEIGE66' in sens_dict['std_name']
 
 
-def test_from_sens_func():
+@dev_suite_required
+def test_from_sens_func(master_dir):
     """ This test will fail if the previous one does as it need its output
     """
-    if skip_test:
-        assert True
-        return
     # TODO: Should change this to a from_sens_file instance.  Most of
     # the class is uninstantiated and methods will fail if you
     # instantiate this way...
@@ -95,10 +84,8 @@ def test_from_sens_func():
     assert isinstance(FxSpec3.sens_dict, dict)
 
 
+@dev_suite_required
 def test_script(kast_blue_files, deimos_files):
-    if skip_test:
-        assert True
-        return
     std_file, sci_file = kast_blue_files
     # Sensitivity function
     pargs = flux_spec.parser(['sensfunc',
@@ -126,3 +113,5 @@ def test_script(kast_blue_files, deimos_files):
                                '--multi_det=3,7'])
     flux_spec.main(pargs3)
     '''
+
+

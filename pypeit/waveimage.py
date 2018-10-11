@@ -81,8 +81,11 @@ class WaveImage(masterframe.MasterFrame):
         self.wave = np.zeros_like(self.tilts)
         for slit in ok_slits:
             iwv_calib = self.wv_calib[str(slit)]
-            tmpwv = utils.func_val(iwv_calib['fitc'], self.tilts, iwv_calib['function'],
+            try:
+                tmpwv = utils.func_val(iwv_calib['fitc'], self.tilts, iwv_calib['function'],
                                    minv=iwv_calib['fmin'], maxv=iwv_calib['fmax'])
+            except:
+                debugger.set_trace()
             word = np.where(self.slitpix == slit+1)
             self.wave[word] = tmpwv[word]
         # Step

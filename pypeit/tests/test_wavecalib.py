@@ -19,57 +19,64 @@ from pypeit import wavecalib
 from pypeit import bpmimage
 from pypeit import traceslits
 from pypeit import arcimage
-
+from pypeit.metadata import PypeItMetaData
+from pypeit.core import framematch
 from pypeit.core.wavecal import autoid
+from pypeit.tests.tstutils import dev_suite_required
+
 import json
 import h5py
-
-# These tests are not run on Travis
-if os.getenv('PYPEIT_DEV') is None:
-    skip_test = True
-else:
-    skip_test = False
 
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files/wavecalib')
     return os.path.join(data_dir, filename)
 
-master_dir = data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
-    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
 
-def chk_for_files(root):
-    files = glob.glob(root+'*')
-    if len(files) == 0:
-        return False
-    else:
-        return True
+@pytest.fixture
+@dev_suite_required
+def master_dir():
+    # Any test that uses this directory also requires the DevSuite!
+#    return data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
+#            else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
+    return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
 
 
+def read_old_fitstbl(spectrograph, f):
+    fitstbl = PypeItMetaData(spectrograph, data=Table.read(f))
+    type_bits = np.zeros(len(fitstbl), dtype=fitstbl.bitmask.minimum_dtype())
+    for bit in fitstbl.bitmask.keys():
+        type_bits[fitstbl[bit]] = fitstbl.bitmask.turn_on(type_bits[fitstbl[bit]], flag=bit)
+    fitstbl.set_frame_types(type_bits)
+    return fitstbl
+
+
+@dev_suite_required
 def test_user_redo():
-
-    if skip_test:
-        assert True
-        return
     # Check for files
     wvcalib_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'WaveCalib',
                                 'MasterWaveCalib_ShaneKastBlue_A.json')
-    assert chk_for_files(wvcalib_file)
+    assert os.path.isfile(wvcalib_file)
     # Instantiate
     waveCalib = wavecalib.WaveCalib(None, spectrograph='shane_kast_blue')
     waveCalib.load_wv_calib(wvcalib_file)
+    # Setup
+    waveCalib.par['min_nsig'] = 5.
+    waveCalib.par['lowest_nsig'] = 5.
+    nslit = 1
+    _ = waveCalib._make_maskslits(nslit)
+    npix = len(waveCalib.wv_calib['0']['spec'])
+    waveCalib.arccen = np.zeros((npix,nslit))
+    waveCalib.arccen[:,0] = waveCalib.wv_calib['0']['spec']
     # Do it
-    waveCalib.arcparam['min_nsig'] = 30.
-    new_wv_calib = waveCalib.calibrate_spec(0)
+    new_wv_calib = waveCalib._build_wv_calib('arclines', skip_QA=True)
+    #new_wv_calib = waveCalib.calibrate_spec(0)
     # Test
     assert new_wv_calib['0']['rms'] < 0.1
 
-
-def test_step_by_step():
-    if skip_test:
-        assert True
-        return
-
+'''
+@dev_suite_required
+def test_step_by_step(master_dir):
     root_path = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     setup = 'A_01_aa'
 
@@ -79,8 +86,10 @@ def test_step_by_step():
     TSlits = traceslits.TraceSlits.from_master_files(os.path.join(master_dir,
                                                                   'MasterTrace_A_01_aa'))
     TSlits._make_pixel_arrays()
-    fitstbl = Table.read(os.path.join(master_dir, 'shane_kast_blue_setup_A.fits'))
 
+    # Kludge to read in old fitstbl object into new one
+    fitstbl = read_old_fitstbl(AImg.spectrograph,
+                               os.path.join(master_dir, 'shane_kast_blue_setup_A.fits'))
 
     # Instantiate, note I'm not setting the bad pixel mask to keep this simple here
     waveCalib = wavecalib.WaveCalib(msarc, spectrograph='shane_kast_blue', setup=setup,
@@ -101,11 +110,8 @@ def test_step_by_step():
     waveCalib.save_master(wv_calib, outfile=data_path('tmp.json'))
 
 
-def test_one_shot():
-    if skip_test:
-        assert True
-        return
-
+@dev_suite_required
+def test_one_shot(master_dir):
     root_path = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     setup = 'A_01_aa'
 
@@ -115,7 +121,11 @@ def test_one_shot():
     TSlits = traceslits.TraceSlits.from_master_files(os.path.join(master_dir,
                                                                   'MasterTrace_A_01_aa'))
     TSlits._make_pixel_arrays()
-    fitstbl = Table.read(os.path.join(master_dir, 'shane_kast_blue_setup_A.fits'))
+
+    # Kludge to read in old fitstbl object into new one
+    fitstbl = read_old_fitstbl(AImg.spectrograph,
+                               os.path.join(master_dir, 'shane_kast_blue_setup_A.fits'))
+
     # Do it
     waveCalib = wavecalib.WaveCalib(msarc, spectrograph='shane_kast_blue', setup=setup,
                                     master_dir=master_dir, fitstbl=fitstbl, sci_ID=1, det=1)
@@ -254,3 +264,4 @@ def test_wavecalib_general():
 #            print("Solution for {:s} failed N match!!".format(name))
         assert grade
 
+'''

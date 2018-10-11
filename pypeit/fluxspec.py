@@ -20,7 +20,6 @@ from pypeit import utils
 from pypeit import masterframe
 from pypeit import specobjs
 
-from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par.pypeitpar import TelescopePar
 
@@ -126,40 +125,31 @@ class FluxSpec(masterframe.MasterFrame):
         if std_spectro is not None and sci_spectro is not None and std_spectro != sci_spectro:
             msgs.error('Standard spectra are not the same instrument as science!!')
 
-        # Instantiate the spectograph
+        # Instantiate the spectrograph
         _spectrograph = spectrograph
         if _spectrograph is None:
             _spectrograph = std_spectro
             if _spectrograph is not None:
                 msgs.info("Spectrograph set to {0} from standard file".format(_spectrograph))
-            self.spectrograph = load_spectrograph(spectrograph=_spectrograph)
         if _spectrograph is None:
             _spectrograph = sci_spectro
             if _spectrograph is not None:
                 msgs.info("Spectrograph set to {0} from science file".format(_spectrograph))
-            self.spectrograph = load_spectrograph(spectrograph=_spectrograph)
-        if isinstance(_spectrograph, str):
-            msgs.info("Spectrograph set to {0}, from argument string".format(_spectrograph))
-            self.spectrograph = load_spectrograph(spectrograph=_spectrograph)
-        elif isinstance(_spectrograph, Spectrograph):
-            msgs.info("Spectrograph set to {0}, from argument object".format(_spectrograph))
-            self.spectrograph = _spectrograph
+        self.spectrograph = load_spectrograph(_spectrograph)
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
                                          master_dir=master_dir, mode=mode)
         # Get the extinction data
         self.extinction_data = None
-        if _spectrograph is not None:
-            telescope = load_spectrograph(spectrograph=_spectrograph).telescope \
-                                    if isinstance(_spectrograph, str) \
-                                    else _spectrograph.telescope
+        if self.spectrograph is not None:
             self.extinction_data \
-                    = flux.load_extinction_data(telescope['longitude'], telescope['latitude'])
+                    = flux.load_extinction_data(self.spectrograph.telescope['longitude'],
+                                                self.spectrograph.telescope['latitude'])
         elif self.sci_header is not None and 'LON-OBS' in self.sci_header.keys():
             self.extinction_data \
                     = flux.load_extinction_data(self.sci_header['LON-OBS'],
-                                                  self.sci_header['LAT-OBS'])
+                                                self.sci_header['LAT-OBS'])
        
         # Once the spectrograph is instantiated, can also set the
         # extinction data
@@ -171,7 +161,8 @@ class FluxSpec(masterframe.MasterFrame):
         self.telluric = telluric
 
         # Main outputs
-        self.sens_dict = None if self.sens_file is None else masters._load(self.sens_file, frametype=self.frametype)[0]
+        self.sens_dict = None if self.sens_file is None \
+                            else masters._load(self.sens_file, frametype=self.frametype)[0]
 
         # Attributes
         self.steps = []

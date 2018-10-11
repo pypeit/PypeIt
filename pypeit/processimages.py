@@ -1,9 +1,12 @@
 # Module for Processing Images, e.g. bias frames, arc frames
+
 from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
 import os
+
+#from importlib import reload
 
 from astropy.io import fits
 
@@ -16,7 +19,6 @@ from pypeit.core import parse
 
 from pypeit.par import pypeitpar
 
-from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import debugger
@@ -72,13 +74,7 @@ class ProcessImages(object):
         if not isinstance(file_list, list):
             raise IOError("file_list input to ProcessImages must be list. Empty is fine")
         self.file_list = file_list
-
-        if isinstance(spectrograph, str):
-            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
-        elif isinstance(spectrograph, Spectrograph):
-            self.spectrograph = spectrograph
-        else:
-            raise TypeError('Must provide a name or instance for the Spectrograph.')
+        self.spectrograph = load_spectrograph(spectrograph)
 
         # Optional
         self.det = det
@@ -290,6 +286,7 @@ class ProcessImages(object):
                 temp = image-msbias
             elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
+                #debugger.set_trace()
                 temp = procimg.subtract_overscan(image, numamplifiers, self.datasec,
                                                    self.oscansec,
                                                    method=self.proc_par['overscan'],

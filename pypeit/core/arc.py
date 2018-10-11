@@ -5,6 +5,11 @@ import inspect
 import numpy as np
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
+
+from scipy.ndimage.filters import gaussian_filter
+
+from astropy.stats import sigma_clipped_stats
+
 from pypeit import ararclines
 from pypeit import debugger
 from pypeit import msgs
@@ -13,9 +18,7 @@ from pypeit.core import parse
 from pypeit.core import pixels
 from pypeit.core import qa
 from pypeit.core.wavecal import autoid
-from scipy.ndimage.filters import gaussian_filter
-from astropy.stats import sigma_clipped_stats
-
+from pypeit import debugger
 
 # TODO: This should not be a core algorithm
 def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
@@ -26,7 +29,7 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
     ----------
     spectrograph : str
     msarc_shape : tuple
-    fitstbl : Table
+    fitstbl : Table/PypeItMetaData
       Contains relevant information from fits header files
     arc_idx : int
       Index of the arc frame in the fitstbl
@@ -45,8 +48,6 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                     wvmnx=[2900.,12000.],# Guess at wavelength range
                     disp_toler=0.1,      # 10% tolerance
                     match_toler=3.,      # Matching tolerance (pixels)
-                    min_nsig=30.,        # Minimum significance
-                    lowest_nsig=10.,      # Lowest significance for weak lines
                     func='legendre',     # Function for fitting
                     n_first=1,           # Order of polynomial for first fit
                     n_final=4,           # Order of polynomial for final fit
@@ -55,10 +56,13 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                     Nstrong=13)          # Number of lines for auto-analysis
 
     # Instrument/disperser specific
-    disperser = fitstbl["dispname"][arc_idx]
+    disperser = fitstbl['dispname'][arc_idx]
     binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
-    # ToDo JFH: Why is the arcparam being modified in place instead of being passed back from the spectrograh class.
-    # This code looks rather sloppy.
+
+    # TODO: JFH: Why is the arcparam being modified in place instead of
+    # being passed back from the spectrograh class.  This code looks
+    # rather sloppy.
+    # It is very sloppy
     modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl,
                                                arc_idx=arc_idx, binspatial=binspatial,
                                                binspectral=binspectral, msarc_shape=msarc_shape)
@@ -70,7 +74,9 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
         slmps=slmps+','+lamp
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
 
-    arcparam['llist'] = ararclines.load_arcline_list(arcparam['lamps'], disperser,
+    # This step is nearly defunct
+    if False:
+        arcparam['llist'] = ararclines.load_arcline_list(arcparam['lamps'], disperser,
                                                      spectro_class.spectrograph,
                                                      wvmnx=arcparam['wvmnx'],
                                                      modify_parse_dict=modify_dict)
@@ -193,7 +199,7 @@ def get_censpec_old(lordloc, rordloc, pixlocn, frame, nonlinear_counts=None, gen
     # Extract a rough spectrum of the arc in each slit
     msgs.info("Extracting an approximate arc spectrum at the centre of each slit")
     tordcen = None
-    maskslit = np.zeros(ordcen.shape[1], dtype=np.int)
+    maskslit = np.zeros(ordcen.shape[1], dtype=bool)
     for i in range(ordcen.shape[1]):
         wl = np.size(np.where(ordcen[:, i] <= pixlocn[0,0,1])[0])
         wh = np.size(np.where(ordcen[:, i] >= pixlocn[0,-1,1])[0])
@@ -210,8 +216,8 @@ def get_censpec_old(lordloc, rordloc, pixlocn, frame, nonlinear_counts=None, gen
                 tordcen = np.zeros((ordcen.shape[0], 1), dtype=np.float)
             else:
                 tordcen = np.append(tordcen, ordcen[:, i].reshape((ordcen.shape[0], 1)), axis=1)
-            maskslit[i] = 1
-    w = np.where(maskslit == 0)[0]
+            maskslit[i] = True
+    w = np.where(~maskslit)[0]
     if tordcen is None:
         msgs.warn("Could not determine which slits are fully on the detector")
         msgs.info("Assuming all slits are fully on the detector")
@@ -243,9 +249,9 @@ def get_censpec_old(lordloc, rordloc, pixlocn, frame, nonlinear_counts=None, gen
                              frame[temparr, op1] + frame[temparr, op2] +
                              frame[temparr, om1] + frame[temparr, om2])
     # Pad masked ones with zeros
-    if np.sum(maskslit) > 0:
+    if np.any(maskslit):
         arccen = np.zeros((gd_arccen.shape[0], maskslit.size))
-        gd = maskslit == 0
+        gd = np.where(~maskslit)[0]
         arccen[:,gd] = gd_arccen
     else:
         arccen = gd_arccen
@@ -577,6 +583,19 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, FWHM = 10.0, cont_samp = 3
 
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
+    """
+    Fit an arc spectrum line
+
+    Args:
+        xarray:
+        yarray:
+        pixt:
+        fitp: int
+          Number of pixels to fit with
+
+    Returns:
+
+    """
 
     # Setup the arrays with fit parameters
     sz_p = pixt.size
@@ -627,7 +646,7 @@ def simple_calib_driver(msarc, aparm, censpec, ok_mask, nfitpix=5, get_poly=Fals
 
 
 def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
-                 IDpixels=None, IDwaves=None, debug=False):
+                 IDpixels=None, IDwaves=None, debug=False, sigdetect=5.):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -639,6 +658,8 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     censpec : ndarray
     get_poly : bool, optional
       Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
+    IDpixels : list
+    IDwaves : list
 
     Returns
     -------
@@ -648,7 +669,9 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, _, w, yprep, nsig = detect_lines(censpec, nfitpix=nfitpix, nonlinear_counts = aparm['nonlinear_counts'])
+    tampl, tcent, twid, _, w, yprep, nsig = detect_lines(censpec, nfitpix=nfitpix,
+                                                         sigdetect=sigdetect,
+                                                         nonlinear_counts = aparm['nonlinear_counts'])
 
     # Cut down to the good ones
     tcent = tcent[w]
@@ -763,11 +786,13 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     flg_quit = False
     fmin, fmax = -1., 1.
     msgs.info('Iterative wavelength fitting..')
+    #debug=True
     while (n_order <= aparm['n_final']) and (flg_quit is False):
         #msgs.info('n_order={:d}'.format(n_order))
         # Fit with rejection
         xfit, yfit = tcent[ifit], all_ids[ifit]
         mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
+        rms_ang = utils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask == 0]) + sv_ifit
         # Find new points (should we allow removal of the originals?)
@@ -776,16 +801,16 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
             mn = np.min(np.abs(iwave-llist['wave']))
             if mn/aparm['disp'] < aparm['match_toler']:
                 imn = np.argmin(np.abs(iwave-llist['wave']))
-                #if debug:
-                #    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
+                if debug:
+                    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
                 # Update and append
                 all_ids[ss] = llist['wave'][imn]
                 all_idsion[ss] = llist['Ion'][imn]
                 ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit,dtype=int))
-        #if debug:
-        #    debugger.set_trace()
+        if debug:
+            debugger.set_trace()
         # Increment order
         if n_order < aparm['n_final']:
             n_order += 1
@@ -865,6 +890,8 @@ def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
     final_fit : dict
       Dict of fit info
     """
+    raise DeprecationWarning("THIS HAS BEEN MOVED INSIDE wavecalib.py")
+    assert False
 
     if ok_mask is None:
         ok_mask = np.arange(spec.shape[1])
@@ -884,7 +911,8 @@ def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
     else:
         # Now preferred
         arcfitter = autoid.General(spec, aparm['lamps'], ok_mask=ok_mask, fit_parm=aparm, min_nsig=aparm['min_nsig'],
-                                   lowest_nsig=aparm['lowest_nsig'], nonlinear_counts = aparm['nonlinear_counts'])
+                                   lowest_nsig=aparm['lowest_nsig'], nonlinear_counts = aparm['nonlinear_counts'],
+                                   rms_threshold=aparm['rms_threshold'])
         patt_dict, final_fit = arcfitter.get_results()
     return final_fit
 
@@ -968,8 +996,12 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None, out_d
 
     Parameters
     ----------
+    setup: str
+      For outfile
     fit : dict
       Wavelength fit for this slit
+    slit : int
+      For outfile
     arc_spec : ndarray
       Arc spectrum
     outfile : str, optional
@@ -1069,7 +1101,7 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None, out_d
     if outfile == 'show':
         plt.show()
     else:
-        plt.savefig(outfile, dpi=800)
+        plt.savefig(outfile, dpi=400)
     plt.close()
 
     plt.rcdefaults()

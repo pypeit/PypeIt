@@ -155,7 +155,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
     npix = spec.size
 
     # Lines
-    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_nsig=min_nsig, nonlinear_counts = nonlinear_counts)
+    all_tcent, cut_tcent, icut, _ = wvutils.arc_lines_from_spec(spec, min_nsig=min_nsig, nonlinear_counts = nonlinear_counts)
 
     # Best
     best_dict = dict(nmatch=0, ibest=-1, bwv=0., min_nsig=min_nsig, unknown=False,
@@ -189,9 +189,9 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
                 nsig /= 2.
                 if nsig < lowest_nsig:
                     break
-                all_tcent, cut_tcent, icut = wvutils(spec, min_nsig=nsig, nonlinear_counts = nonlinear_counts)
+                all_tcent, cut_tcent, icut, _ = wvutils.arc_lines_from_spec(spec, min_nsig=nsig, nonlinear_counts = nonlinear_counts)
                 patterns.scan_for_matches(wv_cen, disp, npix, cut_tcent, wvdata,
-                                          best_dict=best_dict, pix_tol=pix_tol, nsig=nsig)
+                                          best_dict=best_dict, pix_tol=pix_tol)#, nsig=nsig)
 
         #if debug:
         #    pdb.set_trace()
@@ -212,8 +212,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
     tmp_dict = copy.deepcopy(best_dict)
     tmp_dict['nmatch'] = 0
     patterns.scan_for_matches(best_dict['bwv'], disp, npix, cut_tcent, wvdata,
-                              best_dict=tmp_dict, pix_tol=best_dict['pix_tol'],
-                              nsig=best_dict['nsig'], wvoff=1.)
+                              best_dict=tmp_dict, pix_tol=best_dict['pix_tol'], wvoff=1.)
     for kk,ID in enumerate(tmp_dict['IDs']):
         if (ID > 0.) and (best_dict['IDs'][kk] == 0.):
             best_dict['IDs'][kk] = ID
@@ -313,10 +312,11 @@ class General:
     Parameters
     ----------
     spec : ndarray
-      Extracted 1D Arc Spectrum
+      2D array of arcline spectra (nspec,nslit)
     lines : list
       List of arc lamps on
     ok_mask : ndarray
+      Array of good slits
     min_nsig : float
       Minimum significance of the arc lines that will be used in the fit
     nonlinear_counts : float, default = 1e10
@@ -370,10 +370,12 @@ class General:
         self._binw = binw
         self._bind = bind
 
+        # Mask info
         if ok_mask is None:
             self._ok_mask = np.arange(self._nslit)
         else:
             self._ok_mask = ok_mask
+        self._bad_slits = []  # List of bad slits
 
         self._min_nsig = min_nsig
         self._lowest_nsig = lowest_nsig
@@ -392,6 +394,9 @@ class General:
 
         # Load the linelist to be used for pattern matching
         self.load_linelist()
+        # HACK FOR NOW
+        #msgs.warn("REMOVE THIS!!")
+        #self._wvdata = self._wvdata[self._wvdata > 7400.]
 
         # Find the wavelength solution!
         # KD Tree algorithm only works for ThAr - check first that this is what is being used
@@ -451,6 +456,7 @@ class General:
             # has a dispersion that high. I'm changing this to be -1.5 which would be R ~ 100,000 at 3000A. In this regime
             # one would anyway use the ThAr routine. I'm rasing
             # the upper limit to be 2.0 to handle low-resolution data (i.e in the near-IR 2.5e4/100 = R ~ 250
+
             self._bind = np.linspace(-1.5, 2.0, self._ngridd)
         else:
             self._ngridd = self._bind.size
@@ -514,8 +520,13 @@ class General:
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), min_nsig=self._lowest_nsig, nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit))
+                self._detections[str(slit)] = [None,None]
                 continue
-            self._detections[str(slit)] = [self._all_tcent_weak.copy(), self._all_ecent_weak.copy()]
+            # Setup
+            #self._detections[str(slit)] = [self._all_tcent_weak.copy(), self._all_ecent_weak.copy()]
+            self._detections[str(slit)] = [self._all_tcent_weak[self._icut_weak].copy(),
+                                           self._all_ecent_weak[self._icut_weak].copy()]
+            # Run it
             best_patt_dict, best_final_fit = self.run_brute_loop(slit)
 
             # Print preliminary report
@@ -573,6 +584,11 @@ class General:
           the closest distance to a pattern is < pixtol/npix, where npix
           is the number of pixels in the spectral direction. Ideally, this
           should depend on the pattern...
+
+        Internals
+        ---------
+
+        detections : list of lists
         """
 
         # Load the linelist KD Tree
@@ -745,6 +761,10 @@ class General:
         new_bad_slits = np.array([], dtype=np.int)
         for bs in bad_slits:
             if bs not in self._ok_mask:
+                continue
+            if self._detections[str(bs)][0] is None:  # No detections at all; slit is hopeless
+                msgs.warn("Slit {} has no arc line detections.  Likely this slit is junk!")
+                self._bad_slits.append(bs)
                 continue
             bsdet, _ = self.get_use_tcent(sign, arrerr=self._detections[str(bs)], weak=True)
             lindex = np.array([], dtype=np.int)
@@ -1029,17 +1049,36 @@ class General:
 
         return new_bad_slits
 
-    def get_use_tcent(self, corr, arrerr=None, weak=False):
-        """Set if pixels correlate with wavelength (corr==1) or anticorrelate (corr=-1)
-        """
+    def get_use_tcent(self, corr, cut=True, arrerr=None, weak=False):
+        """ Grab the lines to use
+            Args:
+                corr:  int
+                  Set if pixels correlate with wavelength (corr==1) or anticorrelate (corr=-1)
+                arrerr:
+                weak: bool, optional
+                   If True, return the weak lines
+                cut: bool, optional
+                   Cut on the lines according to significance
+
+            Returns:
+                arr: ndarray
+                err: ndarray
+
+            """
         # Decide which array to use
         if arrerr is None:
             if weak:
-                arr = self._all_tcent_weak.copy()
-                err = self._all_ecent_weak.copy()
+                if cut:
+                    arr = self._all_tcent_weak.copy()[self._icut_weak]
+                    err = self._all_ecent_weak.copy()[self._icut_weak]
+                else:
+                    debugger.set_trace()
             else:
-                arr = self._all_tcent.copy()
-                err = self._all_ecent.copy()
+                if cut:
+                    arr = self._all_tcent.copy()[self._icut]
+                    err = self._all_ecent.copy()[self._icut]
+                else:
+                    debugger.set_trace()
         else:
             arr, err = arrerr[0], arrerr[1]
         # Return the appropriate tcent
@@ -1258,9 +1297,9 @@ class General:
                 # First time a fit is found
                 patt_dict, final_dict = tpatt_dict, tfinal_dict
                 continue
-            elif tfinal_fit['rms'] < self._rms_threshold:
+            elif tfinal_dict['rms'] < self._rms_threshold:
                 # Has a better fit been identified (i.e. more lines ID)?
-                if len(tfinal_fit['xfit']) > len(final_fit['xfit']):
+                if len(tfinal_dict['xfit']) > len(final_dict['xfit']):
                     patt_dict, final_dict = copy.deepcopy(tpatt_dict), copy.deepcopy(tfinal_dict)
         return patt_dict, final_dict
 
