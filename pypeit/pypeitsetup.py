@@ -165,7 +165,8 @@ class PypeItSetup(object):
     @property
     def nfiles(self):
         """The number of files to reduce."""
-        msgs.warning('No fits files have been read!')
+        if self.fitstbl is None:
+            msgs.warn('No fits files have been read!')
         return 0 if self.fitstbl is None else len(self.fitstbl)
 
     def __repr__(self):
