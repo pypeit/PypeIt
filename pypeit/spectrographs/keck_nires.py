@@ -127,6 +127,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['naxis0'] = 'NAXIS2'
         hdr_keys[0]['naxis1'] = 'NAXIS1'
         hdr_keys[0]['binning'] = 1
+        hdr_keys[0]['dispname'] = 'INSTR'      # The time stamp of the observation (i.e. decimal MJD)
 
         return hdr_keys
 
