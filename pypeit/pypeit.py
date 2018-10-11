@@ -819,7 +819,7 @@ class MultiSlit(PypeIt):
                                                 show_profile=self.show, show=self.show)
 
             # Flexure correction?
-            if self.par['flexure']['method'] is not None:
+            if self.par['flexure']['method'] != 'skip':
                 sky_file, sky_spectrum = self.spectrograph.archive_sky_spectrum()
                 flex_list = wave.flexure_obj(sobjs, maskslits, self.par['flexure']['method'],
                                              sky_spectrum, sky_file=sky_file,

@@ -75,7 +75,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Do not correct for flexure
-        par['flexure'] = None
+        par['flexure'] = pypeitpar.FlexurePar()
+        par['flexure']['method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]
         par['calibrations']['arcframe']['exprng'] = [20, None]
