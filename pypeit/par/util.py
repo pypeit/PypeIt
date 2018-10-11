@@ -389,8 +389,12 @@ def _read_data_file_table(lines, file_check=True):
     # Build the table
     nfiles = len(lines) - 2
     tbl = np.empty((nfiles, len(header)), dtype=object)
+
     for i in range(nfiles):
-        tbl[i,:] = np.array([ l.strip() for l in lines[i+2].split('|') ])[1:-1]
+        row = np.array([ l.strip() for l in lines[i+2].split('|') ])[1:-1]
+        if len(row) != tbl.shape[1]:
+            raise ValueError('Data and header lines have mismatched columns!')
+        tbl[i,:] = row
     data = {}
     for i,key in enumerate(header):
         data[key] = tbl[:,i]
