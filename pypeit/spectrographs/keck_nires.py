@@ -126,6 +126,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['target'] = 'OBJECT'
         hdr_keys[0]['naxis0'] = 'NAXIS2'
         hdr_keys[0]['naxis1'] = 'NAXIS1'
+        hdr_keys[0]['binning'] = 1
 
         return hdr_keys
 
