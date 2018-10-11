@@ -859,7 +859,7 @@ class MultiSlit(PypeIt):
             # Set to sciivar. Could create a model but what is the point?
             ivarmodel = np.copy(sciivar)
             # Set to inmask in case on objects were found
-            outmask = sciI.bitmask
+            outmask = sciI.mask
             # empty specobjs object from object finding
             sobjs = sobjs_obj
 
