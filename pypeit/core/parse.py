@@ -616,6 +616,9 @@ def is_keyword(v):
     return valid
 
 
+# TODO: This should get moved to the spectrograph classes, or we should
+# use the spectrograph classes to adopt a standard in PypeItMetaData
+# that this function knows how to interpret.
 def parse_binning(binning):
     """ Convert binning keyword to binning values
 

@@ -106,6 +106,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         return hdr_keys
 
     def metadata_keys(self):
+        """
+        Keys from :class:`pypeit.metadata.PypeItMetaData` to include in
+        the PypeIt file.
+        """
         return super(KeckLRISSpectrograph, self).metadata_keys() \
                     + ['binning', 'dichroic', 'dispangle']
 

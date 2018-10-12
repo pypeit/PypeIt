@@ -1,4 +1,29 @@
-""" Module to define the Spectrograph class
+"""
+Defines the abstract `Spectrograph` class, which is the parent class for
+all instruments served by PypeIt.
+
+The key functionality of this base class and its derived classes are to
+provide instrument-specific:
+    - file I/O routines
+    - detector properties (see
+      :class:`pypeit.par.pypeitpar.DetectorPar`)
+    - telescope properties (see
+      :class:`pypeit.par.pypeitpar.TelescopePar`)
+    - fits header keywords that are collated and injested into PypeIt's
+      metadata table that it uses throughout the reduction
+    - header keyword values to check to confirm a fits file has been
+      taken with the selected instrument
+    - default methods for automatically determining the type of each
+      exposure that PypeIt was asked to reduce
+    - header keywords to use when matching calibration frames to science
+      frames
+    - methods used to generate and/or read bad-pixel masks for an
+      exposure
+    - default parameters for PypeIt's algorithms
+    - method to access an archival sky spectrum
+
+
+
 """
 from __future__ import absolute_import, division, print_function
 
@@ -21,7 +46,8 @@ from pypeit.par import pypeitpar
 # TODO: Consider changing the name of this to Instrument
 class Spectrograph(object):
     """
-    Generic class for spectrograph-specific codes
+    Abstract class whose derived classes dictate instrument-specific
+    behavior in PypeIt.
 
     Attributes:
         spectrograph (str):
@@ -362,20 +388,29 @@ class Spectrograph(object):
         """
         return self.empty_bpm(shape=shape, filename=filename, det=det, force=force)
 
-    # TODO: (KBW) I've removed all the defaults.  Should maybe revisit
-    # this
-    def default_header_keys(self):
-        def_head_keys = {}
-        def_head_keys[0] = {}
-        return def_head_keys
-
     def header_keys(self):
-        return self.default_header_keys()
+        hdr_keys = {}
+        hdr_keys[0] = {}
+        return hdr_keys
 
     def validate_metadata(self, fitstbl):
-        pass
+        """
+        Validate the metadata table.
+
+        The metadata table *must* have the following:
+            - A `binning` column with strings providing the spatial and
+              spectral on-chip binning for the detector.  The format
+              should be `'spatial_binning,spectral_binning'`.
+            - TODO: Add other requirements
+        """
+        if 'binning' not in fitstbl.keys():
+            fitstbl['binning'] = '1,1'
 
     def metadata_keys(self):
+        """
+        Keys from :class:`pypeit.metadata.PypeItMetaData` to include in
+        the PypeIt file.
+        """
         return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker']
 
     def get_headarr(self, filename, strict=True):

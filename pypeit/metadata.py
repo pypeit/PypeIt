@@ -181,6 +181,7 @@ class PypeItMetaData:
                     msgs.warn("{0} keyword not in header. Setting to None".format(key))
                     value = 'None'
                 except TypeError:
+                    # TODO: This should be removed.
                     import pdb; pdb.set_trace()
 
                 # Convert the time to hours
@@ -348,8 +349,7 @@ class PypeItMetaData:
         # Convert from an astropy.Time format
         if self.spectrograph.timeunit in time.Time.FORMATS.keys():
             if date is not None:
-                import pdb
-                pdb.set_trace()
+                # TODO: this fails if date or in_time is not a string!
                 in_time = date+'T'+in_time
             ival = float(in_time) if self.spectrograph.timeunit == 'mjd' else in_time
             tval = time.Time(ival, scale='tt', format=self.spectrograph.timeunit)

@@ -30,7 +30,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.timeunit = 'isot'  # Synthesizes date+time
 
     def gemini_header_keys(self):
-        def_keys = self.default_header_keys()
+        def_keys = super(GeminiGMOSSpectrograph, self).header_keys()
         def_keys[0]['time'] = 'OBSEPOCH'      # The time stamp of the observation (i.e. decimal MJD)
         def_keys[0]['dispname'] = 'GRATING'      # The time stamp of the observation (i.e. decimal MJD)
         def_keys[0]['idname'] = 'OBSTYPE'     # Frame type
