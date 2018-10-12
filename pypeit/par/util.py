@@ -24,6 +24,8 @@ except NameError:
 
 import numpy as np
 
+from astropy.table import Table
+
 from configobj import ConfigObj
 
 from pypeit import msgs
@@ -376,31 +378,39 @@ def _read_data_file_table(lines, file_check=True):
     """Read the file table format."""
     space_ind = lines[0].index(" ")
     path = lines[0][space_ind+1:]
-    header = np.array([ l.strip() for l in lines[1].split('|') ])
+    header = [ l.strip() for l in lines[1].split('|') ][1:-1]
 
-    file_col = np.where(header == 'filename')[0]
-    if len(file_col) == 0:
+    # Minimum columns required
+    if 'filename' not in header:
         msgs.error('Table format failure: No \'filename\' column.')
-    file_col = file_col[0]
-
-    frame_col = np.where(header == 'frametype')[0]
-    if len(frame_col) == 0:
+    if 'frametype' not in header:
         msgs.error('Table format failure: No \'frametype\' column.')
-    frame_col = frame_col[0]
 
+    # Build the table
     nfiles = len(lines) - 2
+    tbl = np.empty((nfiles, len(header)), dtype=object)
+
+    for i in range(nfiles):
+        row = np.array([ l.strip() for l in lines[i+2].split('|') ])[1:-1]
+        if len(row) != tbl.shape[1]:
+            raise ValueError('Data and header lines have mismatched columns!')
+        tbl[i,:] = row
+    data = {}
+    for i,key in enumerate(header):
+        data[key] = tbl[:,i]
+    tbl = Table(data)
+
+    # Build full paths to file and set frame types
     frametype = {}
     data_files = []
     for i in range(nfiles):
-        row_values = lines[i+2].split('|') 
-        filename = row_values[file_col].strip()
-        frametype[filename] = row_values[frame_col].strip()
-        filename = os.path.join(path, filename)
-        if os.path.isfile(filename):
-            data_files.append(filename)
-        elif file_check:
+        frametype[tbl['filename'][i]] = tbl['frametype'][i]
+        filename = os.path.join(path, tbl['filename'][i])
+        data_files.append(filename)
+        if not os.path.isfile(filename) and file_check:
             msgs.error('File does not exist: {0}'.format(filename))
-    return data_files, frametype
+
+    return data_files, frametype, tbl
 
 
 def _parse_setup_lines(lines):
@@ -445,9 +455,10 @@ def parse_pypeit_file(ifile, file_check=True):
     data_format = _determine_data_format(lines[s:e])
     if data_format == 'raw':
         frametype = None
+        usrtbl = None
         data_files = _read_data_file_names(lines[s:e], file_check=file_check)
     elif data_format == 'table':
-        data_files, frametype = _read_data_file_table(lines[s:e], file_check=file_check)
+        data_files, frametype, usrtbl = _read_data_file_table(lines[s:e], file_check=file_check)
     is_config[s-1:e+1] = False
     if len(data_files) == 0 and file_check:
         msgs.error('There are no raw data frames' + msgs.newline() +
@@ -466,7 +477,7 @@ def parse_pypeit_file(ifile, file_check=True):
         is_config[s-1:e+1] = False
 
     msgs.info('Input file loaded successfully')
-    return list(lines[is_config]), data_files, frametype, setups
+    return list(lines[is_config]), data_files, frametype, usrtbl, setups
 
 
 def pypeit_config_lines(ifile):

@@ -121,7 +121,6 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         #
         match_criteria['standard']['match'] = {}
         match_criteria['standard']['match']['binning'] = ''
-        match_criteria['standard']['match']['decker'] = ''
         # Bias
         match_criteria['bias']['match'] = {}
         match_criteria['bias']['match']['binning'] = ''
@@ -215,6 +214,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                        disperser=None, **null_kwargs):
         """
         Setup the arc parameters
+
+        TODO: disperser can't be required because it's never used
 
         Args:
             arcparam: dict

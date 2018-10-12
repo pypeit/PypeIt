@@ -55,8 +55,13 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                     nsig_rej_final=3.0,  # Number of sigma for rejection (final fit)
                     Nstrong=13)          # Number of lines for auto-analysis
 
-    # Instrument/disperser specific
-    disperser = fitstbl['dispname'][arc_idx]
+    # Instrument/disperser specific.  If 'dispname' was not read by the
+    # fits headers because, e.g., it's not available, the spectrograph
+    # instance must be able to setup the arc parameters without it.
+    try:
+        disperser = fitstbl['dispname'][arc_idx]
+    except:
+        disperser = None
     binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
 
     # TODO: JFH: Why is the arcparam being modified in place instead of

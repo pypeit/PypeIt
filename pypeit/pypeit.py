@@ -132,7 +132,8 @@ class PypeIt(object):
         msgs.reset(verbosity=2)
 
         # Read master file
-        cfg_lines, data_files, frametype, setups = parse_pypeit_file(self.setup_pypeit_file)
+        cfg_lines, data_files, frametype, usrdata, setups \
+                = parse_pypeit_file(self.setup_pypeit_file)
         sorted_file = os.path.splitext(self.setup_pypeit_file)[0]+'.sorted'
         sub_cfg_lines = cfg_lines[0:2]
 
@@ -859,7 +860,7 @@ class MultiSlit(PypeIt):
             # Set to sciivar. Could create a model but what is the point?
             ivarmodel = np.copy(sciivar)
             # Set to inmask in case on objects were found
-            outmask = sciI.bitmask
+            outmask = sciI.mask
             # empty specobjs object from object finding
             sobjs = sobjs_obj
 
