@@ -132,7 +132,8 @@ class PypeIt(object):
         msgs.reset(verbosity=2)
 
         # Read master file
-        cfg_lines, data_files, frametype, setups = parse_pypeit_file(self.setup_pypeit_file)
+        cfg_lines, data_files, frametype, usrdata, setups \
+                = parse_pypeit_file(self.setup_pypeit_file)
         sorted_file = os.path.splitext(self.setup_pypeit_file)[0]+'.sorted'
         sub_cfg_lines = cfg_lines[0:2]
 

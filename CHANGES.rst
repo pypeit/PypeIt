@@ -50,12 +50,16 @@
 - Edited how headers are read from the provided files
 - Created metadata.PypeItMetaData class to handle what was previously
   `fitstbl`
-- Fussed with date/time driven by GMOS;  date is no longer required in `fitstbl`
+- Fussed with date/time driven by GMOS;  date is no longer required in
+  `fitstbl`
 - Initial work on GMOS;  this is still work-in-progress
 - Pushed several arcparam items into the Wavelengths parset
 - Series of hacks for when binning is missing from the fitstbl
 - CuAr line lists for GMOS
 - New option to reduce only 1 det at a time
+- Data provided in pypeit file overwrites anything read from the fits
+  file headers.
+- Filled in fits table reading data for GNIRS
 
 0.8.1
 -----

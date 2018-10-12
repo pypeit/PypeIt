@@ -101,7 +101,7 @@ def test_tngdolores():
 def test_vltxshooteruvb():
     s = spectrographs.vlt_xshooter.VLTXShooterUVBSpectrograph()
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'VLT_XSHOOTER',
-                                'UVB_1x1', 'XSHOO.2010-04-28T05_34_32.723.fits.gz')
+                                'UVB_1x1', 'XSHOO.2010-04-28T05:34:32.723.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for VLT Xshooter UVB read.'
     data, _ = s.load_raw_frame(example_file)
     bpm = s.bpm(shape=data.shape)
@@ -112,7 +112,7 @@ def test_vltxshooteruvb():
 def test_vltxshootervis():
     s = spectrographs.vlt_xshooter.VLTXShooterVISSpectrograph()
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'VLT_XSHOOTER',
-                                'VIS_1x1', 'XSHOO.2010-04-28T05_34_37.853.fits.gz')
+                                'VIS_1x1', 'XSHOO.2010-04-28T05:34:37.853.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for VLT Xshooter VIS read.'
     data, _ = s.load_raw_frame(example_file)
     bpm = s.bpm(shape=data.shape)
@@ -123,7 +123,7 @@ def test_vltxshootervis():
 def test_vltxshooternir():
     s = spectrographs.vlt_xshooter.VLTXShooterNIRSpectrograph()
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'VLT_XSHOOTER',
-                                'NIR', 'XSHOO.2016-08-02T08_45_49.494.fits.gz')
+                                'NIR', 'XSHOO.2016-08-02T08:45:49.494.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for VLT Xshooter NIR read.'
     data, _ = s.load_raw_frame(example_file)
     bpm = s.bpm(shape=data.shape)

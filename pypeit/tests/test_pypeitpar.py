@@ -128,8 +128,8 @@ def test_sync():
 
 def test_pypeit_file():
     # Read the PypeIt file
-    cfg, data, frametype, setups = parse_pypeit_file(data_path('example_pypeit_file.pypeit'),
-                                                    file_check=False)
+    cfg, data, frametype, usrdata, setups \
+            = parse_pypeit_file(data_path('example_pypeit_file.pypeit'), file_check=False)
     # Long-winded way of getting the spectrograph name
     name = pypeitpar.PypeItPar.from_cfg_lines(merge_with=cfg)['rdx']['spectrograph']
     # Instantiate the spectrograph

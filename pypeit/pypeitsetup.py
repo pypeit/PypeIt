@@ -37,6 +37,11 @@ class PypeItSetup(object):
             fits file name without the full path) to a specific frame
             type (e.g., arc, bias, etc.).  If None, this is determined
             by the :func:`type_data` method.
+        usrdata (:obj:`astropy.table.Table`, optional):
+            A user provided set of data used to supplement or overwrite
+            metadata read from the file headers.  The table must have a
+            `filename` column that is used to match to the metadata
+            table generated within PypeIt.
         setups (:obj:`list`, optional):
             A list of setups that each file can be associated with.  If
             None, all files are expected to be for a single setup.
@@ -100,7 +105,7 @@ class PypeItSetup(object):
 
     .. _configobj: http://configobj.readthedocs.io/en/latest/
     """
-    def __init__(self, file_list, frametype=None, setups=None, cfg_lines=None,
+    def __init__(self, file_list, frametype=None, usrdata=None, setups=None, cfg_lines=None,
                  spectrograph_name=None, pypeit_file=None):
 
         # The provided list of files cannot be None
@@ -110,6 +115,7 @@ class PypeItSetup(object):
         # Save input
         self.file_list = file_list
         self.frametype = frametype
+        self.usrdata = usrdata
         self.setups = setups
         self.pypeit_file = pypeit_file
 
@@ -152,19 +158,19 @@ class PypeItSetup(object):
         Returns:
             :class:`PypitSetup`: The instance of the class.
         """
-        cfg_lines, data_files, frametype, setups = parse_pypeit_file(filename)
-        return cls(data_files, frametype=frametype, setups=setups, cfg_lines=cfg_lines,
-                   pypeit_file=filename)
+        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(filename)
+        return cls(data_files, frametype=frametype, usrdata=usrdata, setups=setups,
+                   cfg_lines=cfg_lines, pypeit_file=filename)
 
     @property
     def nfiles(self):
         """The number of files to reduce."""
+        if self.fitstbl is None:
+            msgs.warn('No fits files have been read!')
         return 0 if self.fitstbl is None else len(self.fitstbl)
 
     def __repr__(self):
-        txt = '<{:s}: nfiles={:d}>'.format(self.__class__.__name__,
-                                           self.nfiles)
-        return txt
+        return '<{:s}: nfiles={:d}>'.format(self.__class__.__name__, self.nfiles)
 
     def build_fitstbl(self, strict=True):
         """
@@ -186,7 +192,7 @@ class PypeItSetup(object):
         """
         # Build and sort the table
         self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, file_list=self.file_list,
-                                      strict=strict)
+                                      usrdata=self.usrdata, strict=strict)
         # Sort by the time
         if 'time' in self.fitstbl.keys():
             self.fitstbl.sort('time')
@@ -445,10 +451,8 @@ class PypeItSetup(object):
             self.build_fitstbl(strict=not setup_only)
 
         # File typing
-        if 'frametype' not in self.fitstbl.keys():
-            # Add the frame type if it isn't already in the table
-            self.get_frame_types(flag_unknown=setup_only or calibration_check,
-                                 use_header_id=use_header_id)
+        self.get_frame_types(flag_unknown=setup_only or calibration_check,
+                             use_header_id=use_header_id)
 
         # Match calibs to science
         self.match_to_science(setup_only=setup_only)

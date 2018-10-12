@@ -266,7 +266,7 @@ class Messages:
         if usage:
             self.usage(None)
         #
-        raise PypeItError("PYPIT ENDS")
+        raise PypeItError(msg)
         sys.exit(1)
 
     def info(self, msg):
