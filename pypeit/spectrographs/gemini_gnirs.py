@@ -22,10 +22,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'gemini_gnirs'
         self.telescope = telescopes.GeminiNTelescopePar()
         self.camera = 'GNIRS'
-        self.numhead = 1
+        self.numhead = 2
         self.detector = [
                 # Detector 1
-            pypeitpar.DetectorPar(dataext         = 1,
+                pypeitpar.DetectorPar(
+                            dataext         = 1,
                             dispaxis        = 0,
                             dispflip        = True,
                             xgap            = 0.,
@@ -40,8 +41,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                             ronoise         = 7.0,
                             datasec         = '[:,:]',#'[1:1024,1:1022]',
                             oscansec        = '[:,:]',#'[1:1024,1:1022]'
-                            )
-            ]
+                            )]
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
@@ -81,26 +81,86 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
-        par['flexure']['method'] = None
+        # Do not correct for flexure
+        par['flexure'] = None
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
+        par['calibrations']['traceframe']['exprng'] = [None, 30]
+        par['calibrations']['standardframe']['exprng'] = [None, 30]
+        par['scienceframe']['exprng'] = [30, None]
         return par
 
-    def gnirs_header_keys(self):
-        def_keys = self.default_header_keys()
+    def check_headers(self, headers):
+        """
+        Check headers match expectations for an LRISb exposure.
 
-        def_keys[0]['target'] = 'OBJECT'
-        def_keys[0]['time'] = 'MJD_OBS'
-        def_keys[0]['decker'] = 'SLIT'
-        def_keys[0]['dispname'] = 'GRATING'
-        def_keys[0]['exptime'] = 'EXPTIME'
-        return def_keys
+        See also
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+
+        Args:
+            headers (list):
+                A list of headers read from a fits file
+        """
+        expected_values = { '0.INSTRUME': 'GNIRS',
+                               '1.NAXIS': 2 }
+        super(GeminiGNIRSSpectrograph, self).check_headers(headers,
+                                                           expected_values=expected_values)
 
     def header_keys(self):
-        head_keys = self.gnirs_header_keys()
-        print(head_keys)
-        return head_keys
+        """
+        Return a dictionary with the header keywords to read from the
+        fits file.
 
+        Returns:
+            dict: A nested dictionary with the header keywords to read.
+            The first level gives the extension to read and the second
+            level gives the common name for header values that is passed
+            on to the PypeItMetaData object.
+        """
+        hdr_keys = {}
+        hdr_keys[0] = {}
+        hdr_keys[0]['idname'] = 'OBSTYPE'
+#        hdr_keys[0]['time'] = 'MJD_OBS'
+        hdr_keys[0]['date'] = 'DATE'
+        hdr_keys[0]['ut'] = 'UT'
+        hdr_keys[0]['ra'] = 'RA'
+        hdr_keys[0]['dec'] = 'DEC'
+        hdr_keys[0]['airmass'] = 'AIRMASS'
+        hdr_keys[0]['slit'] = 'SLIT'
+        hdr_keys[0]['decker'] = 'DECKER'
+        hdr_keys[0]['target'] = 'OBJECT'
+        hdr_keys[0]['exptime'] = 'EXPTIME'
+        hdr_keys[0]['hatch'] = 'COVER'
+        hdr_keys[0]['dispname'] = 'GRATING'
+        hdr_keys[0]['dispangle'] = 'GRATTILT'
+        hdr_keys[0]['wavecen'] = 'GRATWAVE'
+        hdr_keys[0]['spectrograph'] = 'INSTRUME'
+        return hdr_keys
+
+    def metadata_keys(self):
+        return super(GeminiGNIRSSpectrograph, self).metadata_keys() + ['dispangle', 'idname']
+
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype == 'science':
+            return good_exp & (fitstbl['idname'] == 'OBJECT')
+        if ftype == 'standard':
+            return good_exp & (fitstbl['idname'] == 'OBJECT')
+        if ftype == 'pixelflat' or ftype == 'trace':
+            # Flats and trace frames are typed together
+            return good_exp & (fitstbl['idname'] == 'FLAT')
+        if ftype == 'pinhole' or ftype == 'dark' or ftype == 'bias':
+            # Don't type pinhole, dark, or bias frames
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype == 'arc':
+            return good_exp & (fitstbl['idname'] == 'ARC')
+
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+  
     def get_match_criteria(self):
         """Set the general matching criteria for Shane Kast."""
         match_criteria = {}

@@ -59,6 +59,7 @@
 - New option to reduce only 1 det at a time
 - Data provided in pypeit file overwrites anything read from the fits
   file headers.
+- Filled in fits table reading data for GNIRS
 
 0.8.1
 -----
