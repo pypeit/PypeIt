@@ -86,8 +86,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.40  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 30.  # Reddest chip
-        par['calibrations']['wavelengths']['lowest_nsig'] = 10.  # Reddest chip
+        par['calibrations']['wavelengths']['min_nsig'] = 5.  # Doesn't work for reddest chip
+        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
 
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'

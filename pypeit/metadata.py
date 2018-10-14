@@ -348,8 +348,6 @@ class PypeItMetaData:
         # Convert from an astropy.Time format
         if self.spectrograph.timeunit in time.Time.FORMATS.keys():
             if date is not None:
-                import pdb
-                pdb.set_trace()
                 in_time = date+'T'+in_time
             ival = float(in_time) if self.spectrograph.timeunit == 'mjd' else in_time
             tval = time.Time(ival, scale='tt', format=self.spectrograph.timeunit)
