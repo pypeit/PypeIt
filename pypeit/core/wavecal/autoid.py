@@ -695,17 +695,31 @@ class General:
         idx_gd = np.zeros(ngd, dtype=np.int)
         wvc_gd = np.zeros(ngd, dtype=np.float)
         dsp_gd = np.zeros(ngd, dtype=np.float)
+        wvc_gd_jfh = np.zeros(ngd, dtype=np.float)
+        dsp_gd_jfh = np.zeros(ngd, dtype=np.float)
+        xrng = np.arange(self._npix)
         cntr = 0
         for slit in range(self._nslit):
             if good_fit[slit]:
                 idx_gd[cntr] = slit
                 wvc_gd[cntr] = self._all_patt_dict[str(slit)]["bwv"]
                 dsp_gd[cntr] = self._all_patt_dict[str(slit)]["bdisp"]
+                # JFH stuff
+                fitc = self._all_final_fit[str(slit)]['fitc']
+                xfit = xrng/(self._npix - 1)
+                fitfunc = self._all_final_fit[str(slit)]['function']
+                fmin, fmax = 0.0, 1.0
+                wave_soln = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
+                wvc_gd_jfh[cntr] = wave_soln[self._npix//2]
+                dsp_gd_jfh[cntr]= np.median(wave_soln - np.roll(wave_soln,1))
+                # JFH end of JFH stuff
                 cntr += 1
         srt = np.argsort(wvc_gd)
         sort_idx = idx_gd[srt]
         sort_wvc = wvc_gd[srt]
         sort_dsp = dsp_gd[srt]
+        sort_wvc_jfh = wvc_gd_jfh[srt]
+        sort_dsp_jfh = dsp_gd_jfh[srt]
 
         # Cross correlate all good spectra with each other, in order of wavelength
         ncrco = np.arange(sort_idx.size).sum()
@@ -713,12 +727,17 @@ class General:
         dwvc_val = np.zeros(ncrco)
         slit_ids = np.zeros((ncrco, 2), dtype=np.int)
         cntr = 0
+        # JFH Consider adding something in here that takes advantage of the
         for gd in range(0, sort_idx.size-1):
             for gc in range(gd+1, sort_idx.size):
-                corr = scipy.signal.correlate(self._spec[:, sort_idx[gd]], self._spec[:, sort_idx[gc]], mode='same')
-                amax = np.argmax(corr)
-                #ccor_val[cntr] = (amax - self._spec.shape[0] // 2)
-                dwvc_val[cntr] = (sort_wvc[gc]-sort_wvc[gd]) / (0.5*(sort_dsp[gc]+sort_dsp[gd])) - (amax - self._spec.shape[0] // 2)
+                #corr = scipy.signal.correlate(self._spec[:, sort_idx[gd]], self._spec[:, sort_idx[gc]], mode='same')
+                #amax = np.argmax(corr)
+                # dwvc_val[cntr] = (sort_wvc[gc]-sort_wvc[gd]) / (0.5*(sort_dsp[gc]+sort_dsp[gd])) - (amax - self._spec.shape[0] // 2)
+                # JFH replaced with more robust xcorr
+                shift, corr = wvutils.xcorr_shift(self._spec[:, sort_idx[gd]],self._spec[:, sort_idx[gc]], smooth=5.0)
+                #dwvc_val[cntr] = (sort_wvc[gc]-sort_wvc[gd]) / (0.5*(sort_dsp[gc]+sort_dsp[gd])) - shift
+                # JFH TESTING
+                dwvc_val[cntr] = (sort_wvc_jfh[gc]-sort_wvc_jfh[gd]) / (0.5*(sort_dsp_jfh[gc]+sort_dsp_jfh[gd])) - shift
                 slit_ids[cntr, 0] = gd
                 slit_ids[cntr, 1] = gc
                 cntr += 1
@@ -734,11 +753,13 @@ class General:
             if np.array_equal(gdmsk, ogdmsk):
                 break
 
+        from IPython import embed
+        embed()
         if self._debug:
             xplt = np.arange(dwvc_val.size)
             plt.plot(xplt, dwvc_val, 'rx')
             plt.plot(xplt[gdmsk], dwvc_val[gdmsk], 'bo')
-            plt.plot([0.0,1000.0],[0.0,0.0], 'b-')
+            plt.plot([0.0,xplt.max()],[0.0,0.0], 'g-')
             plt.show()
 
         # Catalogue the good and bad slits
@@ -747,9 +768,16 @@ class General:
         # Get the sign (i.e. if pixels correlate/anticorrelate with wavelength)
         # and dispersion (A/pix). Assume these are the same for all slits
 
-        # JFH I would take the median value here to be more robust
-        sign = self._all_patt_dict[str(good_slits[0])]['sign']
-        disp = self._all_patt_dict[str(good_slits[0])]['bdisp']
+        # JFH Changed this to take the median which is more robust. Good even reject outliers
+        disp_vec = np.zeros(good_slits.size,dtype=float)
+        sign_vec = np.zeros(good_slits.size,dtype=int)
+        for islit in range(good_slits.size):
+            disp_vec[islit] = self._all_patt_dict[str(good_slits[islit])]['bdisp']
+            sign_vec[islit] =  self._all_patt_dict[str(good_slits[islit])]['sign']
+        disp = np.median(disp_vec)
+        sign = np.median(sign)
+        #disp = self._all_patt_dict[str(good_slits[0])]['bdisp']
+        #sign = self._all_patt_dict[str(good_slits[0])]['sign']
 
         # For all of the bad slits, estimate some line wavelengths
         new_bad_slits = np.array([], dtype=np.int)
@@ -767,6 +795,8 @@ class General:
             for cntr, gs in enumerate(good_slits):
                 # Match the peaks between the two spectra.
                 # spec_gs_adj is the stretched spectrum
+                from IPython import embed
+                embed()
                 stretch, shift = wvutils.match_peaks(self._spec[:, bs], self._spec[:, gs])
                 if stretch is None:
                     continue
@@ -785,7 +815,7 @@ class General:
                     plt.plot(bsdet, np.zeros(bsdet.size), 'ro')
                     plt.plot(gsdet_ss, 0.01*np.max(self._spec[:, bs])*np.ones(gsdet_ss.size), 'bo')
                     plt.show()
-                    pdb.set_trace()
+                    #pdb.set_trace()
                 # Calculate wavelengths for all of the gsdet detections
                 fitc = self._all_final_fit[str(gs)]['fitc']
                 xfit = gsdet/(self._npix - 1)
@@ -803,8 +833,8 @@ class General:
                         # This is probably not a good match
                         if bstwv[np.argmin(bstwv)] > 2.0*disp:
                             continue
-                        lindex = np.append(lindex, np.argmin(bstwv))
-                        dindex = np.append(dindex, dd)
+                        lindex = np.append(lindex, np.argmin(bstwv)) # index in the line list self._wvdata
+                        dindex = np.append(dindex, dd)               # index in the bad slit array of detections bsdet
             # Finalize the best guess of each line
             # Initialise the patterns dictionary
             patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_nsig=self._min_nsig,
@@ -838,7 +868,7 @@ class General:
                 plt.plot(final_fit['xfit'], final_fit['yfit'], 'bx')
                 plt.plot(xplt, yplt, 'r-')
                 plt.show()
-                pdb.set_trace()
+                #pdb.set_trace()
         return new_bad_slits
 
     def cross_match_order(self, good_fit):

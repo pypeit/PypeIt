@@ -5,6 +5,7 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import numpy as np
 import numba as nb
 
+from matplotlib import pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import resample
 import scipy
@@ -28,7 +29,8 @@ def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10):
     """
 
     # Find peaks
-    tampl, tcent, twid, centerr, w, yprep, nsig = arc.detect_lines(spec, nfitpix=7, nonlinear_counts = nonlinear_counts)
+    tampl, tcent, twid, centerr, w, yprep, nsig = arc.detect_lines(spec, nfitpix=7, sigdetect = 0.7*min_nsig,
+                                                                   nonlinear_counts = nonlinear_counts)
     all_tcent = tcent[w]
     all_tampl = tampl[w]
     all_ecent = centerr[w]
@@ -47,9 +49,123 @@ def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10):
     # Return
     return all_tcent, all_ecent, cut_tcent, icut
 
+
+def shift_and_stretch(spec, shift, stretch):
+
+    """ Utility function to shift and stretch a spectrum. This operation is being implemented in many steps and
+    could be significantly optimized. But it works for now. Note that the stretch is applied *first* and then the
+    shift is applied in stretch coordinates.
+
+    Parameters
+    ----------
+    spec : ndarray
+      spectrum to be shited and stretch
+    shift: float
+      shift to be applied
+    stretch: float
+      stretch to be applied
+
+    Returns
+    -------
+    spec_out: ndarray
+      shifted and stretch spectrum. Regions where there is no information are set to zero.
+    """
+
+    # Positive value of shift means features shift to larger pixel values
+
+    nspec = spec.shape[0]
+    # pad the spectrum on both sizes
+    x1 = np.arange(nspec)/float(nspec)
+    nspec_stretch = int(nspec*stretch)
+    x2 = np.arange(nspec_stretch)/float(nspec_stretch)
+    spec_str = (scipy.interpolate.interp1d(x1, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(x2)
+    # Now create a shifted version
+    ind_shift = np.arange(nspec_stretch) - shift
+    spec_str_shf = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(ind_shift)
+    # Now interpolate onto the original grid
+    spec_out = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str_shf, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
+
+    return spec_out
+
+
+def zerolag_shift_stretch(theta, y1, y2):
+
+    shift, stretch = theta
+    y2_corr = shift_and_stretch(y2, shift, stretch)
+    # Zero lag correlation
+    corr_zero = np.sum(y1*y2_corr)
+    corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
+    corr_norm = corr_zero/corr_denom
+    #corr = scipy.signal.correlate(y1, y2_corr, mode='same')
+    return -corr_norm
+
+
+
+def xcorr_shift(inspec1,inspec2,smooth = None,debug = False):
+
+    if smooth is not None:
+        y1 = scipy.ndimage.filters.gaussian_filter(inspec1, smooth)
+        y2 = scipy.ndimage.filters.gaussian_filter(inspec2, smooth)
+    else:
+        y1 = inspec1
+        y2 = inspec2
+
+    nspec = y1.shape[0]
+    lags = np.arange(-nspec + 1, nspec)
+    corr = scipy.signal.correlate(y1, y2, mode='full')
+    corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
+    corr_norm = corr/corr_denom
+    output = arc.detect_lines(corr_norm, nfitpix=7, sigdetect=5.0, fwhm=20.0, mask_width = 10.0, cont_samp=30, nfind = 1)
+    pix_max = output[1]
+    corr_max = np.interp(pix_max, np.arange(lags.shape[0]),corr_norm)
+    lag_max  = np.interp(pix_max, np.arange(lags.shape[0]),lags)
+    if debug:
+        # Interpolate for bad lines since the fitting code often returns nan
+        plt.figure(figsize=(14, 6))
+        plt.plot(lags, corr_norm, color='black', drawstyle = 'steps-mid', lw=3, label = 'x-corr', linewidth = 1.0)
+        plt.plot(lag_max[0], corr_max[0],'g+', markersize =6.0, label = 'peak')
+        plt.title('Best shift = {:5.3f}'.format(lag_max[0]) + ',  corr_max = {:5.3f}'.format(corr_max[0]))
+        plt.legend()
+        plt.show()
+
+    return lag_max[0], corr_max[0]
+
+
+def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, shift_mnmx = (-0.05,0.05), stretch_mnmx = (0.9,1.1), debug = True):
+
+    nspec = inspec1.size
+    y1 = scipy.ndimage.filters.gaussian_filter(inspec1, smooth)
+    y2 = scipy.ndimage.filters.gaussian_filter(inspec2, smooth)
+
+    # Do the cross-correlation first and determine the
+    shift_cc, cc_val = xcorr_shift(y1, y2, debug = debug)
+
+    bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
+    result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol = 1e-4,
+                                                   bounds=bounds, disp=False, polish=True)
+
+    if not result.success:
+        msgs.warn('Fit for shift and stretch did not converge!')
+
+    if debug:
+        x1 = np.arange(nspec)
+        inspec2_trans = shift_and_stretch(inspec2, result.x[0], result.x[1])
+        plt.plot(x1,inspec1, 'k-', drawstyle='steps', label ='inspec1')
+        plt.plot(x1,inspec2_trans, 'r-', drawstyle='steps', label = 'inspec2')
+        plt.title('shift= {:5.3f}'.format(result.x[0]) +
+                  ',  stretch = {:7.5f}'.format(result.x[1]) + ', corr = {:5.3f}'.format(-result.fun))
+        plt.legend()
+        plt.show()
+
+
+    return result.success, result.x[0], result.x[1], -result.fun, shift_cc, cc_val
+
+
+
+
 # JFH ToDo This algorithm for computing the shift and stretch is unstable. It was hanging but that has been fixed
 # by ading the bounds. However, I think it is producing bogus results in many cases.
-def match_peaks(inspec1, inspec2, smooth=5.0, debug=False):
+def match_peaks_old(inspec1, inspec2, smooth=5.0, debug=False):
     """ Stretch and shift inspec2 until it matches inspec1
     """
 
@@ -81,10 +197,10 @@ def match_peaks(inspec1, inspec2, smooth=5.0, debug=False):
 
 # JFH I think this should be done with scipy.optimize to find the maximum value of the cc correlation as a function of
 # shift and stretch, rather than with curve_fit
-def shift_stretch(specs, p, retshift=False):
+def shift_stretch_old(specs, p, retshift=False):
     inspec1, inspec2, smooth = specs
-    y1 = gaussian_filter(inspec1, smooth)
-    y2 = gaussian_filter(inspec2, smooth)
+    y1 = scipy.ndimage.filters.gaussian_filter(inspec1, smooth)
+    y2 = scipy.ndimage.filters.gaussian_filter(inspec2, smooth)
     y1size = y1.size
     y2size = int(y1size + p)
     y2 = resample(y2, y2size)
@@ -101,39 +217,6 @@ def shift_stretch(specs, p, retshift=False):
     else:
         return np.array([stretch])
 
-# JFH These codes are under development by JFH to try to improve the problems with match_peaks.
-def match_peaks2(inspec1, inspec2, smooth=5.0, debug=False):
-
-    # Initial estimate
-    p0 = np.array([0.0])
-    nspec = inspec1.size
-    # differential evolution optimizer appears to behave better
-    print('Optimizing with IGM')
-    guess = np.array([0.0,0.0])
-    bounds = [(-nspec, nspec), (-nspec, nspec)]
-    result = op.differential_evolution(xcorr_stretch, args=(inspec1, inspec2,smooth), bounds=bounds, popsize=25, recombination=0.7,
-                                         disp=True, polish=True) # ToDO Should we polish?
-
-
-
-
-# JFH I think this should be done with scipy.optimize to find the maximum value of the cc correlation as a function of
-# shift and stretch, rather than with curve_fit
-def xcorr_stretch(theta, inspec1, inspec2, smooth):
-
-    y1 = gaussian_filter(inspec1, smooth)
-    y2 = gaussian_filter(inspec2, smooth)
-    y1size = y1.size
-    y2size = int(y1size + theta[0])
-    y2 = resample(y2, y2size)
-    df = np.min([y1size // 2 - 1, y2size // 2 - 1])
-    size = y1size + y2size - 1
-    fsize = 2 ** np.int(np.ceil(np.log2(size)))  # Use this size for a more efficient computation
-    conv = np.fft.fft(y1, fsize)
-    conv *= scipy.conj(np.fft.fft(y2, fsize))
-    cc = scipy.ifft(conv)  # [df:df+y1size]
-    shift = np.argmax(np.abs(cc))
-    return np.max(np.abs(cc))
 
 
 @nb.jit(nopython=True, cache=True)
