@@ -24,6 +24,7 @@ def instruments():
     instr_dict['DEIMOS'] = 2**4
     instr_dict['NIRSPEC'] = 2**5
     instr_dict['GMOS'] = 2**6
+
     #
     return instr_dict
 
@@ -53,6 +54,7 @@ def lines():
     line_dict['CuI'] = 2**10
     line_dict['ArII'] = 2**11
     line_dict['OH_XSHOOTER'] = 2**12
+    line_dict['OH_GNIRS'] = 2**13
 
     #
     return line_dict
