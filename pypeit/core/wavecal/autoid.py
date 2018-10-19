@@ -722,8 +722,9 @@ class General:
         sort_dsp_jfh = dsp_gd_jfh[srt]
 
         # Cross correlate all good spectra with each other, in order of wavelength
-        ncrco = np.arange(sort_idx.size).sum()
-        #ccor_val = np.zeros(ncrco)
+        ncrco = ngd*(ngd-1)//2
+        ccorr_val = np.zeros(ncrco)
+        shift_val = np.zeros(ncrco)
         dwvc_val = np.zeros(ncrco)
         slit_ids = np.zeros((ncrco, 2), dtype=np.int)
         cntr = 0
@@ -734,35 +735,43 @@ class General:
                 #amax = np.argmax(corr)
                 # dwvc_val[cntr] = (sort_wvc[gc]-sort_wvc[gd]) / (0.5*(sort_dsp[gc]+sort_dsp[gd])) - (amax - self._spec.shape[0] // 2)
                 # JFH replaced with more robust xcorr
-                shift, corr = wvutils.xcorr_shift(self._spec[:, sort_idx[gd]],self._spec[:, sort_idx[gc]], smooth=5.0)
+                shift_val[cntr], ccorr_val[cntr]= wvutils.xcorr_shift(self._spec[:, sort_idx[gd]],self._spec[:, sort_idx[gc]], smooth=5.0)
                 #dwvc_val[cntr] = (sort_wvc[gc]-sort_wvc[gd]) / (0.5*(sort_dsp[gc]+sort_dsp[gd])) - shift
                 # JFH TESTING
-                dwvc_val[cntr] = (sort_wvc_jfh[gc]-sort_wvc_jfh[gd]) / (0.5*(sort_dsp_jfh[gc]+sort_dsp_jfh[gd])) - shift
+                dwvc_val[cntr] = (sort_wvc_jfh[gc]-sort_wvc_jfh[gd]) / (0.5*(sort_dsp_jfh[gc]+sort_dsp_jfh[gd])) - shift_val[cntr]
                 slit_ids[cntr, 0] = gd
                 slit_ids[cntr, 1] = gc
                 cntr += 1
 
-        # Identify the good orders
+
+        # TODO Replace this code below with code based on either sigma_clipped_stats or djs_reject
+        # Identify the good slits as those for which the cross-correlation is consistent with the mad of all the slits.
+        # Bad slits are then the outliers.
         sigrej = 3.0
         mad = 1.4826 * np.median(np.abs(dwvc_val))
-        gdmsk = np.where(np.abs(dwvc_val) < sigrej * mad)[0]
+        gdmsk = np.abs(dwvc_val) < sigrej * mad
         for ii in range(100):  # Limit to 100 iterations - this will likely never be reached...
             ogdmsk = gdmsk.copy()
             mad = 1.4826 * np.median(np.abs(dwvc_val[gdmsk]))
-            gdmsk = np.where(np.abs(dwvc_val) < sigrej*mad)[0]
+            gdmsk = np.abs(dwvc_val) < sigrej*mad
             if np.array_equal(gdmsk, ogdmsk):
                 break
 
         from IPython import embed
         embed()
         if self._debug:
+            # TODO Add something here indicating slit indices?
             xplt = np.arange(dwvc_val.size)
-            plt.plot(xplt, dwvc_val, 'rx')
-            plt.plot(xplt[gdmsk], dwvc_val[gdmsk], 'bo')
-            plt.plot([0.0,xplt.max()],[0.0,0.0], 'g-')
+            plt.plot(xplt[~gdmsk], dwvc_val[~gdmsk], 'rx',label ='bad slit')
+            plt.plot(xplt[gdmsk], dwvc_val[gdmsk], 'bo',label = 'good slit')
+            plt.hlines(0,xplt.min(),xplt.max(), color='black',linestyle='--')
+            plt.xticks(xplt)
+            plt.legend()
             plt.show()
 
-        # Catalogue the good and bad slits
+        # Catalogue the good and bad slits.
+        # Basically a slit needs to have a bad cross-correlation with every other slit in order
+        # to be classified as a bad slit here. Is this the behavior we want??
         good_slits = np.sort(sort_idx[np.unique(slit_ids[gdmsk, :].flatten())])
         bad_slits = np.setdiff1d(np.arange(self._nslit), good_slits, assume_unique=True)
         # Get the sign (i.e. if pixels correlate/anticorrelate with wavelength)
