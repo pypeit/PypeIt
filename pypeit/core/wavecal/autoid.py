@@ -757,10 +757,8 @@ class General:
             if np.array_equal(gdmsk, ogdmsk):
                 break
 
-        from IPython import embed
-        embed()
         if self._debug:
-            # TODO Add something here indicating slit indices?
+            # TODO Add something here indicating slit indices? Like plot the cc pairs next to the points?
             xplt = np.arange(dwvc_val.size)
             plt.plot(xplt[~gdmsk], dwvc_val[~gdmsk], 'rx',label ='bad slit')
             plt.plot(xplt[gdmsk], dwvc_val[gdmsk], 'bo',label = 'good slit')
@@ -770,21 +768,33 @@ class General:
             plt.show()
 
         # Catalogue the good and bad slits.
-        # Basically a slit needs to have a bad cross-correlation with every other slit in order
-        # to be classified as a bad slit here. Is this the behavior we want??
+
+        # ToDO Basically a slit needs to have a bad cross-correlation with every other slit in order
+        # to be classified as a bad slit here. Is this the behavior we want?? Maybe we should be more
+        # conservative and call a bad slit which results in an outlier here.
         good_slits = np.sort(sort_idx[np.unique(slit_ids[gdmsk, :].flatten())])
         bad_slits = np.setdiff1d(np.arange(self._nslit), good_slits, assume_unique=True)
         # Get the sign (i.e. if pixels correlate/anticorrelate with wavelength)
         # and dispersion (A/pix). Assume these are the same for all slits
 
-        # JFH Changed this to take the median which is more robust. Good even reject outliers
-        disp_vec = np.zeros(good_slits.size,dtype=float)
-        sign_vec = np.zeros(good_slits.size,dtype=int)
+        # JFH Changed this to take the median which is more robust. Could even reject outliers
+        disp_good = np.zeros(good_slits.size,dtype=float)
+        sign_good = np.zeros(good_slits.size,dtype=int)
+        wvc_good  = np.zeros(good_slits.size,dtype=float)
         for islit in range(good_slits.size):
-            disp_vec[islit] = self._all_patt_dict[str(good_slits[islit])]['bdisp']
-            sign_vec[islit] =  self._all_patt_dict[str(good_slits[islit])]['sign']
-        disp = np.median(disp_vec)
-        sign = np.median(sign)
+            sign_good[islit] =  self._all_patt_dict[str(good_slits[islit])]['sign']
+            # JFH stuff
+            fitc = self._all_final_fit[str(good_slits[islit])]['fitc']
+            xfit = xrng / (self._npix - 1)
+            fitfunc = self._all_final_fit[str(good_slits[islit])]['function']
+            fmin, fmax = 0.0, 1.0
+            wave_soln = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
+            wvc_good[islit] = wave_soln[self._npix // 2]
+            disp_good[islit] = np.median(wave_soln - np.roll(wave_soln, 1))
+
+
+        disp = np.median(disp_good)
+        sign = np.median(sign_good)
         #disp = self._all_patt_dict[str(good_slits[0])]['bdisp']
         #sign = self._all_patt_dict[str(good_slits[0])]['sign']
 
@@ -801,30 +811,41 @@ class General:
             lindex = np.array([], dtype=np.int)
             dindex = np.array([], dtype=np.int)
             wcen = np.zeros(good_slits.size)
+            shift_vec = np.zeros(good_slits.size)
+            stretch_vec = np.zeros(good_slits.size)
             for cntr, gs in enumerate(good_slits):
                 # Match the peaks between the two spectra.
                 # spec_gs_adj is the stretched spectrum
-                from IPython import embed
-                embed()
-                stretch, shift = wvutils.match_peaks(self._spec[:, bs], self._spec[:, gs])
-                if stretch is None:
+                success, shift_vec[cntr], stretch_vec[cntr], ccorr, _, _ =  wvutils.xcorr_shift_stretch(self._spec[:, bs],self._spec[:, gs], debug = True)
+                #stretch, shift = wvutils.match_peaks(self._spec[:, bs], self._spec[:, gs])
+                if not success:
                     continue
                 # JFH Put in a cut on the cross-correlation value here in this logic
                 # so that we only consider slits that are sufficiently similar?
-                # Estimate wcen for this slit
-                wcen[cntr] = self._all_patt_dict[str(gs)]['bwv'] - shift*disp
+
+                # Estimate wcen for this bad slit based on its shift relative to the good slit
+                wcen[cntr] = wvc_good[cntr] - shift_vec[cntr]*disp_good[cntr]
                 # For each peak in the gs spectrum, identify the corresponding peaks in the bs spectrum.
-                # Transform these gs line pixel locations ito the (shifted and stretched) bs frame
+
+                # Transform these good slit line pixel locations into the (shifted and stretched) bs frame
                 gsdet, _ = self.get_use_tcent(sign, arrerr=self._detections[str(gs)], weak=True)
-                strfact = (self._npix + stretch - 1)/(self._npix - 1)
-                gsdet_ss = shift + gsdet * strfact
+                gsdet_ss = gsdet*stretch_vec[cntr] - shift_vec[cntr]
+                from IPython import embed
+                embed()
                 if self._debug:
-                    xplt = np.arange(self._npix)
-                    plt.plot(xplt, self._spec[:, bs], 'k-', drawstyle='steps')
-                    plt.plot(bsdet, np.zeros(bsdet.size), 'ro')
-                    plt.plot(gsdet_ss, 0.01*np.max(self._spec[:, bs])*np.ones(gsdet_ss.size), 'bo')
+                    plt.figure(figsize=(14, 6))
+                    xrng = np.arange(self._npix)
+                    plt.plot(xrng, self._spec[:, bs], color='black', drawstyle='steps-mid', lw=3, label='bad slit arc', linewidth=1.0)
+                    plt.plot(bsdet, tampl, 'k.', markersize=8.0, label='bad slit lines')
+                    tampl = np.interp(bsdet, xrng, self._spec[:, bs])
+                    gdarc_ss = wvutils.shift_and_stretch(self._spec[:, gs], shift_vec[cntr], stretch_vec[cntr])
+                    tampl_ss = np.interp(gsdet_ss, xrng, gdarc_ss)
+                    plt.plot(xrng, gdarc_ss, color='red', drawstyle='steps-mid', lw=3, label='good slit arc shift/stretch', linewidth=1.0)
+                    plt.plot(gsdet_ss, tampl_ss, 'r.', markersize=8.0, label='predicted good slit lines')
+                    plt.title('Cross-correlation of bad slit # {:d}'.format(bs+1) + ' and good slit # {:d}'.format(gs+1))
+                    plt.ylim(-5.0, 1.5*self._spec[:, bs].max())
+                    plt.legend()
                     plt.show()
-                    #pdb.set_trace()
                 # Calculate wavelengths for all of the gsdet detections
                 fitc = self._all_final_fit[str(gs)]['fitc']
                 xfit = gsdet/(self._npix - 1)
