@@ -364,8 +364,8 @@ class WaveCalib(masterframe.MasterFrame):
         _, _ = self._extract_arcs(lordloc, rordloc, slitpix)
 
 
-        if self.arcparam is None:
-            _ = self._load_arcparam()
+        #if self.arcparam is None:
+        #    _ = self._load_arcparam()
 
         # Fill up the calibrations and generate QA
         self.wv_calib = self._build_wv_calib(self.par['method'], skip_QA=skip_QA)
