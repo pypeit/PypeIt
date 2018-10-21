@@ -998,6 +998,7 @@ class WavelengthSolutionPar(ParSet):
     """
     def __init__(self, reference=None, method=None, lamps=None, rms_threshold=None, nonlinear_counts = None,
                  match_toler=None, func=None, n_first=None, n_final =None, sigrej_first=None, sigrej_final=None,
+                 wv_cen = None, disp = None,
                  numsearch=None,nfitpix=None, IDpixels=None, IDwaves=None, medium=None, frame=None, min_nsig=None, lowest_nsig=None):
         # Grab the parameter names and values from the function
         # arguments
@@ -1030,15 +1031,16 @@ class WavelengthSolutionPar(ParSet):
                           '\'arclines\' uses the arclines python package.' \
                           'Options are: {0}'.format(', '.join(options['method']))
 
-        # TODO: Not used
+        # TODO: These needs to be tidied up so we can check for valid lamps. Right now I'm not checking.
         # Force lamps to be a list
         if pars['lamps'] is not None and not isinstance(pars['lamps'], list):
             pars['lamps'] = [pars['lamps']]
-        options['lamps'] = WavelengthSolutionPar.valid_lamps()
+        options['lamps'] = None
+        #options['lamps'] = WavelengthSolutionPar.valid_lamps()
         dtypes['lamps'] = list
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
                          'None for no calibration.  ' \
-                         'Options are: {0}'.format(', '.join(options['lamps']))
+                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
 
 
         # ToDo Should this be in counts or ADU? Currently the arcs are in ADU (which actually sort of makes sense here) but the
@@ -1052,7 +1054,7 @@ class WavelengthSolutionPar(ParSet):
         dtypes['rms_threshold'] = float
         descr['rms_threshold'] = 'Minimum RMS for keeping a slit solution'
 
-        defaults['min_nsig'] = 5.
+        defaults['min_nsig'] = 10.
         dtypes['min_nsig'] = float
         descr['min_nsig'] = 'Detection threshold for arc lines for "standard" lines'
 
@@ -1086,6 +1088,16 @@ class WavelengthSolutionPar(ParSet):
         defaults['sigrej_final'] = 3.0
         dtypes['sigrej_final'] = float
         descr['sigrej_final'] = 'Number of sigma for rejection for the final guess to the wavelength solution.'
+
+        # Backwards compatibility with basic and semi_brute algorithms
+        defaults['wv_cen'] = 0.0
+        dtypes['wv_cen'] = float
+        descr['wv_cen'] = 'Central wavelength. Backwards compatibility with basic and semi-brute algorithms.'
+
+        defaults['disp'] = 0.0
+        dtypes['disp'] = float
+        descr['disp'] = 'Dispersion. Backwards compatibility with basic and semi-brute algorithms.'
+
 
         # TODO: Not used
         defaults['numsearch'] = 20
@@ -1132,7 +1144,8 @@ class WavelengthSolutionPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = [ 'reference', 'method', 'lamps', 'rms_threshold', 'nonlinear_counts', 'match_toler', 'func', 'n_first',
-                    'n_final', 'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
+                    'n_final', 'sigrej_first', 'sigrej_final',
+                    'wv_cen', 'disp', 'numsearch', 'nfitpix',
                     'IDpixels', 'IDwaves', 'medium', 'frame', 'min_nsig', 'lowest_nsig']
         kwargs = {}
         for pk in parkeys:
