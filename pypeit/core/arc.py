@@ -447,7 +447,7 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
 
 # ToDO JFH nfitpix should be chosen based on the spectral sampling of the spectroscopic setup
 def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 10.0, cont_samp = 30, nonlinear_counts=1e10, niter_cont = 3,
-                 debug=False, nfind = None):
+                 nfind = None, verbose = False, debug=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -484,6 +484,9 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 
     niter_cont: int, default = 3
        Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
 
+    verbose: bool, default = False
+       Output more stuff to the screen.
+
     debug: boolean, default = False
        Make plots showing results of peak finding and final arc lines that are used.
 
@@ -509,7 +512,8 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 
     # debug = True
 
     # Detect the location of the arc lines
-    msgs.info("Detecting lines...isolating the strongest, nonsaturated lines")
+    if verbose:
+        msgs.info("Detecting lines...isolating the strongest, nonsaturated lines")
 
     if len(censpec.shape) == 3:
         detns = censpec[:, 0].flatten()
