@@ -690,6 +690,8 @@ class General:
         # For all newly labeled lines, create a patt_dict of these labeled lines
         # Perform a final fit on these lines
 
+        self._debug = True
+
         # First, sort spectra according to increasing central wavelength
         ngd = good_fit.sum()
         idx_gd = np.zeros(ngd, dtype=np.int)
@@ -793,7 +795,7 @@ class General:
             disp_good[islit] = np.median(wave_soln - np.roll(wave_soln, 1))
 
 
-        disp = np.median(disp_good)
+        disp_med = np.median(disp_good)
         sign = np.median(sign_good)
         #disp = self._all_patt_dict[str(good_slits[0])]['bdisp']
         #sign = self._all_patt_dict[str(good_slits[0])]['sign']
@@ -811,6 +813,7 @@ class General:
             lindex = np.array([], dtype=np.int)
             dindex = np.array([], dtype=np.int)
             wcen = np.zeros(good_slits.size)
+            disp = np.zeros(good_slits.size)
             shift_vec = np.zeros(good_slits.size)
             stretch_vec = np.zeros(good_slits.size)
             for cntr, gs in enumerate(good_slits):
@@ -823,26 +826,30 @@ class General:
                 # JFH Put in a cut on the cross-correlation value here in this logic
                 # so that we only consider slits that are sufficiently similar?
 
-                # Estimate wcen for this bad slit based on its shift relative to the good slit
-                wcen[cntr] = wvc_good[cntr] - shift_vec[cntr]*disp_good[cntr]
-                # For each peak in the gs spectrum, identify the corresponding peaks in the bs spectrum.
+                # Estimate wcen and disp for this bad slit based on its shift/stretch relative to the good slit
+                disp[cntr] = disp_good[cntr]/stretch_vec[cntr]
+                wcen[cntr] = wvc_good[cntr] + shift_vec[cntr]*disp[cntr]
 
-                # Transform these good slit line pixel locations into the (shifted and stretched) bs frame
+                # For each peak in the gs spectrum, identify the corresponding peaks in the bs spectrum. Do this by
+                # transform these good slit line pixel locations into the (shifted and stretched) bs frame
                 gsdet, _ = self.get_use_tcent(sign, arrerr=self._detections[str(gs)], weak=True)
-                gsdet_ss = gsdet*stretch_vec[cntr] - shift_vec[cntr]
-                from IPython import embed
-                embed()
+                gsdet_ss = gsdet*stretch_vec[cntr] + shift_vec[cntr]
                 if self._debug:
                     plt.figure(figsize=(14, 6))
                     xrng = np.arange(self._npix)
-                    plt.plot(xrng, self._spec[:, bs], color='black', drawstyle='steps-mid', lw=3, label='bad slit arc', linewidth=1.0)
-                    plt.plot(bsdet, tampl, 'k.', markersize=8.0, label='bad slit lines')
-                    tampl = np.interp(bsdet, xrng, self._spec[:, bs])
+                    tampl_bs = np.interp(bsdet, xrng, self._spec[:, bs])
+                    plt.plot(xrng, self._spec[:, bs], color='black', drawstyle='steps-mid', label='bad slit', linewidth=1.0)
+                    plt.plot(bsdet, tampl_bs, 'k.', markersize=10.0, label='bad slit lines')
                     gdarc_ss = wvutils.shift_and_stretch(self._spec[:, gs], shift_vec[cntr], stretch_vec[cntr])
                     tampl_ss = np.interp(gsdet_ss, xrng, gdarc_ss)
-                    plt.plot(xrng, gdarc_ss, color='red', drawstyle='steps-mid', lw=3, label='good slit arc shift/stretch', linewidth=1.0)
-                    plt.plot(gsdet_ss, tampl_ss, 'r.', markersize=8.0, label='predicted good slit lines')
-                    plt.title('Cross-correlation of bad slit # {:d}'.format(bs+1) + ' and good slit # {:d}'.format(gs+1))
+                    plt.plot(xrng, gdarc_ss, color='red', drawstyle='steps-mid', label='good slit shift/stretch', linewidth=1.0)
+                    plt.plot(gsdet_ss, tampl_ss, 'r.', markersize=10.0, label='predicted good slit lines')
+                    tampl_gs = np.interp(gsdet, xrng, self._spec[:, gs])
+                    plt.plot(xrng, self._spec[:, gs], color='red', drawstyle='steps-mid', linestyle=':',
+                             label='good slit arc', linewidth=0.5)
+                    plt.plot(gsdet, tampl_gs, 'r+', markersize=5.0, label='good slit lines')
+                    plt.title('Cross-correlation of bad slit # {:d}'.format(bs+1) + ' and good slit # {:d}'.format(gs+1) +
+                              ': shift = {:6.1f}'.format(shift_vec[cntr]) + ', stretch = {:5.4f}'.format(stretch_vec[cntr]))
                     plt.ylim(-5.0, 1.5*self._spec[:, bs].max())
                     plt.legend()
                     plt.show()
@@ -861,7 +868,7 @@ class General:
                         # Using the good slit wavelength solution, search for the nearest line in the line list
                         bstwv = np.abs(self._wvdata - wvval[bstpx])
                         # This is probably not a good match
-                        if bstwv[np.argmin(bstwv)] > 2.0*disp:
+                        if bstwv[np.argmin(bstwv)] > 2.0*disp_med:
                             continue
                         lindex = np.append(lindex, np.argmin(bstwv)) # index in the line list self._wvdata
                         dindex = np.append(dindex, dd)               # index in the bad slit array of detections bsdet
@@ -871,7 +878,7 @@ class General:
                              mask=np.zeros(bsdet.size, dtype=np.bool))
             patt_dict['sign'] = sign
             patt_dict['bwv'] = np.median(wcen[wcen != 0.0])
-            patt_dict['bdisp'] = disp
+            patt_dict['bdisp'] = np.median(disp[disp != 0.0])
             patterns.solve_triangles(bsdet, self._wvdata, dindex, lindex, patt_dict)
             # Check if a solution was found
             if not patt_dict['acceptable']:
