@@ -14,6 +14,7 @@ from astropy.table import vstack
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc
+from pypeit.core import qa
 from pypeit.core import masters
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
