@@ -187,7 +187,8 @@ class WaveCalib(masterframe.MasterFrame):
         # QA
         if not skip_QA:
             for slit in ok_mask:
-                arc.arc_fit_qa(self.setup, self.wv_calib[str(slit)], slit, out_dir=self.redux_path)
+                outfile = qa.set_qa_filename(self.setup, 'arc_fit_qa', slit=(slit + 1), out_dir=self.redux_path)
+                arc.arc_fit_qa(self.wv_calib[str(slit)], outfile)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
