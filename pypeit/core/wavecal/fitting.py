@@ -60,8 +60,6 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
       Dictionaty containing the full fitting results and the final best guess of the line IDs
     """
 
-    from IPython import embed
-    embed()
     if weights is None:
         weights = np.ones(tcent.size)
 
