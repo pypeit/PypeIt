@@ -819,7 +819,8 @@ class General:
             for cntr, gs in enumerate(good_slits):
                 # Match the peaks between the two spectra.
                 # spec_gs_adj is the stretched spectrum
-                success, shift_vec[cntr], stretch_vec[cntr], ccorr, _, _ =  wvutils.xcorr_shift_stretch(self._spec[:, bs],self._spec[:, gs], debug = True)
+                success, shift_vec[cntr], stretch_vec[cntr], ccorr, _, _ =  \
+                    wvutils.xcorr_shift_stretch(self._spec[:, bs],self._spec[:, gs], debug = self._debug)
                 #stretch, shift = wvutils.match_peaks(self._spec[:, bs], self._spec[:, gs])
                 if not success:
                     continue
@@ -871,7 +872,7 @@ class General:
                         if bstwv[np.argmin(bstwv)] > 2.0*disp_med:
                             continue
                         lindex = np.append(lindex, np.argmin(bstwv)) # index in the line list self._wvdata
-                        dindex = np.append(dindex, dd)               # index in the bad slit array of detections bsdet
+                        dindex = np.append(dindex, dd)               # index in the array of pixel detections bsdet
             # Finalize the best guess of each line
             # Initialise the patterns dictionary
             patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_nsig=self._min_nsig,
@@ -879,7 +880,7 @@ class General:
             patt_dict['sign'] = sign
             patt_dict['bwv'] = np.median(wcen[wcen != 0.0])
             patt_dict['bdisp'] = np.median(disp[disp != 0.0])
-            patterns.solve_triangles(bsdet, self._wvdata, dindex, lindex, patt_dict)
+            patterns.solve_triangles(bsdet, self._wvdata, dindex, lindex, patt_dict = patt_dict)
             # Check if a solution was found
             if not patt_dict['acceptable']:
                 new_bad_slits = np.append(new_bad_slits, bs)
@@ -900,6 +901,7 @@ class General:
             self._all_patt_dict[str(bs)] = copy.deepcopy(patt_dict)
             self._all_final_fit[str(bs)] = copy.deepcopy(final_fit)
             if self._debug:
+                xrng = np.arange(self._npix)
                 xplt = np.linspace(0.0, 1.0, self._npix)
                 yplt = utils.func_val(final_fit['fitc'], xplt, 'legendre', minv=0.0, maxv=1.0)
                 plt.plot(final_fit['xfit'], final_fit['yfit'], 'bx')
@@ -1494,6 +1496,8 @@ class General:
             slittxt = '_Slit{0:03d}'.format(slit+1)
             use_tcent, use_ecent = self.get_use_tcent(self._all_patt_dict[str(slit)]['sign'],
                                                       arrerr=self._detections[str(slit)], weak=True)
+            from IPython import embed
+            embed()
             if self._outroot is not None:
                 # Write IDs
                 out_dict = dict(pix=use_tcent, IDs=self._all_patt_dict[str(slit)]['IDs'])
