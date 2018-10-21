@@ -1010,7 +1010,7 @@ def saturation_mask(a, satlevel):
     return mask.astype(int)
 
 
-def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None, out_dir=None):
+def arc_fit_qa(fit, outfile, ids_only=False, title=None):
     """
     QA for Arc spectrum
 
@@ -1033,10 +1033,10 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None, out_d
     plt.rcParams['font.family']= 'times new roman'
 
     # Grab the named of the method
-    method = inspect.stack()[0][3]
+    #method = inspect.stack()[0][3]
     # Outfil
-    if outfile is None:
-        outfile = qa.set_qa_filename(setup, method, slit=slit, out_dir=out_dir)
+    #if outfile is None:
+    #    outfile = qa.set_qa_filename(setup, method, slit=(slit + 1), out_dir=out_dir)
     #
     arc_spec = fit['spec']
 
