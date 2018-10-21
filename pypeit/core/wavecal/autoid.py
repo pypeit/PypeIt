@@ -261,7 +261,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
     # Plot
     if outroot is not None:
         tmp_list = vstack([line_lists,unknwns])
-        qa.match_qa(spec, cut_tcent, tmp_list, best_dict['IDs'], best_dict['scores'], outroot+'.pdf')
+        qa.match_qa(spec, cut_tcent, tmp_list, best_dict['IDs'], best_dict['scores'], outfile = outroot+'.pdf')
         msgs.info("Wrote: {:s}".format(outroot+'.pdf'))
 
     # Fit
@@ -687,7 +687,6 @@ class General:
         # For all newly labeled lines, create a patt_dict of these labeled lines
         # Perform a final fit on these lines
 
-        self.debug = True
         # First, sort spectra according to increasing central wavelength
         ngd = good_fit.sum()
         idx_gd = np.zeros(ngd, dtype=np.int)
@@ -769,7 +768,7 @@ class General:
 
         # ToDO Basically a slit needs to have a bad cross-correlation with every other slit in order
         # to be classified as a bad slit here. Is this the behavior we want?? Maybe we should be more
-        # conservative and call a bad slit which results in an outlier here.
+        # conservative and call a bad any slit which results in an outlier here?
         good_slits = np.sort(sort_idx[np.unique(slit_ids[gdmsk, :].flatten())])
         bad_slits = np.setdiff1d(np.arange(self._nslit), good_slits, assume_unique=True)
         # Get the sign (i.e. if pixels correlate/anticorrelate with wavelength)
@@ -884,8 +883,21 @@ class General:
             patt_dict['bwv'] = np.median(wcen[wcen != 0.0])
             patt_dict['bdisp'] = np.median(disp[disp != 0.0])
             patterns.solve_triangles(bsdet, self._wvdata, dindex, lindex, patt_dict = patt_dict)
+
+            self._debug = True
+            if self._debug:
+                tmp_list = vstack([self._line_lists, self._unknwns])
+                qa.match_qa(self._spec[:, bs], bsdet, tmp_list,patt_dict['IDs'], patt_dict['scores'])
+
             from IPython import embed
             embed()
+            # Use only the perfect IDs
+            iperfect = np.array(patt_dict['scores']) != 'Perfect'
+            patt_dict['mask'][iperfect] = False
+            patt_dict['nmatch'] = np.sum(patt_dict['mask'])
+            if patt_dict['nmatch'] < 3:
+                patt_dict['acceptable'] = False
+
             # Check if a solution was found
             if not patt_dict['acceptable']:
                 new_bad_slits = np.append(new_bad_slits, bs)
@@ -1512,7 +1524,7 @@ class General:
                 tmp_list = vstack([self._line_lists, self._unknwns])
                 qa.match_qa(self._spec[:, slit], use_tcent, tmp_list,
                             self._all_patt_dict[str(slit)]['IDs'], self._all_patt_dict[str(slit)]['scores'],
-                            self._outroot + slittxt + '.pdf')
+                            outfile=self._outroot + slittxt + '.pdf')
                 msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
             # Perform the final fit for the best solution
             best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], tcent=use_tcent, ecent=use_ecent,
