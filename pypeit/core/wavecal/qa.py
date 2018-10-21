@@ -113,7 +113,7 @@ def arc_fit_qa(fit, outfile, ids_only=False, title=None):
     return
 
 
-def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile, title=None, path=None):
+def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile = None, title=None, path=None):
     """
     Parameters
     ----------
@@ -133,7 +133,6 @@ def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile, title=None, path=
 
 
     # Plot
-    pp = PdfPages(outfile)
     plt.figure(figsize=(11, 8.5))
     plt.clf()
     gs = gridspec.GridSpec(1, 1)
@@ -147,8 +146,7 @@ def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile, title=None, path=
     mn_yline = 1e9
 
     # Standard IDs
-    clrs = dict(Perf='green', Good='blue', Ok='orange',
-                Perfect='green')
+    clrs = dict(Perfect='green', Good='orange', Ok='red')
     clrs['Very Good'] = 'blue'
     for kk, score in enumerate(scores):
         x = tcent[kk]
@@ -161,7 +159,7 @@ def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile, title=None, path=
         mn_yline = min(mn_yline, yline)
         # Tick mark
         ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], '-', color=clr)
-        if score in ['Perf', 'Good', 'Ok', 'Perfect', 'Very Good']:
+        if score in ['Good', 'Ok', 'Perfect', 'Very Good']:
             # Label
             imin = np.argmin(np.abs(line_list['wave']-IDs[kk]))
             row = line_list[imin]
@@ -175,12 +173,18 @@ def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile, title=None, path=
     ax_spec.set_xlabel('Pixel')
     ax_spec.minorticks_on()
     ax_spec.set_ylabel('Counts')
+    plt.legend()
     if title is not None:
         ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
                      size='x-large', ha='left')#, bbox={'facecolor':'white'})
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    pp.savefig(bbox_inches='tight')
-    pp.close()
+    if outfile is None:
+        plt.show()
+    else:
+        pp = PdfPages(outfile)
+        pp.savefig(bbox_inches='tight')
+        pp.close()
+
     plt.close()
     return
