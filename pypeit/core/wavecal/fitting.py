@@ -57,7 +57,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     Returns
     -------
     final_fit: dict
-      Dictionaty containing the full fitting results and the final best guess of the line IDs
+      Dictionary containing the full fitting results and the final best guess of the line IDs
     """
 
     if weights is None:
@@ -84,7 +84,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
                                      weights=wfit[mask == 0])
         rms_pix = rms_ang/disp
         if verbose:
-            msgs.info("RMS = {:g}".format(rms_pix))
+            msgs.info('n_order = {:d}'.format(n_order) + ': RMS = {:g}'.format(rms_pix))
 
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask == 0]) + sv_ifit
