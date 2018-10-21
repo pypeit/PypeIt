@@ -16,7 +16,6 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit.core import parse
 from pypeit.core import pixels
-from pypeit.core import qa
 from pypeit.core.wavecal import autoid
 from pypeit import debugger
 
