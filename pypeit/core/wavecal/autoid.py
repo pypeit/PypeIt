@@ -14,6 +14,7 @@ import numba as nb
 import numpy as np
 import pdb
 
+from pypeit.par import pypeitpar
 from pypeit.core.wavecal import kdtree_generator
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import patterns
@@ -120,7 +121,8 @@ def basic(spec, lines, wv_cen, disp, min_nsig=20.,nonlinear_counts = 1e10,
 
 def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
                outroot=None, debug=False, do_fit=True, verbose=False,
-               fit_parm=None, min_nmatch=3, lowest_nsig=20.):
+               min_nmatch=3, lowest_nsig=20.,
+               match_toler=3.0, func='legendre', n_first=2, sigrej_first=2.0, n_final=4, sigrej_final=3.0):
     """
     Parameters
     ----------
@@ -134,7 +136,6 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
     debug
     do_fit
     verbose
-    fit_parm
     min_nmatch
     lowest_nsig
 
@@ -298,13 +299,14 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
         # Fit
         final_fit = fitting.iterative_fitting(spec, cut_tcent, ifit,
                                               np.array(best_dict['IDs'])[ifit], line_lists[NIST_lines],
-                                              disp, plot_fil=plot_fil, verbose=verbose, aparm=fit_parm)
+                                              disp, plot_fil=plot_fil, verbose=verbose,
+                                              match_toler=match_toler, func=func, n_first=n_first, sigrej_first=sigrej_first,
+                                              n_final=n_final,sigrej_final=sigrej_final)
         if plot_fil is not None:
             print("Wrote: {:s}".format(plot_fil))
 
     # Return
     return best_dict, final_fit
-
 
 class General:
     """ General algorithm to wavelength calibrate spectroscopic data
@@ -315,13 +317,9 @@ class General:
       2D array of arcline spectra (nspec,nslit)
     lines : list
       List of arc lamps on
+    par:
     ok_mask : ndarray
       Array of good slits
-    min_nsig : float
-      Minimum significance of the arc lines that will be used in the fit
-    nonlinear_counts : float, default = 1e10
-      value above which to mask saturated arc lines. This should  be nonlinear_counts= nonlinear*saturation according to pypeit parsets.
-      Default is 1e10 which is to not mask.
     islinelist : bool
       Is lines a linelist (True), or a list of ions (False)
     outroot : str, optional
@@ -331,12 +329,6 @@ class General:
     verbose : bool
       If True, the final fit will print out more detail as the RMS is refined,
       and lines are rejected. This is mostly helpful for developing the algorithm.
-    fit_parm : dict
-      Fitting parameter dictionary (see fitting.iterative_fitting)
-    lowest_nsig : float
-      Lowest significance of an arc line that will be used in the final fit
-    rms_threshold : float
-      Maximum RMS dispersion that is considered acceptable for a good solution
     binw : ndarray, optional
       Set the wavelength grid when identifying the best solution
     bind : ndarray, optional
@@ -357,18 +349,18 @@ class General:
       final best guess of the line IDs
     """
 
-    def __init__(self, spec, lines, ok_mask=None, min_nsig=50.0, nonlinear_counts = 1e10, islinelist=False,
-              outroot=None, debug = False, verbose=False,
-              fit_parm=None, lowest_nsig=10., rms_threshold=0.15,
-              binw=None, bind=None, nstore=1, use_unknowns=True):
+    def __init__(self, spec, lines, par = None, ok_mask=None, islinelist=False, outroot=None, debug = False, verbose=False,
+                 binw=None, bind=None, nstore=1, use_unknowns=True):
 
         # Set some default parameters
         self._spec = spec
         self._lines = lines
+        self._par = pypeitpar.WavelengthSolutionPar() if par is None else par
         self._npix, self._nslit = spec.shape
         self._nstore = nstore
         self._binw = binw
         self._bind = bind
+
 
         # Mask info
         if ok_mask is None:
@@ -377,17 +369,22 @@ class General:
             self._ok_mask = ok_mask
         self._bad_slits = []  # List of bad slits
 
-        self._min_nsig = min_nsig
-        self._lowest_nsig = lowest_nsig
-        self._nonlinear_counts = nonlinear_counts
-
+        # Set the input parameters
+        self._nonlinear_counts = self._par['nonlinear_counts']
+        self._min_nsig = self._par['min_nsig']
+        self._lowest_nsig = self._par['lowest_nsig']
+        self._rms_threshold = self._par['rms_threshold']
+        self._match_toler = self._par['match_toler']
+        self._func = self._par['func']
+        self._n_first= self._par['n_first']
+        self._sigrej_first= self._par['sigrej_first']
+        self._n_final= self._par['n_final']
+        self._sigrej_final= self._par['sigrej_final']
 
         self._use_unknowns = use_unknowns
         self._islinelist = islinelist
 
         self._outroot = outroot
-        self._fit_parm = fit_parm
-        self._rms_threshold = rms_threshold
 
         self._debug = debug
         self._verbose = verbose
@@ -969,14 +966,11 @@ class General:
         return new_good_fit
 
 
-
-
-
         # Set some fitting parameters
-        if self._fit_parm is None:
+        if self._n_final is None:
             order = 4
         else:
-            order = self._fit_parm['n_final']
+            order = self._n_final
 
         ofit = [5, 3, 1, 0]
         lnpc = len(ofit) - 1
@@ -1475,8 +1469,11 @@ class General:
         try:
             final_fit = fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
                                                   np.array(patt_dict['IDs'])[ifit], self._line_lists[NIST_lines],
-                                                  patt_dict['bdisp'], plot_fil=plot_fil, verbose=self._verbose,
-                                                  aparm=self._fit_parm, weights=weights)
+                                                  patt_dict['bdisp'], weights=weights,
+                                                  match_toler=self._match_toler, func=self._func, n_first=self._n_first,
+                                                  sigrej_first=self._sigrej_first,
+                                                  n_final=self._n_final, sigrej_final=self._sigrej_final,
+                                                  plot_fil = plot_fil, verbose = self._verbose)
         except TypeError:
             # A poor fitting result, this can be ignored.
             return None
