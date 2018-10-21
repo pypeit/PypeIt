@@ -37,8 +37,10 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['number'] = 5
         par['calibrations']['traceframe']['number'] = 5
         par['calibrations']['arcframe']['number'] = 1
+
         # Set wave tilts order
         par['calibrations']['tilts']['order'] = 2
+
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -214,13 +216,21 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # Uses default primary_hdrext
         self.sky_file = 'sky_kastb_600.fits'
 
-    @staticmethod
-    def default_pypeit_par():
+    #@staticmethod
+    def default_pypeit_par(self):
         """
         Set default parameters for Shane Kast Blue reductions.
         """
         par = ShaneKastSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_blue'
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.10  # Might be grating dependent..
+        par['calibrations']['wavelengths']['min_nsig'] = 10.  # Reddest chip
+        par['calibrations']['wavelengths']['lowest_nsig'] = 5.  # Reddest chip
+        par['calibrations']['wavelengths']['lamps'] = ['CdI','HgI','HeI']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+
         return par
 
     def check_headers(self, headers):
