@@ -133,6 +133,49 @@ def xcorr_shift(inspec1,inspec2,smooth = None,debug = False):
 
 def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, shift_mnmx = (-0.05,0.05), stretch_mnmx = (0.9,1.1), debug = True):
 
+    """ Determine the shift and stretch that must be applied to inspec2 to make it match inspec1.  This routine computes an initial
+    guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
+    by optimizing the zero lag cross-correlation between the inspec1 and the transformed inspec2 (shifted and stretched via
+    wvutils.shift_and_stretch()) in a narrow window about the initial estimated shift. The convention for the shift is that
+    positive shift means inspec2 is shifted to the right (higher pixel values) relative to inspec1. The convention for the stretch is
+    that it is float near unity that increases the size of the inspec2 relative to the original size (which is the size of inspec1)
+
+    Parameters
+    ----------
+    inspec1 : ndarray
+      Reference spectrum
+    inspec2 : ndarray
+      Spectrum for which the shift and stretch are computed such that it will match inspec1
+
+    Optional Parameters
+    -------------------
+    smooth: float, default
+      Gaussian smoothing in pixels applied to both spectra for the computations. Default is 5.0
+    shift_mnmx: tuple of floats, default = (-0.05,0.05)
+      Range to search for the shift in the optimization about the initial cross-correlation based estimate of the shift.
+      The optimization will search the window (shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]) where nspec
+      is the number of pixels in the spectrum
+    stretch_mnmx: tuple of floats, default = (0.9,1.1)
+      Range to search for the stretch in the optimization. The code may not work well if this range is significantly expanded
+      because the linear approximation used to transform the arc starts to break down.
+
+    Returns
+    -------
+    success: boolean
+      boolean indicating whether the optimization exited successfully indicating that the shift and stretch are reliable
+    shift: float
+      the optimal shift which was determined
+    stretch: float
+      the optimal stretch which was determined
+    cross_corr: float
+      the value of the cross-correlation coefficient at the optimal shift and stretch. This is a number between zero and unity,
+      which unity indicating a perfect match between the two spectra.
+    shift_init:
+      The initial shift determined by maximizing the cross-correlation coefficient without allowing for a stretch.
+    cross_corr_init:
+      The maximum of the initial cross-correlation coefficient determined without allowing for a stretch
+    """
+
     nspec = inspec1.size
     y1 = scipy.ndimage.filters.gaussian_filter(inspec1, smooth)
     y2 = scipy.ndimage.filters.gaussian_filter(inspec2, smooth)
