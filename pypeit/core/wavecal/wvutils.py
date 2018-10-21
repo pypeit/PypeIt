@@ -103,6 +103,33 @@ def zerolag_shift_stretch(theta, y1, y2):
 
 def xcorr_shift(inspec1,inspec2,smooth = None,debug = False):
 
+    """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
+    the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
+    (higher pixel values) relative to inspec1.
+
+    Parameters
+    ----------
+    inspec1 : ndarray
+      Reference spectrum
+    inspec2 : ndarray
+      Spectrum for which the shift and stretch are computed such that it will match inspec1
+
+    Optional Parameters
+    -------------------
+    smooth: float, default = None
+      Gaussian smoothing in pixels applied to both spectra for the computations. Default is to not smooth.
+    debug: boolean, default = False
+
+    Returns
+    -------
+    shift: float
+      the shift which was determined
+    cross_corr: float
+      the maximum of the cross-correlation coefficient at this shift
+    """
+
+
+
     if smooth is not None:
         y1 = scipy.ndimage.filters.gaussian_filter(inspec1, smooth)
         y2 = scipy.ndimage.filters.gaussian_filter(inspec2, smooth)
@@ -133,7 +160,7 @@ def xcorr_shift(inspec1,inspec2,smooth = None,debug = False):
 
 def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, shift_mnmx = (-0.05,0.05), stretch_mnmx = (0.9,1.1), debug = True):
 
-    """ Determine the shift and stretch that must be applied to inspec2 to make it match inspec1.  This routine computes an initial
+    """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
     guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
     by optimizing the zero lag cross-correlation between the inspec1 and the transformed inspec2 (shifted and stretched via
     wvutils.shift_and_stretch()) in a narrow window about the initial estimated shift. The convention for the shift is that
