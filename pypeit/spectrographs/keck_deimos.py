@@ -209,6 +209,13 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['fracignore'] = 0.02
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
 
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.10  # Might be grating dependent..
+        par['calibrations']['wavelengths']['min_nsig'] = 30.  # Reddest chip
+        par['calibrations']['wavelengths']['lowest_nsig'] = 10.  # Reddest chip
+        par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
+
+
         # Overscan subtract the images
         par['calibrations']['biasframe']['useframe'] = 'overscan'
 
@@ -526,7 +533,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         arcparam['wv_cen'] = fitstbl['dispangle'][arc_idx]
         # TODO -- Should set according to the lamps that were on
-        arcparam['lamps'] = ['ArI','NeI','KrI','XeI']
+        #arcparam['lamps'] = ['ArI','NeI','KrI','XeI']
         # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
         # detector and there is no mechanism in place to create that yet
 
