@@ -349,13 +349,13 @@ class General:
       final best guess of the line IDs
     """
 
-    def __init__(self, spec, lines, par = None, ok_mask=None, islinelist=False, outroot=None, debug = False, verbose=False,
+    def __init__(self, spec, par = None, ok_mask=None, islinelist=False, outroot=None, debug = False, verbose=False,
                  binw=None, bind=None, nstore=1, use_unknowns=True):
 
         # Set some default parameters
         self._spec = spec
-        self._lines = lines
         self._par = pypeitpar.WavelengthSolutionPar() if par is None else par
+        self._lines = self._par['lamps']
         self._npix, self._nslit = spec.shape
         self._nstore = nstore
         self._binw = binw
@@ -414,7 +414,7 @@ class General:
         # Find the wavelength solution!
         # KD Tree algorithm only works for ThAr - check first that this is what is being used
         self._thar = False
-        if 'ThAr' in lines and len(lines) == 1:
+        if 'ThAr' in self._lines and len(self._lines) == 1:
             self._thar = True
             # Set up the grids to be used for pattern matching
             self.set_grids(ngridw=5000, ngridd=1000)
