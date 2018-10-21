@@ -209,15 +209,14 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['fracignore'] = 0.02
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
 
+        # Overscan subtract the images
+        par['calibrations']['biasframe']['useframe'] = 'overscan'
+
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.10  # Might be grating dependent..
         par['calibrations']['wavelengths']['min_nsig'] = 30.  # Reddest chip
         par['calibrations']['wavelengths']['lowest_nsig'] = 10.  # Reddest chip
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
-
-
-        # Overscan subtract the images
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
