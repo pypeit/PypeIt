@@ -323,7 +323,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Set mask based on wv_calib
         mask = np.array([True]*nslit)
         for key in self.wv_calib.keys():
-            if key in ['steps', 'arcparam']:
+            if key in ['steps', 'par']:
                 continue
             #
             mask[int(key)] = False
@@ -370,8 +370,9 @@ class WaveCalib(masterframe.MasterFrame):
         # Fill up the calibrations and generate QA
         self.wv_calib = self._build_wv_calib(self.par['method'], skip_QA=skip_QA)
         self.wv_calib['steps'] = self.steps
-        sv_par = self.par.copy()
-        sv_par.pop('llist')
+        from IPython import embed
+        sv_par = self.par.data.copy()
+        #sv_par.pop('llist')
         self.wv_calib['par'] = sv_par
 
         # Build mask
