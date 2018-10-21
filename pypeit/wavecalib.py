@@ -74,7 +74,7 @@ class WaveCalib(masterframe.MasterFrame):
     # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
     # parameters since instantiating without them does nothing. Make them required
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
-                 mode=None, fitstbl=None, sci_ID=None, arcparam=None, redux_path=None, bpm = None):
+                 mode=None, fitstbl=None, sci_ID=None, redux_path=None, bpm = None):
 
         # Instantiate the spectograph
         self.spectrograph = load_spectrograph(spectrograph)
@@ -95,7 +95,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.sci_ID = sci_ID
         self.det = det
         self.setup = setup
-        self.arcparam = arcparam
+        #self.arcparam = arcparam
 
         # Attributes
         # Done by MasterFrame
@@ -165,9 +165,9 @@ class WaveCalib(masterframe.MasterFrame):
                     best_dict, ifinal_fit = autoid.semi_brute(self.arccen[:, slit],
                                                               self.arcparam['lamps'], self.arcparam['wv_cen'],
                                                               self.arcparam['disp'],
-                                                              fit_parm=self.arcparam,
+                                                              fit_param=self.arcparam,
                                                               min_nsig=self.par['min_nsig'],
-                                                              nonlinear_counts= self.arcparam['nonlinear_counts'])
+                                                              nonlinear_counts= self.par['nonlinear_counts'])
                     final_fit[str(slit)] = ifinal_fit.copy()
             elif use_method == "basic":
                 final_fit = {}
@@ -177,11 +177,7 @@ class WaveCalib(masterframe.MasterFrame):
                     final_fit[str(slit)] = ifinal_fit.copy()
             else:
                 # Now preferred
-                arcfitter = autoid.General(self.arccen, self.arcparam['lamps'], ok_mask=ok_mask,
-                                           fit_parm=self.arcparam, min_nsig=self.par['min_nsig'],
-                                           lowest_nsig=self.par['lowest_nsig'],
-                                           nonlinear_counts=self.arcparam['nonlinear_counts'],
-                                           rms_threshold=self.par['rms_threshold'])
+                arcfitter = autoid.General(self.arccen, par = self.par, ok_mask=ok_mask)
                 patt_dict, final_fit = arcfitter.get_results()
             self.wv_calib = final_fit
 
