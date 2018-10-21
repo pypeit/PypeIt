@@ -1496,8 +1496,6 @@ class General:
             slittxt = '_Slit{0:03d}'.format(slit+1)
             use_tcent, use_ecent = self.get_use_tcent(self._all_patt_dict[str(slit)]['sign'],
                                                       arrerr=self._detections[str(slit)], weak=True)
-            from IPython import embed
-            embed()
             if self._outroot is not None:
                 # Write IDs
                 out_dict = dict(pix=use_tcent, IDs=self._all_patt_dict[str(slit)]['IDs'])
