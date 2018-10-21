@@ -424,8 +424,6 @@ class General:
             # Set up the grids to be used for pattern matching
             self.set_grids()
             msgs.info("Using brute force pattern matching algorithm to wavelength calibrate")
-            from IPython import embed
-            embed()
             self.run_brute()
 
     def get_results(self):
