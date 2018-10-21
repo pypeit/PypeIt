@@ -196,8 +196,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.optical_model = None
         self.detector_map = None
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for Keck LRISb reductions.
         """
@@ -214,9 +213,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.10  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 30.  # Reddest chip
-        par['calibrations']['wavelengths']['lowest_nsig'] = 10.  # Reddest chip
+        par['calibrations']['wavelengths']['min_nsig'] = 5.  # Reddest chip
+        par['calibrations']['wavelengths']['lowest_nsig'] = 5.  # Reddest chip
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
