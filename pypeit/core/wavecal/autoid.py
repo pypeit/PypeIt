@@ -889,8 +889,6 @@ class General:
                 tmp_list = vstack([self._line_lists, self._unknwns])
                 qa.match_qa(self._spec[:, bs], bsdet, tmp_list,patt_dict['IDs'], patt_dict['scores'])
 
-            from IPython import embed
-            embed()
             # Use only the perfect IDs
             iperfect = np.array(patt_dict['scores']) != 'Perfect'
             patt_dict['mask'][iperfect] = False
