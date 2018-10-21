@@ -839,21 +839,24 @@ class General:
                     plt.figure(figsize=(14, 6))
                     xrng = np.arange(self._npix)
                     tampl_bs = np.interp(bsdet, xrng, self._spec[:, bs])
-                    plt.plot(xrng, self._spec[:, bs], color='black', drawstyle='steps-mid', label='bad slit', linewidth=1.0)
-                    plt.plot(bsdet, tampl_bs, 'k.', markersize=10.0, label='bad slit lines')
-                    gdarc_ss = wvutils.shift_and_stretch(self._spec[:, gs], shift_vec[cntr], stretch_vec[cntr])
-                    tampl_ss = np.interp(gsdet_ss, xrng, gdarc_ss)
-                    plt.plot(xrng, gdarc_ss, color='red', drawstyle='steps-mid', label='good slit shift/stretch', linewidth=1.0)
-                    plt.plot(gsdet_ss, tampl_ss, 'r.', markersize=10.0, label='predicted good slit lines')
+                    plt.plot(xrng, self._spec[:, bs], color='red', drawstyle='steps-mid', label='bad slit arc', linewidth=1.0, zorder= 10)
+                    plt.plot(bsdet, tampl_bs, 'r.', markersize=10.0, label='bad slit lines', zorder= 10)
                     tampl_gs = np.interp(gsdet, xrng, self._spec[:, gs])
-                    plt.plot(xrng, self._spec[:, gs], color='red', drawstyle='steps-mid', linestyle=':',
+                    plt.plot(xrng, self._spec[:, gs], color='black', drawstyle='steps-mid', linestyle=':',
                              label='good slit arc', linewidth=0.5)
-                    plt.plot(gsdet, tampl_gs, 'r+', markersize=5.0, label='good slit lines')
+                    plt.plot(gsdet, tampl_gs, 'k+', markersize=8.0, label='good slit lines')
+                    gdarc_ss = wvutils.shift_and_stretch(self._spec[:, gs], shift_vec[cntr], stretch_vec[cntr])
+                    #tampl_ss = np.interp(gsdet_ss, xrng, gdarc_ss)
+                    for iline in range(gsdet_ss.size):
+                        plt.plot([gsdet[iline],gsdet_ss[iline]],[tampl_gs[iline], tampl_gs[iline]], color='cornflowerblue', linewidth = 1.0)
+                    plt.plot(xrng, gdarc_ss, color='black', drawstyle='steps-mid', label='good slit arc shift/stretch', linewidth=1.0)
+                    plt.plot(gsdet_ss, tampl_gs, 'k.', markersize=10.0, label='predicted good slit lines')
                     plt.title('Cross-correlation of bad slit # {:d}'.format(bs+1) + ' and good slit # {:d}'.format(gs+1) +
                               ': shift = {:6.1f}'.format(shift_vec[cntr]) + ', stretch = {:5.4f}'.format(stretch_vec[cntr]))
                     plt.ylim(-5.0, 1.5*self._spec[:, bs].max())
                     plt.legend()
                     plt.show()
+
                 # Calculate wavelengths for all of the gsdet detections
                 fitc = self._all_final_fit[str(gs)]['fitc']
                 xfit = gsdet/(self._npix - 1)
