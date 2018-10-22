@@ -776,6 +776,10 @@ class General:
         # conservative and call a bad any slit which results in an outlier here?
         good_slits = np.sort(sort_idx[np.unique(slit_ids[gdmsk, :].flatten())])
         bad_slits = np.setdiff1d(np.arange(self._nslit), good_slits, assume_unique=True)
+        nbad = bad_slits.size
+        if nbad > 0:
+            msgs.info('Working on {:d}'.format(nbad) + ' bad slits: {:}'.format(bad_slits))
+
         # Get the sign (i.e. if pixels correlate/anticorrelate with wavelength)
         # and dispersion (A/pix). Assume these are the same for all slits
 
