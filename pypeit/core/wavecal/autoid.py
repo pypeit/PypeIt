@@ -691,6 +691,7 @@ class General:
         # For all newly labeled lines, create a patt_dict of these labeled lines
         # Perform a final fit on these lines
 
+        self._debug = True
         # First, sort spectra according to increasing central wavelength
         ngd = good_fit.sum()
         idx_gd = np.zeros(ngd, dtype=np.int)
@@ -778,7 +779,7 @@ class General:
         bad_slits = np.setdiff1d(np.arange(self._nslit), good_slits, assume_unique=True)
         nbad = bad_slits.size
         if nbad > 0:
-            msgs.info('Working on {:d}'.format(nbad) + ' bad slits: {:}'.format(bad_slits))
+            msgs.info('Working on {:d}'.format(nbad) + ' bad slits: {:}'.format(bad_slits + 1))
 
         # Get the sign (i.e. if pixels correlate/anticorrelate with wavelength)
         # and dispersion (A/pix). Assume these are the same for all slits
