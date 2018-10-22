@@ -377,18 +377,25 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         hdus = fits.open(outfile)
         msgs.info("Using existing spec1d file, including the Header")
         msgs.info("Will only update the data extension for {} detector(s)".format(update_det))
+        prihdu = hdus[0]
         # Names
         hdu_names = [hdu.name for hdu in hdus]
         # Remove the detector(s) being updated
         if not isinstance(update_det, list):
             update_det = [update_det]
         popme = []
+        # Find em
         for ss,hdu_name in enumerate(hdu_names):
             for det in update_det:
                 sdet = parse.get_dnum(det, prefix=False)
                 idx = '{:s}{:s}'.format(specobjs.naming_model['det'], sdet)
                 if idx in hdu_name:
                     popme.append(ss)
+        # Remove em (and the bit in the Header too)
+        for popthis in reversed(popme):
+            hdus.pop(popthis)
+            keywd = 'EXT{:04d}'.format(popthis)
+            prihdu.header.remove(keywd)
 
     if hdus is None:
         prihdu = fits.PrimaryHDU()
@@ -416,14 +423,11 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
             prihdu.header['VEL'] = helio_dict['vel_correction'] # slf.vel_correction
 
     npix = 0
-    ext = 0
+    ext = len(hdus)-1
     # Loop on specobjs
     for sobj in specObjs.specobjs:
         if sobj is None:
             continue
-        if update_det:
-            sdet = sobj.set_det()
-        else:
         ext += 1
         # Add header keyword
         keywd = 'EXT{:04d}'.format(ext)

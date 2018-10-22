@@ -141,9 +141,9 @@ class SpecObj(object):
         # Spat
         self.idx = naming_model['spat']
         if self.spat_pixpos is None:
-            self.idx = '----'
+            self.idx += '----'
         else:
-            self.idx = '{:04d}'.format(int(np.rint(self.spat_pixpos)))
+            self.idx += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
         # Slit
         self.idx += '-'+naming_model['slit']
         if self.slitid is None:
