@@ -524,9 +524,13 @@ class General:
         # Now that all slits have been inspected, cross match to generate a
         # master list of all lines in every slit, and refit all spectra
         if self._nslit > 1:
+            msgs.info('Checking wavelength solution by cross-correlating with other slits')
+
+            msgs.info('Cross-correlation iteration #1')
             obad_slits = self.cross_match(good_fit)
-            cntr = 0  # Introduce a counter to stop the while loop, just in case the loop gets stuck
+            cntr = 2
             while obad_slits.size > 0:
+                msgs.info('Cross-correlation iteration #{:d}'.format(cntr))
                 good_fit = np.ones(self._nslit, dtype=np.bool)
                 good_fit[obad_slits] = False
                 bad_slits = self.cross_match(good_fit)
@@ -534,7 +538,7 @@ class General:
                     break
                 obad_slits = bad_slits.copy()
                 cntr += 1
-                if cntr > 100:
+                if cntr > 10:
                     msgs.warn("Breaking while loop before convergence. Check the wavelength solution!")
                     break
 
@@ -814,6 +818,7 @@ class General:
             stretch_vec = np.zeros(good_slits.size)
             ccorr_vec = np.zeros(good_slits.size)
             for cntr, gs in enumerate(good_slits):
+                msgs.info('Cross-correlating bad slit # {:d}'.format(bs + 1) + ' with good slit # {:d}'.format(gs + 1))
                 # Match the peaks between the two spectra.
                 # spec_gs_adj is the stretched spectrum
                 success, shift_vec[cntr], stretch_vec[cntr], ccorr_vec[cntr], _, _ =  \
@@ -885,7 +890,6 @@ class General:
             patt_dict['bdisp'] = np.median(disp[disp != 0.0])
             patterns.solve_triangles(bsdet, self._wvdata, dindex, lindex, patt_dict = patt_dict)
 
-            self._debug = True
             if self._debug:
                 tmp_list = vstack([self._line_lists, self._unknwns])
                 qa.match_qa(self._spec[:, bs], bsdet, tmp_list,patt_dict['IDs'], patt_dict['scores'])
