@@ -816,7 +816,7 @@ class General:
                 # Match the peaks between the two spectra.
                 # spec_gs_adj is the stretched spectrum
                 success, shift_vec[cntr], stretch_vec[cntr], ccorr_vec[cntr], _, _ =  \
-                    wvutils.xcorr_shift_stretch(self._spec[:, bs],self._spec[:, gs]) #, debug = self._debug)
+                    wvutils.xcorr_shift_stretch(self._spec[:, bs],self._spec[:, gs], debug = self._debug)
                 if not success:
                     continue
                 # JFH Put in a cut on the cross-correlation value here in this logic
