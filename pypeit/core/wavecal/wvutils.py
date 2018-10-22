@@ -158,7 +158,7 @@ def xcorr_shift(inspec1,inspec2,smooth = None,debug = False):
     return lag_max[0], corr_max[0]
 
 
-def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, shift_mnmx = (-0.05,0.05), stretch_mnmx = (0.9,1.1), debug = False):
+def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, shift_mnmx = (-0.05,0.05), stretch_mnmx = (0.97,1.03), debug = False):
 
     """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
     guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
@@ -182,7 +182,7 @@ def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, shift_mnmx = (-0.05,0.05
       Range to search for the shift in the optimization about the initial cross-correlation based estimate of the shift.
       The optimization will search the window (shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]) where nspec
       is the number of pixels in the spectrum
-    stretch_mnmx: tuple of floats, default = (0.9,1.1)
+    stretch_mnmx: tuple of floats, default = (0.97,1.03)
       Range to search for the stretch in the optimization. The code may not work well if this range is significantly expanded
       because the linear approximation used to transform the arc starts to break down.
 
