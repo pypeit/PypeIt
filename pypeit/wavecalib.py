@@ -370,7 +370,6 @@ class WaveCalib(masterframe.MasterFrame):
         # Fill up the calibrations and generate QA
         self.wv_calib = self._build_wv_calib(self.par['method'], skip_QA=skip_QA)
         self.wv_calib['steps'] = self.steps
-        from IPython import embed
         sv_par = self.par.data.copy()
         #sv_par.pop('llist')
         self.wv_calib['par'] = sv_par
