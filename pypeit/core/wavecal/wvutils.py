@@ -175,7 +175,7 @@ def xcorr_shift(inspec1,inspec2,smooth=5.0,percent_ceil=90.0,debug=False):
     return lag_max[0], corr_max[0]
 
 
-def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, percent_ceil = 90.0, shift_mnmx = (-0.05,0.05), stretch_mnmx = (0.97,1.03), debug = False):
+def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, percent_ceil = 90.0, shift_mnmx = (-0.05,0.05), stretch_mnmx = (0.95,1.05), debug = False):
 
     """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
     guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
