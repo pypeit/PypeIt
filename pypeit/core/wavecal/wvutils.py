@@ -15,7 +15,7 @@ from pypeit.core import arc
 from pypeit import debugger
 
 
-def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10):
+def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10, debug=False):
     """
     Parameters
     ----------
@@ -30,7 +30,7 @@ def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10):
 
     # Find peaks
     tampl, tcent, twid, centerr, w, yprep, nsig = arc.detect_lines(spec, nfitpix=7, sigdetect = 0.7*min_nsig,
-                                                                   nonlinear_counts = nonlinear_counts)
+                                                                   nonlinear_counts = nonlinear_counts, debug=debug)
     all_tcent = tcent[w]
     all_tampl = tampl[w]
     all_ecent = centerr[w]
