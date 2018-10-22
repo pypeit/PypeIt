@@ -516,6 +516,8 @@ class General:
             self._detections[str(slit)] = [self._all_tcent_weak[self._icut_weak].copy(),
                                            self._all_ecent_weak[self._icut_weak].copy()]
             # Run it
+            from IPython import embed
+            embed()
             best_patt_dict, best_final_fit = self.run_brute_loop(slit)
 
             # Print preliminary report
