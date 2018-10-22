@@ -79,7 +79,7 @@ def main(args, unit_test=False, path=''):
     if 'extract' in coadd_dict.keys():
         ex_value = coadd_dict.pop('extract')
     else:
-        ex_value = 'opt'
+        ex_value = 'OPT'
     msgs.info("Using {:s} extraction".format(ex_value))
     # Fluxed data?
     if 'flux' in coadd_dict.keys():
@@ -134,9 +134,9 @@ def main(args, unit_test=False, path=''):
                 hdulist = fits.open(fkey)
                 try: #In case the optimal extraction array is a NaN array
                     if flux_value is True: # If we have a fluxed spectrum, look for flam
-                        obj_opt = hdulist[mtch_obj[0]].data['opt_flam']
+                        obj_opt = hdulist[mtch_obj[0]].data['OPT_FLAM']
                     else: # If not, look for counts
-                        obj_opt = hdulist[mtch_obj[0]].data['opt_counts']
+                        obj_opt = hdulist[mtch_obj[0]].data['OPT_COUNTS']
                     if any(isnan(obj_opt)):
                         msgs.warn("Object {:s} in file {:s} has a NaN array for optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
                         ex_value = 'box'
@@ -144,9 +144,9 @@ def main(args, unit_test=False, path=''):
                     msgs.warn("Object {:s} in file {:s} doesn't have an optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
                     try:
                         if flux_value is True: # If we have a fluxed spectrum, look for flam
-                            hdulist[mtch_obj[0]].data['box_flam']
+                            hdulist[mtch_obj[0]].data['BOX_FLAM']
                         else: # If not, look for counts
-                            hdulist[mtch_obj[0]].data['box_counts']
+                            hdulist[mtch_obj[0]].data['BOX_COUNTS']
                     except KeyError:
                         #In case the boxcar extract is also absent
                         msgs.error("Object {:s} in file {:s} doesn't have a boxcar extraction either. Co-addition cannot be performed".format(mtch_obj[0],fkey))

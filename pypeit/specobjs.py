@@ -3,6 +3,7 @@
 from __future__ import absolute_import, division, print_function
 
 import copy
+import re
 from collections import OrderedDict
 
 import numpy as np
@@ -524,7 +525,9 @@ def objnm_to_dict(objnm):
     prs = objnm.split('-')
     odict = {}
     for iprs in prs:
-        odict[iprs[0]] = int(iprs[1:])
+        # Find first character that is an integer
+        idig = re.search("\d", iprs).start()
+        odict[iprs[:idig]] = int(iprs[idig:])
     # Return
     return odict
 
@@ -556,7 +559,9 @@ def mtch_obj_to_objects(iobj, objects, stol=50, otol=10, **kwargs):
     tbl = Table(objnm_to_dict(objects))
 
     # Logic on object, slit and detector [ignoring sciidx for now]
-    gdrow = (np.abs(tbl['O']-odict['O']) < otol) & (np.abs(tbl['S']-odict['S']) < stol) & (tbl['D'] == odict['D'])
+    gdrow = (np.abs(tbl[naming_model['spat']]-odict[naming_model['spat']]) < otol) & (
+            np.abs(tbl[naming_model['slit']]-odict[naming_model['slit']]) < stol) & (
+            tbl[naming_model['det']] == odict[naming_model['det']])
     if np.sum(gdrow) == 0:
         return None
     else:
