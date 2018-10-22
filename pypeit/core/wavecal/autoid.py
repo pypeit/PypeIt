@@ -691,6 +691,7 @@ class General:
         # For all newly labeled lines, create a patt_dict of these labeled lines
         # Perform a final fit on these lines
 
+        #self._debug = True
         # First, sort spectra according to increasing central wavelength
         ngd = good_fit.sum()
         idx_gd = np.zeros(ngd, dtype=np.int)
