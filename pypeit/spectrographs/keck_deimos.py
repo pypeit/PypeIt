@@ -212,7 +212,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['useframe'] = 'overscan'
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.10  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.15  # Might be grating dependent..
         par['calibrations']['wavelengths']['min_nsig'] = 5.  # Reddest chip
         par['calibrations']['wavelengths']['lowest_nsig'] = 5.  # Reddest chip
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
