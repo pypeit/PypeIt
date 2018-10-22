@@ -329,12 +329,12 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['rdx']['spectrograph'] = 'keck_lris_blue'
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.15  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['min_nsig'] = 5.0
         par['calibrations']['wavelengths']['lowest_nsig'] =5.0
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['n_first'] = 1
+        par['calibrations']['wavelengths']['n_first'] = 2
 
 
         return par
