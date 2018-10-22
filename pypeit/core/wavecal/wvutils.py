@@ -99,9 +99,27 @@ def zerolag_shift_stretch(theta, y1, y2):
     #corr = scipy.signal.correlate(y1, y2_corr, mode='same')
     return -corr_norm
 
+def smooth_and_ceil(inspec1, smooth, percent_ceil):
+    """ Utility routine to smooth and apply a ceiling to spectra """
+
+    if percent_ceil is not None:
+        # Find the 20sigma peaks
+        tampl1, tcent1, twid1, centerr1, w1, yprep1, nsig1 = arc.detect_lines(inspec1, nfitpix=7, sigdetect = 10.0)
+        # Find peaks
+        ceil1 = np.percentile(tampl1, percent_ceil)
+        spec1 = np.fmin(inspec1, ceil1)
+    else:
+        spec1 = np.copy(inspec1)
+
+    if smooth is not None:
+        y1 = scipy.ndimage.filters.gaussian_filter(spec1, smooth)
+    else:
+        y1 = np.copy(spec1)
+
+    return y1
 
 
-def xcorr_shift(inspec1,inspec2,smooth = None,debug = False):
+def xcorr_shift(inspec1,inspec2,smooth=5.0,percent_ceil=90.0,debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
     the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
@@ -116,8 +134,12 @@ def xcorr_shift(inspec1,inspec2,smooth = None,debug = False):
 
     Optional Parameters
     -------------------
-    smooth: float, default = None
-      Gaussian smoothing in pixels applied to both spectra for the computations. Default is to not smooth.
+    smooth: float, default
+      Gaussian smoothing in pixels applied to both spectra for the computations. Default is 5.0
+    percent_ceil: float, default=90.0
+      Appply a ceiling to the input spectra at the percent_ceil percentile level of the distribution of peak amplitudes.
+      This prevents extremely strong lines from completely dominating the cross-correlation, which can
+      causes the cross-correlation to have spurious noise spikes that are not the real maximum.
     debug: boolean, default = False
 
     Returns
@@ -128,14 +150,9 @@ def xcorr_shift(inspec1,inspec2,smooth = None,debug = False):
       the maximum of the cross-correlation coefficient at this shift
     """
 
+    y1 = smooth_and_ceil(inspec1,smooth,percent_ceil)
+    y2 = smooth_and_ceil(inspec2,smooth,percent_ceil)
 
-
-    if smooth is not None:
-        y1 = scipy.ndimage.filters.gaussian_filter(inspec1, smooth)
-        y2 = scipy.ndimage.filters.gaussian_filter(inspec2, smooth)
-    else:
-        y1 = inspec1
-        y2 = inspec2
 
     nspec = y1.shape[0]
     lags = np.arange(-nspec + 1, nspec)
@@ -158,7 +175,7 @@ def xcorr_shift(inspec1,inspec2,smooth = None,debug = False):
     return lag_max[0], corr_max[0]
 
 
-def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, shift_mnmx = (-0.05,0.05), stretch_mnmx = (0.97,1.03), debug = False):
+def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, percent_ceil = 90.0, shift_mnmx = (-0.05,0.05), stretch_mnmx = (0.97,1.03), debug = False):
 
     """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
     guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
@@ -178,6 +195,10 @@ def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, shift_mnmx = (-0.05,0.05
     -------------------
     smooth: float, default
       Gaussian smoothing in pixels applied to both spectra for the computations. Default is 5.0
+    percent_ceil: float, default=90.0
+      Appply a ceiling to the input spectra at the percent_ceil percentile level of the distribution of peak amplitudes.
+      This prevents extremely strong lines from completely dominating the cross-correlation, which can
+      causes the cross-correlation to have spurious noise spikes that are not the real maximum.
     shift_mnmx: tuple of floats, default = (-0.05,0.05)
       Range to search for the shift in the optimization about the initial cross-correlation based estimate of the shift.
       The optimization will search the window (shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]) where nspec
@@ -204,11 +225,12 @@ def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, shift_mnmx = (-0.05,0.05
     """
 
     nspec = inspec1.size
-    y1 = scipy.ndimage.filters.gaussian_filter(inspec1, smooth)
-    y2 = scipy.ndimage.filters.gaussian_filter(inspec2, smooth)
+
+    y1 = smooth_and_ceil(inspec1,smooth,percent_ceil)
+    y2 = smooth_and_ceil(inspec2,smooth,percent_ceil)
 
     # Do the cross-correlation first and determine the
-    shift_cc, cc_val = xcorr_shift(y1, y2, debug = debug)
+    shift_cc, cc_val = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, debug = debug)
 
     bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
     result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol = 1e-4,
@@ -229,7 +251,6 @@ def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, shift_mnmx = (-0.05,0.05
 
 
     return result.success, result.x[0], result.x[1], -result.fun, shift_cc, cc_val
-
 
 
 
