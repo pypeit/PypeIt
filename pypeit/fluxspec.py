@@ -512,8 +512,10 @@ class FluxSpec(masterframe.MasterFrame):
             specObjs = self.sci_specobjs
         else:
             msgs.error("BAD INPUT")
+        debugger.set_trace()  # MAKE SURE TO HANDLE SUBSET OF DET
         save.save_1d_spectra_fits(specObjs, self.sci_header, outfile,
-                                    helio_dict=helio_dict, telescope=telescope, clobber=True)
+                                  helio_dict=helio_dict,
+                                  telescope=telescope, overwrite=True)
         # Step
         self.steps.append(inspect.stack()[0][3])
 

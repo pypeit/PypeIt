@@ -7,17 +7,13 @@ import datetime
 
 import numpy as np
 
-import h5py
-import json
-
 from astropy import units
 from astropy.io import fits
 from astropy.table import Table
 
-import linetools.utils
 
 from pypeit import msgs
-from pypeit import utils
+from pypeit import specobjs
 from pypeit.core import parse
 from pypeit import debugger
 
@@ -355,7 +351,8 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 '''
 
-def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=None, clobber=True):
+def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=None, overwrite=True,
+                         update_det=None):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
@@ -363,7 +360,10 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
     specobjs : SpecObjs object
     header : dict or Row (dict-like)
     outfile : str
-    clobber : bool, optional
+    overwrite : bool, optional
+    update_det : int or list, optional
+      If provided, do not clobber the existing file but only update
+      the indicated detectors.  Useful for re-running on a subset of detectors
 
     Returns
     -------
@@ -372,36 +372,58 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
     # Repackage as necessary (some backwards compatability)
     #all_specobj = utils.unravel_specobjs(specobjs.specobjs)
     # Primary hdu
-    prihdu = fits.PrimaryHDU()
-    hdus = [prihdu]
-    # Add critical data to header
-    for key in ['ra', 'dec', 'exptime', 'target', 'airmass', 'instrume','filename']:
-        # Allow for fitstbl vs. header
+    hdus = None
+    if (update_det is not None) and os.path.isfile(outfile):
+        hdus = fits.open(outfile)
+        msgs.info("Using existing spec1d file, including the Header")
+        msgs.info("Will only update the data extension for {} detector(s)".format(update_det))
+        # Names
+        hdu_names = [hdu.name for hdu in hdus]
+        # Remove the detector(s) being updated
+        if not isinstance(update_det, list):
+            update_det = [update_det]
+        popme = []
+        for ss,hdu_name in enumerate(hdu_names):
+            for det in update_det:
+                sdet = parse.get_dnum(det, prefix=False)
+                idx = '{:s}{:s}'.format(specobjs.naming_model['det'], sdet)
+                if idx in hdu_name:
+                    popme.append(ss)
+
+    if hdus is None:
+        prihdu = fits.PrimaryHDU()
+        hdus = [prihdu]
+        # Add critical data to header
+        for key in ['ra', 'dec', 'exptime', 'target', 'airmass', 'instrume','filename']:
+            # Allow for fitstbl vs. header
+            try:
+                prihdu.header[key.upper()] = header[key.upper()]
+            except KeyError:
+                prihdu.header[key.upper()] = header[key]
         try:
-            prihdu.header[key.upper()] = header[key.upper()]
+            prihdu.header['MJD-OBS'] = header['MJD-OBS']
         except KeyError:
-            prihdu.header[key.upper()] = header[key]
-    try:
-        prihdu.header['MJD-OBS'] = header['MJD-OBS']
-    except KeyError:
-        prihdu.header['MJD-OBS'] = header['time']  # recorded as 'time' in fitstbl
+            prihdu.header['MJD-OBS'] = header['time']  # recorded as 'time' in fitstbl
 
-    # Observatory
-    if telescope is not None:
-        prihdu.header['LON-OBS'] = telescope['longitude']
-        prihdu.header['LAT-OBS'] = telescope['latitude']
-        prihdu.header['ALT-OBS'] = telescope['elevation']
-    # Helio
-    if helio_dict is not None:
-        prihdu.header['VEL-TYPE'] = helio_dict['refframe'] # settings.argflag['reduce']['calibrate']['refframe']
-        prihdu.header['VEL'] = helio_dict['vel_correction'] # slf.vel_correction
+        # Observatory
+        if telescope is not None:
+            prihdu.header['LON-OBS'] = telescope['longitude']
+            prihdu.header['LAT-OBS'] = telescope['latitude']
+            prihdu.header['ALT-OBS'] = telescope['elevation']
+        # Helio
+        if helio_dict is not None:
+            prihdu.header['VEL-TYPE'] = helio_dict['refframe'] # settings.argflag['reduce']['calibrate']['refframe']
+            prihdu.header['VEL'] = helio_dict['vel_correction'] # slf.vel_correction
 
-    # Loop on detectors
     npix = 0
     ext = 0
+    # Loop on specobjs
     for sobj in specObjs.specobjs:
         if sobj is None:
             continue
+        if update_det:
+            sdet = sobj.set_det()
+        else:
         ext += 1
         # Add header keyword
         keywd = 'EXT{:04d}'.format(ext)
@@ -450,13 +472,13 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         tbhdu.name = sobj.idx
         hdus += [tbhdu]
     # A few more for the header
-    prihdu.header['NSPEC'] = ext
+    prihdu.header['NSPEC'] = len(hdus) - 1
     prihdu.header['NPIX'] = npix
     # Finish
     hdulist = fits.HDUList(hdus)
     #if outfile is None:
     #    outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
-    hdulist.writeto(outfile, overwrite=clobber)
+    hdulist.writeto(outfile, overwrite=overwrite)
     msgs.info("Wrote 1D spectra to {:s}".format(outfile))
     return outfile
 

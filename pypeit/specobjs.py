@@ -17,6 +17,10 @@ from pypeit.core import parse
 from pypeit.core import trace_slits
 from pypeit import debugger
 
+naming_model = {}
+for key in ['SPAT', 'SLIT', 'DET', 'SCI']:
+    naming_model[key.lower()] = key
+
 
 class SpecObj(object):
     """Class to handle object spectra from a single exposure
@@ -127,19 +131,32 @@ class SpecObj(object):
         #
 
     def set_idx(self):
+        """
         # Generate a unique index for this exposure
-        #self.idx = '{:02d}'.format(self.setup)
+
+        Returns:
+            idx : str
+
+        """
+        # Spat
+        self.idx = naming_model['spat']
         if self.spat_pixpos is None:
-            self.idx = 'SPAT----'
+            self.idx = '----'
         else:
-            self.idx = 'SPAT{:04d}'.format(int(np.rint(self.spat_pixpos)))
+            self.idx = '{:04d}'.format(int(np.rint(self.spat_pixpos)))
+        # Slit
+        self.idx += '-'+naming_model['slit']
         if self.slitid is None:
-            self.idx += '-SLIT----'
+            self.idx += '----'
         else:
-            self.idx += '-SLIT{:04d}'.format(self.slitid)
+            self.idx += '{:04d}'.format(self.slitid)
+        # Detector string
         sdet = parse.get_dnum(self.det, prefix=False)
-        self.idx += '-DET{:s}'.format(sdet)
-        self.idx += '-SCI{:03d}'.format(self.scidx)
+        self.idx += '-{:s}{:s}'.format(naming_model['det'], sdet)
+        # SCI
+        self.idx += '-{:s}{:03d}'.format(naming_model['sci'], self.scidx)
+        #
+        return self.idx
 
     def check_trace(self, trace, toler=1.):
         """Check that the input trace matches the defined specobjexp
