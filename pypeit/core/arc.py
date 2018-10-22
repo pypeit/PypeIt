@@ -602,7 +602,7 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 
         plt.legend()
         plt.show()
 
-    return tampl, tcent, twid, centerr, ww, arc, nsig
+    return tampl_true, tcent, twid, centerr, ww, arc, nsig
 
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
