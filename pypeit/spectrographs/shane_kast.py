@@ -216,7 +216,6 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # Uses default primary_hdrext
         self.sky_file = 'sky_kastb_600.fits'
 
-    #@staticmethod
     def default_pypeit_par(self):
         """
         Set default parameters for Shane Kast Blue reductions.
@@ -327,13 +326,22 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         # Uses default primary_hdrext
         # self.sky_file = ?
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for Shane Kast Red reductions.
         """
         par = ShaneKastSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_red'
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.10  # Might be grating dependent..
+        par['calibrations']['wavelengths']['min_nsig'] = 5.
+        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
+        par['calibrations']['wavelengths']['lamps'] = ['NeI','HgI','HeI','ArI']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['n_first'] = 2
+
+
         return par
 
     def check_header(self, headers):
@@ -446,8 +454,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         # Uses default primary_hdrext
         # self.sky_file = ?
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for Shane Kast Red Ret reductions.
         """
@@ -455,6 +462,16 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         par['rdx']['spectrograph'] = 'shane_kast_red_ret'
         par['calibrations']['pixelflatframe']['number'] = 3
         par['calibrations']['traceframe']['number'] = 3
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.10  # Might be grating dependent..
+        par['calibrations']['wavelengths']['min_nsig'] = 5.
+        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
+        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0][
+            'saturation']
+        par['calibrations']['wavelengths']['n_first'] = 2
+
         return par
 
     def check_header(self, headers):
