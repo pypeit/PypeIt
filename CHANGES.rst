@@ -60,6 +60,7 @@
 - Data provided in pypeit file overwrites anything read from the fits
   file headers.
 - Filled in fits table reading data for GNIRS
+- Demand frametype column in fits table is U8 format
 
 0.8.1
 -----
