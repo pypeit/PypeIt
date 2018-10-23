@@ -669,7 +669,7 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
 
 
 def init_hdus(update_det, outfile):
-    hdus = None
+    hdus, prihdu = None, None
     if (update_det is not None) and os.path.isfile(outfile):
         hdus = fits.open(outfile)
         msgs.info("Using existing spec1d file, including the Header")

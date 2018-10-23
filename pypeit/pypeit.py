@@ -432,7 +432,7 @@ class PypeIt(object):
         save.save_2d_images(s_dict, self.fitstbl, sidx, self.spectrograph.primary_hdrext,
                             self.setup, self.caliBrate.master_dir,
                             os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir']),
-                            basename)
+                            basename, update_det=self.par['rdx']['detnum'])
         return all_specobjs
 
     def _extract_one(self):
