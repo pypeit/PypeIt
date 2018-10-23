@@ -426,7 +426,11 @@ class PypeItMetaData:
             `astropy.table.Table`: Table with two columns, the frame
             type name and bits.
         """
-        t = table.Table({'frametype':self.bitmask.type_names(type_bits), 'framebit':type_bits})
+        # Making Columns to pad string array
+        ftype_colm = table.Column(self.bitmask.type_names(type_bits), dtype='U8', name='frametype')
+        fbits_colm = table.Column(type_bits, name='framebit')
+        t = table.Table([ftype_colm, fbits_colm])
+
         if merge:
             self['frametype'] = t['frametype']
             self['framebit'] = t['framebit']
