@@ -406,26 +406,7 @@ class FluxSpec(masterframe.MasterFrame):
             outfile = self.ms_name
         # Add steps
         self.sens_dict['steps'] = self.steps
-        prihdu = fits.PrimaryHDU()
-        hdus = [prihdu]
-        # Add critical keys from sens_dict to header
-        for key in ['wave_min', 'wave_max','exptime','airmass','std_file','std_ra','std_dec','std_name','calibfile']:
-            try:
-                prihdu.header[key.upper()] = self.sens_dict[key].value
-            except:
-                prihdu.header[key.upper()] = self.sens_dict[key]
 
-        cols = []
-        cols += [fits.Column(array=self.sens_dict['wave'], name=str('WAVE'), format=self.sens_dict['wave'].dtype)]
-        cols += [fits.Column(array=self.sens_dict['sensfunc'], name=str('SENSFUNC'), format=self.sens_dict['sensfunc'].dtype)]
-        # Finish
-        coldefs = fits.ColDefs(cols)
-        tbhdu = fits.BinTableHDU.from_columns(coldefs)
-        tbhdu.name = 'SENSFUNC'
-        hdus += [tbhdu]
-        # Finish
-        hdulist = fits.HDUList(hdus)
-        hdulist.writeto(outfile, overwrite=True)
         msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
 
 
@@ -512,7 +493,6 @@ class FluxSpec(masterframe.MasterFrame):
             specObjs = self.sci_specobjs
         else:
             msgs.error("BAD INPUT")
-        debugger.set_trace()  # MAKE SURE TO HANDLE SUBSET OF DET
         save.save_1d_spectra_fits(specObjs, self.sci_header, outfile,
                                   helio_dict=helio_dict,
                                   telescope=telescope, overwrite=True)
