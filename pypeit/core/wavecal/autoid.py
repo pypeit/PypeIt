@@ -524,7 +524,7 @@ class General:
         # Now that all slits have been inspected, cross match to generate a
         # master list of all lines in every slit, and refit all spectra
         if self._nslit > 1:
-            msgs.info('Checking wavelength solution by cross-correlating with other slits')
+            msgs.info('Checking wavelength solution by cross-correlating with all slits')
 
             msgs.info('Cross-correlation iteration #1')
             obad_slits = self.cross_match(good_fit)
