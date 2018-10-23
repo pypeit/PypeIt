@@ -10,6 +10,8 @@ from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import resample
 import scipy
 from scipy.optimize import curve_fit
+from pypeit import msgs
+
 
 from pypeit.core import arc
 from pypeit import debugger
@@ -96,7 +98,6 @@ def zerolag_shift_stretch(theta, y1, y2):
     corr_zero = np.sum(y1*y2_corr)
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
     corr_norm = corr_zero/corr_denom
-    #corr = scipy.signal.correlate(y1, y2_corr, mode='same')
     return -corr_norm
 
 def smooth_and_ceil(inspec1, smooth, percent_ceil):
@@ -118,6 +119,22 @@ def smooth_and_ceil(inspec1, smooth, percent_ceil):
 
     return y1
 
+# This code does not currently work yet.
+#def cross_correlate(y1,y2):
+
+#    if y1.shape != y2.shape:
+#        msgs.error('cross_correlate only works for equal sized arrays')
+#    nspec =y1.shape
+#    next2 = 2**(nspec-1).bit_length()
+#    f1 = np.fft.fft(y1,n=next2)
+#    f2 = np.fft.fft(np.flipud(y2),n=next2)
+#    cc_raw = np.real(np.fft.ifft(f1 * f2))
+#    cc = np.fft.fftshift(cc_raw)
+#    corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
+#    cc_norm = cc/corr_denom
+#    zero_index = int(next2/2) - 1
+#    lags = zero_index - np.arange(next2)
+#    return lags, cc_norm
 
 def xcorr_shift(inspec1,inspec2,smooth=5.0,percent_ceil=90.0,debug=False):
 
