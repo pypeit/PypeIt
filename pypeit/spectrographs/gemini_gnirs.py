@@ -49,8 +49,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     def pypeline(self):
         return 'MultiSlit'
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for Gemini GNIRS reductions.
         """
@@ -77,6 +76,16 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['pcatype'] = 'order'
         par['calibrations']['slits']['sigdetect'] = 300
         par['calibrations']['slits']['pcapar'] = [4,3, 2, 1,0]
+
+        # Wavelengths
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['min_nsig'] = 5.0
+        par['calibrations']['wavelengths']['lowest_nsig'] = 3.0
+        par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['n_first'] = 2
+
+
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
