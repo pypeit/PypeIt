@@ -37,5 +37,5 @@ def test_detect_lines():
     arx_sky = xspectrum1d.XSpectrum1D.from_file(sky_file)
     arx_amp, arx_cent, arx_wid, arx_centerr, arx_w, arx_yprep, _ \
             = arc.detect_lines(arx_sky.flux.value)
-    assert len(arx_w[0]) == 2565
+    assert len(arx_w[0]) == 4738
 

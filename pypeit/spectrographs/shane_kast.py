@@ -37,8 +37,10 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['number'] = 5
         par['calibrations']['traceframe']['number'] = 5
         par['calibrations']['arcframe']['number'] = 1
+
         # Set wave tilts order
         par['calibrations']['tilts']['order'] = 2
+
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -214,13 +216,20 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # Uses default primary_hdrext
         self.sky_file = 'sky_kastb_600.fits'
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for Shane Kast Blue reductions.
         """
         par = ShaneKastSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_blue'
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['min_nsig'] = 5.
+        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
+        par['calibrations']['wavelengths']['lamps'] = ['CdI','HgI','HeI']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['n_first'] = 1
+
         return par
 
     def check_headers(self, headers):
@@ -316,13 +325,17 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         # Uses default primary_hdrext
         # self.sky_file = ?
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for Shane Kast Red reductions.
         """
         par = ShaneKastSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_red'
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['NeI','HgI','HeI','ArI']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+
         return par
 
     def check_header(self, headers):
@@ -435,8 +448,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         # Uses default primary_hdrext
         # self.sky_file = ?
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for Shane Kast Red Ret reductions.
         """
@@ -444,6 +456,11 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         par['rdx']['spectrograph'] = 'shane_kast_red_ret'
         par['calibrations']['pixelflatframe']['number'] = 3
         par['calibrations']['traceframe']['number'] = 3
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+
         return par
 
     def check_header(self, headers):

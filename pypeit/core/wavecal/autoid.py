@@ -14,6 +14,7 @@ import numba as nb
 import numpy as np
 import pdb
 
+from pypeit.par import pypeitpar
 from pypeit.core.wavecal import kdtree_generator
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import patterns
@@ -120,7 +121,8 @@ def basic(spec, lines, wv_cen, disp, min_nsig=20.,nonlinear_counts = 1e10,
 
 def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
                outroot=None, debug=False, do_fit=True, verbose=False,
-               fit_parm=None, min_nmatch=3, lowest_nsig=20.):
+               min_nmatch=3, lowest_nsig=20.,
+               match_toler=3.0, func='legendre', n_first=2, sigrej_first=2.0, n_final=4, sigrej_final=3.0):
     """
     Parameters
     ----------
@@ -134,7 +136,6 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
     debug
     do_fit
     verbose
-    fit_parm
     min_nmatch
     lowest_nsig
 
@@ -260,7 +261,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
     # Plot
     if outroot is not None:
         tmp_list = vstack([line_lists,unknwns])
-        qa.match_qa(spec, cut_tcent, tmp_list, best_dict['IDs'], best_dict['scores'], outroot+'.pdf')
+        qa.match_qa(spec, cut_tcent, tmp_list, best_dict['IDs'], best_dict['scores'], outfile = outroot+'.pdf')
         msgs.info("Wrote: {:s}".format(outroot+'.pdf'))
 
     # Fit
@@ -298,13 +299,14 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
         # Fit
         final_fit = fitting.iterative_fitting(spec, cut_tcent, ifit,
                                               np.array(best_dict['IDs'])[ifit], line_lists[NIST_lines],
-                                              disp, plot_fil=plot_fil, verbose=verbose, aparm=fit_parm)
+                                              disp, plot_fil=plot_fil, verbose=verbose,
+                                              match_toler=match_toler, func=func, n_first=n_first, sigrej_first=sigrej_first,
+                                              n_final=n_final,sigrej_final=sigrej_final)
         if plot_fil is not None:
             print("Wrote: {:s}".format(plot_fil))
 
     # Return
     return best_dict, final_fit
-
 
 class General:
     """ General algorithm to wavelength calibrate spectroscopic data
@@ -313,15 +315,14 @@ class General:
     ----------
     spec : ndarray
       2D array of arcline spectra (nspec,nslit)
-    lines : list
-      List of arc lamps on
+
+    Optional Parameters
+    -------------------
+    par : ParSet or dict, default = default parset
+       This is the parset par['calibrations']['wavelengths']. A dictionary with the corresponding parameter names also
+       works.
     ok_mask : ndarray
       Array of good slits
-    min_nsig : float
-      Minimum significance of the arc lines that will be used in the fit
-    nonlinear_counts : float, default = 1e10
-      value above which to mask saturated arc lines. This should  be nonlinear_counts= nonlinear*saturation according to pypeit parsets.
-      Default is 1e10 which is to not mask.
     islinelist : bool
       Is lines a linelist (True), or a list of ions (False)
     outroot : str, optional
@@ -331,12 +332,6 @@ class General:
     verbose : bool
       If True, the final fit will print out more detail as the RMS is refined,
       and lines are rejected. This is mostly helpful for developing the algorithm.
-    fit_parm : dict
-      Fitting parameter dictionary (see fitting.iterative_fitting)
-    lowest_nsig : float
-      Lowest significance of an arc line that will be used in the final fit
-    rms_threshold : float
-      Maximum RMS dispersion that is considered acceptable for a good solution
     binw : ndarray, optional
       Set the wavelength grid when identifying the best solution
     bind : ndarray, optional
@@ -357,18 +352,18 @@ class General:
       final best guess of the line IDs
     """
 
-    def __init__(self, spec, lines, ok_mask=None, min_nsig=50.0, nonlinear_counts = 1e10, islinelist=False,
-              outroot=None, debug = False, verbose=False,
-              fit_parm=None, lowest_nsig=10., rms_threshold=0.15,
-              binw=None, bind=None, nstore=1, use_unknowns=True):
+    def __init__(self, spec, par = None, ok_mask=None, islinelist=False, outroot=None, debug = False, verbose=False,
+                 binw=None, bind=None, nstore=1, use_unknowns=True):
 
         # Set some default parameters
         self._spec = spec
-        self._lines = lines
+        self._par = pypeitpar.WavelengthSolutionPar() if par is None else par
+        self._lines = self._par['lamps']
         self._npix, self._nslit = spec.shape
         self._nstore = nstore
         self._binw = binw
         self._bind = bind
+
 
         # Mask info
         if ok_mask is None:
@@ -377,47 +372,27 @@ class General:
             self._ok_mask = ok_mask
         self._bad_slits = []  # List of bad slits
 
-        self._min_nsig = min_nsig
-        self._lowest_nsig = lowest_nsig
-        self._nonlinear_counts = nonlinear_counts
-
+        # Set the input parameters
+        self._nonlinear_counts = self._par['nonlinear_counts']
+        self._min_nsig = self._par['min_nsig']
+        self._lowest_nsig = self._par['lowest_nsig']
+        self._rms_threshold = self._par['rms_threshold']
+        self._match_toler = self._par['match_toler']
+        self._func = self._par['func']
+        self._n_first= self._par['n_first']
+        self._sigrej_first= self._par['sigrej_first']
+        self._n_final= self._par['n_final']
+        self._sigrej_final= self._par['sigrej_final']
 
         self._use_unknowns = use_unknowns
         self._islinelist = islinelist
 
         self._outroot = outroot
-        self._fit_parm = fit_parm
-        self._rms_threshold = rms_threshold
 
         self._debug = debug
         self._verbose = verbose
 
         # Load the linelist to be used for pattern matching
-        self.load_linelist()
-        # HACK FOR NOW
-        #msgs.warn("REMOVE THIS!!")
-        #self._wvdata = self._wvdata[self._wvdata > 7400.]
-
-        # Find the wavelength solution!
-        # KD Tree algorithm only works for ThAr - check first that this is what is being used
-        self._thar = False
-        if 'ThAr' in lines and len(lines) == 1:
-            self._thar = True
-            # Set up the grids to be used for pattern matching
-            self.set_grids(ngridw=5000, ngridd=1000)
-            msgs.info("Using KD Tree pattern matching algorithm to wavelength calibrate")
-            self.run_kdtree()
-        else:
-            # Set up the grids to be used for pattern matching
-            self.set_grids()
-            msgs.info("Using brute force pattern matching algorithm to wavelength calibrate")
-            self.run_brute()
-
-    def get_results(self):
-        return copy.deepcopy(self._all_patt_dict), copy.deepcopy(self._all_final_fit)
-
-    def load_linelist(self):
-        # Load line lists
         if self._islinelist:
             self._line_lists = self._lines
             self._unknwns = self._lines[:0].copy()
@@ -438,7 +413,24 @@ class General:
         # Generate the final linelist and sort
         self._wvdata = np.array(self._tot_list['wave'].data)  # Removes mask if any
         self._wvdata.sort()
-        return
+
+        # Find the wavelength solution!
+        # KD Tree algorithm only works for ThAr - check first that this is what is being used
+        self._thar = False
+        if 'ThAr' in self._lines and len(self._lines) == 1:
+            self._thar = True
+            # Set up the grids to be used for pattern matching
+            self.set_grids(ngridw=5000, ngridd=1000)
+            msgs.info("Using KD Tree pattern matching algorithm to wavelength calibrate")
+            self.run_kdtree()
+        else:
+            # Set up the grids to be used for pattern matching
+            self.set_grids()
+            msgs.info("Using brute force pattern matching algorithm to wavelength calibrate")
+            self.run_brute()
+
+    def get_results(self):
+        return copy.deepcopy(self._all_patt_dict), copy.deepcopy(self._all_final_fit)
 
     def set_grids(self, ngridw = 200, ngridd=2000): #ngridw = 200, ngridd=2000):
         # Set the wavelength grid
@@ -535,9 +527,13 @@ class General:
         # Now that all slits have been inspected, cross match to generate a
         # master list of all lines in every slit, and refit all spectra
         if self._nslit > 1:
+            msgs.info('Checking wavelength solution by cross-correlating with all slits')
+
+            msgs.info('Cross-correlation iteration #1')
             obad_slits = self.cross_match(good_fit)
-            cntr = 0  # Introduce a counter to stop the while loop, just in case the loop gets stuck
+            cntr = 2
             while obad_slits.size > 0:
+                msgs.info('Cross-correlation iteration #{:d}'.format(cntr))
                 good_fit = np.ones(self._nslit, dtype=np.bool)
                 good_fit[obad_slits] = False
                 bad_slits = self.cross_match(good_fit)
@@ -545,7 +541,7 @@ class General:
                     break
                 obad_slits = bad_slits.copy()
                 cntr += 1
-                if cntr > 100:
+                if cntr > 10:
                     msgs.warn("Breaking while loop before convergence. Check the wavelength solution!")
                     break
 
@@ -698,64 +694,119 @@ class General:
         # For all newly labeled lines, create a patt_dict of these labeled lines
         # Perform a final fit on these lines
 
+        #self._debug = True
         # First, sort spectra according to increasing central wavelength
         ngd = good_fit.sum()
         idx_gd = np.zeros(ngd, dtype=np.int)
         wvc_gd = np.zeros(ngd, dtype=np.float)
         dsp_gd = np.zeros(ngd, dtype=np.float)
+        wvc_gd_jfh = np.zeros(ngd, dtype=np.float)
+        dsp_gd_jfh = np.zeros(ngd, dtype=np.float)
+        xrng = np.arange(self._npix)
         cntr = 0
         for slit in range(self._nslit):
             if good_fit[slit]:
                 idx_gd[cntr] = slit
                 wvc_gd[cntr] = self._all_patt_dict[str(slit)]["bwv"]
                 dsp_gd[cntr] = self._all_patt_dict[str(slit)]["bdisp"]
+                # JFH stuff
+                fitc = self._all_final_fit[str(slit)]['fitc']
+                xfit = xrng/(self._npix - 1)
+                fitfunc = self._all_final_fit[str(slit)]['function']
+                fmin, fmax = 0.0, 1.0
+                wave_soln = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
+                wvc_gd_jfh[cntr] = wave_soln[self._npix//2]
+                dsp_gd_jfh[cntr]= np.median(wave_soln - np.roll(wave_soln,1))
+                # JFH end of JFH stuff
                 cntr += 1
         srt = np.argsort(wvc_gd)
         sort_idx = idx_gd[srt]
         sort_wvc = wvc_gd[srt]
         sort_dsp = dsp_gd[srt]
+        sort_wvc_jfh = wvc_gd_jfh[srt]
+        sort_dsp_jfh = dsp_gd_jfh[srt]
 
         # Cross correlate all good spectra with each other, in order of wavelength
-        ncrco = np.arange(sort_idx.size).sum()
-        #ccor_val = np.zeros(ncrco)
+        ncrco = ngd*(ngd-1)//2
+        ccorr_val = np.zeros(ncrco)
+        shift_val = np.zeros(ncrco)
         dwvc_val = np.zeros(ncrco)
         slit_ids = np.zeros((ncrco, 2), dtype=np.int)
         cntr = 0
+        # JFH Consider adding something in here that takes advantage of the
         for gd in range(0, sort_idx.size-1):
             for gc in range(gd+1, sort_idx.size):
-                corr = scipy.signal.correlate(self._spec[:, sort_idx[gd]], self._spec[:, sort_idx[gc]], mode='same')
-                amax = np.argmax(corr)
-                #ccor_val[cntr] = (amax - self._spec.shape[0] // 2)
-                dwvc_val[cntr] = (sort_wvc[gc]-sort_wvc[gd]) / (0.5*(sort_dsp[gc]+sort_dsp[gd])) - (amax - self._spec.shape[0] // 2)
+                #corr = scipy.signal.correlate(self._spec[:, sort_idx[gd]], self._spec[:, sort_idx[gc]], mode='same')
+                #amax = np.argmax(corr)
+                # dwvc_val[cntr] = (sort_wvc[gc]-sort_wvc[gd]) / (0.5*(sort_dsp[gc]+sort_dsp[gd])) - (amax - self._spec.shape[0] // 2)
+                # JFH replaced with more robust xcorr
+                shift_val[cntr], ccorr_val[cntr]= wvutils.xcorr_shift(self._spec[:, sort_idx[gd]],self._spec[:, sort_idx[gc]],
+                                                                      smooth=5.0, percent_ceil=90.0)
+                #dwvc_val[cntr] = (sort_wvc[gc]-sort_wvc[gd]) / (0.5*(sort_dsp[gc]+sort_dsp[gd])) - shift
+                # JFH TESTING
+                dwvc_val[cntr] = (sort_wvc_jfh[gc]-sort_wvc_jfh[gd]) / (0.5*(sort_dsp_jfh[gc]+sort_dsp_jfh[gd])) - shift_val[cntr]
                 slit_ids[cntr, 0] = gd
                 slit_ids[cntr, 1] = gc
                 cntr += 1
 
-        # Identify the good orders
+
+        # TODO Replace this code below with code based on either sigma_clipped_stats or djs_reject
+        # Identify the good slits as those for which the cross-correlation is consistent with the mad of all the slits.
+        # Bad slits are then the outliers.
         sigrej = 3.0
         mad = 1.4826 * np.median(np.abs(dwvc_val))
-        gdmsk = np.where(np.abs(dwvc_val) < sigrej * mad)[0]
+        gdmsk = np.abs(dwvc_val) < sigrej * mad
         for ii in range(100):  # Limit to 100 iterations - this will likely never be reached...
             ogdmsk = gdmsk.copy()
             mad = 1.4826 * np.median(np.abs(dwvc_val[gdmsk]))
-            gdmsk = np.where(np.abs(dwvc_val) < sigrej*mad)[0]
+            gdmsk = np.abs(dwvc_val) < sigrej*mad
             if np.array_equal(gdmsk, ogdmsk):
                 break
 
         if self._debug:
+            # TODO Add something here indicating slit indices? Like plot the cc pairs next to the points?
             xplt = np.arange(dwvc_val.size)
-            plt.plot(xplt, dwvc_val, 'rx')
-            plt.plot(xplt[gdmsk], dwvc_val[gdmsk], 'bo')
-            plt.plot([0.0,1000.0],[0.0,0.0], 'b-')
+            plt.plot(xplt[~gdmsk], dwvc_val[~gdmsk], 'rx',label ='bad slit')
+            plt.plot(xplt[gdmsk], dwvc_val[gdmsk], 'bo',label = 'good slit')
+            plt.hlines(0,xplt.min(),xplt.max(), color='black',linestyle='--')
+            plt.xticks(xplt)
+            plt.legend()
             plt.show()
 
-        # Catalogue the good and bad slits
+        # Catalogue the good and bad slits.
+
+        # ToDO Basically a slit needs to have a bad cross-correlation with every other slit in order
+        # to be classified as a bad slit here. Is this the behavior we want?? Maybe we should be more
+        # conservative and call a bad any slit which results in an outlier here?
         good_slits = np.sort(sort_idx[np.unique(slit_ids[gdmsk, :].flatten())])
         bad_slits = np.setdiff1d(np.arange(self._nslit), good_slits, assume_unique=True)
+        nbad = bad_slits.size
+        if nbad > 0:
+            msgs.info('Working on {:d}'.format(nbad) + ' bad slits: {:}'.format(bad_slits + 1))
+
         # Get the sign (i.e. if pixels correlate/anticorrelate with wavelength)
         # and dispersion (A/pix). Assume these are the same for all slits
-        sign = self._all_patt_dict[str(good_slits[0])]['sign']
-        disp = self._all_patt_dict[str(good_slits[0])]['bdisp']
+
+        # JFH Changed this to take the median which is more robust. Could even reject outliers
+        disp_good = np.zeros(good_slits.size,dtype=float)
+        sign_good = np.zeros(good_slits.size,dtype=int)
+        wvc_good  = np.zeros(good_slits.size,dtype=float)
+        for islit in range(good_slits.size):
+            sign_good[islit] =  self._all_patt_dict[str(good_slits[islit])]['sign']
+            # JFH stuff
+            fitc = self._all_final_fit[str(good_slits[islit])]['fitc']
+            xfit = xrng / (self._npix - 1)
+            fitfunc = self._all_final_fit[str(good_slits[islit])]['function']
+            fmin, fmax = 0.0, 1.0
+            wave_soln = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
+            wvc_good[islit] = wave_soln[self._npix // 2]
+            disp_good[islit] = np.median(wave_soln - np.roll(wave_soln, 1))
+
+
+        disp_med = np.median(disp_good)
+        sign = np.median(sign_good)
+        #disp = self._all_patt_dict[str(good_slits[0])]['bdisp']
+        #sign = self._all_patt_dict[str(good_slits[0])]['sign']
 
         # For all of the bad slits, estimate some line wavelengths
         new_bad_slits = np.array([], dtype=np.int)
@@ -770,50 +821,93 @@ class General:
             lindex = np.array([], dtype=np.int)
             dindex = np.array([], dtype=np.int)
             wcen = np.zeros(good_slits.size)
+            disp = np.zeros(good_slits.size)
+            shift_vec = np.zeros(good_slits.size)
+            stretch_vec = np.zeros(good_slits.size)
+            ccorr_vec = np.zeros(good_slits.size)
             for cntr, gs in enumerate(good_slits):
+                msgs.info('Cross-correlating bad slit # {:d}'.format(bs + 1) + ' with good slit # {:d}'.format(gs + 1))
                 # Match the peaks between the two spectra.
                 # spec_gs_adj is the stretched spectrum
-                stretch, shift = wvutils.match_peaks(self._spec[:, bs], self._spec[:, gs])
-                if stretch is None:
+                success, shift_vec[cntr], stretch_vec[cntr], ccorr_vec[cntr], _, _ =  \
+                    wvutils.xcorr_shift_stretch(self._spec[:, bs],self._spec[:, gs], debug = self._debug)
+                if not success:
                     continue
-                # Estimate wcen for this slit
-                wcen[cntr] = self._all_patt_dict[str(gs)]['bwv'] - shift*disp
-                # For each peak in the gs spectrum, identify the corresponding peaks in the bs spectrum
-                strfact = (self._npix + stretch - 1)/(self._npix - 1)
+                # ToDo Put in a cut on the cross-correlation value here in this logic so that we only consider slits that are sufficiently similar
+
+                # Estimate wcen and disp for this bad slit based on its shift/stretch relative to the good slit
+                disp[cntr] = disp_good[cntr]/stretch_vec[cntr]
+                wcen[cntr] = wvc_good[cntr] - shift_vec[cntr]*disp[cntr]
+
+                # For each peak in the gs spectrum, identify the corresponding peaks in the bs spectrum. Do this by
+                # transform these good slit line pixel locations into the (shifted and stretched) bs frame
                 gsdet, _ = self.get_use_tcent(sign, arrerr=self._detections[str(gs)], weak=True)
-                gsdet_ss = shift + gsdet * strfact
+                gsdet_ss = gsdet*stretch_vec[cntr] + shift_vec[cntr]
                 if self._debug:
-                    xplt = np.arange(self._npix)
-                    plt.plot(xplt, self._spec[:, bs], 'k-', drawstyle='steps')
-                    plt.plot(bsdet, np.zeros(bsdet.size), 'ro')
-                    plt.plot(gsdet_ss, 0.01*np.max(self._spec[:, bs])*np.ones(gsdet_ss.size), 'bo')
+                    plt.figure(figsize=(14, 6))
+                    xrng = np.arange(self._npix)
+                    tampl_bs = np.interp(bsdet, xrng, self._spec[:, bs])
+                    plt.plot(xrng, self._spec[:, bs], color='red', drawstyle='steps-mid', label='bad slit arc', linewidth=1.0, zorder= 10)
+                    plt.plot(bsdet, tampl_bs, 'r.', markersize=10.0, label='bad slit lines', zorder= 10)
+                    tampl_gs = np.interp(gsdet, xrng, self._spec[:, gs])
+                    plt.plot(xrng, self._spec[:, gs], color='black', drawstyle='steps-mid', linestyle=':',
+                             label='good slit arc', linewidth=0.5)
+                    plt.plot(gsdet, tampl_gs, 'k+', markersize=8.0, label='good slit lines')
+                    gdarc_ss = wvutils.shift_and_stretch(self._spec[:, gs], shift_vec[cntr], stretch_vec[cntr])
+                    #tampl_ss = np.interp(gsdet_ss, xrng, gdarc_ss)
+                    for iline in range(gsdet_ss.size):
+                        plt.plot([gsdet[iline],gsdet_ss[iline]],[tampl_gs[iline], tampl_gs[iline]], color='cornflowerblue', linewidth = 1.0)
+                    plt.plot(xrng, gdarc_ss, color='black', drawstyle='steps-mid', label='good slit arc shift/stretch', linewidth=1.0)
+                    plt.plot(gsdet_ss, tampl_gs, 'k.', markersize=10.0, label='predicted good slit lines')
+                    plt.title('Cross-correlation of bad slit # {:d}'.format(bs+1) + ' and good slit # {:d}'.format(gs+1) +
+                              ': ccor = {:5.3f}'.format(ccorr_vec[cntr]) +
+                              ', shift = {:6.1f}'.format(shift_vec[cntr]) +
+                              ', stretch = {:5.4f}'.format(stretch_vec[cntr]) +
+                              ', wv_cen = {:7.1f}'.format(wcen[cntr]) +
+                              ', disp = {:5.3f}'.format(disp[cntr]))
+                    plt.ylim(-5.0, 1.5*self._spec[:, bs].max())
+                    plt.legend()
                     plt.show()
-                    pdb.set_trace()
-                # Calculate wavelengths for the gsdet detections
+
+                # Calculate wavelengths for all of the gsdet detections
                 fitc = self._all_final_fit[str(gs)]['fitc']
                 xfit = gsdet/(self._npix - 1)
                 fitfunc = self._all_final_fit[str(gs)]['function']
                 fmin, fmax = 0.0, 1.0
                 wvval = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
+                # Loop over the bad slit line pixel detections and find the nearest good slit line
                 for dd in range(bsdet.size):
                     pdiff = np.abs(bsdet[dd]-gsdet_ss)
                     bstpx = np.argmin(pdiff)
                     # If a match is found within 2 pixels, consider this a successful match
                     if pdiff[bstpx] < 2.0:
+                        # Using the good slit wavelength solution, search for the nearest line in the line list
                         bstwv = np.abs(self._wvdata - wvval[bstpx])
-                        if bstwv[np.argmin(bstwv)] > 2.0*disp:
-                            # This is probably not a good match
+                        # This is probably not a good match
+                        if bstwv[np.argmin(bstwv)] > 2.0*disp_med:
                             continue
-                        lindex = np.append(lindex, np.argmin(bstwv))
-                        dindex = np.append(dindex, dd)
+                        lindex = np.append(lindex, np.argmin(bstwv)) # index in the line list self._wvdata
+                        dindex = np.append(dindex, dd)               # index in the array of pixel detections bsdet
             # Finalize the best guess of each line
             # Initialise the patterns dictionary
             patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_nsig=self._min_nsig,
                              mask=np.zeros(bsdet.size, dtype=np.bool))
             patt_dict['sign'] = sign
             patt_dict['bwv'] = np.median(wcen[wcen != 0.0])
-            patt_dict['bdisp'] = disp
-            patterns.solve_triangles(bsdet, self._wvdata, dindex, lindex, patt_dict)
+            patt_dict['bdisp'] = np.median(disp[disp != 0.0])
+            patterns.solve_triangles(bsdet, self._wvdata, dindex, lindex, patt_dict = patt_dict)
+
+            if self._debug:
+                tmp_list = vstack([self._line_lists, self._unknwns])
+                qa.match_qa(self._spec[:, bs], bsdet, tmp_list,patt_dict['IDs'], patt_dict['scores'])
+
+            # Use only the perfect IDs
+            iperfect = np.array(patt_dict['scores']) != 'Perfect'
+            patt_dict['mask'][iperfect] = False
+            patt_dict['nmatch'] = np.sum(patt_dict['mask'])
+            if patt_dict['nmatch'] < 3:
+                patt_dict['acceptable'] = False
+
             # Check if a solution was found
             if not patt_dict['acceptable']:
                 new_bad_slits = np.append(new_bad_slits, bs)
@@ -834,12 +928,13 @@ class General:
             self._all_patt_dict[str(bs)] = copy.deepcopy(patt_dict)
             self._all_final_fit[str(bs)] = copy.deepcopy(final_fit)
             if self._debug:
+                xrng = np.arange(self._npix)
                 xplt = np.linspace(0.0, 1.0, self._npix)
                 yplt = utils.func_val(final_fit['fitc'], xplt, 'legendre', minv=0.0, maxv=1.0)
                 plt.plot(final_fit['xfit'], final_fit['yfit'], 'bx')
                 plt.plot(xplt, yplt, 'r-')
                 plt.show()
-                pdb.set_trace()
+                #pdb.set_trace()
         return new_bad_slits
 
     def cross_match_order(self, good_fit):
@@ -898,14 +993,11 @@ class General:
         return new_good_fit
 
 
-
-
-
         # Set some fitting parameters
-        if self._fit_parm is None:
+        if self._n_final is None:
             order = 4
         else:
-            order = self._fit_parm['n_final']
+            order = self._n_final
 
         ofit = [5, 3, 1, 0]
         lnpc = len(ofit) - 1
@@ -1404,8 +1496,11 @@ class General:
         try:
             final_fit = fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
                                                   np.array(patt_dict['IDs'])[ifit], self._line_lists[NIST_lines],
-                                                  patt_dict['bdisp'], plot_fil=plot_fil, verbose=self._verbose,
-                                                  aparm=self._fit_parm, weights=weights)
+                                                  patt_dict['bdisp'], weights=weights,
+                                                  match_toler=self._match_toler, func=self._func, n_first=self._n_first,
+                                                  sigrej_first=self._sigrej_first,
+                                                  n_final=self._n_final, sigrej_final=self._sigrej_final,
+                                                  plot_fil = plot_fil, verbose = self._verbose)
         except TypeError:
             # A poor fitting result, this can be ignored.
             return None
@@ -1439,7 +1534,7 @@ class General:
                 tmp_list = vstack([self._line_lists, self._unknwns])
                 qa.match_qa(self._spec[:, slit], use_tcent, tmp_list,
                             self._all_patt_dict[str(slit)]['IDs'], self._all_patt_dict[str(slit)]['scores'],
-                            self._outroot + slittxt + '.pdf')
+                            outfile=self._outroot + slittxt + '.pdf')
                 msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
             # Perform the final fit for the best solution
             best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], tcent=use_tcent, ecent=use_ecent,

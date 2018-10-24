@@ -595,9 +595,9 @@ def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
     linelist : ndarray
       list of lines that should be detected (sorted, increasing)
     dindex : ndarray
-      Index array of all detlines used in each triangle
+      Index array of all detlines (pixels) used in each triangle
     lindex : ndarray
-      Index array of the assigned line to each index in dindex
+      Index array of the assigned line (wavelengths)to each index in dindex
     patt_dict : dict
       Contains all relevant details of the fit
 
@@ -615,12 +615,16 @@ def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
     mask = np.zeros(nlines, dtype=np.bool)
     ngd_match = 0
     for dd in range(nlines):
-        ww = np.where(dindex == dd)
-        if ww[0].size == 0:
+        # Grab all the instances of this detected line's pixel position index
+        ww = (dindex == dd)
+        if not np.any(ww):
             continue
+        # Find the unique set of wavelength indices that this detected line has been matched to, and the number of times
         unq, cnts = np.unique(lindex[ww], return_counts=True)
         unq = unq.astype(np.int)
+        # Assign the ID of this line to be wavelength whose index appears the largest number of times
         detids[dd] = linelist[unq[np.argmax(cnts)]]
+        # Give this ID a score based on the number of occurences
         scr = score_triangles(cnts)
         scores[dd] = scr
         if scr in ["Perfect", "Very Good", "Good", "OK"]:
