@@ -92,6 +92,26 @@ def shift_and_stretch(spec, shift, stretch):
 
 def zerolag_shift_stretch(theta, y1, y2):
 
+    """ Utility function which is run by the differential evolution optimizer in scipy. These is the fucntion we optimize.
+    It is the zero lag cross-correlation coefficient of spectrum with a shift and stretch applied.
+
+     Parameters
+     ----------
+     theta: ndarray
+       Function parameters to optmize over. theta[0] = shift, theta[1] = stretch
+     y1: ndarray, shape = (nspec,)
+       First spectrum which acts as the refrence
+     y2: ndarray,  shape = (nspec,)
+       Second spectrum which will be transformed by a shift and stretch to match y1
+
+     Returns
+     -------
+     corr_norm: float
+       Negative of the zero lag cross-correlation coefficient (since we are miniziming with scipy.optimize). scipy.optimize will
+       thus determine the shift,stretch that maximize the cross-correlation. 
+     """
+
+
     shift, stretch = theta
     y2_corr = shift_and_stretch(y2, shift, stretch)
     # Zero lag correlation
@@ -119,7 +139,7 @@ def smooth_and_ceil(inspec1, smooth, percent_ceil):
 
     return y1
 
-# This code does not currently work yet.
+# This code does not currently work yet and has bugs in the lag computation.
 #def cross_correlate(y1,y2):
 
 #    if y1.shape != y2.shape:
@@ -136,6 +156,8 @@ def smooth_and_ceil(inspec1, smooth, percent_ceil):
 #    lags = zero_index - np.arange(next2)
 #    return lags, cc_norm
 
+# ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
+# all these lags.
 def xcorr_shift(inspec1,inspec2,smooth=5.0,percent_ceil=90.0,debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
@@ -250,6 +272,7 @@ def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, percent_ceil = 90.0, shi
     shift_cc, cc_val = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, debug = debug)
 
     bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
+    # ToDo can we make tol = 1e-3 and speed things up. Someone needs to test this.
     result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol = 1e-4,
                                                    bounds=bounds, disp=False, polish=True)
 

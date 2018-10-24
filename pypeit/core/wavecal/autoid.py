@@ -315,9 +315,12 @@ class General:
     ----------
     spec : ndarray
       2D array of arcline spectra (nspec,nslit)
-    lines : list
-      List of arc lamps on
-    par:
+
+    Optional Parameters
+    -------------------
+    par : ParSet or dict, default = default parset
+       This is the parset par['calibrations']['wavelengths']. A dictionary with the corresponding parameter names also
+       works.
     ok_mask : ndarray
       Array of good slits
     islinelist : bool
@@ -830,8 +833,7 @@ class General:
                     wvutils.xcorr_shift_stretch(self._spec[:, bs],self._spec[:, gs], debug = self._debug)
                 if not success:
                     continue
-                # JFH Put in a cut on the cross-correlation value here in this logic
-                # so that we only consider slits that are sufficiently similar?
+                # ToDo Put in a cut on the cross-correlation value here in this logic so that we only consider slits that are sufficiently similar
 
                 # Estimate wcen and disp for this bad slit based on its shift/stretch relative to the good slit
                 disp[cntr] = disp_good[cntr]/stretch_vec[cntr]
