@@ -108,7 +108,7 @@ def zerolag_shift_stretch(theta, y1, y2):
      -------
      corr_norm: float
        Negative of the zero lag cross-correlation coefficient (since we are miniziming with scipy.optimize). scipy.optimize will
-       thus determine the shift,stretch that maximize the cross-correlation. 
+       thus determine the shift,stretch that maximize the cross-correlation.
      """
 
 

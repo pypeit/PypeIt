@@ -217,7 +217,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         return self.bpm_img
 
 
-
+    # JFH This is defunct now as it is in the parset.
     def setup_arcparam(self, arcparam, fitstbl=None, arc_idx=None,
                        msarc_shape=None, **null_kwargs):
         """

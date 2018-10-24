@@ -70,7 +70,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lowest_nsig'] =10.0
         par['calibrations']['wavelengths']['lamps'] = ['OH_triplespec']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['n_first'] = 2
 
         # Set slits and tilts parameters
         par['calibrations']['tilts']['order'] = 2

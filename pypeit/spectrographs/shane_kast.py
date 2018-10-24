@@ -224,7 +224,6 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         par['rdx']['spectrograph'] = 'shane_kast_blue'
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.15  # Might be grating dependent..
         par['calibrations']['wavelengths']['min_nsig'] = 5.
         par['calibrations']['wavelengths']['lowest_nsig'] = 5.
         par['calibrations']['wavelengths']['lamps'] = ['CdI','HgI','HeI']
@@ -334,13 +333,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         par['rdx']['spectrograph'] = 'shane_kast_red'
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.10  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 5.
-        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
         par['calibrations']['wavelengths']['lamps'] = ['NeI','HgI','HeI','ArI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['n_first'] = 2
-
 
         return par
 
@@ -464,13 +458,8 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['traceframe']['number'] = 3
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.10  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 5.
-        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0][
-            'saturation']
-        par['calibrations']['wavelengths']['n_first'] = 2
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
         return par
 
