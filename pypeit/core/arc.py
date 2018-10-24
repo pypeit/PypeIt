@@ -19,7 +19,7 @@ from pypeit.core import pixels
 from pypeit.core.wavecal import autoid
 from pypeit import debugger
 
-# TODO: This should not be a core algorithm
+# TODO: This routine is now defunct I think.
 def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                 calibrate_lamps=None):
     """ Setup for arc analysis
@@ -484,6 +484,10 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 
     niter_cont: int, default = 3
        Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
 
+    nfind: int, default = None
+       Return only the nfind highest significance lines. The default is None, which means the code will
+       return all the lines above the significance threshold.
+
     verbose: bool, default = False
        Output more stuff to the screen.
 
@@ -571,12 +575,13 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 
     # Compute the significance of each line, set the significance of bad lines to be -1
     nsig = (tampl - med)/stddev
 
+    # If the user requested the nfind most significant peaks have been requested, then grab and return only these lines
     if nfind is not None:
-        if nfind > len(tampl):
+        if nfind > len(nsig):
             msgs.warn('Requested nfind = {:}'.format(nfind) + ' peaks but only npeak = {:}'.format(len(tampl)) +
                       ' were found. Returning all the peaks found.')
         else:
-            ikeep = (tampl.argsort()[::-1])[0:nfind]
+            ikeep = (nsig.argsort()[::-1])[0:nfind]
             tampl_true = tampl_true[ikeep]
             tampl = tampl[ikeep]
             tcent = tcent[ikeep]
