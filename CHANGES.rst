@@ -60,6 +60,12 @@
 - Data provided in pypeit file overwrites anything read from the fits
   file headers.
 - Filled in fits table reading data for GNIRS
+- Further improvements to detect_lines arcline detection algorithm.
+- Got rid of arcparam and added info and docs to wavelengths parset. 
+- Improved and commented autoid.py arclines code. 
+- Added utilities to wavecalib to compute shift,stretch of two spectra. 
+- Completely revamped cross-correlation algorithm in wavecalib to give roburt results.
+  
 
 0.8.1
 -----

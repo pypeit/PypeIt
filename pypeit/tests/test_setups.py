@@ -293,7 +293,7 @@ def test_setup_vlt_xshooter_nir():
 
 @dev_suite_required
 def test_setup_gemini_gnirs():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Gemini_GNIRS')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Gemini_GNIRS/GNIRS/')
     droot += '/N'
     pargs = setup.parser([droot, 'gemini_gnirs'])
     setup.main(pargs)

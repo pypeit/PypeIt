@@ -49,8 +49,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     def pypeline(self):
         return 'MultiSlit'
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for Gemini GNIRS reductions.
         """
@@ -77,6 +76,16 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['pcatype'] = 'order'
         par['calibrations']['slits']['sigdetect'] = 300
         par['calibrations']['slits']['pcapar'] = [4,3, 2, 1,0]
+
+        # Wavelengths
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['min_nsig'] = 5.0
+        par['calibrations']['wavelengths']['lowest_nsig'] = 3.0
+        par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['n_first'] = 2
+
+
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -135,6 +144,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['dispangle'] = 'GRATTILT'
         hdr_keys[0]['wavecen'] = 'GRATWAVE'
         hdr_keys[0]['spectrograph'] = 'INSTRUME'
+        hdr_keys[0]['binning'] = 1
+
         return hdr_keys
 
     def metadata_keys(self):
@@ -206,7 +217,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         return self.bpm_img
 
 
-
+    # JFH This is defunct now as it is in the parset.
     def setup_arcparam(self, arcparam, fitstbl=None, arc_idx=None,
                        msarc_shape=None, **null_kwargs):
         """
@@ -224,27 +235,17 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         """
         # ToDo need to parse the sigdetect parameter to be here for detect_lines function in arc.py
         #      I force change sigdetect=5 for GNIRS.
+        arcparam['lamps'] = ['OH_GNIRS'] # Line lamps on
+        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation'] # lines abovet this are masked
+        arcparam['min_nsig'] = 5.0         # Min significance for arc lines to be used
+        arcparam['lowest_nsig'] = 3.0         # Min significance for arc lines to be used
+        arcparam['wvmnx'] = [8000.,26000.]  # Guess at wavelength range
+        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
+        arcparam['match_toler'] = 3 # 3 was default, 1 seems to work better        # Matcing tolerance (pixels)
+        arcparam['func'] = 'legendre'       # Function for fitting
+        arcparam['n_first'] = 2             # Order of polynomial for first fit
+        arcparam['n_final'] = 4  #was default    # Order of polynomial for final fit
+        arcparam['nsig_rej'] = 2            # Number of sigma for rejection
+        arcparam['nsig_rej_final'] = 3.0    # Number of sigma for rejection (final fit)
 
-        arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 5.       # Minimum amplitude
-        arcparam['lowest_ampl'] = 0.    #Todo there is a bug in arc.py, do not parse this value.
-        arcparam['wvmnx'] = [8500., 24000.] # Guess at wavelength range
-        arcparam['n_first'] = 1            # Order of polynomial for first fit
-        arcparam['n_final'] = 1            # Order of polynomial for final fit
-        arcparam['disp'] = 2.7  # Ang/unbinned pixel
-        arcparam['func'] = 'legendre'  # Function for fitting
-#        arcparam['llist'] = ''
-#        arcparam['disp'] = 2.              # Ang/unbinned pixel
-#        arcparam['b1'] = 0.                # Pixel fit term (binning independent)
-#        arcparam['b2'] = 0.                # Pixel fit term
-#        arcparam['wv_cen'] = 0.            # Estimate of central wavelength
-#        arcparam['disp_toler'] = 0.1       # 10% tolerance
-#        arcparam['match_toler'] = 3.       # Matching tolerance (pixels)
-#        arcparam['func'] = 'legendre'      # Function for fitting
-#        arcparam['n_first'] = 1            # Order of polynomial for first fit
-#        arcparam['n_final'] = 3            # Order of polynomial for final fit
-#        arcparam['nsig_rej'] = 2.          # Number of sigma for rejection
-#        arcparam['nsig_rej_final'] = 2.0   # Number of sigma for rejection (final fit)
-#        arcparam['Nstrong'] = 13           # Number of lines for auto-analysis
 

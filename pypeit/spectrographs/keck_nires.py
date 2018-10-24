@@ -49,8 +49,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     def pypeline(self):
         return 'MultiSlit'
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for Shane Kast Blue reductions.
         """
@@ -64,6 +63,14 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['number'] = 1
         # Bias
         par['calibrations']['biasframe']['useframe'] = 'overscan'
+        # Wavelengths
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['min_nsig'] = 10.0
+        par['calibrations']['wavelengths']['lowest_nsig'] =10.0
+        par['calibrations']['wavelengths']['lamps'] = ['OH_triplespec']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+
         # Set slits and tilts parameters
         par['calibrations']['tilts']['order'] = 2
         par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10]

@@ -50,8 +50,15 @@ def multi_caliBrate(fitstbl):
     spectrograph = load_kast_blue_masters(get_spectrograph=True)[0]
 
     # Only changing the defaults
-    calib_par = pypeitpar.CalibrationsPar(badpix=False,
-                                biasframe=pypeitpar.FrameGroupPar('bias', useframe='overscan'))
+    #calib_par = pypeitpar.CalibrationsPar(badpix=False,
+    #                           biasframe=pypeitpar.FrameGroupPar('bias', useframe='overscan'))
+
+    # JFH removed above and added below which also gives the default lamps which is needed later
+    par = spectrograph.default_pypeit_par()
+    calib_par = par['calibrations']
+    calib_par['badpix'] = False
+    calib_par['biasframe']['useframe'] = 'overscan'
+
 
     redux_path = data_path('') if os.getenv('PYPEIT_DEV') is None \
                                 else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
