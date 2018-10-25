@@ -1,5 +1,9 @@
-0.8.2dev (unreleased)
+0.9.1dev (unreleased)
 ---------------------
+
+
+0.9.0
+-----
 
 - Major refactor to rename most modules and incorporate the PYPIT ->
   PypeIt switch

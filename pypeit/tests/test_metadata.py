@@ -81,12 +81,23 @@ def test_lris_red_multi_run():
 @dev_suite_required
 def test_lris_blue_pypeit_overwrite():
 
-    # JFH The RAW_DATA is at PYPEIT_DEV, but the github DEV suite where the pypeit files are at a different
-    # path. To fix this, I've just made pypeit_files directory in Cooked and copied this file over.
+    # JFH The RAW_DATA is at PYPEIT_DEV, but the github DEV suite where
+    # the pypeit files are at a different path. To fix this, I've just
+    # made pypeit_files directory in Cooked and copied this file over.
+
+    # KBW: I'd prefer that you put symlinks in the github dev suite:
+    # e.g.:
+    #   cd $PYPEIT_DEV
+    #   ln -s /Volumes/GoogleDrive/Team\ Drives/PHYS-GP-Hennawi/PypeIt/PypeIt-development-suite/RAW_DATA  RAW_DATA
 
     # Read the dev suite pypeit file
     f = os.path.join(os.environ['PYPEIT_DEV'],
                      'Cooked/pypeit_files/keck_lris_blue_long_400_3400_d560.pypeit')
+    if not os.path.isfile(f):
+        f = os.path.join(os.environ['PYPEIT_DEV'],
+                         'pypeit_files/keck_lris_blue_long_400_3400_d560.pypeit')
+    assert os.path.isfile(f), 'Could not find pypeit file.'
+        
     cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(f, file_check=False)
 
     # Change the dev path
