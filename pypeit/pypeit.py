@@ -879,6 +879,171 @@ class MultiSlit(PypeIt):
         return ['process', 'global_skysub', 'find_objects']
 
 
+
+class Echelle(PypeIt):
+    """
+    Child of PypeIt for Multislit and Longslit reductions
+
+    """
+    def __init__(self, spectrograph, **kwargs):
+        super(Echelle, self).__init__(spectrograph, **kwargs)
+
+    def calibrate_one(self, sci_ID, det):
+        """
+        Calibrate a science exposure / detector pair
+
+        Args:
+            sci_ID: int
+              binary flag indicating the science frame
+            det: int
+              detector number
+
+        Returns:
+
+        """
+        # Setup
+        self.setup, self.setup_dict = pypsetup.instr_setup(sci_ID, det, self.fitstbl,
+                                                           setup_dict=self.setup_dict,
+                                                           must_exist=True)
+        # Setup
+        self.caliBrate.reset(self.setup, det, sci_ID, self.par['calibrations'])
+        # Run em
+        self.caliBrate.run_the_steps()
+
+        msgs.info("Successful Calibration!")
+
+    def _init_calibrations(self):
+        """
+        Instantiate the Calibrations class
+
+        Returns:
+
+        """
+        # TODO -- Need to make save_masters and write_qa optional
+        # Init calib dict
+        self.caliBrate \
+                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
+                                                     par=self.par['calibrations'],
+                                                     redux_path=self.par['rdx']['redux_path'],
+                                                     save_masters=True, write_qa=True,
+                                                     show=self.show)
+
+
+    def _extract_one(self):
+        """
+        Extract a single exposure/detector pair
+
+        sci_ID and det need to have been set internally prior to calling this method
+
+        Returns:
+            sciimg
+            sciivar
+            skymodel
+            objmodel
+            ivarmodel
+            outmask
+            sobjs
+            vel_corr
+
+        """
+
+        sciI = self.sciI
+
+        # Process images (includes inverse variance image, rn2 image,
+        # and CR mask)
+        sciimg, sciivar, rn2img, crmask \
+                = sciI.process(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+                               self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
+                               apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
+
+        # Object finding, first pass on frame without sky subtraction
+        maskslits = self.caliBrate.maskslits.copy()
+        # ToDo Replace with echelle object finding routine here.
+        sobjs_obj0, nobj0 = sciI.find_objects(self.caliBrate.tslits_dict, skysub=False,maskslits=maskslits)
+
+        # Global sky subtraction, first pass. Uses skymask from object finding
+        global_sky0 = sciI.global_skysub(self.caliBrate.tslits_dict,
+                                         self.caliBrate.tilts_dict['tilts'],
+                                         use_skymask=True, maskslits=maskslits, show=self.show)
+
+        # Object finding, second pass on frame *with* sky subtraction.
+        # Show here if requested
+        sobjs_obj, nobj = sciI.find_objects(self.caliBrate.tslits_dict, skysub=True,
+                                            maskslits=maskslits, show_peaks=self.show)
+
+        # If there are objects, do 2nd round of global_skysub,
+        # local_skysub_extract, flexure, geo_motion
+        vel_corr = None
+        if nobj > 0:
+            # Global sky subtraction second pass. Uses skymask from object finding
+            global_sky = sciI.global_skysub(self.caliBrate.tslits_dict,
+                                            self.caliBrate.tilts_dict['tilts'], use_skymask=True,
+                                            maskslits=maskslits, show=self.show)
+
+            skymodel, objmodel, ivarmodel, outmask, sobjs \
+                    = sciI.local_skysub_extract(self.caliBrate.mswave, maskslits=maskslits,
+                                                show_profile=self.show, show=self.show)
+
+            # Flexure correction?
+            if self.par['flexure']['method'] != 'skip':
+                sky_file, sky_spectrum = self.spectrograph.archive_sky_spectrum()
+                flex_list = wave.flexure_obj(sobjs, maskslits, self.par['flexure']['method'],
+                                             sky_spectrum, sky_file=sky_file,
+                                             mxshft=self.par['flexure']['maxshift'])
+                # QA
+                wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list,
+                                out_dir=self.par['rdx']['redux_path'])
+
+            # Helio
+            # Correct Earth's motion
+            # vel_corr = -999999.9
+            if (self.caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
+                    and (self.caliBrate.par['wavelengths']['reference'] != 'pixel'):
+                if sobjs is not None:
+                    msgs.info("Performing a {0} correction".format(
+                                                    self.caliBrate.par['wavelengths']['frame']))
+
+                    vel, vel_corr \
+                            = wave.geomotion_correct(sobjs, maskslits, self.fitstbl, self.sciI.scidx,
+                                                     self.obstime,
+                                                     self.spectrograph.telescope['longitude'],
+                                                     self.spectrograph.telescope['latitude'],
+                                                     self.spectrograph.telescope['elevation'],
+                                                     self.caliBrate.par['wavelengths']['frame'])
+                else:
+                    msgs.info('There are no objects on detector {0} to perform a '.format(self.det)
+                              + '{1} correction'.format(self.caliBrate.par['wavelengths']['frame']))
+            else:
+                msgs.info('A wavelength reference-frame correction will not be performed.')
+
+        else:
+            msgs.warn('No objects to extract for science frame' + msgs.newline()
+                      + self.fitstbl['filename'][self.sciI.scidx])
+            # set to first pass global sky
+            skymodel = global_sky0
+            objmodel = np.zeros_like(sciimg)
+            # Set to sciivar. Could create a model but what is the point?
+            ivarmodel = np.copy(sciivar)
+            # Set to inmask in case on objects were found
+            outmask = sciI.mask
+            # empty specobjs object from object finding
+            sobjs = sobjs_obj
+
+        return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
+
+    def _extract_std(self):
+        self._extract_one(std=True)
+
+    # THESE ARENT USED YET BUT WE SHOULD CONSIDER IT
+    @staticmethod
+    def default_sci_find_obj_steps():
+        return ['process', 'find_objects', 'global_skysub', 'find_objects']
+
+    @staticmethod
+    def default_std_find_obj_steps():
+        return ['process', 'global_skysub', 'find_objects']
+
+
 def instantiate_me(spectrograph, **kwargs):
     """
     Instantiate the PypeIt subclass appropriate for the provided
