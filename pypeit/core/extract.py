@@ -1278,7 +1278,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     23-June-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
-    show_fits = True
     from pypeit.utils import find_nminima
     from pypeit import specobjs
 
