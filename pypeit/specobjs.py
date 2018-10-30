@@ -165,9 +165,12 @@ class SpecObj(object):
 
     def copy(self):
         sobj_copy = SpecObj(self.shape, self.slit_spat_pos, self.slit_spec_pos) # Instantiate
-        sobj_copy.__dict__ = self.__dict__.copy() # Copy over all attributes
-        sobj_copy.boxcar = self.boxcar.copy() # Copy boxcar and optimal dicts
-        sobj_copy.optimal = self.optimal.copy()
+#        sobj_copy.__dict__ = self.__dict__.copy() # Copy over all attributes
+#        sobj_copy.boxcar = self.boxcar.copy() # Copy boxcar and optimal dicts
+#        sobj_copy.optimal = self.optimal.copy()
+        sobj_copy.__dict__ = copy.deepcopy(self.__dict__)
+        sobj_copy.boxcar = copy.deepcopy(self.boxcar) # Copy boxcar and optimal dicts
+        sobj_copy.optimal = copy.deepcopy(self.optimal)
         return sobj_copy
 
     def __getitem__(self, key):
@@ -299,7 +302,7 @@ class SpecObjs(object):
     def copy(self):
         sobj_copy = SpecObjs()
         for sobj in self.specobjs:
-            sobj_copy.add_sobj(sobj)
+            sobj_copy.add_sobj(sobj.copy())
         sobj_copy.build_summary()
         return sobj_copy
 
