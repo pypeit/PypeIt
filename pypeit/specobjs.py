@@ -559,10 +559,9 @@ def mtch_obj_to_objects(iobj, objects, stol=50, otol=10, **kwargs):
     tbl = Table(objnm_to_dict(objects))
 
     # Logic on object, slit and detector [ignoring sciidx for now]
-    try:
-        gdrow = (np.abs(tbl[naming_model['spat']]-odict[naming_model['spat']]) < otol) & ( np.abs(tbl[naming_model['slit']]-odict[naming_model['slit']]) < stol) & ( tbl[naming_model['det']] == odict[naming_model['det']])
-    except:
-        debugger.set_trace()
+    gdrow = (np.abs(tbl[naming_model['spat']]-odict[naming_model['spat']]) < otol) & (
+            np.abs(tbl[naming_model['slit']]-odict[naming_model['slit']]) < stol) & (
+            tbl[naming_model['det']] == odict[naming_model['det']])
     if np.sum(gdrow) == 0:
         return None
     else:
