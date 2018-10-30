@@ -397,8 +397,6 @@ class FluxSpec(masterframe.MasterFrame):
         -------
 
         """
-
-
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Allow one to over-ride output name
@@ -406,7 +404,9 @@ class FluxSpec(masterframe.MasterFrame):
             outfile = self.ms_name
         # Add steps
         self.sens_dict['steps'] = self.steps
-
+        # Do it
+        masters.save_sensfunc(self.sens_dict, outfile)
+        # Finish
         msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
 
 

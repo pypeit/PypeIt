@@ -100,7 +100,6 @@ def test_script(kast_blue_files, deimos_files):
                                '--sci_file={:s}'.format(sci_file),
                                '--sensfunc_file={:s}'.format(data_path('tmp.fits')),
                                '--flux_file={:s}'.format(data_path('tmp_fluxed.fits'))])
-    pytest.set_trace()
     flux_spec.main(pargs2)
 
     # DEIMOS (multi-det)
