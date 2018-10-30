@@ -24,30 +24,34 @@ from pypeit import msgs
 
 # def test_load_specobj -- See test_arload.py
 
+objnm1 = 'SPAT0968-SLIT0001-DET01-SCI023'
+objnm2 = 'SPAT0967-SLIT0001-DET01-SCI023'
+objnm3 = 'SPAT0965-SLIT0001-DET01-SCI028'
+
 def test_objnm_to_dict():
-    idict = specobjs.objnm_to_dict('O968-S5387-D01-I0026')
-    assert 'O' in idict.keys()
-    assert idict['O'] == 968
-    assert 'S' in idict.keys()
-    assert idict['S'] == 5387
-    assert 'D' in idict.keys()
-    assert idict['D'] == 1
-    assert 'I' in idict.keys()
-    assert idict['I'] == 26
+    idict = specobjs.objnm_to_dict(objnm1)
+    assert 'SPAT' in idict.keys()
+    assert idict['SPAT'] == 968
+    assert 'SLIT' in idict.keys()
+    assert idict['SLIT'] == 1
+    assert 'DET' in idict.keys()
+    assert idict['DET'] == 1
+    assert 'SCI' in idict.keys()
+    assert idict['SCI'] == 23
     # List
-    idict2 = specobjs.objnm_to_dict(['O968-S5387-D01-I0026', 'O967-S5397-D01-I0026'])
-    assert len(idict2['O']) == 2
-    assert idict2['O'] == [968, 967]
+    idict2 = specobjs.objnm_to_dict([objnm1,objnm2])
+    assert len(idict2['SPAT']) == 2
+    assert idict2['SPAT'] == [968, 967]
 
 
 def test_findobj():
-    objects = ['O968-S5387-D01-I0026', 'O967-S5397-D01-I0027']
-    mtch_obj, indices = specobjs.mtch_obj_to_objects('O965-S5390-D01-I0028', objects)
+    objects = [objnm1, objnm2]
+    mtch_obj, indices = specobjs.mtch_obj_to_objects(objnm3, objects)
     assert mtch_obj == objects
     assert indices == [0,1]
     # Now hit only 1
-    mtch_obj2, _ = specobjs.mtch_obj_to_objects('O965-S5338-D01-I0028', objects)
-    assert mtch_obj2[0] == 'O968-S5387-D01-I0026'
+    #mtch_obj2, _ = specobjs.mtch_obj_to_objects('O965-S5338-D01-I0028', objects)
+    #assert mtch_obj2[0] == 'O968-S5387-D01-I0026'
 
 
 def test_instr_config():
