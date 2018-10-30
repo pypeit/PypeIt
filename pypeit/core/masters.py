@@ -207,7 +207,7 @@ def _load(name, exten=0, frametype='<None>', force=False):
         sens_dict = {}
         sens_dict['wave'] = tbl['WAVE']
         sens_dict['sensfunc'] = tbl['SENSFUNC']
-        for key in ['wave_min','wave_max','exptime','airmass','std_file','std_ra','std_dec','std_name','calibfile']:
+        for key in ['wave_min','wave_max','exptime','airmass','std_file','std_ra','std_dec','std_name','cal_file']:
             try:
                 sens_dict[key] = head[key.upper()]
             except:
@@ -416,7 +416,7 @@ def save_sensfunc(sens_dict, outfile):
     hdus = [prihdu]
     # Add critical keys from sens_dict to header
     for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra',
-                'std_dec', 'std_name', 'calibfile']:
+                'std_dec', 'std_name', 'cal_file']:
         try:
             prihdu.header[key.upper()] = sens_dict[key].value
         except AttributeError:
