@@ -425,7 +425,12 @@ class PypeItMetaData:
             type name and bits.
         """
         # Making Columns to pad string array
-        ftype_colm = table.Column(self.bitmask.type_names(type_bits), dtype='U8', name='frametype')
+        ftype_colmA = table.Column(self.bitmask.type_names(type_bits), name='frametype')
+        # KLUDGE ME
+        if int(str(ftype_colmA.dtype)[2:]) < 9:
+            ftype_colm = table.Column(self.bitmask.type_names(type_bits), dtype='U9', name='frametype')
+        else:
+            ftype_colm = ftype_colmA
         fbits_colm = table.Column(type_bits, name='framebit')
         t = table.Table([ftype_colm, fbits_colm])
 
