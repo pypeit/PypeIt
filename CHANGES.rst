@@ -1,6 +1,10 @@
 0.9.1dev (unreleased)
 ---------------------
 
+- Move write method for sensitivity function
+- Modify I/O for detnum parameter
+- Modify idx code in SpecObj
+- Fixed a bug on datatype formatting
 
 0.9.0
 -----

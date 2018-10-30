@@ -397,8 +397,6 @@ class FluxSpec(masterframe.MasterFrame):
         -------
 
         """
-
-
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Allow one to over-ride output name
@@ -406,26 +404,9 @@ class FluxSpec(masterframe.MasterFrame):
             outfile = self.ms_name
         # Add steps
         self.sens_dict['steps'] = self.steps
-        prihdu = fits.PrimaryHDU()
-        hdus = [prihdu]
-        # Add critical keys from sens_dict to header
-        for key in ['wave_min', 'wave_max','exptime','airmass','std_file','std_ra','std_dec','std_name','calibfile']:
-            try:
-                prihdu.header[key.upper()] = self.sens_dict[key].value
-            except:
-                prihdu.header[key.upper()] = self.sens_dict[key]
-
-        cols = []
-        cols += [fits.Column(array=self.sens_dict['wave'], name=str('WAVE'), format=self.sens_dict['wave'].dtype)]
-        cols += [fits.Column(array=self.sens_dict['sensfunc'], name=str('SENSFUNC'), format=self.sens_dict['sensfunc'].dtype)]
+        # Do it
+        masters.save_sensfunc(self.sens_dict, outfile)
         # Finish
-        coldefs = fits.ColDefs(cols)
-        tbhdu = fits.BinTableHDU.from_columns(coldefs)
-        tbhdu.name = 'SENSFUNC'
-        hdus += [tbhdu]
-        # Finish
-        hdulist = fits.HDUList(hdus)
-        hdulist.writeto(outfile, overwrite=True)
         msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
 
 
@@ -513,7 +494,8 @@ class FluxSpec(masterframe.MasterFrame):
         else:
             msgs.error("BAD INPUT")
         save.save_1d_spectra_fits(specObjs, self.sci_header, outfile,
-                                    helio_dict=helio_dict, telescope=telescope, clobber=True)
+                                  helio_dict=helio_dict,
+                                  telescope=telescope, overwrite=True)
         # Step
         self.steps.append(inspect.stack()[0][3])
 

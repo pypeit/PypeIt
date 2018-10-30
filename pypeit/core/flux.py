@@ -339,7 +339,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     sens_dict['std_ra'] = std_dict['std_ra']
     sens_dict['std_dec'] = std_dict['std_dec']
     sens_dict['std_name'] = std_dict['name']
-    sens_dict['calibfile'] = std_dict['calibfile']
+    sens_dict['cal_file'] = std_dict['cal_file']
     #sens_dict['std_dict'] = std_dict
     #sens_dict['msk_star'] = msk_star
 
@@ -699,7 +699,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 # Generate a dict
                 _idx = int(idx)
                 #TODO: os.path.join here?
-                std_dict = dict(calibfile=path+star_tbl[_idx]['File'],
+                std_dict = dict(cal_file=path+star_tbl[_idx]['File'],
                                 name=star_tbl[_idx]['Name'], fmt=std_file_fmt[qq],
                                 std_ra=star_tbl[_idx]['RA_2000'],
                                 std_dec=star_tbl[_idx]['DEC_2000'])
@@ -807,7 +807,7 @@ def load_standard_file(std_dict):
     std_flux : Quantity array
       Flux of standard star
     """
-    root = resource_filename('pypeit', std_dict['calibfile'] + '*')
+    root = resource_filename('pypeit', std_dict['cal_file'] + '*')
     fil = glob.glob(root)
     if len(fil) == 0:
         msgs.error("No standard star file: {:s}".format(fil))

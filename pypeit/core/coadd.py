@@ -8,7 +8,7 @@ import scipy.stats
 from  scipy.signal import medfilt
 
 from matplotlib import pyplot as plt
-from matplotlib import gridspec, font_manager
+from matplotlib import gridspec
 from matplotlib.backends.backend_pdf import PdfPages
 
 import astropy.stats
@@ -681,7 +681,7 @@ def one_d_coadd(spectra, smask, weights, debug=False, **kwargs):
     return new_spec
 
 
-def load_spec(files, iextensions=None, extract='opt', flux=True):
+def load_spec(files, iextensions=None, extract='OPT', flux=True):
     """ Load a list of spectra into one XSpectrum1D object
 
     Parameters

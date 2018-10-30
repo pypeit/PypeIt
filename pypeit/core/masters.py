@@ -207,7 +207,7 @@ def _load(name, exten=0, frametype='<None>', force=False):
         sens_dict = {}
         sens_dict['wave'] = tbl['WAVE']
         sens_dict['sensfunc'] = tbl['SENSFUNC']
-        for key in ['wave_min','wave_max','exptime','airmass','std_file','std_ra','std_dec','std_name','calibfile']:
+        for key in ['wave_min','wave_max','exptime','airmass','std_file','std_ra','std_dec','std_name','cal_file']:
             try:
                 sens_dict[key] = head[key.upper()]
             except:
@@ -402,23 +402,40 @@ def save_master(data, filename="temp.fits", frametype="<None>",
     return
 
 
-'''
-def save_sensfunc(slf, setup):
-    """ Make YAML friendly and write to disk
-    Separate routine as this process is detector independent
-    
-    Parameters
-    ----------
-    slf
-    setup : str
+def save_sensfunc(sens_dict, outfile):
+    """ Write Sensitivity function to disk as FITS table
+
+    Args:
+        sens_dict: dict
+        outfile: str
+
+    Returns:
+
     """
-    # Sensitivity Function
-    if 'sensfunc' + settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
-        # yamlify
-        ysens = arutils.yamlify(slf._sensfunc)
-        with open(master_name('sensfunc', setup), 'w') as yamlf:
-            yamlf.write(yaml.dump(ysens))
-'''
+    prihdu = fits.PrimaryHDU()
+    hdus = [prihdu]
+    # Add critical keys from sens_dict to header
+    for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra',
+                'std_dec', 'std_name', 'cal_file']:
+        try:
+            prihdu.header[key.upper()] = sens_dict[key].value
+        except AttributeError:
+            prihdu.header[key.upper()] = sens_dict[key]
+        except KeyError:
+            pass # Will not require all of these
+
+    cols = []
+    cols += [fits.Column(array=sens_dict['wave'], name=str('WAVE'), format=sens_dict['wave'].dtype)]
+    cols += [
+        fits.Column(array=sens_dict['sensfunc'], name=str('SENSFUNC'), format=sens_dict['sensfunc'].dtype)]
+    # Finish
+    coldefs = fits.ColDefs(cols)
+    tbhdu = fits.BinTableHDU.from_columns(coldefs)
+    tbhdu.name = 'SENSFUNC'
+    hdus += [tbhdu]
+    # Finish
+    hdulist = fits.HDUList(hdus)
+    hdulist.writeto(outfile, overwrite=True)
 
 
 def user_master_name(mdir, input_name):

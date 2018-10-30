@@ -348,8 +348,6 @@ class PypeItMetaData:
         # Convert from an astropy.Time format
         if self.spectrograph.timeunit in time.Time.FORMATS.keys():
             if date is not None:
-                import pdb
-                pdb.set_trace()
                 in_time = date+'T'+in_time
             ival = float(in_time) if self.spectrograph.timeunit == 'mjd' else in_time
             tval = time.Time(ival, scale='tt', format=self.spectrograph.timeunit)
@@ -427,7 +425,12 @@ class PypeItMetaData:
             type name and bits.
         """
         # Making Columns to pad string array
-        ftype_colm = table.Column(self.bitmask.type_names(type_bits), dtype='U8', name='frametype')
+        ftype_colmA = table.Column(self.bitmask.type_names(type_bits), name='frametype')
+        # KLUDGE ME
+        if int(str(ftype_colmA.dtype)[2:]) < 9:
+            ftype_colm = table.Column(self.bitmask.type_names(type_bits), dtype='U9', name='frametype')
+        else:
+            ftype_colm = ftype_colmA
         fbits_colm = table.Column(type_bits, name='framebit')
         t = table.Table([ftype_colm, fbits_colm])
 
