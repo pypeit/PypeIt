@@ -98,7 +98,12 @@ class SpecObj(object):
         self.maxcol = None
         self.prof_nsigma = None
         self.fwhmfit = None
+        self.smash_nsig = None
 
+        # Some things for echelle functionality
+        self.ech_orderindx = None
+        self.ech_group = None
+        self.ech_fracpos = None
 
 
         # Attributes for HAND apertures, which are object added to the extraction by hand
@@ -306,6 +311,10 @@ class SpecObjs(object):
         sobj_copy.build_summary()
         return sobj_copy
 
+    def set_idx(self):
+        for sobj in self.specobjs:
+            sobj.set_idx()
+        self.build_summary()
 
     def __getitem__(self, item):
         """ Overload to allow one to pull an attribute
@@ -333,6 +342,7 @@ class SpecObjs(object):
             #sobjs_new = np.array(self.specobjs,dtype=object)
             return SpecObjs(specobjs=self.specobjs[item])
 
+    # TODO PROFX this code fails for assignments of this nature sobjs[:].attribute = np.array(5)
     def __setitem__(self, name, value):
         """
         Over-load set item using our custom set() method
