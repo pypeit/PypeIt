@@ -1166,7 +1166,10 @@ def parse_hand_dict(hand_extract_dict):
 
 
 
-def iter_tracefit(image, inmask, xinit_in, ncoeff, fwhm = 3.0, niter=6,gweight=False,show_fits=False, idx = None):
+def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gweight=False,show_fits=False, idx = None):
+
+    if inmask is None:
+        inmask = np.ones_like(image,dtype=bool)
 
     nspec = xinit_in.shape[0]
     nobj = xinit_in.shape[1]
@@ -1532,9 +1535,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
     xinit_fweight = np.copy(sobjs.trace_spat.T)
 
-    xfit_fweight = iter_tracefit(image, inmask, xinit_fweight,ncoeff,fwhm=fwhm,idx = sobjs.idx, show_fits=show_fits)
+    xfit_fweight = iter_tracefit(image, xinit_fweight,ncoeff,inmask = inmask, fwhm=fwhm,idx = sobjs.idx, show_fits=show_fits)
     xinit_gweight = np.copy(xfit_fweight)
-    xfit_gweight = iter_tracefit(image, inmask, xinit_gweight,ncoeff,fwhm=fwhm,gweight = True, idx = sobjs.idx, show_fits=show_fits)
+    xfit_gweight = iter_tracefit(image, xinit_gweight,ncoeff,inmask = inmask, fwhm=fwhm,gweight = True, idx = sobjs.idx, show_fits=show_fits)
 
     # assign the final trace
     for iobj in range(nobj_reg):
