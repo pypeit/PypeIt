@@ -308,6 +308,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
     # Return
     return best_dict, final_fit
 
+
 class General:
     """ General algorithm to wavelength calibrate spectroscopic data
 
@@ -352,7 +353,7 @@ class General:
       final best guess of the line IDs
     """
 
-    def __init__(self, spec, par = None, ok_mask=None, islinelist=False, outroot=None, debug = False, verbose=False,
+    def __init__(self, spec, par=None, ok_mask=None, islinelist=False, outroot=None, debug=False, verbose=False,
                  binw=None, bind=None, nstore=1, use_unknowns=True):
 
         # Set some default parameters
@@ -432,7 +433,7 @@ class General:
     def get_results(self):
         return copy.deepcopy(self._all_patt_dict), copy.deepcopy(self._all_final_fit)
 
-    def set_grids(self, ngridw = 200, ngridd=2000): #ngridw = 200, ngridd=2000):
+    def set_grids(self, ngridw=200, ngridd=2000): #ngridw = 200, ngridd=2000):
         # Set the wavelength grid
         if self._binw is None:
             # Ideally, you want binw to roughly sample the A/pix of the spectrograph

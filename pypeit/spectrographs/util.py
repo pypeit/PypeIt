@@ -74,7 +74,7 @@ def load_spectrograph(spectrograph):
         return spectrographs.shane_kast.ShaneKastRedRetSpectrograph()
 
     if spectrograph == 'wht_isis_blue':
-        return spectrographs.wht_isis.WhtIsisBlueSpectrograph()
+        return spectrographs.wht_isis.WHTISISBlueSpectrograph()
     
     if spectrograph == 'tng_dolores':
         return spectrographs.tng_dolores.TNGDoloresSpectrograph()

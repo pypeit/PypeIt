@@ -132,7 +132,7 @@ def test_vltxshooternir():
 
 @dev_suite_required
 def test_whtisisblue():
-    s = spectrographs.wht_isis.WhtIsisBlueSpectrograph()
+    s = spectrographs.wht_isis.WHTISISBlueSpectrograph()
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'WHT_ISIS_blue',
                                 'long_R300B_d5300', 'r2324566.fit.gz')
     assert os.path.isfile(example_file), 'Could not find example file for WHT ISIS blue read.'
