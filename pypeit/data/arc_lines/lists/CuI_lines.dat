@@ -1,10 +1,38 @@
-# Creation Date: 2018-Oct-04
-# Creation Date: 2018-Oct-04
-# Creation Date: 2018-Oct-04
-| ion |       wave | NIST | Instr | amplitude |                     Source |
-| CuI |  4260.6000 |    1 |    64 |        92 |  GMOS_R400_blue_1_fit.json |
-| CuI |  4481.6070 |    1 |    64 |        65 |  GMOS_R400_blue_1_fit.json |
-| CuI |  5018.0100 |    1 |    64 |        66 |  GMOS_R400_blue_1_fit.json |
-| CuI |  5144.1000 |    1 |    64 |        36 | GMOS_R400_blue_15_fit.json |
-| CuI |  5221.5230 |    1 |    64 |        31 | GMOS_R400_blue_15_fit.json |
-| CuI |  6034.0000 |    1 |    64 |       167 | GMOS_R400_blue_38_fit.json |
+# Creation Date: 2018-Nov-01
+| ion |       wave | NIST | Instr | amplitude | Source |
+| CuI |  3011.7150 |    1 |     0 |      2000 |   NIST |
+| CuI |  3036.9850 |    1 |     0 |      2500 |   NIST |
+| CuI |  3064.3010 |    1 |     0 |      2500 |   NIST |
+| CuI |  3074.6910 |    1 |     0 |      1400 |   NIST |
+| CuI |  3094.8870 |    1 |     0 |      1500 |   NIST |
+| CuI |  3100.8280 |    1 |     0 |      1250 |   NIST |
+| CuI |  3109.5070 |    1 |     0 |      2000 |   NIST |
+| CuI |  3127.0150 |    1 |     0 |      1400 |   NIST |
+| CuI |  3195.0220 |    1 |     0 |      1500 |   NIST |
+| CuI |  3209.1580 |    1 |     0 |      1400 |   NIST |
+| CuI |  3244.1000 |    1 |     0 |      1500 |   NIST |
+| CuI |  3248.4770 |    1 |     0 |     10000 |   NIST |
+| CuI |  3274.9010 |    1 |     0 |     10000 |   NIST |
+| CuI |  3280.7600 |    1 |     0 |      2000 |   NIST |
+| CuI |  3283.6620 |    1 |     0 |      1400 |   NIST |
+| CuI |  3291.4890 |    1 |     0 |      1500 |   NIST |
+| CuI |  3308.9000 |    1 |     0 |      2500 |   NIST |
+| CuI |  3338.8050 |    1 |     0 |      1500 |   NIST |
+| CuI |  3484.7580 |    1 |     0 |      1250 |   NIST |
+| CuI |  3525.2390 |    1 |     0 |      1250 |   NIST |
+| CuI |  3531.3920 |    1 |     0 |      2000 |   NIST |
+| CuI |  3600.1590 |    1 |     0 |      1400 |   NIST |
+| CuI |  3603.0600 |    1 |     0 |      1400 |   NIST |
+| CuI |  3610.3240 |    1 |     0 |      2000 |   NIST |
+| CuI |  4023.7660 |    1 |     0 |      1250 |   NIST |
+| CuI |  4063.7880 |    1 |     0 |      2000 |   NIST |
+| CuI |  4588.2600 |    1 |     0 |      1300 |   NIST |
+| CuI |  4652.4260 |    1 |     0 |      2000 |   NIST |
+| CuI |  5106.9640 |    1 |     0 |      1500 |   NIST |
+| CuI |  5154.6710 |    1 |     0 |      2000 |   NIST |
+| CuI |  5219.6550 |    1 |     0 |      2500 |   NIST |
+| CuI |  5293.9900 |    1 |     0 |      1650 |   NIST |
+| CuI |  5701.8220 |    1 |     0 |      1500 |   NIST |
+| CuI |  5783.7350 |    1 |     0 |      1500 |   NIST |
+| CuI |  7935.3120 |    1 |     0 |      1500 |   NIST |
+| CuI |  8094.8590 |    1 |     0 |      2000 |   NIST |
