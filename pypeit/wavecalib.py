@@ -144,7 +144,7 @@ class WaveCalib(masterframe.MasterFrame):
             ArI = waveio.load_line_list('ArI', use_ion=True, NIST=True)
             ArII = waveio.load_line_list('ArII', use_ion=True, NIST=True)
             llist = vstack([CuI, ArI, ArII])
-            self.arcparam['llist'] = llist
+            self.par['llist'] = llist
 
             self.wv_calib = arc.simple_calib_driver(self.msarc, self.par, self.arccen, ok_mask,
                                                     nfitpix=self.par['nfitpix'],

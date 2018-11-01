@@ -606,13 +606,12 @@ class PypeItMetaData:
             raise FileExistsError('File {0} already exists.'.format(ofile) 
                                     + '  Change file name or set overwrite=True.')
 
-        msgs.info('Writing fits file metadata to {0}.'.format(ofile))
+        msgs.info('Writing fits file metadata to {0}'.format(ofile))
     
         # Set the columns to include and check that they are unique
         _columns = list(self.keys()) if columns is None else columns
         if len(np.unique(_columns)) != len(_columns):
-            # TODO: A warning may suffice...
-            raise ValueError('Column names must be unique!')
+            msgs.warn('Column names are not unique!')
 
         # Force the filename and frametype columns to go first
         col_order = [ 'filename', 'frametype' ]
