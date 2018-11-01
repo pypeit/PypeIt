@@ -213,7 +213,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['min_nsig'] = 10.0
         par['calibrations']['wavelengths']['lowest_nsig'] =10.0
-        par['calibrations']['wavelengths']['lamps'] = ['CuI', 'NeI', 'ArI']
+        par['calibrations']['wavelengths']['lamps'] = ['CuI', 'NeI', 'ArI', 'ArII', 'HeI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 2
 
