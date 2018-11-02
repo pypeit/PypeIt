@@ -1486,6 +1486,8 @@ class TraceSet(object):
                 while (not qdone) and (iIter <= maxiter):
                     res, ycurfit = func_fit(xvec, ypos[iTrace, :], self.ncoeff,
                         invvar=tempivar, function_name=self.func)
+                    #ToDo is this doing rejection? I think not???? THIS IS A MASSIVE BUG!!!! See IDL code.
+                    # ADd kwargs_reject in here like with iterfit
                     thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,
                                                 invvar=tempivar)
                     iIter += 1
