@@ -1676,17 +1676,20 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     maxdev : :class:`int` or :class:`float`, optional
         If set, reject points with abs(data-model) > maxdev.  It is permitted to
         set all three of `lower`, `upper` and `maxdev`.
-    maxrej : :class:`int` or :class:`numpy.ndarray`, optional
+    maxrej: :class:`int` or :class:`numpy.ndarray`, optional
         Maximum number of points to reject in this iteration.  If `groupsize` or
         `groupdim` are set to arrays, this should be an array as well.
-    groupdim
-        To be documented.
-    groupsize
-        To be documented.
+    groupdim: class: `int`
+        Dimension along which to group the data; set to 1 to group along the 1st dimension, 2 for the 2nd dimension, etc.
+        If data has shape [100,200], then setting GROUPDIM=2 is equivalent to grouping the data with groupsize=100.
+        In either case, there are 200 groups, specified by [*,i]. NOT WELL TESTED IN PYTHON!
+    groupsize: class: `int`
+        If this and maxrej are set, then reject a maximum of maxrej points per group of groupsize points.  If groupdim is also
+        set, then this specifies sub-groups within that. NOT WELL TESTED IN PYTHON!!
     groupbadpix : :class:`bool`, optional
         If set to ``True``, consecutive sets of bad pixels are considered groups,
         overriding the values of `groupsize`.
-    grow : :class:`int`, optional
+    grow : :class:`int`, optional, default = 0
         If set to a non-zero integer, N, the N nearest neighbors of rejected
         pixels will also be rejected.
     sticky : :class:`bool`, optional
@@ -1701,7 +1704,9 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
         qdone(boolean): a value set to "True" if  `djs_reject` believes there is no
         further rejection to be done. This will be set to "False" if the points marked as rejected in the outmask
         have changed. It will be set to "True" when the same points are rejected in outmask as from a previous call.
-        It will also be set to "False" if model is set to None.
+        It will also be set to "False" if model is set to None. Recall that outmask is also an optional input parameter. If it is
+        not set, then qdone will simply return true, so outmask needs to be input from the previous iteration for the routine
+        to do something meaningful. 
 
 
     Raises
@@ -1753,7 +1758,10 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
         else:
             igood = outmask.nonzero()[0]
         if len(igood > 1):
-            sigma = np.std(data[igood] - model[igood])
+            if use_mad is True:
+                sigma = 1.4826*np.median(np.abs(data[igood] - model[igood]))
+            else:
+                sigma = np.std(data[igood] - model[igood])
         else:
             sigma = 0
     diff = data - model
