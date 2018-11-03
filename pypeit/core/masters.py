@@ -195,9 +195,10 @@ def _load(name, exten=0, frametype='<None>', force=False):
         return None, None, None
     #
     if frametype == 'wv_calib':
-        msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
-        ldict = linetools.utils.loadjson(name)
-        return ldict, None, [name]
+        msgs.error('Load from the class not this method')
+        #msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
+        #ldict = linetools.utils.loadjson(name)
+        #return ldict, None, [name]
     elif frametype == 'sensfunc':
         msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(frametype) + " from filename: {:}".format(name))
 
