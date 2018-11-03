@@ -1168,9 +1168,10 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
     return mask, ct
 
 # ToDO tryto finish this up.
-def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = None, maxv = None, bspline_par = None, guesses = None, maxiter =10,
-                       inmask=None, sigma=None,invvar=None, lower=None, upper=None, maxdev=None,maxrej=None, groupdim=None,
-                       groupsize=None, groupbadpix=False, grow=0, sticky=False, verbose = True):
+def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = None, maxv = None, bspline_par = None,
+                       guesses = None, maxiter =10,inmask=None, sigma=None,invvar=None, lower=5, upper=5,
+                       maxdev=None,maxrej=None, groupdim=None,groupsize=None, groupbadpix=False, grow=0,
+                       sticky=False, verbose = True):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -1200,7 +1201,12 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
     elif invvar is not None:
         weights = np.copy(invvar)
     else:
-        weights = None
+        weights = np.ones(xarray.size,dtype=float)
+
+    # make kwargs for djs_reject
+    kwargs_reject={"sigma":sigma, "invvar":invvar, "lower":lower*1.0, \
+                   "upper":upper*1.0, "maxdev":maxdev,"maxrej":maxrej, "groupdim":groupdim, \
+                   "groupsize":groupsize, "groupbadpix":groupbadpix, "grow":grow, "sticky":sticky}
 
     # Iterate, and mask out new values on each iteration
     ct = guesses
@@ -1211,59 +1217,23 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
     while (not qdone) and (iIter <= maxiter):
         ct = func_fit(xarray, yarray, function, order, w=weights,guesses=ct, minv=minv, maxv=maxv, bspline_par=bspline_par)
         ymodel = func_val(ct, xarray, function, minv=minv, maxv=maxv)
-        thismask, qdone = djs_reject(yarray, ymodel,
+        thismask, qdone = pydl.djs_reject(yarray, ymodel, inmask=thismask, **kwargs_reject)
         iIter += 1
 
-    outmask = thismask
-    return outmask, ct
-
-        self.yfit[iTrace, :] = ycurfit
-        self.coeff[iTrace, :] = res
-        self.outmask[iTrace, :] = thismask
-
-    while True:
-        w = np.where(mask == 0)
-        xfit = xarray[w]
-        yfit = yarray[w]
-        if weights is not None:
-            wfit = weights[w]
-        else:
-            wfit = None
-        ct = func_fit(xfit, yfit, function, order, w=wfit,
-                      guesses=ct, minv=minv, maxv=maxv, bspline_par=bspline_par)
-        yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
-        sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
-        #if xarray.size-np.sum(mask) <= order+2: JFH fixed this bug
-        if xarray.size - np.sum(mask) <= order + 1:
-            if verbose:
-                msgs.warn("More parameters than data points - fit might be undesirable")
-            break  # More data was masked than allowed by order
-        if maxone:  # Only remove the most deviant point
-            tst = np.abs(yarray[w]-yrng[w])
-            m = np.argmax(tst)
-            if tst[m] > sigma*sigmed:
-                mask[w[0][m]] = 1
-        else:
-            if forceimask:
-                w = np.where((np.abs(yarray-yrng) > sigma*sigmed) | (initialmask==1))
-            else:
-                w = np.where(np.abs(yarray-yrng) > sigma*sigmed)
-            mask[w] = 1
-        if mskcnt == np.sum(mask): break  # No new values have been included in the mask
-        mskcnt = np.sum(mask)
+    outmask = np.copy(thismask)
 
     # Final fit
-    w = np.where(mask == 0)
+    w = np.where(outmask == 1)
     xfit = xarray[w]
     yfit = yarray[w]
     if weights is not None:
         wfit = weights[w]
     else:
         wfit = None
+
     ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, bspline_par=bspline_par)
-    return mask, ct
 
-
+    return outmask, ct
 
 def robust_regression(x, y, ordr, outfrac, maxiter=100, function='polynomial', min=None, max=None):
     """
