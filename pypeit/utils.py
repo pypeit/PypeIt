@@ -1168,6 +1168,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
     return mask, ct
 
 # ToDO tryto finish this up.
+'''
 def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = None, maxv = None, bspline_par = None, guesses = None, maxiter =10,
                        inmask=None, sigma=None,invvar=None, lower=None, upper=None, maxdev=None,maxrej=None, groupdim=None,
                        groupsize=None, groupbadpix=False, grow=0, sticky=False, verbose = True):
@@ -1263,7 +1264,7 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
     ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, bspline_par=bspline_par)
     return mask, ct
 
-
+'''
 
 def robust_regression(x, y, ordr, outfrac, maxiter=100, function='polynomial', min=None, max=None):
     """
