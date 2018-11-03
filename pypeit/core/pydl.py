@@ -1717,6 +1717,7 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
 
     # Create outmask setting = True for good data.
     #
+    # ToDo JFH: I think it would actually make more sense for outmask be a required input parameter (named lastmask or something like that).
     if outmask is None:
         outmask = np.ones(data.shape, dtype='bool')
     else:
