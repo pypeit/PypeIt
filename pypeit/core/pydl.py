@@ -1485,7 +1485,7 @@ class TraceSet(object):
                 thismask = tempivar > 0
                 while (not qdone) and (iIter <= maxiter):
                     res, ycurfit = func_fit(xvec, ypos[iTrace, :], self.ncoeff,
-                        invvar=tempivar*thismask, function_name=self.func)
+                        invvar=tempivar*thismask, function_name=self.func)#function_name='poly')
                     #ToDo: is this doing rejection? I think not???? THIS IS A MASSIVE BUG!!!! See IDL code.
                     # ADd kwargs_reject in here like with iterfit
                     #ToDo: djs_reject has a bug:
@@ -1493,7 +1493,8 @@ class TraceSet(object):
                     #   One need to set either lower, upper or maxdev, otherwise nothing will happen.
                     #thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,
                     #                            invvar=tempivar)
-                    thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,lower=2,upper=2)
+                    #ToDo: define kwargs_reject={}
+                    thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,lower=3,upper=2)#, **kwargs_reject)
                     iIter += 1
                 self.yfit[iTrace, :] = ycurfit
                 self.coeff[iTrace, :] = res
