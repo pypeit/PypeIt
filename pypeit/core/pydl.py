@@ -1644,7 +1644,7 @@ def xy2traceset(xpos, ypos, **kwargs):
 def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
                invvar=None, lower=None, upper=None, maxdev=None,
                maxrej=None, groupdim=None, groupsize=None, groupbadpix=False,
-               grow=0, sticky=False):
+               grow=0, sticky=False, use_mad=False):
     """Routine to reject points when doing an iterative fit to data.
 
     Parameters
@@ -1695,6 +1695,8 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     sticky : :class:`bool`, optional
         If set to ``True``, pixels rejected in one iteration remain rejected in
         subsequent iterations, even if the model changes.
+    use_mad : :class: `bool`, optional, defaul = False
+        It set to ``True``,
 
     Returns
     -------
@@ -1719,6 +1721,10 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
 
     if upper is None and lower is None and maxdev is None:
         msgs.warn('upper, lower, and maxdev are all set to None. No rejection performed since no rejection criteria were specified.')
+
+    if use_mad and ((sigma is not None) or (invvar is not None)):
+        raise ValueError('use_mad can only be set to True if both sigma = None and innvar = None. This code only computes a mad'
+                         ' if errors are not input (i.e. sigma or invvar)')
 
     # Create outmask setting = True for good data.
     #
