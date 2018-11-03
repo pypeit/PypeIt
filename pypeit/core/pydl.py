@@ -1706,7 +1706,7 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
         have changed. It will be set to "True" when the same points are rejected in outmask as from a previous call.
         It will also be set to "False" if model is set to None. Recall that outmask is also an optional input parameter. If it is
         not set, then qdone will simply return true, so outmask needs to be input from the previous iteration for the routine
-        to do something meaningful. 
+        to do something meaningful.
 
 
     Raises
@@ -1725,6 +1725,7 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     # ToDo JFH: I think it would actually make more sense for outmask be a required input parameter (named lastmask or something like that).
     if outmask is None:
         outmask = np.ones(data.shape, dtype='bool')
+        msgs.warn('outmask was not specified as an input parameter. Cannot asess convergence of rejection -- qdone is automatically True')
     else:
         if data.shape != outmask.shape:
             raise ValueError('Dimensions of data and outmask do not agree.')
