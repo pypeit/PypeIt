@@ -23,7 +23,44 @@ from pypeit.core.wavecal import waveio
 
 from pypeit import debugger
 
+# Frametype is a class attribute
+frametype = 'wv_calib'
 
+# By moving this utility routine out of the class, we do not need to instantiate the class to read in the wv_calib dict
+# from a file
+def load_wv_calib(filename):
+    """
+    Load a full (all slit) wv_calib dict
+
+    Includes converting the JSON lists of particular items into ndarray
+
+    Parameters
+    ----------
+    filename : str
+
+    Returns
+    -------
+    Fills:
+      self.wv_calib
+      self.arcparam
+
+    """
+    wv_calib, _, _ = masters._load(filename, frametype=frametype)
+    # Recast a few items as arrays
+    # TODO -- Consider pushing into master
+    for key in wv_calib.keys():
+        if key in ['steps', 'par']:  # This isn't really necessary
+            continue
+        for tkey in wv_calib[key].keys():
+            if tkey in ['tcent', 'spec', 'xfit', 'yfit', 'xrej']:
+                wv_calib[key][tkey] = np.array(wv_calib[key][tkey])
+    # parset
+    if 'par' in wv_calib.keys():
+        par = wv_calib['par'].copy()
+    else:
+        par = None
+
+    return (wv_calib, par)
 
 class WaveCalib(masterframe.MasterFrame):
     """Class to guide slit/order tracing
@@ -67,9 +104,6 @@ class WaveCalib(masterframe.MasterFrame):
     arcparam : dict
       Arc parameter (instrument/disperser specific)
     """
-
-    # Frametype is a class attribute
-    frametype = 'wv_calib'
 
     # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
     # parameters since instantiating without them does nothing. Make them required
@@ -253,7 +287,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Return
         return self.arccen, self.maskslits
 
-    def load_wv_calib(self, filename):
+    def load_wv_calib_old(self, filename):
         """
         Load a full (all slit) wv_calib dict
 
@@ -282,6 +316,51 @@ class WaveCalib(masterframe.MasterFrame):
         # parset
         if 'par' in self.wv_calib.keys():
             self.par = self.wv_calib['par'].copy()
+
+
+
+    def master(self):
+        """
+        Load a full (all slit) wv_calib dict
+
+        Includes converting the JSON lists of particular items into ndarray
+
+        Parameters
+        ----------
+        filename : str
+
+        Returns
+        -------
+        Fills:
+          self.wv_calib
+          self.arcparam
+
+        """
+
+        # This is code from masters._load. I hate the fact that the master loading is in a separate master._load method in
+        # a different module and am moving it here.
+        name = self.ms_name()
+        # Check to see if file exists
+        if not os.path.isfile(name):
+            msgs.warn("Master frame does not exist: {:s}".format(name))
+            if force:
+                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + name)
+            return None, None, None
+
+        msgs.info("Loading Master {0:s} frame:".format(self.frametype)+msgs.newline()+name)
+        self.wv_calib = linetools.utils.loadjson(name)
+
+        for key in self.wv_calib.keys():
+            if key in ['steps', 'par']:  # This isn't really necessary
+                continue
+            for tkey in self.wv_calib[key].keys():
+                if tkey in ['tcent', 'spec', 'xfit', 'yfit', 'xrej']:
+                    self.wv_calib[key][tkey] = np.array(self.wv_calib[key][tkey])
+        # parset
+        if 'par' in self.wv_calib.keys():
+            self.par = self.wv_calib['par'].copy()
+
+
 
     def _load_arcparam(self, calibrate_lamps=None):
         """
