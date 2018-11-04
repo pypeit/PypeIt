@@ -274,7 +274,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
 
         msgs.info("Loading Master {0:s} frame:".format(self.frametype) + msgs.newline() + filename)
-        wv_calib = linetools.utils.loadjson(filename)
+        self.wv_calib = linetools.utils.loadjson(filename)
 
         # Recast a few items as arrays
         for key in self.wv_calib.keys():
@@ -286,7 +286,7 @@ class WaveCalib(masterframe.MasterFrame):
         # parset
         if 'par' in self.wv_calib.keys():
             self.par = self.wv_calib['par'].copy()
-        return (self.wv_calib, self.par)
+        return self.wv_calib
 
     def save_master(self, data, outfile=None, raw_files=None, overwrite=True, extensions=None, names=None):
 
@@ -444,6 +444,7 @@ def load_wv_calib(filename):
 
 
     waveCalib = wavecalib.WaveCalib(None)
-    return waveCalib.load_master(filename)
+    wv_calib = waveCalib.load_master(filename)
+    return (waveCalib.wv_calib, waveCalib.par)
 
 
