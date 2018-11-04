@@ -107,7 +107,9 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         #
         return self.stack
 
-    def master(self):
+
+
+    def master_old(self):
         """
         Load the master frame from disk, as the settings allow
         or return the command
