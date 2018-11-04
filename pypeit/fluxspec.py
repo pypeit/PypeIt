@@ -379,7 +379,7 @@ class FluxSpec(masterframe.MasterFrame):
         # Return
         return self.sens_dict
 
-    def load_master(self, filename):
+    def load_master(self, filename, force=False):
 
         msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
 
