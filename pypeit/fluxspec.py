@@ -332,6 +332,8 @@ class FluxSpec(masterframe.MasterFrame):
         # Return
         return self.std
 
+    # TODO Clean this up. This should not be in the master method.
+
     # JFH This should not be called master if it is applying the flux calibration. All the other master methods simply
     # return the master file whereas this is doing something very different. The control flow of the actual things this
     # class does should be somewhere else.
