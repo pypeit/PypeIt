@@ -7,7 +7,6 @@ import os
 import warnings
 
 from pypeit import msgs
-from pypeit.core import masters
 from astropy.io import fits
 from pypeit.par import pypeitpar
 import os
