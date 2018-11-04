@@ -398,7 +398,7 @@ class Calibrations(object):
         # illumination file was created. So check msillumflat is set
         if self.msillumflat is None:
             # 2) If no illumination file is set yet, try to read it in from a master
-            self.msillumflat, _, _ = self.flatField.load_master_illumflat()
+            self.msillumflat = self.flatField.load_master_illumflat()
             # 3) If there is no master file, then set illumflat to unit
             # and war user that they are not illumflatting their data
             if self.msillumflat is None:
