@@ -11,7 +11,7 @@ from astropy.table import Table
 
 from pypeit import msgs
 from pypeit.core import pixels
-
+from pypeit import masterframe
 from pypeit import arcimage
 from pypeit import biasframe
 from pypeit import bpmimage
@@ -24,7 +24,6 @@ from pypeit import waveimage
 
 from pypeit.metadata import PypeItMetaData
 
-from pypeit.core import masters
 from pypeit.core import procimg
 from pypeit.core import parse
 
@@ -92,7 +91,7 @@ class Calibrations(object):
 
         # Output dirs
         self.redux_path = os.getcwd() if redux_path is None else redux_path
-        self.master_dir = masters.set_master_dir(self.redux_path, self.spectrograph, self.par)
+        self.master_dir = masterframe.set_master_dir(self.redux_path, self.spectrograph, self.par)
 
         # Attributes
         self.calib_dict = {}
@@ -352,8 +351,8 @@ class Calibrations(object):
                 raise ValueError('Could not find user-defined flatfield master: {0}'.format(
                     self.par['flatfield']['frame']))
             msgs.info('Found user-defined file: {0}'.format(mspixelflat_name))
-            self.mspixflatnrm, head, _ = masters._load(mspixelflat_name, exten=self.det,
-                                                       frametype=None, force=True)
+            self.mspixflatnrm = self.flatField.load_master(mspixelflat_name, exten=self.det)
+            #self.mspixflatnrm, head, _ = masters._load(mspixelflat_name, exten=self.det,frametype=None, force=True)
             # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
             #self.msillumflat = np.ones_like(self.mspixflatnrm)
 
@@ -375,8 +374,7 @@ class Calibrations(object):
                                            steps=self.flatField.steps)
                 self.flatField.save_master(self.msillumflat, raw_files=pixflat_image_files,
                                            steps=self.flatField.steps,
-                                           outfile=masters.master_name('illumflat', self.setup,
-                                                                       self.master_dir))
+                                           outfile=masterframe.master_name('illumflat', self.setup,self.master_dir))
                 # If we tweaked the slits update the master files for tilts and slits
                 if self.par['flatfield']['tweak_slits']:
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')

@@ -14,7 +14,6 @@ from pypeit import masterframe
 from pypeit import ginga
 from pypeit.core import arc
 from pypeit.core import tracewave
-from pypeit.core import masters
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -129,14 +128,14 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Arc
-        msarc_file = masters.core_master_name('arc', setup, mdir)
-        msarc, _, _ = masters._load(msarc_file)
+        msarc_file = masterframe.master_name('arc', setup, mdir)
+        msarc, _, _ = self.load_master(msarc_file)
 
         # Instantiate
         slf = cls(msarc, setup=setup)
 
         # Tilts
-        mstilts_file = masters.core_master_name('tilts', setup, mdir)
+        mstilts_file = masterframe.master_name('tilts', setup, mdir)
         hdul = fits.open(mstilts_file)
         slf.final_tilts = hdul[0].data
         slf.tilts = slf.final_tilts

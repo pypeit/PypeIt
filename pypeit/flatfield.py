@@ -10,7 +10,7 @@ import os
 from pypeit import msgs
 
 from pypeit import processimages
-from pypeit.core import masters
+#from pypeit.core import masters
 from pypeit import masterframe
 from pypeit.core import flat
 from pypeit import ginga
@@ -171,7 +171,21 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.slit_profiles
 
         """
+        from IPython import embed
+        embed()
+        '''
+        # Name
+        ms_name = master_name(mftype, setup, mdir)
+        # Load
+        msframe, head, file_list = _load(ms_name, exten=0, frametype=mftype, force=force)
+        # Check
+        if msframe is None:
+            msgs.warn("No Master frame found of type {:s}: {:s}".format(mftype, ms_name))
+            return None, None, None
+        # Return
+
         return masters.load_master_frame('illumflat', self.setup, self.mdir)
+        '''
 
     # ToDO this routine is deprecated and no longer called
     def slit_profile(self, slit):
