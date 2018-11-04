@@ -255,7 +255,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Return
         return self.arccen, self.maskslits
 
-    def load_master(self, filename):
+    def load_master(self, filename, force = False):
         """
         Load a full (all slit) wv_calib dict
 
@@ -273,20 +273,28 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
 
-        msgs.info("Loading Master {0:s} frame:".format(self.frametype) + msgs.newline() + filename)
-        self.wv_calib = linetools.utils.loadjson(filename)
 
-        # Recast a few items as arrays
-        for key in self.wv_calib.keys():
-            if key in ['steps', 'par']:  # This isn't really necessary
-                continue
-            for tkey in self.wv_calib[key].keys():
-                if tkey in ['tcent', 'spec', 'xfit', 'yfit', 'xrej']:
-                    self.wv_calib[key][tkey] = np.array(self.wv_calib[key][tkey])
-        # parset
-        if 'par' in self.wv_calib.keys():
-            self.par = self.wv_calib['par'].copy()
-        return self.wv_calib
+        # Does the master file exist?
+        if not os.path.isfile(filename):
+            msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
+            if force:
+                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
+            return None
+        else:
+            msgs.info("Loading Master {0:s} frame:".format(self.frametype) + msgs.newline() + filename)
+            self.wv_calib = linetools.utils.loadjson(filename)
+
+            # Recast a few items as arrays
+            for key in self.wv_calib.keys():
+                if key in ['steps', 'par']:  # This isn't really necessary
+                    continue
+                for tkey in self.wv_calib[key].keys():
+                    if tkey in ['tcent', 'spec', 'xfit', 'yfit', 'xrej']:
+                        self.wv_calib[key][tkey] = np.array(self.wv_calib[key][tkey])
+            # parset
+            if 'par' in self.wv_calib.keys():
+                self.par = self.wv_calib['par'].copy()
+            return self.wv_calib
 
     def save_master(self, data, outfile=None, raw_files=None, overwrite=True, extensions=None, names=None):
 
