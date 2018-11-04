@@ -7,7 +7,6 @@ import os
 
 
 from pypeit import msgs
-from pypeit.core import masters
 from pypeit import processimages
 from pypeit import masterframe
 from pypeit.par import pypeitpar
@@ -109,44 +108,4 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
 
 
-    def master_old(self):
-        """
-        Load the master frame from disk, as the settings allow
-        or return the command
-        or return None
-
-        Note that the user-preference currently holds court, e.g.
-          'userframe' = 'overscan' will do an Overscan analysis instead
-          of loading an existing MasterFrame bias image
-
-        Returns
-        -------
-        msframe : ndarray or str or None
-
-        """
-        # (KBW) Not sure this is how it should be treated if loaded is
-        # being deprecated
-
-        # Generate a bias or dark image (or load a pre-made Master by PYPIT)?
-        if self.par['useframe'] is None:
-            msgs.info("Will not perform bias/dark subtraction")
-            return None
-
-        # Simple command?
-        if self.par['useframe'] == 'overscan':
-            return self.par['useframe']
-
-        if self.par['useframe'] in ['bias', 'dark']:
-            # Load the MasterFrame if it exists and user requested one to load it
-            msframe, header, raw_files = self.load_master_frame()
-            if msframe is None:
-                return None
-        else:
-            # It must be a user-specified file the user wishes to load
-            msframe_name = os.path.join(self.directory_path, self.par['useframe'])
-            msframe, head, _ = masters._core_load(msframe_name, frametype=self.frametype)
-
-        # Put in
-        self.stack = msframe
-        return msframe.copy()
 
