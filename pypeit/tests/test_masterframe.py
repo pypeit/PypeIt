@@ -7,7 +7,7 @@ from __future__ import unicode_literals
 import pytest
 
 from pypeit import msgs
-from pypeit.core import masters
+from pypeit import masterframe
 
 #@pytest.fixture
 #def fitsdict():
@@ -25,5 +25,5 @@ def test_master_name():
             exten = ''
         else:
             exten = '.fits'
-        assert masters.master_name(itype, '01', mdir='MasterFrames') == 'MasterFrames/Master{:s}_01{:s}'.format(isuff,exten)
+        assert masterframe.master_name(itype, '01', mdir='MasterFrames') == 'MasterFrames/Master{:s}_01{:s}'.format(isuff,exten)
 
