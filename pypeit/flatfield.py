@@ -162,17 +162,20 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                                                   params=self.flatpar['params'],
                                                   get_slitprofile=self.flatpar['slitprofile'])
 
+    # ToDO JFH:
+    # This load_master_illumflat code is a bit of a kludge. Usually one reads in masters with the master and load_master method, but there are
+    # technically two master files for the flats, i.e. a pixelflat and illumination flat. Perhaps the better way to deal with this
+    # would be to package them into one output file and just change the load_master and save_master methods to deal with the
+    # possible existence of an illumination flat
     def load_master_illumflat(self):
         """
-        Load the slit profile from a saved Master file
+        Load the slit illumination profile from a saved Master file
 
         Returns
         -------
         self.slit_profiles
 
         """
-        from IPython import embed
-        embed()
         ms_name = masterframe.master_name('illumflat', self.setup, self.mdir)
         msframe = self.load_master(ms_name)
         if msframe is None:
