@@ -1215,9 +1215,14 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
     qdone = False
     thismask = np.copy(inmask)
     while (not qdone) and (iIter <= maxiter):
+        if np.sum(thismask) <= order + 1:
+            thismask = np.copy(inmask)
+            if verbose:
+                msgs.warn("More parameters than data points - using unmasked data, fit might be undesirable")
+            break  # More data was masked than allowed by order
         ct = func_fit(xarray, yarray, function, order, w=weights,guesses=ct, minv=minv, maxv=maxv, bspline_par=bspline_par)
         ymodel = func_val(ct, xarray, function, minv=minv, maxv=maxv)
-        thismask, qdone = pydl.djs_reject(yarray, ymodel, inmask=thismask, **kwargs_reject)
+        thismask, qdone = pydl.djs_reject(yarray, ymodel, inmask=inmask*thismask, **kwargs_reject)
         iIter += 1
 
     outmask = np.copy(thismask)
