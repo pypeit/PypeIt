@@ -362,6 +362,25 @@ class WaveTilts(masterframe.MasterFrame):
             self.msarc, self.all_ttilts[slit], self.tilts, self.all_trcdict[slit]['arcdet'],
             self.pixcen, slit)
 
+    def load_master(self, filename, exten = 0, force = False):
+
+
+        # Does the master file exist?
+        if not os.path.isfile(filename):
+            msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
+            if force:
+                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
+            return None
+        else:
+            msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
+            hdu = fits.open(filename)
+            head0 = hdu[0].header
+            tilts = hdu[0].data
+            head1 = hdu[1].header
+            coeffs = hdu[1].data
+            tilts_dict = {'tilts':tilts,'coeffs':coeffs,'func2D': head1['FUNC2D']} # This is the tilts_dict
+            return tilts_dict #, head0, [filename]
+
     def save_master(self, outfile=None):
         """
 
