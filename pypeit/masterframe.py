@@ -109,8 +109,8 @@ class MasterFrame(object):
     def master(self, force = False):
         """
         Load the master frame from disk, as settings allows. This routine checks the the mode of master usage
-        then calls the load_master method. In most cases this master method need not be overitten by children, but instead the
-        load_master method below should be. In special cases one may need to overwrite this method.
+        then calls the load_master method. This method should not be overloaded by children of this class. Instead
+        one should overload the load_master method below.
 
         Returns
         -------
