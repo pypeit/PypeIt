@@ -265,7 +265,7 @@ class PypeIt(object):
                     std_header[key.upper()] = self.fitstbl[std_idx][key]
                 # Go
                 FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs.specobjs, spectrograph=self.spectrograph, setup=self.setup, master_dir=self.caliBrate.master_dir, std_header=std_header, mode=self.par['calibrations']['masters'])
-                sens_dict = FxSpec.master(self.fitstbl[std_idx])
+                sens_dict = FxSpec.get_sens_dict(self.fitstbl[std_idx])
             else:
                 # User provided it
                 FxSpec = fluxspec.FluxSpec(sens_file=self.par['fluxcalib']['sensfunc'],
