@@ -451,7 +451,7 @@ def load_wv_calib(filename):
     """
 
 
-    waveCalib = wavecalib.WaveCalib(None)
+    waveCalib = WaveCalib(None)
     wv_calib = waveCalib.load_master(filename)
     return (waveCalib.wv_calib, waveCalib.par)
 
