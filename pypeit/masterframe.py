@@ -90,21 +90,12 @@ class MasterFrame(object):
         """
         # Are we loading master files from disk?
         if self._masters_load_chk() or force:
-            # Does the master file exist?
-            if not os.path.isfile(self.ms_name):
-                msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, self.ms_name))
-                if force:
-                    msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + self.ms_name)
-                return None
-            else:
-                # If master file exists then load and return it
-                self.msframe = self.load_master(self.ms_name)
-                return self.msframe.copy()
+            return self.load_master(self.ms_name, force = force)
         else:
             return None
 
 
-    def load_master(self, filename, exten = 0):
+    def load_master(self, filename, force = False, exten = 0):
         """
         Generic master file reader. This function should mostly be replaced by specific load_master methods in the children
         of this class.
@@ -116,18 +107,25 @@ class MasterFrame(object):
 
         """
 
-        msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
-        hdu = fits.open(filename)
-        # msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
-        head0 = hdu[0].header
-        data = hdu[exten].data.astype(np.float)
-        # List of files used to generate the Master frame (e.g. raw file frames)
-        file_list = []
-        for key in head0:
-            if 'FRAME' in key:
-                file_list.append(head0[key])
-        #return data , head0, file_list
-        return data
+        # Does the master file exist?
+        if not os.path.isfile(filename):
+            msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
+            if force:
+                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
+            return None
+        else:
+            msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
+            hdu = fits.open(filename)
+            # msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
+            head0 = hdu[0].header
+            data = hdu[exten].data.astype(np.float)
+            # List of files used to generate the Master frame (e.g. raw file frames)
+            file_list = []
+            for key in head0:
+                if 'FRAME' in key:
+                    file_list.append(head0[key])
+            #return data , head0, file_list
+            return data
 
     def save_master(self, data, outfile=None, raw_files=None, steps=None, overwrite=True, extensions=None, names=None):
         """
