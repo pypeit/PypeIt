@@ -74,7 +74,7 @@ class MasterFrame(object):
         return self.mode == 'reuse' or self.mode == 'force'
 
     def _set_master_dir(self, redux_path, spectrograph, par):
-        return master_dir(redux_path, spectrograph, par)
+        return set_master_dir(redux_path, spectrograph, par)
 
     def master(self, force = False):
         """
@@ -90,7 +90,8 @@ class MasterFrame(object):
         """
         # Are we loading master files from disk?
         if self._masters_load_chk() or force:
-            return self.load_master(self.ms_name, force = force)
+            self.msframe = self.load_master(self.ms_name, force = force)
+            return self.msframe
         else:
             return None
 
