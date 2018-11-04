@@ -977,7 +977,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Success
         return True
 
-    def master(self):
+    def master_old(self):
         """ Mainly for PYPIT running
 
         Parameters
