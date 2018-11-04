@@ -261,31 +261,6 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         hdr_keys[0]['dispname'] = 'GRISM_N'
         return hdr_keys
 
-    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        arcparam['lamps'] = ['CdI','HgI','HeI']
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        if disperser == '600/4310':
-            arcparam['disp']=1.02
-            arcparam['b1']=6.88935788e-04
-            arcparam['b2']=-2.38634231e-08
-            arcparam['wvmnx'][1] = 6000.
-            arcparam['wv_cen'] = 4250.
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-
 
 class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
     """
@@ -367,50 +342,6 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         hdr_keys[0]['dispangle'] = 'GRTILT_P'
         return hdr_keys
 
-    def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
-                       binspectral=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        arcparam['lamps'] = ['NeI','HgI','HeI','ArI']
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_nsig'] = 30.0         # Minimum signififance
-        arcparam['lowest_nsig'] = 10.0      # Min significance for arc lines to be used
-        arcparam['wvmnx'] = [3000.,11000.]  # Guess at wavelength range
-        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3         # Matcing tolerance (pixels)
-        arcparam['func'] = 'legendre'       # Function for fitting
-        arcparam['n_first'] = 2             # Order of polynomial for first fit
-        arcparam['n_final'] = 4             # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2            # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.0    # Number of sigma for rejection (final fit)
-
-
-
-
-#        if disperser == '600/7500':
-#            arcparam['disp']=1.30
-#            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-#            arcparam['wvmnx'][0] = 5000.
-#            arcparam['n_first']=2 # Should be able to lock on
-#        elif disperser == '1200/5000':
-#            arcparam['disp']=0.63
-#            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-#            arcparam['wvmnx'][0] = 5000.
-#            arcparam['n_first']=2 # Should be able to lock on
-#            arcparam['wv_cen'] = 6600.
-#        else:
-#            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 
 class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
@@ -460,6 +391,8 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['min_nsig'] = 5.
+        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
 
         return par
 
@@ -502,47 +435,4 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         match_criteria['arc']['match']['dispangle'] = '|<=10'
         match_criteria['arc']['match']['decker'] = 'any'
         return match_criteria
-
-    def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
-                       binspectral=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        arcparam['lamps'] = ['NeI','HgI','HeI','ArI']
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_nsig'] = 30.         # Minimum signififance
-        arcparam['lowest_nsig'] = 10.0      # Min significance for arc lines to be used
-        arcparam['wvmnx'] = [3000.,11000.]  # Guess at wavelength range
-        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3         # Matcing tolerance (pixels)
-        arcparam['func'] = 'legendre'       # Function for fitting
-        arcparam['n_first'] = 2             # Order of polynomial for first fit
-        arcparam['n_final'] = 4             # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2            # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.0    # Number of sigma for rejection (final fit)
-
-
-
-#        if disperser == '600/7500':
-#            arcparam['disp']=2.35
-#            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-#            arcparam['wvmnx'][0] = 5000.
-#            arcparam['n_first']=2 # Should be able to lock on
-#        elif disperser == '1200/5000':
-#            arcparam['disp']=1.17
-#            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-#            arcparam['wvmnx'][0] = 5000.
-#            arcparam['n_first']=2 # Should be able to lock on
-#        else:
-#            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
