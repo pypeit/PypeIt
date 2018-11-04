@@ -3,6 +3,7 @@
 """
 from __future__ import absolute_import, division, print_function
 
+import numpy as np
 import os
 import warnings
 
@@ -62,21 +63,7 @@ class MasterFrame(object):
         -------
         msname : str
         """
-        name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(self.master_dir, self.setup),
-                         badpix='{:s}/MasterBadPix_{:s}.fits'.format(self.master_dir, self.setup),
-                         trace='{:s}/MasterTrace_{:s}'.format(self.master_dir, self.setup),  # Just a root as FITS+JSON are generated
-                         pinhole='{:s}/MasterPinhole_{:s}.fits'.format(self.master_dir, self.setup),
-                         pixelflat='{:s}/MasterPixelFlat_{:s}.fits'.format(self.master_dir, self.setup),
-                         illumflat='{:s}/MasterIllumFlat_{:s}.fits'.format(self.master_dir, self.setup),
-                         arc='{:s}/MasterArc_{:s}.fits'.format(self.master_dir, self.setup),
-                         wave='{:s}/MasterWave_{:s}.fits'.format(self.master_dir, self.setup),
-                         wv_calib='{:s}/MasterWaveCalib_{:s}.json'.format(self.master_dir, self.setup),
-                         tilts='{:s}/MasterTilts_{:s}.fits'.format(self.master_dir, self.setup),
-                         # sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.yaml'.format(self.master_dir, self.setup[0], self.setup[-2:]),
-                         sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.fits'.format(self.master_dir, self.setup[0], self.setup[-2:]),
-                         )
-
-        return name_dict[self.frametype]
+        return master_name(self.frametype, self.setup, self.master_dir)
 
     @property
     def mdir(self):
@@ -87,24 +74,7 @@ class MasterFrame(object):
         return self.mode == 'reuse' or self.mode == 'force'
 
     def _set_master_dir(self, redux_path, spectrograph, par):
-        # Parameters
-        if par is None:
-            tmppar = pypeitpar.CalibrationsPar()
-        else:
-            if 'caldir' not in par.keys():
-                tmppar = pypeitpar.CalibrationsPar()
-            else:
-                tmppar = par
-        # Redux path
-        if redux_path is None:
-            redux_path = os.getcwd()
-        master_dir = os.path.join(redux_path, tmppar['caldir'])
-        # Spectrograph
-        if spectrograph is not None:
-            master_dir += '_' + spectrograph.spectrograph
-        # Return
-        return master_dir
-
+        return master_dir(redux_path, spectrograph, par)
 
     def master(self, force = False):
         """
@@ -218,3 +188,69 @@ class MasterFrame(object):
         # Finish
         msgs.info("Master {0:s} frame saved successfully:".format(self.frametype) + msgs.newline() + _outfile)
         return
+
+# These utility functions are occaisonally needed by other functions which is why they are outside the class.
+def master_name(ftype, setup, mdir):
+    """ Default filenames for MasterFrames
+
+    Parameters
+    ----------
+    ftype : str
+      Frame type
+    setup : str
+      Setup name
+    mdir : str, optional
+      Master directory
+
+    Returns
+    -------
+    msname : str
+    """
+    name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, setup),
+                     badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, setup),
+                     trace='{:s}/MasterTrace_{:s}'.format(mdir, setup),   # Just a root as FITS+JSON are generated
+                     pinhole='{:s}/MasterPinhole_{:s}.fits'.format(mdir, setup),
+                     pixelflat='{:s}/MasterPixelFlat_{:s}.fits'.format(mdir, setup),
+                     illumflat='{:s}/MasterIllumFlat_{:s}.fits'.format(mdir, setup),
+                     arc='{:s}/MasterArc_{:s}.fits'.format(mdir, setup),
+                     wave='{:s}/MasterWave_{:s}.fits'.format(mdir, setup),
+                     wv_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, setup),
+                     tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir, setup),
+                     # sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.yaml'.format(mdir, setup[0], setup[-2:]),
+                     sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.fits'.format(mdir, setup[0], setup[-2:]),
+                     )
+    return name_dict[ftype]
+
+
+
+def set_master_dir(redux_path, spectrograph, par):
+    """
+    Set the master directory auto-magically
+
+    Args:
+        redux_path: str or None
+        spectrograph: Spectrograph or None
+        par: ParSet or None
+
+    Returns:
+        master_dir : str
+          Path of the MasterFrame directory
+
+    """
+    # Parameters
+    if par is None:
+        tmppar = pypeitpar.CalibrationsPar()
+    else:
+        if 'caldir' not in par.keys():
+            tmppar = pypeitpar.CalibrationsPar()
+        else:
+            tmppar = par
+    # Redux path
+    if redux_path is None:
+        redux_path = os.getcwd()
+    master_dir = os.path.join(redux_path, tmppar['caldir'])
+    # Spectrograph
+    if spectrograph is not None:
+        master_dir += '_'+spectrograph.spectrograph
+    # Return
+    return master_dir
