@@ -1247,6 +1247,7 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
     else:
         weights = np.ones(xarray.size,dtype=float)
 
+    # ToDO get rid of the kwargs and simply pass in arguments. It is a long list I know, but better to be explicit. 
     # make kwargs for djs_reject
     kwargs_reject={"sigma":sigma, "invvar":invvar, "lower":lower*1.0, "upper":upper*1.0, \
                    "maxdev":maxdev,"maxrej":maxrej, "groupdim":groupdim, "groupsize":groupsize, \
