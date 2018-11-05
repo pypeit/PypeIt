@@ -9,6 +9,7 @@ from warnings import warn
 
 from pypeit import msgs
 from pypeit import debugger
+from pypeit import utils
 import copy
 
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
@@ -1388,6 +1389,12 @@ class TraceSet(object):
         Jump value, for BOSS readouts.
     xjumpval : float-like
         Jump value, for BOSS readouts.
+    lower : `int` or `float`, optional
+        used for robust_polyfit_djs
+        If set, reject points with data < model - lower * sigma.
+    upper : `int` or `float`, optional
+        used for robust_polyfit_djs
+        If set, reject points with data > model + upper * sigma.
     outmask : array-like
         When initialized with x,y positions, this contains the rejected
         points.
@@ -1422,6 +1429,8 @@ class TraceSet(object):
                 self.xjumplo = None
                 self.xjumphi = None
                 self.xjumpval = None
+            self.lower = 5.0
+            self.upper = 5.0
             self.outmask = None
             self.yfit = None
         elif len(args) == 2:
@@ -1473,7 +1482,22 @@ class TraceSet(object):
                 self.xjumpval = np.float64(kwargs['xjumpval'])
             else:
                 self.xjumpval = None
-            self.coeff = np.zeros((self.nTrace, self.ncoeff), dtype=xpos.dtype)
+            if 'lower' in kwargs:
+                self.lower = np.float64(kwargs['lower'])
+            else:
+                self.lower = 5.0
+            if 'upper' in kwargs:
+                self.upper = np.float64(kwargs['upper'])
+            else:
+                self.upper = 5.0
+            if self.func is 'poly':
+                func_djs = 'polynomial'
+            elif self.func is 'legendre':
+                func_djs = 'legendre'
+            elif self.func is 'chebyshev':
+                func_djs = 'chebyshev'
+            ## func_fit in utils returns norder+1 coeffs rather than norder
+            self.coeff = np.zeros((self.nTrace, self.ncoeff+1), dtype=xpos.dtype)
             self.outmask = np.zeros(xpos.shape, dtype=np.bool)
             self.yfit = np.zeros(xpos.shape, dtype=xpos.dtype)
             for iTrace in range(self.nTrace):
@@ -1483,17 +1507,36 @@ class TraceSet(object):
                 tempivar = (invvar[iTrace, :] *
                             inmask[iTrace, :].astype(invvar.dtype))
                 thismask = tempivar > 0
-                while (not qdone) and (iIter <= maxiter):
-                    res, ycurfit = func_fit(xvec, ypos[iTrace, :], self.ncoeff,
-                        invvar=tempivar, function_name=self.func)
-                    #ToDo is this doing rejection? I think not???? THIS IS A MASSIVE BUG!!!! See IDL code.
-                    # ADd kwargs_reject in here like with iterfit
-                    thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,
-                                                invvar=tempivar)
-                    iIter += 1
-                self.yfit[iTrace, :] = ycurfit
-                self.coeff[iTrace, :] = res
-                self.outmask[iTrace, :] = thismask
+
+                # ToDo: define kwargs_reject={}
+                kwargs_reject = {"sigma": None,"maxdev": None, "maxrej": None, "groupdim": None, "groupsize": None, \
+                                 "groupbadpix": False, "grow": 0, "use_mad": False, "sticky": False}
+                mask_djs, poly_coeff = utils.robust_polyfit_djs(xvec, ypos[iTrace, :], self.ncoeff,
+                                                                function=func_djs,
+                                                                inmask = thismask, invvar = tempivar,
+                                                                lower = self.lower, upper = self.upper,
+                                                                **kwargs_reject)
+                ycurfit_djs = utils.func_val(poly_coeff, xvec, func_djs)
+
+                ##Using robust_polyfit_djs to do the fitting and the following part are commented out by Feige
+                #while (not qdone) and (iIter <= maxiter):
+                #    res, ycurfit = func_fit(xvec, ypos[iTrace, :], self.ncoeff,
+                #        invvar=tempivar*thismask, function_name=self.func)#function_name='poly')
+                #    #ToDo: is this doing rejection? I think not???? THIS IS A MASSIVE BUG!!!! See IDL code.
+                #    # ADd kwargs_reject in here like with iterfit
+                #    thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,
+                #                                invvar=tempivar)
+                #    #thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,lower=3,upper=3)
+                #    iIter += 1
+                #from IPython import embed
+                #embed()
+                #self.yfit[iTrace, :] = ycurfit
+                #self.coeff[iTrace, :] = res
+                #self.outmask[iTrace, :] = thismask
+                self.yfit[iTrace, :] = ycurfit_djs #ycurfit
+                self.coeff[iTrace, :] = poly_coeff#[:-1] #res
+                self.outmask[iTrace, :] = mask_djs #thismask
+
         else:
             msgs.error('Wrong number of arguments to TraceSet!')
             #raise PydlutilsException("Wrong number of arguments to TraceSet!")
@@ -1521,7 +1564,7 @@ class TraceSet(object):
         ypos = np.zeros(xpos.shape, dtype=xpos.dtype)
         for iTrace in range(self.nTrace):
             xvec = self.xnorm(xpos[iTrace, :], do_jump)
-            legarr = self._func_map[self.func](xvec, self.ncoeff)
+            legarr = self._func_map[self.func](xvec, self.ncoeff+1) #need to be norder+1 for utils functions
             ypos[iTrace, :] = np.dot(legarr.T, self.coeff[iTrace, :])
         return (xpos, ypos)
 
