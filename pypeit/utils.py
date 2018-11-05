@@ -1171,7 +1171,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
 def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = None, maxv = None, bspline_par = None,
                        guesses = None, maxiter =10,inmask=None, sigma=None,invvar=None, lower=5, upper=5,
                        maxdev=None,maxrej=None, groupdim=None,groupsize=None, groupbadpix=False, grow=0,
-                       sticky=False, verbose = True):
+                       sticky=False, use_mad=False, verbose = True):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -1204,9 +1204,9 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
         weights = np.ones(xarray.size,dtype=float)
 
     # make kwargs for djs_reject
-    kwargs_reject={"sigma":sigma, "invvar":invvar, "lower":lower*1.0, \
-                   "upper":upper*1.0, "maxdev":maxdev,"maxrej":maxrej, "groupdim":groupdim, \
-                   "groupsize":groupsize, "groupbadpix":groupbadpix, "grow":grow, "sticky":sticky}
+    kwargs_reject={"sigma":sigma, "invvar":invvar, "lower":lower*1.0, "upper":upper*1.0, \
+                   "maxdev":maxdev,"maxrej":maxrej, "groupdim":groupdim, "groupsize":groupsize, \
+                   "groupbadpix":groupbadpix, "grow":grow,"use_mad":use_mad, "sticky":sticky}
 
     # Iterate, and mask out new values on each iteration
     ct = guesses
