@@ -500,6 +500,7 @@ class General:
         """Run through the parameter space and determine the best solution
         """
 
+        # ToDo This code appears to use the weak lines for everything throughout
         self._all_patt_dict = {}
         self._all_final_fit = {}
         good_fit = np.zeros(self._nslit, dtype=np.bool)
@@ -522,8 +523,8 @@ class General:
             self._det_weak[str(slit)] = [self._all_tcent_weak[self._icut_weak].copy(),self._all_ecent_weak[self._icut_weak].copy()]
             self._det_stro[str(slit)] = [self._all_tcent[self._icut].copy(),self._all_ecent[self._icut].copy()]
 
-            # Run brute force algorithm on the strong lines
-            best_patt_dict, best_final_fit = self.run_brute_loop(slit,self._det_stro[str(slit)])
+            # Run brute force algorithm on the weak lines
+            best_patt_dict, best_final_fit = self.run_brute_loop(slit,self._det_weak[str(slit)])
 
             # Print preliminary report
             good_fit[slit] = self.report_prelim(slit, best_patt_dict, best_final_fit)
@@ -534,13 +535,13 @@ class General:
             msgs.info('Checking wavelength solution by cross-correlating with all slits')
 
             msgs.info('Cross-correlation iteration #1')
-            obad_slits = self.cross_match(good_fit)
+            obad_slits = self.cross_match(good_fit, self._det_weak)
             cntr = 2
             while obad_slits.size > 0:
                 msgs.info('Cross-correlation iteration #{:d}'.format(cntr))
                 good_fit = np.ones(self._nslit, dtype=np.bool)
                 good_fit[obad_slits] = False
-                bad_slits = self.cross_match(good_fit)
+                bad_slits = self.cross_match(good_fit,self._det_weak)
                 if np.array_equal(bad_slits, obad_slits):
                     break
                 obad_slits = bad_slits.copy()
@@ -549,7 +550,7 @@ class General:
                     msgs.warn("Breaking while loop before convergence. Check the wavelength solution!")
                     break
 
-        # With these updates to the fits of each slit, determine the final fit by now fitting the weaker lines, and save the QA
+        # With these updates to the fits of each slit, determine the final fit.
         self.finalize_fit(self._det_weak)
 
         # Print the final report of all lines
@@ -685,7 +686,7 @@ class General:
         self.report_final()
         return
 
-    def cross_match(self, good_fit):
+    def cross_match(self, good_fit, detections):
         """Cross-correlate the spectra across all slits to ID all of the lines.
 
         Parameters
@@ -819,11 +820,11 @@ class General:
         for bs in bad_slits:
             if bs not in self._ok_mask:
                 continue
-            if self._det_weak[str(bs)][0] is None:  # No detections at all; slit is hopeless
+            if detections[str(bs)][0] is None:  # No detections at all; slit is hopeless
                 msgs.warn("Slit {} has no arc line detections.  Likely this slit is junk!")
                 self._bad_slits.append(bs)
                 continue
-            bsdet, _ = self.get_use_tcent(sign, self._det_weak[str(bs)])
+            bsdet, _ = self.get_use_tcent(sign, detections[str(bs)])
             lindex = np.array([], dtype=np.int)
             dindex = np.array([], dtype=np.int)
             wcen = np.zeros(good_slits.size)
@@ -847,7 +848,7 @@ class General:
 
                 # For each peak in the gs spectrum, identify the corresponding peaks in the bs spectrum. Do this by
                 # transform these good slit line pixel locations into the (shifted and stretched) bs frame
-                gsdet, _ = self.get_use_tcent(sign, self._det_weak[str(gs)])
+                gsdet, _ = self.get_use_tcent(sign, detections[str(gs)])
                 gsdet_ss = gsdet*stretch_vec[cntr] + shift_vec[cntr]
                 if self._debug:
                     plt.figure(figsize=(14, 6))
@@ -1500,6 +1501,10 @@ class General:
         final_fit : dict
           A dictionary containing all of the information about the fit
         """
+        # Check that patt_dict and tcent refer to each other
+        if patt_dict['mask'].shape != tcent.shape:
+            msgs.error('patt_dict and tcent do not refer to each other. Something is very wrong')
+
         # Perform final fit to the line IDs
         if self._thar:
             NIST_lines = (self._line_lists['NIST'] > 0) & (np.char.find(self._line_lists['Source'].data, 'MURPHY') >= 0)
