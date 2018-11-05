@@ -59,7 +59,7 @@ def test_user_redo():
     assert os.path.isfile(wvcalib_file)
     # Instantiate
     waveCalib = wavecalib.WaveCalib(None, spectrograph='shane_kast_blue')
-    waveCalib.load_wv_calib(wvcalib_file)
+    wv_calib = waveCalib.load_master(wvcalib_file)
     # Setup
     waveCalib.par['min_nsig'] = 5.
     waveCalib.par['lowest_nsig'] = 5.
@@ -70,9 +70,12 @@ def test_user_redo():
     waveCalib.arccen[:,0] = waveCalib.wv_calib['0']['spec']
     # Do it
     new_wv_calib = waveCalib._build_wv_calib('arclines', skip_QA=True)
-    #new_wv_calib = waveCalib.calibrate_spec(0)
     # Test
     assert new_wv_calib['0']['rms'] < 0.1
+    # Now also test the utility script that reads in the wavecalib
+    wv_calib_load, par = wavecalib.load_wv_calib(wvcalib_file)
+    assert np.all(wv_calib['0']['fitc'] == wv_calib_load['0']['fitc'])
+
 
 '''
 @dev_suite_required

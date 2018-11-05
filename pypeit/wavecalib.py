@@ -15,16 +15,16 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc
 from pypeit.core import qa
-from pypeit.core import masters
+#from pypeit.core import masters
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import waveio
-
 import linetools.utils
 
 
 from pypeit import debugger
+
 
 
 class WaveCalib(masterframe.MasterFrame):
@@ -108,8 +108,6 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Key Internals
         self.arccen = None
-        from IPython import embed
-        embed()
 
 
     def _build_wv_calib(self, method, skip_QA=False, use_method='general'):
@@ -257,7 +255,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Return
         return self.arccen, self.maskslits
 
-    def load_wv_calib_old(self, filename):
+    def load_master(self, filename, force = False):
         """
         Load a full (all slit) wv_calib dict
 
@@ -271,85 +269,48 @@ class WaveCalib(masterframe.MasterFrame):
         -------
         Fills:
           self.wv_calib
-          self.arcparam
-
-        """
-        self.wv_calib, _, _ =  masters._load(filename, frametype=self.frametype)
-        # Recast a few items as arrays
-        # TODO -- Consider pushing into master
-        for key in self.wv_calib.keys():
-            if key in ['steps', 'par']:  # This isn't really necessary
-                continue
-            for tkey in self.wv_calib[key].keys():
-                if tkey in ['tcent', 'spec', 'xfit', 'yfit', 'xrej']:
-                    self.wv_calib[key][tkey] = np.array(self.wv_calib[key][tkey])
-        # parset
-        if 'par' in self.wv_calib.keys():
-            self.par = self.wv_calib['par'].copy()
-
-
-
-    def master(self):
-        """
-        Load a full (all slit) wv_calib dict
-
-        Includes converting the JSON lists of particular items into ndarray
-
-        Parameters
-        ----------
-        filename : str
-
-        Returns
-        -------
-        Fills:
-          self.wv_calib
-          self.arcparam
+          self.par
 
         """
 
-        # This is code from masters._load. I hate the fact that the master loading is in a separate master._load method in
-        # a different module and am moving it here.
-        from IPython import embed
-        embed()
-        name = self.ms_name
-        # Check to see if file exists
-        if not os.path.isfile(name):
-            msgs.warn("Master frame does not exist: {:s}".format(name))
 
+        # Does the master file exist?
+        if not os.path.isfile(filename):
+            msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
             if force:
-                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + name)
-            return None, None, None
+                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
+            return None
+        else:
+            msgs.info("Loading Master {0:s} frame:".format(self.frametype) + msgs.newline() + filename)
+            self.wv_calib = linetools.utils.loadjson(filename)
 
-        wv_calib, par = load_wv_calib(name)
-        if par is not None:
-            self.par = par
+            # Recast a few items as arrays
+            for key in self.wv_calib.keys():
+                if key in ['steps', 'par']:  # This isn't really necessary
+                    continue
+                for tkey in self.wv_calib[key].keys():
+                    if tkey in ['tcent', 'spec', 'xfit', 'yfit', 'xrej']:
+                        self.wv_calib[key][tkey] = np.array(self.wv_calib[key][tkey])
+            # parset
+            if 'par' in self.wv_calib.keys():
+                self.par = self.wv_calib['par'].copy()
+            return self.wv_calib
 
-        self.msframe = wv_calib.copy()
+    def save_master(self, data, outfile=None, raw_files=None, overwrite=True, extensions=None, names=None):
 
+        _outfile = self.ms_name if outfile is None else outfile
+        if os.path.exists(_outfile) and (not overwrite):
+            msgs.warn("This file already exists.  Use overwrite=True to overwrite it")
+            return
+        #
+        msgs.info("Saving master {0:s} frame as:".format(self.frametype) + msgs.newline() + _outfile)
+        # Wavelength fit(s)
+        gddict = linetools.utils.jsonify(data)
+        linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
+        # Finish
+        msgs.info("Master {0:s} frame saved successfully:".format(self.frametype) + msgs.newline() + _outfile)
 
-    def _load_arcparam(self, calibrate_lamps=None):
-        """
-        Load the arc parameters
-
-        Wrapper to arc.setup_param
-
-        Parameters
-        ----------
-        calibrate_lamps : str, optional
-           List of lamps used
-
-        Returns
-        -------
-
-        """
-        # Setup arc parameters (e.g. linelist)
-        arc_idx = self.fitstbl.find_frames('arc', sci_ID=self.sci_ID, index=True)
-        self.arcparam = arc.setup_param(self.spectrograph, self.msarc.shape, self.fitstbl,
-                                        arc_idx[0], calibrate_lamps=calibrate_lamps)
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        # Return
-        return self.arcparam
+        return
 
     def _make_maskslits(self, nslit):
         """
@@ -468,5 +429,30 @@ class WaveCalib(masterframe.MasterFrame):
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
+
+
+def load_wv_calib(filename):
+    """
+    Utility function which enables one to load the wv_calib and parset from a master file one line of code without instantiating the class.
+
+    Parameters
+    ----------
+    filename: str
+       Master file name
+           slit : int, optional
+
+    Returns
+    -------
+    Fills:
+      wv_calib
+        wv_calib dict
+      par
+        parset
+    """
+
+
+    waveCalib = WaveCalib(None)
+    wv_calib = waveCalib.load_master(filename)
+    return (waveCalib.wv_calib, waveCalib.par)
 
 

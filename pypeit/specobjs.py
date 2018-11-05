@@ -3,6 +3,7 @@
 from __future__ import absolute_import, division, print_function
 
 import copy
+import re
 from collections import OrderedDict
 
 import numpy as np
@@ -16,6 +17,10 @@ from pypeit import msgs
 from pypeit.core import parse
 from pypeit.core import trace_slits
 from pypeit import debugger
+
+naming_model = {}
+for key in ['SPAT', 'SLIT', 'DET', 'SCI']:
+    naming_model[key.lower()] = key
 
 
 class SpecObj(object):
@@ -132,19 +137,32 @@ class SpecObj(object):
         #
 
     def set_idx(self):
+        """
         # Generate a unique index for this exposure
-        #self.idx = '{:02d}'.format(self.setup)
+
+        Returns:
+            idx : str
+
+        """
+        # Spat
+        self.idx = naming_model['spat']
         if self.spat_pixpos is None:
-            self.idx = 'SPAT----'
+            self.idx += '----'
         else:
-            self.idx = 'SPAT{:04d}'.format(int(np.rint(self.spat_pixpos)))
+            self.idx += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
+        # Slit
+        self.idx += '-'+naming_model['slit']
         if self.slitid is None:
-            self.idx += '-SLIT----'
+            self.idx += '----'
         else:
-            self.idx += '-SLIT{:04d}'.format(self.slitid)
+            self.idx += '{:04d}'.format(self.slitid)
+        # Detector string
         sdet = parse.get_dnum(self.det, prefix=False)
-        self.idx += '-DET{:s}'.format(sdet)
-        self.idx += '-SCI{:03d}'.format(self.scidx)
+        self.idx += '-{:s}{:s}'.format(naming_model['det'], sdet)
+        # SCI
+        self.idx += '-{:s}{:03d}'.format(naming_model['sci'], self.scidx)
+        #
+        return self.idx
 
     def check_trace(self, trace, toler=1.):
         """Check that the input trace matches the defined specobjexp
@@ -520,7 +538,9 @@ def objnm_to_dict(objnm):
     prs = objnm.split('-')
     odict = {}
     for iprs in prs:
-        odict[iprs[0]] = int(iprs[1:])
+        # Find first character that is an integer
+        idig = re.search("\d", iprs).start()
+        odict[iprs[:idig]] = int(iprs[idig:])
     # Return
     return odict
 
@@ -552,7 +572,9 @@ def mtch_obj_to_objects(iobj, objects, stol=50, otol=10, **kwargs):
     tbl = Table(objnm_to_dict(objects))
 
     # Logic on object, slit and detector [ignoring sciidx for now]
-    gdrow = (np.abs(tbl['O']-odict['O']) < otol) & (np.abs(tbl['S']-odict['S']) < stol) & (tbl['D'] == odict['D'])
+    gdrow = (np.abs(tbl[naming_model['spat']]-odict[naming_model['spat']]) < otol) & (
+            np.abs(tbl[naming_model['slit']]-odict[naming_model['slit']]) < stol) & (
+            tbl[naming_model['det']] == odict[naming_model['det']])
     if np.sum(gdrow) == 0:
         return None
     else:

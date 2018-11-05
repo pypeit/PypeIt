@@ -7,17 +7,13 @@ import datetime
 
 import numpy as np
 
-import h5py
-import json
-
 from astropy import units
 from astropy.io import fits
 from astropy.table import Table
 
-import linetools.utils
 
 from pypeit import msgs
-from pypeit import utils
+from pypeit import specobjs
 from pypeit.core import parse
 from pypeit import debugger
 
@@ -355,7 +351,8 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 '''
 
-def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=None, clobber=True):
+def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=None, overwrite=True,
+                         update_det=None):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
@@ -363,42 +360,45 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
     specobjs : SpecObjs object
     header : dict or Row (dict-like)
     outfile : str
-    clobber : bool, optional
+    overwrite : bool, optional
+    update_det : int or list, optional
+      If provided, do not clobber the existing file but only update
+      the indicated detectors.  Useful for re-running on a subset of detectors
 
     Returns
     -------
     outfile : str
     """
-    # Repackage as necessary (some backwards compatability)
-    #all_specobj = utils.unravel_specobjs(specobjs.specobjs)
-    # Primary hdu
-    prihdu = fits.PrimaryHDU()
-    hdus = [prihdu]
-    # Add critical data to header
-    for key in ['ra', 'dec', 'exptime', 'target', 'airmass', 'instrume','filename']:
-        # Allow for fitstbl vs. header
+    hdus, prihdu = init_hdus(update_det, outfile)
+    # Init for spec1d as need be
+    if hdus is None:
+        prihdu = fits.PrimaryHDU()
+        hdus = [prihdu]
+        # Add critical data to header
+        for key in ['ra', 'dec', 'exptime', 'target', 'airmass', 'instrume','filename']:
+            # Allow for fitstbl vs. header
+            try:
+                prihdu.header[key.upper()] = header[key.upper()]
+            except KeyError:
+                prihdu.header[key.upper()] = header[key]
         try:
-            prihdu.header[key.upper()] = header[key.upper()]
+            prihdu.header['MJD-OBS'] = header['MJD-OBS']
         except KeyError:
-            prihdu.header[key.upper()] = header[key]
-    try:
-        prihdu.header['MJD-OBS'] = header['MJD-OBS']
-    except KeyError:
-        prihdu.header['MJD-OBS'] = header['time']  # recorded as 'time' in fitstbl
+            prihdu.header['MJD-OBS'] = header['time']  # recorded as 'time' in fitstbl
 
-    # Observatory
-    if telescope is not None:
-        prihdu.header['LON-OBS'] = telescope['longitude']
-        prihdu.header['LAT-OBS'] = telescope['latitude']
-        prihdu.header['ALT-OBS'] = telescope['elevation']
-    # Helio
-    if helio_dict is not None:
-        prihdu.header['VEL-TYPE'] = helio_dict['refframe'] # settings.argflag['reduce']['calibrate']['refframe']
-        prihdu.header['VEL'] = helio_dict['vel_correction'] # slf.vel_correction
+        # Observatory
+        if telescope is not None:
+            prihdu.header['LON-OBS'] = telescope['longitude']
+            prihdu.header['LAT-OBS'] = telescope['latitude']
+            prihdu.header['ALT-OBS'] = telescope['elevation']
+        # Helio
+        if helio_dict is not None:
+            prihdu.header['VEL-TYPE'] = helio_dict['refframe'] # settings.argflag['reduce']['calibrate']['refframe']
+            prihdu.header['VEL'] = helio_dict['vel_correction'] # slf.vel_correction
 
-    # Loop on detectors
     npix = 0
-    ext = 0
+    ext = len(hdus)-1
+    # Loop on specobjs
     for sobj in specObjs.specobjs:
         if sobj is None:
             continue
@@ -450,117 +450,15 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         tbhdu.name = sobj.idx
         hdus += [tbhdu]
     # A few more for the header
-    prihdu.header['NSPEC'] = ext
+    prihdu.header['NSPEC'] = len(hdus) - 1
     prihdu.header['NPIX'] = npix
     # Finish
     hdulist = fits.HDUList(hdus)
     #if outfile is None:
     #    outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
-    hdulist.writeto(outfile, overwrite=clobber)
+    hdulist.writeto(outfile, overwrite=overwrite)
     msgs.info("Wrote 1D spectra to {:s}".format(outfile))
     return outfile
-
-'''
-def save_1d_spectra_fits(slf, fitsdict, clobber=True, outfile=None):
-    """ Write 1D spectra to a multi-extension FITS file
-
-    Parameters
-    ----------
-    slf
-    clobber : bool, optional
-    outfile : str, optional
-
-    Returns
-    -------
-    outfile : str
-    """
-    # Primary hdu
-    prihdu = fits.PrimaryHDU()
-    hdus = [prihdu]
-    # Add critical data to header
-    idx = slf._idx_sci[0]
-    prihdu.header['RA'] = fitsdict['ra'][idx]
-    prihdu.header['DEC'] = fitsdict['dec'][idx]
-    prihdu.header['EXPTIME'] = fitsdict['exptime'][idx]
-    prihdu.header['MJD-OBS'] = fitsdict['time'][idx]
-    prihdu.header['DATE'] = fitsdict['date'][idx]
-    prihdu.header['TARGET'] = fitsdict['target'][idx]
-    prihdu.header['AIRMASS'] = fitsdict['airmass'][idx]
-    prihdu.header['LON-OBS'] = settings.spect['mosaic']['longitude']
-    prihdu.header['LAT-OBS'] = settings.spect['mosaic']['latitude']
-    prihdu.header['ALT-OBS'] = settings.spect['mosaic']['elevation']
-    prihdu.header['VEL-TYPE'] = settings.argflag['reduce']['calibrate']['refframe']
-    prihdu.header['VEL'] = slf.vel_correction
-
-    # Loop on detectors
-    npix = 0
-    ext = 0
-    for kk in range(settings.spect['mosaic']['ndet']):
-        det = kk+1
-
-        # Allow writing of standard
-        #if standard:
-        #    specobjs = slf._msstd[det-1]['spobjs']
-        #else:
-        specobjs = slf._specobjs[det-1]
-        if specobjs is None:
-            continue
-        # Loop on slits
-        for sl in range(len(specobjs)):
-            # Loop on spectra
-            for specobj in specobjs[sl]:
-                if specobj is None:
-                    continue
-                ext += 1
-                # Add header keyword
-                keywd = 'EXT{:04d}'.format(ext)
-                prihdu.header[keywd] = specobj.idx
-
-                # Add Spectrum Table
-                cols = []
-                # Trace
-                cols += [fits.Column(array=specobj.trace, name=str('obj_trace'), format=specobj.trace.dtype)]
-                if ext == 1:
-                    npix = len(specobj.trace)
-                # Boxcar
-                for key in specobj.boxcar.keys():
-                    # Skip some
-                    if key in ['size']:
-                        continue
-                    if isinstance(specobj.boxcar[key], units.Quantity):
-                        cols += [fits.Column(array=specobj.boxcar[key].value,
-                                             name=str('box_'+key), format=specobj.boxcar[key].value.dtype)]
-                    else:
-                        cols += [fits.Column(array=specobj.boxcar[key],
-                                             name=str('box_'+key), format=specobj.boxcar[key].dtype)]
-                # Optimal
-                for key in specobj.optimal.keys():
-                    # Skip some
-                    if key in ['fwhm']:
-                        continue
-                    # Generate column
-                    if isinstance(specobj.optimal[key], units.Quantity):
-                        cols += [fits.Column(array=specobj.optimal[key].value,
-                                               name=str('opt_'+key), format=specobj.optimal[key].value.dtype)]
-                    else:
-                        cols += [fits.Column(array=specobj.optimal[key],
-                                               name=str('opt_'+key), format=specobj.optimal[key].dtype)]
-                # Finish
-                coldefs = fits.ColDefs(cols)
-                tbhdu = fits.BinTableHDU.from_columns(coldefs)
-                tbhdu.name = specobj.idx
-                hdus += [tbhdu]
-    # A few more for the header
-    prihdu.header['NSPEC'] = ext
-    prihdu.header['NPIX'] = npix
-    # Finish
-    hdulist = fits.HDUList(hdus)
-    if outfile is None:
-        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
-    hdulist.writeto(outfile, overwrite=clobber)
-    return outfile
-'''
-
 
 
 #def write_sensitivity():
@@ -646,56 +544,59 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
 
 
 def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
-                   outdir, basename, clobber=True):
+                   outdir, basename, clobber=True, update_det=None):
     """ Write 2D images to the hard drive
 
-    Parameters
-    ----------
-    sci_output : dict
-    fitstbl
-    scidx
-    ext0
-    setup
-    mfdir
-    outdir
-    basename
+    Args:
+        sci_output: OrderedDict
+        fitstbl: Table
+        scidx: int
+        ext0: int
+        setup: str
+        mfdir: str
+        outdir: str
+        basename: str
+        clobber: bool, optional
 
-    Returns
-    -------
+    Returns:
 
     """
-    # Original header
-    path = fitstbl['directory'][scidx]
-    ifile = fitstbl['filename'][scidx]
-    head0 = fits.getheader(os.path.join(path, ifile), ext=ext0)
+    outfile = outdir+'/spec2d_{:s}.fits'.format(basename)
+    hdus, prihdu = init_hdus(update_det, outfile)
+    if hdus is None:
+        # Original header
+        path = fitstbl['directory'][scidx]
+        ifile = fitstbl['filename'][scidx]
+        head0 = fits.getheader(os.path.join(path, ifile), ext=ext0)
 
-    # Primary HDU for output
-    prihdu = fits.PrimaryHDU()
-    # Update with original header, skipping a few keywords
-    hdus = [prihdu]
-    hdukeys = ['BUNIT', 'COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
-               'HISTORY', 'EXTEND', 'DATASEC']
-    for key in head0.keys():
-        # Use new ones
-        if key in hdukeys:
-            continue
-        # Update unused ones
-        prihdu.header[key] = head0[key]
-    # History
-    if 'HISTORY' in head0.keys():
-        # Strip \n
-        tmp = str(head0['HISTORY']).replace('\n', ' ')
-        prihdu.header.add_history(str(tmp))
+        # Primary HDU for output
+        prihdu = fits.PrimaryHDU()
+        # Update with original header, skipping a few keywords
+        hdus = [prihdu]
+        hdukeys = ['BUNIT', 'COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
+                   'HISTORY', 'EXTEND', 'DATASEC']
+        for key in head0.keys():
+            # Use new ones
+            if key in hdukeys:
+                continue
+            # Update unused ones
+            prihdu.header[key] = head0[key]
+        # History
+        if 'HISTORY' in head0.keys():
+            # Strip \n
+            tmp = str(head0['HISTORY']).replace('\n', ' ')
+            prihdu.header.add_history(str(tmp))
 
-    # PYPEIT
-    prihdu.header['PIPELINE'] = str('PYPEIT')
-    prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
-    ssetup = setup.split('_') #settings.argflag['reduce']['masters']['setup'].split('_')
-    prihdu.header['PYPCNFIG'] = str(ssetup[0])
-    prihdu.header['PYPCALIB'] = str(ssetup[2])
-    prihdu.header['PYPMFDIR'] = str(mfdir)
+        # PYPEIT
+        prihdu.header['PIPELINE'] = str('PYPEIT')
+        prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
+        ssetup = setup.split('_') #settings.argflag['reduce']['masters']['setup'].split('_')
+        prihdu.header['PYPCNFIG'] = str(ssetup[0])
+        prihdu.header['PYPCALIB'] = str(ssetup[2])
+        prihdu.header['PYPMFDIR'] = str(mfdir)
 
-    ext = 0
+    # Fill in the images
+    ext = len(hdus) - 1
     for key in sci_output.keys():
         if key in ['meta']:
             continue
@@ -763,7 +664,34 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
 
     # Finish
     hdulist = fits.HDUList(hdus)
-    outfile = outdir+'/spec2d_{:s}.fits'.format(basename)
     hdulist.writeto(outfile, overwrite=clobber)
     msgs.info("Wrote: {:s}".format(outfile))
 
+
+def init_hdus(update_det, outfile):
+    hdus, prihdu = None, None
+    if (update_det is not None) and os.path.isfile(outfile):
+        hdus = fits.open(outfile)
+        msgs.info("Using existing spec1d file, including the Header")
+        msgs.info("Will only update the data extension for {} detector(s)".format(update_det))
+        prihdu = hdus[0]
+        # Names
+        hdu_names = [hdu.name for hdu in hdus]
+        # Remove the detector(s) being updated
+        if not isinstance(update_det, list):
+            update_det = [update_det]
+        popme = []
+        # Find em
+        for ss,hdu_name in enumerate(hdu_names):
+            for det in update_det:
+                sdet = parse.get_dnum(det, prefix=False)
+                idx = '{:s}{:s}'.format(specobjs.naming_model['det'], sdet)
+                if idx in hdu_name:
+                    popme.append(ss)
+        # Remove em (and the bit in the Header too)
+        for popthis in reversed(popme):
+            hdus.pop(popthis)
+            keywd = 'EXT{:04d}'.format(popthis)
+            prihdu.header.remove(keywd)
+    # Return
+    return hdus, prihdu

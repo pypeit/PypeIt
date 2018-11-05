@@ -1,6 +1,14 @@
 0.9.1dev (unreleased)
 ---------------------
 
+- Move write method for sensitivity function
+- Modify I/O for detnum parameter
+- Modify idx code in SpecObj
+- Fixed a bug on datatype formatting
+- Reworked masteframe and all base classes to be more homogenous so that one only ever overloads the save_master and
+  load_master methods.
+- Many changes fixes wavecal/autoid.py to make the lines being used explicitly clear. This fixed many bugs in the
+  the wavelength fitting that were recently introduced.
 
 0.9.0
 -----

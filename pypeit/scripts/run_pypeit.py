@@ -46,7 +46,7 @@ def parser(options=None):
                        help='Run pypeit to prepare the setup only')
     group.add_argument('-c', '--calcheck', default=False, action='store_true',
                        help='Run pypeit only as a check on the calibrations')
-    group.add_argument('-d', '--detector', default=None, help='Detector to limit reductions on')
+    group.add_argument('-d', '--detector', default=None, help='Detector to limit reductions on.  If the output files exist and -o is used, the outputs for the input detector will be replaced.')
 
 #    parser.add_argument('-q', '--quick', default=False, help='Quick reduction',
 #                        action='store_true')

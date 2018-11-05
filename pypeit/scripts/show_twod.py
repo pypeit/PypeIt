@@ -63,7 +63,7 @@ def main(args):
     from astropy.stats import sigma_clipped_stats
 
     from pypeit import msgs
-    from pypeit.core import masters
+    from pypeit import masterframe
     from pypeit.core.parse import get_dnum
     from pypeit.core import trace_slits
     from pypeit import traceslits
@@ -123,7 +123,7 @@ def main(args):
     # Load Tslits
     mdir = head0['PYPMFDIR']+'/'
     setup = '{:s}_{:s}_{:s}'.format(head0['PYPCNFIG'], sdet, head0['PYPCALIB'])
-    trc_file = masters.master_name('trace', setup, mdir)
+    trc_file = masterframe.master_name('trace', setup, mdir)
     Tslits = traceslits.TraceSlits.from_master_files(trc_file)
     slit_ids = [trace_slits.get_slitid(Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen, ii)[0] for ii in range(Tslits.lcen.shape[1])]
     # Show the bitmask?

@@ -11,7 +11,7 @@ from astropy.table import Table
 
 from pypeit import msgs
 from pypeit.core import pixels
-
+from pypeit import masterframe
 from pypeit import arcimage
 from pypeit import biasframe
 from pypeit import bpmimage
@@ -24,7 +24,6 @@ from pypeit import waveimage
 
 from pypeit.metadata import PypeItMetaData
 
-from pypeit.core import masters
 from pypeit.core import procimg
 from pypeit.core import parse
 
@@ -92,7 +91,7 @@ class Calibrations(object):
 
         # Output dirs
         self.redux_path = os.getcwd() if redux_path is None else redux_path
-        self.master_dir = masters.set_master_dir(self.redux_path, self.spectrograph, self.par)
+        self.master_dir = masterframe.set_master_dir(self.redux_path, self.spectrograph, self.par)
 
         # Attributes
         self.calib_dict = {}
@@ -227,14 +226,23 @@ class Calibrations(object):
                                              par=self.par['biasframe'], setup=self.setup,
                                              master_dir=self.master_dir, mode=self.par['masters'],
                                              fitstbl=self.fitstbl, sci_ID=self.sci_ID)
+        # How are we treating biases?
+        # 1) No bias subtraction
+        if self.par['biasframe']['useframe'] is None:
+            msgs.info("Will not perform bias/dark subtraction")
+            self.msbias = None
+        # 2) Use overscan
+        elif self.par['biasframe']['useframe'] == 'overscan':
+            self.msbias = 'overscan'
+        # 3) User wants bias subtractions, use a Master biasframe?
+        elif self.par['biasframe']['useframe'] in ['bias', 'dark']:
+            # Load the MasterFrame if it exists and user requested one to load it
+            self.msbias = self.biasFrame.master()
 
-        # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
-        self.msbias = self.biasFrame.master()
         if self.msbias is None:  # Build it and save it
             self.msbias = self.biasFrame.build_image()
             if self.save_masters:
-                self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,
-                                           steps=self.biasFrame.steps)
+                self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,steps=self.biasFrame.steps)
 
         # Save & return
         self.calib_dict[self.setup]['bias'] = self.msbias
@@ -343,8 +351,8 @@ class Calibrations(object):
                 raise ValueError('Could not find user-defined flatfield master: {0}'.format(
                     self.par['flatfield']['frame']))
             msgs.info('Found user-defined file: {0}'.format(mspixelflat_name))
-            self.mspixflatnrm, head, _ = masters._load(mspixelflat_name, exten=self.det,
-                                                       frametype=None, force=True)
+            self.mspixflatnrm = self.flatField.load_master(mspixelflat_name, exten=self.det)
+            #self.mspixflatnrm, head, _ = masters._load(mspixelflat_name, exten=self.det,frametype=None, force=True)
             # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
             #self.msillumflat = np.ones_like(self.mspixflatnrm)
 
@@ -366,8 +374,7 @@ class Calibrations(object):
                                            steps=self.flatField.steps)
                 self.flatField.save_master(self.msillumflat, raw_files=pixflat_image_files,
                                            steps=self.flatField.steps,
-                                           outfile=masters.master_name('illumflat', self.setup,
-                                                                       self.master_dir))
+                                           outfile=masterframe.master_name('illumflat', self.setup,self.master_dir))
                 # If we tweaked the slits update the master files for tilts and slits
                 if self.par['flatfield']['tweak_slits']:
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
@@ -391,7 +398,7 @@ class Calibrations(object):
         # illumination file was created. So check msillumflat is set
         if self.msillumflat is None:
             # 2) If no illumination file is set yet, try to read it in from a master
-            self.msillumflat, _, _ = self.flatField.load_master_illumflat()
+            self.msillumflat = self.flatField.load_master_illumflat()
             # 3) If there is no master file, then set illumflat to unit
             # and war user that they are not illumflatting their data
             if self.msillumflat is None:

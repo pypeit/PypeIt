@@ -93,14 +93,13 @@ def test_run_and_master(kast_blue_bias_files):
     bias_frame2 = biasframe.BiasFrame('shane_kast_blue', setup=setup, master_dir=master_dir,
                                       mode='reuse')
     bias2 = bias_frame2.master()
-    assert isinstance(bias_frame2.stack, np.ndarray)
+    assert isinstance(bias_frame2.msframe, np.ndarray)
     assert len(bias_frame2.steps) == 0
 
     # Load (not kept in the Object!)
-    bias_frame3 = biasframe.BiasFrame('shane_kast_blue', setup=setup, master_dir=master_dir,
-                                      mode='reuse')
-    bias3, _, _ = bias_frame3.load_master_frame()
-    assert bias_frame3.stack is None
+    bias_frame3 = biasframe.BiasFrame('shane_kast_blue', setup=setup, master_dir=master_dir,mode='reuse')
+    bias3 = bias_frame3.load_master(bias_frame3.ms_name)
+    assert bias_frame3.msframe is None
     assert np.array_equal(bias2, bias3)
 
 # Should probably test overscan
