@@ -1491,7 +1491,7 @@ class TraceSet(object):
             else:
                 self.upper = 5.0
             ## func_fit in utils returns norder+1 coeffs rather than norder
-            self.coeff = np.zeros((self.nTrace, self.ncoeff+1), dtype=xpos.dtype)
+            self.coeff = np.zeros((self.nTrace, self.ncoeff), dtype=xpos.dtype)
             self.outmask = np.zeros(xpos.shape, dtype=np.bool)
             self.yfit = np.zeros(xpos.shape, dtype=xpos.dtype)
             for iTrace in range(self.nTrace):
@@ -1521,11 +1521,13 @@ class TraceSet(object):
                 #                                invvar=tempivar)
                 #    #thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,lower=3,upper=3)
                 #    iIter += 1
+                #from IPython import embed
+                #embed()
                 #self.yfit[iTrace, :] = ycurfit
                 #self.coeff[iTrace, :] = res
                 #self.outmask[iTrace, :] = thismask
                 self.yfit[iTrace, :] = ycurfit_djs #ycurfit
-                self.coeff[iTrace, :] = poly_coeff #res
+                self.coeff[iTrace, :] = poly_coeff[:-1] #res
                 self.outmask[iTrace, :] = mask_djs #thismask
 
         else:
@@ -1555,7 +1557,7 @@ class TraceSet(object):
         ypos = np.zeros(xpos.shape, dtype=xpos.dtype)
         for iTrace in range(self.nTrace):
             xvec = self.xnorm(xpos[iTrace, :], do_jump)
-            legarr = self._func_map[self.func](xvec, self.ncoeff+1) #need to be norder+1 for utils functions
+            legarr = self._func_map[self.func](xvec, self.ncoeff) #need to be norder+1 for utils functions
             ypos[iTrace, :] = np.dot(legarr.T, self.coeff[iTrace, :])
         return (xpos, ypos)
 
