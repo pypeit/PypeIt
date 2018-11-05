@@ -9,7 +9,6 @@
   load_master methods.
 - Many changes fixes wavecal/autoid.py to make the lines being used explicitly clear. This fixed many bugs in the
   the wavelength fitting that were recently introduced.
-- Fixed bug in pypeit_view_fits script.
 
 0.9.0
 -----
