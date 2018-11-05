@@ -1490,6 +1490,12 @@ class TraceSet(object):
                 self.upper = np.float64(kwargs['upper'])
             else:
                 self.upper = 5.0
+            if self.func is 'poly':
+                func_djs = 'polynomial'
+            elif self.func is 'legendre':
+                func_djs = 'legendre'
+            elif self.func is 'chebyshev':
+                func_djs = 'chebyshev'
             ## func_fit in utils returns norder+1 coeffs rather than norder
             self.coeff = np.zeros((self.nTrace, self.ncoeff+1), dtype=xpos.dtype)
             self.outmask = np.zeros(xpos.shape, dtype=np.bool)
@@ -1506,10 +1512,11 @@ class TraceSet(object):
                 kwargs_reject = {"sigma": None,"maxdev": None, "maxrej": None, "groupdim": None, "groupsize": None, \
                                  "groupbadpix": False, "grow": 0, "use_mad": False, "sticky": False}
                 mask_djs, poly_coeff = utils.robust_polyfit_djs(xvec, ypos[iTrace, :], self.ncoeff,
+                                                                function=func_djs,
                                                                 inmask = thismask, invvar = tempivar,
                                                                 lower = self.lower, upper = self.upper,
                                                                 **kwargs_reject)
-                ycurfit_djs = utils.func_val(poly_coeff, xvec, 'polynomial')
+                ycurfit_djs = utils.func_val(poly_coeff, xvec, func_djs)
 
                 ##Using robust_polyfit_djs to do the fitting and the following part are commented out by Feige
                 #while (not qdone) and (iIter <= maxiter):
