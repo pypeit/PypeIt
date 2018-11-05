@@ -1607,9 +1607,9 @@ class General:
                       '  Number of strong lines       = {:d}'.format(self._det_stro[str(slit)][0].size) + msgs.newline() +
                       '  Number of lines analyzed     = {:d}'.format(len(best_final_fit['xfit'])) + msgs.newline() +
                       '  Number of pattern matches    = {:d}'.format(best_patt_dict['nmatch']) + msgs.newline() +
-                      '  Best central wavelength      = {:g}A'.format(best_patt_dict['bwv']) + msgs.newline() +
-                      '  Best dispersion              = {:g}A/pix'.format(best_patt_dict['bdisp']) + msgs.newline() +
-                      '  Best wave/disp               = {:g}'.format(best_patt_dict['bwv']/best_patt_dict['bdisp']) + msgs.newline() +
+                      '  Patt match cen wavelength    = {:g}A'.format(best_patt_dict['bwv']) + msgs.newline() +
+                      '  Patt match dispersion        = {:g}A/pix'.format(best_patt_dict['bdisp']) + msgs.newline() +
+                      '  Best patt match wave/disp    = {:g}'.format(best_patt_dict['bwv']/best_patt_dict['bdisp']) + msgs.newline() +
                       '  Final RMS of fit             = {:g}'.format(best_final_fit['rms']) + msgs.newline() +
                       '---------------------------------------------------')
             self._all_patt_dict[str(slit)] = copy.deepcopy(best_patt_dict)
