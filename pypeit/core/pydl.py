@@ -1035,6 +1035,9 @@ def iterfit(xdata, ydata, invvar=None, inmask = None, upper=5, lower=5, x2=None,
 
             return (sset, outmask)
         elif error == 0:
+            # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
+            # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
+            # further consideration. I think requiring stick to be set is the more transparent behavior.
             maskwork, qdone = djs_reject(ywork, yfit, invvar=invwork,
                                          inmask=inmask_rej, outmask=maskwork,
                                          upper=upper, lower=lower,**kwargs_reject)
@@ -1725,8 +1728,10 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
         If data has shape [100,200], then setting GROUPDIM=2 is equivalent to grouping the data with groupsize=100.
         In either case, there are 200 groups, specified by [*,i]. NOT WELL TESTED IN PYTHON!
     groupsize: class: `int`
-        If this and maxrej are set, then reject a maximum of maxrej points per group of groupsize points.  If groupdim is also
-        set, then this specifies sub-groups within that. NOT WELL TESTED IN PYTHON!!
+        If this and maxrej are set, then reject a maximum of maxrej points per group of groupsize points, where the grouping is performed in the
+        along the dimension of the data vector. (For use in curve fitting, one probably wants to make sure that data is sorted according to the indpeendent
+        variable. For multi-dimensional arrays where one desires this grouping along each dimension, then groupdim should be set.
+        If groupdim is also set, then this specifies sub-groups within that.
     groupbadpix : :class:`bool`, optional
         If set to ``True``, consecutive sets of bad pixels are considered groups,
         overriding the values of `groupsize`.
@@ -1800,10 +1805,18 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
         else:
             groupdim = []
         if groupsize is not None:
-            if len(maxrej) != len(groupsize):
-                raise ValueError('maxrej and groupsize must have the same number of elements.')
+            if isinstance(maxrej, (int,float)) | isinstance(groupsize, (int,float)):
+                groupsize1=np.asarray([groupsize])
+            else:
+                if len(maxrej) != len(groupsize):
+                    raise ValueError('maxrej and groupsize must have the same number of elements.')
+                groupsize1=groupsize
         else:
-            groupsize = len(data)
+            groupsize1 = np.asarray([len(data)])
+        if isinstance(maxrej,(int,float)):
+            maxrej1 = np.asarray([maxrej])
+        else:
+            maxrej1 = maxrej
     if sigma is None and invvar is None:
         if inmask is not None:
             igood = (inmask & outmask).nonzero()[0]
@@ -1865,7 +1878,7 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     # in each group as specified by groupsize, and optionally along each
     # dimension specified by groupdim.
     #
-    if maxrej is not None:
+    if maxrej1 is not None:
         #
         # Loop over each dimension of groupdim or loop once if not set.
         #
@@ -1886,11 +1899,14 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
             # column of the data.  If groupdim=2, then loop over each row.
             # If groupdim is not set, then use the whole image.
             #
-            for ivec in range(max(dimnum)):
+            for ivec in range(np.fmax(dimnum.max(),1)):
                 #
                 # At this point it is not possible that dimnum is not set.
                 #
-                indx = (dimnum == ivec).nonzero()[0]
+                if len(groupdim) == 0:
+                    indx = np.arange(data.size)
+                else:
+                    indx = (dimnum == ivec).nonzero()[0]
                 #
                 # Within this group of points, break it down into groups
                 # of points specified by groupsize, if set.
@@ -1902,19 +1918,19 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
                     groups_upper = (np.diff(np.append(goodtemp, 1)) == 1).nonzero()[0]
                     ngroups = len(groups_lower)
                 else:
-                    #
                     # The IDL version of this test makes no sense because
                     # groupsize will always be set.
                     #
-                    if 'groupsize' is not None:
-                        ngroups = nin/groupsize + 1
-                        groups_lower = np.arange(ngroups, dtype='i4')*groupsize
-                        foo = (np.arange(ngroups, dtype='i4')+1)*groupsize
-                        groups_upper = np.where(foo < nin, foo, nin) - 1
-                    else:
+                    if False:
                         ngroups = 1
                         groups_lower = [0, ]
                         groups_upper = [nin - 1, ]
+                    else:
+                        ngroups = nin//groupsize1[iloop] + 1
+                        groups_lower = np.arange(ngroups, dtype='i4')*groupsize1[iloop]
+                        foo = (np.arange(ngroups, dtype='i4')+1)*groupsize1[iloop]
+                        groups_upper = np.where(foo < nin, foo, nin) - 1
+
                 for igroup in range(ngroups):
                     i1 = groups_lower[igroup]
                     i2 = groups_upper[igroup]
@@ -1930,13 +1946,13 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
                         #
                         # Test if too many points rejected in this group.
                         #
-                        if np.sum(badness[jj] != 0) > maxrej[iloop]:
+                        if np.sum(badness[jj] != 0) > maxrej1[iloop]:
                             isort = badness[jj].argsort()
                             #
                             # Make the following points good again.
                             #
-                            badness[jj[isort[0:nii-maxrej[iloop]]]] = 0
-                        i1 += groupsize[iloop]
+                            badness[jj[isort[0:nii-maxrej1[iloop]]]] = 0
+                        i1 += groupsize1[iloop]
     #
     # Now modify outmask, rejecting points specified by inmask=0, outmask=0
     # if sticky is set, or badness > 0.
