@@ -1407,13 +1407,13 @@ class TraceSet(object):
     """
     #_func_map = {'poly': fpoly, 'legendre': flegendre,
     #                'chebyshev': fchebyshev}
-    allowed_functions = ['polynomial', 'legendre', 'chebyshev']
     def __init__(self, *args, **kwargs):
         """This class can be initialized either with a set of xy positions,
         or with a trace set HDU from a FITS file.
         """
         from astropy.io.fits.fitsrec import FITS_rec
         #from .math import djs_reject
+        allowed_functions = ['polynomial', 'legendre', 'chebyshev']
         if len(args) == 1 and isinstance(args[0], FITS_rec):
             #
             # Initialize with FITS data
@@ -1511,7 +1511,7 @@ class TraceSet(object):
                                  "groupbadpix": False, "grow": 0, "use_mad": False, "sticky": False}
                 mask_djs, poly_coeff = utils.robust_polyfit_djs(xvec, ypos[iTrace, :], self.ncoeff,
                                                                 function=self.func, maxiter = self.maxiter,
-                                                                inmask = thismask, invvar = tempivar,
+                                                                inmask = thismask, #invvar = tempivar,
                                                                 lower = self.lower, upper = self.upper,
                                                                 minv = self.xmin, maxv = self.xmax,
                                                                 **kwargs_reject)
@@ -1878,7 +1878,7 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     # in each group as specified by groupsize, and optionally along each
     # dimension specified by groupdim.
     #
-    if maxrej1 is not None:
+    if maxrej is not None:
         #
         # Loop over each dimension of groupdim or loop once if not set.
         #
