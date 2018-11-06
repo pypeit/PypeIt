@@ -1737,7 +1737,11 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
         If set to ``True``, pixels rejected in one iteration remain rejected in
         subsequent iterations, even if the model changes.
     use_mad : :class: `bool`, optional, defaul = False
-        It set to ``True``,
+        It set to ``True``, compute the median of the maximum absolute deviation between the data and use this for the rejection instead of
+        the default which is to compute the standard deviation of the yarray - modelfit. Note that it is not possible to specify use_mad=True
+        and also pass in values for sigma or invvar, and the code will return an error if this is done.
+
+
 
     Returns
     -------
