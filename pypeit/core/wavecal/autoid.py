@@ -714,6 +714,7 @@ class General:
         for slit in range(self._nslit):
             if good_fit[slit]:
                 idx_gd[cntr] = slit
+                # TODO JFH We can get rid of this and thus not need patt_dict
                 wvc_gd[cntr] = self._all_patt_dict[str(slit)]["bwv"]
                 dsp_gd[cntr] = self._all_patt_dict[str(slit)]["bdisp"]
                 # JFH stuff
@@ -724,9 +725,8 @@ class General:
                 wave_soln = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
                 wvc_gd_jfh[cntr] = wave_soln[self._npix//2]
                 dsp_gd_jfh[cntr]= np.median(wave_soln - np.roll(wave_soln,1))
-                # JFH end of JFH stuff
                 cntr += 1
-        srt = np.argsort(wvc_gd)
+        srt = np.argsort(wvc_gd_jfh)
         sort_idx = idx_gd[srt]
         sort_wvc = wvc_gd[srt]
         sort_dsp = dsp_gd[srt]
@@ -799,6 +799,7 @@ class General:
         sign_good = np.zeros(good_slits.size,dtype=int)
         wvc_good  = np.zeros(good_slits.size,dtype=float)
         for islit in range(good_slits.size):
+            # JFH ToDO Could just use the good wavelength solutions and then we would not need this sign and hence all_patt_ict
             sign_good[islit] =  self._all_patt_dict[str(good_slits[islit])]['sign']
             # JFH stuff
             fitc = self._all_final_fit[str(good_slits[islit])]['fitc']
