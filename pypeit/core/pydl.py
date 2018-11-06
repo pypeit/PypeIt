@@ -1507,7 +1507,7 @@ class TraceSet(object):
                 kwargs_reject = {"sigma": None,"maxdev": None, "maxrej": None, "groupdim": None, "groupsize": None, \
                                  "groupbadpix": False, "grow": 0, "use_mad": False, "sticky": False}
                 mask_djs, poly_coeff = utils.robust_polyfit_djs(xvec, ypos[iTrace, :], self.ncoeff,
-                                                                function=func_djs, maxiter = self.maxiter,
+                                                                function=self.func, maxiter = self.maxiter,
                                                                 inmask = thismask, invvar = tempivar,
                                                                 lower = self.lower, upper = self.upper,
                                                                 minv = self.xmin, maxv = self.xmax,
