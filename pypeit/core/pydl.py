@@ -1466,7 +1466,6 @@ class TraceSet(object):
                 self.xmax = np.float64(kwargs['xmax'])
             else:
                 self.xmax = xpos.max()
-            # ToDo maxiter needs to be passed to robust_polyfit_djs. I would make this self.maxiter as well.
             if 'maxiter' in kwargs:
                 self.maxiter = int(kwargs['maxiter'])
             else:
@@ -1509,15 +1508,14 @@ class TraceSet(object):
                     thisinvvar = None
                 else:
                     thisinvvar = invvar[iTrace, :]
-                # ToDo: define kwargs_reject={}
-                kwargs_reject = {"sigma": None,"maxdev": None, "maxrej": None, "groupdim": None, "groupsize": None, \
-                                 "groupbadpix": False, "grow": 0, "use_mad": False, "sticky": False}
+
                 mask_djs, poly_coeff = utils.robust_polyfit_djs(xvec, ypos[iTrace, :], self.ncoeff,
                                                                 function=self.func, maxiter = self.maxiter,
                                                                 inmask = inmask[iTrace, :], invvar = thisinvvar,
                                                                 lower = self.lower, upper = self.upper,
                                                                 minv = self.xmin, maxv = self.xmax,
-                                                                **kwargs_reject)
+                                                                sigma=None,maxdev=None,maxrej=None,groupdim=None,
+                                                                groupsize=None,groupbadpix=None,grow=0,use_mad=False,sticky=False)
                 ycurfit_djs = utils.func_val(poly_coeff, xvec, self.func, minv=self.xmin, maxv=self.xmax)
 
                 ##Using robust_polyfit_djs to do the fitting and the following part are commented out by Feige
@@ -1530,8 +1528,6 @@ class TraceSet(object):
                 #                                invvar=tempivar)
                 #    #thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,lower=3,upper=3)
                 #    iIter += 1
-                #from IPython import embed
-                #embed()
                 #self.yfit[iTrace, :] = ycurfit
                 #self.coeff[iTrace, :] = res
                 #self.outmask[iTrace, :] = thismask

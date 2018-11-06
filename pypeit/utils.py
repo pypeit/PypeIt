@@ -1282,12 +1282,6 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
     else:
         weights = np.ones(xarray.size,dtype=float)
 
-    # ToDO get rid of the kwargs and simply pass in arguments. It is a long list I know, but better to be explicit.
-    # make kwargs for djs_reject
-    kwargs_reject={"sigma":sigma, "invvar":invvar, "lower":lower*1.0, "upper":upper*1.0, \
-                   "maxdev":maxdev,"maxrej":maxrej, "groupdim":groupdim, "groupsize":groupsize, \
-                   "groupbadpix":groupbadpix, "grow":grow,"use_mad":use_mad, "sticky":sticky}
-
     # Iterate, and mask out new values on each iteration
     ct = guesses
 
@@ -1299,7 +1293,10 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
             msgs.warn("More parameters than data points - using unmasked data, fit might be undesirable")
         ct = func_fit(xarray, yarray, function, order, w=weights*thismask,guesses=ct, minv=minv, maxv=maxv, bspline_par=bspline_par)
         ymodel = func_val(ct, xarray, function, minv=minv, maxv=maxv)
-        thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, **kwargs_reject)
+        thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, sigma=sigma, invvar=invvar,
+                                          lower=np.float64(lower),upper=np.float64(upper),maxdev=maxdev,maxrej=maxrej,
+                                          groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,
+                                          use_mad=use_mad,sticky=sticky)
         iIter += 1
 
     outmask = np.copy(thismask)
