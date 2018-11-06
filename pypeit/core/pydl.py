@@ -1514,7 +1514,7 @@ class TraceSet(object):
                                  "groupbadpix": False, "grow": 0, "use_mad": False, "sticky": False}
                 mask_djs, poly_coeff = utils.robust_polyfit_djs(xvec, ypos[iTrace, :], self.ncoeff,
                                                                 function=self.func, maxiter = self.maxiter,
-                                                                inmask = inmask, invvar = thisinvvar,
+                                                                inmask = inmask[iTrace, :], invvar = thisinvvar,
                                                                 lower = self.lower, upper = self.upper,
                                                                 minv = self.xmin, maxv = self.xmax,
                                                                 **kwargs_reject)
