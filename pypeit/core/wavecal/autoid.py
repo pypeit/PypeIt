@@ -805,7 +805,7 @@ class General:
             fitc = self._all_final_fit[str(good_slits[islit])]['fitc']
             xfit = xrng / (self._npix - 1)
             fitfunc = self._all_final_fit[str(good_slits[islit])]['function']
-            fmin, fmax = 0.0, 1.0
+            fmin, fmax = self._all_final_fit[str(good_slits[islit])]['fmin'], self._all_final_fit[str(good_slits[islit])]['fmax']
             wave_soln = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
             wvc_good[islit] = wave_soln[self._npix // 2]
             disp_good[islit] = np.median(wave_soln - np.roll(wave_soln, 1))
@@ -881,7 +881,7 @@ class General:
                 fitc = self._all_final_fit[str(gs)]['fitc']
                 xfit = gsdet/(self._npix - 1)
                 fitfunc = self._all_final_fit[str(gs)]['function']
-                fmin, fmax = 0.0, 1.0
+                fmin, fmax = self._all_final_fit[str(gs)]['fmin'], self._all_final_fit[str(gs)]['fmax']
                 wvval = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
                 # Loop over the bad slit line pixel detections and find the nearest good slit line
                 for dd in range(bsdet.size):
