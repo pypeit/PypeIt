@@ -1446,7 +1446,8 @@ class TraceSet(object):
             if 'invvar' in kwargs:
                 invvar = kwargs['invvar']
             else:
-                invvar = np.ones(xpos.shape, dtype=xpos.dtype)
+                invvar = None
+                #invvar = np.ones(xpos.shape, dtype=xpos.dtype)
             if 'func' in kwargs:
                 if kwargs['func'] not in allowed_functions:
                     msgs.error('Unrecognized function.')
@@ -1472,6 +1473,8 @@ class TraceSet(object):
                 self.maxiter = 10
             if 'inmask' in kwargs:
                 inmask = kwargs['inmask']
+            elif invvar is not None:
+                inmask = (invvar > 0.0)
             else:
                 inmask = np.ones(xpos.shape, dtype=np.bool)
             do_jump = False
@@ -1502,16 +1505,16 @@ class TraceSet(object):
             self.yfit = np.zeros(xpos.shape, dtype=xpos.dtype)
             for iTrace in range(self.nTrace):
                 xvec = self.xnorm(xpos[iTrace, :], do_jump)
-                tempivar = (invvar[iTrace, :] *
-                            inmask[iTrace, :].astype(invvar.dtype))
-                thismask = tempivar > 0
-
+                if invvar is None:
+                    thisinvvar = None
+                else:
+                    thisinvvar = invvar[iTrace, :]
                 # ToDo: define kwargs_reject={}
                 kwargs_reject = {"sigma": None,"maxdev": None, "maxrej": None, "groupdim": None, "groupsize": None, \
                                  "groupbadpix": False, "grow": 0, "use_mad": False, "sticky": False}
                 mask_djs, poly_coeff = utils.robust_polyfit_djs(xvec, ypos[iTrace, :], self.ncoeff,
                                                                 function=self.func, maxiter = self.maxiter,
-                                                                inmask = thismask, #invvar = tempivar,
+                                                                inmask = inmask, invvar = thisinvvar,
                                                                 lower = self.lower, upper = self.upper,
                                                                 minv = self.xmin, maxv = self.xmax,
                                                                 **kwargs_reject)
