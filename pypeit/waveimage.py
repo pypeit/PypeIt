@@ -79,10 +79,13 @@ class WaveImage(masterframe.MasterFrame):
         # Loop on slits
         ok_slits = np.where(~self.maskslits)[0]
         self.wave = np.zeros_like(self.tilts)
+        nspec =self.slitpix.shape[0]
+        if (nspec-1) != int(self.wv_calib[str(0)]['fmax']):
+            msgs.error('Your wavelength fits used inconsistent normalization. Something is wrong!')
         for slit in ok_slits:
             iwv_calib = self.wv_calib[str(slit)]
             try:
-                tmpwv = utils.func_val(iwv_calib['fitc'], self.tilts, iwv_calib['function'],
+                tmpwv = utils.func_val(iwv_calib['fitc'], self.tilts*(nspec-1), iwv_calib['function'],
                                    minv=iwv_calib['fmin'], maxv=iwv_calib['fmax'])
             except:
                 debugger.set_trace()

@@ -73,7 +73,8 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     # Fit
     n_order = n_first
     flg_quit = False
-    fmin, fmax = -1., 1.
+    #fmin , fmax = -1.0, 1.0
+    fmin, fmax = 0.0, float(npix-1)
     while (n_order <= n_final) and (flg_quit is False):
         # Fit with rejection
         xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
@@ -110,8 +111,9 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
             flg_quit = True
 
     # Final fit (originals can now be rejected)
-    fmin, fmax = 0., 1.
-    xfit, yfit, wfit = tcent[ifit]/(npix-1), all_ids[ifit], weights[ifit]
+    #fmin, fmax = 0., 1.
+    #xfit, yfit, wfit = tcent[ifit]/(npix-1), all_ids[ifit], weights[ifit]
+    xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
     mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=func, sigma=sigrej_final,
                                      minv=fmin, maxv=fmax, verbose=verbose, weights=wfit)#, debug=True)
     irej = np.where(mask == 1)[0]
@@ -136,7 +138,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
 
     # Pack up fit
     final_fit = dict(fitc=fit, function=func, xfit=xfit, yfit=yfit, weights=wfit,
-                     ions=ions, fmin=fmin, fmax=fmax, xnorm=float(npix),
+                     ions=ions, fmin=fmin, fmax=fmax, xnorm=float(npix-1),
                      xrej=xrej, yrej=yrej, mask=mask, spec=spec, nrej=sigrej_final,
                      shift=0., tcent=tcent, rms=rms_pix)
 
