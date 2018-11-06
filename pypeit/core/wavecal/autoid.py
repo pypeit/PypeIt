@@ -848,7 +848,7 @@ class General:
                 wcen[cntr] = wvc_good[cntr] - shift_vec[cntr]*disp[cntr]
 
                 # For each peak in the gs spectrum, identify the corresponding peaks in the bs spectrum. Do this by
-                # transform these good slit line pixel locations into the (shifted and stretched) bs frame
+                # transforming these good slit line pixel locations into the (shifted and stretched) bs frame
                 gsdet, _ = self.get_use_tcent(sign, detections[str(gs)])
                 gsdet_ss = gsdet*stretch_vec[cntr] + shift_vec[cntr]
                 if self._debug:
