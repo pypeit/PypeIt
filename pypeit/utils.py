@@ -391,6 +391,9 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
                     relative_factor = np.sqrt(this_chi2)
                 relative_factor = max(relative_factor,1.0)
             # Rejection
+            # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
+            # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
+            # further consideration. I think requiring stick to be set is the more transparent behavior.
             maskwork, qdone = pydl.djs_reject(ydata, yfit, invvar=invvar,
                                          inmask=tempin, outmask=maskwork,
                                          upper=upper*relative_factor,
@@ -1170,7 +1173,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
 def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = None, maxv = None, bspline_par = None,
                        guesses = None, maxiter=10, inmask=None, sigma=None,invvar=None, lower=5.0, upper=5.0,
                        maxdev=None,maxrej=None, groupdim=None,groupsize=None, groupbadpix=False, grow=0,
-                       sticky=False, use_mad=False, verbose = True):
+                       sticky=True, use_mad=False):
     """
     A robust polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are good values
@@ -1198,8 +1201,7 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
     invvar : :class: float or `numpy.ndarray`, optional
         Inverse variance of the data, used to reject points based on the values
         of `upper` and `lower`.  This can either be a single float for the entire yarray or a ndarray with the same
-        shape as the yarray. If both `sigma` and `invvar` are set, `invvar`
-        will be ignored.
+        shape as the yarray. If both `sigma` and `invvar` are set the code will return an error.
     lower : :class:`int` or :class:`float`, optional
         If set, reject points with data < model - lower * sigma.
     upper : :class:`int` or :class:`float`, optional
@@ -1223,9 +1225,9 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
     grow : :class:`int`, optional, default = 0
         If set to a non-zero integer, N, the N nearest neighbors of rejected
         pixels will also be rejected.
-    sticky : :class:`bool`, optional
+    sticky : :class:`bool`, optional, default is True
         If set to ``True``, pixels rejected in one iteration remain rejected in
-        subsequent iterations, even if the model changes.
+        subsequent iterations, even if the model changes. If
     use_mad : :class: `bool`, optional, defaul = False
         It set to ``True``, compute the median of the maximum absolute deviation between the data and use this for the rejection instead of
         the default which is to compute the standard deviation of the yarray - modelfit. Note that it is not possible to specify use_mad=True
@@ -1264,10 +1266,7 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
     thismask = np.copy(inmask)
     while (not qdone) and (iIter <= maxiter):
         if np.sum(thismask) <= order + 1:
-            thismask = np.copy(inmask)
-            if verbose:
-                msgs.warn("More parameters than data points - using unmasked data, fit might be undesirable")
-            break  # More data was masked than allowed by order
+            msgs.warn("More parameters than data points - using unmasked data, fit might be undesirable")
         ct = func_fit(xarray, yarray, function, order, w=weights,guesses=ct, minv=minv, maxv=maxv, bspline_par=bspline_par)
         ymodel = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask*thismask, **kwargs_reject)
