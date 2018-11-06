@@ -721,7 +721,7 @@ class General:
                 fitc = self._all_final_fit[str(slit)]['fitc']
                 xfit = xrng/(self._npix - 1)
                 fitfunc = self._all_final_fit[str(slit)]['function']
-                fmin, fmax = 0.0, 1.0
+                fmin, fmax = self._all_final_fit[str(slit)]['fmin'], self._all_final_fit[str(slit)]['fmax']
                 wave_soln = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
                 wvc_gd_jfh[cntr] = wave_soln[self._npix//2]
                 dsp_gd_jfh[cntr]= np.median(wave_soln - np.roll(wave_soln,1))
@@ -822,7 +822,7 @@ class General:
             if bs not in self._ok_mask:
                 continue
             if detections[str(bs)][0] is None:  # No detections at all; slit is hopeless
-                msgs.warn("Slit {} has no arc line detections.  Likely this slit is junk!")
+                msgs.warn('Slit {:d}'.format(bs) + ' has no arc line detections.  Likely this slit is junk!')
                 self._bad_slits.append(bs)
                 continue
             bsdet, _ = self.get_use_tcent(sign, detections[str(bs)])
