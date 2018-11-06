@@ -1402,9 +1402,9 @@ class TraceSet(object):
         When initialized with x,y positions, this contains the fitted y
         values.
     """
-    _func_map = {'poly': fpoly, 'legendre': flegendre,
-                    'chebyshev': fchebyshev}
-
+    #_func_map = {'poly': fpoly, 'legendre': flegendre,
+    #                'chebyshev': fchebyshev}
+    allowed_functions = ['polynomial', 'legendre', 'chebyshev']
     def __init__(self, *args, **kwargs):
         """This class can be initialized either with a set of xy positions,
         or with a trace set HDU from a FITS file.
@@ -1445,6 +1445,8 @@ class TraceSet(object):
             else:
                 invvar = np.ones(xpos.shape, dtype=xpos.dtype)
             if 'func' in kwargs:
+                if kwargs['func'] not in allowed_functions:
+                    msgs.error('Unrecognized function.')
                 self.func = kwargs['func']
             else:
                 self.func = 'legendre'
@@ -1460,10 +1462,11 @@ class TraceSet(object):
                 self.xmax = np.float64(kwargs['xmax'])
             else:
                 self.xmax = xpos.max()
+            # ToDo maxiter needs to be passed to robust_polyfit_djs. I would make this self.maxiter as well.
             if 'maxiter' in kwargs:
-                maxiter = int(kwargs['maxiter'])
+                self.maxiter = int(kwargs['maxiter'])
             else:
-                maxiter = 10
+                self.maxiter = 10
             if 'inmask' in kwargs:
                 inmask = kwargs['inmask']
             else:
@@ -1490,20 +1493,12 @@ class TraceSet(object):
                 self.upper = np.float64(kwargs['upper'])
             else:
                 self.upper = 5.0
-            if self.func is 'poly':
-                func_djs = 'polynomial'
-            elif self.func is 'legendre':
-                func_djs = 'legendre'
-            elif self.func is 'chebyshev':
-                func_djs = 'chebyshev'
-            ## func_fit in utils returns norder+1 coeffs rather than norder
+
             self.coeff = np.zeros((self.nTrace, self.ncoeff+1), dtype=xpos.dtype)
             self.outmask = np.zeros(xpos.shape, dtype=np.bool)
             self.yfit = np.zeros(xpos.shape, dtype=xpos.dtype)
             for iTrace in range(self.nTrace):
                 xvec = self.xnorm(xpos[iTrace, :], do_jump)
-                iIter = 0
-                qdone = False
                 tempivar = (invvar[iTrace, :] *
                             inmask[iTrace, :].astype(invvar.dtype))
                 thismask = tempivar > 0
@@ -1512,11 +1507,12 @@ class TraceSet(object):
                 kwargs_reject = {"sigma": None,"maxdev": None, "maxrej": None, "groupdim": None, "groupsize": None, \
                                  "groupbadpix": False, "grow": 0, "use_mad": False, "sticky": False}
                 mask_djs, poly_coeff = utils.robust_polyfit_djs(xvec, ypos[iTrace, :], self.ncoeff,
-                                                                function=func_djs,
+                                                                function=func_djs, maxiter = self.maxiter,
                                                                 inmask = thismask, invvar = tempivar,
                                                                 lower = self.lower, upper = self.upper,
+                                                                minv = self.xmin, maxv = self.xmax,
                                                                 **kwargs_reject)
-                ycurfit_djs = utils.func_val(poly_coeff, xvec, func_djs)
+                ycurfit_djs = utils.func_val(poly_coeff, xvec, self.func, minv=self.xmin, maxv=self.xmax)
 
                 ##Using robust_polyfit_djs to do the fitting and the following part are commented out by Feige
                 #while (not qdone) and (iIter <= maxiter):
@@ -1564,8 +1560,9 @@ class TraceSet(object):
         ypos = np.zeros(xpos.shape, dtype=xpos.dtype)
         for iTrace in range(self.nTrace):
             xvec = self.xnorm(xpos[iTrace, :], do_jump)
-            legarr = self._func_map[self.func](xvec, self.ncoeff+1) #need to be norder+1 for utils functions
-            ypos[iTrace, :] = np.dot(legarr.T, self.coeff[iTrace, :])
+            #legarr = self._func_map[self.func](xvec, self.ncoeff+1) #need to be norder+1 for utils functions
+            ypos[iTrace, :] =  utils.func_val(self.coeff[iTrace, :], xvec, self.func, minv=self.xmin, maxv=self.xmax)
+#            ypos[iTrace, :] = np.dot(legarr.T, self.coeff[iTrace, :])
         return (xpos, ypos)
 
     @property
@@ -1586,6 +1583,7 @@ class TraceSet(object):
         """
         return int(self.xRange + 1)
 
+    # JFH This is no longer ndeeded. Below we changed to robust_polyfit_djs convention for writing this. Same value just one less parameter.
     @property
     def xmid(self):
         """Midpoint of x values.
@@ -1616,7 +1614,7 @@ class TraceSet(object):
             xnatural = xinput + jfrac * self.xjumpval
         else:
             xnatural = xinput
-        return 2.0 * (xnatural - self.xmid)/self.xRange
+        return 2.0 * (xnatural - self.xmin)/self.xRange - 1.0
 
 
 def traceset2xy(tset, xpos=None, ignore_jump=False):
