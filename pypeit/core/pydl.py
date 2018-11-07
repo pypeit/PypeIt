@@ -1843,20 +1843,20 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     if lower is not None:
         if sigma is not None:
             qbad = diff < (-lower * sigma)
-            badness += ((-diff/(sigma + (sigma == 0))) > 0) * qbad
+            badness += np.fmax(-diff/(sigma + (sigma == 0)),0.0)*qbad
         else:
             qbad = (diff * np.sqrt(invvar)) < -lower
-            badness += ((-diff * np.sqrt(invvar)) > 0) * qbad
+            badness += np.fmax(-diff*np.sqrt(invvar),0.0)*qbad
     #
     # Decide how bad a point is according to upper.
     #
     if upper is not None:
         if sigma is not None:
             qbad = diff > (upper * sigma)
-            badness += ((diff/(sigma + (sigma == 0))) > 0) * qbad
+            badness += np.fmax(diff/(sigma + (sigma == 0)),0.0) * qbad
         else:
             qbad = (diff * np.sqrt(invvar)) > upper
-            badness += ((diff * np.sqrt(invvar)) > 0) * qbad
+            badness += np.fmax(diff*np.sqrt(invvar),0.0)*qbad
     #
     # Decide how bad a point is according to maxdev.
     #
@@ -1872,6 +1872,8 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
         badness *= inmask
     if sticky:
         badness *= outmask
+
+
     #
     # Reject a maximum of maxrej (additional) points in all the data, or
     # in each group as specified by groupsize, and optionally along each
@@ -1957,7 +1959,8 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     # if sticky is set, or badness > 0.
     #
     # print(badness)
-    newmask = badness == 0
+    newmask = badness == 0.0
+
     # print(newmask)
     if grow > 0:
         rejects = newmask == 0
@@ -1976,6 +1979,10 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     qdone = bool(np.all(newmask == outmask))
     # JFH This needs to be a python (rather than a numpy) boolean to avoid painful problems when comparing
     # to python True and False booleans
+    from IPython import embed
+    if np.any(outmask == False):
+        embed()
+
     outmask = newmask
     return (outmask, qdone)
 
