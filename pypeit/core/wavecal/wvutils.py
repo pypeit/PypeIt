@@ -214,7 +214,7 @@ def xcorr_shift(inspec1,inspec2,smooth=5.0,percent_ceil=90.0,debug=False):
     return lag_max[0], corr_max[0]
 
 
-def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, percent_ceil = 90.0, shift_mnmx = (-0.05,0.05), stretch_mnmx = (0.95,1.05), debug = False):
+def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=5.0, percent_ceil=90.0, shift_mnmx=(-0.05,0.05), stretch_mnmx=(0.95,1.05), debug=False):
 
     """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
     guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
@@ -232,6 +232,12 @@ def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, percent_ceil = 90.0, shi
 
     Optional Parameters
     -------------------
+    cc_thresh: float, default = -1.0
+      A number in the range [-1.0,1.0] which is the threshold on the initial cross-correlation coefficient for the shift/stretch.
+      If the value of the initial cross-correlation is < cc_thresh the code will just exit and return this value and the best shift.
+      This is desirable behavior since the shif/stretch optimization is slow and this allows one to test how correlated the spectra are
+      before attempting it, since there is little value in that expensive computation for spectra with little overlap. The default cc_thresh =-1.0
+      means shift/stretch is always attempted since the cross correlation coeficcient cannot be less than -1.0.
     smooth: float, default
       Gaussian smoothing in pixels applied to both spectra for the computations. Default is 5.0
     percent_ceil: float, default=90.0
@@ -248,19 +254,27 @@ def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, percent_ceil = 90.0, shi
 
     Returns
     -------
-    success: boolean
-      boolean indicating whether the optimization exited successfully indicating that the shift and stretch are reliable
+    success: int
+      A flag indicating the exist status.
+          success  = 1, shift and stretch performed via sucessful optimization
+          success  = 0, shift and stretch optimization failed
+          success  = -1, initial x-correlation is below cc_thresh (see above), so shift/stretch optimization was not attempted
     shift: float
-      the optimal shift which was determined
+      the optimal shift which was determined.
+      If cc_thresh is set, and the initial cross-correlation is < cc_thresh,  then this will be just the cross-correlation shift
     stretch: float
-      the optimal stretch which was determined
+      the optimal stretch which was determined.
+      If cc_thresh is set, and the initial cross-correlation is < cc_thresh,  then this will be just be 1.0
     cross_corr: float
       the value of the cross-correlation coefficient at the optimal shift and stretch. This is a number between zero and unity,
       which unity indicating a perfect match between the two spectra.
+      If cc_thresh is set, and the initial cross-correlation is < cc_thresh, this will be just the initial cross-correlation
     shift_init:
       The initial shift determined by maximizing the cross-correlation coefficient without allowing for a stretch.
+      If cc_thresh is set, and the initial cross-correlation is < cc_thresh, this will be just the shift from the initial cross-correlation
     cross_corr_init:
-      The maximum of the initial cross-correlation coefficient determined without allowing for a stretch
+      The maximum of the initial cross-correlation coefficient determined without allowing for a stretch.
+      If cc_thresh is set, and the initial cross-correlation is < cc_thresh, this will be just the initial cross-correlation
     """
 
     nspec = inspec1.size
@@ -268,29 +282,31 @@ def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, percent_ceil = 90.0, shi
     y1 = smooth_and_ceil(inspec1,smooth,percent_ceil)
     y2 = smooth_and_ceil(inspec2,smooth,percent_ceil)
 
-    # Do the cross-correlation first and determine the
+    # Do the cross-correlation first and determine the initial shift
     shift_cc, cc_val = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, debug = debug)
 
-    bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
-    # ToDo can we make tol = 1e-3 and speed things up. Someone needs to test this.
-    result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol = 1e-4,
-                                                   bounds=bounds, disp=False, polish=True)
+    if cc_val < cc_thresh:
+        return -1.0, shift_cc, 1.0, cc_val, shift_cc, cc_val
+    else:
+        bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
+        # ToDo can we make tol = 1e-3 and speed things up. Someone needs to test this.
+        result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol = 1e-4,
+                                                       bounds=bounds, disp=False, polish=True)
 
-    if not result.success:
-        msgs.warn('Fit for shift and stretch did not converge!')
+        if not result.success:
+            msgs.warn('Fit for shift and stretch did not converge!')
 
-    if debug:
-        x1 = np.arange(nspec)
-        inspec2_trans = shift_and_stretch(inspec2, result.x[0], result.x[1])
-        plt.plot(x1,inspec1, 'k-', drawstyle='steps', label ='inspec1')
-        plt.plot(x1,inspec2_trans, 'r-', drawstyle='steps', label = 'inspec2')
-        plt.title('shift= {:5.3f}'.format(result.x[0]) +
-                  ',  stretch = {:7.5f}'.format(result.x[1]) + ', corr = {:5.3f}'.format(-result.fun))
-        plt.legend()
-        plt.show()
+        if debug:
+            x1 = np.arange(nspec)
+            inspec2_trans = shift_and_stretch(inspec2, result.x[0], result.x[1])
+            plt.plot(x1,inspec1, 'k-', drawstyle='steps', label ='inspec1')
+            plt.plot(x1,inspec2_trans, 'r-', drawstyle='steps', label = 'inspec2')
+            plt.title('shift= {:5.3f}'.format(result.x[0]) +
+                      ',  stretch = {:7.5f}'.format(result.x[1]) + ', corr = {:5.3f}'.format(-result.fun))
+            plt.legend()
+            plt.show()
 
-
-    return result.success, result.x[0], result.x[1], -result.fun, shift_cc, cc_val
+        return int(result.success), result.x[0], result.x[1], -result.fun, shift_cc, cc_val
 
 
 
