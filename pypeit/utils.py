@@ -1203,7 +1203,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
 def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = None, maxv = None, bspline_par = None,
                        guesses = None, maxiter=10, inmask=None, sigma=None,invvar=None, lower=5.0, upper=5.0,
                        maxdev=None,maxrej=None, groupdim=None,groupsize=None, groupbadpix=False, grow=0,
-                       sticky=True, use_mad=False):
+                       sticky=True, use_mad=True):
     """
     A robust polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are good values
@@ -1288,9 +1288,9 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
     iIter = 0
     qdone = False
     thismask = np.copy(inmask)
-    while (not qdone) and (iIter <= maxiter):
+    while (not qdone) and (iIter < maxiter):
         if np.sum(thismask) <= order + 1:
-            msgs.warn("More parameters than data points - using unmasked data, fit might be undesirable")
+            msgs.warn("More parameters than data points - fit might be undesirable")
         ct = func_fit(xarray, yarray, function, order, w=weights*thismask,guesses=ct, minv=minv, maxv=maxv, bspline_par=bspline_par)
         ymodel = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, sigma=sigma, invvar=invvar,
@@ -1298,15 +1298,15 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
                                           groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,
                                           use_mad=use_mad,sticky=sticky)
         iIter += 1
-
+    if iIter == maxiter:
+        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
     outmask = np.copy(thismask)
 
     # Final fit
-    w = np.where(outmask == 1)
-    xfit = xarray[w]
-    yfit = yarray[w]
+    xfit = xarray[outmask]
+    yfit = yarray[outmask]
     if weights is not None:
-        wfit = weights[w]
+        wfit = weights[outmask]
     else:
         wfit = None
 
