@@ -719,7 +719,7 @@ class General:
                 dsp_gd[cntr] = self._all_patt_dict[str(slit)]["bdisp"]
                 # JFH stuff
                 fitc = self._all_final_fit[str(slit)]['fitc']
-                xfit = xrng/(self._npix - 1)
+                xfit = xrng
                 fitfunc = self._all_final_fit[str(slit)]['function']
                 fmin, fmax = self._all_final_fit[str(slit)]['fmin'], self._all_final_fit[str(slit)]['fmax']
                 wave_soln = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
@@ -803,7 +803,7 @@ class General:
             sign_good[islit] =  self._all_patt_dict[str(good_slits[islit])]['sign']
             # JFH stuff
             fitc = self._all_final_fit[str(good_slits[islit])]['fitc']
-            xfit = xrng / (self._npix - 1)
+            xfit = xrng
             fitfunc = self._all_final_fit[str(good_slits[islit])]['function']
             fmin, fmax = self._all_final_fit[str(good_slits[islit])]['fmin'], self._all_final_fit[str(good_slits[islit])]['fmax']
             wave_soln = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
@@ -879,7 +879,7 @@ class General:
 
                 # Calculate wavelengths for all of the gsdet detections
                 fitc = self._all_final_fit[str(gs)]['fitc']
-                xfit = gsdet/(self._npix - 1)
+                xfit = gsdet
                 fitfunc = self._all_final_fit[str(gs)]['function']
                 fmin, fmax = self._all_final_fit[str(gs)]['fmin'], self._all_final_fit[str(gs)]['fmax']
                 wvval = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
