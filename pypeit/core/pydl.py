@@ -1865,7 +1865,6 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     if maxdev is not None:
         qbad = np.absolute(diff) > maxdev
         badness += np.absolute(diff) / maxdev * qbad
-
     #
     # Do not consider rejecting points that are already rejected by inmask.
     # Do not consider rejecting points that are already rejected by outmask,
@@ -1963,6 +1962,7 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     #
     # print(badness)
     newmask = badness == 0.0
+
     # print(newmask)
     if grow > 0:
         rejects = newmask == 0
@@ -1981,6 +1981,10 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     qdone = bool(np.all(newmask == outmask))
     # JFH This needs to be a python (rather than a numpy) boolean to avoid painful problems when comparing
     # to python True and False booleans
+    #from IPython import embed
+    #if np.any(outmask == False):
+    #    embed()
+
     outmask = newmask
     return (outmask, qdone)
 
