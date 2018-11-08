@@ -42,7 +42,7 @@ class MasterFrame(object):
 
         # Output path
         if master_dir is None:
-            self.master_dir = self._set_master_dir(redux_path, spectrograph, par)
+            self.master_dir = set_master_dir(redux_path, spectrograph, par)
         else:
             self.master_dir = master_dir
 
@@ -72,9 +72,6 @@ class MasterFrame(object):
     def _masters_load_chk(self):
         # Logic on whether to load the masters frame
         return self.mode == 'reuse' or self.mode == 'force'
-
-    def _set_master_dir(self, redux_path, spectrograph, par):
-        return set_master_dir(redux_path, spectrograph, par)
 
     def master(self, force = False):
         """
@@ -188,6 +185,7 @@ class MasterFrame(object):
         msgs.info("Master {0:s} frame saved successfully:".format(self.frametype) + msgs.newline() + _outfile)
         return
 
+# ToDo Remove this master name function and instead have a master name function in each class.
 # These utility functions are occaisonally needed by other functions which is why they are outside the class.
 def master_name(ftype, setup, mdir):
     """ Default filenames for MasterFrames
@@ -253,3 +251,4 @@ def set_master_dir(redux_path, spectrograph, par):
         master_dir += '_'+spectrograph.spectrograph
     # Return
     return master_dir
+
