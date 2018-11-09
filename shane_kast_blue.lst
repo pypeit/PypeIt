@@ -1,0 +1,27 @@
+|    filename |       frametype | exptime |     target |     decker |                   date | dispname |
+|  b1.fits.gz |             arc |      30 |       Arcs | 0.5 arcsec | 2015-05-20T01:35:58.10 | 600/4310 |
+|  b2.fits.gz | pixelflat,trace |      30 |  Dome Flat | 2.0 arcsec | 2015-05-20T01:47:37.23 | 600/4310 |
+|  b3.fits.gz | pixelflat,trace |      15 |  Dome Flat | 2.0 arcsec | 2015-05-20T01:49:23.29 | 600/4310 |
+|  b4.fits.gz | pixelflat,trace |      15 |  Dome Flat | 2.0 arcsec | 2015-05-20T01:49:55.93 | 600/4310 |
+|  b5.fits.gz | pixelflat,trace |      15 |  Dome Flat | 2.0 arcsec | 2015-05-20T01:50:28.57 | 600/4310 |
+|  b6.fits.gz | pixelflat,trace |      15 |  Dome Flat | 2.0 arcsec | 2015-05-20T01:51:01.10 | 600/4310 |
+|  b7.fits.gz | pixelflat,trace |      15 |  Dome Flat | 2.0 arcsec | 2015-05-20T01:51:33.56 | 600/4310 |
+|  b8.fits.gz | pixelflat,trace |      15 |  Dome Flat | 2.0 arcsec | 2015-05-20T01:52:06.03 | 600/4310 |
+|  b9.fits.gz | pixelflat,trace |      15 |  Dome Flat | 2.0 arcsec | 2015-05-20T01:52:38.46 | 600/4310 |
+| b10.fits.gz | pixelflat,trace |      15 |  Dome Flat | 2.0 arcsec | 2015-05-20T01:53:10.95 | 600/4310 |
+| b11.fits.gz | pixelflat,trace |      15 |  Dome Flat | 2.0 arcsec | 2015-05-20T01:53:43.42 | 600/4310 |
+| b12.fits.gz | pixelflat,trace |      15 |  Dome Flat | 2.0 arcsec | 2015-05-20T01:54:15.96 | 600/4310 |
+| b13.fits.gz | pixelflat,trace |      15 |  Dome Flat | 2.0 arcsec | 2015-05-20T01:54:48.52 | 600/4310 |
+| b14.fits.gz |            bias |       0 |       Bias | 2.0 arcsec | 2015-05-20T03:42:02.91 | 600/4310 |
+| b15.fits.gz |            bias |       0 |       Bias | 2.0 arcsec | 2015-05-20T03:42:20.30 | 600/4310 |
+| b16.fits.gz |            bias |       0 |       Bias | 2.0 arcsec | 2015-05-20T03:42:37.71 | 600/4310 |
+| b17.fits.gz |            bias |       0 |       Bias | 2.0 arcsec | 2015-05-20T03:42:55.13 | 600/4310 |
+| b18.fits.gz |            bias |       0 |       Bias | 2.0 arcsec | 2015-05-20T03:43:12.82 | 600/4310 |
+| b19.fits.gz |            bias |       0 |       Bias | 2.0 arcsec | 2015-05-20T03:43:30.27 | 600/4310 |
+| b20.fits.gz |            bias |       0 |       Bias | 2.0 arcsec | 2015-05-20T03:43:47.75 | 600/4310 |
+| b21.fits.gz |            bias |       0 |       Bias | 2.0 arcsec | 2015-05-20T03:44:05.14 | 600/4310 |
+| b22.fits.gz |            bias |       0 |       Bias | 2.0 arcsec | 2015-05-20T03:44:22.50 | 600/4310 |
+| b23.fits.gz |            bias |       0 |       Bias | 2.0 arcsec | 2015-05-20T03:44:40.04 | 600/4310 |
+| b24.fits.gz |        standard |      30 |   Feige 66 | 2.0 arcsec | 2015-05-20T04:12:46.96 | 600/4310 |
+| b27.fits.gz |         science |    1200 | J1217p3905 | 2.0 arcsec | 2015-05-20T04:57:33.56 | 600/4310 |
+| b28.fits.gz |         science |    1200 | J1217p3905 | 2.0 arcsec | 2015-05-20T05:18:01.47 | 600/4310 |

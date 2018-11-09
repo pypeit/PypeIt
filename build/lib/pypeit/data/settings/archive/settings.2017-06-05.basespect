@@ -1,0 +1,109 @@
+# SIMPLE RULES:
+#
+# 1. If a keyword is specified in science/pixelflat/pinhole/trace/bias/arc frames
+#    it must also appear in the Keyword identifiers list.
+# 2. You must check NAXIS is 2 in ``checks to perform''.
+# 3. If a keyword value contains only some interesting value,
+#    you can split the keyword value using the '%,' notation.
+#    For example, suppose you have the string 10:50:23.45, and
+#    you're interested in the 50 for a match condition, you would
+#    use '%' to indicate you want to split the keyword value, ':'
+#    indicates the delimiter text, '1' indicates you're interested
+#    in the 1st argument (0-indexed), '<60' is an example criteria.
+#    Each of these should be specified in this order, seperated by
+#    commas, so the final string would be:
+#    %,:,1,<60
+# 4. If the text '|' appears in the match condition, the absolute
+#    value will be taken. For example '|<=0.05' means that a given
+#    keyword's value for a calibration frame must be within 0.05 of
+#    a science frame's value, in order to be matched.
+# 5. If a keyword's value contains spaces, replace all spaces with
+#    one underscore.
+# 6. If the header contains two keyword's of the same name, only
+#    the value of the first one will be recognised.
+# 7. Strictly speaking, ARMLSD likes a one-to-one relationship between
+#    a given frame and a frame type. If you would like a one-to-many
+#    relationship (i.e. a given frame can be both a pixel and a blaze
+#    flat, use the canbe option).
+#    
+### Detector properties
+
+### Checks to perform
+
+### Keyword Identifiers
+keyword target 01.OBJECT               # Header keyword for the name given by the observer to a given frame
+keyword idname 01.OBSTYPE              # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+keyword time 01.MJD-OBS                # The time stamp of the observation (i.e. decimal MJD)
+keyword date 01.DATE                   # The UT date of the observation which is used for heliocentric (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+keyword equinox None                   # The equinox to use
+keyword ra 01.RA                       # Right Ascension of the target
+keyword dec 01.DEC                     # Declination of the target
+keyword airmass 01.AIRMASS             # Airmass at start of observation
+keyword naxis0 None                    # Number of pixels along the zeroth axis
+keyword naxis1 None                    # Number of pixels along the first axis
+keyword binning 01.BINNING             # Binning
+keyword exptime 01.EXPTIME             # Exposure time keyword
+keyword filter1 None                   # Filter 1
+keyword filter2 None                   # Filter 2
+keyword hatch None                     # Hatch
+keyword shutopen None                  # Shutter opened
+keyword shutclose None                 # Shutter closed
+keyword decker 01.SLITNAME             # Which decker/slit/mask is being used
+keyword lamps None                     # Lamps being used
+keyword slitwid None                   # Slit Width
+keyword slitlen None                   # Slit Length
+keyword detrot None                    # Detector Rotation angle
+keyword dichroic 01.DICHNAME           # Dichroic name
+keyword dispname 01.GRISNAME           # Grism name
+keyword dispangle None                 # Tilt
+
+### Fits properties
+fits timeunit mjd                   # The unit of keyword+time (s=seconds, m=minutes, h=hours, or any of the astropy Time formats)
+fits calwin  0                      # The window of time in hours to search for calibration frames for a science frame
+fits numhead 1                      # How many headers need to be read in for a given file
+fits headext01 0                    # Extension number of header (one for each headnum, starting with 01)
+fits numlamps 1                     # How many lamps are there listed in the header
+
+### Science frames
+science idname OBJECT               # Header key value of science frame for header keyword keyword+idname
+science canbe None                  # If there are frames that will be science ***in addition to other frame types***, include the other frame types here.
+
+### Standard Star frames
+standard idname OBJECT               # Header key value of science frame for header keyword keyword+idname
+standard number 1                    # Number of standard star frames to use
+standard canbe None                  # If there are frames that will be science ***in addition to other frame types***, include the other frame types here.
+
+### Bias frames
+bias idname DARK                    # Header key value of bias frame for header keyword keyword+idname
+bias number 5                       # Number of bias frames to use
+bias canbe None                     # If there are frames that will be bias ***in addition to other frame types***, include the other frame types here.
+
+### Dark frames
+dark idname DARK                    # Header key value of bias frame for header keyword keyword+idname
+dark number 0                       # Number of bias frames to use
+dark canbe None                     # If there are frames that will be bias ***in addition to other frame types***, include the other frame types here.
+dark check condition1 exptime>0     # Be warned that not all detectors can use 0s
+dark match binning ''             	# Match the shape of standard and science frames
+
+### Pixel Flat frames
+pixelflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+pixelflat number 5                    # Number of flat frames to use
+pixelflat canbe trace                 # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
+pixelflat lscomb False                # Combine a long and short flat
+
+### Pinhole frames
+pinhole idname None                   # Header key value of trace frame for header keyword keyword+idname
+pinhole number 0                      # Number of trace frames to use
+pinhole canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
+
+### Trace frames
+trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+trace number 3                    # Number of flat frames to use
+trace canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
+trace lscomb False                # Combine a long and short flat
+
+### Arc frames
+arc idname OBJECT                   # Header key value of arc frame for header keyword keyword+idname
+arc number 1                        # Number of arc frames to use
+arc canbe None                      # If there are frames that will be arc ***in addition to other frame types***, include the other frame types here.
+

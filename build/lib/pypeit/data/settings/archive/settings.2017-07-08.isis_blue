@@ -1,0 +1,105 @@
+### Mosaic properties
+mosaic ndet 1                         # Number of detectors in the mosaic
+mosaic latitude 26.7636               # Latitude of the telescope
+mosaic longitude +17.8947             # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+mosaic elevation 2396.0               # Elevation of the telescope (in m)
+mosaic minexp 0.0                     # Minimum exposure time (s)
+mosaic reduction ARMLSD               # Which reduction pipeline should be used for this instrument
+mosaic camera ISISb                   # Which reduction pipeline should be used for this instrument
+
+### Detector properties
+det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
+det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
+det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
+det01 darkcurr 0.0                    # Dark current (e-/hour)
+det01 platescale 0.225                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det01 ronoise 5.0                     # Read-out noise (e-)
+det01 gain 1.2                        # Inverse gain (e-/ADU)
+det01 saturation 65535.               # The detector Saturation level
+det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det01 numamplifiers 1                 # Number of amplifiers
+#det01 datasec01 TRIMSEC              # Either the data sections or the header keyword where the valid data sections can be obtained
+#det01 oscansec01 BIASSEC             # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 dataext01 1                     # Extension number of the data
+det01 datasec01 [1:4030,:]            # Either the data sections or the header keyword where the valid data sections can be obtained (Avoids bad region at top)
+det01 oscansec01 [4105:4190,98:483]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 suffix _blue                    # Suffix to be appended to all saved calibration and extraction frames
+
+### Checks to perform  (white space is removed)
+check 02.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 01.DETECTOR EEV12                # Check the CCD name (replace any spaces with underscores)
+check 01.ISIARM Blue arm                # Check the camera
+
+### Keyword Identifiers
+keyword idname 01.IMAGETYP             # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+keyword time 01.MJD-OBS                # The time stamp of the observation (i.e. decimal MJD)
+keyword date 01.DATE-OBS               # The date of the observation (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+keyword naxis0 02.NAXIS2               # Number of pixels along the zeroth axis
+keyword naxis1 02.NAXIS1               # Number of pixels along the first axis
+keyword binning None                   # Binning
+keyword filter1 01.ISIFILTA            # Filter 1
+keyword filter2 01.ISIFILTB            # Filter 2
+keyword decker 01.ISISLITU             # Which decker is being used
+keyword slitwid 01.ISISLITW            # Slit Width
+keyword dichroic 01.ISIDICHR           # Dichroic name
+keyword dispname 01.ISIGRAT            # Grism name
+keyword dispangle 01.CENWAVE           # Disperser angle
+keyword lamps 01.CAGLAMPS              # Lamps being used
+#keyword lampname01 01.CAGLAMPS         # Name of a lamp
+#keyword echangle 01.GRATNG_O          # Echelle angle
+
+### Fits properties
+fits numhead 2                      # How many headers need to be read in for a given file
+fits headext01 0                    # Extension number of header (one for each headnum, starting with 01)
+fits headext02 1                    # Extension number of header (one for each headnum, starting with 01)
+
+### Science frames
+science idname object                  # Header key value of science frame for header keyword keyword+idname
+science check condition1 lamps=Off
+science check condition2 exptime>1     #
+
+### Standard Star frames
+standard idname object               # Header key value of science frame for header keyword keyword+idname
+standard check condition1 lamps=Off
+standard match naxis0 =0             # Match the shape of standard and science frames
+standard match naxis1 =0             # Match the shape of standard and science frames
+
+### Bias/Dark frames
+bias idname zero                    # Header key value of bias frame for header keyword keyword+idname
+bias check condition1 exptime<1     # Required for bias
+bias match naxis0 =0                # Match the shape of bias and science frames
+bias match naxis1 =0                # Match the shape of bias and science frames
+
+### Pixel Flat frames
+pixelflat idname flat                 # Header key value of flat frame for header keyword keyword+idname
+pixelflat check condition1 lamps=W # Lamp on
+pixelflat match naxis0 =0             # Match the shape of flats with science
+pixelflat match naxis1 =0             # Match the shape of flats with science
+pixelflat match decker ''             # Check the same decker as the science frame was used
+pixelflat match dispangle |<=1          # Match the disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
+
+### Pinhole frames
+pinhole check condition1 exptime>999999 # Avoids any pinhole frames
+
+### Dark frames
+dark check condition1 exptime>999999 # Avoids any dark frames
+
+### Trace frames
+trace idname flat                 # Header key value of flat frame for header keyword keyword+idname
+trace number 0                    # Number of flat frames to use
+trace check condition1 lamps=W # Lamp on
+trace match naxis0 =0             # Match the shape of flats with science
+trace match naxis1 =0             # Match the shape of flats with science
+trace match decker ''             # Check the same decker as the science frame was used
+trace match dispangle |<=1          # Match the disperser angle (an uncertainty in the CENWAVE)
+
+### Arc frames
+arc idname arc                      # Header key value of arc frame for header keyword keyword+idname
+arc check condition1 lamps=CuNe+CuAr
+arc check condition2 exptime<120    # Long exposures for these arcs
+arc match naxis0 =0                 # Match the shape of arcs with science
+arc match naxis1 =0                 # Match the shape of arcs with science
+arc match dispangle |<=1              # Match the disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+
+# Make some changes to the arguments and flags
+settings trace dispersion direction 0
