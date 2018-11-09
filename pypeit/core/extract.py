@@ -1458,7 +1458,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         if std_trace is not None:
             msgs.info('Using input STANDARD star trace as crutch for object tracing'.format(threshold))
             x_trace = np.interp(specmid, spec_vec, std_trace)
-            shift = slit_left + xsize*sobjs[iobj].spat_fracpos - x_trace
+            #shift = slit_left + xsize*sobjs[iobj].spat_fracpos - x_trace
+            shift = np.interp(specmid, spec_vec,
+                              slit_left + xsize * sobjs[iobj].spat_fracpos) - x_trace
             sobjs[iobj].trace_spat = std_trace + shift
             sobjs[iobj].trace_spec = spec_vec
         else:    # If no standard is provided shift left slit boundary over to be initial trace
