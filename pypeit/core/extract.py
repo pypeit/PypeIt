@@ -1231,7 +1231,6 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
 
 specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 'science'}
 
-
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
             hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit = 10,  bg_smth = 5.0, pkwdth = 3.0,
             maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (3,3), objmask_nthresh = 2.0,
@@ -2084,15 +2083,14 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None,plate_s
         for iobj in range(nobj_trim):
             for iord in range(norders):
                 ## Showing the trace from objfind
-                ginga.show_trace(viewer, ch, sobjs_final.trace_spat[iobj].T, sobjs_final.idx, color='steelblue')
+                ginga.show_trace(viewer, ch, sobjs_trim.trace_spat[iord].T, sobjs_trim.idx, color='steelblue')
                 ## Showing PCA fits
                 ginga.show_trace(viewer, ch, pca_fits[:,iord, iobj], str(uni_frac[iobj]), color='yellow')
 
-        for spec in sobjs_trim:
+        for spec in sobjs_final:
             color = 'green' if spec.ech_usepca else 'magenta'
-            ## Showing the final flux weighted centroiding from PCA predictions
+            ## Showing the final flux weighted centroiding based on new PCA predictions
             ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
 
-    # ToDo does the sobjs_final is the FINAL object you want to return?
-    # seems the final final flux weighted centroiding from PCA predictions were not assigned to sobjs_final
+
     return sobjs_final,skymask[thismask], objmask[thismask], proc_list
