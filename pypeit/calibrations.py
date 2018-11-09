@@ -343,9 +343,6 @@ class Calibrations(object):
                     self.par['flatfield']['frame']))
             msgs.info('Found user-defined file: {0}'.format(mspixelflat_name))
             self.mspixflatnrm = self.flatField.load_master(mspixelflat_name, exten=self.det)
-            #self.mspixflatnrm, head, _ = masters._load(mspixelflat_name, exten=self.det,frametype=None, force=True)
-            # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
-            #self.msillumflat = np.ones_like(self.mspixflatnrm)
 
         # 3) there is no master or no user supplied flat, generate the flat
         if self.mspixflatnrm is None and len(pixflat_image_files) != 0:
