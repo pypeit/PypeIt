@@ -1466,8 +1466,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         else:    # If no standard is provided shift left slit boundary over to be initial trace
             # ToDO make this the average left and right boundary instead. That would be more robust.
             sobjs[iobj].trace_spat = slit_left  + xsize*sobjs[iobj].spat_fracpos
-            sobjs[iobj].trace_spec = spec_vec
-
+        sobjs[iobj].trace_spec = spec_vec
         sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
         sobjs[iobj].set_idx()
