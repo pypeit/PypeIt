@@ -102,7 +102,7 @@ Other
 
    scripts
    flow
-   api
+   PypeIt API <api/pypeit>
 
 Contents
 ++++++++
