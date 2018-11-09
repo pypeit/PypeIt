@@ -226,18 +226,9 @@ class Calibrations(object):
                                              par=self.par['biasframe'], setup=self.setup,
                                              master_dir=self.master_dir, mode=self.par['masters'],
                                              fitstbl=self.fitstbl, sci_ID=self.sci_ID)
-        # How are we treating biases?
-        # 1) No bias subtraction
-        if self.par['biasframe']['useframe'] is None:
-            msgs.info("Will not perform bias/dark subtraction")
-            self.msbias = None
-        # 2) Use overscan
-        elif self.par['biasframe']['useframe'] == 'overscan':
-            self.msbias = 'overscan'
-        # 3) User wants bias subtractions, use a Master biasframe?
-        elif self.par['biasframe']['useframe'] in ['bias', 'dark']:
-            # Load the MasterFrame if it exists and user requested one to load it
-            self.msbias = self.biasFrame.master()
+
+        # How are we treating biases: 1) No bias, 2) overscan, or 3) use bias subtraction. If use bias is there a master?
+        self.biasFrame.determine_bias_mode()
 
         if self.msbias is None:  # Build it and save it
             self.msbias = self.biasFrame.build_image()

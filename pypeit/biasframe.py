@@ -106,6 +106,16 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         #
         return self.stack
 
-
-
-
+    def determine_bias_mode(self):
+        # How are we treating biases?
+        # 1) No bias subtraction
+        if self.par['useframe'] is None:
+            msgs.info("Will not perform bias/dark subtraction")
+            self.msbias = None
+        # 2) Use overscan
+        elif self.par['useframe'] == 'overscan':
+            self.msbias = 'overscan'
+        # 3) User wants bias subtractions, use a Master biasframe?
+        elif self.par['useframe'] in ['bias', 'dark']:
+            # Load the MasterFrame if it exists and user requested one to load it
+            self.msbias = self.master()
