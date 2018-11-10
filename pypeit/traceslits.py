@@ -948,7 +948,7 @@ class TraceSlits(masterframe.MasterFrame):
         ltu.savejson(outfile, clean_dict, overwrite=True, easy_to_read=True)
         msgs.info("Writing TraceSlit dict to {:s}".format(outfile))
 
-    def load_master(self):
+    def load_master(self, filename, force = False):
         """
         Over-load the load function
 
@@ -956,8 +956,8 @@ class TraceSlits(masterframe.MasterFrame):
         -------
 
         """
-        # Load (externally)
-        fits_dict, ts_dict = load_traceslit_files(self.ms_name)
+        # Load from filename extension. There is a fits and json file, and this routine also does file checking
+        fits_dict, ts_dict = load_traceslit_files(filename)
         # Fail?
         if fits_dict is None:
             return False
@@ -977,7 +977,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Success
         return True
 
-    def master(self):
+    def master_old(self):
         """ Mainly for PYPIT running
 
         Parameters

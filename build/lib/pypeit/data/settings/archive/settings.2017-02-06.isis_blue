@@ -1,0 +1,128 @@
+# SIMPLE RULES:
+#
+# 1. If a keyword is specified in science/pixelflat/pinhole/trace/bias/arc frames
+#    it must also appear in the Keyword identifiers list.
+# 2. You must check NAXIS is 2 in ``checks to perform''.
+# 3. If a keyword value contains only some interesting value,
+#    you can split the keyword value using the '%,' notation.
+#    For example, suppose you have the string 10:50:23.45, and
+#    you're interested in the 50 for a match condition, you would
+#    use '%' to indicate you want to split the keyword value, ':'
+#    indicates the delimiter text, '1' indicates you're interested
+#    in the 1st argument (0-indexed), '<60' is an example criteria.
+#    Each of these should be specified in this order, seperated by
+#    commas, so the final string would be:
+#    %,:,1,<60
+# 4. If the text '|' appears in the match condition, the absolute
+#    value will be taken. For example '|<=0.05' means that a given
+#    keyword's value for a calibration frame must be within 0.05 of
+#    a science frame's value, in order to be matched.
+# 5. If a keyword's value contains spaces, replace all spaces with
+#    one underscore.
+# 6. If the header contains two keyword's of the same name, only
+#    the value of the first one will be recognised.
+# 7. Strictly speaking, ARMLSD likes a one-to-one relationship between
+#    a given frame and a frame type. If you would like a one-to-many
+#    relationship (i.e. a given frame can be both a pixel and a blaze
+#    flat, use the canbe option).
+#    
+### Mosaic properties
+mosaic ndet 1                         # Number of detectors in the mosaic
+mosaic latitude 26.7636               # Latitude of the telescope
+mosaic longitude +17.8947             # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+mosaic elevation 2396.0               # Elevation of the telescope (in m)
+mosaic minexp 0.0                     # Minimum exposure time (s)
+mosaic reduction ARMLSD               # Which reduction pipeline should be used for this instrument
+mosaic camera ISISb                   # Which reduction pipeline should be used for this instrument
+
+### Detector properties
+det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
+det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
+det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
+det01 darkcurr 0.0                    # Dark current (e-/hour)
+det01 ronoise 5.0                     # Read-out noise (e-)
+det01 gain 1.2                        # Inverse gain (e-/ADU)
+det01 saturation 65535.               # The detector Saturation level
+det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det01 numamplifiers 1                 # Number of amplifiers
+#det01 datasec01 TRIMSEC              # Either the data sections or the header keyword where the valid data sections can be obtained
+#det01 oscansec01 BIASSEC             # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 datasec01 [1:4030,:]            # Either the data sections or the header keyword where the valid data sections can be obtained (Avoids bad region at top)
+det01 oscansec01 [4105:4190,98:483]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 suffix _blue                    # Suffix to be appended to all saved calibration and extraction frames
+
+### Checks to perform  (white space is removed)
+check 02.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 01.DETECTOR EEV12                # Check the CCD name (replace any spaces with underscores)
+check 01.ISIARM Blue arm                # Check the camera
+
+### Keyword Identifiers
+keyword idname 01.IMAGETYP             # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+keyword time 01.JD                # The time stamp of the observation (i.e. decimal MJD)
+keyword date 01.DATE-OBS               # The date of the observation (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+keyword naxis0 02.NAXIS2               # Number of pixels along the zeroth axis
+keyword naxis1 02.NAXIS1               # Number of pixels along the first axis
+keyword binning None                   # Binning
+keyword filter1 01.ISIFILTA            # Filter 1
+keyword filter2 01.ISIFILTB            # Filter 2
+keyword decker 01.ISISLITU             # Which decker is being used
+keyword slitwid 01.ISISLITW            # Slit Width
+keyword dichroic 01.ISIDICHR           # Dichroic name
+keyword dispname 01.ISIGRAT            # Grism name
+keyword dispangle 01.CENWAVE           # Disperser angle
+keyword lamps 01.CAGLAMPS              # Lamps being used
+#keyword lampname01 01.CAGLAMPS         # Name of a lamp
+#keyword echangle 01.GRATNG_O          # Echelle angle
+
+### Fits properties
+fits dataext 1                      # Extension number of data
+fits numhead 2                      # How many headers need to be read in for a given file
+fits headext01 0                    # Extension number of header (one for each headnum, starting with 01)
+fits headext02 1                    # Extension number of header (one for each headnum, starting with 01)
+
+### Science frames
+science idname object                  # Header key value of science frame for header keyword keyword+idname
+science check condition5 lamps=Off
+science check condition6 exptime>1     #
+
+### Standard Star frames
+standard idname object               # Header key value of science frame for header keyword keyword+idname
+standard check condition5 lamps=Off
+standard match naxis0 =0             # Match the shape of standard and science frames
+standard match naxis1 =0             # Match the shape of standard and science frames
+
+### Bias/Dark frames
+bias idname zero                    # Header key value of bias frame for header keyword keyword+idname
+bias match naxis0 =0                # Match the shape of bias and science frames
+bias match naxis1 =0                # Match the shape of bias and science frames
+
+### Pixel Flat frames
+pixelflat idname flat                 # Header key value of flat frame for header keyword keyword+idname
+pixelflat check condition5 lamps=W # Lamp on
+pixelflat match naxis0 =0             # Match the shape of flats with science
+pixelflat match naxis1 =0             # Match the shape of flats with science
+pixelflat match dispangle |<=1          # Match the disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
+
+### Pinhole frames
+pinhole check condition99 exptime>999999 # Avoids any pinhole frames
+
+### Trace frames
+trace idname flat                 # Header key value of flat frame for header keyword keyword+idname
+trace check condition5 lamps=W    # Lamp on
+trace match naxis0 =0             # Match the shape of flats with science
+trace match naxis1 =0             # Match the shape of flats with science
+trace match dispangle |<=1          # Match the disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
+
+### Dark frames
+dark check condition99 exptime>999999    # Avoids darks
+
+### Arc frames
+arc idname arc                      # Header key value of arc frame for header keyword keyword+idname
+arc check condition1 exptime<120    # Long exposures for these arcs
+arc check condition5 lamps=CuNe+CuAr
+arc match naxis0 =0                 # Match the shape of arcs with science
+arc match naxis1 =0                 # Match the shape of arcs with science
+arc match dispangle |<=1              # Match the disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+
+# Make some changes to the arguments and flags
+settings trace dispersion direction 0

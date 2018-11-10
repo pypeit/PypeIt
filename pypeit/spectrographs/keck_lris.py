@@ -331,7 +331,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['min_nsig'] = 10.0
-        par['calibrations']['wavelengths']['lowest_nsig'] =10.0
+        par['calibrations']['wavelengths']['lowest_nsig'] = 10.0
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 2
@@ -364,59 +364,6 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         hdr_keys[0]['filter1'] = 'BLUFILT'
         return hdr_keys
 
-    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
-        # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
-        # detector and there is no mechanism in place to create that yet
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_nsigl'] = 30.  # Minimum signififance
-        arcparam['lowest_nsig'] = 10.0      # Min significance for arc lines to be used
-        arcparam['wvmnx'] = [3000., 11000.]  # Guess at wavelength range
-        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3  # Matcing tolerance (pixels)
-        arcparam['func'] = 'legendre'  # Function for fitting
-        arcparam['n_first'] = 2  # Order of polynomial for first fit
-        arcparam['n_final'] = 4  # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2  # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.0  # Number of sigma for rejection (final fit)
-
-
-#    if disperser == '600/4000':
-#            arcparam['n_first']=2 # Too much curvature for 1st order
-#            arcparam['disp']=0.63 # Ang per pixel (unbinned)
-#            arcparam['b1']= 4.54698031e-04
-#            arcparam['b2']= -6.86414978e-09
-#            arcparam['wvmnx'][1] = 6000.
-#            arcparam['wv_cen'] = 4000.
-#            arcparam['min_ampl'] = 1000.0
-#        elif disperser == '400/3400':
-#            pass
-#            arcparam['n_first']=2 # Too much curvature for 1st order
-#            arcparam['disp']=1.02
-#            arcparam['b1']= 2.72694493e-04
-#            arcparam['b2']= -5.30717321e-09
-#            arcparam['wvmnx'][1] = 6000.
-#            arcparam['min_ampl'] = 1000.0
-#        elif disperser == '300/5000':
-#            arcparam['n_first'] = 2
-#            arcparam['wv_cen'] = 4500.
-#            arcparam['disp'] = 1.43
-#            arcparam['min_ampl'] = 1000.0
-#        else:
-#            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
@@ -482,8 +429,12 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['slits']['sigdetect'] = 50.
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','HgI','KrI','XeI']
+        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['min_nsig'] = 10.0
+        par['calibrations']['wavelengths']['lowest_nsig'] =5.0
+
+
 
         return par
 
@@ -543,61 +494,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         return self.bpm_img
 
-    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
-                       msarc_shape=None, binspectral=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        #arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
-        # Should set according to the lamps that were on
-        arcparam['lamps'] = ['ArI','NeI','HgI','KrI','XeI']
-        # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
-        # detector and there is no mechanism in place to create that yet
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['wvmnx'] = [3000., 11000.]  # Guess at wavelength range
-        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3  # Matcing tolerance (pixels)
-        arcparam['func'] = 'legendre'  # Function for fitting
-        arcparam['n_first'] = 2  # Order of polynomial for first fit
-        arcparam['n_final'] = 4  # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2  # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.0  # Number of sigma for rejection (final fit)
-
-
-        '''
-        if disperser == '600/7500':
-            arcparam['n_first']=3 # Too much curvature for 1st order
-            arcparam['disp']=0.80 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-            arcparam['wvmnx'][1] = 11000.
-        elif disperser == '600/10000':
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=0.80 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-            arcparam['wvmnx'][1] = 12000.
-        elif disperser == '400/8500':
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=1.19 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-            arcparam['wvmnx'][1] = 11000.
-            arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
-            arcparam['nsig_rej_final'] = 5.
-        elif disperser == '900/5500':
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=0.53 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-            arcparam['wvmnx'][1] = 7000.
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-        '''
 
 def read_lris(raw_file, det=None, TRIM=False):
     """

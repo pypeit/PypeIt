@@ -7,7 +7,6 @@ import os
 
 
 from pypeit import msgs
-from pypeit.core import masters
 from pypeit import processimages
 from pypeit import masterframe
 from pypeit.par import pypeitpar
@@ -64,8 +63,8 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'bias'
 
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, master_dir=None,
-                 mode=None, fitstbl=None, sci_ID=None):
+    def __init__(self, spectrograph, file_list = [], det=1, par=None, setup=None, master_dir=None,
+                 mode=None):
 
         # Parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
@@ -78,10 +77,6 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # spectrograph even though it really only needs the string name
         masterframe.MasterFrame.__init__(self, self.frametype, setup, mode=mode,
                                          master_dir=master_dir)
-
-        # Parameters unique to this Object
-        self.fitstbl = fitstbl
-        self.sci_ID = sci_ID
 
     def build_image(self, overwrite=False, trim=True):
         """
@@ -99,52 +94,23 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         stack : ndarray
 
         """
-        # Get all of the bias frames for this science frame
-        if self.nfiles == 0:
-            self.file_list = self.fitstbl.find_frame_files(self.frametype, sci_ID=self.sci_ID)
         # Combine
         self.stack = self.process(bias_subtract=None, trim=trim, overwrite=overwrite)
         #
         return self.stack
 
-    def master(self):
-        """
-        Load the master frame from disk, as the settings allow
-        or return the command
-        or return None
-
-        Note that the user-preference currently holds court, e.g.
-          'userframe' = 'overscan' will do an Overscan analysis instead
-          of loading an existing MasterFrame bias image
-
-        Returns
-        -------
-        msframe : ndarray or str or None
-
-        """
-        # (KBW) Not sure this is how it should be treated if loaded is
-        # being deprecated
-
-        # Generate a bias or dark image (or load a pre-made Master by PYPIT)?
+    def determine_bias_mode(self):
+        # How are we treating biases?
+        # 1) No bias subtraction
         if self.par['useframe'] is None:
             msgs.info("Will not perform bias/dark subtraction")
-            return None
-
-        # Simple command?
-        if self.par['useframe'] == 'overscan':
-            return self.par['useframe']
-
-        if self.par['useframe'] in ['bias', 'dark']:
+            self.msbias = None
+        # 2) Use overscan
+        elif self.par['useframe'] == 'overscan':
+            self.msbias = 'overscan'
+        # 3) User wants bias subtractions, use a Master biasframe?
+        elif self.par['useframe'] in ['bias', 'dark']:
             # Load the MasterFrame if it exists and user requested one to load it
-            msframe, header, raw_files = self.load_master_frame()
-            if msframe is None:
-                return None
-        else:
-            # It must be a user-specified file the user wishes to load
-            msframe_name = os.path.join(self.directory_path, self.par['useframe'])
-            msframe, head, _ = masters._core_load(msframe_name, frametype=self.frametype)
+            self.msbias = self.master()
 
-        # Put in
-        self.stack = msframe
-        return msframe.copy()
-
+        return self.msbias

@@ -1,0 +1,17 @@
+# VACUUM
+'ArI':
+  8016.990: {'kast_red': '600/7500'} # bad blend
+'CdI':
+  3253.4622: {'lris_blue': 'all'} # too weak
+  3613.9033: 'all'
+  3615.4837: 'all'
+  3650.5983: 'all'
+'NeI':
+  5813.0179: 'all' # Not there
+'HgI':
+  3132.463: 'all' # Blend
+  3132.752: 'all'
+  3655.883: {'lris_blue': 'all'} # Blend
+'ZnI':
+  3019.24:  {'lris_blue': 'all'} # too weak
+  3346.53:  'all' # Blended with 3345.98
