@@ -182,7 +182,7 @@ class Calibrations(object):
 
         self.arc_file_list = self.fitstbl.find_frame_files('arc', sci_ID=self.sci_ID)
         # Instantiate with everything needed to generate the image (in case we do)
-        self.arcImage = arcimage.ArcImage(self.spectrograph, self.arc_file_list, det=self.det,msbias=self.msbias,
+        self.arcImage = arcimage.ArcImage(self.spectrograph, file_list = self.arc_file_list, det=self.det,msbias=self.msbias,
                                           par=self.par['arcframe'], setup=self.setup,
                                           master_dir=self.master_dir, mode=self.par['masters'])
         

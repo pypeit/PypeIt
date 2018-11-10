@@ -65,6 +65,12 @@ class ProcessImages(object):
             :class:`Spectrograph`.
     """
 
+    # ToDO add a utility function which acts as a wrapper for this class, and simply takes a filename, and returns the
+    # image and the classor something, i.e.
+    #
+    # class = pypeit_proc(filename, biasfile = biasfile, pixflatfile=pixflatfile, illumflatfile=illumflatfile)
+    # or maybe it should return the image and the class?
+
     # Class attribute is unknown.  Will be overwritten by children
     frametype='Unknown'
 

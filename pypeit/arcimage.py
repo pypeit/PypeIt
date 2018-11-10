@@ -58,7 +58,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'arc'
 
-    def __init__(self, spectrograph, file_list, det=1, par=None, setup=None,
+    def __init__(self, spectrograph, file_list =[], det=1, par=None, setup=None,
                  master_dir=None, mode=None, msbias=None):
     
         # Parameters unique to this Object
