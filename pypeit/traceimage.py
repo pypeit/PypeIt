@@ -62,7 +62,7 @@ class TraceImage(processimages.ProcessImages):
     # Frametype is a class attribute
     frametype = 'trace_image'
 
-    def __init__(self, spectrograph, file_list=[], det=1, par=None):
+    def __init__(self, spectrograph, file_list, det=1, par=None):
         self.par = pypeitpar.FrameGroupPar('trace') if par is None else par
         processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
                                              par=self.par['process'])

@@ -63,8 +63,8 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'bias'
 
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, master_dir=None,
-                 mode=None, fitstbl=None, sci_ID=None):
+    def __init__(self, spectrograph, file_list, det=1, par=None, setup=None, master_dir=None,
+                 mode=None):
 
         # Parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
@@ -77,10 +77,6 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # spectrograph even though it really only needs the string name
         masterframe.MasterFrame.__init__(self, self.frametype, setup, mode=mode,
                                          master_dir=master_dir)
-
-        # Parameters unique to this Object
-        self.fitstbl = fitstbl
-        self.sci_ID = sci_ID
 
     def build_image(self, overwrite=False, trim=True):
         """
@@ -98,9 +94,6 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         stack : ndarray
 
         """
-        # Get all of the bias frames for this science frame
-        if self.nfiles == 0:
-            self.file_list = self.fitstbl.find_frame_files(self.frametype, sci_ID=self.sci_ID)
         # Combine
         self.stack = self.process(bias_subtract=None, trim=trim, overwrite=overwrite)
         #

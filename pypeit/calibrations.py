@@ -180,12 +180,11 @@ class Calibrations(object):
             self.msarc = self.calib_dict[self.setup]['arc']
             return self.msarc
 
+        self.arc_file_list = self.fitstbl.find_frame_files('arc', sci_ID=self.sci_ID)
         # Instantiate with everything needed to generate the image (in case we do)
-        self.arcImage = arcimage.ArcImage(self.spectrograph, file_list=[], det=self.det,
+        self.arcImage = arcimage.ArcImage(self.spectrograph, self.arc_file_list, det=self.det,msbias=self.msbias,
                                           par=self.par['arcframe'], setup=self.setup,
-                                          master_dir=self.master_dir, mode=self.par['masters'],
-                                          fitstbl=self.fitstbl, sci_ID=self.sci_ID,
-                                          msbias=self.msbias)
+                                          master_dir=self.master_dir, mode=self.par['masters'])
         
         # Load the MasterFrame (if it exists and is desired)?
         self.msarc = self.arcImage.master()
@@ -221,14 +220,17 @@ class Calibrations(object):
             msgs.info("Reloading the bias from the internal dict")
             return self.msbias
 
+        # JFH
+        self.bias_file_list = self.fitstbl.find_frame_files('bias', sci_ID=self.sci_ID)
+
         # Instantiate
-        self.biasFrame = biasframe.BiasFrame(self.spectrograph, det=self.det,
+        self.biasFrame = biasframe.BiasFrame(self.spectrograph, self.bias_file_list, det=self.det,
                                              par=self.par['biasframe'], setup=self.setup,
-                                             master_dir=self.master_dir, mode=self.par['masters'],
-                                             fitstbl=self.fitstbl, sci_ID=self.sci_ID)
+                                             master_dir=self.master_dir, mode=self.par['masters'])
+
 
         # How are we treating biases: 1) No bias, 2) overscan, or 3) use bias subtraction. If use bias is there a master?
-        self.biasFrame.determine_bias_mode()
+        self.msbias = self.biasFrame.determine_bias_mode()
 
         if self.msbias is None:  # Build it and save it
             self.msbias = self.biasFrame.build_image()
@@ -443,8 +445,7 @@ class Calibrations(object):
         if not self.traceSlits.master():
             # Build the trace image first
             self.trace_image_files = self.fitstbl.find_frame_files('trace', sci_ID=self.sci_ID)
-            self.traceImage = traceimage.TraceImage(self.spectrograph,
-                                           file_list=self.trace_image_files, det=self.det,
+            self.traceImage = traceimage.TraceImage(self.spectrograph,self.trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
             # Load up and get ready
             self.traceSlits.mstrace = self.traceImage.process(bias_subtract=self.msbias,
