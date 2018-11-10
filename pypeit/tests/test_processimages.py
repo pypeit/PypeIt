@@ -34,7 +34,7 @@ def kast_blue_bias_files():
 
 
 def test_instantiate():
-    proc_img = processimages.ProcessImages('shane_kast_blue')
+    proc_img = processimages.ProcessImages('shane_kast_blue',[])
     assert proc_img.nfiles == 0
 
 
