@@ -63,7 +63,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'bias'
 
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph, file_list, det=1, par=None, setup=None, master_dir=None,
+    def __init__(self, spectrograph, file_list = [], det=1, par=None, setup=None, master_dir=None,
                  mode=None):
 
         # Parameters
