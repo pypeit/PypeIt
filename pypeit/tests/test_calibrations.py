@@ -36,6 +36,8 @@ def fitstbl():
     for ii in range(2,5):
         fitstbl['filename'][ii] = 'b{0}.fits.gz'.format(ii)
     fitstbl['filename'][5] = 'b27.fits.gz'
+    from IPython import embed
+    embed()
 
     return fitstbl
 
