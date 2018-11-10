@@ -180,12 +180,11 @@ class Calibrations(object):
             self.msarc = self.calib_dict[self.setup]['arc']
             return self.msarc
 
+        self.arc_file_list = self.fitstbl.find_frame_files('arc', sci_ID=self.sci_ID)
         # Instantiate with everything needed to generate the image (in case we do)
-        self.arcImage = arcimage.ArcImage(self.spectrograph, file_list=[], det=self.det,
+        self.arcImage = arcimage.ArcImage(self.spectrograph, file_list = self.arc_file_list, det=self.det,msbias=self.msbias,
                                           par=self.par['arcframe'], setup=self.setup,
-                                          master_dir=self.master_dir, mode=self.par['masters'],
-                                          fitstbl=self.fitstbl, sci_ID=self.sci_ID,
-                                          msbias=self.msbias)
+                                          master_dir=self.master_dir, mode=self.par['masters'])
         
         # Load the MasterFrame (if it exists and is desired)?
         self.msarc = self.arcImage.master()
@@ -221,23 +220,14 @@ class Calibrations(object):
             msgs.info("Reloading the bias from the internal dict")
             return self.msbias
 
+        self.bias_file_list = self.fitstbl.find_frame_files('bias', sci_ID=self.sci_ID)
         # Instantiate
-        self.biasFrame = biasframe.BiasFrame(self.spectrograph, det=self.det,
+        self.biasFrame = biasframe.BiasFrame(self.spectrograph, file_list = self.bias_file_list, det=self.det,
                                              par=self.par['biasframe'], setup=self.setup,
-                                             master_dir=self.master_dir, mode=self.par['masters'],
-                                             fitstbl=self.fitstbl, sci_ID=self.sci_ID)
-        # How are we treating biases?
-        # 1) No bias subtraction
-        if self.par['biasframe']['useframe'] is None:
-            msgs.info("Will not perform bias/dark subtraction")
-            self.msbias = None
-        # 2) Use overscan
-        elif self.par['biasframe']['useframe'] == 'overscan':
-            self.msbias = 'overscan'
-        # 3) User wants bias subtractions, use a Master biasframe?
-        elif self.par['biasframe']['useframe'] in ['bias', 'dark']:
-            # Load the MasterFrame if it exists and user requested one to load it
-            self.msbias = self.biasFrame.master()
+                                             master_dir=self.master_dir, mode=self.par['masters'])
+
+        # How are we treating biases: 1) No bias, 2) overscan, or 3) use bias subtraction. If use bias is there a master?
+        self.msbias = self.biasFrame.determine_bias_mode()
 
         if self.msbias is None:  # Build it and save it
             self.msbias = self.biasFrame.build_image()
@@ -352,9 +342,6 @@ class Calibrations(object):
                     self.par['flatfield']['frame']))
             msgs.info('Found user-defined file: {0}'.format(mspixelflat_name))
             self.mspixflatnrm = self.flatField.load_master(mspixelflat_name, exten=self.det)
-            #self.mspixflatnrm, head, _ = masters._load(mspixelflat_name, exten=self.det,frametype=None, force=True)
-            # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
-            #self.msillumflat = np.ones_like(self.mspixflatnrm)
 
         # 3) there is no master or no user supplied flat, generate the flat
         if self.mspixflatnrm is None and len(pixflat_image_files) != 0:
@@ -455,8 +442,7 @@ class Calibrations(object):
         if not self.traceSlits.master():
             # Build the trace image first
             self.trace_image_files = self.fitstbl.find_frame_files('trace', sci_ID=self.sci_ID)
-            self.traceImage = traceimage.TraceImage(self.spectrograph,
-                                           file_list=self.trace_image_files, det=self.det,
+            self.traceImage = traceimage.TraceImage(self.spectrograph,self.trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
             # Load up and get ready
             self.traceSlits.mstrace = self.traceImage.process(bias_subtract=self.msbias,
@@ -585,12 +571,9 @@ class Calibrations(object):
                         * self.spectrograph.detector[self.det-1]['nonlinear']
 
         # Instantiate
-        self.waveCalib = wavecalib.WaveCalib(self.msarc, spectrograph=self.spectrograph,
-                                             par=self.par['wavelengths'], det=self.det,
-                                             setup=self.setup, master_dir=self.master_dir,
-                                             mode=self.par['masters'], fitstbl=self.fitstbl,
-                                             sci_ID=self.sci_ID, #maskslits=self.maskslits,
-                                             redux_path=self.redux_path, bpm=self.msbpm)
+        self.waveCalib = wavecalib.WaveCalib(self.msarc, spectrograph=self.spectrograph,det=self.det,
+                                             par=self.par['wavelengths'], setup=self.setup, master_dir=self.master_dir,
+                                             mode=self.par['masters'],redux_path=self.redux_path, bpm=self.msbpm)
         # Load from disk (MasterFrame)?
         self.wv_calib = self.waveCalib.master()
         # Build?

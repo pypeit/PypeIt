@@ -1,0 +1,41 @@
+## This file is designed to set the default parameters for ARMED
+##
+# RUNNING ARMED
+
+# REDUCTION RULES
+reduce calibrate wavelength pixel   # Temporary until a wavelength calibration routine is implemented.
+reduce calibrate refframe barycentric
+reduce flatfield params [0.05]     # Flat field method parameters (PolyScan: [order,numPixels,repeat], bspline: [spacing])
+reduce flatfield 2dpca 0                # Perform a 2D PCA on the blaze models
+reduce flexure perform False
+reduce slitcen useframe pinhole          # How to trace the slit centre (pinhole, trace), you can also specify a master calibrations file if it exists.
+reduce slitprofile perform True
+
+# ARC FRAMES
+arc calibrate lamps [ThAr]    # name of the ions used for the wavelength calibration
+
+# BIAS FRAMES
+
+# TRACE FRAMES (used to trace the slit edges)
+trace slits expand True              # If you trace the slits with a pinhole frame, you should expand the trace edges to the trace frame
+trace slits fracignore 0.6           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
+trace slits pca type order            # Should the PCA be performed using pixel position (pixel) or by spectral order (order). The latter is used for echelle spectroscopy.
+trace slits pca params [4,2,2,1,1,0]        # What order polynomials should be used to fit the principle components
+trace slits polyorder  7             # What is the order of the function that should be used?
+trace slits sigdetect  10.0           # Sigma detection threshold for edge detection
+trace slits tilts method      PCA        # What method should be used to trace the tilt of the slit along an order (PCA, spca, spline, interp, perp, zero)
+trace slits tilts params    [2,1]       # What order polynomials should be used to fit the tilt principle components
+trace slits tilts order  1             # What is the order of the polynomial function to be used for the tilt of an individual arc line
+trace slits tilts disporder  1             # What is the order of the polynomial function to be used to fit the tilts along the dispersion direction
+trace object method PCA        # What method should be used to trace the object (PCA)
+trace object params [1,0]       # What order polynomials should be used to fit the object trace principle components
+
+# PIXEL FLAT FRAMES
+
+# SCIENCE FRAMES
+science extraction maxnumber 1     # Maximum number of objects to extract in a science frame
+
+# PINHOLE FRAMES
+
+# OUTPUT
+

@@ -314,8 +314,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 0.595,
                             ronoise         = 3.1,
-                            datasec         = '[1:2000,10:2058]',
-                            oscansec        = '[1:2000, 2060:2106]',
+                            datasec         = '[29:1970,1:]',
+                            oscansec        = '[2:7, 1:]',
                             suffix          = '_VIS'
                             )]
         self.numhead = 1
@@ -331,12 +331,12 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Adjustments to slit and tilts for VIS
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
-        par['calibrations']['slits']['sigdetect'] = 2.0
-        par['calibrations']['slits']['pcatype'] = 'order'
-        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['sigdetect'] = 8.0
+        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['slits']['polyorder'] = 6
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['number'] = 15
-        par['calibrations']['slits']['fracignore'] = 0.0001
+        par['calibrations']['slits']['number'] = -1
+        par['calibrations']['slits']['fracignore'] = 0.01
 
         par['calibrations']['tilts']['tracethresh'] = [ 20., 100., 100., 100., 100., 100., 100.,
                                                        100., 500., 500., 500., 500., 500., 500.,

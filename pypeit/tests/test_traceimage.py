@@ -31,13 +31,13 @@ def deimos_flat_files():
 @dev_suite_required
 def test_instantiate(deimos_flat_files):
     # Empty
-    traceImage = traceimage.TraceImage('keck_deimos')
+    traceImage = traceimage.TraceImage('keck_deimos',[])
 
 
 @dev_suite_required
 def test_process(deimos_flat_files):
     # Instantiate
-    traceImage = traceimage.TraceImage('keck_deimos', file_list=deimos_flat_files)
+    traceImage = traceimage.TraceImage('keck_deimos', deimos_flat_files)
     # Run
     assert traceImage.nfiles == 2
     mstrace = traceImage.process(bias_subtract='overscan', trim=True)

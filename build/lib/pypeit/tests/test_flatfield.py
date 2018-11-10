@@ -1,0 +1,68 @@
+# Module to run tests on FlatField class
+#   Requires files in Development suite and an Environmental variable
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+# TEST_UNICODE_LITERALS
+
+import os
+
+import pytest
+import glob
+import numpy as np
+
+from astropy.table import Table
+
+from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
+from pypeit import flatfield
+
+from pypeit import debugger
+
+
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files')
+    return os.path.join(data_dir, filename)
+
+
+# TODO: Bring this test back in some way?
+#def test_step_by_step():
+#    if skip_test:
+#        assert True
+#        return
+#    # Masters
+#    spectrograph, TSlits, tilts, datasec_img \
+#                = load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True,
+#                                         datasec=True)
+#    # Instantiate
+#    flatField = flatfield.FlatField(spectrograph, det=1, tilts=tilts,
+#                                    tslits_dict=TSlits.tslits_dict.copy())
+#    # Use mstrace
+#    flatField.mspixelflat = TSlits.mstrace.copy()
+#    # Normalize a slit
+#    slit=0
+#    flatField._prep_tck()
+#    modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit = flatField.slit_profile(slit)
+#    assert np.isclose(iextrap_slit, 0.)
+#    # Apply
+#    word = np.where(flatField.tslits_dict['slitpix'] == slit + 1)
+#    flatField.mspixelflatnrm = flatField.mspixelflat.copy()
+#    flatField.mspixelflatnrm[word] /= nrmvals
+#    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0267346)
+
+
+@dev_suite_required
+def test_run():
+    # Masters
+    spectrograph, TSlits, tilts_dict, datasec_img \
+                = load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True,
+                                         datasec=True)
+    # Instantiate
+    flatField = flatfield.FlatField(spectrograph=spectrograph, det=1, tilts_dict=tilts_dict,
+                                    tslits_dict=TSlits.tslits_dict.copy())
+    # Use mstrace
+    flatField.rawflatimg = TSlits.mstrace.copy()
+    mspixelflatnrm, msillumflat = flatField.run()
+    assert np.isclose(np.median(mspixelflatnrm), 1.0)
+

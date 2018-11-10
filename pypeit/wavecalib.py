@@ -42,10 +42,7 @@ class WaveCalib(masterframe.MasterFrame):
     det : int, optional
       Detector number
     setup : str, optional
-    fitstbl : Table, optional
-      Used for arcparam
-    sci_ID : int, optional
-      Index of the science frame (also for arcparam)
+
     Attributes
     ----------
     frametype : str
@@ -72,7 +69,7 @@ class WaveCalib(masterframe.MasterFrame):
     # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
     # parameters since instantiating without them does nothing. Make them required
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
-                 mode=None, fitstbl=None, sci_ID=None, redux_path=None, bpm = None):
+                 mode=None, redux_path=None, bpm = None):
 
         # Instantiate the spectograph
         self.spectrograph = load_spectrograph(spectrograph)
@@ -89,8 +86,6 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Optional parameters
         self.redux_path = redux_path
-        self.fitstbl = fitstbl
-        self.sci_ID = sci_ID
         self.det = det
         self.setup = setup
         #self.arcparam = arcparam
@@ -192,17 +187,21 @@ class WaveCalib(masterframe.MasterFrame):
         """
         TODO: Deprecate this function? It's only being used by the tests
         User method to calibrate a given spectrum from a chosen slit
+
         Wrapper to arc.simple_calib or arc.calib_with_arclines
+
         Parameters
         ----------
         slit : int
         method : str, optional
           'simple' -- arc.simple_calib
           'arclines' -- arc.calib_with_arclines
+
         Returns
         -------
         iwv_calib : dict
           Solution for that single slit
+
         """
         spec = self.wv_calib[str(slit)]['spec']
         if method == 'simple':
@@ -216,7 +215,9 @@ class WaveCalib(masterframe.MasterFrame):
     def _extract_arcs(self, lordloc, rordloc, slitpix):
         """
         Extract an arc down the center of each slit/order
+
         Wrapper to arc.get_censpec
+
         Parameters
         ----------
         lordloc : ndarray
@@ -224,11 +225,13 @@ class WaveCalib(masterframe.MasterFrame):
         rordloc : ndarray
           Right edges (from TraceSlit)
         slitpix : ndarray
+
         Returns
         -------
         self.arccen
           1D arc spectra from each slit
         self.maskslits
+
         """
         inmask = (self.bpm == 0) if self.bpm is not None else None
         self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,
@@ -242,15 +245,19 @@ class WaveCalib(masterframe.MasterFrame):
     def load_master(self, filename, force = False):
         """
         Load a full (all slit) wv_calib dict
+
         Includes converting the JSON lists of particular items into ndarray
+
         Parameters
         ----------
         filename : str
+
         Returns
         -------
         Fills:
           self.wv_calib
           self.par
+
         """
 
 
@@ -294,13 +301,16 @@ class WaveCalib(masterframe.MasterFrame):
 
     def _make_maskslits(self, nslit):
         """
+
         Parameters
         ----------
         nslit : int
           Number of slits/orders
+
         Returns
         -------
         self.maskslits : ndarray (bool)
+
         """
         # Set mask based on wv_calib
         mask = np.array([True]*nslit)
@@ -315,11 +325,13 @@ class WaveCalib(masterframe.MasterFrame):
     def run(self, lordloc, rordloc, slitpix, nonlinear=None, skip_QA=False):
         """
         Main driver for wavelength calibration
+
         Code flow:
           1. Extract 1D arc spectra down the center of each slit/order
           2. Load the parameters guiding wavelength calibration
           3. Generate the 1D wavelength fits
           4. Generate a mask
+
         Parameters
         ----------
         lordloc : ndarray
@@ -332,10 +344,12 @@ class WaveCalib(masterframe.MasterFrame):
           Would be passed to arc.detect_lines but that routine is
           currently being run in arclines.holy
         skip_QA : bool, optional
+
         Returns
         -------
         self.wv_calib
         self.maskslits
+
         """
         ###############
         # Extract an arc down each slit
@@ -360,14 +374,17 @@ class WaveCalib(masterframe.MasterFrame):
     def show(self, item, slit=None):
         """
         Show one of the class internals
+
         Parameters
         ----------
         item : str
           'spec' -- Show the fitted points and solution;  requires slit
           'fit' -- Show fit QA; requires slit
         slit : int, optional
+
         Returns
         -------
+
         """
         if item == 'spec':
             # spec
@@ -404,11 +421,13 @@ class WaveCalib(masterframe.MasterFrame):
 def load_wv_calib(filename):
     """
     Utility function which enables one to load the wv_calib and parset from a master file one line of code without instantiating the class.
+
     Parameters
     ----------
     filename: str
        Master file name
            slit : int, optional
+
     Returns
     -------
     Fills:
@@ -422,4 +441,5 @@ def load_wv_calib(filename):
     waveCalib = WaveCalib(None)
     wv_calib = waveCalib.load_master(filename)
     return (waveCalib.wv_calib, waveCalib.par)
+
 

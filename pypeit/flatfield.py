@@ -72,7 +72,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
+        processimages.ProcessImages.__init__(self, spectrograph, file_list, det=det,
                                              par=self.par['process'])
 
         # MasterFrames: Specifically pass the ProcessImages-constructed

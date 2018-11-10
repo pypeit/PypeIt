@@ -63,8 +63,8 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'bias'
 
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, master_dir=None,
-                 mode=None, fitstbl=None, sci_ID=None):
+    def __init__(self, spectrograph, file_list = [], det=1, par=None, setup=None, master_dir=None,
+                 mode=None):
 
         # Parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
@@ -77,10 +77,6 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # spectrograph even though it really only needs the string name
         masterframe.MasterFrame.__init__(self, self.frametype, setup, mode=mode,
                                          master_dir=master_dir)
-
-        # Parameters unique to this Object
-        self.fitstbl = fitstbl
-        self.sci_ID = sci_ID
 
     def build_image(self, overwrite=False, trim=True):
         """
@@ -98,14 +94,23 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         stack : ndarray
 
         """
-        # Get all of the bias frames for this science frame
-        if self.nfiles == 0:
-            self.file_list = self.fitstbl.find_frame_files(self.frametype, sci_ID=self.sci_ID)
         # Combine
         self.stack = self.process(bias_subtract=None, trim=trim, overwrite=overwrite)
         #
         return self.stack
 
+    def determine_bias_mode(self):
+        # How are we treating biases?
+        # 1) No bias subtraction
+        if self.par['useframe'] is None:
+            msgs.info("Will not perform bias/dark subtraction")
+            self.msbias = None
+        # 2) Use overscan
+        elif self.par['useframe'] == 'overscan':
+            self.msbias = 'overscan'
+        # 3) User wants bias subtractions, use a Master biasframe?
+        elif self.par['useframe'] in ['bias', 'dark']:
+            # Load the MasterFrame if it exists and user requested one to load it
+            self.msbias = self.master()
 
-
-
+        return self.msbias

@@ -10,10 +10,8 @@ from __future__ import unicode_literals
 import os
 
 import pytest
-import glob
 import numpy as np
 
-from astropy.table import Table
 
 from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
 from pypeit import wavetilts
@@ -37,8 +35,7 @@ def master_dir():
 @dev_suite_required
 def test_step_by_step(master_dir):
     # Masters
-    spectrograph, msarc, TSlits = load_kast_blue_masters(get_spectrograph=True, aimg=True,
-                                                         tslits=True)
+    spectrograph, msarc, TSlits = load_kast_blue_masters(get_spectrograph=True, aimg=True,tslits=True)
     # Instantiate
     setup = 'A_01_aa'
     spectrograph.detector[0]['saturation'] = 60000.
