@@ -222,7 +222,7 @@ class Calibrations(object):
 
         self.bias_file_list = self.fitstbl.find_frame_files('bias', sci_ID=self.sci_ID)
         # Instantiate
-        self.biasFrame = biasframe.BiasFrame(self.spectrograph, self.bias_file_list, det=self.det,
+        self.biasFrame = biasframe.BiasFrame(self.spectrograph, file_list = self.bias_file_list, det=self.det,
                                              par=self.par['biasframe'], setup=self.setup,
                                              master_dir=self.master_dir, mode=self.par['masters'])
 
