@@ -1,0 +1,184 @@
+### Mosaic properties
+mosaic ndet 3                         # Number of detectors in the mosaic
+mosaic latitude 19.82658656           # Latitude of the telescope
+mosaic longitude +155.4722            # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+mosaic elevation 4160.0               # Elevation of the telescope (in m)
+mosaic reduction ARMED                # Which reduction pipeline should be used for this instrument
+mosaic minexp 1.0                     # Minimum exposure time (s)
+mosaic camera HIRES                   # Camera name
+
+### Detector properties
+det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
+det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
+det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
+det01 platescale 0.135                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det01 darkcurr 3.8                    # Dark current (e-/hour)
+det01 saturation 65535.0              # The detector Saturation level
+det01 nonlinear 0.8                   # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det01 numamplifiers 1                 # Number of amplifiers
+det01 gain 1.9                        # Gain (e-/ADU) values for the 2 amplifiers
+det01 ronoise 2.8                     # RN (e-) for the 2 amplifiers
+det01 dataext01 1                     # Extension number of the data
+det01 datasec01 02.DATASEC   #[7:1030,1:2048]       # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained
+det01 oscansec01 [1031:1070,1:2048]   # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
+det01 suffix _blue                    # Suffix to be appended to all saved calibration and extraction frames
+
+det02 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
+det02 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
+det02 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
+det02 platescale 0.135                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det02 darkcurr 4.4                    # Dark current (e-/hour)
+det02 saturation 65535.0              # The detector Saturation level
+det02 nonlinear 0.8                   # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det02 numamplifiers 1                 # Number of amplifiers
+det02 gain 2.2                        # Gain (e-/ADU) values for the 2 amplifiers
+det02 ronoise 3.1                     # RN (e-) for the 2 amplifiers
+det02 dataext01 2                     # Extension number of the data
+det02 datasec01 03.DATASEC   #[7:1032,1:2048]       # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained
+det02 oscansec01 [1033:1070,1:2048]   # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
+det02 suffix _green                   # Suffix to be appended to all saved calibration and extraction frames
+
+det03 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
+det03 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
+det03 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
+det03 platescale 0.135                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det03 darkcurr 2.2                    # Dark current (e-/hour)
+det03 saturation 65535.0              # The detector Saturation level
+det03 nonlinear 0.8                   # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det03 numamplifiers 1                 # Number of amplifiers
+det03 gain 2.2                        # Gain (e-/ADU) values for the 2 amplifiers
+det03 ronoise 3.1                     # RN (e-) for the 2 amplifiers
+det03 dataext01 3                     # Extension number of the data
+det03 datasec01 04.DATASEC  #[7:1030,1:2048]       # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained
+det03 oscansec01 [1031:1070,1:2048]   # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
+det03 suffix _red                     # Suffix to be appended to all saved calibration and extraction frames
+
+### Checks to perform
+check 02.NAXIS 2                      # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 03.NAXIS 2                      # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 04.NAXIS 2                      # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 02.CCDNAME 17-7-1               # Check the CCD name
+check 03.CCDNAME 17-7-6               # Check the CCD name
+check 04.CCDNAME 2-2-1                # Check the CCD name
+
+### Keyword Identifiers
+keyword target 01.OBJECT                # Header keyword for the name given by the observer to a given frame
+keyword idname 01.OBSTYPE               # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+keyword time 01.MJD                     # The time stamp of the observation (i.e. decimal MJD)
+keyword date 01.DATE-OBS                # The date of the observation (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+keyword equinox 01.EQUINOX              # The equinox to use
+keyword ra 01.RA                        # Right Ascension of the target
+keyword dec 01.DEC                      # Declination of the target
+keyword airmass 01.AIRMASS              # Airmass at start of observation
+keyword naxis0 02.NAXIS2                # Number of pixels along the zeroth axis
+keyword naxis1 02.NAXIS1                # Number of pixels along the first axis
+keyword binning 01.BINNING              # Binning
+keyword exptime 01.EXPTIME              # Exposure time keyword
+keyword filter1 01.LFILNAME             # Filter 1
+keyword filter2 01.FIL1NAME             # Filter 2
+keyword hatch 01.HATOPEN                # Hatch
+keyword shutopen 01.SHOPNCNT            # Number of times the shutter was opened
+keyword shutclose 01.SHCLOCNT           # Number of times the shutter was closed
+keyword decker 01.DECKNAME              # Which decker is being used
+keyword lamps 01.LAMPNAME               # Which lamp is being used
+keyword slitwid 01.SLITWID              # Slit Width
+keyword slitlen None                    # Slit Length
+keyword detrot None                     # Detector Rotation angle
+keyword dichroic None                   # Dichroic name
+keyword echangle 01.ECHANGL             # Echelle angle
+keyword dispname 01.XDISPERS            # Cross-disperser name
+keyword dispangle 01.XDANGL             # Cross-disperser angle
+
+### Fits properties
+fits timeunit mjd                     # The unit of keyword+time (s=seconds, m=minutes, h=hours, mjd=MJD, dt=datetime)
+fits calwin 12.0                    # The window of time in hours to search for calibration frames for a science frame
+fits numhead 4                      # How many headers need to be read in for a given file
+fits headext01 0                    # Extension number of header (one for each headnum, starting with 01)
+fits headext02 1                    # Extension number of header (one for each headnum, starting with 01)
+fits headext03 2                    # Extension number of header (one for each headnum, starting with 01)
+fits headext04 3                    # Extension number of header (one for each headnum, starting with 01)
+
+### Science frames
+science check condition1 lamps=none
+science check condition2 exptime>0   # Check that an exposure has been taken
+
+### Standard Star frames
+standard idname None                 # Header key value of science frame for header keyword keyword+idname
+standard number 0                    # Number of standard star frames to use
+standard check condition1 lamps=none
+standard check condition2 exptime>0   # Check that an exposure has been taken
+
+### Bias frames
+bias idname Bias                    # Header key value of flat frame for header keyword keyword+idname
+bias number 0                       # Number of bias frames to use
+bias check condition1 exptime=0     # Check the exposure time is less than 1 second
+bias check condition2 shutopen=0&shutclose=0       # Check the shutter hasn't been opened/closed
+bias match naxis0 =0                # Match the row binning of bias and science frames
+bias match naxis1 =0                # Match the column binning of bias and science frames
+
+### Dark frames
+dark check condition1 exptime>0     # Check the exposure time is less than 1 second
+dark check condition2 shutopen=0&shutclose=0       # Check the shutter hasn't been opened/closed
+dark match naxis0 =0                # Match the row binning of bias and science frames
+dark match naxis1 =0                # Match the column binning of bias and science frames
+
+### Pixel Flat frames
+pixelflat idname IntFlat               # Header key value of flat frame for header keyword keyword+idname
+pixelflat number 5                    # Number of flat frames to use
+pixelflat check condition1 lamps=quartz1|lamps=quartz2
+pixelflat check condition2 decker!=D5   # Check that the decker name is set to Pinhole
+pixelflat match naxis0 =0             # Match the row binning of flats with science
+pixelflat match naxis1 =0             # Match the column binning of flats with science
+pixelflat match decker ''             # Check the same decker as the science frame was used
+pixelflat match dispname ''           # Check the same cross disperser as the science frame was used
+pixelflat match dispangle |<=0.002    # Match the cross-disperser angle
+pixelflat match echangle |<=0.002     # Match the echelle angle
+
+### Pinhole frames
+pinhole idname IntFlat               # Header key value of flat frame for header keyword keyword+idname
+pinhole number 3                    # Number of flat frames to use
+pinhole check condition1 lamps=quartz1|lamps=quartz2
+pinhole check condition2 decker=D5   # Check that the decker name is set to Pinhole
+pinhole match naxis0 =0             # Match the row binning of flats with science
+pinhole match naxis1 =0             # Match the column binning of flats with science
+pinhole match dispname ''           # Check the same cross disperser as the science frame was used
+pinhole match dispangle |<=0.002    # Match the cross-disperser angle
+pinhole match echangle |<=0.002     # Match the echelle angle
+
+### Trace frames
+trace idname IntFlat               # Header key value of flat frame for header keyword keyword+idname
+trace number 5                    # Number of flat frames to use
+trace check condition1 lamps=quartz1|lamps=quartz2
+trace check condition2 decker!=D5   # Check that the decker name is set to Pinhole
+trace match naxis0 =0             # Match the row binning of flats with science
+trace match naxis1 =0             # Match the column binning of flats with science
+trace match decker ''             # Check the same decker as the science frame was used
+trace match dispname ''           # Check the same cross disperser as the science frame was used
+trace match dispangle |<=0.002    # Match the cross-disperser angle
+trace match echangle |<=0.002     # Match the echelle angle
+
+### Arc frames
+arc idname Line                   # Header key value of arc frame for header keyword keyword+idname
+arc number 1                        # Number of arc frames to use
+arc check condition1 lamps=ThAr1|lamps=ThAr2
+arc match naxis0 =0                 # Match the row binning of arcs with science
+arc match naxis1 =0                 # Match the column binning of arcs with science
+arc match decker ''             # Check the same decker as the science frame was used
+arc match dispname ''           # Check the same cross disperser as the science frame was used
+arc match dispangle |<=0.002    # Match the cross-disperser angle
+arc match echangle |<=0.002     # Match the echelle angle
+
+# Make some changes to the arguments and flags
+#settings reduce flatfield 2dpca 4
+settings trace dispersion direction 0
+settings bias useframe overscan
+settings trace slits sigdetect 100.0
+settings trace slits fracignore 0.7
+settings trace slits polyorder  7
+settings trace slits pca extrapolate pos 3
+settings trace slits pca extrapolate neg 3
+settings trace slits pca params [5,2,2,1,0,0,0]
+settings trace slits tilts params [0,2,1]
+settings trace slits tilts disporder 2
+settings trace slits pad 1
+settings trace object params [1,3]

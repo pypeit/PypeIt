@@ -1,0 +1,111 @@
+# Creation Date: 2018-Oct-07
+# Creation Date: 2018-Oct-07
+# Creation Date: 2018-Oct-07
+# Creation Date: 2018-Oct-05
+# Creation Date: 2018-Oct-05
+# Creation Date: 2018-May-03
+# Creation Date: 2018-May-03
+# Creation Date: 2017-Mar-26
+# Creation Date: 2017-Mar-26
+# Creation Date: 2016-Dec-23
+# Creation Date: 2016-Dec-22
+# Creation Date: 2016-Dec-22
+# Creation Date: 2016-Dec-22
+|    ion |       wave | NIST | Instr |     amplitude |                     Source | line_flag |
+| UNKNWN |  4159.9996 |    0 |     2 | 2443.85351562 |         LRISb_600_LRX.hdf5 |        98 |
+| UNKNWN |  4201.1862 |    0 |     2 | 518.866516113 |         LRISb_600_LRX.hdf5 |        98 |
+| UNKNWN |  4348.6421 |    0 |     4 |         198.0 |       kastb_600_PYPIT.json |       162 |
+| UNKNWN |  4416.2442 |    0 |     2 | 599.637329102 |         LRISb_600_LRX.hdf5 |        98 |
+| UNKNWN |  4472.5172 |    0 |     4 |        1945.0 |       kastb_600_PYPIT.json |       162 |
+| UNKNWN |  4664.2668 |    0 |     2 | 558.730041504 |         LRISb_600_LRX.hdf5 |        98 |
+| UNKNWN |  5156.1983 |    0 |     2 | 1139.85400391 |         LRISb_600_LRX.hdf5 |        98 |
+| UNKNWN |  6329.5403 |    0 |     1 |         162.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  6364.1560 |    0 |     1 |       20774.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  6422.0314 |    0 |     1 |         169.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  6440.3180 |    0 |     1 |       16538.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  6457.5062 |    0 |     1 |         139.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  6470.8836 |    0 |     1 |         136.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  6909.0743 |    0 |     1 |         155.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  6939.0094 |    0 |    64 |          49.0 |  GMOS_R400_long_2_fit.json |         1 |
+| UNKNWN |  7026.4035 |    0 |    17 |        4492.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  7051.9819 |    0 |    17 |         300.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  7061.0688 |    0 |    16 |         428.0 |   deimos_830G_b_PYPIT.json |        29 |
+| UNKNWN |  7121.5710 |    0 |    16 |         119.0 |   deimos_830G_b_PYPIT.json |        29 |
+| UNKNWN |  7227.2014 |    0 |    17 |         147.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  7315.1957 |    0 |    64 |          51.0 |  GMOS_R400_long_2_fit.json |         1 |
+| UNKNWN |  7374.1666 |    0 |    16 |         102.0 |   deimos_830G_b_PYPIT.json |        29 |
+| UNKNWN |  7383.1356 |    0 |    64 |        3142.0 |  GMOS_R400_long_2_fit.json |         1 |
+| UNKNWN |  7474.3356 |    0 |    17 |         485.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  7546.1189 |    0 |    16 |        1477.0 |   deimos_830G_b_PYPIT.json |        29 |
+| UNKNWN |  7644.1070 |    0 |    16 |         420.0 |   deimos_830G_b_PYPIT.json |        29 |
+| UNKNWN |  7666.2764 |    0 |     1 |         125.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  7687.2035 |    0 |    17 |        7260.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  7748.9726 |    0 |    16 |         179.0 |   deimos_830G_b_PYPIT.json |        29 |
+| UNKNWN |  7889.5344 |    0 |    16 |         144.0 |   deimos_830G_b_PYPIT.json |        29 |
+| UNKNWN |  7915.6329 |    0 |    16 |         322.0 |   deimos_830G_b_PYPIT.json |        29 |
+| UNKNWN |  7925.9659 |    0 |    64 |         332.0 | GMOS_R400_chip2_8_fit.json |      2049 |
+| UNKNWN |  7930.7411 |    0 |     1 |         286.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  7939.1774 |    0 |    16 |         234.0 |   deimos_830G_b_PYPIT.json |        29 |
+| UNKNWN |  7945.4061 |    0 |    16 |         568.0 |   deimos_830G_b_PYPIT.json |        29 |
+| UNKNWN |  7969.4430 |    0 |    17 |         327.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8011.1040 |    0 |    64 |       18913.0 | GMOS_R400_chip2_8_fit.json |      2049 |
+| UNKNWN |  8090.7249 |    0 |    64 |         531.0 | GMOS_R400_chip2_8_fit.json |      2049 |
+| UNKNWN |  8115.3229 |    0 |     1 |       64394.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8123.3608 |    0 |     1 |       63968.0 |  lrisr_400_8500_PYPIT.json |        31 |
+| UNKNWN |  8138.6484 |    0 |    17 |        1475.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8146.8272 |    0 |    64 |         942.0 | GMOS_R400_chip2_8_fit.json |      2049 |
+| UNKNWN |  8163.1468 |    0 |    64 |         283.0 | GMOS_R400_chip2_8_fit.json |      2049 |
+| UNKNWN |  8173.1559 |    0 |     1 |         193.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8208.2801 |    0 |    17 |         671.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8210.2296 |    0 |    64 |         469.0 | GMOS_R400_chip2_8_fit.json |      2049 |
+| UNKNWN |  8235.5260 |    0 |    64 |          90.0 |  GMOS_R400_long_3_fit.json |         1 |
+| UNKNWN |  8319.4101 |    0 |    64 |        2542.0 | GMOS_R400_chip2_8_fit.json |      2049 |
+| UNKNWN |  8367.7188 |    0 |    17 |         684.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8370.0569 |    0 |     1 |        1063.0 |  lrisr_400_8500_PYPIT.json |        31 |
+| UNKNWN |  8421.0058 |    0 |     1 |        2531.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8465.3161 |    0 |     1 |         524.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8546.6448 |    0 |    17 |         259.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8573.7077 |    0 |    16 |         162.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  8585.3184 |    0 |    16 |         110.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  8593.4537 |    0 |    17 |        3159.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8622.7581 |    0 |    64 |          32.0 |  GMOS_R400_long_3_fit.json |         1 |
+| UNKNWN |  8636.7122 |    0 |    17 |        4500.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8683.0960 |    0 |    17 |        2011.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8699.4453 |    0 |    16 |          87.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  8706.2844 |    0 |    17 |         370.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8741.3855 |    0 |    17 |         489.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8760.6247 |    0 |    16 |         106.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  8764.0819 |    0 |    64 |          68.0 |  GMOS_R400_long_3_fit.json |         1 |
+| UNKNWN |  8766.6654 |    0 |    17 |         175.0 |  lrisr_600_7500_PYPIT.json |        31 |
+| UNKNWN |  8782.9904 |    0 |    16 |        4708.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  8786.1370 |    0 |    16 |        1992.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  8823.0399 |    0 |    17 |       63995.0 |  lrisr_400_8500_PYPIT.json |        31 |
+| UNKNWN |  8856.6397 |    0 |    17 |        6386.0 |  lrisr_400_8500_PYPIT.json |        31 |
+| UNKNWN |  8864.7657 |    0 |    16 |         426.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  8868.1397 |    0 |    16 |        1037.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  8911.2525 |    0 |    16 |         279.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  8921.9735 |    0 |    16 |         551.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  8930.4273 |    0 |    17 |       64017.0 |  lrisr_400_8500_PYPIT.json |        31 |
+| UNKNWN |  8983.5138 |    0 |    16 |         115.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  8990.4954 |    0 |    16 |         229.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  9048.0426 |    0 |    17 |       56374.0 |  lrisr_400_8500_PYPIT.json |        31 |
+| UNKNWN |  9076.7206 |    0 |    64 |          41.0 |  GMOS_R400_long_3_fit.json |         1 |
+| UNKNWN |  9120.9824 |    0 |     1 |       64065.0 |  lrisr_400_8500_PYPIT.json |        31 |
+| UNKNWN |  9151.5966 |    0 |    17 |        2883.0 |  lrisr_400_8500_PYPIT.json |        31 |
+| UNKNWN |  9169.9731 |    0 |    16 |         522.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  9303.7940 |    0 |    17 |        1780.0 |  lrisr_400_8500_PYPIT.json |        31 |
+| UNKNWN |  9316.6048 |    0 |    16 |         130.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  9320.0833 |    0 |    64 |          38.0 |  GMOS_R400_long_3_fit.json |         1 |
+| UNKNWN |  9329.1264 |    0 |    16 |         262.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  9364.6484 |    0 |    16 |          82.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  9377.3536 |    0 |    17 |        2018.0 |  lrisr_400_8500_PYPIT.json |        31 |
+| UNKNWN |  9414.6493 |    0 |    16 |          92.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  9428.0474 |    0 |    16 |         201.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  9447.9382 |    0 |    16 |         142.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  9461.8837 |    0 |    16 |         116.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  9516.2553 |    0 |    17 |        3541.0 |  lrisr_400_8500_PYPIT.json |        31 |
+| UNKNWN |  9550.1037 |    0 |    16 |          90.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  9668.0694 |    0 |    16 |         186.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  9688.0470 |    0 |    16 |         122.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  9720.8357 |    0 |    16 |          98.0 |   deimos_830G_r_PYPIT.json |        29 |
+| UNKNWN |  9859.0534 |    0 |    16 |          95.0 |   deimos_830G_r_PYPIT.json |        29 |

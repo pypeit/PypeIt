@@ -14,7 +14,6 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit.core import flux
 from pypeit.core import load
-from pypeit.core import masters
 from pypeit.core import save
 from pypeit import utils
 from pypeit import masterframe
@@ -162,7 +161,7 @@ class FluxSpec(masterframe.MasterFrame):
 
         # Main outputs
         self.sens_dict = None if self.sens_file is None \
-                            else masters._load(self.sens_file, frametype=self.frametype)[0]
+                            else self.load_master(self.sens_file)
 
         # Attributes
         self.steps = []
@@ -332,10 +331,7 @@ class FluxSpec(masterframe.MasterFrame):
         # Return
         return self.std
 
-    # JFH This should not be called master if it is applying the flux calibration. All the other master methods simply
-    # return the master file whereas this is doing something very different. The control flow of the actual things this
-    # class does should be somewhere else.
-    def master(self, row_fitstbl, clobber=False, save=True):
+    def get_sens_dict(self, row_fitstbl, clobber=False, save=True):
         """
         Load or generate+save the MasterFrame sensitivity function
         The solution is applied to the list of science spectra loaded (if any)
@@ -354,7 +350,7 @@ class FluxSpec(masterframe.MasterFrame):
         self.sensfunc
 
         """
-        self.sens_dict, _, _ = self.load_master_frame()
+        self.sens_dict = self.master()
         # Sensitivity Function
         if (self.sens_dict is None) or clobber:
             if self.std_specobjs is None:
@@ -375,7 +371,7 @@ class FluxSpec(masterframe.MasterFrame):
 
             # Save to master
             if save:
-                self.save_master()
+                self.save_master(self.sens_dict)
 
         # Apply to science
         if len(self.sci_specobjs) > 0:
@@ -383,8 +379,24 @@ class FluxSpec(masterframe.MasterFrame):
         # Return
         return self.sens_dict
 
+    def load_master(self, filename, force=False):
 
-    def save_master(self, outfile=None):
+        msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
+
+        hdu = fits.open(filename)
+        head = hdu[0].header
+        tbl = hdu['SENSFUNC'].data
+        sens_dict = {}
+        sens_dict['wave'] = tbl['WAVE']
+        sens_dict['sensfunc'] = tbl['SENSFUNC']
+        for key in ['wave_min','wave_max','exptime','airmass','std_file','std_ra','std_dec','std_name','cal_file']:
+            try:
+                sens_dict[key] = head[key.upper()]
+            except:
+                pass
+        return sens_dict
+
+    def save_master(self, sens_dict, outfile=None):
         """
         Over-load the save_master() method in MasterFrame to write a JSON file
 
@@ -405,7 +417,31 @@ class FluxSpec(masterframe.MasterFrame):
         # Add steps
         self.sens_dict['steps'] = self.steps
         # Do it
-        masters.save_sensfunc(self.sens_dict, outfile)
+        prihdu = fits.PrimaryHDU()
+        hdus = [prihdu]
+        # Add critical keys from sens_dict to header
+        for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra',
+                    'std_dec', 'std_name', 'cal_file']:
+            try:
+                prihdu.header[key.upper()] = sens_dict[key].value
+            except AttributeError:
+                prihdu.header[key.upper()] = sens_dict[key]
+            except KeyError:
+                pass  # Will not require all of these
+
+        cols = []
+        cols += [fits.Column(array=sens_dict['wave'], name=str('WAVE'), format=sens_dict['wave'].dtype)]
+        cols += [
+            fits.Column(array=sens_dict['sensfunc'], name=str('SENSFUNC'), format=sens_dict['sensfunc'].dtype)]
+        # Finish
+        coldefs = fits.ColDefs(cols)
+        tbhdu = fits.BinTableHDU.from_columns(coldefs)
+        tbhdu.name = 'SENSFUNC'
+        hdus += [tbhdu]
+        # Finish
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto(outfile, overwrite=True)
+
         # Finish
         msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
 

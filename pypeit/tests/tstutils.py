@@ -43,7 +43,7 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
     setup = 'A_01_aa'
     if aimg:
         AImg = arcimage.ArcImage(spectrograph, setup=setup, master_dir=master_dir, mode=mode)
-        msarc, header, _ = AImg.load_master_frame()
+        msarc = AImg.load_master(AImg.ms_name)
         ret.append(msarc)
 
     if tslits:

@@ -14,7 +14,6 @@ from pypeit import masterframe
 from pypeit import ginga
 from pypeit.core import arc
 from pypeit.core import tracewave
-from pypeit.core import masters
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -129,14 +128,14 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Arc
-        msarc_file = masters.core_master_name('arc', setup, mdir)
-        msarc, _, _ = masters._load(msarc_file)
+        msarc_file = masterframe.master_name('arc', setup, mdir)
+        msarc, _, _ = self.load_master(msarc_file)
 
         # Instantiate
         slf = cls(msarc, setup=setup)
 
         # Tilts
-        mstilts_file = masters.core_master_name('tilts', setup, mdir)
+        mstilts_file = masterframe.master_name('tilts', setup, mdir)
         hdul = fits.open(mstilts_file)
         slf.final_tilts = hdul[0].data
         slf.tilts = slf.final_tilts
@@ -362,6 +361,25 @@ class WaveTilts(masterframe.MasterFrame):
         self.tiltsplot, self.ztilto, self.xdat = tracewave.prep_tilts_qa(
             self.msarc, self.all_ttilts[slit], self.tilts, self.all_trcdict[slit]['arcdet'],
             self.pixcen, slit)
+
+    def load_master(self, filename, exten = 0, force = False):
+
+
+        # Does the master file exist?
+        if not os.path.isfile(filename):
+            msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
+            if force:
+                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
+            return None
+        else:
+            msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
+            hdu = fits.open(filename)
+            head0 = hdu[0].header
+            tilts = hdu[0].data
+            head1 = hdu[1].header
+            coeffs = hdu[1].data
+            tilts_dict = {'tilts':tilts,'coeffs':coeffs,'func2D': head1['FUNC2D']} # This is the tilts_dict
+            return tilts_dict #, head0, [filename]
 
     def save_master(self, outfile=None):
         """
