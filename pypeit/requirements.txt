@@ -4,7 +4,7 @@
 # added here, or add them as submodule dependencies in extern/ directory
 #
 # Users
-numpy>=1.14
+numpy>=1.15.4
 scipy>=1.1
 matplotlib>=2.1
 astropy>=2.0.5
