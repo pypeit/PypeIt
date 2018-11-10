@@ -27,6 +27,7 @@ def data_path(filename):
 def fitstbl():
     if os.getenv('PYPEIT_DEV') is None:
         fitstbl = metadata.dummy_fitstbl(directory=data_path(''))
+        fitstbl['filename'][0] = 'b14.fits.gz'
         fitstbl['filename'][1] = 'b1.fits.gz'
         return fitstbl
 
