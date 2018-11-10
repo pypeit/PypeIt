@@ -76,8 +76,6 @@ def test_read_write(kast_blue_bias_files):
 @dev_suite_required
 def test_run_and_master(kast_blue_bias_files):
 
-    from IPython import embed
-    embed()
     root_path = data_path('MF')
     setup = 'A_01_aa'
     # Instantiate
@@ -97,7 +95,7 @@ def test_run_and_master(kast_blue_bias_files):
     assert len(bias_frame2.steps) == 0
 
     # Load (not kept in the Object!)
-    bias_frame3 = biasframe.BiasFrame('shane_kast_blue', None, setup=setup, master_dir=master_dir,mode='reuse')
+    bias_frame3 = biasframe.BiasFrame('shane_kast_blue', setup=setup, master_dir=master_dir,mode='reuse')
     bias3 = bias_frame3.load_master(bias_frame3.ms_name)
     assert bias_frame3.msframe is None
     assert np.array_equal(bias2, bias3)
