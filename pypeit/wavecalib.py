@@ -45,10 +45,6 @@ class WaveCalib(masterframe.MasterFrame):
     det : int, optional
       Detector number
     setup : str, optional
-    fitstbl : Table, optional
-      Used for arcparam
-    sci_ID : int, optional
-      Index of the science frame (also for arcparam)
 
     Attributes
     ----------
@@ -76,7 +72,7 @@ class WaveCalib(masterframe.MasterFrame):
     # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
     # parameters since instantiating without them does nothing. Make them required
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
-                 mode=None, fitstbl=None, sci_ID=None, redux_path=None, bpm = None):
+                 mode=None, redux_path=None, bpm = None):
 
         # Instantiate the spectograph
         self.spectrograph = load_spectrograph(spectrograph)
@@ -93,8 +89,6 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Optional parameters
         self.redux_path = redux_path
-        self.fitstbl = fitstbl
-        self.sci_ID = sci_ID
         self.det = det
         self.setup = setup
         #self.arcparam = arcparam

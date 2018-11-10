@@ -220,14 +220,11 @@ class Calibrations(object):
             msgs.info("Reloading the bias from the internal dict")
             return self.msbias
 
-        # JFH
         self.bias_file_list = self.fitstbl.find_frame_files('bias', sci_ID=self.sci_ID)
-
         # Instantiate
         self.biasFrame = biasframe.BiasFrame(self.spectrograph, self.bias_file_list, det=self.det,
                                              par=self.par['biasframe'], setup=self.setup,
                                              master_dir=self.master_dir, mode=self.par['masters'])
-
 
         # How are we treating biases: 1) No bias, 2) overscan, or 3) use bias subtraction. If use bias is there a master?
         self.msbias = self.biasFrame.determine_bias_mode()
@@ -574,12 +571,9 @@ class Calibrations(object):
                         * self.spectrograph.detector[self.det-1]['nonlinear']
 
         # Instantiate
-        self.waveCalib = wavecalib.WaveCalib(self.msarc, spectrograph=self.spectrograph,
-                                             par=self.par['wavelengths'], det=self.det,
-                                             setup=self.setup, master_dir=self.master_dir,
-                                             mode=self.par['masters'], fitstbl=self.fitstbl,
-                                             sci_ID=self.sci_ID, #maskslits=self.maskslits,
-                                             redux_path=self.redux_path, bpm=self.msbpm)
+        self.waveCalib = wavecalib.WaveCalib(self.msarc, spectrograph=self.spectrograph,det=self.det,
+                                             par=self.par['wavelengths'], setup=self.setup, master_dir=self.master_dir,
+                                             mode=self.par['masters'],redux_path=self.redux_path, bpm=self.msbpm)
         # Load from disk (MasterFrame)?
         self.wv_calib = self.waveCalib.master()
         # Build?
