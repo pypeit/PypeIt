@@ -147,7 +147,7 @@ class ScienceImage(processimages.ProcessImages):
 
         # Start up by instantiating the process images class for reading
         # in the relevant science files
-        processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
+        processimages.ProcessImages.__init__(self, spectrograph, file_list, det=det,
                                              par=self.frame_par['process'])
 
         # Set atrributes for this file and detector using spectrograph class

@@ -68,7 +68,7 @@ class ProcessImages(object):
     # Class attribute is unknown.  Will be overwritten by children
     frametype='Unknown'
 
-    def __init__(self, spectrograph, file_list=[], det=1, par=None):
+    def __init__(self, spectrograph, file_list, det=1, par=None):
 
         # Required parameters
         if not isinstance(file_list, list):

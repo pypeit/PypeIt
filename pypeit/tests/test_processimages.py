@@ -41,7 +41,7 @@ def test_instantiate():
 @dev_suite_required
 def test_load(deimos_flat_files, kast_blue_bias_files):
     # DEIMOS
-    deimos_flats = processimages.ProcessImages('keck_deimos', file_list=deimos_flat_files)
+    deimos_flats = processimages.ProcessImages('keck_deimos', deimos_flat_files)
     # Load
     deimos_flats.load_images()
     # Test
@@ -49,7 +49,7 @@ def test_load(deimos_flat_files, kast_blue_bias_files):
     assert deimos_flats.steps == ['load_images']
 
     # Kast blue
-    kastb_bias = processimages.ProcessImages('shane_kast_blue', file_list=kast_blue_bias_files)
+    kastb_bias = processimages.ProcessImages('shane_kast_blue', kast_blue_bias_files)
     # Load
     kastb_bias.load_images()
     # Check datasec
@@ -59,7 +59,7 @@ def test_load(deimos_flat_files, kast_blue_bias_files):
 @dev_suite_required
 def test_bias_subtract(deimos_flat_files):
     # DEIMOS
-    deimos_flats = processimages.ProcessImages('keck_deimos', file_list=deimos_flat_files)
+    deimos_flats = processimages.ProcessImages('keck_deimos', deimos_flat_files)
     # Load
     deimos_flats.load_images()
     # Bias subtract (and trim)
@@ -72,7 +72,7 @@ def test_bias_subtract(deimos_flat_files):
 @dev_suite_required
 def test_combine(deimos_flat_files):
     # DEIMOS
-    deimos_flats = processimages.ProcessImages('keck_deimos', file_list=deimos_flat_files)
+    deimos_flats = processimages.ProcessImages('keck_deimos', deimos_flat_files)
     # Load
     deimos_flats.load_images()
     # Bias subtracgt
