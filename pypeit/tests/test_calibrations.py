@@ -32,7 +32,6 @@ def fitstbl():
 
     fitstbl = metadata.dummy_fitstbl(directory=os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
                                                            'Shane_Kast_blue', '600_4310_d55'))
-    fitstbl['filename'][0] = 'b14.fits.gz'
     fitstbl['filename'][1] = 'b1.fits.gz'
     for ii in range(2,5):
         fitstbl['filename'][ii] = 'b{0}.fits.gz'.format(ii)
