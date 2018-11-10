@@ -112,3 +112,5 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         elif self.par['useframe'] in ['bias', 'dark']:
             # Load the MasterFrame if it exists and user requested one to load it
             self.msbias = self.master()
+
+        return self.msbias
