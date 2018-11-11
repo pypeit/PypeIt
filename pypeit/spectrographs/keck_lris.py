@@ -334,7 +334,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['lowest_nsig'] = 10.0
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['n_first'] = 2
+        par['calibrations']['wavelengths']['n_first'] = 1
 
 
         return par
