@@ -16,8 +16,8 @@ from pypeit import msgs
 from pypeit.core import arc
 from pypeit import debugger
 
-def arc_lines_from_spec(spec, sigdetect=10.0, fit_frac_fwhm = 1.25, fwhm=4.0, mask_frac_fwhm=1.0,max_frac_fwhm=2.0,
-                        cont_samp=30, niter_cont = 3,nonlinear_counts = 1e10, debug=False):
+def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, mask_frac_fwhm=1.0,max_frac_fwhm=2.0,
+                        cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
     """
     Parameters
     ----------
@@ -31,9 +31,10 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fit_frac_fwhm = 1.25, fwhm=4.0, ma
     """
 
     # Find peaks
-    tampl, tcent, twid, centerr, w, yprep, nsig = arc.detect_lines(spec, sigdetect = sigdetect, fit_frac_fwhm=fit_frac_fwhm,
+    tampl, tcent, twid, centerr, w, yprep, nsig = arc.detect_lines(spec, sigdetect = sigdetect, fwhm=fwhm,
+                                                                   fit_frac_fwhm=fit_frac_fwhm,
                                                                    mask_frac_fwhm=mask_frac_fwhm, max_frac_fwhm=max_frac_fwhm,
-                                                                   cont_samp=cont_samp,niter_cont = 3,
+                                                                   cont_samp=cont_samp,niter_cont = niter_cont,
                                                                    nonlinear_counts = nonlinear_counts, debug=debug)
     all_tcent = tcent[w]
     all_tampl = tampl[w]
