@@ -675,9 +675,9 @@ def score_xcorr(counts, cc_avg, nreid_min = 4, cc_local_thresh = -1.0):
     max_counts = np.max(counts)
     sum_counts = np.sum(counts)
     # Score
-    if (ncnt == 1) and (max_counts >= nmin_match) and (cc_avg > cc_reid_min):
+    if (ncnt == 1) and (max_counts >= nreid_min) and (cc_avg > cc_local_thresh):
         score = 'Perfect'
-    elif (sum_counts/max_counts >= 0.8) and (max_counts >= nmin_match) and (cc_avg > cc_reid_min):
+    elif (sum_counts/max_counts >= 0.8) and (max_counts >= nreid_min) and (cc_avg > cc_local_thresh):
         score = 'Very Good'
     elif sum_counts/max_counts >= 0.65:
         score = 'Good'
