@@ -585,6 +585,112 @@ def curved_quadrangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixto
     return dindex[1:, :], lindex[1:, :], wvcen[1:], disps[1:]
 
 
+def solve_xcorr(detlines, linelist, dindex, lindex, line_cc, patt_dict=None, nreid_min = 4, cc_local_thresh = 0.8):
+    """  Given a starting solution, find the best match for all detlines
+
+    Parameters
+    ----------
+    detlines : ndarray
+      list of detected lines in pixels (sorted, increasing)
+    linelist : ndarray
+      list of lines that should be detected (sorted, increasing)
+    dindex : ndarray
+      Index array of all detlines (pixels) used in each triangle
+    lindex : ndarray
+      Index array of the assigned line (wavelengths)to each index in dindex
+    patt_dict : dict
+      Contains all relevant details of the fit
+
+    Returns
+    -------
+
+    """
+    nlines = detlines.size
+    if patt_dict is None:
+        patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., mask=np.zeros(nlines, dtype=np.bool))
+
+    # Find the best ID of each line
+    detids = np.zeros(nlines)
+    cc_avg = np.zeros(nlines)
+    scores = ['None' for xx in range(nlines)]
+    mask = np.zeros(nlines, dtype=np.bool)
+    ngd_match = 0
+    for dd in range(nlines):
+        # Grab all the instances of this detected line's pixel position index
+        ww = (dindex == dd)
+        if not np.any(ww):
+            continue
+        # Find the unique set of wavelength indices that this detected line has been matched to, and the number of times
+        unq, cnts = np.unique(lindex[ww], return_counts=True)
+        # Quantify the average xcorr for this line for each set of unique wavelength matches
+        cc_per_match = np.zeros(unq.size,dtype=float)
+        for iuniq, unq_val in enumerate(unq):
+            cc_per_match[iuniq] = np.mean((line_cc[ww])[lindex[ww] == unq_val])
+        unq = unq.astype(np.int)
+        # Assign the ID of this line to be wavelength whose index appears the largest number of times
+        detids[dd] = linelist[unq[np.argmax(cnts)]]
+        # Assign the cross-correlation of this line to be the average of when it was matched to this most often occurring wavelength
+        cc_avg[dd] = cc_per_match[np.argmax(cnts)]
+        # Give this ID a score based on the number of occurences of the match to a particular wavelength,
+        # and the average cross-correlation value for each of those wavelength matches
+        scr = score_xcorr(cnts, cc_avg[dd], nreid_min=nreid_min, cc_local_thresh= cc_local_thresh)
+        scores[dd] = scr
+        if scr in ["Perfect", "Very Good", "Good", "OK"]:
+            mask[dd] = True
+            ngd_match += 1
+
+    # Iteratively fit this solution, and ID all lines.
+    if ngd_match > patt_dict['nmatch']:
+        patt_dict['acceptable'] = True
+        patt_dict['mask'] = mask
+        patt_dict['nmatch'] = ngd_match
+        patt_dict['scores'] = scores
+        patt_dict['IDs'] = detids
+        patt_dict['cc_avg'] = cc_avg
+    return
+
+
+def score_xcorr(counts, cc_avg, nreid_min = 4, cc_local_thresh = -1.0):
+    """  Grades for the cross-correlation results
+
+    Parameters
+    ----------
+    counts : ndarray
+      Each element is a counter, representing a wavelength that is attributed to a given detected line.
+      The more times that a wavelength is attributed to a detected line, the higher the counts. The more
+      different wavelengths that are attributed to the same detected line (i.e. not ideal) the longer
+      the counts list will be.
+
+    Optional Parameters
+    -----------
+    nmin_match: int, default = 4
+       Minimum number of slits/solutions that have to have been matched to receive a score of 'Perfect' or 'Very Good'
+
+    Returns
+    -------
+    score : str
+      A string indicating the relative quality of the ID
+    """
+    ncnt = counts.size
+    max_counts = np.max(counts)
+    sum_counts = np.sum(counts)
+    # Score
+    if (ncnt == 1) and (max_counts >= nmin_match) and (cc_avg > cc_reid_min):
+        score = 'Perfect'
+    elif (sum_counts/max_counts >= 0.8) and (max_counts >= nmin_match) and (cc_avg > cc_reid_min):
+        score = 'Very Good'
+    elif sum_counts/max_counts >= 0.65:
+        score = 'Good'
+    elif sum_counts/max_counts >= 0.5:
+        score = 'OK'
+    elif sum_counts/max_counts >= 0.3:
+        score = 'Risky'
+    else:
+        score = 'Ambitious'
+    # Return
+    return score
+
+
 def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
     """  Given a starting solution, find the best match for all detlines
 
