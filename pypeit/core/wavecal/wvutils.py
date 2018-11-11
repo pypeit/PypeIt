@@ -16,8 +16,8 @@ from pypeit import msgs
 from pypeit.core import arc
 from pypeit import debugger
 
-
-def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10, debug=False):
+def arc_lines_from_spec(spec, sigdetect=10.0, fit_frac_fwhm = 1.25, fwhm=4.0, mask_frac_fwhm=1.0,max_frac_fwhm=2.0,
+                        cont_samp=30, niter_cont = 3,nonlinear_counts = 1e10, debug=False):
     """
     Parameters
     ----------
@@ -31,7 +31,9 @@ def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10, debug=Fal
     """
 
     # Find peaks
-    tampl, tcent, twid, centerr, w, yprep, nsig = arc.detect_lines(spec, nfitpix=7, sigdetect = 0.7*min_nsig,
+    tampl, tcent, twid, centerr, w, yprep, nsig = arc.detect_lines(spec, sigdetect = sigdetect, fit_frac_fwhm=fit_frac_fwhm,
+                                                                   mask_frac_fwhm=mask_frac_fwhm, max_frac_fwhm=max_frac_fwhm,
+                                                                   cont_samp=cont_samp,niter_cont = 3,
                                                                    nonlinear_counts = nonlinear_counts, debug=debug)
     all_tcent = tcent[w]
     all_tampl = tampl[w]
@@ -43,7 +45,7 @@ def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10, debug=Fal
     #cut_amp = all_tampl > min_ampl
 
     # Cut on significance
-    cut_sig = all_nsig > min_nsig
+    cut_sig = all_nsig > sigdetect
     cut_tcent = all_tcent[cut_sig]
     icut = np.where(cut_sig)[0]
 
@@ -124,8 +126,8 @@ def smooth_and_ceil(inspec1, smooth, percent_ceil):
     """ Utility routine to smooth and apply a ceiling to spectra """
 
     if percent_ceil is not None:
-        # Find the 20sigma peaks
-        tampl1, tcent1, twid1, centerr1, w1, yprep1, nsig1 = arc.detect_lines(inspec1, nfitpix=7, sigdetect = 10.0)
+        # Find the 10sigma peaks
+        tampl1, tcent1, twid1, centerr1, w1, yprep1, nsig1 = arc.detect_lines(inspec1, sigdetect = 10.0)
         # Find peaks
         ceil1 = np.percentile(tampl1, percent_ceil)
         spec1 = np.fmin(inspec1, ceil1)
@@ -198,7 +200,7 @@ def xcorr_shift(inspec1,inspec2,smooth=5.0,percent_ceil=90.0,debug=False):
     corr = scipy.signal.correlate(y1, y2, mode='full')
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
     corr_norm = corr/corr_denom
-    output = arc.detect_lines(corr_norm, nfitpix=7, sigdetect=5.0, fwhm=20.0, mask_width = 10.0, cont_samp=30, nfind = 1)
+    output = arc.detect_lines(corr_norm, sigdetect=5.0, fit_frac_fwhm=1.25, fwhm=20.0, mask_frac_fwhm=1.0, cont_samp=30, nfind = 1)
     pix_max = output[1]
     corr_max = np.interp(pix_max, np.arange(lags.shape[0]),corr_norm)
     lag_max  = np.interp(pix_max, np.arange(lags.shape[0]),lags)
