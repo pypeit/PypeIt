@@ -638,8 +638,8 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     plt.show()
 
 # ToDO JFH nfitpix should be chosen based on the spectral sampling of the spectroscopic setup
-def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 10.0, cont_samp = 30, nonlinear_counts=1e10, niter_cont = 3,
-                 nfind = None, verbose = False, debug=False):
+def detect_lines(censpec, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_frac_fwhm = 1.0, max_frac_fwhm = 2.5, cont_samp = 30,
+                 nonlinear_counts=1e10, niter_cont = 3,nfind = None, verbose = False, debug=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -651,30 +651,35 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 
 
     Optional Parameters
     -------------------
-    nfitpix: int, default 5
-       Number of pixels that are used in the fits for Gaussian arc line centroiding.
-
     sigdetect: float, default 20.
        sigma threshold above continuum subtracted fluctuations for arc-line detection
 
-    fwhm:  float, default = 10.0
-       fwhm in pixels used for filtering out arc lines that are too wide and not considered in fits.
+    fwhm:  float, default = 4.0
+       Number of pixels per fwhm resolution element.
 
-    mask_width float, default = 10.0
-       width in pixels used for masking peaks in the spectrum when the continuum is being defined. Should be comparable
-       or larger than the FWHM of the arc lines.
+    fit_frac_fwhm: int, default 0.5
+       Number of pixels that are used in the fits for Gaussian arc line centroiding expressed as a fraction of the fwhm parameter
+
+    max_frac_fwhm:  float, default = 2.5
+       maximum width allowed for usable arc lines expressed relative to the fwhm.
+
+    mask_frac_fwhm float, default = 1.0
+       width used for masking peaks in the spectrum when the continuum is being defined. Expressed as a fraction of the fwhm
+       parameter
 
     cont_samp: float, default = 30.0
        The number of samples across the spectrum used for continuum subtraction. Continuum subtraction is done via
-       median filtering, with a width of ngood/nsamp, where ngood is the number of good pixels for estimating the continuum
+       median filtering, with a width of ngood/cont_samp, where ngood is the number of good pixels for estimating the continuum
        (i.e. that don't have peaks).
+
+    niter_cont: int, default = 3
+       Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
+
 
     nonlinear_counts: float, default = 1e10
        Value above which to mask saturated arc lines. This should be nonlinear_counts= nonlinear*saturation according to pypeit parsets.
        Default is 1e10 which is to not mask.
 
-    niter_cont: int, default = 3
-       Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
 
     nfind: int, default = None
        Return only the nfind highest significance lines. The default is None, which means the code will
@@ -722,7 +727,7 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 
     cont_mask = np.ones(detns.size, dtype=bool)
     spec_vec = np.arange(nspec)
     cont_now = np.arange(nspec)
-    mask_sm = np.round(mask_width).astype(int)
+    mask_sm = np.round(mask_frac_fwhm*fwhm).astype(int)
     mask_odd = mask_sm + 1 if mask_sm % 2 == 0 else mask_sm
     for iter in range(niter_cont):
         arc_now = detns - cont_now
@@ -755,13 +760,15 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 
     thresh = med + sigdetect*stddev
     pixt = detect_peaks(arc, mph=thresh, mpd=3.0) #, show=debug)
     # Gaussian fitting appears to work better on the non-continuum subtracted data
+    nfitpix = np.round(fit_frac_fwhm*fwhm).astype(int)
+    fwhm_max = max_frac_fwhm*fwhm
     tampl_fit, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
     #tampl, tcent, twid, centerr = fit_arcspec(xrng, arc_in, pixt, nfitpix)
     tampl_true = np.interp(pixt, xrng, detns)
     tampl = np.interp(pixt, xrng, arc)
     #         width is fine & width > 0.0 & width < FWHM/2.35 &  center positive  &  center on detector
     #        & amplitude not nonlinear
-    good = (np.invert(np.isnan(twid))) & (twid > 0.0) & (twid < fwhm/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & \
+    good = (np.invert(np.isnan(twid))) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & \
            (tampl_true < nonlinear_counts)
     ww = np.where(good)
     # Compute the significance of each line, set the significance of bad lines to be -1
