@@ -292,8 +292,8 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=5.0, percent_ce
         return -1.0, shift_cc, 1.0, cc_val, shift_cc, cc_val
     else:
         bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
-        # ToDo can we make tol = 1e-3 and speed things up. Someone needs to test this.
-        result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol = 1e-4,
+        # ToDo made this parameter = 1e-2 to speed things up but it should be tested
+        result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol = 1e-2,
                                                        bounds=bounds, disp=False, polish=True)
 
         if not result.success:
