@@ -18,8 +18,7 @@ from pypeit.core import qa
 #from pypeit.core import masters
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core.wavecal import autoid
-from pypeit.core.wavecal import waveio
+from pypeit.core import wavecal
 import linetools.utils
 
 
@@ -129,9 +128,9 @@ class WaveCalib(masterframe.MasterFrame):
             #self.par['match_toler'] = 3.
             #self.arcparam['Nstrong'] = 13
 
-            CuI = waveio.load_line_list('CuI', use_ion=True, NIST=True)
-            ArI = waveio.load_line_list('ArI', use_ion=True, NIST=True)
-            ArII = waveio.load_line_list('ArII', use_ion=True, NIST=True)
+            CuI = wavecal.waveio.load_line_list('CuI', use_ion=True, NIST=True)
+            ArI = wavecal.waveio.load_line_list('ArI', use_ion=True, NIST=True)
+            ArII = wavecal.waveio.load_line_list('ArII', use_ion=True, NIST=True)
             llist = vstack([CuI, ArI, ArII])
             self.arcparam['llist'] = llist
 
@@ -151,25 +150,26 @@ class WaveCalib(masterframe.MasterFrame):
                     self.par['wv_cen'] = 8670.
                     self.par['disp'] = 1.524
                     # ToDO remove these hacks and use the parset in semi_brute
-                    best_dict, ifinal_fit = autoid.semi_brute(self.arccen[:, slit],
-                                                              self.par['lamps'], self.par['wv_cen'],
-                                                              self.par['disp'],
-                                                              match_toler=self.par['match_toler'], func=self.par['func'],
-                                                              n_first=self.par['n_first'],sigrej_first=self.par['n_first'],
-                                                              n_final=self.par['n_final'], sigrej_final=self.par['sigrej_final'],
-                                                              min_nsig=self.par['min_nsig'],
-                                                              nonlinear_counts= self.par['nonlinear_counts'])
+                    best_dict, ifinal_fit = wavecal.autoid.semi_brute(self.arccen[:, slit],
+                                                                      self.par['lamps'], self.par['wv_cen'],
+                                                                      (self)['disp'],match_toler=self.par['match_toler'],
+                                                                      func=self.par['func'],n_first=self.par['n_first'],
+                                                                      sigrej_first=self.par['n_first'],
+                                                                      n_final=self.par['n_final'],
+                                                                      sigrej_final=self.par['sigrej_final'],
+                                                                      min_nsig=self.par['min_nsig'],
+                                                                      nonlinear_counts= self.par['nonlinear_counts'])
                     final_fit[str(slit)] = ifinal_fit.copy()
             elif use_method == "basic":
                 final_fit = {}
                 for slit in ok_mask:
                     status, ngd_match, match_idx, scores, ifinal_fit = \
-                        autoid.basic(self.arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
+                        wavecal.autoid.basic(self.arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
                                      nonlinear_counts = self.par['nonlinear_counts'])
                     final_fit[str(slit)] = ifinal_fit.copy()
             else:
                 # Now preferred
-                arcfitter = autoid.General(self.arccen, par = self.par, ok_mask=ok_mask)
+                arcfitter = wavecal.autoid.General(self.arccen, par = self.par, ok_mask=ok_mask)
                 patt_dict, final_fit = arcfitter.get_results()
             self.wv_calib = final_fit
 
@@ -177,7 +177,7 @@ class WaveCalib(masterframe.MasterFrame):
         if not skip_QA:
             for slit in ok_mask:
                 outfile = qa.set_qa_filename(self.setup, 'arc_fit_qa', slit=(slit + 1), out_dir=self.redux_path)
-                arc.arc_fit_qa(self.wv_calib[str(slit)], outfile)
+                wavecal.qa.arc_fit_qa(self.wv_calib[str(slit)], outfile)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
