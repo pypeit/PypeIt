@@ -652,7 +652,8 @@ def detect_lines(censpec, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_
     Optional Parameters
     -------------------
     sigdetect: float, default 20.
-       sigma threshold above continuum subtracted fluctuations for arc-line detection
+       Sigma threshold above fluctuations for arc-line detection. Arcs are continuum subtracted and the fluctuations are
+       computed after continuum subtraction.
 
     fwhm:  float, default = 4.0
        Number of pixels per fwhm resolution element.
