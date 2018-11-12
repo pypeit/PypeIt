@@ -58,19 +58,17 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'arc'
 
-    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None,
-                 master_dir=None, mode=None, fitstbl=None, sci_ID=None, msbias=None):
+    def __init__(self, spectrograph, file_list =[], det=1, par=None, setup=None,
+                 master_dir=None, mode=None, msbias=None):
     
         # Parameters unique to this Object
-        self.fitstbl = fitstbl
-        self.sci_ID = sci_ID
         self.msbias = msbias
 
         # Parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
+        processimages.ProcessImages.__init__(self, spectrograph, file_list, det=det,
                                              par=self.par['process'])
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
@@ -89,8 +87,6 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         """
         # Get list of arc frames for this science frame
         #  unless one was input already
-        if self.nfiles == 0:
-            self.file_list = self.fitstbl.find_frame_files(self.frametype, sci_ID=self.sci_ID)
         # Combine
         self.stack = self.process(bias_subtract=self.msbias, overwrite=overwrite, trim=True)
         #

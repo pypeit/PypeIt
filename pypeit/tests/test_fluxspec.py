@@ -67,9 +67,9 @@ def test_run_from_spec1d(kast_blue_files, master_dir):
     # Write
     FxSpec.write_science(data_path('tmp.fits'))
     # Master
-    FxSpec.save_master()
+    FxSpec.save_master(FxSpec.sens_dict)
     # Load from Master
-    sens_dict, _, _ = FxSpec.load_master_frame(force=True)
+    sens_dict = FxSpec.load_master(FxSpec.ms_name, force=True)
     assert 'FEIGE66' in sens_dict['std_name']
 
 

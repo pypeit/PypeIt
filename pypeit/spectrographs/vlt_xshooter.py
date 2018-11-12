@@ -121,7 +121,6 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         #
         match_criteria['standard']['match'] = {}
         match_criteria['standard']['match']['binning'] = ''
-        match_criteria['standard']['match']['decker'] = ''
         # Bias
         match_criteria['bias']['match'] = {}
         match_criteria['bias']['match']['binning'] = ''
@@ -167,8 +166,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             )]
         self.numhead = 1
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for XSHOOTER NIR reductions.
         """
@@ -181,6 +179,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['tilts']['tracethresh'] = [10,10,10,10,10,10,10,10,10, 10, 10, 20, 20, 20,20,10]
+
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         par['scienceframe']['process']['sigclip'] = 20.0
@@ -215,6 +219,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                        disperser=None, **null_kwargs):
         """
         Setup the arc parameters
+
+        TODO: disperser can't be required because it's never used
 
         Args:
             arcparam: dict
@@ -308,8 +314,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 0.595,
                             ronoise         = 3.1,
-                            datasec         = '[1:2000,10:2058]',
-                            oscansec        = '[1:2000, 2060:2106]',
+                            datasec         = '[29:1970,1:]',
+                            oscansec        = '[2:7, 1:]',
                             suffix          = '_VIS'
                             )]
         self.numhead = 1
@@ -325,12 +331,12 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Adjustments to slit and tilts for VIS
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
-        par['calibrations']['slits']['sigdetect'] = 2.0
-        par['calibrations']['slits']['pcatype'] = 'order'
-        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['sigdetect'] = 8.0
+        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['slits']['polyorder'] = 6
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['number'] = 15
-        par['calibrations']['slits']['fracignore'] = 0.0001
+        par['calibrations']['slits']['number'] = -1
+        par['calibrations']['slits']['fracignore'] = 0.01
 
         par['calibrations']['tilts']['tracethresh'] = [ 20., 100., 100., 100., 100., 100., 100.,
                                                        100., 500., 500., 500., 500., 500., 500.,

@@ -50,13 +50,23 @@ class PypeItMetaData:
             The spectrograph used to collect the data save to each file.
             The class is used to provide the header keyword data to
             include in the table and specify any validation checks.
-
+        par (:obj:`pypeit.par.pypeitpar.PypeItPar`, optional):
+            PypeIt parameters used to set the code behavior.  If not
+            provided, the default parameters specific to the provided
+            spectrograph are used.
         file_list (:obj:`list`, optional):
             The list of files to include in the table.
         data (table-like, optional):
             The data to incude in the table.  The type can be anything
             allowed by the instantiation of
             :class:`astropy.table.Table`.
+        usrdata (:obj:`astropy.table.Table`, optional):
+            A user provided set of data used to supplement or overwrite
+            metadata read from the file headers.  The table must have a
+            `filename` column that is used to match to the metadata
+            table generated within PypeIt.  **Note**: This is ignored if
+            `data` is also provided.  This functionality is only used
+            when building the metadata from the fits files.
         strict (:obj:`bool`, optional):
             Function will fault if :func:`fits.getheader` fails to read
             any of the headers in the provided file list.  Set to False
@@ -68,15 +78,18 @@ class PypeItMetaData:
             The spectrograph used to collect the data save to each file.
             The class is used to provide the header keyword data to
             include in the table and specify any validation checks.
-        par
+        par (:class:`pypeit.par.pypeitpar.PypeItPar`):
+            PypeIt parameters used to set the code behavior.  If not
+            provided, the default parameters specific to the provided
+            spectrograph are used.
         bitmask (:class:`pypeit.core.framematch.FrameTypeBitMask`):
             The bitmask used to set the frame type of each fits file.
         table (:class:`astropy.table.Table`):
             The table with the relevant metadata for each fits file to
             use in the data reduction.
     """
-    def __init__(self, spectrograph, par=None, file_list=None, data=None, strict=True):
-
+    def __init__(self, spectrograph, par=None, file_list=None, data=None, usrdata=None,
+                 strict=True):
         self.spectrograph = load_spectrograph(spectrograph)
         self.par = self.spectrograph.default_pypeit_par() if par is None else par
         if not isinstance(self.par, PypeItPar):
@@ -84,6 +97,8 @@ class PypeItMetaData:
         self.bitmask = framematch.FrameTypeBitMask()
         self.table = table.Table(data if file_list is None 
                                  else self._build(file_list, strict=strict))
+        if usrdata is not None:
+            self.merge(usrdata)
         # Instrument-specific validation of the header metadata. This
         # alters self.table in place!
         self.spectrograph.validate_metadata(self.table)
@@ -234,6 +249,55 @@ class PypeItMetaData:
     def sort(self, col):
         return self.table.sort(col)
 
+    def merge(self, usrdata, match_type=True):
+        """
+        Use the provided table to supplement or overwrite the metadata.
+
+        If the internal table already contains the column in `usrdata`,
+        the function will try to match the data type of the `usrdata`
+        column to the existing data type.  If it can't it will just add
+        the column anyway, with the type in `usrdata`.  You can avoid
+        this step by setting `match_type=False`.
+
+        Args:
+            usrdata (:obj:`astropy.table.Table`):
+                A user provided set of data used to supplement or
+                overwrite metadata read from the file headers.  The
+                table must have a `filename` column that is used to
+                match to the metadata table generated within PypeIt.
+            match_type (:obj:`bool`, optional):
+                Attempt to match the data type in `usrdata` to the type
+                in the internal table.  See above.
+
+        Raises:
+            TypeError: 
+                Raised if `usrdata` is not an `astropy.io.table.Table`
+            KeyError:
+                Raised if `filename` is not a key in the provided table.
+        """
+        # Check the input
+        if not isinstance(usrdata, table.Table):
+            raise TypeError('Must provide an astropy.io.table.Table instance.')
+        if 'filename' not in usrdata.keys():
+            raise KeyError('The user-provided table must have \'filename\' column!')
+
+        # Make sure the data are correctly ordered
+        srt = [np.where(f == self.table['filename'])[0][0] for f in usrdata['filename']]
+
+        # Convert types if possible
+        existing_keys = list(set(self.table.keys()) & set(usrdata.keys()))
+        if len(existing_keys) > 0 and match_type:
+            for key in existing_keys:
+                if self.table[key].dtype.type != usrdata[key].dtype.type:
+                    try:
+                        usrdata[key] = usrdata[key].astype(self.table[key].dtype)
+                    except:
+                        pass
+        
+        # Include the user data in the table
+        for key in usrdata.keys():
+            self.table[key] = usrdata[key][srt]
+
 #    @staticmethod
 #    def get_utc(headarr):
 #        """
@@ -363,7 +427,16 @@ class PypeItMetaData:
             `astropy.table.Table`: Table with two columns, the frame
             type name and bits.
         """
-        t = table.Table({'frametype':self.bitmask.type_names(type_bits), 'framebit':type_bits})
+        # Making Columns to pad string array
+        ftype_colmA = table.Column(self.bitmask.type_names(type_bits), name='frametype')
+        # KLUDGE ME
+        if int(str(ftype_colmA.dtype)[2:]) < 9:
+            ftype_colm = table.Column(self.bitmask.type_names(type_bits), dtype='U9', name='frametype')
+        else:
+            ftype_colm = ftype_colmA
+        fbits_colm = table.Column(type_bits, name='framebit')
+        t = table.Table([ftype_colm, fbits_colm])
+
         if merge:
             self['frametype'] = t['frametype']
             self['framebit'] = t['framebit']
@@ -420,8 +493,12 @@ class PypeItMetaData:
         # Checks
         if 'frametype' in self.keys() or 'framebit' in self.keys():
             msgs.warn('Removing existing frametype and framebit columns.')
+        if 'frametype' in self.keys():
             del self.table['frametype']
+        if 'framebit' in self.keys():
             del self.table['framebit']
+
+        # TODO: This needs to be moved into each Spectrograph
         if useIDname and 'idname' not in self.keys():
             raise ValueError('idname is not set in table; cannot use it for file typing.')
 

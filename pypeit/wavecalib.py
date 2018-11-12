@@ -14,11 +14,14 @@ from astropy.table import vstack
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc
-from pypeit.core import masters
+from pypeit.core import qa
+#from pypeit.core import masters
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import waveio
+import linetools.utils
+
 
 from pypeit import debugger
 
@@ -42,10 +45,6 @@ class WaveCalib(masterframe.MasterFrame):
     det : int, optional
       Detector number
     setup : str, optional
-    fitstbl : Table, optional
-      Used for arcparam
-    sci_ID : int, optional
-      Index of the science frame (also for arcparam)
 
     Attributes
     ----------
@@ -73,7 +72,7 @@ class WaveCalib(masterframe.MasterFrame):
     # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
     # parameters since instantiating without them does nothing. Make them required
     def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
-                 mode=None, fitstbl=None, sci_ID=None, arcparam=None, redux_path=None, bpm = None):
+                 mode=None, redux_path=None, bpm = None):
 
         # Instantiate the spectograph
         self.spectrograph = load_spectrograph(spectrograph)
@@ -90,11 +89,9 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Optional parameters
         self.redux_path = redux_path
-        self.fitstbl = fitstbl
-        self.sci_ID = sci_ID
         self.det = det
         self.setup = setup
-        self.arcparam = arcparam
+        #self.arcparam = arcparam
 
         # Attributes
         # Done by MasterFrame
@@ -131,14 +128,13 @@ class WaveCalib(masterframe.MasterFrame):
         # Obtain calibration for all slits
         if method == 'simple':
             # Should only run this on 1 slit
-            self.arcparam['n_first'] = 2
-            self.arcparam['n_final'] = 3
-            self.arcparam['func'] = 'legendre'
-            self.arcparam['nsig_rej'] = 2.
-            self.arcparam['nsig_rej_final'] = 3.
-            self.arcparam['match_toler'] = 3.
-            self.arcparam['disp_toler'] = 0.1
-            self.arcparam['Nstrong'] = 13
+            #self.par['n_first'] = 2
+            #self.par['n_final'] = 3
+            #self.par['func'] = 'legendre'
+            #self.par['sigrej_first'] = 2.
+            #self.par['sigrej_final'] = 3.
+            #self.par['match_toler'] = 3.
+            #self.arcparam['Nstrong'] = 13
 
             CuI = waveio.load_line_list('CuI', use_ion=True, NIST=True)
             ArI = waveio.load_line_list('ArI', use_ion=True, NIST=True)
@@ -146,7 +142,7 @@ class WaveCalib(masterframe.MasterFrame):
             llist = vstack([CuI, ArI, ArII])
             self.arcparam['llist'] = llist
 
-            self.wv_calib = arc.simple_calib_driver(self.msarc, self.arcparam, self.arccen, ok_mask,
+            self.wv_calib = arc.simple_calib_driver(self.msarc, self.par, self.arccen, ok_mask,
                                                     nfitpix=self.par['nfitpix'],
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
@@ -159,35 +155,36 @@ class WaveCalib(masterframe.MasterFrame):
                 final_fit = {}
                 for slit in ok_mask:
                     # HACKS BY JXP
-                    self.arcparam['wv_cen'] = 8670.
-                    self.arcparam['disp'] = 1.524
+                    self.par['wv_cen'] = 8670.
+                    self.par['disp'] = 1.524
+                    # ToDO remove these hacks and use the parset in semi_brute
                     best_dict, ifinal_fit = autoid.semi_brute(self.arccen[:, slit],
-                                                              self.arcparam['lamps'], self.arcparam['wv_cen'],
-                                                              self.arcparam['disp'],
-                                                              fit_parm=self.arcparam,
+                                                              self.par['lamps'], self.par['wv_cen'],
+                                                              self.par['disp'],
+                                                              match_toler=self.par['match_toler'], func=self.par['func'],
+                                                              n_first=self.par['n_first'],sigrej_first=self.par['n_first'],
+                                                              n_final=self.par['n_final'], sigrej_final=self.par['sigrej_final'],
                                                               min_nsig=self.par['min_nsig'],
-                                                              nonlinear_counts= self.arcparam['nonlinear_counts'])
+                                                              nonlinear_counts= self.par['nonlinear_counts'])
                     final_fit[str(slit)] = ifinal_fit.copy()
             elif use_method == "basic":
                 final_fit = {}
                 for slit in ok_mask:
                     status, ngd_match, match_idx, scores, ifinal_fit = \
-                        autoid.basic(self.arccen[:, slit], self.arcparam['lamps'], self.arcparam['wv_cen'], self.arcparam['disp'], nonlinear_counts = self.arcparam['nonlinear_counts'])
+                        autoid.basic(self.arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
+                                     nonlinear_counts = self.par['nonlinear_counts'])
                     final_fit[str(slit)] = ifinal_fit.copy()
             else:
                 # Now preferred
-                arcfitter = autoid.General(self.arccen, self.arcparam['lamps'], ok_mask=ok_mask,
-                                           fit_parm=self.arcparam, min_nsig=self.par['min_nsig'],
-                                           lowest_nsig=self.par['lowest_nsig'],
-                                           nonlinear_counts=self.arcparam['nonlinear_counts'],
-                                           rms_threshold=self.par['rms_threshold'])
+                arcfitter = autoid.General(self.arccen, par = self.par, ok_mask=ok_mask)
                 patt_dict, final_fit = arcfitter.get_results()
             self.wv_calib = final_fit
 
         # QA
         if not skip_QA:
             for slit in ok_mask:
-                arc.arc_fit_qa(self.setup, self.wv_calib[str(slit)], slit, out_dir=self.redux_path)
+                outfile = qa.set_qa_filename(self.setup, 'arc_fit_qa', slit=(slit + 1), out_dir=self.redux_path)
+                arc.arc_fit_qa(self.wv_calib[str(slit)], outfile)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -215,9 +212,9 @@ class WaveCalib(masterframe.MasterFrame):
         """
         spec = self.wv_calib[str(slit)]['spec']
         if method == 'simple':
-            iwv_calib = arc.simple_calib(self.msarc, self.arcparam, self.arccen[:, slit])
+            iwv_calib = arc.simple_calib(self.msarc, self.par, self.arccen[:, slit])
         elif method == 'arclines':
-            iwv_calib = arc.calib_with_arclines(self.arcparam, spec.reshape((spec.size, 1)))
+            iwv_calib = arc.calib_with_arclines(self.par, spec.reshape((spec.size, 1)))
         else:
             msgs.error("Not an allowed method")
         return iwv_calib
@@ -252,7 +249,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Return
         return self.arccen, self.maskslits
 
-    def load_wv_calib(self, filename):
+    def load_master(self, filename, force = False):
         """
         Load a full (all slit) wv_calib dict
 
@@ -266,45 +263,48 @@ class WaveCalib(masterframe.MasterFrame):
         -------
         Fills:
           self.wv_calib
-          self.arcparam
+          self.par
 
         """
-        self.wv_calib, _, _ =  masters._load(filename, frametype=self.frametype)
-        # Recast a few items as arrays
-        # TODO -- Consider pushing into master
-        for key in self.wv_calib.keys():
-            if key in ['steps', 'arcparam']:  # This isn't really necessary
-                continue
-            for tkey in self.wv_calib[key].keys():
-                if tkey in ['tcent', 'spec', 'xfit', 'yfit', 'xrej']:
-                    self.wv_calib[key][tkey] = np.array(self.wv_calib[key][tkey])
-        # arcparam
-        if 'arcparam' in self.wv_calib.keys():
-            self.arcparam = self.wv_calib['arcparam'].copy()
 
-    def _load_arcparam(self, calibrate_lamps=None):
-        """
-        Load the arc parameters
 
-        Wrapper to arc.setup_param
+        # Does the master file exist?
+        if not os.path.isfile(filename):
+            msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
+            if force:
+                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
+            return None
+        else:
+            msgs.info("Loading Master {0:s} frame:".format(self.frametype) + msgs.newline() + filename)
+            self.wv_calib = linetools.utils.loadjson(filename)
 
-        Parameters
-        ----------
-        calibrate_lamps : str, optional
-           List of lamps used
+            # Recast a few items as arrays
+            for key in self.wv_calib.keys():
+                if key in ['steps', 'par']:  # This isn't really necessary
+                    continue
+                for tkey in self.wv_calib[key].keys():
+                    if tkey in ['tcent', 'spec', 'xfit', 'yfit', 'xrej']:
+                        self.wv_calib[key][tkey] = np.array(self.wv_calib[key][tkey])
+            # parset
+            if 'par' in self.wv_calib.keys():
+                self.par = self.wv_calib['par'].copy()
+            return self.wv_calib
 
-        Returns
-        -------
+    def save_master(self, data, outfile=None, raw_files=None, overwrite=True, extensions=None, names=None):
 
-        """
-        # Setup arc parameters (e.g. linelist)
-        arc_idx = self.fitstbl.find_frames('arc', sci_ID=self.sci_ID, index=True)
-        self.arcparam = arc.setup_param(self.spectrograph, self.msarc.shape, self.fitstbl,
-                                        arc_idx[0], calibrate_lamps=calibrate_lamps)
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        # Return
-        return self.arcparam
+        _outfile = self.ms_name if outfile is None else outfile
+        if os.path.exists(_outfile) and (not overwrite):
+            msgs.warn("This file already exists.  Use overwrite=True to overwrite it")
+            return
+        #
+        msgs.info("Saving master {0:s} frame as:".format(self.frametype) + msgs.newline() + _outfile)
+        # Wavelength fit(s)
+        gddict = linetools.utils.jsonify(data)
+        linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
+        # Finish
+        msgs.info("Master {0:s} frame saved successfully:".format(self.frametype) + msgs.newline() + _outfile)
+
+        return
 
     def _make_maskslits(self, nslit):
         """
@@ -322,7 +322,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Set mask based on wv_calib
         mask = np.array([True]*nslit)
         for key in self.wv_calib.keys():
-            if key in ['steps', 'arcparam']:
+            if key in ['steps', 'par']:
                 continue
             #
             mask[int(key)] = False
@@ -362,24 +362,16 @@ class WaveCalib(masterframe.MasterFrame):
         # Extract an arc down each slit
         _, _ = self._extract_arcs(lordloc, rordloc, slitpix)
 
-        # Load the arcparam, if one was not passed in.
-        if self.arcparam is None:
-            _ = self._load_arcparam()
-        # This call is unfortunate since it requires the fitstable in
-        # the true PYPIT style of bloated overloaded and uncenessary
-        # argument lists.  It is mainly here for backwards compatibility
-        # with old methods for wavelength calibration that have been
-        # superceded by holy grail. Holy grail only requires a linelist
-        # in the arcparam dict, so if the user passes in an arcparam, no
-        # need to run this.
-        # KBW - What's stopping us from fixing this?
+
+        #if self.arcparam is None:
+        #    _ = self._load_arcparam()
 
         # Fill up the calibrations and generate QA
         self.wv_calib = self._build_wv_calib(self.par['method'], skip_QA=skip_QA)
         self.wv_calib['steps'] = self.steps
-        sv_aparam = self.arcparam.copy()
-        sv_aparam.pop('llist')
-        self.wv_calib['arcparam'] = sv_aparam
+        sv_par = self.par.data.copy()
+        #sv_par.pop('llist')
+        self.wv_calib['par'] = sv_par
 
         # Build mask
         self._make_maskslits(lordloc.shape[1])
@@ -431,5 +423,30 @@ class WaveCalib(masterframe.MasterFrame):
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
+
+
+def load_wv_calib(filename):
+    """
+    Utility function which enables one to load the wv_calib and parset from a master file one line of code without instantiating the class.
+
+    Parameters
+    ----------
+    filename: str
+       Master file name
+           slit : int, optional
+
+    Returns
+    -------
+    Fills:
+      wv_calib
+        wv_calib dict
+      par
+        parset
+    """
+
+
+    waveCalib = WaveCalib(None)
+    wv_calib = waveCalib.load_master(filename)
+    return (waveCalib.wv_calib, waveCalib.par)
 
 

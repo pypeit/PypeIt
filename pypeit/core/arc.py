@@ -16,11 +16,10 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit.core import parse
 from pypeit.core import pixels
-from pypeit.core import qa
 from pypeit.core.wavecal import autoid
 from pypeit import debugger
 
-# TODO: This should not be a core algorithm
+# TODO: This routine is now defunct I think.
 def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                 calibrate_lamps=None):
     """ Setup for arc analysis
@@ -48,8 +47,6 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                     wvmnx=[2900.,12000.],# Guess at wavelength range
                     disp_toler=0.1,      # 10% tolerance
                     match_toler=3.,      # Matching tolerance (pixels)
-                    min_nsig=30.,        # Minimum significance
-                    lowest_nsig=10.,      # Lowest significance for weak lines
                     func='legendre',     # Function for fitting
                     n_first=1,           # Order of polynomial for first fit
                     n_final=4,           # Order of polynomial for final fit
@@ -57,12 +54,14 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                     nsig_rej_final=3.0,  # Number of sigma for rejection (final fit)
                     Nstrong=13)          # Number of lines for auto-analysis
 
-    # Instrument/disperser specific
-    disperser = fitstbl['dispname'][arc_idx]
+    # Instrument/disperser specific.  If 'dispname' was not read by the
+    # fits headers because, e.g., it's not available, the spectrograph
+    # instance must be able to setup the arc parameters without it.
     try:
-        binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
-    except KeyError: # JXP -- THIS IS THE SAME KLUDGE AS ELSEWHERE;  NEED A BETTER SOLUTION
-        binspatial, binspectral = 1, 1
+        disperser = fitstbl['dispname'][arc_idx]
+    except:
+        disperser = None
+    binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
 
     # TODO: JFH: Why is the arcparam being modified in place instead of
     # being passed back from the spectrograh class.  This code looks
@@ -322,6 +321,32 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
 
     Examples
     --------
+    >>> from detect_peaks import detect_peaks
+    >>> x = np.random.randn(100)
+    >>> x[60:81] = np.nan
+    >>> # detect all peaks and plot data
+    >>> ind = detect_peaks(x, show=True)
+    >>> print(ind)
+
+    >>> x = np.sin(2*np.pi*5*np.linspace(0, 1, 200)) + np.random.randn(200)/5
+    >>> # set minimum peak height = 0 and minimum peak distance = 20
+    >>> detect_peaks(x, mph=0, mpd=20, show=True)
+
+    >>> x = [0, 1, 0, 2, 0, 3, 0, 2, 0, 1, 0]
+    >>> # set minimum peak distance = 2
+    >>> detect_peaks(x, mpd=2, show=True)
+
+    >>> x = np.sin(2*np.pi*5*np.linspace(0, 1, 200)) + np.random.randn(200)/5
+    >>> # detection of valleys instead of peaks
+    >>> detect_peaks(x, mph=-1.2, mpd=20, valley=True, show=True)
+
+    >>> x = [0, 1, 1, 0, 1, 1, 0]
+    >>> # detect both edges
+    >>> detect_peaks(x, edge='both', show=True)
+
+    >>> x = [-2, 1, -2, 2, 1, 1, 3, 0]
+    >>> # set threshold = 2
+    >>> detect_peaks(x, threshold = 2, show=True)
 
     Version history
     ---------------
@@ -421,8 +446,8 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     plt.show()
 
 # ToDO JFH nfitpix should be chosen based on the spectral sampling of the spectroscopic setup
-def detect_lines(censpec, nfitpix=5, sigdetect=5.0, FWHM = 10.0, cont_samp = 30,
-                 nonlinear_counts=1e10, niter_cont = 3, debug=False):
+def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 10.0, cont_samp = 30, nonlinear_counts=1e10, niter_cont = 3,
+                 nfind = None, verbose = False, debug=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -434,14 +459,23 @@ def detect_lines(censpec, nfitpix=5, sigdetect=5.0, FWHM = 10.0, cont_samp = 30,
 
     Optional Parameters
     -------------------
-    sigdetect: float, default 5.
+    nfitpix: int, default 5
+       Number of pixels that are used in the fits for Gaussian arc line centroiding.
+
+    sigdetect: float, default 20.
        sigma threshold above continuum subtracted fluctuations for arc-line detection
 
-    FWHM:  float, default = 10.0
-       FWHM in pixels used for filtering out arc lines that are too wide and not considered in fits.
+    fwhm:  float, default = 10.0
+       fwhm in pixels used for filtering out arc lines that are too wide and not considered in fits.
+
+    mask_width float, default = 10.0
+       width in pixels used for masking peaks in the spectrum when the continuum is being defined. Should be comparable
+       or larger than the FWHM of the arc lines.
 
     cont_samp: float, default = 30.0
-       Median filtering window in spectral pixesl for continuum subtraction.
+       The number of samples across the spectrum used for continuum subtraction. Continuum subtraction is done via
+       median filtering, with a width of ngood/nsamp, where ngood is the number of good pixels for estimating the continuum
+       (i.e. that don't have peaks).
 
     nonlinear_counts: float, default = 1e10
        Value above which to mask saturated arc lines. This should be nonlinear_counts= nonlinear*saturation according to pypeit parsets.
@@ -449,6 +483,13 @@ def detect_lines(censpec, nfitpix=5, sigdetect=5.0, FWHM = 10.0, cont_samp = 30,
 
     niter_cont: int, default = 3
        Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
+
+    nfind: int, default = None
+       Return only the nfind highest significance lines. The default is None, which means the code will
+       return all the lines above the significance threshold.
+
+    verbose: bool, default = False
+       Output more stuff to the screen.
 
     debug: boolean, default = False
        Make plots showing results of peak finding and final arc lines that are used.
@@ -475,7 +516,8 @@ def detect_lines(censpec, nfitpix=5, sigdetect=5.0, FWHM = 10.0, cont_samp = 30,
     # debug = True
 
     # Detect the location of the arc lines
-    msgs.info("Detecting lines...isolating the strongest, nonsaturated lines")
+    if verbose:
+        msgs.info("Detecting lines...isolating the strongest, nonsaturated lines")
 
     if len(censpec.shape) == 3:
         detns = censpec[:, 0].flatten()
@@ -484,50 +526,41 @@ def detect_lines(censpec, nfitpix=5, sigdetect=5.0, FWHM = 10.0, cont_samp = 30,
     detns = detns.astype(np.float)
     xrng = np.arange(detns.size, dtype=np.float)
 
-    #detns_smth = gaussian_filter(detns, 1.0)
-    #if debug:
-        #import pdb
-        #pdb.set_trace()
-        #plt.plot(xrng, detns, 'k-', drawstyle='steps')
-        #plt.plot(xrng, detns_smth, 'r-', drawstyle='steps')
-        #plt.show()
-
-    #detns = detns_smth
-    # Find all significant detections
-    # JFH Old peak finding
-    #pixt_old = np.where((detns > 0.0) &  # (detns < slf._nonlinear[det-1]) &
-    #                (detns > np.roll(detns, 1)) & (detns >= np.roll(detns, -1)) &
-    #                (np.roll(detns, 1) > np.roll(detns, 2)) & (np.roll(detns, -1) > np.roll(detns, -2)) &#)[0]
-    #                (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3))&#)[0]
-    #                (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)))[0]# & # )[0]
-#   #                 (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
-
     nspec = detns.size
     cont_mask = np.ones(detns.size, dtype=bool)
     spec_vec = np.arange(nspec)
     cont_now = np.arange(nspec)
-    mask_sm = np.round(FWHM/2.0).astype(int)
+    mask_sm = np.round(mask_width).astype(int)
     mask_odd = mask_sm + 1 if mask_sm % 2 == 0 else mask_sm
     for iter in range(niter_cont):
         arc_now = detns - cont_now
         (mean, med, stddev) = sigma_clipped_stats(arc_now[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
-        thresh = med + sigdetect*stddev
+        # be very liberal in determining threshold for continuum determination
+        thresh = med + 2.0*stddev
         pixt_now = detect_peaks(arc_now, mph = thresh, mpd = 3.0)
         # mask out the peaks we find for the next continuum iteration
         cont_mask_fine = np.ones_like(cont_now)
         cont_mask_fine[pixt_now] = 0.0
+        # cont_mask is the mask for defining the continuum regions: True is good,  False is bad
         cont_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999)
         # If more than half the spectrum is getting masked than short circuit this masking
-        if np.sum(cont_mask) < nspec//2:
-            msgs.warn('Too many pixels  masked in arc continuum definiton. Not masking....')
+        frac_mask = np.sum(~cont_mask)/float(nspec)
+        if (frac_mask > 0.67):
+            msgs.warn('Too many pixels masked in arc continuum definiton: frac_mask = {:5.3f}'.format(frac_mask) + ' . Not masking....')
             cont_mask = np.ones_like(cont_mask)
         ngood = np.sum(cont_mask)
         samp_width = np.ceil(ngood/cont_samp).astype(int)
         cont_med = utils.fast_running_median(detns[cont_mask], samp_width)
         cont_now = np.interp(spec_vec,spec_vec[cont_mask],cont_med)
 
+    #msgs.info('Detected {:d} lines in the arc spectrum.'.format(len(w[0])))
     # Final peak detection
+
+    # TODO ADD an option here to not continuum subtract at all
+
     arc = detns - cont_now
+    (mean, med, stddev) = sigma_clipped_stats(arc_now[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
+    thresh = med + sigdetect*stddev
     pixt = detect_peaks(arc, mph=thresh, mpd=3.0) #, show=debug)
     # Gaussian fitting appears to work better on the non-continuum subtracted data
     tampl_fit, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
@@ -536,11 +569,27 @@ def detect_lines(censpec, nfitpix=5, sigdetect=5.0, FWHM = 10.0, cont_samp = 30,
     tampl = np.interp(pixt, xrng, arc)
     #         width is fine & width > 0.0 & width < FWHM/2.35 &  center positive  &  center on detector
     #        & amplitude not nonlinear
-    good = (np.invert(np.isnan(twid))) & (twid > 0.0) & (twid < FWHM/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & \
+    good = (np.invert(np.isnan(twid))) & (twid > 0.0) & (twid < fwhm/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & \
            (tampl_true < nonlinear_counts)
     ww = np.where(good)
     # Compute the significance of each line, set the significance of bad lines to be -1
     nsig = (tampl - med)/stddev
+
+    # If the user requested the nfind most significant peaks have been requested, then grab and return only these lines
+    if nfind is not None:
+        if nfind > len(nsig):
+            msgs.warn('Requested nfind = {:}'.format(nfind) + ' peaks but only npeak = {:}'.format(len(tampl)) +
+                      ' were found. Returning all the peaks found.')
+        else:
+            ikeep = (nsig.argsort()[::-1])[0:nfind]
+            tampl_true = tampl_true[ikeep]
+            tampl = tampl[ikeep]
+            tcent = tcent[ikeep]
+            twid = twid[ikeep]
+            centerr = centerr[ikeep]
+            ww = np.where(good[ikeep])
+            nsig = nsig[ikeep]
+            good = good[ikeep]
 
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan
@@ -558,7 +607,7 @@ def detect_lines(censpec, nfitpix=5, sigdetect=5.0, FWHM = 10.0, cont_samp = 30,
         plt.legend()
         plt.show()
 
-    return tampl, tcent, twid, centerr, ww, arc, nsig
+    return tampl_true, tcent, twid, centerr, ww, arc, nsig
 
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
@@ -969,7 +1018,7 @@ def saturation_mask(a, satlevel):
     return mask.astype(int)
 
 
-def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None, out_dir=None):
+def arc_fit_qa(fit, outfile, ids_only=False, title=None):
     """
     QA for Arc spectrum
 
@@ -992,10 +1041,10 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None, out_d
     plt.rcParams['font.family']= 'times new roman'
 
     # Grab the named of the method
-    method = inspect.stack()[0][3]
+    #method = inspect.stack()[0][3]
     # Outfil
-    if outfile is None:
-        outfile = qa.set_qa_filename(setup, method, slit=slit, out_dir=out_dir)
+    #if outfile is None:
+    #    outfile = qa.set_qa_filename(setup, method, slit=(slit + 1), out_dir=out_dir)
     #
     arc_spec = fit['spec']
 

@@ -1,0 +1,456 @@
+[31;01m/Users/joe/python/PypeIt/doc/cookbook.rst:3: WARNING: Title overline too short.
+
+==============
+PypeIt Cookbook
+==============[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/cookbook.rst:84: WARNING: Enumerated list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/flexure.rst:1: WARNING: malformed hyperlink target.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/flexure.rst:36: WARNING: Enumerated list ends without a blank line; unexpected unindent.[39;49;00m
+[31m/Users/joe/python/PypeIt/doc/flexure.rst:102: WARNING: Malformed table.
+Column span alignment problem in table line 9.
+
+================================   ===========
+Filename                           Description
+================================   ===========
+paranal_sky.fits                   Description to come
+sky_LRISb_400.fits                 Mauna Kea sky observed with LRISb and the 400/3400 grism
+sky_LRISb_600.fits                 Mauna Kea sky observed with LRISb and the 600/4000 grism [Default for lris_blue]
+sky_kastb_600.fits                 Mt. Hamilton sky observed with Kastb and the 600 grism [Default for kast_blue]
+sky_LRISr_600_7500_5460_7950.fits  Description to come
+=================================  ===========[39;49;00m
+[31m/Users/joe/python/PypeIt/doc/fluxing.rst:136: WARNING: Unexpected indentation.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/fluxing.rst:137: WARNING: Literal block ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/heliocorr.rst:1: WARNING: malformed hyperlink target.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/index.rst:7: WARNING: Title underline too short.
+
+Welcome to PypeIt's documentation!
+=================================[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/index.rst:32: WARNING: toctree contains reference to nonexisting document 'setups'[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/inst_settings.rst:53: WARNING: Inline substitution_reference start-string without end-string.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/inst_settings.rst:57: WARNING: Inline substitution_reference start-string without end-string.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/inst_settings.rst:71: WARNING: Inline substitution_reference start-string without end-string.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/installing.rst:3: WARNING: Title overline too short.
+
+****************
+Installing PypeIt
+****************[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/installing.rst:5: WARNING: Duplicate explicit target name: "here".[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/installing.rst:160: WARNING: Title underline too short.
+
+Installing PypeIt
+================[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/installing.rst:160: WARNING: Title underline too short.
+
+Installing PypeIt
+================[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/installing.rst:190: WARNING: Title underline too short.
+
+1. Ensure run_pypeit works
+-------------------------[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/installing.rst:199: WARNING: Title underline too short.
+
+2. Run the PypeIt unit tests
+---------------------------[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/installing.rst:199: WARNING: Title underline too short.
+
+2. Run the PypeIt unit tests
+---------------------------[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/installing.rst:231: WARNING: Inline substitution_reference start-string without end-string.[39;49;00m
+[31m/Users/joe/python/PypeIt/doc/instruments.rst:17: WARNING: Malformed table.
+Text in column margin in table line 2.
+
+=============== =========   ===================================
+PypeIt Name      Telescope   Instrument
+=============== =========   ===================================
+shane_kast_blue Lick 3m     Kast dual spectrometer; blue camera
+shane_kast_red  Lick 3m     Kast dual spectrometer; red camera
+keck_lris_blue  Keck        LRIS spectrometer; blue camera
+keck_lris_red   Keck        LRIS spectrometer; red camera
+keck_deimos     Keck        DEIMOS spectrometer;  830G only so far
+wht_isis_blue   WHT         ISIS spectrometer; blue camera?
+tnb_dolores     TNG         DOLORES (LRS) spectrograph; LR-R
+=============== =========   ===================================[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/masters.rst:63: WARNING: Title underline too short.
+
+PypeIt file
+----------[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/masters.rst:63: WARNING: Title underline too short.
+
+PypeIt file
+----------[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/masters.rst:78: WARNING: Enumerated list ends without a blank line; unexpected unindent.[39;49;00m
+/Users/joe/python/PypeIt/doc/masters.rst:96: WARNING: Title level inconsistent:
+
+Reduce dict
+-----------
+[31;01m/Users/joe/python/PypeIt/doc/modules.rst:2: WARNING: Title underline too short.
+
+pypeit
+=====[39;49;00m
+[31m/Users/joe/python/PypeIt/doc/out_redux.rst:15: WARNING: Malformed table.
+Text in column margin in table line 4.
+
+=========== ===========  ====== ===========================================
+Extension   File Name    Format Description
+=========== ===========  ====== ===========================================
+.pypeit      PypeIt        ASCII  Primary file that guides the data reduction
+ ..          ..                 We *recommend* one per instrument configuration.
+ ..          ..                 See :doc:`pypeit_file` for further details.
+.setups     setup        YAML   Lists the various setups of the instrument.
+ ..          ..                 See :doc:`setups` for further details
+.group      group        YAML   Lists the various setup groups
+ ..          ..                 See :ref:`groupings` for further details
+.lst        list         ASCII  Lists all of the raw files to be analyzed
+ ..          ..                 In particular, frametype is given
+.xml        xml list     xml    Also lists all of the raw files to be analyzed
+.spect      spect        ASCII  A record of every spectrograph setting used
+ ..          ..                 during the data reduction.
+.settings   settings     ASCII  A record of every PypeIt reduction setting used
+ ..          ..                 during the data reduction.
+.log        log          ASCII  Log file of the reduction messages
+=========== ===========  ====== ===========================================[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/outputs.rst:16: WARNING: toctree contains reference to nonexisting document 'out_QA'[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/ararclines.py:docstring of pypeit.ararclines.load_parse_dict:6: WARNING: Unexpected indentation.[39;49;00m
+[31;01mWARNING: autodoc: failed to import module 'pypeit.armed'; the following exception was raised:
+No module named 'pypit'[39;49;00m
+/Users/joe/python/PypeIt/pypeit/artrace.py:docstring of pypeit.artrace.trace_fweight_deprecated:4: WARNING: Unexpected section title.
+
+Parameters:
+-----------
+/Users/joe/python/PypeIt/pypeit/artrace.py:docstring of pypeit.artrace.trace_weighted:5: WARNING: Unexpected section title.
+
+Parameters:
+-----------
+/Users/joe/python/PypeIt/pypeit/artrace.py:docstring of pypeit.artrace.trace_weighted:20: WARNING: Unexpected section title.
+
+Returns:
+--------
+/Users/joe/python/PypeIt/pypeit/core/extract.py:docstring of pypeit.core.extract.extract_asymbox2:16: WARNING: Unexpected section title.
+
+Optional Parameters
+-------------------
+/Users/joe/python/PypeIt/pypeit/core/extract.py:docstring of pypeit.core.extract.extract_asymbox2:31: WARNING: Unexpected section title.
+
+Revision History
+----------------
+/Users/joe/python/PypeIt/pypeit/core/extract.py:docstring of pypeit.core.extract.extract_boxcar:16: WARNING: Unexpected section title.
+
+Optional Parameters
+-------------------
+/Users/joe/python/PypeIt/pypeit/core/extract.py:docstring of pypeit.core.extract.fit_profile:5: WARNING: Unexpected section title.
+
+Parameters
+----------
+[31;01m/Users/joe/python/PypeIt/pypeit/core/extract.py:docstring of pypeit.core.extract.fit_profile:23: WARNING: Title underline too short.
+
+Optional Parameters
+----------[39;49;00m
+/Users/joe/python/PypeIt/pypeit/core/extract.py:docstring of pypeit.core.extract.fit_profile:23: WARNING: Unexpected section title.
+
+Optional Parameters
+----------
+/Users/joe/python/PypeIt/pypeit/core/extract.py:docstring of pypeit.core.extract.fit_profile:44: WARNING: Unexpected section title.
+
+Returns
+-------
+[31m/Users/joe/python/PypeIt/pypeit/core/extract.py:docstring of pypeit.core.extract.extract_asymbox2:1: WARNING: Unknown target name: "extract".[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/core/extract.py:docstring of pypeit.core.extract.extract_boxcar:1: WARNING: Unknown target name: "extract".[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/core/flux.py:docstring of pypeit.core.flux.find_standard_file:14: WARNING: Unexpected indentation.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/core/flux.py:docstring of pypeit.core.flux.find_standard_file:15: WARNING: Block quote ends without a blank line; unexpected unindent.[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/core/fsort.py:docstring of pypeit.core.fsort.match_logic:5: WARNING: Unexpected indentation.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/core/fsort.py:docstring of pypeit.core.fsort.match_logic:10: WARNING: Block quote ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/core/procimg.py:docstring of pypeit.core.procimg.variance_frame:27: WARNING: Definition list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/core/pydl.py:docstring of pypeit.core.pydl.bspline.workit:25: WARNING: Block quote ends without a blank line; unexpected unindent.[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/core/trace_slits.py:docstring of pypeit.core.trace_slits.add_edge:4: WARNING: Unexpected indentation.[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/core/trace_slits.py:docstring of pypeit.core.trace_slits.assign_slits:24: WARNING: Unknown interpreted text role "arg".[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/core/trace_slits.py:docstring of pypeit.core.trace_slits.match_edges:11: WARNING: Unexpected indentation.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/core/trace_slits.py:docstring of pypeit.core.trace_slits.remove_slit:14: WARNING: Definition list ends without a blank line; unexpected unindent.[39;49;00m
+/Users/joe/python/PypeIt/pypeit/core/trace_slits.py:docstring of pypeit.core.trace_slits.trace_fweight:38: WARNING: Unexpected section title.
+
+Revision History
+----------------
+/Users/joe/python/PypeIt/pypeit/core/trace_slits.py:docstring of pypeit.core.trace_slits.trace_gweight:13: WARNING: Unexpected section title.
+
+Optional Parameters:
+--------------------
+/Users/joe/python/PypeIt/pypeit/core/trace_slits.py:docstring of pypeit.core.trace_slits.trace_gweight:36: WARNING: Unexpected section title.
+
+Revision History
+----------------
+[31m/Users/joe/python/PypeIt/pypeit/core/trace_slits.py:docstring of pypeit.core.trace_slits.assign_slits:1: WARNING: Undefined substitution referenced: "values".[39;49;00m
+/Users/joe/python/PypeIt/pypeit/core/tracewave.py:docstring of pypeit.core.tracewave.trace_fweight_deprecated:4: WARNING: Unexpected section title.
+
+Parameters:
+-----------
+[31;01m/Users/joe/python/PypeIt/pypeit/core/tracewave.py:docstring of pypeit.core.tracewave.trace_fweight_deprecated:13: WARNING: Definition list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/core/wave.py:docstring of pypeit.core.wave.airtovac:4: WARNING: Title underline too short.
+
+Parameters:
+----------[39;49;00m
+/Users/joe/python/PypeIt/pypeit/core/wave.py:docstring of pypeit.core.wave.airtovac:4: WARNING: Unexpected section title.
+
+Parameters:
+----------
+/Users/joe/python/PypeIt/pypeit/core/wave.py:docstring of pypeit.core.wave.airtovac:9: WARNING: Unexpected section title.
+
+Returns:
+----------
+[31;01m/Users/joe/python/PypeIt/pypeit/core/wave.py:docstring of pypeit.core.wave.flexure_obj:4: WARNING: Title underline too short.
+
+Parameters:
+----------[39;49;00m
+/Users/joe/python/PypeIt/pypeit/core/wave.py:docstring of pypeit.core.wave.flexure_obj:4: WARNING: Unexpected section title.
+
+Parameters:
+----------
+/Users/joe/python/PypeIt/pypeit/core/wave.py:docstring of pypeit.core.wave.flexure_obj:10: WARNING: Unexpected section title.
+
+Returns:
+----------
+[31;01m/Users/joe/python/PypeIt/pypeit/core/wave.py:docstring of pypeit.core.wave.vactoair:4: WARNING: Title underline too short.
+
+Parameters:
+----------[39;49;00m
+/Users/joe/python/PypeIt/pypeit/core/wave.py:docstring of pypeit.core.wave.vactoair:4: WARNING: Unexpected section title.
+
+Parameters:
+----------
+/Users/joe/python/PypeIt/pypeit/core/wave.py:docstring of pypeit.core.wave.vactoair:9: WARNING: Unexpected section title.
+
+Returns:
+----------
+[31;01m/Users/joe/python/PypeIt/pypeit/flatfield.py:docstring of pypeit.flatfield.FlatField.run:7: WARNING: Enumerated list ends without a blank line; unexpected unindent.[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/par/parset.py:docstring of pypeit.par.parset.ParSet.add:5: WARNING: Unknown interpreted text role "arg".[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/par/parset.py:docstring of pypeit.par.parset.ParSet.add:8: WARNING: Unknown interpreted text role "arg".[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.PypeItPar.from_cfg_file:9: WARNING: Unknown interpreted text role "arg".[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.PypeItPar.from_cfg_file:18: WARNING: Unknown interpreted text role "arg".[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.PypeItPar.from_cfg_file:18: WARNING: Unknown interpreted text role "arg".[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.PypeItPar.from_cfg_file:33: WARNING: Unknown interpreted text role "arg".[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.PypeItPar.from_cfg_lines:10: WARNING: Unknown interpreted text role "arg".[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.PypeItPar.from_cfg_lines:34: WARNING: Unknown interpreted text role "arg".[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.PypeItPar.from_pypeit_file:15: WARNING: Unknown interpreted text role "arg".[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/pypeit.py:docstring of pypeit.pypeit.PypeIt:8: WARNING: Unknown target name: "here".[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/pypeitsetup.py:docstring of pypeit.pypeitsetup.PypeItSetup.from_pypeit_file:3: WARNING: Unknown target name: "here".[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/scienceimage.py:docstring of pypeit.scienceimage.ScienceImage.extraction:7: WARNING: Enumerated list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/scienceimage.py:docstring of pypeit.scienceimage.ScienceImage.extraction:8: WARNING: Block quote ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/scienceimage.py:docstring of pypeit.scienceimage.ScienceImage.extraction:9: WARNING: Enumerated list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/scienceimage.py:docstring of pypeit.scienceimage.ScienceImage.extraction:11: WARNING: Block quote ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/scienceimage.py:docstring of pypeit.scienceimage.ScienceImage.global_skysub:10: WARNING: Inline interpreted text or phrase reference start-string without end-string.[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/scripts/coadd_1dspec.py:docstring of pypeit.scripts.coadd_1dspec.main:3: WARNING: Unexpected indentation.[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/scripts/qa_html.py:docstring of pypeit.scripts.qa_html.main:3: WARNING: Unexpected indentation.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/specobjs.py:docstring of pypeit.specobjs.SpecObj:6: WARNING: Title underline too short.
+
+Parameters:
+----------[39;49;00m
+/Users/joe/python/PypeIt/pypeit/specobjs.py:docstring of pypeit.specobjs.SpecObj:6: WARNING: Unexpected section title.
+
+Parameters:
+----------
+[31;01m/Users/joe/python/PypeIt/pypeit/specobjs.py:docstring of pypeit.specobjs.SpecObj:17: WARNING: Title underline too short.
+
+Optional Parameters:
+-------------------[39;49;00m
+/Users/joe/python/PypeIt/pypeit/specobjs.py:docstring of pypeit.specobjs.SpecObj:17: WARNING: Unexpected section title.
+
+Optional Parameters:
+-------------------
+[31;01m/Users/joe/python/PypeIt/pypeit/specobjs.py:docstring of pypeit.specobjs.SpecObj:28: WARNING: Title underline too short.
+
+Attributes:
+----------[39;49;00m
+/Users/joe/python/PypeIt/pypeit/specobjs.py:docstring of pypeit.specobjs.SpecObj:28: WARNING: Unexpected section title.
+
+Attributes:
+----------
+[31;01m/Users/joe/python/PypeIt/pypeit/specobjs.py:docstring of pypeit.specobjs.SpecObj.check_trace:4: WARNING: Title underline too short.
+
+Parameters:
+----------[39;49;00m
+/Users/joe/python/PypeIt/pypeit/specobjs.py:docstring of pypeit.specobjs.SpecObj.check_trace:4: WARNING: Unexpected section title.
+
+Parameters:
+----------
+[31;01m/Users/joe/python/PypeIt/pypeit/spectrographs/keck_deimos.py:docstring of pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.load_raw_img_head:12: WARNING: Definition list ends without a blank line; unexpected unindent.[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/spectrographs/keck_deimos.py:docstring of pypeit.spectrographs.keck_deimos.read_deimos:4: WARNING: Unexpected indentation.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/spectrographs/keck_lris.py:docstring of pypeit.spectrographs.keck_lris.KeckLRISSpectrograph.load_raw_img_head:12: WARNING: Definition list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/spectrographs/spectrograph.py:docstring of pypeit.spectrographs.spectrograph.Spectrograph.load_raw_frame:16: WARNING: Definition list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/spectrographs/spectrograph.py:docstring of pypeit.spectrographs.spectrograph.Spectrograph.load_raw_img_head:11: WARNING: Definition list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/traceslits.py:docstring of pypeit.traceslits.TraceSlits.remove_slit:8: WARNING: Definition list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/traceslits.py:docstring of pypeit.traceslits.TraceSlits.run:5: WARNING: Enumerated list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/traceslits.py:docstring of pypeit.traceslits.TraceSlits.run:6: WARNING: Block quote ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/traceslits.py:docstring of pypeit.traceslits.TraceSlits.run:7: WARNING: Enumerated list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/traceslits.py:docstring of pypeit.traceslits.TraceSlits.run:8: WARNING: Block quote ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/traceslits.py:docstring of pypeit.traceslits.TraceSlits.run:10: WARNING: Enumerated list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/traceslits.py:docstring of pypeit.traceslits.TraceSlits.run:12: WARNING: Block quote ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/utils.py:docstring of pypeit.utils.bspline_fit:5: WARNING: Title underline too short.
+
+Parameters:
+---------[39;49;00m
+/Users/joe/python/PypeIt/pypeit/utils.py:docstring of pypeit.utils.bspline_fit:5: WARNING: Unexpected section title.
+
+Parameters:
+---------
+[31m/Users/joe/python/PypeIt/pypeit/utils.py:docstring of pypeit.utils.bspline_fit:9: WARNING: Unexpected indentation.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/utils.py:docstring of pypeit.utils.bspline_fit:10: WARNING: Block quote ends without a blank line; unexpected unindent.[39;49;00m
+/Users/joe/python/PypeIt/pypeit/utils.py:docstring of pypeit.utils.bspline_fit:26: WARNING: Unexpected section title.
+
+Returns:
+---------
+/Users/joe/python/PypeIt/pypeit/utils.py:docstring of pypeit.utils.bspline_profile:4: WARNING: Unexpected section title.
+
+Parameters
+----------
+/Users/joe/python/PypeIt/pypeit/utils.py:docstring of pypeit.utils.bspline_profile:35: WARNING: Unexpected section title.
+
+Returns
+-------
+[31m/Users/joe/python/PypeIt/pypeit/utils.py:docstring of pypeit.utils.func_val:3: WARNING: Unexpected indentation.[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/wavecalib.py:docstring of pypeit.wavecalib.WaveCalib:33: WARNING: Unexpected indentation.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/wavetilts.py:docstring of pypeit.wavetilts.WaveTilts.run:6: WARNING: Enumerated list ends without a blank line; unexpected unindent.[39;49;00m
+[31m/Users/joe/python/PypeIt/pypeit/wavetilts.py:docstring of pypeit.wavetilts.WaveTilts.show:5: WARNING: Unexpected indentation.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/wavetilts.py:docstring of pypeit.wavetilts.WaveTilts.show:6: WARNING: Block quote ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/wavetilts.py:docstring of pypeit.wavetilts.WaveTilts.show:8: WARNING: Definition list ends without a blank line; unexpected unindent.[39;49;00m
+/Users/joe/python/PypeIt/doc/pypeit_file.rst:115: WARNING: Title level inconsistent:
+
+Naming
+++++++
+/Users/joe/python/PypeIt/doc/pypeit_file.rst:135: WARNING: Title level inconsistent:
+
+Run block
++++++++++
+/Users/joe/python/PypeIt/doc/pypeit_file.rst:162: WARNING: Title level inconsistent:
+
+Reduce block
+++++++++++++
+[31;01m/Users/joe/python/PypeIt/doc/pypeit_par.rst:7: WARNING: Title overline too short.
+
+================
+PypeIt Parameters
+================[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/pypeit_par.rst:33: WARNING: Title underline too short.
+
+Current PypeItPar Parameter Hierarchy
+++++++++++++++++++++++++++++++++++++[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/pypeit_par.rst:172: WARNING: Inline strong start-string without end-string.[39;49;00m
+[31m/Users/joe/python/PypeIt/doc/pypeit_par.rst:26: WARNING: Unknown target name: "how to change parameters using the pypit file".[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/qa.rst:3: WARNING: Title overline too short.
+
+********
+PypeIt QA
+********[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/running.rst:3: WARNING: Title overline too short.
+
+*************
+Running PypeIt
+*************[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/running.rst:23: WARNING: Title underline too short.
+
+run_pypeit
+=========[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/scripts.rst:3: WARNING: Title overline too short.
+
+*************
+PypeIt scripts
+*************[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/scripts.rst:16: WARNING: Title underline too short.
+
+pypeit_setup
+===========[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/scripts.rst:21: WARNING: Title underline too short.
+
+run_pypeit
+=========[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/scripts.rst:21: WARNING: Title underline too short.
+
+run_pypeit
+=========[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/scripts.rst:34: WARNING: Title underline too short.
+
+pypeit_show_1dspec
+=================[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/scripts.rst:58: WARNING: Title underline too short.
+
+pypeit_show_2dspec
+=================[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/scripts.rst:58: WARNING: Title underline too short.
+
+pypeit_show_2dspec
+=================[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/scripts.rst:83: WARNING: Title underline too short.
+
+pypeit_view_fits
+===============[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/scripts.rst:83: WARNING: Title underline too short.
+
+pypeit_view_fits
+===============[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/scripts.rst:107: WARNING: Title underline too short.
+
+pypeit_coadd_1dspec
+==================[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/scripts.rst:115: WARNING: Title underline too short.
+
+pypeit_arcid_plot
+================[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/setup.rst:46: WARNING: Title underline too short.
+
+PypeItSetup
+----------[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/setup.rst:78: WARNING: Title underline too short.
+
+pypeit_setup
+===========[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/setup.rst:78: WARNING: Title underline too short.
+
+pypeit_setup
+===========[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/setup.rst:153: WARNING: Title underline too short.
+
+PypeIt file
+----------[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/setup.rst:153: WARNING: Title underline too short.
+
+PypeIt file
+----------[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/setup.rst:179: WARNING: Definition list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/slit_tracing.rst:130: WARNING: Title underline too short.
+
+pypeit_chk_edges
+---------------[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/slit_tracing.rst:139: WARNING: Literal block expected; none found.[39;49;00m
+[31m/Users/joe/python/PypeIt/doc/wave_calib.rst:37: WARNING: Unknown target name: "nist database <http://physics.nist.gov/physrefdata".[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/wavetilts.rst:24: WARNING: Enumerated list ends without a blank line; unexpected unindent.[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/wavetilts.rst:7: WARNING: Duplicate explicit target name: "wavetilts".[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/wavetilts.rst:42: WARNING: Title underline too short.
+
+pypeit_chk_tilts
+---------------[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/heliocorr.rst: WARNING: document isn't included in any toctree[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/mask.rst: WARNING: document isn't included in any toctree[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/masters.rst: WARNING: document isn't included in any toctree[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/modules.rst: WARNING: document isn't included in any toctree[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/rawdata.rst: WARNING: document isn't included in any toctree[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/setup.rst: WARNING: document isn't included in any toctree[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/standards.rst: WARNING: document isn't included in any toctree[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/calcheck.rst:69: WARNING: undefined label: modifying_frametype (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/lris.rst:56: WARNING: undefined label: _reduce-block (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/naming.rst:88: WARNING: undefined label: source-id-values (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar:4: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.CalibrationsPar:7: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.ExtractObjectsPar:4: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.FlatFieldPar:4: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.FlexurePar:4: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.FluxCalibrationPar:4: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.FrameGroupPar:4: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.ProcessImagesPar:7: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.PypeItPar:31: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.ReducePar:8: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.SkySubtractionPar:4: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.TraceObjectsPar:4: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.TraceSlitsPar:4: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.WaveTiltsPar:4: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/pypeit/par/pypeitpar.py:docstring of pypeit.par.pypeitpar.WavelengthSolutionPar:4: WARNING: undefined label: pypeitpar (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/pypeit_file.rst:36: WARNING: unknown document: setups[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/pypeit_file.rst:145: WARNING: undefined label: pypeit_pypfiles (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01m/Users/joe/python/PypeIt/doc/pypeit_par.rst:17: WARNING: undefined label: pypit_file (if the link has no caption the label must precede a section header)[39;49;00m
+[31;01mWARNING: html_static_path entry '/Users/joe/python/PypeIt/doc/_static' does not exist[39;49;00m

@@ -11,7 +11,7 @@ from astropy.table import Table
 
 from pypeit import msgs
 from pypeit.core import pixels
-
+from pypeit import masterframe
 from pypeit import arcimage
 from pypeit import biasframe
 from pypeit import bpmimage
@@ -24,7 +24,6 @@ from pypeit import waveimage
 
 from pypeit.metadata import PypeItMetaData
 
-from pypeit.core import masters
 from pypeit.core import procimg
 from pypeit.core import parse
 
@@ -92,7 +91,7 @@ class Calibrations(object):
 
         # Output dirs
         self.redux_path = os.getcwd() if redux_path is None else redux_path
-        self.master_dir = masters.set_master_dir(self.redux_path, self.spectrograph, self.par)
+        self.master_dir = masterframe.set_master_dir(self.redux_path, self.spectrograph, self.par)
 
         # Attributes
         self.calib_dict = {}
@@ -181,12 +180,11 @@ class Calibrations(object):
             self.msarc = self.calib_dict[self.setup]['arc']
             return self.msarc
 
+        self.arc_file_list = self.fitstbl.find_frame_files('arc', sci_ID=self.sci_ID)
         # Instantiate with everything needed to generate the image (in case we do)
-        self.arcImage = arcimage.ArcImage(self.spectrograph, file_list=[], det=self.det,
+        self.arcImage = arcimage.ArcImage(self.spectrograph, file_list = self.arc_file_list, det=self.det,msbias=self.msbias,
                                           par=self.par['arcframe'], setup=self.setup,
-                                          master_dir=self.master_dir, mode=self.par['masters'],
-                                          fitstbl=self.fitstbl, sci_ID=self.sci_ID,
-                                          msbias=self.msbias)
+                                          master_dir=self.master_dir, mode=self.par['masters'])
         
         # Load the MasterFrame (if it exists and is desired)?
         self.msarc = self.arcImage.master()
@@ -222,19 +220,19 @@ class Calibrations(object):
             msgs.info("Reloading the bias from the internal dict")
             return self.msbias
 
+        self.bias_file_list = self.fitstbl.find_frame_files('bias', sci_ID=self.sci_ID)
         # Instantiate
-        self.biasFrame = biasframe.BiasFrame(self.spectrograph, det=self.det,
+        self.biasFrame = biasframe.BiasFrame(self.spectrograph, file_list = self.bias_file_list, det=self.det,
                                              par=self.par['biasframe'], setup=self.setup,
-                                             master_dir=self.master_dir, mode=self.par['masters'],
-                                             fitstbl=self.fitstbl, sci_ID=self.sci_ID)
+                                             master_dir=self.master_dir, mode=self.par['masters'])
 
-        # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
-        self.msbias = self.biasFrame.master()
+        # How are we treating biases: 1) No bias, 2) overscan, or 3) use bias subtraction. If use bias is there a master?
+        self.msbias = self.biasFrame.determine_bias_mode()
+
         if self.msbias is None:  # Build it and save it
             self.msbias = self.biasFrame.build_image()
             if self.save_masters:
-                self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,
-                                           steps=self.biasFrame.steps)
+                self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,steps=self.biasFrame.steps)
 
         # Save & return
         self.calib_dict[self.setup]['bias'] = self.msbias
@@ -264,7 +262,6 @@ class Calibrations(object):
         # Always use the example file
         example_file = self.fitstbl.find_frame_files('science', sci_ID=self.sci_ID)[0]
         bpmImage = bpmimage.BPMImage(self.spectrograph, filename=example_file, det=self.det,
-                                     shape=self.shape,
                                      msbias=self.msbias if self.par['badpix'] == 'bias' else None,
                                      trim=self.par['trim'])
         # Build, save, and return
@@ -344,10 +341,7 @@ class Calibrations(object):
                 raise ValueError('Could not find user-defined flatfield master: {0}'.format(
                     self.par['flatfield']['frame']))
             msgs.info('Found user-defined file: {0}'.format(mspixelflat_name))
-            self.mspixflatnrm, head, _ = masters._load(mspixelflat_name, exten=self.det,
-                                                       frametype=None, force=True)
-            # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
-            #self.msillumflat = np.ones_like(self.mspixflatnrm)
+            self.mspixflatnrm = self.flatField.load_master(mspixelflat_name, exten=self.det)
 
         # 3) there is no master or no user supplied flat, generate the flat
         if self.mspixflatnrm is None and len(pixflat_image_files) != 0:
@@ -367,8 +361,7 @@ class Calibrations(object):
                                            steps=self.flatField.steps)
                 self.flatField.save_master(self.msillumflat, raw_files=pixflat_image_files,
                                            steps=self.flatField.steps,
-                                           outfile=masters.master_name('illumflat', self.setup,
-                                                                       self.master_dir))
+                                           outfile=masterframe.master_name('illumflat', self.setup,self.master_dir))
                 # If we tweaked the slits update the master files for tilts and slits
                 if self.par['flatfield']['tweak_slits']:
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
@@ -392,7 +385,7 @@ class Calibrations(object):
         # illumination file was created. So check msillumflat is set
         if self.msillumflat is None:
             # 2) If no illumination file is set yet, try to read it in from a master
-            self.msillumflat, _, _ = self.flatField.load_master_illumflat()
+            self.msillumflat = self.flatField.load_master_illumflat()
             # 3) If there is no master file, then set illumflat to unit
             # and war user that they are not illumflatting their data
             if self.msillumflat is None:
@@ -449,8 +442,7 @@ class Calibrations(object):
         if not self.traceSlits.master():
             # Build the trace image first
             self.trace_image_files = self.fitstbl.find_frame_files('trace', sci_ID=self.sci_ID)
-            self.traceImage = traceimage.TraceImage(self.spectrograph,
-                                           file_list=self.trace_image_files, det=self.det,
+            self.traceImage = traceimage.TraceImage(self.spectrograph,self.trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
             # Load up and get ready
             self.traceSlits.mstrace = self.traceImage.process(bias_subtract=self.msbias,
@@ -461,8 +453,8 @@ class Calibrations(object):
             scidx = np.where(self.fitstbl.find_frames('science', sci_ID=self.sci_ID))[0][0]
             try:
                 binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
-            except KeyError:  # JXP 10/1/2018 -- THIS IS KLUDGY;  MIGHT WANT A BINNING METHOD IN SPECTROGRAPHS
-                binspatial, binspectral = 1, 1
+            except:
+                binspatial, binspectral = 1,1
             ## Old code: binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
@@ -579,12 +571,9 @@ class Calibrations(object):
                         * self.spectrograph.detector[self.det-1]['nonlinear']
 
         # Instantiate
-        self.waveCalib = wavecalib.WaveCalib(self.msarc, spectrograph=self.spectrograph,
-                                             par=self.par['wavelengths'], det=self.det,
-                                             setup=self.setup, master_dir=self.master_dir,
-                                             mode=self.par['masters'], fitstbl=self.fitstbl,
-                                             sci_ID=self.sci_ID, #maskslits=self.maskslits,
-                                             redux_path=self.redux_path, bpm=self.msbpm)
+        self.waveCalib = wavecalib.WaveCalib(self.msarc, spectrograph=self.spectrograph,det=self.det,
+                                             par=self.par['wavelengths'], setup=self.setup, master_dir=self.master_dir,
+                                             mode=self.par['masters'],redux_path=self.redux_path, bpm=self.msbpm)
         # Load from disk (MasterFrame)?
         self.wv_calib = self.waveCalib.master()
         # Build?

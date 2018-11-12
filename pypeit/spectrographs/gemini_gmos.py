@@ -86,8 +86,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.40  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 30.  # Reddest chip
-        par['calibrations']['wavelengths']['lowest_nsig'] = 10.  # Reddest chip
+        par['calibrations']['wavelengths']['min_nsig'] = 5.  # Doesn't work for reddest chip
+        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
 
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
@@ -234,7 +234,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         return self.gemini_get_match_criteria()
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker', 'wavecen']
+        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker', 'dispangle']
 
 
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):

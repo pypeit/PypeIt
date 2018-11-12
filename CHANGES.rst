@@ -1,5 +1,17 @@
-0.8.2dev (unreleased)
+0.9.1dev (unreleased)
 ---------------------
+
+- Move write method for sensitivity function
+- Modify I/O for detnum parameter
+- Modify idx code in SpecObj
+- Fixed a bug on datatype formatting
+- Reworked masteframe and all base classes to be more homogenous so that one only ever overloads the save_master and
+  load_master methods.
+- Many changes fixes wavecal/autoid.py to make the lines being used explicitly clear. This fixed many bugs in the
+  the wavelength fitting that were recently introduced.
+
+0.9.0
+-----
 
 - Major refactor to rename most modules and incorporate the PYPIT ->
   PypeIt switch
@@ -50,12 +62,23 @@
 - Edited how headers are read from the provided files
 - Created metadata.PypeItMetaData class to handle what was previously
   `fitstbl`
-- Fussed with date/time driven by GMOS;  date is no longer required in `fitstbl`
+- Fussed with date/time driven by GMOS;  date is no longer required in
+  `fitstbl`
 - Initial work on GMOS;  this is still work-in-progress
 - Pushed several arcparam items into the Wavelengths parset
 - Series of hacks for when binning is missing from the fitstbl
 - CuAr line lists for GMOS
 - New option to reduce only 1 det at a time
+- Data provided in pypeit file overwrites anything read from the fits
+  file headers.
+- Filled in fits table reading data for GNIRS
+- Demand frametype column in fits table is U8 format
+- Further improvements to detect_lines arcline detection algorithm.
+- Got rid of arcparam and added info and docs to wavelengths parset. 
+- Improved and commented autoid.py arclines code. 
+- Added utilities to wavecalib to compute shift,stretch of two spectra. 
+- Completely revamped cross-correlation algorithm in wavecalib to give roburt results.
+
 
 0.8.1
 -----

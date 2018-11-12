@@ -1,0 +1,106 @@
+### Mosaic properties
+mosaic ndet 1                         # Number of detectors in the mosaic
+mosaic latitude 28.754               # Latitude of the telescope
+mosaic longitude +17.88906             # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+mosaic elevation 2387.2               # Elevation of the telescope (in m)
+mosaic minexp 0.0                     # Minimum exposure time (s)
+mosaic reduction ARMLSD               # Which reduction pipeline should be used for this instrument
+mosaic camera DOLORES                 # Which reduction pipeline should be used for this instrument
+
+### Detector properties
+det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
+det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
+det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
+det01 darkcurr 0.0                    # Dark current (e-/hour)
+det01 platescale 0.252                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det01 ronoise 9.0                     # Read-out noise (e-)
+det01 gain 0.97                       # Inverse gain (e-/ADU)
+det01 saturation 65535.               # The detector Saturation level
+det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det01 numamplifiers 1                 # Number of amplifiers
+det01 dataext01 0                     # Extension number of the data
+det01 datasec01 [51:,1:2045]            # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained (Avoids bad region at top)
+det01 oscansec01 [51:,2054:]   # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
+det01 suffix _lrr                     # Suffix to be appended to all saved calibration and extraction frames
+
+### Checks to perform  (white space is removed)
+check 01.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 01.DET_ID E2V4240                # Check the CCD name (replace any spaces with underscores)
+
+### Keyword Identifiers
+keyword idname 01.OBS-TYPE             # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+keyword exptime 01.EXPTIME
+keyword target 01.OBJCAT
+keyword time 01.DATE-OBS                # The time stamp of the observation (i.e. decimal MJD)
+keyword date 01.DATE-OBS               # The date of the observation (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+keyword naxis0 01.NAXIS2               # Number of pixels along the zeroth axis
+keyword naxis1 01.NAXIS1               # Number of pixels along the first axis
+keyword binning None                   # Binning
+keyword filter1 01.FLT_ID              # Filter 1
+keyword filter2 None            # Filter 2
+keyword decker None             # Which decker is being used
+keyword slitwid None            # Slit Width
+keyword dichroic None           # Dichroic name
+keyword dispname 01.GRM_ID            # Grism name
+keyword dispangle None           # Disperser angle
+keyword lamps 01.LMP_ID              # Lamps being used
+
+### Fits properties
+fits numhead 1                      # How many headers need to be read in for a given file
+fits headext01 0                    # Extension number of header (one for each headnum, starting with 01)
+fits timeunit isot
+
+### Science frames
+science idname OBJECT                  # Header key value of science frame for header keyword keyword+idname
+science check condition1 lamps=Parking
+science check condition2 exptime>1     #
+science check condition3 dispname!=OPEN   # Avoid acquisition frames!
+
+### Standard Star frames
+standard idname OBJECT               # Header key value of science frame for header keyword keyword+idname
+standard check condition1 lamps=Parking
+standard check condition2 dispname!=OPEN   # Avoid acquisition frames!
+standard match naxis0 =0             # Match the shape of standard and science frames
+standard match naxis1 =0             # Match the shape of standard and science frames
+
+### Bias/Dark frames
+bias idname ZERO                    # Header key value of bias frame for header keyword keyword+idname
+bias check condition1 exptime=0     # Required for bias
+bias match naxis0 =0                # Match the shape of bias and science frames
+bias match naxis1 =0                # Match the shape of bias and science frames
+bias check condition2 dispname=OPEN          # Match the disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
+
+### Pixel Flat frames
+pixelflat idname CALIB                 # Header key value of flat frame for header keyword keyword+idname
+pixelflat check condition1 lamps=Halogen # Lamp on
+pixelflat check condition2 dispname!=OPEN   # Avoid acquisition frames!
+pixelflat match naxis0 =0             # Match the shape of flats with science
+pixelflat match naxis1 =0             # Match the shape of flats with science
+pixelflat match dispname ''          # Match the disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
+
+### Pinhole frames
+pinhole check condition1 exptime>999999 # Avoids any pinhole frames
+
+### Dark frames
+dark check condition1 exptime>999999 # Avoids any dark frames
+
+### Trace frames
+trace idname flat                 # Header key value of flat frame for header keyword keyword+idname
+trace number 0                    # Number of flat frames to use
+trace check condition1 lamps=Halogen # Lamp on
+trace check condition2 dispname!=OPEN   # Avoid acquisition frames!
+trace match naxis0 =0             # Match the shape of flats with science
+trace match naxis1 =0             # Match the shape of flats with science
+trace match dispname ''          # Match the disperser angle (an uncertainty in the CENWAVE)
+
+### Arc frames
+arc idname arc                      # Header key value of arc frame for header keyword keyword+idname
+arc check condition1 lamps=Ne+Hg     #lamps=Ne+Hg|lamps=Helium|lamps=Ne+Hg+Ar+Kr
+arc check condition2 dispname!=OPEN   # Avoid acquisition frames!
+arc match naxis0 =0                 # Match the shape of arcs with science
+arc match naxis1 =0                 # Match the shape of arcs with science
+arc match dispname ''              # Match the disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+
+# Make some changes to the arguments and flags
+settings trace dispersion direction 1
+settings trace slits tilts params [1,1,1]
