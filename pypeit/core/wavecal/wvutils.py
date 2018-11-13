@@ -142,9 +142,9 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False):
     if percent_ceil is not None:
         # If this is set, set a ceiling on the greater > 10sigma peaks
         ceil1 = np.percentile(ampl, percent_ceil)
-        spec1 = np.fmin(arc1, ceil1)
+        spec1 = np.fmin(use_arc, ceil1)
     else:
-        spec1 = np.copy(arc1)
+        spec1 = np.copy(use_arc)
 
     if smooth is not None:
         y1 = scipy.ndimage.filters.gaussian_filter(spec1, smooth)
