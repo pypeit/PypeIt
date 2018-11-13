@@ -737,7 +737,7 @@ def detect_lines(censpec, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_
         (mean, med, stddev) = sigma_clipped_stats(arc_now[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
         # be very liberal in determining threshold for continuum determination
         thresh = med + 2.0*stddev
-        pixt_now = detect_peaks(arc_now, mph=thresh, mpd=FWHM*0.75)
+        pixt_now = detect_peaks(arc_now, mph=thresh, mpd=fwhm*0.75)
         # mask out the peaks we find for the next continuum iteration
         cont_mask_fine = np.ones_like(cont_now)
         cont_mask_fine[pixt_now] = 0.0
