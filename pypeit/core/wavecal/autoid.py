@@ -7,7 +7,7 @@ from scipy.spatial import cKDTree
 import itertools
 import scipy
 from linetools import utils as ltu
-from astropy.table import vstack
+from astropy import table
 import copy
 import numba as nb
 import numpy as np
@@ -20,6 +20,7 @@ from pypeit.core.wavecal import patterns
 from pypeit.core.wavecal import fitting
 from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import qa
+
 
 from pypeit.core import pca
 from pypeit import utils
@@ -146,7 +147,6 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
 
     """
     # imports
-    from astropy.table import vstack
     from linetools import utils as ltu
 
     # Load line lists
@@ -171,7 +171,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
     #for unknown in [False, True]:
     for unknown in [True]:
         if unknown:
-            tot_list = vstack([line_lists,unknwns])
+            tot_list = table.vstack([line_lists,unknwns])
         else:
             tot_list = line_lists
         wvdata = np.array(tot_list['wave'].data) # Removes mask if any
@@ -1261,7 +1261,7 @@ class General:
             patterns.solve_triangles(bsdet, self._wvdata, dindex, lindex, patt_dict = patt_dict)
 
             if self._debug:
-                tmp_list = vstack([self._line_lists, self._unknwns])
+                tmp_list = table.vstack([self._line_lists, self._unknwns])
                 qa.match_qa(self._spec[:, bs], bsdet, tmp_list,patt_dict['IDs'], patt_dict['scores'])
 
             # Use only the perfect IDs
