@@ -7,6 +7,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.patches import Patch
 
 from pypeit import utils
 
@@ -57,7 +58,7 @@ def arc_fit_qa(fit, outfile = None, ids_only=False, title=None):
     # Simple spectrum plot
     ax_spec = plt.subplot(gs[:,0])
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
-    ymin, ymax = 0., np.max(arc_spec)
+    ymin, ymax = np.min(arc_spec), np.max(arc_spec)
     ysep = ymax*0.03
     for kk, x in enumerate(fit['xfit']):
         ind_left = np.fmax(int(x)-2, 0)
@@ -70,7 +71,7 @@ def arc_fit_qa(fit, outfile = None, ids_only=False, title=None):
             '{:s} {:g}'.format(fit['ions'][kk], fit['yfit'][kk]), ha='center', va='bottom',
             size=idfont, rotation=90., color='green')
     ax_spec.set_xlim(0., len(arc_spec))
-    ax_spec.set_ylim(ymin, ymax*1.2)
+    ax_spec.set_ylim(1.05*ymin, ymax*1.2)
     ax_spec.set_xlabel('Pixel')
     ax_spec.set_ylabel('Flux')
     if title is not None:
@@ -190,13 +191,19 @@ def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile = None, title=None
             # label
             ax_spec.text(x, yline+ysep*1.3, '{:s}'.format(lbl), ha='center', va='bottom',
                 size=idfont, rotation=90., color=clr)
+    # Overplot the line classification legened
+    clrs['Not reidentified'] ='gray'
+    legend_elements = []
+    for key, clr in clrs.items():
+        legend_elements.append(Patch(facecolor=clr, edgecolor=clr,label=key))
+
     # Axes
     ax_spec.set_xlim(0., len(arc_spec))
     ax_spec.set_ylim(ymin, ymax*1.3)
     ax_spec.set_xlabel('Pixel')
     ax_spec.minorticks_on()
     ax_spec.set_ylabel('Counts')
-    plt.legend()
+    plt.legend(handles=legend_elements)
     if title is not None:
         ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
                      size='x-large', ha='left')#, bbox={'facecolor':'white'})
