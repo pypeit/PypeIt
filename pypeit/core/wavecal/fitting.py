@@ -9,7 +9,94 @@ from pypeit import utils
 from pypeit.core.wavecal import qa
 from pypeit import msgs
 
-from pypeit import debugger
+
+def fit_slit(spec, patt_dict, tcent, line_lists, outroot=None, slittxt="Slit", thar=False,match_toler=3.0,
+             func='legendre', n_first=2,sigrej_first=2.0,n_final=4,sigrej_final=3.0,verbose=False):
+
+    """ Perform a fit to the wavelength solution. Wrapper for iterative fitting code.
+
+    Parameters
+    ----------
+    spec : ndarray
+      arc spectrum
+    patt_dict : dict
+      dictionary of patterns
+    tcent: ndarray
+      List of the detections in this slit to be fit using the patt_dict
+    outroot : str
+      root directory to save QA
+
+    Optional Parameters
+    -------------------
+    outroot: str
+      Path for QA file.
+    slittxt : str
+      Label used for QA
+    thar: bool, default = False
+      True if this is a ThAr fit
+    match_toler: float, default = 3.0
+      Matching tolerance when searching for new lines. This is the difference in pixels between the wavlength assigned to
+      an arc line by an iteration of the wavelength solution to the wavelength in the line list.
+    func: str, default = 'legendre'
+      Name of function used for the wavelength solution
+    n_first: int, default = 2
+      Order of first guess to the wavelength solution.
+    sigrej_first: float, default = 2.0
+      Number of sigma for rejection for the first guess to the wavelength solution.
+    n_final: int, default = 4
+      Order of the final wavelength solution fit
+    sigrej_final: float, default = 3.0
+      Number of sigma for rejection for the final fit to the wavelength solution.
+    verbose : bool
+      If True, print out more information.
+    plot_fil:
+      Filename for plotting some QA?
+
+    Returns
+    -------
+    final_fit : dict
+      A dictionary containing all of the information about the fit
+    """
+
+    # Check that patt_dict and tcent refer to each other
+    if patt_dict['mask'].shape != tcent.shape:
+        msgs.error('patt_dict and tcent do not refer to each other. Something is very wrong')
+
+    # Perform final fit to the line IDs
+    if thar:
+        NIST_lines = (line_lists['NIST'] > 0) & (np.char.find(line_lists['Source'].data, 'MURPHY') >= 0)
+    else:
+        NIST_lines = line_lists['NIST'] > 0
+    ifit = np.where(patt_dict['mask'])[0]
+
+    if outroot is not None:
+        plot_fil = outroot + slittxt + '_fit.pdf'
+    else:
+        plot_fil = None
+
+    # TODO Profx maybe you can add a comment on what this is doing. Why do we have use_unknowns=True only to purge them later??
+    # Purge UNKNOWNS from ifit
+    imsk = np.ones(len(ifit), dtype=np.bool)
+    for kk, idwv in enumerate(np.array(patt_dict['IDs'])[ifit]):
+        if np.min(np.abs(line_lists['wave'][NIST_lines] - idwv)) > 0.01:
+            imsk[kk] = False
+    ifit = ifit[imsk]
+    # Fit
+    try:
+        final_fit = iterative_fitting(spec, tcent, ifit,np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
+                                      patt_dict['bdisp'],match_toler=match_toler, func=func, n_first=n_first,
+                                      sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final,
+                                      plot_fil=plot_fil, verbose=verbose)
+    except TypeError:
+        # A poor fitting result, this can be ignored.
+        return None
+
+    if plot_fil is not None:
+        print("Wrote: {:s}".format(plot_fil))
+
+    # Return
+    return final_fit
+
 
 def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
                       match_toler = 3.0, func = 'legendre', n_first = 2, sigrej_first = 2.0, n_final = 4, sigrej_final = 3.0,
