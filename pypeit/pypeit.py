@@ -408,7 +408,7 @@ class PypeIt(object):
         save_format = 'fits'
         if save_format == 'fits':
             outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
-                                   'spec1d_{:s}.fits'.format(self.basename))
+                                   'spec1d_{:s}.fits'.format(basename))
             helio_dict = dict(refframe='pixel'
             if self.caliBrate.par['wavelengths']['reference'] == 'pixel'
             else self.caliBrate.par['wavelengths']['frame'],

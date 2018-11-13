@@ -115,10 +115,10 @@ def load_specobj(fname):
         # TODO -- Figure out if this is a default
         # Add trace
         try:
-            specobj.trace = spec['TRACE']
+            specobj.trace_spat = spec['TRACE']
         except:
             # KLUDGE!
-            specobj.trace = np.arange(len(spec['BOX_WAVE']))
+            specobj.trace_spat = np.arange(len(spec['BOX_WAVE']))
         # Add spectrum
         if 'BOX_COUNTS' in spec.keys():
             for skey in speckeys:
