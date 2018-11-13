@@ -208,14 +208,14 @@ def xcorr_shift(inspec1,inspec2,smooth=5.0,percent_ceil=90.0, use_raw_arc=False,
     y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
     y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
 
-
     nspec = y1.shape[0]
     lags = np.arange(-nspec + 1, nspec)
     corr = scipy.signal.correlate(y1, y2, mode='full')
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
     corr_norm = corr/corr_denom
-    output = arc.detect_lines(corr_norm, sigdetect=5.0, fit_frac_fwhm=1.25, fwhm=20.0, mask_frac_fwhm=1.0, cont_samp=30, nfind = 1)
-    pix_max = output[1]
+    tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(corr_norm, sigdetect=3.0,
+                                                                                     fit_frac_fwhm=1.5, fwhm=5.0,
+                                                                                     mask_frac_fwhm=1.0, cont_samp=30, nfind = 1)
     corr_max = np.interp(pix_max, np.arange(lags.shape[0]),corr_norm)
     lag_max  = np.interp(pix_max, np.arange(lags.shape[0]),lags)
     if debug:
