@@ -167,10 +167,18 @@ class WaveCalib(masterframe.MasterFrame):
                         wavecal.autoid.basic(self.arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
                                      nonlinear_counts = self.par['nonlinear_counts'])
                     final_fit[str(slit)] = ifinal_fit.copy()
-            else:
-                # Now preferred
-                arcfitter = wavecal.autoid.General(self.arccen, par = self.par, ok_mask=ok_mask)
+            elif use_method == "holy-grail":
+                # Sometimes works, sometimes fails
+                arcfitter = wavecal.autoid.HolyGrail(self.arccen, par = self.par, ok_mask=ok_mask)
                 patt_dict, final_fit = arcfitter.get_results()
+            elif use_method == "reidentify":
+                # Now preferred
+                wavecal.autoid.reidentify()
+
+
+            else:
+                msgs.error('Unrecognized wavelength calibration method: {:}'.format(use_method))
+
             self.wv_calib = final_fit
 
         # QA
