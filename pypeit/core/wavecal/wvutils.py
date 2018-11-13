@@ -153,26 +153,11 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False):
 
     return y1
 
-# This code does not currently work yet and has bugs in the lag computation.
-#def cross_correlate(y1,y2):
 
-#    if y1.shape != y2.shape:
-#        msgs.error('cross_correlate only works for equal sized arrays')
-#    nspec =y1.shape
-#    next2 = 2**(nspec-1).bit_length()
-#    f1 = np.fft.fft(y1,n=next2)
-#    f2 = np.fft.fft(np.flipud(y2),n=next2)
-#    cc_raw = np.real(np.fft.ifft(f1 * f2))
-#    cc = np.fft.fftshift(cc_raw)
-#    corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
-#    cc_norm = cc/corr_denom
-#    zero_index = int(next2/2) - 1
-#    lags = zero_index - np.arange(next2)
-#    return lags, cc_norm
 
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
-def xcorr_shift(inspec1,inspec2,smooth=5.0,percent_ceil=90.0, use_raw_arc=False, debug=False):
+def xcorr_shift(inspec1,inspec2,smooth=2.0,percent_ceil=90.0, use_raw_arc=False, debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
     the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
@@ -230,7 +215,7 @@ def xcorr_shift(inspec1,inspec2,smooth=5.0,percent_ceil=90.0, use_raw_arc=False,
     return lag_max[0], corr_max[0]
 
 
-def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=5.0, percent_ceil=90.0, use_raw_arc=False,
+def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=2.0, percent_ceil=90.0, use_raw_arc=False,
                         shift_mnmx=(-0.05,0.05), stretch_mnmx=(0.95,1.05), debug=False, seed = None):
 
     """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
@@ -306,7 +291,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=5.0, percent_ce
     y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
 
     # Do the cross-correlation first and determine the initial shift
-    shift_cc, cc_val = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, debug = debug)
+    shift_cc, cc_val = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, use_raw_arc = True, debug = debug)
 
     if cc_val < cc_thresh:
         return -1.0, shift_cc, 1.0, cc_val, shift_cc, cc_val
@@ -320,71 +305,16 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=5.0, percent_ce
 
         if debug:
             x1 = np.arange(nspec)
-            inspec2_trans = shift_and_stretch(inspec2, result.x[0], result.x[1])
-            plt.plot(x1,inspec1, 'k-', drawstyle='steps', label ='inspec1')
-            plt.plot(x1,inspec2_trans, 'r-', drawstyle='steps', label = 'inspec2')
+            y2_trans = shift_and_stretch(y2, result.x[0], result.x[1])
+            plt.figure(figsize=(14, 6))
+            plt.plot(x1,y1, 'k-', drawstyle='steps', label ='inspec1')
+            plt.plot(x1,y2_trans, 'r-', drawstyle='steps', label = 'inspec2, shift & stretch')
             plt.title('shift= {:5.3f}'.format(result.x[0]) +
                       ',  stretch = {:7.5f}'.format(result.x[1]) + ', corr = {:5.3f}'.format(-result.fun))
             plt.legend()
             plt.show()
 
         return int(result.success), result.x[0], result.x[1], -result.fun, shift_cc, cc_val
-
-
-
-# JFH ToDo This algorithm for computing the shift and stretch is unstable. It was hanging but that has been fixed
-# by ading the bounds. However, I think it is producing bogus results in many cases.
-def match_peaks_old(inspec1, inspec2, smooth=5.0, debug=False):
-    """ Stretch and shift inspec2 until it matches inspec1
-    """
-
-    # Initial estimate
-    p0 = np.array([0.0])
-    nspec = inspec1.size
-    specs = (inspec1, inspec2, smooth,)
-
-    try:
-        res = curve_fit(shift_stretch, specs, np.array([0.0]), p0,  bounds = (-nspec, nspec))
-        #res = curve_fit(shift_stretch, specs, np.array([0.0]), p0, epsfcn=1.0)
-    except ValueError:
-        # Probably no overlap of the two spectra
-        return None, None
-    stretch = res[0][0]
-    _, shift = shift_stretch(specs, stretch, retshift=True)
-
-    if debug:
-        inspec2_adj = resample(inspec2, int(inspec1.size + stretch))
-        x1 = np.arange(inspec1.shape[0])
-        x2 = np.arange(inspec2_adj.shape[0]) + shift
-        from matplotlib import pyplot as plt
-        plt.plot(x1, inspec1, 'k-', drawstyle='steps')
-        plt.plot(x2, inspec2_adj, 'r-', drawstyle='steps')
-        plt.show()
-
-    return stretch, shift
-
-
-# JFH I think this should be done with scipy.optimize to find the maximum value of the cc correlation as a function of
-# shift and stretch, rather than with curve_fit
-def shift_stretch_old(specs, p, retshift=False):
-    inspec1, inspec2, smooth = specs
-    y1 = scipy.ndimage.filters.gaussian_filter(inspec1, smooth)
-    y2 = scipy.ndimage.filters.gaussian_filter(inspec2, smooth)
-    y1size = y1.size
-    y2size = int(y1size + p)
-    y2 = resample(y2, y2size)
-    df = np.min([y1size // 2 - 1, y2size // 2 - 1])
-    size = y1size + y2size - 1
-    fsize = 2 ** np.int(np.ceil(np.log2(size)))  # Use this size for a more efficient computation
-    conv = np.fft.fft(y1, fsize)
-    conv *= scipy.conj(np.fft.fft(y2, fsize))
-    cc = scipy.ifft(conv)  # [df:df+y1size]
-    shift = np.argmax(np.abs(cc))
-    stretch = 1.0 / np.max(np.abs(cc))
-    if retshift:
-        return np.array([stretch]), shift
-    else:
-        return np.array([stretch])
 
 
 
@@ -470,3 +400,22 @@ def hist_wavedisp(waves, disps, dispbin=None, wavebin=None, scale=1.0, debug=Fal
     """
 
     return hist_wd, cent_w, cent_d
+
+
+# JFH attempt with just FFT
+# This code does not currently work yet and has bugs in the lag computation.
+#def cross_correlate(y1,y2):
+
+#    if y1.shape != y2.shape:
+#        msgs.error('cross_correlate only works for equal sized arrays')
+#    nspec =y1.shape
+#    next2 = 2**(nspec-1).bit_length()
+#    f1 = np.fft.fft(y1,n=next2)
+#    f2 = np.fft.fft(np.flipud(y2),n=next2)
+#    cc_raw = np.real(np.fft.ifft(f1 * f2))
+#    cc = np.fft.fftshift(cc_raw)
+#    corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
+#    cc_norm = cc/corr_denom
+#    zero_index = int(next2/2) - 1
+#    lags = zero_index - np.arange(next2)
+#    return lags, cc_norm
