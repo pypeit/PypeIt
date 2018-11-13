@@ -447,7 +447,7 @@ def reidentify(spec, wv_calib_arxiv, lamps, nreid_min, detections=None, cc_thres
     wvdata = np.array(tot_list['wave'].data)  # Removes mask if any
     wvdata.sort()
 
-    nspec = spec.shape[0]
+    nspec, nslits = spec.shape
     narxiv = len(wv_calib_arxiv)
     nspec_arxiv = wv_calib_arxiv['0']['spec'].size
     if nspec_arxiv != nspec:
@@ -626,7 +626,7 @@ def reidentify(spec, wv_calib_arxiv, lamps, nreid_min, detections=None, cc_thres
             bad_slits = np.append(bad_slits,islit)
             continue
         # Perform the fit
-        final_fit = fit_slit(spec[:,islit], patt_dict_slit, slit_det, line_lists, match_toler=match_toler,
+        final_fit = fitting.fit_slit(spec[:,islit], patt_dict_slit, slit_det, line_lists, match_toler=match_toler,
                              func=func, n_first=n_first,sigrej_first=sigrej_first,n_final=n_final,
                              sigrej_final=sigrej_final)
 
