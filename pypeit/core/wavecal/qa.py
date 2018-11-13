@@ -37,16 +37,22 @@ def arc_fit_qa(fit, outfile = None, ids_only=False, title=None):
     arc_spec = fit['spec']
 
     # Begin
-    if not ids_only:
-        plt.figure(figsize=(8, 4.0))
-        plt.clf()
-        gs = gridspec.GridSpec(2, 2)
-        idfont = 'xx-small'
-    else:
-        plt.figure(figsize=(11, 8.5))
-        plt.clf()
-        gs = gridspec.GridSpec(1, 1)
+    plt.close('all')
+    if ids_only:
+        nrows, ncols = 1,1
+        figsize =(11,8.5)
         idfont = 'small'
+    else:
+        nrows, ncols = 2,2
+        if outfile is None:
+            figsize = (16,8)
+            idfont = 'small'
+        else:
+            figsize = (8,4)
+            idfont = 'xx-small'
+    fig = plt.figure(figsize=figsize)
+    gs = gridspec.GridSpec(nrows,ncols, figure = fig)
+
 
     # Simple spectrum plot
     ax_spec = plt.subplot(gs[:,0])
@@ -72,7 +78,10 @@ def arc_fit_qa(fit, outfile = None, ids_only=False, title=None):
                      size='x-large', ha='left')#, bbox={'facecolor':'white'})
     if ids_only:
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        plt.savefig(outfile, dpi=800)
+        if outfile is None:
+            plt.show()
+        else:
+            plt.savefig(outfile, dpi=800)
         plt.close()
         return
 
@@ -117,7 +126,7 @@ def arc_fit_qa(fit, outfile = None, ids_only=False, title=None):
         plt.show()
     else:
         plt.savefig(outfile, dpi=400)
-    plt.close()
+    plt.close('all')
 
     plt.rcdefaults()
 

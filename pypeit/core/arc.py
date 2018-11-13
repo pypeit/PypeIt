@@ -695,7 +695,9 @@ def detect_lines(censpec, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_
     Returns
     -------
     tampl : ndarray
-      The amplitudes of the line detections
+      The amplitudes of the line detections in the true arc
+    tampl_cont : ndarray
+      The amplitudes of the line detections in the continuum subtracted arc
     tcent : ndarray
       The centroids of the line detections
     twid : ndarray
@@ -735,7 +737,7 @@ def detect_lines(censpec, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_
         (mean, med, stddev) = sigma_clipped_stats(arc_now[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
         # be very liberal in determining threshold for continuum determination
         thresh = med + 2.0*stddev
-        pixt_now = detect_peaks(arc_now, mph = thresh, mpd = 3.0)
+        pixt_now = detect_peaks(arc_now, mph=thresh, mpd=FWHM*0.75)
         # mask out the peaks we find for the next continuum iteration
         cont_mask_fine = np.ones_like(cont_now)
         cont_mask_fine[pixt_now] = 0.0
@@ -743,7 +745,7 @@ def detect_lines(censpec, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_
         cont_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999)
         # If more than half the spectrum is getting masked than short circuit this masking
         frac_mask = np.sum(~cont_mask)/float(nspec)
-        if (frac_mask > 0.67):
+        if (frac_mask > 0.70):
             msgs.warn('Too many pixels masked in arc continuum definiton: frac_mask = {:5.3f}'.format(frac_mask) + ' . Not masking....')
             cont_mask = np.ones_like(cont_mask)
         ngood = np.sum(cont_mask)
@@ -764,7 +766,7 @@ def detect_lines(censpec, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_
     nfitpix = np.round(fit_frac_fwhm*fwhm).astype(int)
     fwhm_max = max_frac_fwhm*fwhm
     tampl_fit, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
-    #tampl, tcent, twid, centerr = fit_arcspec(xrng, arc_in, pixt, nfitpix)
+    # This is the amplitude of the lines in the actual detns spectrum not continuum subtracted
     tampl_true = np.interp(pixt, xrng, detns)
     tampl = np.interp(pixt, xrng, arc)
     #         width is fine & width > 0.0 & width < FWHM/2.35 &  center positive  &  center on detector
@@ -807,7 +809,7 @@ def detect_lines(censpec, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_
         plt.legend()
         plt.show()
 
-    return tampl_true, tcent, twid, centerr, ww, arc, nsig
+    return tampl_true, tampl, tcent, twid, centerr, ww, arc, nsig
 
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
