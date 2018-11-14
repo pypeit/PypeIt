@@ -224,12 +224,12 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     rms_pix = rms_ang/disp
 
     # Pack up fit
-    cen_wave = utils.func_val(fit, float(nspec)/2), func, minv=fmin, maxv=fmax)
+    cen_wave = utils.func_val(fit, float(nspec)/2, func, minv=fmin, maxv=fmax)
     cen_wave_min1 = utils.func_val(fit, float(nspec)/2 - 1.0, func, minv=fmin, maxv=fmax)
     cen_disp = cen_wave - cen_wave_min1
 
-    final_fit = dict(fitc=fit, function=func, xfit=xfit, yfit=yfit, weights=wfit,
-                     ions=ions, fmin=fmin, fmax=fmax, nspec=nspec, cen_wave = cen_wave, cen_disp = cen_disp
+    final_fit = dict(fitc=fit, function=func, xfit=xfit, yfit=yfit, weights=wfit, ions=ions,
+                     fmin=fmin, fmax=fmax, nspec=nspec, cen_wave = cen_wave, cen_disp = cen_disp,
                      xrej=xrej, yrej=yrej, mask=mask, spec=spec, nrej=sigrej_final,
                      shift=0., tcent=tcent, rms=rms_pix)
 
