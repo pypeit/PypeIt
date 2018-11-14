@@ -99,7 +99,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.arccen = None
 
 
-    def _build_wv_calib(self, method, skip_QA=False, use_method='general'):
+    def _build_wv_calib(self, method, skip_QA=False):
         """
         Main routine to generate the wavelength solutions in a loop over slits
         Wrapper to arc.simple_calib or arc.calib_with_arclines
@@ -137,48 +137,45 @@ class WaveCalib(masterframe.MasterFrame):
                                                     nfitpix=self.par['nfitpix'],
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
-        elif method == 'arclines':
-            if ok_mask is None:
-                ok_mask = np.arange(self.arccen.shape[1])
-
-            if use_method == "semi-brute":
-                debugger.set_trace()  # THIS IS BROKEN
-                final_fit = {}
-                for slit in ok_mask:
-                    # HACKS BY JXP
-                    self.par['wv_cen'] = 8670.
-                    self.par['disp'] = 1.524
-                    # ToDO remove these hacks and use the parset in semi_brute
-                    best_dict, ifinal_fit = wavecal.autoid.semi_brute(self.arccen[:, slit],
-                                                                      self.par['lamps'], self.par['wv_cen'],
-                                                                      (self)['disp'],match_toler=self.par['match_toler'],
-                                                                      func=self.par['func'],n_first=self.par['n_first'],
-                                                                      sigrej_first=self.par['n_first'],
-                                                                      n_final=self.par['n_final'],
-                                                                      sigrej_final=self.par['sigrej_final'],
-                                                                      min_nsig=self.par['min_nsig'],
-                                                                      nonlinear_counts= self.par['nonlinear_counts'])
-                    final_fit[str(slit)] = ifinal_fit.copy()
-            elif use_method == "basic":
-                final_fit = {}
-                for slit in ok_mask:
-                    status, ngd_match, match_idx, scores, ifinal_fit = \
-                        wavecal.autoid.basic(self.arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
-                                     nonlinear_counts = self.par['nonlinear_counts'])
-                    final_fit[str(slit)] = ifinal_fit.copy()
-            elif use_method == "holy-grail":
-                # Sometimes works, sometimes fails
-                arcfitter = wavecal.autoid.HolyGrail(self.arccen, par = self.par, ok_mask=ok_mask)
-                patt_dict, final_fit = arcfitter.get_results()
-            elif use_method == "reidentify":
-                # Now preferred
-                wavecal.autoid.reidentify()
+        elif method == 'semi-brute':
+            debugger.set_trace()  # THIS IS BROKEN
+            final_fit = {}
+            for slit in ok_mask:
+                # HACKS BY JXP
+                self.par['wv_cen'] = 8670.
+                self.par['disp'] = 1.524
+                # ToDO remove these hacks and use the parset in semi_brute
+                best_dict, ifinal_fit = wavecal.autoid.semi_brute(self.arccen[:, slit],
+                                                                  self.par['lamps'], self.par['wv_cen'],
+                                                                  (self)['disp'],match_toler=self.par['match_toler'],
+                                                                  func=self.par['func'],n_first=self.par['n_first'],
+                                                                  sigrej_first=self.par['n_first'],
+                                                                  n_final=self.par['n_final'],
+                                                                  sigrej_final=self.par['sigrej_final'],
+                                                                  sigdetect=self.par['sigdetect'],
+                                                                  nonlinear_counts= self.par['nonlinear_counts'])
+                final_fit[str(slit)] = ifinal_fit.copy()
+        elif method == 'basic':
+            final_fit = {}
+            for slit in ok_mask:
+                status, ngd_match, match_idx, scores, ifinal_fit = \
+                    wavecal.autoid.basic(self.arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
+                                 nonlinear_counts = self.par['nonlinear_counts'])
+                final_fit[str(slit)] = ifinal_fit.copy()
+        elif method == 'holy-grail':
+            # Sometimes works, sometimes fails
+            arcfitter = wavecal.autoid.HolyGrail(self.arccen, par = self.par, ok_mask=ok_mask)
+            patt_dict, final_fit = arcfitter.get_results()
+        elif method == 'reidentify':
+            # Now preferred
+            arcfitter = wavecal.autoid.ArchiveReid(self.arcsen, par=self.par, ok_mask=ok_mask)
+            patt_dict, final_fit = arcfitter.get_results()
 
 
-            else:
-                msgs.error('Unrecognized wavelength calibration method: {:}'.format(use_method))
+        else:
+            msgs.error('Unrecognized wavelength calibration method: {:}'.format(use_method))
 
-            self.wv_calib = final_fit
+        self.wv_calib = final_fit
 
         # QA
         if not skip_QA:
