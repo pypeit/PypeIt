@@ -997,9 +997,9 @@ class WavelengthSolutionPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, reference=None, method=None, lamps=None, rms_threshold=None, nonlinear_counts = None,
-                 match_toler=None, func=None, n_first=None, n_final =None, sigrej_first=None, sigrej_final=None,
-                 wv_cen = None, disp = None,
-                 numsearch=None,nfitpix=None, IDpixels=None, IDwaves=None, medium=None, frame=None, min_nsig=None, lowest_nsig=None):
+                 sigdetect=None, match_toler=None, func=None, n_first=None, n_final =None, sigrej_first=None, sigrej_final=None,
+                 wv_cen=None, disp=None,numsearch=None,nfitpix=None, IDpixels=None,
+                 IDwaves=None, medium=None, frame=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1052,14 +1052,10 @@ class WavelengthSolutionPar(ParSet):
 
         defaults['rms_threshold'] = 0.15
         dtypes['rms_threshold'] = float
-        descr['rms_threshold'] = 'Minimum RMS for keeping a slit solution'
-
-        #defaults['min_nsig'] = 10.
-        #dtypes['min_nsig'] = float
-        #descr['min_nsig'] = 'Detection threshold for arc lines for "standard" lines'
+        descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution'
 
         defaults['sigdetect'] = 5.
-        dtypes['sigdetect'] = float
+        dtypes['sigdetect'] = [int, float]
         descr['sigdetect'] = 'Detection threshold for arc lines'
 
         # These are the parameters used for the iterative fitting of the arc lines
@@ -1133,6 +1129,12 @@ class WavelengthSolutionPar(ParSet):
         descr['frame'] = 'Frame of reference for the wavelength calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['frame']))
 
+        # This is now defunct
+        #defaults['min_nsig'] = 10.
+        #dtypes['min_nsig'] = float
+        #descr['min_nsig'] = 'Detection threshold for arc lines for "standard" lines'
+
+
 
         # Instantiate the parameter set
         super(WavelengthSolutionPar, self).__init__(list(pars.keys()),
@@ -1146,10 +1148,9 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'reference', 'method', 'lamps', 'rms_threshold', 'nonlinear_counts', 'match_toler', 'func', 'n_first',
-                    'n_final', 'sigrej_first', 'sigrej_final',
-                    'wv_cen', 'disp', 'numsearch', 'nfitpix',
-                    'IDpixels', 'IDwaves', 'medium', 'frame', 'min_nsig', 'lowest_nsig']
+        parkeys = [ 'reference', 'method', 'lamps', 'rms_threshold', 'nonlinear_counts', 'sigdetect',
+                    'match_toler', 'func', 'n_first','n_final', 'sigrej_first', 'sigrej_final',
+                    'wv_cen', 'disp', 'numsearch', 'nfitpix','IDpixels', 'IDwaves', 'medium', 'frame']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
