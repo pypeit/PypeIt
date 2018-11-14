@@ -1272,7 +1272,7 @@ class HolyGrail:
                 self._unknwns = waveio.load_unknown_list(self._lines)
 
         if self._use_unknowns:
-            self._tot_list = vstack([self._line_lists, self._unknwns])
+            self._tot_list = table.vstack([self._line_lists, self._unknwns])
         else:
             self._tot_list = self._line_lists
 
@@ -1353,7 +1353,7 @@ class HolyGrail:
                             if len(final_fit['xfit']) > len(best_final_fit['xfit']):
                                 best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
                             # Decide if an early return is acceptable
-                            nlft = np.sum(best_final_fit['tcent'] < best_final_fit['xnorm']/2.0)
+                            nlft = np.sum(best_final_fit['tcent'] < best_final_fit['nspec']/2.0)
                             nrgt = best_final_fit['tcent'].size-nlft
                             if np.sum(best_final_fit['xfit'] < 0.5)/nlft > idthresh and\
                                 np.sum(best_final_fit['xfit'] >= 0.5) / nrgt > idthresh:
