@@ -1025,7 +1025,7 @@ class WavelengthSolutionPar(ParSet):
         descr['reference'] = 'Perform wavelength calibration with an arc, sky frame.  Use ' \
                              '\'pixel\' for no wavelength solution.'
 
-        defaults['method'] = 'arclines'
+        defaults['method'] = 'holy-grail'
         options['method'] = WavelengthSolutionPar.valid_methods()
         dtypes['method'] = str
         descr['method'] = 'Method to use to fit the individual arc lines. Most of these methods are now deprecated ' \
