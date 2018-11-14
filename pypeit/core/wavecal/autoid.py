@@ -943,18 +943,47 @@ class ArchiveReid:
 
     Parameters in the parset
     ------------------------
-    rms_threshold: float, default = 0.15
-       Minimum rms for considering a wavelength solution to be an acceptable good fit. Slits/orders with a larger RMS
-       than this are flagged as bad slits
+
+    For arc line detection
+    ---------------------------
     nonlinear_counts: float, default = 1e10
        Arc lines above this saturation threshold are not used in wavelength solution fits because they cannot be accurately
        centroided
     sigdetect: float, default 5.0
        Sigma threshold above fluctuations for arc-line detection. Arcs are continuum subtracted and the fluctuations are
        computed after continuum subtraction.
+
+    For reidentification
+    --------------------
+    reid_arxiv: str
+       Name of the archival wavelength solution file that will be used for the wavelength reidentification
+    nreid_min: int
+       Minimum number of times that a given candidate reidentified line must be properly matched with a line in the arxiv
+       to be considered a good reidentification. If there is a lot of duplication in the arxiv of the spectra in question
+       (i.e. multislit) set this to a number like 2-4. For echelle this depends on the number of solutions in the arxiv.
+       For fixed format echelle (ESI, X-SHOOTER, NIRES) set this 1. For an echelle with a tiltable grating, it will depend
+       on the number of solutions in the arxiv.
+    cc_thresh: float, default = 0.8
+       Threshold for the *global* cross-correlation coefficient between an input spectrum and member of the archive required to
+       attempt reidentification. Spectra from the archive with a lower cross-correlation are not used for reidentification
+    cc_local_thresh: float, default = 0.8
+       Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  between an input
+       spectrum and the shifted and stretched archive spectrum above which a line must be to be considered a good line for
+       reidentification. The local cross-correlation is evaluated at each candidate reidentified line
+       (using a window of nlocal_cc), and is then used to score the the reidentified lines to arrive at the final set of
+       good reidentifications
+    n_local_cc: int, defualt = 11
+       Size of pixel window used for local cross-correlation computation for each arc line. If not an odd number one will
+       be added to it to make it odd.
+
+    For iterative wavelength solution fitting
+    --------------------
+    rms_threshold: float, default = 0.15
+       Minimum rms for considering a wavelength solution to be an acceptable good fit. Slits/orders with a larger RMS
+       than this are flagged as bad slits
     match_toler: float, default = 2.0
        Matching tolerance in pixels when searching for new lines. This is the difference in pixels between the wavlength assigned to
-       an arc line by an iteration of the wavelength solution to the wavelength in the line list. This parameter is also
+       an arc line by an iteration of the wavelength solution to the wavelength in the line list. This parameter is *also*
        used as the matching tolerance in pixels for a line reidentification. A good line match must match within this tolerance to the
        the shifted and stretched archive spectrum, and the archive wavelength solution at this match must be within
        match_toler dispersion elements from the line in line list.
@@ -968,8 +997,6 @@ class ArchiveReid:
        Order of the final wavelength solution fit
     sigrej_final: float, default = 3.0
        Number of sigma for rejection for the final fit to the wavelength solution.
-
-
     """
 
     def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True,
@@ -1209,8 +1236,12 @@ class HolyGrail:
 
         # Set the input parameters
         self._nonlinear_counts = self._par['nonlinear_counts']
-        self._min_nsig = self._par['min_nsig']
-        self._lowest_nsig = self._par['lowest_nsig']
+        #self._min_nsig = self._par['min_nsig']
+        #self._lowest_nsig = self._par['lowest_nsig']
+        # JFH I'm not convinced that the codea actually does anything except use the lowest nsig, but am not sure
+        self._min_nsig = self._par['sigdetect']
+        self._lowest_nsig = self._par['sigdetect']
+
         self._rms_threshold = self._par['rms_threshold']
         self._match_toler = self._par['match_toler']
         self._func = self._par['func']
