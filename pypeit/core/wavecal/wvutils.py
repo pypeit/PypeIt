@@ -157,7 +157,7 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False):
 
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
-def xcorr_shift(inspec1,inspec2,smooth=2.0,percent_ceil=90.0, use_raw_arc=False, debug=False):
+def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=90.0, use_raw_arc=False, debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
     the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
@@ -215,7 +215,7 @@ def xcorr_shift(inspec1,inspec2,smooth=2.0,percent_ceil=90.0, use_raw_arc=False,
     return lag_max[0], corr_max[0]
 
 
-def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=2.0, percent_ceil=90.0, use_raw_arc=False,
+def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ceil=90.0, use_raw_arc=False,
                         shift_mnmx=(-0.05,0.05), stretch_mnmx=(0.95,1.05), debug=False, seed = None):
 
     """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
@@ -294,7 +294,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=2.0, percent_ce
     shift_cc, cc_val = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, use_raw_arc = True, debug = debug)
 
     if cc_val < cc_thresh:
-        return -1.0, shift_cc, 1.0, cc_val, shift_cc, cc_val
+        return -1, shift_cc, 1.0, cc_val, shift_cc, cc_val
     else:
         bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
         # TODO Can we make the differential evolution run faster?

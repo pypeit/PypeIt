@@ -260,7 +260,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
 
     # Plot
     if outroot is not None:
-        tmp_list = vstack([line_lists,unknwns])
+        tmp_list = table.vstack([line_lists,unknwns])
         qa.match_qa(spec, cut_tcent, tmp_list, best_dict['IDs'], best_dict['scores'], outfile = outroot+'.pdf')
         msgs.info("Wrote: {:s}".format(outroot+'.pdf'))
 
@@ -660,25 +660,36 @@ def reidentify_old(spec, wv_calib_arxiv, lamps, nreid_min, detections=None, cc_t
     return wv_calib, patt_dict, bad_slits
 
 
-def reidentify(spec, line_list, spec_arxiv, wave_soln_arxiv, det_arxiv, nreid_min, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
-               match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect = 5.0,debug_xcorr=False, debug_reid=False):
+def reidentify(spec, spec_arxiv, wave_soln_arxiv, det_arxiv, line_list, nreid_min, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
+               match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,debug_xcorr=False, debug_reid=False):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
     Parameters
     ----------
-    spec :  float ndarray shape (nspec)
+    spec:  float ndarray shape (nspec)
        Arc spectrum for which wavelength identifications are desired.
 
-    wv_calib_arxiv: dict
-       Dictionary containing archival wavelength solutions for a collection of slits/orders to be used to reidentify
-       lines and  determine the wavelength solution for spec. This dict is a standard format for PypeIt wavelength solutions
-       as created by pypeit.core.wavecal.fitting.iterative_fitting
+    spec_arxiv:  float ndarray shape (nspec, narxiv) or (nspec)
+       Collection of archival arc spectra for which wavelength solution and line identifications are known
 
-    lamps: list of strings
-       The are line lamps that are on or the name of the linelist that should be used. For example for Shane Kast blue
-       this would ['CdI','HgI','HeI']. For X-shooter NIR which calibrates of a custom OH sky line list,
-       it is the name of the line list, i.e. ['OH_XSHOOTER']
+    wave_soln_arxiv:  float ndarray shape (nspec, narxiv)
+       Wavelength solutions for the archival arc spectra spec_arxiv
 
+    det_arxiv:  dict, the dict has narxiv keys which are '0','1', ... up to str(narxiv-1). det_arxiv['0'] points to an
+                an ndarray of size determined by the number of lines that were detected.
+
+       Arc line pixel locations in the spec_arxiv spectra that were used in combination with line identifications from the
+       line list to determine the wavelength solution wave_soln_arxiv.
+
+    line_list: astropy table
+       The arc line list used for thew wavelength solution in pypeit format.
+
+    nreid_min: int
+       Minimum number of times that a given candidate reidentified line must be properly matched with a line in the arxiv
+       to be considered a good reidentification. If there is a lot of duplication in the arxiv of the spectra in question
+       (i.e. multislit) set this to a number like 2-4. For echelle this depends on the number of solutions in the arxiv.
+       For fixed format echelle (ESI, X-SHOOTER, NIRES) set this 1. For an echelle with a tiltable grating, it will depend
+       on the number of solutions in the arxiv.
 
     Optional Parameters
     -------------------
@@ -715,23 +726,16 @@ def reidentify(spec, line_list, spec_arxiv, wave_soln_arxiv, det_arxiv, nreid_mi
 
     Returns
     -------
-    (wv_calib, patt_dict, bad_slits)
+    (detections, patt_dict)
 
-    wv_calib: dict
-       Wavelength solution for the input arc spectra spec. These are stored in standard pypeit format, i.e.
-       each index of spec[:,slit] corresponds to a key in the wv_calib dictionary wv_calib[str(slit)] which yields
-       the final_fit dictionary for this slit
-
+    detections: ndarray,
+       Pixel locations of arc lines detected.
     patt_dict: dict
        Arc lines pattern dictionary with some information about the IDs as well as the cross-correlation values
 
-    bad_slits: ndarray, int
-       Numpy array with the indices of the bad slits. These are the indices in the input arc spectrum array spec[:,islit]
-
-
     Revision History
     ----------------
-    November 2018 by J.F. Hennawi. Based on an initial version of this code written by Ryan Cooke.
+    November 2018 by J.F. Hennawi. Built from an initial version of cross_match code written by Ryan Cooke.
     """
 
     # Determine the seed for scipy.optimize.differential_evolution optimizer. Just take the sum of all the elements
@@ -746,21 +750,26 @@ def reidentify(spec, line_list, spec_arxiv, wave_soln_arxiv, det_arxiv, nreid_mi
     wvdata = np.array(line_list['wave'].data)  # Removes mask if any
     wvdata.sort()
 
-    if spec.ndim = 1:
-        nspec = spec.shape
+    if spec.ndim == 1:
+        nspec = spec.size
     else:
         msgs.error('spec must be a one dimensional numpy array ')
 
     # TODO Implement different binnings between archival and input spectrum
-    narxiv = len(wv_calib_arxiv)
-    nspec_arxiv = wv_calib_arxiv['0']['spec'].size
+    if spec_arxiv.ndim == 2:
+        nspec_arxiv, narxiv = spec_arxiv.shape
+    elif spec_arxiv.ndim == 1:
+        nspec_arxiv = spec_arxiv.size
+        narxiv = 1
+    else:
+        msgs.error('Unrecognized shape for spec_arxiv. It must be either a one dimensional or two dimensional numpy array')
     xrng = np.arange(nspec_arxiv)
     if nspec_arxiv != nspec:
         msgs.error('Different spectral binning is not supported yet but it will be soon')
 
     # If the detections were not passed in find the lines in each spectrum
     if detections is None:
-        tcent, ecent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec[:, islit], sigdetect=sigdetect,nonlinear_counts=nonlinear_counts)
+        tcent, ecent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect,nonlinear_counts=nonlinear_counts)
         detections = tcent[icut]
 
     # For convenience pull out all the spectra from the wv_calib_arxiv archive
@@ -786,10 +795,11 @@ def reidentify(spec, line_list, spec_arxiv, wave_soln_arxiv, det_arxiv, nreid_mi
     stretch_vec = np.zeros(narxiv)
     ccorr_vec = np.zeros(narxiv)
     for iarxiv in range(narxiv):
-        msgs.info('Cross-correlating slit # {:d}'.format(islit + 1) + ' with arxiv slit # {:d}'.format(iarxiv + 1))
+        msgs.info('Cross-correlating slit with arxiv slit # {:d}'.format(iarxiv + 1))
+        this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
         success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
-            wvutils.xcorr_shift_stretch(spec[:, islit], spec_arxiv[:, iarxiv], cc_thresh=cc_thresh, seed = random_state,
+            wvutils.xcorr_shift_stretch(spec, spec_arxiv[:, iarxiv], cc_thresh=cc_thresh, seed = random_state,
                                         debug=debug_xcorr)
         # If cc < cc_thresh or if this optimization failed, don't reidentify from this arxiv spectrum
         if success != 1:
@@ -797,48 +807,48 @@ def reidentify(spec, line_list, spec_arxiv, wave_soln_arxiv, det_arxiv, nreid_mi
         # Estimate wcen and disp for this slit based on its shift/stretch relative to the archive slit
         disp[iarxiv] = disp_arxiv[iarxiv] / stretch_vec[iarxiv]
         wcen[iarxiv] = wvc_arxiv[iarxiv] - shift_vec[iarxiv]*disp[iarxiv]
-        # For each peak in the arxiv spectrum, identify the corresponding peaks in the input islit spectrum. Do this by
-        # transforming these arxiv slit line pixel locations into the (shifted and stretched) input islit spectrum frame
-        det_arxiv_ss = det_arxiv*stretch_vec[iarxiv] + shift_vec[iarxiv]
+        # For each peak in the arxiv spectrum, identify the corresponding peaks in the input spectrum. Do this by
+        # transforming these arxiv slit line pixel locations into the (shifted and stretched) input spectrum frame
+        det_arxiv_ss = this_det_arxiv*stretch_vec[iarxiv] + shift_vec[iarxiv]
         spec_arxiv_ss = wvutils.shift_and_stretch(spec_arxiv[:, iarxiv], shift_vec[iarxiv], stretch_vec[iarxiv])
 
         if debug_xcorr:
             plt.figure(figsize=(14, 6))
-            tampl_slit = np.interp(detections, xrng, spec[:, islit])
-            plt.plot(xrng, spec[:, islit], color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
+            tampl_slit = np.interp(detections, xrng, spec)
+            plt.plot(xrng, spec, color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
             plt.plot(detections, tampl_slit, 'r.', markersize=10.0, label='input arc lines', zorder=10)
-            tampl_arxiv = np.interp(det_arxiv, xrng, spec_arxiv[:, iarxiv])
+            tampl_arxiv = np.interp(this_det_arxiv, xrng, spec_arxiv[:, iarxiv])
             plt.plot(xrng, spec_arxiv[:, iarxiv], color='black', drawstyle='steps-mid', linestyle=':',
                      label='arxiv arc', linewidth=0.5)
-            plt.plot(det_arxiv, tampl_arxiv, 'k+', markersize=8.0, label='arxiv arc lines')
+            plt.plot(this_det_arxiv, tampl_arxiv, 'k+', markersize=8.0, label='arxiv arc lines')
             # tampl_ss = np.interp(gsdet_ss, xrng, gdarc_ss)
             for iline in range(det_arxiv_ss.size):
-                plt.plot([det_arxiv[iline], det_arxiv_ss[iline]], [tampl_arxiv[iline], tampl_arxiv[iline]],
+                plt.plot([this_det_arxiv[iline], det_arxiv_ss[iline]], [tampl_arxiv[iline], tampl_arxiv[iline]],
                          color='cornflowerblue', linewidth=1.0)
             plt.plot(xrng, spec_arxiv_ss, color='black', drawstyle='steps-mid', label='arxiv arc shift/stretch',linewidth=1.0)
             plt.plot(det_arxiv_ss, tampl_arxiv, 'k.', markersize=10.0, label='predicted arxiv arc lines')
             plt.title(
-                'Cross-correlation of input slit # {:d}'.format(islit + 1) + ' and arxiv slit # {:d}'.format(iarxiv + 1) +
+                'Cross-correlation of input slit and arxiv slit # {:d}'.format(iarxiv + 1) +
                 ': ccor = {:5.3f}'.format(ccorr_vec[iarxiv]) +
                 ', shift = {:6.1f}'.format(shift_vec[iarxiv]) +
                 ', stretch = {:5.4f}'.format(stretch_vec[iarxiv]) +
                 ', wv_cen = {:7.1f}'.format(wcen[iarxiv]) +
                 ', disp = {:5.3f}'.format(disp[iarxiv]))
-            plt.ylim(1.2*spec[:, islit].min(), 1.5 *spec[:, islit].max())
+            plt.ylim(1.2*spec.min(), 1.5 *spec.max())
             plt.legend()
             plt.show()
 
 
-        # Calculate wavelengths for all of the det_arxiv detections. This step could in principle be done more accurately
+        # Calculate wavelengths for all of the this_det_arxiv detections. This step could in principle be done more accurately
         # with the polynomial solution itself, but the differences are 1e-12 of a pixel, and this interpolate of the tabulated
         # solution makes the code more general.
-        wvval_arxiv = (scipy.interpolate.interp1d(xrng, wave_soln_arxiv[:, iarxiv], kind='cubic'))(det_arxiv)
+        wvval_arxiv = (scipy.interpolate.interp1d(xrng, wave_soln_arxiv[:, iarxiv], kind='cubic'))(this_det_arxiv)
 
         # Compute a "local" zero lag correlation of the slit spectrum and the shifted and stretch arxiv spectrum over a
         # a nlocal_cc_odd long segment of spectrum. We will then uses spectral similarity as a further criteria to
         # decide which lines are good matches
-        prod_smooth = scipy.ndimage.filters.convolve1d(spec[:, islit]*spec_arxiv_ss, window)
-        spec2_smooth = scipy.ndimage.filters.convolve1d(spec[:, islit]**2, window)
+        prod_smooth = scipy.ndimage.filters.convolve1d(spec*spec_arxiv_ss, window)
+        spec2_smooth = scipy.ndimage.filters.convolve1d(spec**2, window)
         arxiv2_smooth = scipy.ndimage.filters.convolve1d(spec_arxiv_ss**2, window)
         denom = np.sqrt(spec2_smooth*arxiv2_smooth)
         corr_local = np.zeros_like(denom)
@@ -865,24 +875,6 @@ def reidentify(spec, line_list, spec_arxiv, wave_soln_arxiv, det_arxiv, nreid_mi
     if (narxiv_used == 0) or (len(np.unique(line_indx)) < 3):
         return detections, {}
 
-    if debug_reid:
-        plt.figure(figsize=(14, 6))
-        # Plot a summary of the local x-correlation values for each line on each slit
-        for iarxiv in range(narxiv):
-            # Only plot those that we actually tried to reidentify (i.e. above cc_thresh)
-            if wcen[iarxiv] != 0.0:
-                this_iarxiv = line_iarxiv == iarxiv
-                plt.plot(wvdata[line_indx[this_iarxiv]],line_cc[this_iarxiv],marker=next(marker),color=next(colors),
-                         linestyle='',markersize=5.0,label='arxiv slit={:d}'.format(iarxiv))
-
-        plt.hlines(cc_local_thresh, wvdata[line_indx].min(), wvdata[line_indx].max(), color='red', linestyle='--',label='Local xcorr threshhold')
-        plt.title('slit={:d}'.format(islit + 1) + ': Local x-correlation for reidentified lines from narxiv_used={:d}'.format(narxiv_used) +
-                  ' arxiv slits. Requirement: nreid_min={:d}'.format(nreid_min) + ' matches > threshold')
-        plt.xlabel('wavelength from line list')
-        plt.ylabel('Local x-correlation coefficient')
-        #plt.ylim((0.0, 1.2))
-        plt.legend()
-        plt.show()
 
     # Finalize the best guess of each line
     # Initialise the patterns dictionary, min_nsig not used anywhere
@@ -894,7 +886,26 @@ def reidentify(spec, line_list, spec_arxiv, wave_soln_arxiv, det_arxiv, nreid_mi
                          cc_local_thresh=cc_local_thresh)
 
     if debug_reid:
-        qa.match_qa(spec[:, islit], detections, line_list, patt_dict_slit['IDs'], patt_dict_slit['scores'])
+        plt.figure(figsize=(14, 6))
+        # Plot a summary of the local x-correlation values for each line on each slit
+        for iarxiv in range(narxiv):
+            # Only plot those that we actually tried to reidentify (i.e. above cc_thresh)
+            if wcen[iarxiv] != 0.0:
+                this_iarxiv = line_iarxiv == iarxiv
+                plt.plot(wvdata[line_indx[this_iarxiv]], line_cc[this_iarxiv], marker=next(marker), color=next(colors),
+                         linestyle='', markersize=5.0, label='arxiv slit={:d}'.format(iarxiv))
+
+        plt.hlines(cc_local_thresh, wvdata[line_indx].min(), wvdata[line_indx].max(), color='red', linestyle='--',
+                   label='Local xcorr threshhold')
+        plt.title('Local x-correlation for reidentified lines from narxiv_used={:d}'.format(narxiv_used) +
+                  ' arxiv slits. Requirement: nreid_min={:d}'.format(nreid_min) + ' matches > threshold')
+        plt.xlabel('wavelength from line list')
+        plt.ylabel('Local x-correlation coefficient')
+        # plt.ylim((0.0, 1.2))
+        plt.legend()
+        plt.show()
+        # QA Plot ofthe reidentifications
+        qa.match_qa(spec, detections, line_list, patt_dict_slit['IDs'], patt_dict_slit['scores'])
 
     # Use only the perfect IDs
     iperfect = np.array(patt_dict_slit['scores']) != 'Perfect'
