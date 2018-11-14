@@ -723,7 +723,7 @@ class ArchiveReid:
             fitfunc = self.wv_calib_arxiv[str(iarxiv)]['function']
             fmin, fmax = self.wv_calib_arxiv[str(iarxiv)]['fmin'], self.wv_calib_arxiv[str(iarxiv)]['fmax']
             self.wave_soln_arxiv[:, iarxiv] = utils.func_val(fitc, xrng, fitfunc, minv=fmin, maxv=fmax)
-            self.det_arxiv[str(iarxiv)] = self.wv_calib_arxiv[str(iarxiv)]['xfit']
+            self.det_arxiv[str(iarxiv)] = self.wv_calib_arxiv[str(iarxiv)]['pixels_fit']
 
         # Todo should this be a separate reidentify_and_fit method? I think not
 
@@ -809,7 +809,7 @@ class ArchiveReid:
                       'Final report for slit {0:d}/{1:d}:'.format(slit + 1, self.nslits) + msgs.newline() +
                       '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                       '  Number of lines detected      = {:d}'.format(self.detections[st].size) + msgs.newline() +
-                      '  Number of lines that were fit = {:d}'.format(len(self.wv_calib[st]['xfit'])) + msgs.newline() +
+                      '  Number of lines that were fit = {:d}'.format(len(self.wv_calib[st]['pixels_fit'])) + msgs.newline() +
                       '  Central wavelength            = {:g}A'.format(cen_wave) + msgs.newline() +
                       '  Central dispersion            = {:g}A/pix'.format(cen_disp) + msgs.newline() +
                       '  Central wave/disp             = {:g}'.format(cen_wave/cen_disp) + msgs.newline() +
@@ -1004,13 +1004,13 @@ class HolyGrail:
                             continue
                         elif final_fit['rms'] < self._rms_threshold:
                             # Has a better fit been identified (i.e. more lines identified)?
-                            if len(final_fit['xfit']) > len(best_final_fit['xfit']):
+                            if len(final_fit['pixels_fit']) > len(best_final_fit['pixels_fit']):
                                 best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
                             # Decide if an early return is acceptable
                             nlft = np.sum(best_final_fit['tcent'] < best_final_fit['nspec']/2.0)
                             nrgt = best_final_fit['tcent'].size-nlft
-                            if np.sum(best_final_fit['xfit'] < 0.5)/nlft > idthresh and\
-                                np.sum(best_final_fit['xfit'] >= 0.5) / nrgt > idthresh:
+                            if np.sum(best_final_fit['pixels_fit'] < 0.5)/nlft > idthresh and\
+                                np.sum(best_final_fit['pixels_fit'] >= 0.5) / nrgt > idthresh:
                                 # At least half of the lines on either side of the spectrum have been identified
                                 return best_patt_dict, best_final_fit
 
@@ -1242,10 +1242,9 @@ class HolyGrail:
                 dsp_gd[cntr] = self._all_patt_dict[str(slit)]["bdisp"]
                 # JFH stuff
                 fitc = self._all_final_fit[str(slit)]['fitc']
-                xfit = xrng
                 fitfunc = self._all_final_fit[str(slit)]['function']
                 fmin, fmax = self._all_final_fit[str(slit)]['fmin'], self._all_final_fit[str(slit)]['fmax']
-                wave_soln = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
+                wave_soln = utils.func_val(fitc, xrng, fitfunc, minv=fmin, maxv=fmax)
                 wvc_gd_jfh[cntr] = wave_soln[self._npix//2]
                 dsp_gd_jfh[cntr]= np.median(wave_soln - np.roll(wave_soln,1))
                 cntr += 1
@@ -1326,10 +1325,9 @@ class HolyGrail:
             sign_good[islit] =  self._all_patt_dict[str(good_slits[islit])]['sign']
             # JFH stuff
             fitc = self._all_final_fit[str(good_slits[islit])]['fitc']
-            xfit = xrng
             fitfunc = self._all_final_fit[str(good_slits[islit])]['function']
             fmin, fmax = self._all_final_fit[str(good_slits[islit])]['fmin'], self._all_final_fit[str(good_slits[islit])]['fmax']
-            wave_soln = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
+            wave_soln = utils.func_val(fitc, xrng, fitfunc, minv=fmin, maxv=fmax)
             wvc_good[islit] = wave_soln[self._npix // 2]
             disp_good[islit] = np.median(wave_soln - np.roll(wave_soln, 1))
 
@@ -1402,10 +1400,9 @@ class HolyGrail:
 
                 # Calculate wavelengths for all of the gsdet detections
                 fitc = self._all_final_fit[str(gs)]['fitc']
-                xfit = gsdet
                 fitfunc = self._all_final_fit[str(gs)]['function']
                 fmin, fmax = self._all_final_fit[str(gs)]['fmin'], self._all_final_fit[str(gs)]['fmax']
-                wvval = utils.func_val(fitc, xfit, fitfunc, minv=fmin, maxv=fmax)
+                wvval = utils.func_val(fitc, gsdet, fitfunc, minv=fmin, maxv=fmax)
                 # Loop over the bad slit line pixel detections and find the nearest good slit line
                 for dd in range(bsdet.size):
                     pdiff = np.abs(bsdet[dd]-gsdet_ss)
@@ -1462,7 +1459,7 @@ class HolyGrail:
                 xrng = np.arange(self._npix)
                 xplt = np.linspace(0.0, 1.0, self._npix)
                 yplt = utils.func_val(final_fit['fitc'], xplt, 'legendre', minv=0.0, maxv=1.0)
-                plt.plot(final_fit['xfit'], final_fit['yfit'], 'bx')
+                plt.plot(final_fit['pixel_fit'], final_fit['wave_fit'], 'bx')
                 plt.plot(xplt, yplt, 'r-')
                 plt.show()
                 #pdb.set_trace()
@@ -1638,7 +1635,7 @@ class HolyGrail:
             if self._debug:
                 xplt = np.linspace(0.0, 1.0, self._npix)
                 yplt = utils.func_val(final_fit['fitc'], xplt, 'legendre', minv=0.0, maxv=1.0)
-                plt.plot(final_fit['xfit'], final_fit['yfit'], 'bx')
+                plt.plot(final_fit['pixel_fit'], final_fit['wave_fit'], 'bx')
                 plt.plot(xplt, yplt, 'r-')
                 plt.show()
                 pdb.set_trace()
@@ -1954,7 +1951,7 @@ class HolyGrail:
                 continue
             elif tfinal_dict['rms'] < self._rms_threshold:
                 # Has a better fit been identified (i.e. more lines ID)?
-                if len(tfinal_dict['xfit']) > len(final_dict['xfit']):
+                if len(tfinal_dict['pixel_fit']) > len(final_dict['pixel_fit']):
                     patt_dict, final_dict = copy.deepcopy(tpatt_dict), copy.deepcopy(tfinal_dict)
         return patt_dict, final_dict
 
@@ -2135,7 +2132,7 @@ class HolyGrail:
                       '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                       '  Number of weak lines         = {:d}'.format(self._det_weak[str(slit)][0].size) + msgs.newline() +
                       '  Number of strong lines       = {:d}'.format(self._det_stro[str(slit)][0].size) + msgs.newline() +
-                      '  Number of lines analyzed     = {:d}'.format(len(best_final_fit['xfit'])) + msgs.newline() +
+                      '  Number of lines analyzed     = {:d}'.format(len(best_final_fit['pixel_fit'])) + msgs.newline() +
                       '  Number of pattern matches    = {:d}'.format(best_patt_dict['nmatch']) + msgs.newline() +
                       '  Patt match cen wavelength    = {:g}A'.format(best_patt_dict['bwv']) + msgs.newline() +
                       '  Patt match dispersion        = {:g}A/pix'.format(best_patt_dict['bdisp']) + msgs.newline() +
@@ -2176,7 +2173,7 @@ class HolyGrail:
                       '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                       '  Number of weak lines         = {:d}'.format(self._det_weak[str(slit)][0].size) + msgs.newline() +
                       '  Number of strong lines       = {:d}'.format(self._det_stro[str(slit)][0].size) + msgs.newline() +
-                      '  Number of lines analyzed     = {:d}'.format(len(self._all_final_fit[st]['xfit'])) + msgs.newline() +
+                      '  Number of lines analyzed     = {:d}'.format(len(self._all_final_fit[st]['pixel_fit'])) + msgs.newline() +
                       '  Central wavelength           = {:g}A'.format(centwave) + msgs.newline() +
                       '  Central dispersion           = {:g}A/pix'.format(centdisp) + msgs.newline() +
                       '  Central wave/disp             = {:g}'.format(centwave/centdisp) + msgs.newline() +
