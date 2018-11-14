@@ -749,6 +749,10 @@ def reidentify(spec, spec_arxiv, wave_soln_arxiv, det_arxiv, line_list, nreid_mi
     # Generate the wavelengths from the line list and sort
     wvdata = np.array(line_list['wave'].data)  # Removes mask if any
     wvdata.sort()
+    # Determine whether wavelengths correlate or anti-correlation with pixels for patt_dicts. This is not used
+    # but just comptued for compatibility
+    this_soln = wave_soln_arxiv[:,0]
+    sign = 1 if (this_soln[this_soln.size // 2] > this_soln[this_soln.size // 2 - 1]) else -1
 
     if spec.ndim == 1:
         nspec = spec.size
@@ -879,7 +883,8 @@ def reidentify(spec, spec_arxiv, wave_soln_arxiv, det_arxiv, line_list, nreid_mi
     # Finalize the best guess of each line
     # Initialise the patterns dictionary, min_nsig not used anywhere
     patt_dict_slit = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_nsig=sigdetect,mask=np.zeros(detections.size, dtype=np.bool))
-    patt_dict_slit['sign'] = 1 # This is not used anywhere
+
+    patt_dict_slit['sign'] = sign # This is not used anywhere
     patt_dict_slit['bwv'] = np.median(wcen[wcen != 0.0])
     patt_dict_slit['bdisp'] = np.median(disp[disp != 0.0])
     patterns.solve_xcorr(detections, wvdata, det_indx, line_indx, line_cc, patt_dict=patt_dict_slit,nreid_min=nreid_min,
@@ -1041,26 +1046,32 @@ class ArchiveReid:
             self.wave_soln_arxiv[:, iarxiv] = utils.func_val(fitc, xrng, fitfunc, minv=fmin, maxv=fmax)
             self.det_arxiv[str(iarxiv)] = self.wv_calib_arxiv[str(iarxiv)]['xfit']
 
+        # Todo should this be a separate reidentify_and_fit method? I think not
+
         # These are the final outputs
         self.all_patt_dict = {}
-        self.wv_calib = {}
         self.detections = {}
+        self.wv_calib = {}
 
         self.bad_slits = np.array([], dtype=np.int)
         # Reidentify each slit, and perform a fit
         for slit in range(self.nslits):
             if slit not in self.ok_mask:
                 continue
-            det, patt_dict = reidentify(self.spec[:,slit], self.tot_line_list, self.spec_arxiv,self.wave_soln_arxiv, self.det_arxiv,
-                                       self.nreid_min,cc_thresh=self.cc_thresh,match_toler = self.match_toler,
-                                       cc_local_thresh=self.cc_local_thresh,nlocal_cc=self.n_local_cc,
-                                       nonlinear_counts=self.nonlinear_counts,sigdetect=self.sigdetect,
-                                       debug_xcorr=self.decorr_xcorr,debug_reid = self.debug_reid)
-            self.detections[str(slit)] = det
-            self.all_patt_dict[str(slit)] = copy.deepcopy(patt_dict)
-
+            msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit + 1,nslit))
+            self.detections[str(slit)], self.all_patt_dict[str(slit)] = reidentify(self.spec[:,slit], self.spec_arxiv,
+                                                                                   self.wave_soln_arxiv, self.det_arxiv,
+                                                                                   self.tot_line_list,self.nreid_min,
+                                                                                   cc_thresh=self.cc_thresh,
+                                                                                   match_toler = self.match_toler,
+                                                                                   cc_local_thresh=self.cc_local_thresh,
+                                                                                   nlocal_cc=self.n_local_cc,
+                                                                                   nonlinear_counts=self.nonlinear_counts,
+                                                                                   sigdetect=self.sigdetect,
+                                                                                   debug_xcorr=self.decorr_xcorr,
+                                                                                   debug_reid = self.debug_reid)
             # Check if an acceptable reidentification solution was found
-            if not patt_dict_slit['acceptable']:
+            if not self.all_patt_dict[str(slit)]['acceptable']:
                 self.wv_calib[str(slit)] = {}
                 self.bad_slits = np.append(self.bad_slits, slit)
                 continue
@@ -1076,9 +1087,9 @@ class ArchiveReid:
                 self.bad_slits = np.append(self.bad_slits, slit)
                 continue
             # Is the RMS below the threshold?
-            if final_fit['rms'] > rms_threshold:
+            if final_fit['rms'] > self.rms_threshold:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Reidentify report for slit {0:d}/{1:d}:'.format(islit + 1, nslits) + msgs.newline() +
+                          'Reidentify report for slit {0:d}/{1:d}:'.format(slit + 1, nslits) + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Need to add additional spectra to arxiv to improve fits'.format(
                               final_fit['rms']) + msgs.newline() +
                           '---------------------------------------------------')
@@ -1089,6 +1100,46 @@ class ArchiveReid:
             self.wv_calib[str(slit)] = copy.deepcopy(final_fit)
             if self.debug_fits:
                 qa.arc_fit_qa(self.wv_calib[str(slit)])
+
+
+    def report_final(self):
+        """Print out the final report of the wavelength calibration"""
+        for slit in range(self.nslits):
+            # Prepare a message for bad wavelength solutions
+            badmsg = '---------------------------------------------------' + msgs.newline() +\
+                     'Final report for slit {0:d}/{1:d}:'.format(slit + 1, self.nslits) + msgs.newline() +\
+                     '  Wavelength calibration not performed!'
+            if slit not in self.ok_mask:
+                msgs.warn(badmsg)
+                continue
+            if self.all_patt_dict[str(slit)] is None:
+                msgs.warn(badmsg)
+                continue
+            st = str(slit)
+            if self.all_patt_dict[st]['sign'] == +1:
+                signtxt = 'correlate'
+            else:
+                signtxt = 'anitcorrelate'
+            # Report
+            cen_wave = self.wv_calib[st]['cen_wave']
+            cen_disp = self.wv_calib[st]['cen_disp']
+            msgs.info(msgs.newline() +
+                      '---------------------------------------------------' + msgs.newline() +
+                      'Final report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
+                      '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
+                      '  Number of lines detected      = {:d}'.format(self.detections[st].size) + msgs.newline() +
+                      '  Number of lines that were fit = {:d}'.format(len(self.wv_calib[st]['xfit'])) + msgs.newline() +
+                      '  Central wavelength            = {:g}A'.format(cen_wave) + msgs.newline() +
+                      '  Central dispersion            = {:g}A/pix'.format(cen_disp) + msgs.newline() +
+                      '  Central wave/disp             = {:g}'.format(cen_wave/cen_disp) + msgs.newline() +
+                      '  Final RMS of fit              = {:g}'.format(self.wv_calib[st]['rms']))
+        return
+
+
+    def get_results(self):
+        return copy.deepcopy(self.all_patt_dict), copy.deepcopy(self.wv_calib)
+
+
 
 
 

@@ -14,11 +14,10 @@ from astropy.table import vstack
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc
-from pypeit.core import qa
+from pypeit.core import wavecal
 #from pypeit.core import masters
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core import wavecal
 import linetools.utils
 
 
@@ -412,7 +411,7 @@ class WaveCalib(masterframe.MasterFrame):
             ax.set_ylabel('Counts')
             plt.show()
         elif item == 'fit':
-            arc.arc_fit_qa(None, self.wv_calib[str(slit)], slit, outfile='show')
+            wavecal.qa.arc_fit_qa(self.wv_calib[str(slit)])
 
     def __repr__(self):
         # Generate sets string

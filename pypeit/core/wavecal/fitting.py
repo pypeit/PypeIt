@@ -150,7 +150,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     if weights is None:
         weights = np.ones(tcent.size)
 
-    npix = spec.size
+    nspec = spec.size
     # Setup for fitting
     sv_ifit = list(ifit)  # Keep the originals
     all_ids = -999.*np.ones(len(tcent))
@@ -161,7 +161,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     n_order = n_first
     flg_quit = False
     #fmin , fmax = -1.0, 1.0
-    fmin, fmax = 0.0, float(npix-1)
+    fmin, fmax = 0.0, float(nspec-1)
     while (n_order <= n_final) and (flg_quit is False):
         # Fit with rejection
         xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
@@ -199,7 +199,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
 
     # Final fit (originals can now be rejected)
     #fmin, fmax = 0., 1.
-    #xfit, yfit, wfit = tcent[ifit]/(npix-1), all_ids[ifit], weights[ifit]
+    #xfit, yfit, wfit = tcent[ifit]/(nspec-1), all_ids[ifit], weights[ifit]
     xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
     mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=func, sigma=sigrej_final,
                                      minv=fmin, maxv=fmax, verbose=verbose, weights=wfit)#, debug=True)
@@ -224,8 +224,12 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     rms_pix = rms_ang/disp
 
     # Pack up fit
+    cen_wave = utils.func_val(fit, float(nspec)/2), func, minv=fmin, maxv=fmax)
+    cen_wave_min1 = utils.func_val(fit, float(nspec)/2 - 1.0, func, minv=fmin, maxv=fmax)
+    cen_disp = cen_wave - cen_wave_min1
+
     final_fit = dict(fitc=fit, function=func, xfit=xfit, yfit=yfit, weights=wfit,
-                     ions=ions, fmin=fmin, fmax=fmax, xnorm=float(npix-1),
+                     ions=ions, fmin=fmin, fmax=fmax, nspec=nspec, cen_wave = cen_wave, cen_disp = cen_disp
                      xrej=xrej, yrej=yrej, mask=mask, spec=spec, nrej=sigrej_final,
                      shift=0., tcent=tcent, rms=rms_pix)
 
