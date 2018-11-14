@@ -996,9 +996,10 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, reference=None, method=None, lamps=None, rms_threshold=None, nonlinear_counts = None,
-                 sigdetect=None, match_toler=None, func=None, n_first=None, n_final =None, sigrej_first=None, sigrej_final=None,
-                 wv_cen=None, disp=None,numsearch=None,nfitpix=None, IDpixels=None,
+    def __init__(self, reference=None, method=None, lamps=None, nonlinear_counts = None,
+                 sigdetect=None, reid_arxiv = None, nreid_min = None, cc_thresh = None, cc_local_thresh = None,
+                 nlocal_cc = None, rms_threshold=None,match_toler=None, func=None, n_first=None, n_final =None,
+                 sigrej_first=None, sigrej_final=None,wv_cen=None, disp=None,numsearch=None,nfitpix=None, IDpixels=None,
                  IDwaves=None, medium=None, frame=None):
         # Grab the parameter names and values from the function
         # arguments
@@ -1014,6 +1015,8 @@ class WavelengthSolutionPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+
+        # TODO JFH Does sky actually do anything?
         # TODO: Only test for 'pixel' is ever used. I.e. 'arc' or 'sky'
         # does not make a difference.
         defaults['reference'] = 'arc'
@@ -1025,11 +1028,18 @@ class WavelengthSolutionPar(ParSet):
         defaults['method'] = 'arclines'
         options['method'] = WavelengthSolutionPar.valid_methods()
         dtypes['method'] = str
-        descr['method'] = 'Method to use to fit the individual arc lines.  ' \
-                          '\'fit\' is likely more accurate, but \'simple\' uses a polynomial ' \
-                          'fit (to the log of a gaussian) and is fast and reliable.  ' \
-                          '\'arclines\' uses the arclines python package.' \
-                          'Options are: {0}'.format(', '.join(options['method']))
+        descr['method'] = 'Method to use to fit the individual arc lines. Most of these methods are now deprecated ' \
+                          'as they fail most of the time without significant parameter tweaking. ' \
+                          '\'holy-grail\' attempts to get a first guess at line IDs by looking for patterns in the ' \
+                          'line locations. It is fully automated and works really well excpet for when it does not' \
+                          '\'reidentify\' is now the preferred method, however it requires that an archive of ' \
+                          'wavelength solution has been constructed for your instrument/grating combination'' \
+                          ''Options are: {0}'.format(', '.join(options['method']))
+#        descr['method'] = 'Method to use to fit the individual arc lines.  ' \
+#                          '\'fit\' is likely more accurate, but \'simple\' uses a polynomial ' \
+#                          'fit (to the log of a gaussian) and is fast and reliable.  ' \
+#                          '\'arclines\' uses the arclines python package.' \
+#                          'Options are: {0}'.format(', '.join(options['method']))
 
         # TODO: These needs to be tidied up so we can check for valid lamps. Right now I'm not checking.
         # Force lamps to be a list
@@ -1045,20 +1055,56 @@ class WavelengthSolutionPar(ParSet):
 
         # ToDo Should this be in counts or ADU? Currently the arcs are in ADU (which actually sort of makes sense here) but the
         # name of the parameter is counts. Perhaps we should just change this to nonlinear_adu or something to avoid confusion.
+
+        # These are the parameters used for arc line detection
         defaults['nonlinear_counts'] = 1e10
         dtypes['nonlinear_counts'] = float
         descr['nonlinear_counts'] = 'Arc lines above this saturation threshold are not used in wavelength solution fits because they cannot' \
                                     'be accurately centroided'
 
-        defaults['rms_threshold'] = 0.15
-        dtypes['rms_threshold'] = float
-        descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution'
-
         defaults['sigdetect'] = 5.
         dtypes['sigdetect'] = [int, float]
         descr['sigdetect'] = 'Detection threshold for arc lines'
 
+        # These are the parameters used for reidentification
+        defaults['reid_arxiv']=None
+        dtypes['reid_arxiv'] = str
+        descr['reid_arxiv'] = 'Name of the archival wavelength solution file that will be used for the wavelength ' \
+                              'reidentification if the wavelength solution method = reidentify'
+
+        defaults['nreid_min'] = 1
+        dtypes['nreid_min'] = int
+        descr['nreid_min'] = 'Minimum number of times that a given candidate reidentified line must be properly matched ' \
+                             'with a line in the arxiv to be considered a good reidentification. If there is a lot of ' \
+                             'duplication in the arxiv of the spectra in question (i.e. multislit) set this to a number ' \
+                             'like 1-4. For echelle this depends on the number of solutions in the arxiv. For fixed format ' \
+                             'echelle (ESI, X-SHOOTER, NIRES) set this 1. For an echelle with a tiltable grating, it will ' \
+                             'depend on the number of solutions in the arxiv.'
+
+        defaults['cc_thresh'] = 0.80
+        dtypes['cc_thresh'] = float
+        descr['cc_thresh'] = 'Threshold for the *global* cross-correlation coefficient between an input spectrum and member ' \
+                             'of the archive required to attempt reidentification. Spectra from the archive with a lower ' \
+                             'cross-correlation are not used for reidentification'
+
+        defaults['cc_local_thresh'] = 0.80
+        dtypes['cc_local_thresh'] = float
+        descr['cc_local_thresh'] = 'Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  ' \
+                                   'between an input spectrum and the shifted and stretched archive spectrum above which a ' \
+                                   'line must be to be considered a good line for reidentification. The local cross-correlation ' \
+                                   'is evaluated at each candidate reidentified line (using a window of nlocal_cc), and is then ' \
+                                   'used to score the the reidentified lines to arrive at the final set of good reidentifications'
+
+        defaults['nlocal_cc'] = 11
+        dtypes['nlocal_cc'] = int
+        descr['nlocal_cc'] = 'Size of pixel window used for local cross-correlation computation for each arc line. If not ' \
+                             'an odd number one will be added to it to make it odd.'
+
         # These are the parameters used for the iterative fitting of the arc lines
+        defaults['rms_threshold'] = 0.15
+        dtypes['rms_threshold'] = float
+        descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution'
+
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
         descr['match_toler'] = 'Matching tolerance in pixels when searching for new lines. This is the difference ' \
@@ -1148,8 +1194,9 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'reference', 'method', 'lamps', 'rms_threshold', 'nonlinear_counts', 'sigdetect',
-                    'match_toler', 'func', 'n_first','n_final', 'sigrej_first', 'sigrej_final',
+        parkeys = [ 'reference', 'method', 'lamps', 'nonlinear_counts', 'sigdetect',
+                    'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh', 'nlocal_cc',
+                    'rms_threshold', 'match_toler', 'func', 'n_first','n_final', 'sigrej_first', 'sigrej_final',
                     'wv_cen', 'disp', 'numsearch', 'nfitpix','IDpixels', 'IDwaves', 'medium', 'frame']
         kwargs = {}
         for pk in parkeys:
@@ -1168,7 +1215,7 @@ class WavelengthSolutionPar(ParSet):
         """
         Return the valid wavelength solution methods.
         """
-        return [ 'simple', 'fit', 'arclines' ]
+        return [ 'simple', 'semi-brute', 'basic','holy-grail', 'reidentify']
 
     @staticmethod
     def valid_lamps():
