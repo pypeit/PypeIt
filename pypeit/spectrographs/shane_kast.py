@@ -224,8 +224,9 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         par['rdx']['spectrograph'] = 'shane_kast_blue'
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['min_nsig'] = 5.
-        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
+        #par['calibrations']['wavelengths']['min_nsig'] = 5.
+        #par['calibrations']['wavelengths']['lowest_nsig'] = 5.
+        par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['lamps'] = ['CdI','HgI','HeI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
