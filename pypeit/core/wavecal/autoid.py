@@ -449,7 +449,7 @@ def reidentify(spec, spec_arxiv, wave_soln_arxiv, det_arxiv, line_list, nreid_mi
     stretch_vec = np.zeros(narxiv)
     ccorr_vec = np.zeros(narxiv)
     for iarxiv in range(narxiv):
-        msgs.info('Cross-correlating slit with arxiv slit # {:d}'.format(iarxiv + 1))
+        msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv + 1))
         this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
         success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
@@ -650,7 +650,7 @@ class ArchiveReid:
     """
 
     def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True,
-                 debug_xcorr = True, debug_reid = True, debug_fits= True):
+                 debug_xcorr = False, debug_reid = True, debug_fits= False):
 
         self.debug_xcorr = debug_xcorr
         self.debug_reid = debug_reid
@@ -780,6 +780,8 @@ class ArchiveReid:
             if self.debug_fits:
                 qa.arc_fit_qa(self.wv_calib[str(slit)])
 
+        # Print the final report of all lines
+        self.report_final()
 
     def report_final(self):
         """Print out the final report of the wavelength calibration"""
@@ -804,7 +806,7 @@ class ArchiveReid:
             cen_disp = self.wv_calib[st]['cen_disp']
             msgs.info(msgs.newline() +
                       '---------------------------------------------------' + msgs.newline() +
-                      'Final report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
+                      'Final report for slit {0:d}/{1:d}:'.format(slit + 1, self.nslits) + msgs.newline() +
                       '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                       '  Number of lines detected      = {:d}'.format(self.detections[st].size) + msgs.newline() +
                       '  Number of lines that were fit = {:d}'.format(len(self.wv_calib[st]['xfit'])) + msgs.newline() +
