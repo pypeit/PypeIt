@@ -15,7 +15,7 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc
 from pypeit.core import wavecal
-#from pypeit.core import masters
+from pypeit.core import qa
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 import linetools.utils
@@ -168,7 +168,7 @@ class WaveCalib(masterframe.MasterFrame):
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'reidentify':
             # Now preferred
-            arcfitter = wavecal.autoid.ArchiveReid(self.arcsen, par=self.par, ok_mask=ok_mask)
+            arcfitter = wavecal.autoid.ArchiveReid(self.arccen, par=self.par, ok_mask=ok_mask)
             patt_dict, final_fit = arcfitter.get_results()
 
 
