@@ -66,8 +66,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 10.0
-        par['calibrations']['wavelengths']['lowest_nsig'] =10.0
+#        par['calibrations']['wavelengths']['min_nsig'] = 10.0
+        par['calibrations']['wavelengths']['sigdetect'] =10.0
         par['calibrations']['wavelengths']['lamps'] = ['OH_triplespec']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 

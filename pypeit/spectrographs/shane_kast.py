@@ -395,8 +395,8 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['min_nsig'] = 5.
-        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
+        par['calibrations']['wavelengths']['sigdetect'] = 5.
+        #par['calibrations']['wavelengths']['lowest_nsig'] = 5.
 
         return par
 

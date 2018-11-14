@@ -235,8 +235,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         #debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
         arcparam['lamps'] = ['OH_XSHOOTER'] # Line lamps on
         arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation'] # lines abovet this are masked
-        arcparam['min_nsig'] = 50.0         # Min significance for arc lines to be used
-        arcparam['lowest_nsig'] = 10.0         # Min significance for arc lines to be used
+#        arcparam['min_nsig'] = 50.0         # Min significance for arc lines to be used
+        arcparam['sigdetect'] = 10.0         # Min significance for arc lines to be used
         arcparam['wvmnx'] = [8000.,26000.]  # Guess at wavelength range
         # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
         arcparam['match_toler'] = 3 # 3 was default, 1 seems to work better        # Matcing tolerance (pixels)
