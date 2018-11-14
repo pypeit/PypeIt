@@ -99,7 +99,7 @@ def fit_slit(spec, patt_dict, tcent, line_lists, outroot=None, slittxt="Slit", t
 
 
 def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
-                      match_toler = 3.0, func = 'legendre', n_first = 2, sigrej_first = 2.0, n_final = 4, sigrej_final = 3.0,
+                      match_toler = 2.0, func = 'legendre', n_first = 2, sigrej_first = 2.0, n_final = 4, sigrej_final = 3.0,
                       weights=None, plot_fil=None, verbose = False):
 
     """ Routine for iteratively fitting wavelength solutions.

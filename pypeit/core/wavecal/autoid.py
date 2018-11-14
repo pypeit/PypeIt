@@ -953,7 +953,7 @@ class ArchiveReid:
        Sigma threshold above fluctuations for arc-line detection. Arcs are continuum subtracted and the fluctuations are
        computed after continuum subtraction.
     match_toler: float, default = 2.0
-       Matching tolerance when searching for new lines. This is the difference in pixels between the wavlength assigned to
+       Matching tolerance in pixels when searching for new lines. This is the difference in pixels between the wavlength assigned to
        an arc line by an iteration of the wavelength solution to the wavelength in the line list. This parameter is also
        used as the matching tolerance in pixels for a line reidentification. A good line match must match within this tolerance to the
        the shifted and stretched archive spectrum, and the archive wavelength solution at this match must be within

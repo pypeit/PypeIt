@@ -1054,20 +1054,23 @@ class WavelengthSolutionPar(ParSet):
         dtypes['rms_threshold'] = float
         descr['rms_threshold'] = 'Minimum RMS for keeping a slit solution'
 
-        defaults['min_nsig'] = 10.
-        dtypes['min_nsig'] = float
-        descr['min_nsig'] = 'Detection threshold for arc lines for "standard" lines'
+        #defaults['min_nsig'] = 10.
+        #dtypes['min_nsig'] = float
+        #descr['min_nsig'] = 'Detection threshold for arc lines for "standard" lines'
 
-        defaults['lowest_nsig'] = 5.
-        dtypes['lowest_nsig'] = float
-        descr['lowest_nsig'] = 'Detection threshold for arc lines for "weakest" lines'
+        defaults['sigdetect'] = 5.
+        dtypes['sigdetect'] = float
+        descr['sigdetect'] = 'Detection threshold for arc lines'
 
         # These are the parameters used for the iterative fitting of the arc lines
-        defaults['match_toler'] = 3.0
+        defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
-        descr['match_toler'] = 'Matching tolerance when searching for new lines in iterative fitting of wavelength solution.' \
-                               'This is the difference in pixels between the wavlength assigned to an arc line by an iteration of ' \
-                               'the wavelength solution to the wavelength in the line list.'
+        descr['match_toler'] = 'Matching tolerance in pixels when searching for new lines. This is the difference ' \
+                               'in pixels between the wavlength assigned to an arc line by an iteration of the wavelength ' \
+                               'solution to the wavelength in the line list. This parameter is also used as the matching ' \
+                               'tolerance in pixels for a line reidentification. A good line match must match within this ' \
+                               'tolerance to the shifted and stretched archive spectrum, and the archive wavelength ' \
+                               'solution at this match must be within match_toler dispersion elements from the line in line list.'
 
         defaults['func'] = 'legendre'
         dtypes['func'] = str
@@ -1089,6 +1092,7 @@ class WavelengthSolutionPar(ParSet):
         dtypes['sigrej_final'] = float
         descr['sigrej_final'] = 'Number of sigma for rejection for the final guess to the wavelength solution.'
 
+        # TODO: Not used
         # Backwards compatibility with basic and semi_brute algorithms
         defaults['wv_cen'] = 0.0
         dtypes['wv_cen'] = float
@@ -1099,7 +1103,6 @@ class WavelengthSolutionPar(ParSet):
         descr['disp'] = 'Dispersion. Backwards compatibility with basic and semi-brute algorithms.'
 
 
-        # TODO: Not used
         defaults['numsearch'] = 20
         dtypes['numsearch'] = int
         descr['numsearch'] = 'Number of brightest arc lines to search for in preliminary ' \
