@@ -433,8 +433,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         # reidentification stuff
-        par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400_8500_d560.json'
+        #par['calibrations']['wavelengths']['method'] = 'reidentify'
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400_8500_d560.json'
 
 
         return par
