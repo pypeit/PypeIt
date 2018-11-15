@@ -996,7 +996,7 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, reference=None, method=None, lamps=None, nonlinear_counts = None,
+    def __init__(self, reference=None, method=None, echelle = None, lamps=None, nonlinear_counts = None,
                  sigdetect=None, reid_arxiv = None, nreid_min = None, cc_thresh = None, cc_local_thresh = None,
                  nlocal_cc = None, rms_threshold=None,match_toler=None, func=None, n_first=None, n_final =None,
                  sigrej_first=None, sigrej_final=None,wv_cen=None, disp=None,numsearch=None,nfitpix=None, IDpixels=None,
@@ -1040,6 +1040,12 @@ class WavelengthSolutionPar(ParSet):
 #                          'fit (to the log of a gaussian) and is fast and reliable.  ' \
 #                          '\'arclines\' uses the arclines python package.' \
 #                          'Options are: {0}'.format(', '.join(options['method']))
+
+        defaults['echelle'] = False
+        dtypes['echelle'] = bool
+        descr['echelle'] = 'Is this an echelle spectrograph? If yes an additional 2-d fit wavelength fit will be performed as a function ' \
+                           'of spectral pixel and order number to improve the wavelength solution'
+
 
         # TODO: These needs to be tidied up so we can check for valid lamps. Right now I'm not checking.
         # Force lamps to be a list
@@ -1194,7 +1200,7 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'reference', 'method', 'lamps', 'nonlinear_counts', 'sigdetect',
+        parkeys = [ 'reference', 'method', 'echelle', 'lamps', 'nonlinear_counts', 'sigdetect',
                     'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh', 'nlocal_cc',
                     'rms_threshold', 'match_toler', 'func', 'n_first','n_final', 'sigrej_first', 'sigrej_final',
                     'wv_cen', 'disp', 'numsearch', 'nfitpix','IDpixels', 'IDwaves', 'medium', 'frame']
