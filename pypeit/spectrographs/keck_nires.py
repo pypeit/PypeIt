@@ -47,7 +47,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
     @property
     def pypeline(self):
-        return 'MultiSlit'
+        return 'Echelle'
 
     def default_pypeit_par(self):
         """
@@ -66,10 +66,14 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 10.0
-        par['calibrations']['wavelengths']['lowest_nsig'] =10.0
-        par['calibrations']['wavelengths']['lamps'] = ['OH_triplespec']
+#        par['calibrations']['wavelengths']['min_nsig'] = 10.0
+        par['calibrations']['wavelengths']['sigdetect'] =5.0
+        par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.json'
+        par['calibrations']['wavelengths']['echelle'] = True
+
 
         # Set slits and tilts parameters
         par['calibrations']['tilts']['order'] = 2
@@ -199,49 +203,18 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         return self.bpm_img
 
 
-
-    def setup_arcparam(self, arcparam, fitstbl=None, arc_idx=None,
-                       msarc_shape=None, **null_kwargs):
-        """
-
-        Args:
-            arcparam:
-            disperser:
-            fitstbl:
-            arc_idx:
-            msarc_shape:
-            **null_kwargs:
-
-        Returns:
+    def slit2order(self,islit):
 
         """
+        Parameters
+        ----------
+        islit: int, float, or string, slit number
 
-        arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_nsig'] = 50.0         # Min significance for arc lines to be used
-        arcparam['lowest_nsig'] = 10.0         # Min significance for arc lines to be used
-        arcparam['wvmnx'] = [8000.,26000.]  # Guess at wavelength range
-        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3         # Matcing tolerance (pixels)
-        arcparam['func'] = 'legendre'       # Function for fitting
-        arcparam['n_first'] = 2             # Order of polynomial for first fit
-        arcparam['n_final'] = 4             # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2            # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.0    # Number of sigma for rejection (final fit)
+        Returns
+        -------
+        order: int
+        """
 
-
-#        arcparam['llist'] = ''
-#        arcparam['disp'] = 2.              # Ang/unbinned pixel
-#        arcparam['b1'] = 0.                # Pixel fit term (binning independent)
-#        arcparam['b2'] = 0.                # Pixel fit term
-#        arcparam['wv_cen'] = 0.            # Estimate of central wavelength
-#        arcparam['wvmnx'] = [9000., 25000.] # Guess at wavelength range
-#        arcparam['disp_toler'] = 0.1       # 10% tolerance
-#        arcparam['match_toler'] = 3.       # Matching tolerance (pixels)
-#        arcparam['func'] = 'legendre'      # Function for fitting
-#        arcparam['n_first'] = 1            # Order of polynomial for first fit
-#        arcparam['n_final'] = 3            # Order of polynomial for final fit
-#        arcparam['nsig_rej'] = 2.          # Number of sigma for rejection
-#        arcparam['nsig_rej_final'] = 2.0   # Number of sigma for rejection (final fit)
-#        arcparam['Nstrong'] = 13           # Number of lines for auto-analysis
+        orders = [3,4,5,6,7]
+        return orders[int(islit)]
 

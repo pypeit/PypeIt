@@ -4,6 +4,7 @@ from __future__ import absolute_import, division, print_function
 import inspect
 import numpy as np
 import linetools
+import os
 import json
 
 #from importlib import reload
@@ -381,20 +382,28 @@ class FluxSpec(masterframe.MasterFrame):
 
     def load_master(self, filename, force=False):
 
-        msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
 
-        hdu = fits.open(filename)
-        head = hdu[0].header
-        tbl = hdu['SENSFUNC'].data
-        sens_dict = {}
-        sens_dict['wave'] = tbl['WAVE']
-        sens_dict['sensfunc'] = tbl['SENSFUNC']
-        for key in ['wave_min','wave_max','exptime','airmass','std_file','std_ra','std_dec','std_name','cal_file']:
-            try:
-                sens_dict[key] = head[key.upper()]
-            except:
-                pass
-        return sens_dict
+        # Does the master file exist?
+        if not os.path.isfile(filename):
+            msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
+            if force:
+                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
+            return None
+        else:
+            msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
+
+            hdu = fits.open(filename)
+            head = hdu[0].header
+            tbl = hdu['SENSFUNC'].data
+            sens_dict = {}
+            sens_dict['wave'] = tbl['WAVE']
+            sens_dict['sensfunc'] = tbl['SENSFUNC']
+            for key in ['wave_min','wave_max','exptime','airmass','std_file','std_ra','std_dec','std_name','cal_file']:
+                try:
+                    sens_dict[key] = head[key.upper()]
+                except:
+                    pass
+            return sens_dict
 
     def save_master(self, sens_dict, outfile=None):
         """

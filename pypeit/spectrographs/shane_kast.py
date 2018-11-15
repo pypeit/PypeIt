@@ -224,11 +224,15 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         par['rdx']['spectrograph'] = 'shane_kast_blue'
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['min_nsig'] = 5.
-        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
+        #par['calibrations']['wavelengths']['min_nsig'] = 5.
+        #par['calibrations']['wavelengths']['lowest_nsig'] = 5.
+        par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['lamps'] = ['CdI','HgI','HeI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
+        # reidentification stuff
+        #par['calibrations']['wavelengths']['method'] = 'reidentify'
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600_4310_d55.json'
 
         return par
 
@@ -391,8 +395,8 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['min_nsig'] = 5.
-        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
+        par['calibrations']['wavelengths']['sigdetect'] = 5.
+        #par['calibrations']['wavelengths']['lowest_nsig'] = 5.
 
         return par
 

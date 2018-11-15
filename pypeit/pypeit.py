@@ -177,18 +177,44 @@ class PypeIt(object):
         qa.gen_mf_html(self.pypeit_file)
         qa.gen_exp_html()
 
+
     def calibrate_one(self, sci_ID, det):
         """
-        Dummy method.  Set in a child
+        Calibrate a science exposure / detector pair
 
         Args:
-            sci_ID:
-            det:
+            sci_ID: int
+              binary flag indicating the science frame
+            det: int
+              detector number
 
         Returns:
 
         """
-        assert False
+        # Setup
+        self.setup, self.setup_dict = pypsetup.instr_setup(sci_ID, det, self.fitstbl,
+                                                           setup_dict=self.setup_dict,
+                                                           must_exist=True)
+        # Setup
+        self.caliBrate.reset(self.setup, det, sci_ID, self.par['calibrations'])
+        # Run em
+        self.caliBrate.run_the_steps()
+
+        msgs.info("Successful Calibration!")
+
+
+#    def calibrate_one(self, sci_ID, det):
+#        """
+#        Dummy method.  Set in a child
+#
+#        Args:
+#            sci_ID:
+#            det:
+#
+#        Returns:
+#
+#        """
+#        assert False
 
     def _chk_for_std(self):
         # Can only reduce these frames if the mask is the same
@@ -408,7 +434,7 @@ class PypeIt(object):
         save_format = 'fits'
         if save_format == 'fits':
             outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
-                                   'spec1d_{:s}.fits'.format(self.basename))
+                                   'spec1d_{:s}.fits'.format(basename))
             helio_dict = dict(refframe='pixel'
             if self.caliBrate.par['wavelengths']['reference'] == 'pixel'
             else self.caliBrate.par['wavelengths']['frame'],
@@ -453,14 +479,31 @@ class PypeIt(object):
         """
         assert False
 
+    #JFH Moved here as it is the same for MultiSlit and Echelle
     def _init_calibrations(self):
         """
-        Dummy method for instantiating a Calibration class
+        Instantiate the Calibrations class
 
         Returns:
 
         """
-        pass
+        # TODO -- Need to make save_masters and write_qa optional
+        # Init calib dict
+        self.caliBrate \
+                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
+                                                     par=self.par['calibrations'],
+                                                     redux_path=self.par['rdx']['redux_path'],
+                                                     save_masters=True, write_qa=True,
+                                                     show=self.show)
+
+#    def _init_calibrations(self):
+#        """
+#        Dummy method for instantiating a Calibration class
+#
+#        Returns:
+#
+#        """
+#        pass
 
     def init_one_science(self, sci_ID, det):
         """
@@ -680,45 +723,46 @@ class MultiSlit(PypeIt):
     def __init__(self, spectrograph, **kwargs):
         super(MultiSlit, self).__init__(spectrograph, **kwargs)
 
-    def calibrate_one(self, sci_ID, det):
-        """
-        Calibrate a science exposure / detector pair
+    # JFH This has been moved to PypeIt as it is the same for MulitSlit and Echelle
+#    def calibrate_one(self, sci_ID, det):
+#        """
+#        Calibrate a science exposure / detector pair
+#
+#        Args:
+#            sci_ID: int
+#              binary flag indicating the science frame
+#            det: int
+#              detector number
+#
+#        Returns:
+#
+#        """
+#        # Setup
+#        self.setup, self.setup_dict = pypsetup.instr_setup(sci_ID, det, self.fitstbl,
+#                                                           setup_dict=self.setup_dict,
+#                                                           must_exist=True)
+#        # Setup
+#        self.caliBrate.reset(self.setup, det, sci_ID, self.par['calibrations'])
+#        # Run em
+#        self.caliBrate.run_the_steps()
+#
+#        msgs.info("Successful Calibration!")
 
-        Args:
-            sci_ID: int
-              binary flag indicating the science frame
-            det: int
-              detector number
-
-        Returns:
-
-        """
-        # Setup
-        self.setup, self.setup_dict = pypsetup.instr_setup(sci_ID, det, self.fitstbl,
-                                                           setup_dict=self.setup_dict,
-                                                           must_exist=True)
-        # Setup
-        self.caliBrate.reset(self.setup, det, sci_ID, self.par['calibrations'])
-        # Run em
-        self.caliBrate.run_the_steps()
-
-        msgs.info("Successful Calibration!")
-
-    def _init_calibrations(self):
-        """
-        Instantiate the Calibrations class
-
-        Returns:
-
-        """
-        # TODO -- Need to make save_masters and write_qa optional
-        # Init calib dict
-        self.caliBrate \
-                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
-                                                     par=self.par['calibrations'],
-                                                     redux_path=self.par['rdx']['redux_path'],
-                                                     save_masters=True, write_qa=True,
-                                                     show=self.show)
+#    def _init_calibrations(self):
+#        """
+#        Instantiate the Calibrations class
+#
+#        Returns:
+#
+#        """
+#        # TODO -- Need to make save_masters and write_qa optional
+#        # Init calib dict
+#        self.caliBrate \
+#                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
+#                                                     par=self.par['calibrations'],
+#                                                     redux_path=self.par['rdx']['redux_path'],
+#                                                     save_masters=True, write_qa=True,
+#                                                     show=self.show)
 
 
     def _extract_one(self, std=False):
@@ -890,45 +934,6 @@ class Echelle(PypeIt):
     def __init__(self, spectrograph, **kwargs):
         super(Echelle, self).__init__(spectrograph, **kwargs)
 
-    def calibrate_one(self, sci_ID, det):
-        """
-        Calibrate a science exposure / detector pair
-
-        Args:
-            sci_ID: int
-              binary flag indicating the science frame
-            det: int
-              detector number
-
-        Returns:
-
-        """
-        # Setup
-        self.setup, self.setup_dict = pypsetup.instr_setup(sci_ID, det, self.fitstbl,
-                                                           setup_dict=self.setup_dict,
-                                                           must_exist=True)
-        # Setup
-        self.caliBrate.reset(self.setup, det, sci_ID, self.par['calibrations'])
-        # Run em
-        self.caliBrate.run_the_steps()
-
-        msgs.info("Successful Calibration!")
-
-    def _init_calibrations(self):
-        """
-        Instantiate the Calibrations class
-
-        Returns:
-
-        """
-        # TODO -- Need to make save_masters and write_qa optional
-        # Init calib dict
-        self.caliBrate \
-                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
-                                                     par=self.par['calibrations'],
-                                                     redux_path=self.par['rdx']['redux_path'],
-                                                     save_masters=True, write_qa=True,
-                                                     show=self.show)
 
 
     def _extract_one(self):

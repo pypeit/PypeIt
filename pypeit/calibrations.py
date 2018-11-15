@@ -759,3 +759,4 @@ class MultiSlitCalibrations(Calibrations):
         return ['bias', 'arc', 'bpm', 'pixlocn', 'slits', 'wv_calib', 'tilts',
                 'flats', 'wave']
 
+

@@ -11,6 +11,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import masterframe
 from pypeit import ginga
+from pypeit.core import arc
 
 from pypeit import debugger
 
@@ -23,7 +24,7 @@ class WaveImage(masterframe.MasterFrame):
     tilts : ndarray
       Tilt image
     wv_calib : dict
-      1D wavelength solutions
+      wavelength solution dictionary
     settings : dict
     setup : str
     maskslits : ndarray
@@ -55,6 +56,7 @@ class WaveImage(masterframe.MasterFrame):
         self.slitpix = slitpix
         self.tilts = tilts
         self.wv_calib = wv_calib
+        self.par = wv_calib['par']
 
         # Optional parameters
         self.maskslits = maskslits
@@ -80,17 +82,28 @@ class WaveImage(masterframe.MasterFrame):
         ok_slits = np.where(~self.maskslits)[0]
         self.wave = np.zeros_like(self.tilts)
         nspec =self.slitpix.shape[0]
+        piximg = self.tilts*(nspec-1)
+
+        # Error checking on the wv_calib
         if (nspec-1) != int(self.wv_calib[str(0)]['fmax']):
             msgs.error('Your wavelength fits used inconsistent normalization. Something is wrong!')
+
+        # Ff this is echelle print out a status message and do some error checking
+        if self.par['echelle']:
+            msgs.info('Evaluating 2-d wavelength solution for echelle....')
+            if len(self.wv_calib['fit2d']['orders']) != len(ok_slits):
+                msgs.error('wv_calib and ok_slits do not line up. Something is very wrong!')
+
+        # Unpack some 2-d fit parameters if this is echelle
         for slit in ok_slits:
             iwv_calib = self.wv_calib[str(slit)]
-            try:
-                tmpwv = utils.func_val(iwv_calib['fitc'], self.tilts*(nspec-1), iwv_calib['function'],
-                                   minv=iwv_calib['fmin'], maxv=iwv_calib['fmax'])
-            except:
-                debugger.set_trace()
-            word = np.where(self.slitpix == slit+1)
-            self.wave[word] = tmpwv[word]
+            thismask = (self.slitpix == slit+1)
+            if self.par['echelle']:
+                tmpwv = arc.eval2dfit(self.wv_calib['fit2d'],piximg[thismask],self.wv_calib['fit2d']['orders'][slit])
+            else:
+                tmpwv = utils.func_val(iwv_calib['fitc'], piximg[thismask], iwv_calib['function'],
+                                       minv=iwv_calib['fmin'], maxv=iwv_calib['fmax'])
+            self.wave[thismask] = tmpwv
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
