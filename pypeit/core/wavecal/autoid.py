@@ -156,7 +156,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
     npix = spec.size
 
     # Lines
-    all_tcent, cut_tcent, icut, _ = wvutils.arc_lines_from_spec(spec, min_nsig=min_nsig, nonlinear_counts = nonlinear_counts)
+    all_tcent, cut_tcent, icut, _ = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect, nonlinear_counts = nonlinear_counts)
 
     # Best
     best_dict = dict(nmatch=0, ibest=-1, bwv=0., min_nsig=min_nsig, unknown=False,
@@ -190,7 +190,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
                 nsig /= 2.
                 if nsig < lowest_nsig:
                     break
-                all_tcent, cut_tcent, icut, _ = wvutils.arc_lines_from_spec(spec, min_nsig=nsig, nonlinear_counts = nonlinear_counts)
+                all_tcent, cut_tcent, icut, _ = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect, nonlinear_counts = nonlinear_counts)
                 patterns.scan_for_matches(wv_cen, disp, npix, cut_tcent, wvdata,
                                           best_dict=best_dict, pix_tol=pix_tol)#, nsig=nsig)
 
@@ -289,7 +289,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
                 imsk[kk] = False
         ifit = ifit[imsk]
         # Allow for weaker lines in the fit
-        all_tcent, weak_cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_nsig=lowest_nsig, nonlinear_counts = nonlinear_counts)
+        all_tcent, weak_cut_tcent, icut = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect, nonlinear_counts = nonlinear_counts)
         add_weak = []
         for weak in weak_cut_tcent:
             if np.min(np.abs(cut_tcent-weak)) > 5.:
@@ -723,7 +723,7 @@ class ArchiveReid:
             fitfunc = self.wv_calib_arxiv[str(iarxiv)]['function']
             fmin, fmax = self.wv_calib_arxiv[str(iarxiv)]['fmin'], self.wv_calib_arxiv[str(iarxiv)]['fmax']
             self.wave_soln_arxiv[:, iarxiv] = utils.func_val(fitc, xrng, fitfunc, minv=fmin, maxv=fmax)
-            self.det_arxiv[str(iarxiv)] = self.wv_calib_arxiv[str(iarxiv)]['pixels_fit']
+            self.det_arxiv[str(iarxiv)] = self.wv_calib_arxiv[str(iarxiv)]['pixel_fit']
 
         # Todo should this be a separate reidentify_and_fit method? I think not
 
@@ -809,7 +809,7 @@ class ArchiveReid:
                       'Final report for slit {0:d}/{1:d}:'.format(slit + 1, self.nslits) + msgs.newline() +
                       '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                       '  Number of lines detected      = {:d}'.format(self.detections[st].size) + msgs.newline() +
-                      '  Number of lines that were fit = {:d}'.format(len(self.wv_calib[st]['pixels_fit'])) + msgs.newline() +
+                      '  Number of lines that were fit = {:d}'.format(len(self.wv_calib[st]['pixel_fit'])) + msgs.newline() +
                       '  Central wavelength            = {:g}A'.format(cen_wave) + msgs.newline() +
                       '  Central dispersion            = {:g}A/pix'.format(cen_disp) + msgs.newline() +
                       '  Central wave/disp             = {:g}'.format(cen_wave/cen_disp) + msgs.newline() +
@@ -1004,13 +1004,13 @@ class HolyGrail:
                             continue
                         elif final_fit['rms'] < self._rms_threshold:
                             # Has a better fit been identified (i.e. more lines identified)?
-                            if len(final_fit['pixels_fit']) > len(best_final_fit['pixels_fit']):
+                            if len(final_fit['pixel_fit']) > len(best_final_fit['pixel_fit']):
                                 best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
                             # Decide if an early return is acceptable
                             nlft = np.sum(best_final_fit['tcent'] < best_final_fit['nspec']/2.0)
                             nrgt = best_final_fit['tcent'].size-nlft
-                            if np.sum(best_final_fit['pixels_fit'] < 0.5)/nlft > idthresh and\
-                                np.sum(best_final_fit['pixels_fit'] >= 0.5) / nrgt > idthresh:
+                            if np.sum(best_final_fit['pixel_fit'] < 0.5)/nlft > idthresh and\
+                                np.sum(best_final_fit['pixel_fit'] >= 0.5) / nrgt > idthresh:
                                 # At least half of the lines on either side of the spectrum have been identified
                                 return best_patt_dict, best_final_fit
 
