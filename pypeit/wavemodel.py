@@ -308,7 +308,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         # calculate sigma at the mean wavelenght of the H2O spectrum
         filt_h2o_med = h2o_wv>WAVE_WATER
         mn_wv = np.mean(h2o_wv[filt_h2o_med])
-        # Convolve to the instrument resolution.  This is only
+        # Convolve to the instrument resolution. This is only
         # approximate.
         smooth_fx, dwv, h2o_dwv = conv2res(h2o_wv, h2o_rad,
                                            resolution,
@@ -325,8 +325,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
 
     sky_model = y+bb_counts*SCL_BB+ohspec*SCL_OH+h2ospec*SCL_H2O
 
-
-    msgs.info("Saving the sky model in: SKY_MODEL.fits")
+    msgs.info("Saving the sky model in: {}".format(outfile))
     hdu = fits.PrimaryHDU(np.array(sky_model))
     header = hdu.header
     if flgd :
@@ -337,7 +336,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         header['CRVAL1'] = wv_min
         header['CDELT1'] = dlam
         header['DC-FLAG'] = 0
-    hdu.writeto('SKY_MODEL.fits', overwrite = True)
+    hdu.writeto(outfile, overwrite = True)
 
     if debug:
         utils.pyplot_rcparams()
@@ -365,3 +364,63 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         plt.show()
 
     return np.array(wave*10000.), np.array(sky_model)
+
+def conv2res(wavelength, flux, resolution, central_wl='midpt',
+             debug=False):
+    """ Convolve an imput spectrum to a specific resolution. This is only
+    approximate. It takes a fix FWHM for the entire spectrum given by:
+    fwhm = wl_cent / resolution
+
+    Parameters
+    ----------
+    wavelength : np.array
+        wavelength
+    flux : np.array
+        flux
+    resolution : np.float
+        resolution of the spectrograph
+    central_wl 
+        if 'midpt' the central pixel of wavelength is used, otherwise
+        the central_wl will be used.
+
+    Returns
+    -------
+    flux_convolved :np.array
+        Resulting flux after convolution
+    px_sigma : float
+        Size of the sigma in pixels at central_wl
+    px_bin : float
+        Size of one pixel at central_wl
+    """
+
+    if central_wl is 'midpt':
+        wl_cent = np.median(wavelength)
+    else:
+        wl_cent = np.float(central_wl)
+    wl_sigma =  wl_cent / resolution / 2.355
+    wl_bin = np.abs((wavelength - np.roll(wavelength,1))[np.where( np.abs(wavelength-wl_cent) == np.min(np.abs(wavelength-wl_cent)) )])
+    msgs.info("The binning of the wavelength array at {} is: {}".format(wl_cent, wl_bin[0]))
+    px_bin = wl_bin[0]
+    px_sigma = wl_sigma / px_bin
+
+    msgs.info("Covolving with a Gaussian kernel with sigma = {} pixels".format(px_sigma))
+    gauss_kernel = Gaussian1DKernel(px_sigma)
+    flux_convolved = convolve(flux, gauss_kernel)
+
+    if debug:
+        utils.pyplot_rcparams()
+        msgs.info("Spectrum Convolved at R = {}".format(resolution))
+        plt.figure()
+        plt.plot(wavelength, flux,
+                 color='navy', linestyle='-', alpha=0.8,
+                 label=r'Original')
+        plt.plot(wavelength, flux_convolved, 
+                 color='crimson', linestyle='-', alpha=0.8,
+                 label=r'Convolved')
+        plt.legend()
+        plt.xlabel(r'Wavelength')
+        plt.ylabel(r'Flux')
+        plt.title(r'Spectrum Convolved at R = {}'.format(resolution))
+        plt.show()
+
+    return flux_convolved, px_sigma, px_bin
