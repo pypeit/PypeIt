@@ -9,7 +9,6 @@ import datetime
 
 from multiprocessing import Process
 
-from astropy.time import Time
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
@@ -76,8 +75,6 @@ class ScienceImage(processimages.ProcessImages):
     objtype : str
       'science'
       'standard'
-    fitstbl : PypeItMetaData
-      Header info
     scidx : int
       Row in the fitstbl corresponding to the exposure
 
@@ -157,7 +154,6 @@ class ScienceImage(processimages.ProcessImages):
 
         # Other attributes that will be set later during object finding,
         # sky-subtraction, and extraction
-        self.fitstbl = None  # Set and used in init_time_names below
         self.tslits_dict = None # used by find_object
         self.tilts = None # used by extract
         self.mswave = None # used by extract
@@ -192,79 +188,6 @@ class ScienceImage(processimages.ProcessImages):
         # Child-specific Internals
         #    See ProcessImages
         self.crmask = None
-
-    def init_time_names(self, fitstbl):
-        """
-        Setup the basename (for file output mainly)
-        and time objects (for heliocentric)
-
-        Parameters
-        ----------
-        camera : str
-          Taken from settings['mosaic']['camera']
-        timeunit : str
-          mjd
-
-        Returns
-        -------
-        self.time : Time
-        self.basename : str
-
-        """
-
-        timeunit = self.spectrograph.timeunit
-        camera = self.spectrograph.camera
-
-        self.fitstbl = fitstbl
-
-        # TODO: Given that we just read the file header to get the
-        # datasec_img in the init function above, I don't see why I need
-        # to access the fits table for exptime and binning. This
-        # information is also in the headers. By simply pulling the
-        # stuff from the header, we would remove the fitstbl entirely.
-        # Another option would be to put the datasec_img stuff in the
-        # fitstbl for each detector
-        self.exptime = self.fitstbl['exptime'][self.scidx]
-        self.binning = self.fitstbl['binning'][self.scidx]
-
-        # This should have been set when we construct the fitstbl
-        try:
-            tval = Time(fitstbl['time'][self.scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
-        except:
-            debugger.set_trace()
-
-        '''
-        tbname = None
-        try:
-            if 'T' in self.fitstbl['date'][self.scidx]:
-                tbname = self.fitstbl['date'][self.scidx]
-        except IndexError:
-            debugger.set_trace()
-        else:
-            if tbname is None:
-                if timeunit == 'mjd':
-                    # Not ideal, but convert MJD into a date+time
-                    timval = Time(self.fitstbl['time'][self.scidx] / 24.0, scale='tt',
-                                  format='mjd')
-                    tbname = timval.isot
-                else:
-                    # Really not ideal... just append date and time
-                    tbname = self.fitstbl['date'][self.scidx] + 'T' \
-                                    + str(self.fitstbl['time'][self.scidx])
-        '''
-        # Time
-        tiso = Time(tval, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
-        dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
-        self.time = tval
-        # Basename
-        self.inst_name = camera
-        self.target_name = self.fitstbl['target'][self.scidx].replace(" ", "")
-        self.basename = self.target_name+'_'+self.inst_name+'_'+ \
-                         datetime.datetime.strftime(dtime, '%Y%b%dT') + \
-                         tiso.value.split("T")[1].replace(':','')
-        # Return
-        return self.time, self.basename
-
 
     def _chk_objs(self, items):
         """
@@ -568,8 +491,7 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
-    def process(self, bias_subtract, pixel_flat, bpm, illum_flat=None, apply_gain=True, trim=True,
-                show=False):
+    def process(self, bias_subtract, pixel_flat, bpm, illum_flat=None, apply_gain=True, trim=True,show=False):
         """ Process the image
 
         Wrapper to ProcessImages.process()
