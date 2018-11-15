@@ -189,7 +189,7 @@ class WaveCalib(masterframe.MasterFrame):
         return self.wv_calib
 
 
-    def _echelle_2dfit(self, wv_calib,debug=False, skip_QA = False):
+    def _echelle_2dfit(self, wv_calib,debug=True, skip_QA = False):
         """
         Evaluate 2-d wavelength solution for echelle data. Unpacks wv_calib for slits to be input into  arc.fit2darc
 
