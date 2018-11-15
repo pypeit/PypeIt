@@ -165,7 +165,7 @@ def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile = None, title=None
     # Simple spectrum plot
     ax_spec = plt.subplot(gs[0])
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec, 'k')
-    ymin, ymax = 0., np.max(arc_spec)
+    ymin, ymax = np.min(arc_spec), np.max(arc_spec)
     ysep = ymax*0.03
     mn_yline = 1e9
 
@@ -199,7 +199,7 @@ def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile = None, title=None
 
     # Axes
     ax_spec.set_xlim(0., len(arc_spec))
-    ax_spec.set_ylim(ymin, ymax*1.3)
+    ax_spec.set_ylim(ymin*1.05, ymax*1.3)
     ax_spec.set_xlabel('Pixel')
     ax_spec.minorticks_on()
     ax_spec.set_ylabel('Counts')

@@ -759,3 +759,23 @@ class MultiSlitCalibrations(Calibrations):
         return ['bias', 'arc', 'bpm', 'pixlocn', 'slits', 'wv_calib', 'tilts',
                 'flats', 'wave']
 
+
+
+
+class EchelleCalibrations(Calibrations):
+    """
+    Child of Calibrations class for performing multi-slit (and longslit)
+    calibrations.
+    """
+    def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None, save_masters=True,
+                 write_qa=True, show = False, steps=None):
+        Calibrations.__init__(self, fitstbl, spectrograph=spectrograph, par=par,
+                              redux_path=redux_path, save_masters=save_masters,
+                              write_qa=write_qa, show = show)
+        self.steps = EchelleCalibrations.default_steps() if steps is None else steps
+
+    @staticmethod
+    def default_steps():
+        return ['bias', 'arc', 'bpm', 'pixlocn', 'slits', 'wv_calib', 'tilts',
+                'flats', 'wave']
+
