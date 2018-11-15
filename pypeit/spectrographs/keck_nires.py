@@ -72,6 +72,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.json'
+        par['calibrations']['wavelengths']['echelle'] = True
 
 
         # Set slits and tilts parameters
