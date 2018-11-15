@@ -280,7 +280,7 @@ class WaveCalib(masterframe.MasterFrame):
                 if key in ['steps', 'par']:  # This isn't really necessary
                     continue
                 for tkey in self.wv_calib[key].keys():
-                    if tkey in ['tcent', 'spec', 'xfit', 'yfit', 'xrej']:
+                    if tkey in ['tcent', 'spec', 'pixel_fit', 'wave_fit', 'xrej']:
                         self.wv_calib[key][tkey] = np.array(self.wv_calib[key][tkey])
             # parset
             if 'par' in self.wv_calib.keys():
