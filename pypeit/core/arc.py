@@ -21,7 +21,7 @@ from pypeit import debugger
 from pypeit.core import pydl
 
 
-def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=3,norder_coeff=5,sigrej=3.0,debug=True):
+def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=3,norder_coeff=5,sigrej=3.0,debug=True, skip_QA=False):
 
     """Routine to obtain the 2D wavelength solution for an echelle spectrograph. This is calculated from the spec direction
     pixelcentroid and the order number of identified arc lines. The fit is a  simple least-squares with one round of rejections.
@@ -152,16 +152,17 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=3,norder_coeff=5,sigre
     fin_rms = np.sqrt(np.mean(resid**2))
     msgs.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
 
+    orders =  np.unique(all_orders)
     # Plot QA
     if debug:
         # ToDO make this a separate QA routine if that is not too painful.
         # Full plot
 
-        all_pix_qa = np.arange(np.min(all_pix),np.max(all_pix),1)
+        #all_pix_qa = np.arange(np.min(all_pix),np.max(all_pix),1)
+        all_pix_qa = np.arange(nspec)
         pix_nrm_qa = 2. * (all_pix_qa - norm_pixel[0])/norm_pixel[1]
         worky_qa = pydl.flegendre(pix_nrm_qa, nspec_coeff)
         mn, mx = np.min(wv_mod/all_orders), np.max(wv_mod/all_orders)
-        order = np.arange(np.min(all_orders),np.max(all_orders)+1,1)
 
         utils.pyplot_rcparams()
         plt.figure(figsize=(7,5))
@@ -169,11 +170,11 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=3,norder_coeff=5,sigre
         plt.xlabel(r'Wavelength [$\AA$]')
         plt.ylabel(r'Row [pixel]')
 
-        for ii in order:
+        for ii in orders:
             # define the color
-            rr = (ii-np.max(order))/(np.min(order)-np.max(order))
+            rr = (ii-np.max(orders))/(np.min(orders)-np.max(orders))
             gg = 0.0
-            bb = (ii-np.min(order))/(np.max(order)-np.min(order))
+            bb = (ii-np.min(orders))/(np.max(orders)-np.min(orders))
             tsub = np.ones_like(len(all_pix_qa),dtype=np.float64) * ii
             t_nrm_qa = 2. * (tsub - norm_order[0])/norm_order[1]
             work2d_qa = np.zeros((nspec_coeff*norder_coeff, len(all_pix_qa)), dtype=np.float64)
@@ -192,18 +193,18 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=3,norder_coeff=5,sigre
         # Individual plots
 
         nrow = np.int(2)
-        ncol = np.int(np.ceil(len(order)/2.))
+        ncol = np.int(np.ceil(len(orders)/2.))
         utils.pyplot_rcparams()
 
         fig, ax = plt.subplots(nrow,ncol,figsize=(4*ncol,4*nrow))
         for ii_row in range(nrow):
             for ii_col in range(ncol):
-                if (ii_row * (nrow + 1)) + ii_col < len(order):
-                    ii = order[(ii_row*(nrow+1))+ii_col]
-                    rr = (ii-np.max(order))/(np.min(order)-np.max(order))
+                if (ii_row * (nrow + 1)) + ii_col < len(orders):
+                    ii = orders[(ii_row*(nrow+1))+ii_col]
+                    rr = (ii-np.max(orders))/(np.min(orders)-np.max(orders))
                     gg = 0.0
-                    bb = (ii-np.min(order))/(np.max(order)-np.min(order))
-                    tsub = np.ones_like(len(all_pix_qa),dtype=np.float64) * ii
+                    bb = (ii-np.min(orders))/(np.max(orders)-np.min(orders))
+                    tsub = np.ones_like(all_pix_qa,dtype=float)*ii
                     t_nrm_qa = 2. * (tsub - norm_order[0])/norm_order[1]
                     work2d_qa = np.zeros((nspec_coeff*norder_coeff, len(all_pix_qa)), dtype=np.float64)
                     workt_qa = pydl.flegendre(t_nrm_qa, norder_coeff)
@@ -232,10 +233,46 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=3,norder_coeff=5,sigre
         fig.suptitle(r'Arc 2D FIT, nx={0:.0f}, ny={1:.0f}, RMS={2:.5f} Ang*Order#, residuals $\times$100'.format(norder_coeff, nspec_coeff,fin_rms))
         plt.show()
 
-    fit_dict = dict(coeffs=res, nspec_coeff = nspec_coeff, norder_coeff=norder_coeff, pixel_cen = norm_pixel[0], pixel_norm=norm_pixel[1], order_cen = norm_order[0], order_norm = norm_order[1], nspec = nspec)
+    fit_dict = dict(coeffs=res, orders = orders, nspec_coeff = nspec_coeff, norder_coeff=norder_coeff, pixel_cen = norm_pixel[0],
+                    pixel_norm=norm_pixel[1], order_cen = norm_order[0], order_norm = norm_order[1], nspec = nspec)
     return fit_dict
 
+def eval2dfit(fit_dict, pixels, order):
 
+    if pixels.ndim != 1:
+        msgs.error('pixels must be a one dimensional array')
+
+    nspec_coeff = fit_dict['nspec_coeff']
+    norder_coeff = fit_dict['norder_coeff']
+    coeffs = fit_dict['coeffs']
+    npix = pixels.size
+    # legendre basis for the order direction
+    osub = np.ones_like(pixels, dtype=np.float64) * order
+    order_nrm = 2.0*(osub - fit_dict['order_cen'])/fit_dict['order_norm']
+    work_order = pydl.flegendre(order_nrm, norder_coeff)
+    # legendre basis for the spectral direction
+    pix_nrm = 2.0*(pixels - fit_dict['pixel_cen'])/fit_dict['pixel_norm']
+    work_pix = pydl.flegendre(pix_nrm, nspec_coeff)
+    # array to hold the
+    work2d = np.zeros((nspec_coeff*norder_coeff, npix), dtype=float)
+    for i in range(norder_coeff):
+        for j in range(nspec_coeff):
+            work2d[j*norder_coeff + i, :] = work_pix[j, :]*work_order[i, :]
+    wv_model = coeffs.dot(work2d)
+
+    return wv_model
+
+
+def waveimg_2dfit(fit_dict, tilts, ordermask):
+    orders = fit_dict['orders']
+    nspec = fit_dict['nspec']
+    piximg = tilts*(nspec-1)
+    waveimg = np.zeros_like(tilts)
+    for iord in orders:
+        thisorder = ordermask == iord
+        waveimg[thisorder] = eval2dfit(fit_dict,piximg[thisorder], iord)
+
+    return waveimg
 
 def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5):
 
