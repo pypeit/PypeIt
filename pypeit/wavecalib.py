@@ -188,7 +188,7 @@ class WaveCalib(masterframe.MasterFrame):
         return self.wv_calib
 
 
-    def _echelle_2dfit(self, wv_calib,debug=True, skip_QA = False):
+    def _echelle_2dfit(self, wv_calib,debug=False, skip_QA = False):
 
         all_wave = np.array([], dtype=float)
         all_pixel = np.array([], dtype=float)
@@ -196,9 +196,9 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Obtain a list of good slits
         ok_mask = np.where(self.maskslits == 0)[0]
-        nspec = wv_calib['nspec']
-        for islit in wv_calib.keys:
-            if int(islit) not in self.ok_mask:
+        nspec = self.msarc.shape[0]
+        for islit in wv_calib.keys():
+            if int(islit) not in ok_mask:
                 continue
             iorder = self.spectrograph.slit2order(islit)
             all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'])
@@ -211,7 +211,7 @@ class WaveCalib(masterframe.MasterFrame):
         return fit2d_dict
 
 
-     def _extract_arcs(self, lordloc, rordloc, slitpix):
+    def _extract_arcs(self, lordloc, rordloc, slitpix):
         """
         Extract an arc down the center of each slit/order
 
@@ -313,7 +313,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Set mask based on wv_calib
         mask = np.array([True]*nslit)
         for key in self.wv_calib.keys():
-            if key in ['steps', 'par']:
+            if key in ['steps', 'par', 'fit2d']:
                 continue
             #
             mask[int(key)] = False
