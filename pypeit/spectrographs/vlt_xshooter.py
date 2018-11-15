@@ -184,6 +184,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.json'
+        par['calibrations']['wavelengths']['echelle'] = True
 
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
@@ -215,55 +220,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         hdr_keys[0]['utc'] = 'HIERARCH ESO DET EXP UTC'
         return hdr_keys
 
-    def setup_arcparam(self, arcparam, msarc_shape=None, 
-                       disperser=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        TODO: disperser can't be required because it's never used
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        #debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['OH_XSHOOTER'] # Line lamps on
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation'] # lines abovet this are masked
-#        arcparam['min_nsig'] = 50.0         # Min significance for arc lines to be used
-        arcparam['sigdetect'] = 10.0         # Min significance for arc lines to be used
-        arcparam['wvmnx'] = [8000.,26000.]  # Guess at wavelength range
-        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3 # 3 was default, 1 seems to work better        # Matcing tolerance (pixels)
-        arcparam['func'] = 'legendre'       # Function for fitting
-        arcparam['n_first'] = 2             # Order of polynomial for first fit
-        arcparam['n_final'] = 4  #was default    # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2            # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.0    # Number of sigma for rejection (final fit)
-
-
-
-
-#        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-#        arcparam['disp'] = 0.6                                 # Ang/unbinned pixel
-#        arcparam['b1'] = 1./ arcparam['disp'] / msarc_shape[0] # Pixel fit term (binning independent)
-#        arcparam['b2'] = 0.                                    # Pixel fit term
-#        arcparam['lamps'] = ['OH_triplespec']                  # Line lamps on
-#        arcparam['wv_cen']=17370.                              # Estimate of central wavelength
-#        arcparam['disp_toler'] = 0.1                           # 10% tolerance
-#        arcparam['match_toler'] = 3.                           # Matching tolerance (pixels)
-#        arcparam['min_ampl'] = 1000.                           # Minimum amplitude
-#        arcparam['func'] = 'legendre'                          # Function for fitting
-#        arcparam['n_first'] = 1                                # Order of polynomial for first fit
-#        arcparam['n_final'] = 3                                # Order of polynomial for final fit
-#        arcparam['nsig_rej'] = 5.                              # Number of sigma for rejection
-#        arcparam['nsig_rej_final'] = 5.0                       # Number of sigma for rejection (final fit)
-#        arcparam['Nstrong'] = 20                               # Number of lines for auto-analysis
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
