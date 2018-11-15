@@ -187,36 +187,31 @@ class WaveCalib(masterframe.MasterFrame):
         # Return
         return self.wv_calib
 
-    def calibrate_spec(self, slit, method='arclines'):
-        """
-        TODO: Deprecate this function? It's only being used by the tests
-        User method to calibrate a given spectrum from a chosen slit
 
-        Wrapper to arc.simple_calib or arc.calib_with_arclines
+    def _echelle_2dfit(self, wv_calib,debug=True, skip_QA = False):
 
-        Parameters
-        ----------
-        slit : int
-        method : str, optional
-          'simple' -- arc.simple_calib
-          'arclines' -- arc.calib_with_arclines
+        all_wave = np.array([], dtype=float)
+        all_pixel = np.array([], dtype=float)
+        all_order = np.array([],dtype=float)
 
-        Returns
-        -------
-        iwv_calib : dict
-          Solution for that single slit
+        # Obtain a list of good slits
+        ok_mask = np.where(self.maskslits == 0)[0]
+        nspec = wv_calib['nspec']
+        for islit in wv_calib.keys:
+            if int(islit) not in self.ok_mask:
+                continue
+            iorder = self.spectrograph.slit2order(islit)
+            all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'])
+            all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'])
+            all_order = np.append(all_order, np.full_like(wv_calib[islit]['pixel_fit'], float(iorder)))
 
-        """
-        spec = self.wv_calib[str(slit)]['spec']
-        if method == 'simple':
-            iwv_calib = arc.simple_calib(self.msarc, self.par, self.arccen[:, slit])
-        elif method == 'arclines':
-            iwv_calib = arc.calib_with_arclines(self.par, spec.reshape((spec.size, 1)))
-        else:
-            msgs.error("Not an allowed method")
-        return iwv_calib
+        fit2d_dict = arc.fit2darc(all_wave, all_pixel, all_order, nspec, debug=debug, skip_QA=skip_QA)
 
-    def _extract_arcs(self, lordloc, rordloc, slitpix):
+        self.steps.append(inspect.stack()[0][3])
+        return fit2d_dict
+
+
+     def _extract_arcs(self, lordloc, rordloc, slitpix):
         """
         Extract an arc down the center of each slit/order
 
@@ -238,8 +233,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         inmask = (self.bpm == 0) if self.bpm is not None else None
-        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,
-                                                      inmask=inmask)
+        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,inmask=inmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -359,20 +353,23 @@ class WaveCalib(masterframe.MasterFrame):
         # Extract an arc down each slit
         _, _ = self._extract_arcs(lordloc, rordloc, slitpix)
 
-
-        #if self.arcparam is None:
-        #    _ = self._load_arcparam()
-
         # Fill up the calibrations and generate QA
         self.wv_calib = self._build_wv_calib(self.par['method'], skip_QA=skip_QA)
-        self.wv_calib['steps'] = self.steps
-        sv_par = self.par.data.copy()
-        #sv_par.pop('llist')
-        self.wv_calib['par'] = sv_par
+
+        # Return
+        if self.par['echelle'] is True:
+            fit2d_dict = self._echelle_2dfit(self.wv_calib, skip_QA = skip_QA)
+            self.wv_calib['fit2d'] = fit2d_dict
 
         # Build mask
-        self._make_maskslits(lordloc.shape[1])
-        # Return
+        nslits = lordloc.shape[1]
+        self._make_maskslits(nslits)
+
+        # Pack up
+        self.wv_calib['steps'] = self.steps
+        sv_par = self.par.data.copy()
+        self.wv_calib['par'] = sv_par
+
         return self.wv_calib, self.maskslits
 
     def show(self, item, slit=None):
@@ -420,6 +417,35 @@ class WaveCalib(masterframe.MasterFrame):
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
+
+    def calibrate_spec(self, slit, method='arclines'):
+        """
+        TODO: Deprecate this function? It's only being used by the tests
+        User method to calibrate a given spectrum from a chosen slit
+
+        Wrapper to arc.simple_calib or arc.calib_with_arclines
+
+        Parameters
+        ----------
+        slit : int
+        method : str, optional
+          'simple' -- arc.simple_calib
+          'arclines' -- arc.calib_with_arclines
+
+        Returns
+        -------
+        iwv_calib : dict
+          Solution for that single slit
+
+        """
+        spec = self.wv_calib[str(slit)]['spec']
+        if method == 'simple':
+            iwv_calib = arc.simple_calib(self.msarc, self.par, self.arccen[:, slit])
+        elif method == 'arclines':
+            iwv_calib = arc.calib_with_arclines(self.par, spec.reshape((spec.size, 1)))
+        else:
+            msgs.error("Not an allowed method")
+        return iwv_calib
 
 
 def load_wv_calib(filename):
