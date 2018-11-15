@@ -68,7 +68,7 @@ def pyplot_rcparams():
     plt.rcParams["xtick.minor.width"] = 1
     plt.rcParams["ytick.minor.width"] = 1
     plt.rcParams["axes.linewidth"] = 1
-    plt.rcParams["lines.linewidth"] = 5.5
+    plt.rcParams["lines.linewidth"] = 3.5
     plt.rcParams["lines.markeredgewidth"] = 2.0
     plt.rcParams["patch.linewidth"] = 3
     plt.rcParams["hatch.linewidth"] = 3.0
