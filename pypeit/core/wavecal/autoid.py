@@ -650,7 +650,7 @@ class ArchiveReid:
     """
 
     def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True,
-                 debug_xcorr = False, debug_reid = True, debug_fits= False):
+                 debug_xcorr = False, debug_reid = False, debug_fits= False):
 
         self.debug_xcorr = debug_xcorr
         self.debug_reid = debug_reid
