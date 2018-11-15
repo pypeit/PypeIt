@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 
 from scipy.ndimage.filters import gaussian_filter
 
-from astropy.stats import sigma_clipped_stats
+from astropy.stats import sigma_clipped_stats, sigma_clip
 
 from pypeit import ararclines
 from pypeit import debugger
@@ -19,12 +19,9 @@ from pypeit.core import pixels
 from pypeit.core.wavecal import autoid
 from pypeit import debugger
 from pypeit.core import pydl
-from astropy.stats import sigma_clip
 
 
-
-#Todo t --> all_orders, sigmarjct ==> sigrej
-def fit2darc(all_wv,all_pix,t,nycoeff=3,nocoeff=5,sigmarjct=3.0,debug=True):
+def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=3,norder_coeff=5,sigrej=3.0,debug=True):
 
     """Routine to obtain the 2D wavelength solution for an echelle spectrograph. This is calculated from the spec direction
     pixelcentroid and the order number of identified arc lines. The fit is a  simple least-squares with one round of rejections.
@@ -36,13 +33,15 @@ def fit2darc(all_wv,all_pix,t,nycoeff=3,nocoeff=5,sigmarjct=3.0,debug=True):
      wavelength of the identified lines
     all_pix: np.array
       y-centroid position of the identified lines
-    t: np.array
+    all_orders: np.array
       order number of the identified lines
-    nycoeff : np.int
-      order of the fitting along the pixel direction for each order
-    nocoeff : np.int
+    nspec_coeff : np.int
+      order of the fitting along the spectral (pixel) direction for each order
+    nspec: int
+      Size of the image in the spectral direction
+    norder_coeff : np.int
       order of the fitting in the order direction
-    sigmarjct: np.float
+    sigrej: np.float
       sigma level for the rejection
     debug: boolean
       Extra plots to check the status of the procedure
@@ -54,15 +53,14 @@ def fit2darc(all_wv,all_pix,t,nycoeff=3,nocoeff=5,sigmarjct=3.0,debug=True):
     # To use the legendre polynomial pixels and orders
     # need to be normalized in the -1,+1 range
     # Normalize pixels
-    mnx = np.min(all_pix)
-    mxx = np.max(all_pix)
-    nrmp = np.array([0.5 * (mnx + mxx), mxx - mnx])
-    pix_nrm = 2. * (all_pix - nrmp[0])/nrmp[1]
+    mnx = 0 #np.min(all_pix)
+    mxx = float(nspec - 1) #np.max(all_pix)
+    norm_pixel = np.array([0.5 * (mnx + mxx), mxx - mnx])
+    pix_nrm = 2. * (all_pix - norm_pixel[0])/norm_pixel[1]
     # Normalize orders
-    mnx = np.min(t)
-    mxx = np.max(t)
-    nrmt = np.array([0.5 * (mnx + mxx), mxx - mnx])
-    t_nrm = 2. * (t - nrmt[0])/nrmt[1]
+    mnx, mxx = np.min(all_orders), np.max(all_orders)
+    norm_order = np.array([0.5 * (mnx + mxx), mxx - mnx])
+    orders_nrm = 2. * (all_orders - norm_order[0])/norm_order[1]
 
     if debug:
         # set some plotting parameters
@@ -70,8 +68,7 @@ def fit2darc(all_wv,all_pix,t,nycoeff=3,nocoeff=5,sigmarjct=3.0,debug=True):
         plt.figure(figsize=(7,5))
         msgs.info("Plot identified lines")
         cm = plt.cm.get_cmap('RdYlBu_r')
-        sc = plt.scatter(t_nrm, pix_nrm,
-                         c=all_wv/10000., cmap=cm)
+        sc = plt.scatter(orders_nrm, pix_nrm,c=all_wv/10000., cmap=cm)
         cbar = plt.colorbar(sc)
         cbar.set_label(r'Wavelength [$\mu$m]', rotation=270,
                        labelpad=20)
@@ -83,16 +80,14 @@ def fit2darc(all_wv,all_pix,t,nycoeff=3,nocoeff=5,sigmarjct=3.0,debug=True):
     msgs.info("First iteration")
     # all lines have the same weight
     invvar = np.ones(len(all_wv), dtype=np.float64)
-    all_wv_order = all_wv * t
-    work2d = np.zeros((nycoeff*nocoeff, len(all_wv)), dtype=np.float64)
-    worky = pydl.flegendre(pix_nrm, nycoeff)
-    workt = pydl.flegendre(t_nrm, nocoeff)
-    for i in range(nocoeff):
-        for j in range(nycoeff):
-            work2d[j*nocoeff+i,:] = worky[j,:] * workt[i,:]
-    work2di = np.transpose(work2d * np.outer(np.ones(nocoeff*nycoeff,
-                                             dtype=np.float64),
-                                             invvar))
+    all_wv_order = all_wv * all_orders
+    work2d = np.zeros((nspec_coeff*norder_coeff, len(all_wv)), dtype=np.float64)
+    worky = pydl.flegendre(pix_nrm, nspec_coeff)
+    workt = pydl.flegendre(orders_nrm, norder_coeff)
+    for i in range(norder_coeff):
+        for j in range(nspec_coeff):
+            work2d[j*norder_coeff+i,:] = worky[j,:] * workt[i,:]
+    work2di = np.transpose(work2d * np.outer(np.ones(norder_coeff*nspec_coeff,dtype=np.float64),invvar))
     alpha = work2d.dot(work2di)
     beta = all_wv_order.dot(work2di)
     res = np.linalg.solve(alpha,beta)
@@ -101,31 +96,17 @@ def fit2darc(all_wv,all_pix,t,nycoeff=3,nocoeff=5,sigmarjct=3.0,debug=True):
         # set some plotting parameters
         utils.pyplot_rcparams()
         plt.figure(figsize=(7,5))
-        plt.axhline(y=np.average(wv_mod / t - all_wv),
-                    color='r', linestyle='--')
-        plt.axhline(y=+np.std(wv_mod / t - all_wv),
+        plt.axhline(y=np.average(wv_mod /all_orders - all_wv),color='r', linestyle='--')
+        plt.axhline(y=+np.std(wv_mod /all_orders - all_wv),color='r', linestyle=':')
+        plt.axhline(y=-np.std(wv_mod / all_orders - all_wv),
                     color='r', linestyle=':')
-        plt.axhline(y=-np.std(wv_mod / t - all_wv),
-                    color='r', linestyle=':')
-        plt.scatter(all_wv/10000.,
-                    wv_mod / t - all_wv,
-                    marker="v")
-        plt.text(np.min(all_wv/10000), np.average(wv_mod/t-all_wv),
-                 r'Average={0:.1f}$\AA$'.format(np.average(wv_mod/t-all_wv)),
-                 ha="left", va="bottom",
-                 bbox=dict(boxstyle="square",
-                           ec=(1., 0.5, 0.5),
-                           fc=(1., 0.8, 0.8),
-                           alpha=0.7,
-                           ))
-        plt.text(np.max(all_wv/10000), np.std(wv_mod/t-all_wv),
-                 r'Sigma={0:.1f}$\AA$'.format(np.std(wv_mod/t-all_wv)),
-                 ha="right", va="bottom",
-                 bbox=dict(boxstyle="square",
-                           ec=(1., 0.5, 0.5),
-                           fc=(1., 0.8, 0.8),
-                           alpha=0.7,
-                           ))
+        plt.scatter(all_wv/10000.,wv_mod /all_orders - all_wv,marker="v")
+        plt.text(np.min(all_wv/10000), np.average(wv_mod/all_orders-all_wv),
+                 r'Average={0:.1f}$\AA$'.format(np.average(wv_mod/all_orders-all_wv)),ha="left", va="bottom",
+                 bbox=dict(boxstyle="square",ec=(1., 0.5, 0.5),fc=(1., 0.8, 0.8),alpha=0.7,))
+        plt.text(np.max(all_wv/10000), np.std(wv_mod/all_orders-all_wv),
+                 r'Sigma={0:.1f}$\AA$'.format(np.std(wv_mod/all_orders-all_wv)),ha="right", va="bottom",
+                 bbox=dict(boxstyle="square",ec=(1., 0.5, 0.5),fc=(1., 0.8, 0.8),alpha=0.7,))
         plt.title(r'Residuals after 1st iteration')
         plt.xlabel(r'Wavelength [$\mu$m]')
         plt.ylabel(r'Residuals [$\AA$]')
@@ -134,13 +115,11 @@ def fit2darc(all_wv,all_pix,t,nycoeff=3,nocoeff=5,sigmarjct=3.0,debug=True):
     msgs.info("Second iteration")
     # Mask Values
     # msk = True means a bad value
-    msk = sigma_clip(wv_mod-all_wv_order, sigma=sigmarjct, cenfunc=np.ma.mean).mask
+    msk = sigma_clip(wv_mod-all_wv_order, sigma=sigrej, cenfunc=np.ma.mean).mask
     if np.any(msk):
         msgs.info("Rejecting: {} of {} lines.".format(len(msk[np.where(msk == True)]),len(msk)))
         invvar[msk] = 0.
-        work2di = np.transpose(work2d * np.outer(np.ones(nocoeff*nycoeff,
-                                                 dtype=np.float64),
-                                                 invvar))
+        work2di = np.transpose(work2d * np.outer(np.ones(norder_coeff*nspec_coeff,dtype=np.float64),invvar))
         alpha = work2d.dot(work2di)
         beta = all_wv_order.dot(work2di)
         res = np.linalg.solve(alpha,beta)
@@ -148,36 +127,17 @@ def fit2darc(all_wv,all_pix,t,nycoeff=3,nocoeff=5,sigmarjct=3.0,debug=True):
         if debug:
             utils.pyplot_rcparams()
             plt.figure(figsize=(7,5))
-            plt.axhline(y=np.average(wv_mod[~msk] / t[~msk] - all_wv[~msk]),
-                        color='r', linestyle='--')
-            plt.axhline(y=+np.std(wv_mod[~msk] / t[~msk] - all_wv[~msk]),
-                        color='r', linestyle=':')
-            plt.axhline(y=-np.std(wv_mod[~msk] / t[~msk] - all_wv[~msk]),
-                        color='r', linestyle=':')
-            plt.scatter(all_wv[msk]/10000.,
-                        wv_mod[msk] / t[msk] - all_wv[msk],
-                        marker="v",
-                        label=r'Rejected values')
-            plt.scatter(all_wv[~msk]/10000.,
-                        wv_mod[~msk] / t[~msk] - all_wv[~msk],
-                        marker="v",
-                        label=r'Good values')
-            plt.text(np.min(all_wv/10000), np.average(wv_mod[~msk]/t[~msk]-all_wv[~msk]),
-                     r'Average={0:.1f}$\AA$'.format(np.average(wv_mod[~msk]/t[~msk]-all_wv[~msk])),
-                     ha="left", va="bottom",
-                     bbox=dict(boxstyle="square",
-                               ec=(1., 0.5, 0.5),
-                               fc=(1., 0.8, 0.8),
-                               alpha=0.7,
-                               ))
-            plt.text(np.max(all_wv/10000), np.std(wv_mod[~msk]/t[~msk]-all_wv[~msk]),
-                     r'Sigma={0:.1f}$\AA$'.format(np.std(wv_mod[~msk]/t[~msk]-all_wv[~msk])),
-                     ha="right", va="bottom",
-                     bbox=dict(boxstyle="square",
-                               ec=(1., 0.5, 0.5),
-                               fc=(1., 0.8, 0.8),
-                               alpha=0.7,
-                               ))
+            plt.axhline(y=np.average(wv_mod[~msk] /all_orders[~msk] - all_wv[~msk]),color='r', linestyle='--')
+            plt.axhline(y=+np.std(wv_mod[~msk] /all_orders[~msk] - all_wv[~msk]),color='r', linestyle=':')
+            plt.axhline(y=-np.std(wv_mod[~msk] /all_orders[~msk] - all_wv[~msk]),color='r', linestyle=':')
+            plt.scatter(all_wv[msk]/10000.,wv_mod[msk] /all_orders[msk] - all_wv[msk],marker="v",label=r'Rejected values')
+            plt.scatter(all_wv[~msk]/10000.,wv_mod[~msk]/all_orders[~msk] - all_wv[~msk],marker="v",label=r'Good values')
+            plt.text(np.min(all_wv/10000), np.average(wv_mod[~msk]/all_orders[~msk]-all_wv[~msk]),
+                     r'Average={0:.1f}$\AA$'.format(np.average(wv_mod[~msk]/all_orders[~msk]-all_wv[~msk])),
+                     ha="left", va="bottom",bbox=dict(boxstyle="square",ec=(1., 0.5, 0.5),fc=(1., 0.8, 0.8),alpha=0.7,))
+            plt.text(np.max(all_wv/10000), np.std(wv_mod[~msk]/all_orders[~msk]-all_wv[~msk]),
+                     r'Sigma={0:.1f}$\AA$'.format(np.std(wv_mod[~msk]/all_orders[~msk]-all_wv[~msk])),ha="right",
+                     va="bottom",bbox=dict(boxstyle="square",ec=(1., 0.5, 0.5),fc=(1., 0.8, 0.8),alpha=0.7,))
             plt.legend()
             plt.title(r'Residuals after 2nd iteration')
             plt.xlabel(r'Wavelength [$\mu$m]')
@@ -193,94 +153,87 @@ def fit2darc(all_wv,all_pix,t,nycoeff=3,nocoeff=5,sigmarjct=3.0,debug=True):
     msgs.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
 
     # Plot QA
+    if debug:
+        # ToDO make this a separate QA routine if that is not too painful.
+        # Full plot
 
-    # ToDO make this a separate QA routine if that is not too painful.
-    # Full plot
+        all_pix_qa = np.arange(np.min(all_pix),np.max(all_pix),1)
+        pix_nrm_qa = 2. * (all_pix_qa - norm_pixel[0])/norm_pixel[1]
+        worky_qa = pydl.flegendre(pix_nrm_qa, nspec_coeff)
+        mn, mx = np.min(wv_mod/all_orders), np.max(wv_mod/all_orders)
+        order = np.arange(np.min(all_orders),np.max(all_orders)+1,1)
 
-    all_pix_qa = np.arange(np.min(all_pix),np.max(all_pix),1)
-    pix_nrm_qa = 2. * (all_pix_qa - nrmp[0])/nrmp[1]
-    worky_qa = pydl.flegendre(pix_nrm_qa, nycoeff)
-    mn, mx = np.min(wv_mod/t), np.max(wv_mod/t)
-    order = np.arange(np.min(t),np.max(t)+1,1)
+        utils.pyplot_rcparams()
+        plt.figure(figsize=(7,5))
+        plt.title(r'Arc 2D FIT, nx={0:.0f}, ny={1:.0f}, RMS={2:.5f} Ang*Order#'.format(norder_coeff, nspec_coeff,fin_rms))
+        plt.xlabel(r'Wavelength [$\AA$]')
+        plt.ylabel(r'Row [pixel]')
 
-    utils.pyplot_rcparams()
-    plt.figure(figsize=(7,5))
-    plt.title(r'Arc 2D FIT, nx={0:.0f}, ny={1:.0f}, RMS={2:.5f} Ang*Order#'.format(nocoeff, nycoeff,fin_rms))
-    plt.xlabel(r'Wavelength [$\AA$]')
-    plt.ylabel(r'Row [pixel]')
-
-    for ii in order:
-        # define the color
-        rr = (ii-np.max(order))/(np.min(order)-np.max(order))
-        gg = 0.0
-        bb = (ii-np.min(order))/(np.max(order)-np.min(order))
-        tsub = np.ones_like(len(all_pix_qa),dtype=np.float64) * ii
-        t_nrm_qa = 2. * (tsub - nrmt[0])/nrmt[1]
-        work2d_qa = np.zeros((nycoeff*nocoeff, len(all_pix_qa)), dtype=np.float64)
-        workt_qa = pydl.flegendre(t_nrm_qa, nocoeff)
-        for i in range(nocoeff):
-            for j in range(nycoeff):
-                work2d_qa[j*nocoeff+i,:] = worky_qa[j,:] * workt_qa[i,:]
-        wv_mod_qa = res.dot(work2d_qa)
-        plt.plot(wv_mod_qa/ii, all_pix_qa,
-                 color=(rr,gg,bb), linestyle='-')
-        # Residuals
-        resid_qa = (wv_mod[t == ii]-all_wv_order[t == ii])/t[t == ii]
-        plt.scatter(wv_mod[t == ii]/t[t == ii]+100*resid_qa, all_pix[t == ii],
-                    color=(rr,gg,bb))
-    plt.text(mx,np.max(all_pix),
-             r'residuals $\times$100',
-             ha="right", va="top",)
-    plt.show()
-
-    # Individual plots
-
-    nrow = np.int(2)
-    ncol = np.int(np.ceil(len(order)/2.))
-
-    utils.pyplot_rcparams()
-
-    fig, ax = plt.subplots(nrow,ncol,figsize=(4*ncol,4*nrow))
-    for ii_row in np.arange(nrow):
-        for ii_col in np.arange(ncol):
-            ii = order[(ii_row*(nrow+1))+ii_col]
+        for ii in order:
+            # define the color
             rr = (ii-np.max(order))/(np.min(order)-np.max(order))
             gg = 0.0
             bb = (ii-np.min(order))/(np.max(order)-np.min(order))
             tsub = np.ones_like(len(all_pix_qa),dtype=np.float64) * ii
-            t_nrm_qa = 2. * (tsub - nrmt[0])/nrmt[1]
-            work2d_qa = np.zeros((nycoeff*nocoeff, len(all_pix_qa)), dtype=np.float64)
-            workt_qa = pydl.flegendre(t_nrm_qa, nocoeff)
-            for i in range(nocoeff):
-                for j in range(nycoeff):
-                    work2d_qa[j*nocoeff+i,:] = worky_qa[j,:] * workt_qa[i,:]
+            t_nrm_qa = 2. * (tsub - norm_order[0])/norm_order[1]
+            work2d_qa = np.zeros((nspec_coeff*norder_coeff, len(all_pix_qa)), dtype=np.float64)
+            workt_qa = pydl.flegendre(t_nrm_qa, norder_coeff)
+            for i in range(norder_coeff):
+                for j in range(nspec_coeff):
+                    work2d_qa[j*norder_coeff+i,:] = worky_qa[j,:] * workt_qa[i,:]
             wv_mod_qa = res.dot(work2d_qa)
-            ax[ii_row,ii_col].plot(all_pix_qa, wv_mod_qa/ii/10000.,
-                           color=(rr,gg,bb), linestyle='-')
-            ax[ii_row,ii_col].set_title('Order = {0:0.0f}'.format(ii))
+            plt.plot(wv_mod_qa/ii, all_pix_qa,color=(rr,gg,bb), linestyle='-')
             # Residuals
-            resid_qa = (wv_mod[t == ii]-all_wv_order[t == ii])/t[t == ii]
-            resid_qa_mask = (wv_mod[gd_wv][t[gd_wv] == ii]-all_wv_order[gd_wv][t[gd_wv] == ii])/t[gd_wv][t[gd_wv] == ii]
-            rms_qa = np.sqrt(np.mean(resid_qa_mask**2))
-            dwl=(wv_mod_qa[-1]-wv_mod_qa[0])/ii/(all_pix_qa[-1]-all_pix_qa[0])
-            ax[ii_row,ii_col].scatter(all_pix[t == ii], wv_mod[t == ii]/t[t == ii]/10000.+100.*resid_qa/10000.,
-                                      color=(rr,gg,bb))
-            ax[ii_row,ii_col].text(0.9,0.9,
-                              r'RMS={0:.2f} Pixel'.format(rms_qa/np.abs(dwl)),
-                              ha="right", va="top",
-                              transform = ax[ii_row,ii_col].transAxes)
-            ax[ii_row,ii_col].text(0.9,0.8,
-                              r'$\Delta\lambda$={0:.2f} Pixel/$\AA$'.format(np.abs(dwl)),
-                              ha="right", va="top",
-                              transform = ax[ii_row,ii_col].transAxes)
+            resid_qa = (wv_mod[all_orders == ii]-all_wv_order[all_orders == ii])/all_orders[all_orders == ii]
+            plt.scatter(wv_mod[all_orders == ii]/all_orders[all_orders == ii]+100*resid_qa, all_pix[all_orders == ii],color=(rr,gg,bb))
+        plt.text(mx,np.max(all_pix),r'residuals $\times$100',ha="right", va="top",)
+        plt.show()
 
-    fig.text(0.5, 0.04, r'Row [pixel]', ha='center', size='large')
-    fig.text(0.04, 0.5, r'Wavelength [$\mu$m]', va='center',
-             rotation='vertical', size='large')
-    fig.suptitle(r'Arc 2D FIT, nx={0:.0f}, ny={1:.0f}, RMS={2:.5f} Ang*Order#, residuals $\times$100'.format(nocoeff, nycoeff,fin_rms))
-    plt.show()
+        # Individual plots
 
-    #ToDo needs to return something
+        nrow = np.int(2)
+        ncol = np.int(np.ceil(len(order)/2.))
+        utils.pyplot_rcparams()
+
+        fig, ax = plt.subplots(nrow,ncol,figsize=(4*ncol,4*nrow))
+        for ii_row in range(nrow):
+            for ii_col in range(ncol):
+                if (ii_row * (nrow + 1)) + ii_col < len(order):
+                    ii = order[(ii_row*(nrow+1))+ii_col]
+                    rr = (ii-np.max(order))/(np.min(order)-np.max(order))
+                    gg = 0.0
+                    bb = (ii-np.min(order))/(np.max(order)-np.min(order))
+                    tsub = np.ones_like(len(all_pix_qa),dtype=np.float64) * ii
+                    t_nrm_qa = 2. * (tsub - norm_order[0])/norm_order[1]
+                    work2d_qa = np.zeros((nspec_coeff*norder_coeff, len(all_pix_qa)), dtype=np.float64)
+                    workt_qa = pydl.flegendre(t_nrm_qa, norder_coeff)
+                    for i in range(norder_coeff):
+                        for j in range(nspec_coeff):
+                            work2d_qa[j*norder_coeff+i,:] = worky_qa[j,:] * workt_qa[i,:]
+                    wv_mod_qa = res.dot(work2d_qa)
+                    ax[ii_row,ii_col].plot(all_pix_qa, wv_mod_qa/ii/10000.,color=(rr,gg,bb), linestyle='-')
+                    ax[ii_row,ii_col].set_title('Order = {0:0.0f}'.format(ii))
+                    # Residuals
+                    resid_qa = (wv_mod[all_orders == ii]-all_wv_order[all_orders == ii])/all_orders[all_orders == ii]
+                    resid_qa_mask = (wv_mod[gd_wv][all_orders[gd_wv] == ii]-all_wv_order[gd_wv][all_orders[gd_wv] == ii])/all_orders[gd_wv][all_orders[gd_wv] == ii]
+                    rms_qa = np.sqrt(np.mean(resid_qa_mask**2))
+                    dwl=(wv_mod_qa[-1]-wv_mod_qa[0])/ii/(all_pix_qa[-1]-all_pix_qa[0])
+                    ax[ii_row,ii_col].scatter(all_pix[all_orders == ii], wv_mod[all_orders == ii]/all_orders[all_orders == ii]/10000.+100.*resid_qa/10000.,
+                                              color=(rr,gg,bb))
+                    ax[ii_row,ii_col].text(0.9,0.9,r'RMS={0:.2f} Pixel'.format(rms_qa/np.abs(dwl)),ha="right", va="top",
+                                           transform = ax[ii_row,ii_col].transAxes)
+                    ax[ii_row,ii_col].text(0.9,0.8,r'$\Delta\lambda$={0:.2f} Pixel/$\AA$'.format(np.abs(dwl)),ha="right", va="top",
+                                      transform = ax[ii_row,ii_col].transAxes)
+                else:
+                    ax[ii_row, ii_col].axis('off')
+
+        fig.text(0.5, 0.04, r'Row [pixel]', ha='center', size='large')
+        fig.text(0.04, 0.5, r'Wavelength [$\mu$m]', va='center',rotation='vertical', size='large')
+        fig.suptitle(r'Arc 2D FIT, nx={0:.0f}, ny={1:.0f}, RMS={2:.5f} Ang*Order#, residuals $\times$100'.format(norder_coeff, nspec_coeff,fin_rms))
+        plt.show()
+
+    fit_dict = dict(coeffs=res, nspec_coeff = nspec_coeff, norder_coeff=norder_coeff, pixel_cen = norm_pixel[0], pixel_norm=norm_pixel[1], order_cen = norm_order[0], order_norm = norm_order[1], nspec = nspec)
+    return fit_dict
 
 
 
