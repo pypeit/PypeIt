@@ -228,7 +228,7 @@ class ScienceImage(processimages.ProcessImages):
         try:
             self.binning = self.fitstbl['binning'][self.scidx]
         except KeyError:
-            self.binning = 1,1
+            self.binning = '1,1'
 
         # This should have been set when we construct the fitstbl
         try:
