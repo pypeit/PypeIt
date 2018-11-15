@@ -174,10 +174,10 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
 
         # Adjustments to slit and tilts for NIR
-        par['calibrations']['slits']['sigdetect'] = 700.
+        par['calibrations']['slits']['sigdetect'] = 600.
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['slits']['pcatype'] = 'order'
         par['calibrations']['tilts']['tracethresh'] = [10,10,10,10,10,10,10,10,10, 10, 10, 20, 20, 20,20,10]
 
 
