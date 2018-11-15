@@ -735,6 +735,7 @@ class ArchiveReid:
         self.bad_slits = np.array([], dtype=np.int)
         # Reidentify each slit, and perform a fit
         for slit in range(self.nslits):
+            # ToDO should we still be populating wave_calib with an empty dict here?
             if slit not in self.ok_mask:
                 continue
             msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit + 1,self.nslits))
