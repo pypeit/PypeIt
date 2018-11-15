@@ -262,6 +262,7 @@ class Calibrations(object):
         # Always use the example file
         example_file = self.fitstbl.find_frame_files('science', sci_ID=self.sci_ID)[0]
         bpmImage = bpmimage.BPMImage(self.spectrograph, filename=example_file, det=self.det,
+                                     shape=self.shape,
                                      msbias=self.msbias if self.par['badpix'] == 'bias' else None,
                                      trim=self.par['trim'])
         # Build, save, and return
