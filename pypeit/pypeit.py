@@ -1096,9 +1096,6 @@ class Echelle(PypeIt):
         scidx = self.fitstbl.find_frames(frametype, sci_ID=sci_ID, index=True)[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(self.fitstbl['filename'][scidx],
                                                              self.fitstbl['target'][scidx]))
-        from IPython import embed
-        embed()
-
         # Loop on Detectors
         for kk in range(self.spectrograph.ndet):
             det = kk + 1  # Detectors indexed from 1
@@ -1130,7 +1127,7 @@ class Echelle(PypeIt):
                 _, std_basename = self.init_time_names(self.fitstbl, stddx)
                 std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
                                        'spec1d_{:s}.fits'.format(std_basename))
-                spec = load.load_1dspec(std_outfile)
+                std_trace = load.load_std_trace(std_outfile)
 
             sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr = self._extract_one()
 
