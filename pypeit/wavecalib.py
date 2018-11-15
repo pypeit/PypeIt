@@ -11,6 +11,7 @@ from matplotlib import pyplot as plt
 
 from astropy.table import vstack
 
+import copy
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc
@@ -189,7 +190,28 @@ class WaveCalib(masterframe.MasterFrame):
 
 
     def _echelle_2dfit(self, wv_calib,debug=False, skip_QA = False):
+        """
+        Evaluate 2-d wavelength solution for echelle data. Unpacks wv_calib for slits to be input into  arc.fit2darc
 
+        Parameters
+        ----------
+        wv_calib: dict
+           Wavelength calibration
+
+        Optional Parameters
+        -------------------
+        debug: bool, default = False
+           Show debugging info
+        skip_QA: bool, default = False
+          Not yet implemented
+
+        Returns
+        -------
+        fit2d_dict: dict
+           dictionary containing information from 2-d fit
+        """
+
+        msgs.info('Fitting 2-d wavelength solution for echelle....')
         all_wave = np.array([], dtype=float)
         all_pixel = np.array([], dtype=float)
         all_order = np.array([],dtype=float)
@@ -274,7 +296,7 @@ class WaveCalib(masterframe.MasterFrame):
                 if key in ['steps', 'par']:  # This isn't really necessary
                     continue
                 for tkey in self.wv_calib[key].keys():
-                    if tkey in ['tcent', 'spec', 'pixel_fit', 'wave_fit', 'xrej']:
+                    if isinstance(self.wv_calib[key][tkey], list):
                         self.wv_calib[key][tkey] = np.array(self.wv_calib[key][tkey])
             # parset
             if 'par' in self.wv_calib.keys():
@@ -290,7 +312,11 @@ class WaveCalib(masterframe.MasterFrame):
         #
         msgs.info("Saving master {0:s} frame as:".format(self.frametype) + msgs.newline() + _outfile)
         # Wavelength fit(s)
-        gddict = linetools.utils.jsonify(data)
+
+        # jsonify has the annoying property that it modifies the objects when it jsonifies them so make a copy,
+        # which converts lists to arrays, so we make a copy
+        data_for_json = copy.deepcopy(data)
+        gddict = linetools.utils.jsonify(data_for_json)
         linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
         # Finish
         msgs.info("Master {0:s} frame saved successfully:".format(self.frametype) + msgs.newline() + _outfile)
