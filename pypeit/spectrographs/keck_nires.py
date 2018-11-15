@@ -68,7 +68,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
 #        par['calibrations']['wavelengths']['min_nsig'] = 10.0
         par['calibrations']['wavelengths']['sigdetect'] =5.0
-        par['calibrations']['wavelengths']['lamps'] = ['OH_triplespec']
+        par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.json'
