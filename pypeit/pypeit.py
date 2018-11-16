@@ -1124,14 +1124,16 @@ class Echelle(PypeIt):
             self.init_one_science(sci_ID, frametype, det)
             # Extract
 
+            # ToDO make this a method load_std_trace()
             # Does a standard exist in the fitstbl? If so grab it since we need the trace. In the future this should
             # use calibgroup matching criteria
-            if frametype == 'science' & np.any(self.fitstbl.find_frames('standard',sci_ID=sci_ID)):
+            if (frametype == 'science') & np.any(self.fitstbl.find_frames('standard',sci_ID=sci_ID)):
                 stddx = self.fitstbl.find_frames('standard',sci_ID=sci_ID, index=True)[0]
                 _, std_basename = self.init_time_names(self.fitstbl, stddx)
                 std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
                                        'spec1d_{:s}.fits'.format(std_basename))
-                std_trace = load.load_std_trace(std_outfile)
+                pass
+                #std_trace = load.load_std_trace(std_outfile)
 
             sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr = self._extract_one()
 
@@ -1251,6 +1253,7 @@ class Echelle(PypeIt):
             sobjs = sobjs_obj
 
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
+
 
     def _extract_std(self):
         self._extract_one(std=True)
