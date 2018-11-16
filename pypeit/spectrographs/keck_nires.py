@@ -240,3 +240,11 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         orders = [3,4,5,6,7]
         return orders[int(islit)]
 
+#    def ordermask(self, slitmask):
+
+
+
+
+
+
+

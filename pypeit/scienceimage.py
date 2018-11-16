@@ -277,7 +277,7 @@ class ScienceImage(processimages.ProcessImages):
         for slit in gdslits:
             qa_title ="Finding objects on slit # {:d}".format(slit +1)
             msgs.info(qa_title)
-            thismask = (self.tslits_dict['slitpix'] == slit + 1)
+            thismask = (self.tslits_dict['slitpix'] == slit)
             inmask = (self.mask == 0) & thismask
             # Find objects
             specobj_dict = {'setup': self.setup, 'slitid': slit+1, 'scidx': self.scidx,
@@ -374,7 +374,7 @@ class ScienceImage(processimages.ProcessImages):
         # Loop on slits
         for slit in gdslits:
             msgs.info("Global sky subtraction for slit: {:d}".format(slit +1))
-            thismask = (self.tslits_dict['slitpix'] == slit + 1)
+            thismask = (self.tslits_dict['slitpix'] == slit)
             inmask = (self.mask == 0) & thismask & skymask
             # Find sky
             self.global_sky[thismask] =  skysub.global_skysub(self.sciimg, self.sciivar,
@@ -457,7 +457,7 @@ class ScienceImage(processimages.ProcessImages):
             msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit+1))
             thisobj = (self.sobjs.slitid == slit + 1) # indices of objects for this slit
             if np.any(thisobj):
-                thismask = (self.tslits_dict['slitpix'] == slit + 1) # pixels for this slit
+                thismask = (self.tslits_dict['slitpix'] == slit) # pixels for this slit
                 # True  = Good, False = Bad for inmask
                 inmask = (self.mask == 0) & thismask
                 # Local sky subtraction and extraction
@@ -572,7 +572,7 @@ class ScienceImage(processimages.ProcessImages):
         # been instantiated yet
         # TODO: Is this still necessary?
         try:
-            indx = self.tslits_dict['slitpix'] == 0
+            indx = self.tslits_dict['slitpix'] == -1
             mask[indx] = self.bitmask.turn_on(mask[indx], 'OFFSLITS')
         except:
             pass

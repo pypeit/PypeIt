@@ -222,7 +222,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Loop on slits
         for slit in range(self.nslits):
             msgs.info("Computing flat field image for slit: {:d}".format(slit + 1))
-            thismask = (self.tslits_dict['slitpix'] == slit + 1)
+            thismask = (self.tslits_dict['slitpix'] == slit)
             if self.msbpm is not None:
                 inmask = ~self.msbpm
             else:
@@ -251,7 +251,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         if self.flatpar['tweak_slits']:
             self.tilts_dict['tilts'] = final_tilts
             # Update the tslits_dict
-            self.tslits_dict['slitpix']= pixels.slit_pixels(self.tslits_dict['lcen'], self.tslits_dict['rcen'], self.rawflatimg.shape, 0)
+            self.tslits_dict['slitpix']= pixels.slit_pixels(self.tslits_dict['lcen'], self.tslits_dict['rcen'], self.rawflatimg.shape[1])
             # ToDo no need to store the ximg and edgmask in the tslits_dict, they can be generated on the fly
             ximg, edge_mask = pixels.ximg_and_edgemask(self.tslits_dict['lcen'], self.tslits_dict['rcen'], self.tslits_dict['slitpix'])
             self.tslits_dict['ximg'] = ximg
