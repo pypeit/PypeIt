@@ -9,6 +9,8 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.core import pixels
+
 
 from pypeit import debugger
 
@@ -47,7 +49,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
     @property
     def pypeline(self):
-        return 'Echelle'
+        return 'MultiSlit'
 
     def default_pypeit_par(self):
         """
@@ -66,13 +68,25 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
-#        par['calibrations']['wavelengths']['min_nsig'] = 10.0
-        par['calibrations']['wavelengths']['sigdetect'] =5.0
+        par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+
         par['calibrations']['wavelengths']['method'] = 'reidentify'
+
+        # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.json'
+        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypeitpar.FlexurePar()
+        par['scienceframe']['process']['sigclip'] = 20.0
+        par['scienceframe']['process']['satpix'] ='nothing'
 
 
         # Set slits and tilts parameters
@@ -224,6 +238,40 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
+    @staticmethod
+    def slitmask(tslits_dict, pad=None, binning=None):
+        """
+         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
+         overload this function to implement instrument specific slitmask behavior, for example setting
+         where the orders on an echelle spectrograph end
+
+         Parameters
+         -----------
+         tslits_dict: dict
+            Trace slits dictionary with slit boundary information
+
+         Optional Parameters
+         pad: int or float
+            Padding of the slit boundaries
+         binning: tuple
+            Spectrograph binning in spectral and spatial directions
+
+         Returns
+         -------
+         slitmask: ndarray int
+            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
+            indicating the slit number going from 0 to nslit-1 from left to right.
+
+         """
+
+        # These lines are always the same
+        pad = tslits_dict['pad'] if pad is None else pad
+        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
+
+        order7bad = (slitmask == 0) & (spec_img < tslits_dict['nspec']/2)
+        slitmask[order7bad] = -1
+        return slitmask
+
 
     def slit2order(self,islit):
 
@@ -237,7 +285,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         order: int
         """
 
-        orders = [3,4,5,6,7]
+        orders = [7,6,5,4,3]
         return orders[int(islit)]
 
 #    def ordermask(self, slitmask):
