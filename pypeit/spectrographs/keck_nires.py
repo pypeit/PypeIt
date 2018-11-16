@@ -31,7 +31,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
-                            platescale      = 0.123,
+                            platescale      = 0.15,
                             darkcurr        = 0.01,
                             saturation      = 65535.,
                             nonlinear       = 0.76,
