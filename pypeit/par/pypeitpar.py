@@ -1051,9 +1051,10 @@ class WavelengthSolutionPar(ParSet):
 
         defaults['ech_nspec_coeff'] = 4
         dtypes['ech_nspec_coeff'] = int
-        descr['ech_nspec_coeff'] = 'For echelle spectrographs, order of the final 2d fit to the spectral dimension.'
+        descr['ech_nspec_coeff'] = 'For echelle spectrographs, order of the final 2d fit to the spectral dimension. ' \
+                                   'You should choose this to be the n_final of the fits to the individual orders.'
 
-        defaults['ech_norder_coeff'] = 3
+        defaults['ech_norder_coeff'] = 4
         dtypes['ech_norder_coeff'] = int
         descr['ech_norder_coeff'] = 'For echelle spectrographs, order of the final 2d fit to the order dimension.'
 
