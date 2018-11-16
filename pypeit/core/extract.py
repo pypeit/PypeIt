@@ -2234,5 +2234,8 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None,plate_s
             ## Showing the final flux weighted centroiding from PCA predictions
             ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
 
+    # ToDO create a skymask and objmask should probably make the stuff in the objfind code standalone objects
+
+
     return sobjs_final
 
