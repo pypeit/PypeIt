@@ -532,33 +532,6 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
         dat = Table([wave_peak, ion, NIST, Instr, ampl_good, Source], names=('wave', 'ion','NIST','Instr','amplitude','Source'))
         dat.write(file_root_name+'_line.dat',format='ascii.fixed_width')
 
-    debug = True
-
-    if debug:
-        utils.pyplot_rcparams()
-        msgs.info("Plot detected lines")
-        plt.figure()
-        plt.plot(wavelength,spec,
-                 color='royalblue', linestyle=':', alpha=0.5,
-                 label=r'Input Spectrum')
-        plt.plot(wavelength,arcnorm,
-                 color='navy', linestyle='-', alpha=0.9,
-                 label=r'Continuum Subtracted')
-        cm = plt.cm.get_cmap('YlGnBu')
-        sc = plt.scatter(wave_peak,tampl, c=nsig, cmap=cm)
-        for ii in np.arange(len(tcent_wl)):
-            plt.text(tcent_wl[ii], tampl[ii], np.round(tcent_wl[ii],2),
-            va="bottom", ha="center", rotation=90.)
-        cbar = plt.colorbar(sc)
-        cbar.set_label(r'Sigma', rotation=270,
-                       labelpad=20)
-        plt.legend()
-        plt.xlabel(r'Wavelength')
-        plt.ylabel(r'Flux')
-        plt.title(r'Detected Lines')
-        plt.show()
-        utils.pyplot_rcparams_default()
-
 def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, nirsky_outfile=None,
                       fwhm=None, sigdetec=2., line_name=None, file_root_name=None, iraf_frmt=False, 
                       debug=False):
