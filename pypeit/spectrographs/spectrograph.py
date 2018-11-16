@@ -87,12 +87,10 @@ class Spectrograph(object):
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
     
-    def get_lacosmics_par(self,binning=None):
+    def get_lacosmics_par(proc_par,binning=None):
         # Workaround to make these parameters a function of binning for LRIS.
-        # Set parameters to default values.
-        par = self.default_pypeit_par()
-        sigclip = par['scienceframe']['process']['sigclip']
-        objlim = par['scienceframe']['process']['objlim']
+        sigclip = proc_par['sigclip']
+        objlim = proc_par['objlim']
         return sigclip, objlim
 
     def _check_telescope(self):
