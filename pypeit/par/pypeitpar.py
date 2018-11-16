@@ -996,7 +996,9 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, reference=None, method=None, echelle = None, lamps=None, nonlinear_counts = None,
+    def __init__(self, reference=None, method=None,
+                 echelle = None, ech_fix_format = None, ech_nspec_coeff = None, ech_norder_coeff = None, ech_sigrej = None,
+                 lamps=None, nonlinear_counts = None,
                  sigdetect=None, reid_arxiv = None, nreid_min = None, cc_thresh = None, cc_local_thresh = None,
                  nlocal_cc = None, rms_threshold=None,match_toler=None, func=None, n_first=None, n_final =None,
                  sigrej_first=None, sigrej_final=None,wv_cen=None, disp=None,numsearch=None,nfitpix=None, IDpixels=None,
@@ -1041,10 +1043,23 @@ class WavelengthSolutionPar(ParSet):
 #                          '\'arclines\' uses the arclines python package.' \
 #                          'Options are: {0}'.format(', '.join(options['method']))
 
+        # Echelle wavelength calibration stuff
         defaults['echelle'] = False
         dtypes['echelle'] = bool
         descr['echelle'] = 'Is this an echelle spectrograph? If yes an additional 2-d fit wavelength fit will be performed as a function ' \
                            'of spectral pixel and order number to improve the wavelength solution'
+
+        defaults['ech_nspec_coeff'] = 5
+        dtypes['ech_nspec_coeff'] = int
+        descr['ech_nspec_coeff'] = 'For echelle spectrographs, order of the final 2d fit to the spectral dimension.'
+
+        defaults['ech_norder_coeff'] = 5
+        dtypes['ech_norder_coeff'] = int
+        descr['ech_norder_coeff'] = 'For echelle spectrographs, order of the final 2d fit to the order dimension.'
+
+        defaults['ech_sigrej'] = 5
+        dtypes['ech_sigrej'] = int
+        descr['ech_sigrej'] = 'For echelle spectrographs, order of the final 2d fit to the order dimension.'
 
 
         # TODO: These needs to be tidied up so we can check for valid lamps. Right now I'm not checking.
@@ -1105,6 +1120,14 @@ class WavelengthSolutionPar(ParSet):
         dtypes['nlocal_cc'] = int
         descr['nlocal_cc'] = 'Size of pixel window used for local cross-correlation computation for each arc line. If not ' \
                              'an odd number one will be added to it to make it odd.'
+
+        defaults['ech_fix_format'] = True
+        dtypes['ech_fix_format'] = bool
+        descr['ech_fix_format'] = 'Is this a fixed format echelle like ESI, X-SHOOTER, or NIRES. If so reidentification ' \
+                                  'will assume that each order in the data is aligned with a single order in the reid arxiv'
+
+
+
 
         # These are the parameters used for the iterative fitting of the arc lines
         defaults['rms_threshold'] = 0.15
@@ -1200,7 +1223,9 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'reference', 'method', 'echelle', 'lamps', 'nonlinear_counts', 'sigdetect',
+        parkeys = [ 'reference', 'method',
+                    'echelle', 'ech_fix_format', 'ech_nspec_coeff', 'ech_norder_coeff', 'ech_sigrej',
+                    'lamps', 'nonlinear_counts', 'sigdetect',
                     'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh', 'nlocal_cc',
                     'rms_threshold', 'match_toler', 'func', 'n_first','n_final', 'sigrej_first', 'sigrej_final',
                     'wv_cen', 'disp', 'numsearch', 'nfitpix','IDpixels', 'IDwaves', 'medium', 'frame']
