@@ -272,7 +272,7 @@ class ProcessImagesPar(ParSet):
         dtypes['rmcompact'] = bool
         descr['rmcompact'] = 'Remove compact detections in LA cosmics routine'
 
-        defaults['sigclip'] = 5.0
+        defaults['sigclip'] = 4.5
         dtypes['sigclip'] = [int, float]
         descr['sigclip'] = 'Sigma level for rejection in LA cosmics routine'
 
@@ -280,7 +280,7 @@ class ProcessImagesPar(ParSet):
         dtypes['sigfrac'] = [int, float]
         descr['sigfrac'] = 'Fraction for the lower clipping threshold in LA cosmics routine.'
 
-        defaults['objlim'] = 5.0
+        defaults['objlim'] = 1.0
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
