@@ -153,12 +153,12 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=5,norder_coeff=5,sigre
     msgs.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
 
     orders =  np.unique(all_orders)
-    # Plot QA
-    if debug:
-        # ToDO make this a separate QA routine if that is not too painful.
-        # Full plot
+    fit_dict = dict(coeffs=res, orders = orders, nspec_coeff = nspec_coeff, norder_coeff=norder_coeff, pixel_cen = norm_pixel[0],
+                    pixel_norm=norm_pixel[1], order_cen = norm_order[0], order_norm = norm_order[1], nspec = nspec)
 
-        #all_pix_qa = np.arange(np.min(all_pix),np.max(all_pix),1)
+        # Plot QA   # ToDO make this a separate QA routine if that is not too painful.
+    if debug:
+        # Full plot
         all_pix_qa = np.arange(nspec)
         pix_nrm_qa = 2. * (all_pix_qa - norm_pixel[0])/norm_pixel[1]
         worky_qa = pydl.flegendre(pix_nrm_qa, nspec_coeff)
@@ -175,6 +175,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=5,norder_coeff=5,sigre
             rr = (ii-np.max(orders))/(np.min(orders)-np.max(orders))
             gg = 0.0
             bb = (ii-np.min(orders))/(np.max(orders)-np.min(orders))
+            wv_mod_qa = eval2dfit(fit_dict, all_pix_qa, ii)
             tsub = np.ones_like(len(all_pix_qa),dtype=np.float64) * ii
             t_nrm_qa = 2. * (tsub - norm_order[0])/norm_order[1]
             work2d_qa = np.zeros((nspec_coeff*norder_coeff, len(all_pix_qa)), dtype=np.float64)
@@ -233,8 +234,6 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=5,norder_coeff=5,sigre
         fig.suptitle(r'Arc 2D FIT, nx={0:.0f}, ny={1:.0f}, RMS={2:.5f} Ang*Order#, residuals $\times$100'.format(norder_coeff, nspec_coeff,fin_rms))
         plt.show()
 
-    fit_dict = dict(coeffs=res, orders = orders, nspec_coeff = nspec_coeff, norder_coeff=norder_coeff, pixel_cen = norm_pixel[0],
-                    pixel_norm=norm_pixel[1], order_cen = norm_order[0], order_norm = norm_order[1], nspec = nspec)
     return fit_dict
 
 def eval2dfit(fit_dict, pixels, order):
