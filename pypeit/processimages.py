@@ -366,14 +366,15 @@ class ProcessImages(object):
         # Run LA Cosmic to get the cosmic ray mask
         saturation = self.spectrograph.detector[self.det-1]['saturation']
         nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
+        sigclip, objlim = self.spectrograph.get_lacosmics_par(self.proc_par,binning=self.fitstbl['binning'][0])
         self.crmask = procimg.lacosmic(self.det, self.stack, saturation, nonlinear,
                                          varframe=varframe, maxiter=self.proc_par['lamaxiter'],
                                          grow=self.proc_par['grow'],
                                          remove_compact_obj=self.proc_par['rmcompact'],
-                                         sigclip=self.proc_par['sigclip'],
+                                         sigclip=sigclip,
                                          sigfrac=self.proc_par['sigfrac'],
-                                         objlim=self.proc_par['objlim'])
-
+                                         objlim=objlim)
+                            
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
