@@ -235,8 +235,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [30, None]
         
         # LACosmics parameters
-        par['scienceframe']['process']['sigclip'] = 4.5
-        par['scienceframe']['process']['objlim'] = 2.0
+        par['scienceframe']['process']['sigclip'] = 4.0
+        par['scienceframe']['process']['objlim'] = 1.5
 
         return par
 

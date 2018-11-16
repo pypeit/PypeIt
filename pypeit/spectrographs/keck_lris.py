@@ -433,11 +433,19 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['min_nsig'] = 10.0
         par['calibrations']['wavelengths']['lowest_nsig'] =5.0
-
-
-
+        
         return par
-
+    
+    def get_lascosmics_par(self,binning='1x1'):
+        # Good LACosmics parameters depends strongly on binning.
+        if binning is '1x1':
+            sigclip = 3.0
+            objlim = 0.5
+        else:
+            sigclip = 5.0
+            objlim = 3.0
+        return sigclip, objlim
+        
     def check_headers(self, headers):
         """
         Check headers match expectations for an LRISr exposure.
