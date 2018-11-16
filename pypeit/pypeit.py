@@ -884,7 +884,7 @@ class MultiSlit(PypeIt):
         # finding
         global_sky0 = sciI.global_skysub(self.caliBrate.tslits_dict,
                                          self.caliBrate.tilts_dict['tilts'],
-                                         use_skymask=True, maskslits=maskslits, show=self.show)
+                                         use_skymask=True,maskslits=maskslits, show=self.show)
 
         # Object finding, second pass on frame *with* sky subtraction.
         # Show here if requested
