@@ -291,7 +291,8 @@ class PypeIt(object):
                 for key in ['ra', 'dec', 'airmass', 'exptime']:
                     std_header[key.upper()] = self.fitstbl[std_idx][key]
                 # Go
-                FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs.specobjs, spectrograph=self.spectrograph, setup=self.setup, master_dir=self.caliBrate.master_dir, std_header=std_header, mode=self.par['calibrations']['masters'])
+                FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs.specobjs, spectrograph=self.spectrograph,
+                                           setup=self.setup, master_dir=self.caliBrate.master_dir, std_header=std_header, mode=self.par['calibrations']['masters'])
                 sens_dict = FxSpec.get_sens_dict(self.fitstbl[std_idx])
             else:
                 # User provided it
@@ -527,7 +528,7 @@ class PypeIt(object):
         sci_image_files = self.fitstbl.find_frame_files('science', sci_ID=sci_ID)
         scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
         self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
-                                              binning = fitstbl['binning'][specobj.scidx],
+                                              binning = self.fitstbl['binning'][specobj.scidx],
                                               objtype='science', scidx=scidx, setup=self.setup,
                                               par=self.par['scienceimage'],
                                               frame_par=self.par['scienceframe'])
@@ -1013,7 +1014,7 @@ class Echelle(PypeIt):
         sci_image_files = self.fitstbl.find_frame_files(frametype, sci_ID=sci_ID)
         scidx = self.fitstbl.find_frames(frametype, sci_ID=sci_ID, index=True)[0]
         self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
-                                              binning=fitstbl['binning'][scidx],
+                                              binning=self.fitstbl['binning'][scidx],
                                               objtype=frametype, scidx=scidx, setup=self.setup,
                                               par=self.par['scienceimage'],
                                               frame_par=self.par['scienceframe'])
