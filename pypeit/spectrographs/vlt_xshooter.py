@@ -174,16 +174,27 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
 
         # Adjustments to slit and tilts for NIR
-        par['calibrations']['slits']['sigdetect'] = 700.
+        par['calibrations']['slits']['sigdetect'] = 600.
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['slits']['pcatype'] = 'order'
         par['calibrations']['tilts']['tracethresh'] = [10,10,10,10,10,10,10,10,10, 10, 10, 20, 20, 20,20,10]
 
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        # Reidentification parameters
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir_iraf.json'
+        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        # Echelle parameters
+        par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
@@ -215,55 +226,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         hdr_keys[0]['utc'] = 'HIERARCH ESO DET EXP UTC'
         return hdr_keys
 
-    def setup_arcparam(self, arcparam, msarc_shape=None, 
-                       disperser=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        TODO: disperser can't be required because it's never used
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        #debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['OH_XSHOOTER'] # Line lamps on
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation'] # lines abovet this are masked
-#        arcparam['min_nsig'] = 50.0         # Min significance for arc lines to be used
-        arcparam['sigdetect'] = 10.0         # Min significance for arc lines to be used
-        arcparam['wvmnx'] = [8000.,26000.]  # Guess at wavelength range
-        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3 # 3 was default, 1 seems to work better        # Matcing tolerance (pixels)
-        arcparam['func'] = 'legendre'       # Function for fitting
-        arcparam['n_first'] = 2             # Order of polynomial for first fit
-        arcparam['n_final'] = 4  #was default    # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2            # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.0    # Number of sigma for rejection (final fit)
-
-
-
-
-#        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-#        arcparam['disp'] = 0.6                                 # Ang/unbinned pixel
-#        arcparam['b1'] = 1./ arcparam['disp'] / msarc_shape[0] # Pixel fit term (binning independent)
-#        arcparam['b2'] = 0.                                    # Pixel fit term
-#        arcparam['lamps'] = ['OH_triplespec']                  # Line lamps on
-#        arcparam['wv_cen']=17370.                              # Estimate of central wavelength
-#        arcparam['disp_toler'] = 0.1                           # 10% tolerance
-#        arcparam['match_toler'] = 3.                           # Matching tolerance (pixels)
-#        arcparam['min_ampl'] = 1000.                           # Minimum amplitude
-#        arcparam['func'] = 'legendre'                          # Function for fitting
-#        arcparam['n_first'] = 1                                # Order of polynomial for first fit
-#        arcparam['n_final'] = 3                                # Order of polynomial for final fit
-#        arcparam['nsig_rej'] = 5.                              # Number of sigma for rejection
-#        arcparam['nsig_rej_final'] = 5.0                       # Number of sigma for rejection (final fit)
-#        arcparam['Nstrong'] = 20                               # Number of lines for auto-analysis
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
@@ -287,6 +249,23 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         self.empty_bpm(shape=shape, filename=filename, det=det)
         return self.bpm_img
+
+
+    def slit2order(self,islit):
+
+        """
+        Parameters
+        ----------
+        islit: int, float, or string, slit number
+
+        Returns
+        -------
+        order: int
+        """
+
+        orders = np.arange(26,10,-1, dtype=int)
+        return orders[int(islit)]
+
 
 
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
@@ -368,41 +347,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI4 NAME'
         hdr_keys[0]['utc'] = 'UTC'      # Some have UTC, most do not
         return hdr_keys
-
-    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        ## debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['disp'] = 0.1              # Ang/unbinned pixel
-        arcparam['b1'] = 10.                # Pixel fit term (binning independent)
-                                            # pix = b0 + b1*lambda + b2*lambda**2
-        arcparam['b2'] = 0.                 # Pixel fit term pix = b0 + b1*lambda + b2*lambda**2
-        arcparam['lamps'] = ['ThAr']        # Line lamps on
-        arcparam['wv_cen'] = 7900.          # Guess at central wavelength
-        arcparam['wvmnx'] = [5545.,10250]   # Guess at wavelength range
-        arcparam['disp_toler'] = 0.1        # 10% tolerance
-        arcparam['match_toler'] = 3.        # Matcing tolerance (pixels)
-        arcparam['min_ampl'] = 500.         # Minimum amplitude
-        arcparam['func'] = 'legendre'       # Function for fitting
-        arcparam['n_first'] = 0             # Order of polynomial for first fit
-        arcparam['n_final'] = 1             # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2.           # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.     # Number of sigma for rejection (final fit)
-        arcparam['Nstrong'] = 20            # Number of lines for auto-analysis
-
-        # non linear regime
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
@@ -504,29 +448,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI3 NAME'
         # TODO: UVB does not have a utc keyword?
         return hdr_keys
-
-    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        ## debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['ThAr']
-        arcparam['n_first']=2 
-        arcparam['disp']=0.2 # Ang per pixel (unbinned)
-        arcparam['b1']= 0.
-        arcparam['b2']= 0.
-        arcparam['wvmnx'] = [2950.,5650.]
-        arcparam['wv_cen'] = 4300.
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """

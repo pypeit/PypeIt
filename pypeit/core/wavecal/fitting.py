@@ -217,13 +217,17 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     else:
         xrej = []
         yrej = []
-    xfit = xfit[mask == 0]
-    yfit = yfit[mask == 0]
-    wfit = wfit[mask == 0]
-    ions = all_idsion[ifit][mask == 0]
+
+    #xfit = xfit[mask == 0]
+    #yfit = yfit[mask == 0]
+    #wfit = wfit[mask == 0]
+    ions = all_idsion[ifit]
+#    ions = all_idsion[ifit][mask == 0]
     # Final RMS
-    rms_ang = utils.calc_fit_rms(xfit, yfit, fit, func,
-                                 minv=fmin, maxv=fmax, weights=wfit)
+    rms_ang = utils.calc_fit_rms(xfit[mask==0], yfit[mask==0], fit, func,
+                                 minv=fmin, maxv=fmax, weights=wfit[mask==0])
+#    rms_ang = utils.calc_fit_rms(xfit, yfit, fit, func,
+#                                 minv=fmin, maxv=fmax, weights=wfit)
     rms_pix = rms_ang/disp
 
     # Pack up fit
@@ -233,7 +237,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
 
     final_fit = dict(fitc=fit, function=func, pixel_fit=xfit, wave_fit=yfit, weights=wfit, ions=ions,
                      fmin=fmin, fmax=fmax, nspec=nspec, cen_wave = cen_wave, cen_disp = cen_disp,
-                     xrej=xrej, yrej=yrej, mask=mask, spec=spec, nrej=sigrej_final,
+                     xrej=xrej, yrej=yrej, mask=(mask ==0), spec=spec, nrej=sigrej_final,
                      shift=0., tcent=tcent, rms=rms_pix)
 
     # If set to True, this will output a file that can then be included in the tests

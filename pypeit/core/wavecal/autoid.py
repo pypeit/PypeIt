@@ -30,7 +30,7 @@ from pypeit import debugger
 from matplotlib import pyplot as plt
 
 
-def basic(spec, lines, wv_cen, disp, min_nsig=20.,nonlinear_counts = 1e10,
+def basic(spec, lines, wv_cen, disp, sigdetect=20.,nonlinear_counts = 1e10,
           swv_uncertainty=350., pix_tol=2, plot_fil=None, min_nmatch=5,
           **kwargs):
     """ Basic algorithm to wavelength calibrate spectroscopic data
@@ -45,7 +45,7 @@ def basic(spec, lines, wv_cen, disp, min_nsig=20.,nonlinear_counts = 1e10,
       Guess at central wavelength
     disp : float
       Dispersion A/pix
-    min_nsig : float
+    sigdetect : float
       Minimum significance of the arc lines that will be used in the fit
     swv_uncertainty : float
 
@@ -72,7 +72,7 @@ def basic(spec, lines, wv_cen, disp, min_nsig=20.,nonlinear_counts = 1e10,
     wvdata = wvdata[isrt]
 
     # Find peaks
-    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, min_nsig=min_nsig, nonlinear_counts = nonlinear_counts)
+    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect, nonlinear_counts = nonlinear_counts)
 
     # Matching
     match_idx, scores = patterns.run_quad_match(cut_tcent, wave, wvdata,
@@ -120,7 +120,7 @@ def basic(spec, lines, wv_cen, disp, min_nsig=20.,nonlinear_counts = 1e10,
     return status, ngd_match, match_idx, scores, final_fit
 
 
-def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
+def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10,
                outroot=None, debug=False, do_fit=True, verbose=False,
                min_nmatch=3, lowest_nsig=20.,
                match_toler=3.0, func='legendre', n_first=2, sigrej_first=2.0, n_final=4, sigrej_final=3.0):
@@ -132,7 +132,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
     wv_cen
     disp
     siglev
-    min_nsig
+    sigdetect
     outroot
     debug
     do_fit
@@ -159,8 +159,8 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
     all_tcent, cut_tcent, icut, _ = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect, nonlinear_counts = nonlinear_counts)
 
     # Best
-    best_dict = dict(nmatch=0, ibest=-1, bwv=0., min_nsig=min_nsig, unknown=False,
-                     pix_tol=1, nsig=min_nsig)
+    best_dict = dict(nmatch=0, ibest=-1, bwv=0., sigdetect=sigdetect, unknown=False,
+                     pix_tol=1, nsig=sigdetect)
 
     # 3 things to fiddle:
     #  pix_tol -- higher for fewer lines  1/2
@@ -184,7 +184,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
             patterns.scan_for_matches(wv_cen, disp, npix, cut_tcent, wvdata,
                                       best_dict=best_dict, pix_tol=pix_tol)
             # Lower minimum significance
-            nsig = min_nsig
+            nsig = sigdetect
             #pdb.set_trace()
             while(best_dict['nmatch'] < min_nmatch):
                 nsig /= 2.
@@ -310,7 +310,7 @@ def semi_brute(spec, lines, wv_cen, disp, min_nsig=30., nonlinear_counts = 1e10,
 
 
 
-def reidentify(spec, spec_arxiv, wave_soln_arxiv, det_arxiv, line_list, nreid_min, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
+def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nreid_min, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,debug_xcorr=False, debug_reid=False):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
@@ -322,7 +322,7 @@ def reidentify(spec, spec_arxiv, wave_soln_arxiv, det_arxiv, line_list, nreid_mi
     spec_arxiv:  float ndarray shape (nspec, narxiv) or (nspec)
        Collection of archival arc spectra for which wavelength solution and line identifications are known
 
-    wave_soln_arxiv:  float ndarray shape (nspec, narxiv)
+    wave_soln_arxiv:  float ndarray shape (nspec, narxiv) or (nspec)
        Wavelength solutions for the archival arc spectra spec_arxiv
 
     det_arxiv:  dict, the dict has narxiv keys which are '0','1', ... up to str(narxiv-1). det_arxiv['0'] points to an
@@ -401,22 +401,33 @@ def reidentify(spec, spec_arxiv, wave_soln_arxiv, det_arxiv, line_list, nreid_mi
     wvdata.sort()
     # Determine whether wavelengths correlate or anti-correlation with pixels for patt_dicts. This is not used
     # but just comptued for compatibility
-    this_soln = wave_soln_arxiv[:,0]
-    sign = 1 if (this_soln[this_soln.size // 2] > this_soln[this_soln.size // 2 - 1]) else -1
 
+    # Do some input checking
     if spec.ndim == 1:
         nspec = spec.size
     else:
         msgs.error('spec must be a one dimensional numpy array ')
 
+    if spec_arxiv_in.ndim != wave_soln_arxiv_in.ndim:
+        msgs.error('spec arxiv and wave_soln_arxiv must have the same dimensions')
+
     # TODO Implement different binnings between archival and input spectrum
-    if spec_arxiv.ndim == 2:
-        nspec_arxiv, narxiv = spec_arxiv.shape
-    elif spec_arxiv.ndim == 1:
-        nspec_arxiv = spec_arxiv.size
-        narxiv = 1
+    if spec_arxiv_in.ndim == 1:
+        spec_arxiv = spec_arxiv_in.reshape(spec_arxiv_in.size,1)
+        wave_soln_arxiv = wave_soln_arxiv_in.reshape(wave_soln_arxiv_in.size,1)
+    elif spec_arxiv_in.ndim == 2:
+        spec_arxiv = spec_arxiv_in.copy()
+        wave_soln_arxiv = wave_soln_arxiv_in.copy()
     else:
         msgs.error('Unrecognized shape for spec_arxiv. It must be either a one dimensional or two dimensional numpy array')
+
+    nspec_arxiv, narxiv = spec_arxiv.shape
+
+    this_soln = wave_soln_arxiv[:,0]
+    sign = 1 if (this_soln[this_soln.size // 2] > this_soln[this_soln.size // 2 - 1]) else -1
+
+
+
     xrng = np.arange(nspec_arxiv)
     if nspec_arxiv != nspec:
         msgs.error('Different spectral binning is not supported yet but it will be soon')
@@ -526,13 +537,13 @@ def reidentify(spec, spec_arxiv, wave_soln_arxiv, det_arxiv, line_list, nreid_mi
                     line_iarxiv = np.append(line_iarxiv,iarxiv)
 
     narxiv_used = np.sum(wcen != 0.0)
+    # Initialise the patterns dictionary, sigdetect not used anywhere
+    patt_dict_slit = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sigdetect=sigdetect,mask=np.zeros(detections.size, dtype=np.bool))
     if (narxiv_used == 0) or (len(np.unique(line_indx)) < 3):
-        return detections, {}
+        return detections, patt_dict_slit
 
 
     # Finalize the best guess of each line
-    # Initialise the patterns dictionary, min_nsig not used anywhere
-    patt_dict_slit = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_nsig=sigdetect,mask=np.zeros(detections.size, dtype=np.bool))
 
     patt_dict_slit['sign'] = sign # This is not used anywhere
     patt_dict_slit['bwv'] = np.median(wcen[wcen != 0.0])
@@ -684,6 +695,7 @@ class ArchiveReid:
         self.nlocal_cc = self.par['nlocal_cc']
         self.cc_thresh = self.par['cc_thresh']
         self.cc_local_thresh = self.par['cc_local_thresh']
+        self.ech_fix_format = self.par['ech_fix_format']
 
         # Paramters that govern wavelength solution fitting
         self.rms_threshold = self.par['rms_threshold']
@@ -693,6 +705,8 @@ class ArchiveReid:
         self.sigrej_first= self.par['sigrej_first']
         self.n_final= self.par['n_final']
         self.sigrej_final= self.par['sigrej_final']
+
+        # check that
 
 
         if 'ThAr' in self.lamps:
@@ -711,7 +725,17 @@ class ArchiveReid:
         # Read in the wv_calib_arxiv and pull out some relevant quantities
         # ToDO deal with different binnings!
         self.wv_calib_arxiv, self.par_arxiv = waveio.load_reid_arxiv(self.reid_arxiv)
+        # Determine the number of spectra in the arxiv, check that it matches nslits if this is fixed format.
         narxiv = len(self.wv_calib_arxiv)
+        for key in self.wv_calib_arxiv.keys():
+            try:
+                test = int(key)
+            except ValueError:
+                narxiv -=1
+        if self.ech_fix_format and (self.nslits != narxiv):
+            msgs.error('You have set ech_fix_format = True, but nslits={:d} != narxiv={:d}'.format(self.nslits,narxiv) + '.' +
+                       msgs.newline() + 'The number of orders identified does not match the number of solutions in the arxiv')
+
         nspec_arxiv = self.wv_calib_arxiv['0']['spec'].size
         self.spec_arxiv = np.zeros((nspec_arxiv, narxiv))
         self.wave_soln_arxiv = np.zeros((nspec_arxiv, narxiv))
@@ -739,8 +763,16 @@ class ArchiveReid:
             if slit not in self.ok_mask:
                 continue
             msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit + 1,self.nslits))
-            self.detections[str(slit)], self.all_patt_dict[str(slit)] = reidentify(self.spec[:,slit], self.spec_arxiv,
-                                                                                   self.wave_soln_arxiv, self.det_arxiv,
+            # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
+            # we only pass in the relevant arxiv spectrum to make this much faster
+            if self.ech_fix_format:
+                ind_sp = slit
+                det_in = {'0': self.det_arxiv[str(slit)]}
+            else:
+                ind_sp = np.arange(nspec_arxiv,dtype=int)
+                det_in = self.det_arxiv
+            self.detections[str(slit)], self.all_patt_dict[str(slit)] = reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp],
+                                                                                   self.wave_soln_arxiv[:,ind_sp], det_in,
                                                                                    self.tot_line_list,self.nreid_min,
                                                                                    cc_thresh=self.cc_thresh,
                                                                                    match_toler = self.match_toler,
@@ -769,7 +801,7 @@ class ArchiveReid:
             # Is the RMS below the threshold?
             if final_fit['rms'] > self.rms_threshold:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Reidentify report for slit {0:d}/{1:d}:'.format(slit + 1, nslits) + msgs.newline() +
+                          'Reidentify report for slit {0:d}/{1:d}:'.format(slit + 1, self.nslits) + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Need to add additional spectra to arxiv to improve fits'.format(
                               final_fit['rms']) + msgs.newline() +
                           '---------------------------------------------------')
@@ -891,11 +923,11 @@ class HolyGrail:
 
         # Set the input parameters
         self._nonlinear_counts = self._par['nonlinear_counts']
-        #self._min_nsig = self._par['min_nsig']
+        #self._sigdetect = self._par['sigdetect']
         #self._lowest_nsig = self._par['lowest_nsig']
         # JFH I'm not convinced that the codea actually does anything except use the lowest nsig, but am not sure
-        self._min_nsig = self._par['sigdetect']
-        self._lowest_nsig = self._par['sigdetect']
+        self._sigdetect = self._par['sigdetect']
+#        self._lowest_nsig = self._par['sigdetect']
 
         self._rms_threshold = self._par['rms_threshold']
         self._match_toler = self._par['match_toler']
@@ -1033,9 +1065,9 @@ class HolyGrail:
             # TODO Pass in all the possible params for detect_lines to arc_lines_from_spec, and update the parset
             # Detect lines, and decide which tcent to use
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._min_nsig, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._lowest_nsig, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit))
                 self._det_weak[str(slit)] = [None,None]
@@ -1130,9 +1162,9 @@ class HolyGrail:
                 continue
             # Detect lines, and decide which tcent to use
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit], min_nsig=self._min_nsig, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit], min_nsig=self._lowest_nsig, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit+ 1))
                 continue
@@ -1419,7 +1451,7 @@ class HolyGrail:
                         dindex = np.append(dindex, dd)               # index in the array of pixel detections bsdet
             # Finalize the best guess of each line
             # Initialise the patterns dictionary
-            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_nsig=self._min_nsig,
+            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sigdetect=self._sigdetect,
                              mask=np.zeros(bsdet.size, dtype=np.bool))
             patt_dict['sign'] = sign
             patt_dict['bwv'] = np.median(wcen[wcen != 0.0])
@@ -1599,7 +1631,7 @@ class HolyGrail:
 
             # Finalize the best guess of each line
             # Initialise the patterns dictionary
-            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_nsig=self._min_nsig,
+            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sigdetect=self._sigdetect,
                              mask=np.zeros(dets.size, dtype=np.bool))
             patt_dict['sign'] = sign
             patt_dict['bwv'] = wvcen
@@ -1969,7 +2001,7 @@ class HolyGrail:
             signtxt = "anticorrelate"
 
         # Initialise the patterns dictionary
-        patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., min_nsig=self._min_nsig,
+        patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sigdetect=self._sigdetect,
                          mask=np.zeros(use_tcent.size, dtype=np.bool))
         patterns.solve_triangles(use_tcent, self._wvdata, dindex, lindex, patt_dict)
         # Check if a solution was found

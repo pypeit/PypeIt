@@ -189,7 +189,7 @@ class WaveCalib(masterframe.MasterFrame):
         return self.wv_calib
 
 
-    def _echelle_2dfit(self, wv_calib,debug=False, skip_QA = False):
+    def _echelle_2dfit(self, wv_calib,debug=True, skip_QA = False):
         """
         Evaluate 2-d wavelength solution for echelle data. Unpacks wv_calib for slits to be input into  arc.fit2darc
 
@@ -223,11 +223,14 @@ class WaveCalib(masterframe.MasterFrame):
             if int(islit) not in ok_mask:
                 continue
             iorder = self.spectrograph.slit2order(islit)
-            all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'])
-            all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'])
-            all_order = np.append(all_order, np.full_like(wv_calib[islit]['pixel_fit'], float(iorder)))
+            mask_now = wv_calib[islit]['mask']
+            all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'][mask_now])
+            all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'][mask_now])
+            all_order = np.append(all_order, np.full_like(wv_calib[islit]['pixel_fit'][mask_now], float(iorder)))
 
-        fit2d_dict = arc.fit2darc(all_wave, all_pixel, all_order, nspec, debug=debug, skip_QA=skip_QA)
+        fit2d_dict = arc.fit2darc(all_wave, all_pixel, all_order, nspec, nspec_coeff=self.par['ech_nspec_coeff'],
+                                  norder_coeff=self.par['ech_norder_coeff'],sigrej=self.par['ech_sigrej'],
+                                  debug=debug, skip_QA=skip_QA)
 
         self.steps.append(inspect.stack()[0][3])
         return fit2d_dict
