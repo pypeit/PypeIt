@@ -6,6 +6,7 @@ import os
 
 from pkg_resources import resource_filename
 from astropy.io import fits
+from astropy import constants
 from astropy.convolution import convolve, Gaussian1DKernel
 from scipy import interpolate
 
@@ -15,13 +16,6 @@ import matplotlib.pyplot as plt
 from pypeit import msgs
 from pypeit.core import arc
 from pypeit import utils
-
-
-PLANCK  = 6.62606885e-27 # erg*s
-C_LIGHT = 2.99792458e+10 # cm/s
-K_BOLTZ = 1.38065040e-16 # erg/K
-
-RADIAN_PER_ARCSEC = 1. / 3600. * 3.14159 / 180.
 
 def transparency(wavelength, debug=False):
     """ Interpolate the atmospheric transmission model in the IR over
@@ -101,13 +95,17 @@ def blackbody(wavelength, T_BB=250., debug=False):
         Same as above but in flux density
     """
 
+    # Define constants in cgs
+    PLANCK  = constants.h.cgs.value   # erg*s
+    C_LIGHT = constants.c.cgs.value   # cm/s
+    K_BOLTZ = constants.k_B.cgs.value # erg/K
+    RADIAN_PER_ARCSEC = 1./3600.*np.pi/180.
+
     msgs.info("Creating BB spectrum at T={}K".format(T_BB))
     lam = wavelength / 1e4 # convert wave in cm.
-    
     blackbody_pol = 2.*PLANCK*np.power(C_LIGHT,2) / np.power(lam,5)
     blackbody_exp = np.exp(PLANCK*C_LIGHT/(lam*K_BOLTZ*T_BB)) - 1.
     blackbody = blackbody_pol / blackbody_exp
-
     blackbody_counts = blackbody / (PLANCK * C_LIGHT / lam) * 1e-4 \
                  * np.power(RADIAN_PER_ARCSEC, 2.)
 
