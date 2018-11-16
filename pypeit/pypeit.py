@@ -860,7 +860,7 @@ class MultiSlit(PypeIt):
             # frames.  Should these be different for the standards?
             self.stdI = scienceimage.ScienceImage(self.spectrograph, file_list=std_image_files,
                                           frame_par=self.par['calibrations']['standardframe'],
-                                          det=self.det, binning = fitstbl['binning'][self.std_idx],
+                                          det=self.det, binning = self.fitstbl['binning'][self.std_idx],
                                           setup=self.setup, scidx=self.std_idx,
                                           objtype='standard', par=self.par['scienceimage'])
             # Names and time
