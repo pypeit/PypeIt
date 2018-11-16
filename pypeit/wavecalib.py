@@ -223,9 +223,10 @@ class WaveCalib(masterframe.MasterFrame):
             if int(islit) not in ok_mask:
                 continue
             iorder = self.spectrograph.slit2order(islit)
-            all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'])
-            all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'])
-            all_order = np.append(all_order, np.full_like(wv_calib[islit]['pixel_fit'], float(iorder)))
+            mask_now = wv_calib[islit]['mask']
+            all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'][mask_now])
+            all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'][mask_now])
+            all_order = np.append(all_order, np.full_like(wv_calib[islit]['pixel_fit'][mask_now], float(iorder)))
 
         fit2d_dict = arc.fit2darc(all_wave, all_pixel, all_order, nspec, nspec_coeff=self.par['ech_nspec_coeff'],
                                   norder_coeff=self.par['ech_norder_coeff'],sigrej=self.par['ech_sigrej'],
