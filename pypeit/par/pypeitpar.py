@@ -280,7 +280,7 @@ class ProcessImagesPar(ParSet):
         dtypes['sigfrac'] = [int, float]
         descr['sigfrac'] = 'Fraction for the lower clipping threshold in LA cosmics routine.'
 
-        defaults['objlim'] = 2.5
+        defaults['objlim'] = 3.0
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
