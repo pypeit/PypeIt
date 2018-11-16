@@ -436,12 +436,12 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         
         return par
     
-    def get_lascosmics_par(proc_par,binning='1x1'):
+    def get_lacosmics_par(self,proc_par,binning='1x1'):
         par = self.default_pypeit_par()
         default_sigclip = par['scienceframe']['process']['sigclip']
         default_objlim = par['scienceframe']['process']['objlim']
         # Check whether the user has changed the parameters.
-        if [proc_par['sigclip'],proc_par['objlim']] is [default_sigclip,default_objlim]:
+        if (proc_par['sigclip'] == default_sigclip) and (proc_par['objlim'] == default_objlim):
             # Unbinned LRISr needs very aggressive LACosmics parameters.
             if binning is '1x1':
                 sigclip = 3.0
@@ -450,8 +450,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 sigclip = 5.0
                 objlim = 5.0
         else:
-            sigclip = default_sigclip
-            objlim = default_objlim
+            sigclip = proc_par['sigclip']
+            objlim = proc_par['objlim']
+        from IPython import embed
+        embed()
         return sigclip, objlim
         
     def check_headers(self, headers):
