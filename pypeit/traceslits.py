@@ -425,6 +425,11 @@ class TraceSlits(masterframe.MasterFrame):
         # done with tweaked boundaries if they exist.
         for key in ['pixcen', 'pixwid', 'lordpix','rordpix', 'extrapord', 'slitpix', 'ximg', 'edge_mask']:
             self.tslits_dict[key] = getattr(self, key)
+        # add in the image size and some stuff to create the slitmask
+        self.tslits_dict['nspec'] = self.mstrace.shape[0]
+        self.tslits_dict['nspat'] = self.mstrace.shape[1]
+        self.tslits_dict['pad'] = self.par['pad']
+
         return self.tslits_dict
 
     def _final_left_right(self):
