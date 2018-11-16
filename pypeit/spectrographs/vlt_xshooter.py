@@ -192,9 +192,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
-        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 5
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 3
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = True
+        par['calibrations']['wavelengths']['ech_sigrej'] = 2.0
 
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
@@ -348,41 +348,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         hdr_keys[0]['utc'] = 'UTC'      # Some have UTC, most do not
         return hdr_keys
 
-    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        ## debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['disp'] = 0.1              # Ang/unbinned pixel
-        arcparam['b1'] = 10.                # Pixel fit term (binning independent)
-                                            # pix = b0 + b1*lambda + b2*lambda**2
-        arcparam['b2'] = 0.                 # Pixel fit term pix = b0 + b1*lambda + b2*lambda**2
-        arcparam['lamps'] = ['ThAr']        # Line lamps on
-        arcparam['wv_cen'] = 7900.          # Guess at central wavelength
-        arcparam['wvmnx'] = [5545.,10250]   # Guess at wavelength range
-        arcparam['disp_toler'] = 0.1        # 10% tolerance
-        arcparam['match_toler'] = 3.        # Matcing tolerance (pixels)
-        arcparam['min_ampl'] = 500.         # Minimum amplitude
-        arcparam['func'] = 'legendre'       # Function for fitting
-        arcparam['n_first'] = 0             # Order of polynomial for first fit
-        arcparam['n_final'] = 1             # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2.           # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.     # Number of sigma for rejection (final fit)
-        arcparam['Nstrong'] = 20            # Number of lines for auto-analysis
-
-        # non linear regime
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
@@ -483,29 +448,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI3 NAME'
         # TODO: UVB does not have a utc keyword?
         return hdr_keys
-
-    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        ## debugger.set_trace() # THIS NEEDS TO BE DEVELOPED
-        arcparam['lamps'] = ['ThAr']
-        arcparam['n_first']=2 
-        arcparam['disp']=0.2 # Ang per pixel (unbinned)
-        arcparam['b1']= 0.
-        arcparam['b2']= 0.
-        arcparam['wvmnx'] = [2950.,5650.]
-        arcparam['wv_cen'] = 4300.
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
