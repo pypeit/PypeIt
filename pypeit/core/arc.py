@@ -21,7 +21,7 @@ from pypeit import debugger
 from pypeit.core import pydl
 
 
-def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=5,sigrej=3.0,debug=True, skip_QA=False):
+def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=5,norder_coeff=5,sigrej=3.0,debug=True, skip_QA=False):
 
     """Routine to obtain the 2D wavelength solution for an echelle spectrograph. This is calculated from the spec direction
     pixelcentroid and the order number of identified arc lines. The fit is a  simple least-squares with one round of rejections.
