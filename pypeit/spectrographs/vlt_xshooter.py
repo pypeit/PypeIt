@@ -184,11 +184,17 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir_iraf.json'
+        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 5
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 3
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = True
 
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
@@ -243,6 +249,23 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         self.empty_bpm(shape=shape, filename=filename, det=det)
         return self.bpm_img
+
+
+    def slit2order(self,islit):
+
+        """
+        Parameters
+        ----------
+        islit: int, float, or string, slit number
+
+        Returns
+        -------
+        order: int
+        """
+
+        orders = np.arange(26,10,-1, dtype=int)
+        return orders[int(islit)]
+
 
 
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
