@@ -1,78 +1,24 @@
 # Module for creating models of arc lines.
 from __future__ import absolute_import, division, print_function
 
+import astropy
 import inspect
+import matplotlib
 import os
-
-from pkg_resources import resource_filename
-from astropy.io import fits
-from astropy import constants
-from astropy.convolution import convolve, Gaussian1DKernel
-from scipy import interpolate
+import re
+import scipy
 
 import numpy as np
 import matplotlib.pyplot as plt
 
+from pkg_resources import resource_filename
+from astropy.io import fits
+from astropy.convolution import convolve, Gaussian1DKernel
+from astropy.table import Table
+
 from pypeit import msgs
 from pypeit.core import arc
 from pypeit import utils
-
-def transparency(wavelength, debug=False):
-    """ Interpolate the atmospheric transmission model in the IR over
-    a given wavelength (in microns) range.
-
-    Parameters
-    ----------
-    wavelength : np.array
-        wavelength vector in microns
-
-    Returns
-    -------
-    transparency : np.array
-        Transmission of the sky over the considered wavelength rage.
-        1. means fully transparent and 0. fully opaque
-    """
-
-    msgs.info("Reading in the atmospheric transmission model")
-    skisim_dir = resource_filename('pypeit', 'data/skisim/')
-    transparency = np.loadtxt(skisim_dir+'atm_transmission_secz1.5_1.6mm.dat')
-    wave_mod = transparency[:,0]
-    tran_mod = transparency[:,1]
-
-    # Limit model between 0.8 and np.max(wavelength) microns
-    filt_wave_mod = (wave_mod>0.8) & (wave_mod<np.max(wavelength))
-    wave_mod = wave_mod[filt_wave_mod]
-    tran_mod = tran_mod[filt_wave_mod]
-
-    # Interpolate over input wavelengths
-    interp_tran = interpolate.interp1d(wave_mod, tran_mod,
-                                       kind='cubic',
-                                       fill_value='extrapolate')
-    transmission = interp_tran(wavelength)
-    transmission[wavelength<0.9] = 1.
-
-    # Clean for spourious values due to interpolation
-    transmission[transmission<0.] = 0.
-    transmission[transmission>1.] = 1.
-
-    if debug:
-        utils.pyplot_rcparams()
-        msgs.info("Plot of the sky transmission template")
-        plt.figure()
-        plt.plot(wave_mod, tran_mod,
-                 color='navy', linestyle='-', alpha=0.8,
-                 label=r'Original')
-        plt.plot(wavelength, transmission, 
-                 color='crimson', linestyle='-', alpha=0.8,
-                 label=r'Resampled')
-        plt.legend()
-        plt.xlabel(r'Wavelength [microns]')
-        plt.ylabel(r'Transmission')
-        plt.title(r' IR Transmission Spectra ')
-        plt.show()
-
-    # Returns
-    return transmission
 
 def blackbody(wavelength, T_BB=250., debug=False):
     """ Given wavelength [in microns] and Temperature in Kelvin
@@ -96,9 +42,9 @@ def blackbody(wavelength, T_BB=250., debug=False):
     """
 
     # Define constants in cgs
-    PLANCK  = constants.h.cgs.value   # erg*s
-    C_LIGHT = constants.c.cgs.value   # cm/s
-    K_BOLTZ = constants.k_B.cgs.value # erg/K
+    PLANCK  = astropy.constants.h.cgs.value   # erg*s
+    C_LIGHT = astropy.constants.c.cgs.value   # cm/s
+    K_BOLTZ = astropy.constants.k_B.cgs.value # erg/K
     RADIAN_PER_ARCSEC = 1./3600.*np.pi/180.
 
     msgs.info("Creating BB spectrum at T={}K".format(T_BB))
@@ -121,40 +67,9 @@ def blackbody(wavelength, T_BB=250., debug=False):
         plt.ylabel(r"Spectral Radiance")
         plt.title(r"Planck's law")
         plt.show()
+        utils.pyplot_rcparams_default()
 
     return blackbody, blackbody_counts
-
-def oh_lines():
-    """ Reads in the Rousselot (2000) OH line list"
-
-    Returns
-    -------
-    wavelength, amplitute : np.arrays
-        Wavelength [in microns] and amplitude of the OH lines.
-    """
-
-    msgs.info("Reading in the Rousselot (2000) OH line list")
-    skisim_dir = resource_filename('pypeit', 'data/skisim/')
-    oh = np.loadtxt(skisim_dir+"rousselot2000.dat", usecols=(0, 1))
-    return oh[:,0]/10000., oh[:,1] # wave converted to microns
-
-def h2o_lines():
-    """ Reads in the H2O atmospheric spectrum"
-
-    Returns
-    -------
-    wavelength, flux : np.arrays
-        Wavelength [in microns] and flux of the H2O atmospheric 
-        spectrum.
-    """
-
-    msgs.info("Reading in the water atmsopheric spectrum")
-    skisim_dir = resource_filename('pypeit', 'data/skisim/')
-    h2o = np.loadtxt(skisim_dir+"HITRAN.txt", usecols=(0, 1))
-    h2o_wv = 1./ h2o[:,0] * 1e4 # microns
-    h2o_rad = h2o[:,1] * 5e11
-
-    return h2o_wv, h2o_rad
 
 def addlines2spec(wavelength, wl_line, fl_line, resolution,
                   scale_spec=1., debug=False):
@@ -191,11 +106,8 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
 
     msgs.info("Creating line spectrum")
     for ii in np.arange(len(wl_line_good)):
-        # ToDo EMA: This was ported from XIDL, but at the moment does not 
-        # have correct normalization for the line flux.
-        line_spec = line_spec + \
-                    ( fl_line_good[ii] * scale_spec * \
-                     np.exp(-np.power((wl_line_good[ii]-wavelength),2.)/(2.*np.power(sigma[ii],2.)) ) )
+        line_spec += scale_spec*fl_line_good[ii]*\
+                     np.exp(-np.power((wl_line_good[ii]-wavelength),2.)/(2.*np.power(sigma[ii],2.)))
 
     if debug:
         utils.pyplot_rcparams()
@@ -208,12 +120,103 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
         plt.xlabel(r'Wavelength')
         plt.ylabel(r'Flux')
         plt.show()
+        utils.pyplot_rcparams_default()
 
     return line_spec
 
+def oh_lines():
+    """ Reads in the Rousselot (2000) OH line list"
+
+    Returns
+    -------
+    wavelength, amplitute : np.arrays
+        Wavelength [in microns] and amplitude of the OH lines.
+    """
+
+    msgs.info("Reading in the Rousselot (2000) OH line list")
+    skisim_dir = resource_filename('pypeit', 'data/skisim/')
+    oh = np.loadtxt(skisim_dir+"rousselot2000.dat", usecols=(0, 1))
+    return oh[:,0]/10000., oh[:,1] # wave converted to microns
+
+def transparency(wavelength, debug=False):
+    """ Interpolate the atmospheric transmission model in the IR over
+    a given wavelength (in microns) range.
+
+    Parameters
+    ----------
+    wavelength : np.array
+        wavelength vector in microns
+
+    Returns
+    -------
+    transparency : np.array
+        Transmission of the sky over the considered wavelength rage.
+        1. means fully transparent and 0. fully opaque
+    """
+
+    msgs.info("Reading in the atmospheric transmission model")
+    skisim_dir = resource_filename('pypeit', 'data/skisim/')
+    transparency = np.loadtxt(skisim_dir+'atm_transmission_secz1.5_1.6mm.dat')
+    wave_mod = transparency[:,0]
+    tran_mod = transparency[:,1]
+
+    # Limit model between 0.8 and np.max(wavelength) microns
+    filt_wave_mod = (wave_mod>0.8) & (wave_mod<np.max(wavelength))
+    wave_mod = wave_mod[filt_wave_mod]
+    tran_mod = tran_mod[filt_wave_mod]
+
+    # Interpolate over input wavelengths
+    interp_tran = scipy.interpolate.interp1d(wave_mod, tran_mod,
+                                             kind='cubic',
+                                             fill_value='extrapolate')
+    transmission = interp_tran(wavelength)
+    transmission[wavelength<0.9] = 1.
+
+    # Clean for spourious values due to interpolation
+    transmission[transmission<0.] = 0.
+    transmission[transmission>1.] = 1.
+
+    if debug:
+        utils.pyplot_rcparams()
+        msgs.info("Plot of the sky transmission template")
+        plt.figure()
+        plt.plot(wave_mod, tran_mod,
+                 color='navy', linestyle='-', alpha=0.8,
+                 label=r'Original')
+        plt.plot(wavelength, transmission, 
+                 color='crimson', linestyle='-', alpha=0.8,
+                 label=r'Resampled')
+        plt.legend()
+        plt.xlabel(r'Wavelength [microns]')
+        plt.ylabel(r'Transmission')
+        plt.title(r' IR Transmission Spectra ')
+        plt.show()
+        utils.pyplot_rcparams_default()
+
+    # Returns
+    return transmission
+
+def h2o_lines():
+    """ Reads in the H2O atmospheric spectrum"
+
+    Returns
+    -------
+    wavelength, flux : np.arrays
+        Wavelength [in microns] and flux of the H2O atmospheric 
+        spectrum.
+    """
+
+    msgs.info("Reading in the water atmsopheric spectrum")
+    skisim_dir = resource_filename('pypeit', 'data/skisim/')
+    h2o = np.loadtxt(skisim_dir+"HITRAN.txt", usecols=(0, 1))
+    h2o_wv = 1./ h2o[:,0] * 1e4 # microns
+    h2o_rad = h2o[:,1] * 5e11 # added to match XIDL
+
+    return h2o_wv, h2o_rad
+
 def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
-                    flgd=True, outfile='SKY_MODEL.fits', T_BB=250.,
-                    SCL_BB=1., SCL_OH=1., SCL_H2O=1.,
+                    flgd=True, nirsky_outfile=None, T_BB=250.,
+                    SCL_BB=1., SCL_OH=1., SCL_H2O=10.,
                     WAVE_WATER=2.3, debug=False):
     """ Generate a model sky in the near-IR. This includes a continuum model
     to match to gemini broadband level, a black body at T_BB, OH lines, and 
@@ -238,9 +241,9 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         if flgd='True' (default) wavelengths are created with 
         equal steps in log space. If 'False', wavelengths will be
         created wit equal steps in linear space.
-    outfile : str
+    nirsky_outfile : str
         name of the fits file where the model sky spectrum will be stored.
-        default is: 'SKY_MODEL.fits'
+        default is 'None' (i.e., no file will be written).
     T_BB : float 
         black body temperature in Kelvin. Default is set to:
         T_BB = 250.
@@ -252,7 +255,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         Default: SCL_OH=1.
     SCL_H2O : float
         scale factor for modelling the H2O emssion.
-        Default: SCL_H2O=1.
+        Default: SCL_H2O=10.
     WAVE_WATER : float
         wavelength (in microns) at which the H2O are inclued.
         Default: WAVE_WATER = 2.3
@@ -288,13 +291,13 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
 
     msgs.info("Add in OH lines")
     oh_wv, oh_fx = oh_lines()
-    oh_wv = oh_wv  # convert to microns
     # produces better wavelength solutions with 1.0 threshold
     msgs.info("Selecting stronger OH lines")
     filt_oh = oh_fx > 1.
     oh_wv, oh_fx = oh_wv[filt_oh], oh_fx[filt_oh]
+    # scale_spec was added to match the XIDL code
     ohspec = addlines2spec(wave, oh_wv, oh_fx, resolution=resolution,
-                           scale_spec=((resolution/1000.)/160.),
+                           scale_spec=((resolution/1000.)/40.),
                            debug=False)
 
     if wv_max > WAVE_WATER :
@@ -313,9 +316,9 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
                                            central_wl = mn_wv,
                                            debug=False)
         # Interpolate over input wavelengths
-        interp_h2o = interpolate.interp1d(h2o_wv, smooth_fx,
-                                          kind='cubic', 
-                                          fill_value='extrapolate')
+        interp_h2o = scipy.interpolate.interp1d(h2o_wv, smooth_fx,
+                                                kind='cubic', 
+                                                fill_value='extrapolate')
         h2ospec = interp_h2o(wave)
         # Zero out below WAVE_WATER microns (reconsider)
         h2ospec[wave<WAVE_WATER] = 0.
@@ -323,18 +326,19 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
 
     sky_model = y+bb_counts*SCL_BB+ohspec*SCL_OH+h2ospec*SCL_H2O
 
-    msgs.info("Saving the sky model in: {}".format(outfile))
-    hdu = fits.PrimaryHDU(np.array(sky_model))
-    header = hdu.header
-    if flgd :
-        header['CRVAL1'] = np.log10(wv_min)
-        header['CDELT1'] = loglam
-        header['DC-FLAG'] = 1
-    else :
-        header['CRVAL1'] = wv_min
-        header['CDELT1'] = dlam
-        header['DC-FLAG'] = 0
-    hdu.writeto(outfile, overwrite = True)
+    if nirsky_outfile is not None:
+        msgs.info("Saving the sky model in: {}".format(nirsky_outfile))
+        hdu = fits.PrimaryHDU(np.array(sky_model))
+        header = hdu.header
+        if flgd :
+            header['CRVAL1'] = np.log10(wv_min)
+            header['CDELT1'] = loglam
+            header['DC-FLAG'] = 1
+        else :
+            header['CRVAL1'] = wv_min
+            header['CDELT1'] = dlam
+            header['DC-FLAG'] = 0
+        hdu.writeto(outfile, overwrite = True)
 
     if debug:
         utils.pyplot_rcparams()
@@ -360,12 +364,13 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         plt.ylabel(r'Emission')
         plt.title(r' Sky Emission Spectrum at R={}'.format(resolution))
         plt.show()
+        utils.pyplot_rcparams_default()
 
     return np.array(wave*10000.), np.array(sky_model)
 
 def conv2res(wavelength, flux, resolution, central_wl='midpt',
              debug=False):
-    """ Convolve an imput spectrum to a specific resolution. This is only
+    """Convolve an imput spectrum to a specific resolution. This is only
     approximate. It takes a fix FWHM for the entire spectrum given by:
     fwhm = wl_cent / resolution
 
@@ -420,5 +425,204 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
         plt.ylabel(r'Flux')
         plt.title(r'Spectrum Convolved at R = {}'.format(resolution))
         plt.show()
+        utils.pyplot_rcparams_default()
 
     return flux_convolved, px_sigma, px_bin
+
+def iraf_datareader(database_dir, id_file):
+    """Reads in a line identification database created with IRAF
+    identify. These are usually locate in a directory called 'database'.
+    This read pixel location and wavelength of the lines that
+    have been id with IRAF. Note that the first pixel in IRAF
+    is '1', while is '0' in python. The pixel location is thus
+    shifted of one pixel while reading the database.
+
+    Parameters
+    ----------
+    database_dir : string
+        directory where the id files are located.
+    id_file : string
+        filename that is going to be read.
+
+    Returns
+    -------
+    pixel, line_id : np.arrays
+        Position of the line in pixel and ID of the line. 
+        For IRAF output, these are usually in Ang.
+    """
+
+    lines_database = []
+
+    # Open file for reading of text data.
+    with open (database_dir+id_file, 'rt') as id_file_iraf:
+        for line in id_file_iraf:
+            lines_database.append(line.split())
+            feat_line = re.search(r'features\t(\d+)', line)
+            if feat_line is not None:
+                N_lines = np.int(feat_line.group(1))
+
+    msgs.info("The number of IDs in the IRAF database {} is {}".format(id_file, N_lines))
+
+    pixel = np.zeros(N_lines)
+    line_id = np.zeros(N_lines)
+    for iii in range(0,N_lines):
+        pixel[iii] = lines_database[10:N_lines+10][iii][0]
+        line_id[iii] = lines_database[10:N_lines+10][iii][2]
+
+    # Moving from IRAF 1-based to Python 0-based convention.
+    pixel = pixel - 1.
+
+    return pixel, line_id
+
+def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
+                    cont_samp=10., line_name=None, file_root_name=None,
+                    iraf_frmt=False, debug=False):
+    """ Create list of lines detected in a spectrum in a PypeIt
+    compatible format. The name of the output file is
+    file_root_name+'_lines.dat'.
+
+    Parameters
+    ----------
+    wavelength : np.array
+        wavelength
+    spec : np.array
+        spectrum
+    fwhm : float
+        fwhm in pixels used for filtering out arc lines that are too
+        wide and not considered in fits. Parameter of arc.detect_lines().
+    sigdetec : float
+        sigma threshold above fluctuations for line detection. Parameter
+        of arc.detect_lines(). Default = 2.
+    cont_samp : float
+        the number of samples across the spectrum used for continuum
+        subtraction. Parameter of arc.detect_lines().  Default = 10.
+    line_name : str
+        name of the lines to listed in the file.
+    file_root_name : str
+        name of the file where the identified lines will be stored.
+        The code automatically add '_lines.dat' at the end of the
+        root name.
+    iraf_frmt : bool
+        if True, the file is written in the IRAF format (i.e. wavelength,
+        ion name, amplitude).
+    """
+
+    msgs.info("Searching for peaks {} sigma above background".format(sigdetec))
+    tampl_true, tampl, tcent, twid, centerr, ww, arcnorm, nsig = arc.detect_lines(spec, sigdetect=sigdetec,
+                                                                              fwhm=fwhm, cont_samp=cont_samp,
+                                                                              debug=debug)
+    peaks_good = tcent[ww]
+    ampl_good = tampl[ww]
+    # convert from pixel location to wavelength
+    pixvec = np.arange(spec.size)
+    wave_peak = scipy.interpolate.interp1d(pixvec, wavelength, bounds_error=False, fill_value='extrapolate')(peaks_good)
+    npeak = len(wave_peak)
+    ion = npeak*[str(line_name)]
+    NIST = npeak*[1]
+    Instr = npeak*[32]
+    Source = npeak*['wavemodel.py']
+
+    if iraf_frmt:
+        msgs.info("Printing file in IRAF format: {}".format(file_root_name+'_line.dat'))
+        ion = np.array(ion)
+        id_lines_iraf = np.vstack( (np.round(wave_peak,5), ion, np.round(tampl,5)) ).T
+        np.savetxt(file_root_name+'_line.dat', id_lines_iraf, fmt="%15s %6s %15s", delimiter="  ")
+    else:
+        msgs.info("Printing file: {}".format(file_root_name+'_line.dat'))
+        dat = Table([wave_peak, ion, NIST, Instr, ampl_good, Source], names=('wave', 'ion','NIST','Instr','amplitude','Source'))
+        dat.write(file_root_name+'_line.dat',format='ascii.fixed_width')
+
+    debug = True
+
+    if debug:
+        utils.pyplot_rcparams()
+        msgs.info("Plot detected lines")
+        plt.figure()
+        plt.plot(wavelength,spec,
+                 color='royalblue', linestyle=':', alpha=0.5,
+                 label=r'Input Spectrum')
+        plt.plot(wavelength,arcnorm,
+                 color='navy', linestyle='-', alpha=0.9,
+                 label=r'Continuum Subtracted')
+        cm = plt.cm.get_cmap('YlGnBu')
+        sc = plt.scatter(wave_peak,tampl, c=nsig, cmap=cm)
+        for ii in np.arange(len(tcent_wl)):
+            plt.text(tcent_wl[ii], tampl[ii], np.round(tcent_wl[ii],2),
+            va="bottom", ha="center", rotation=90.)
+        cbar = plt.colorbar(sc)
+        cbar.set_label(r'Sigma', rotation=270,
+                       labelpad=20)
+        plt.legend()
+        plt.xlabel(r'Wavelength')
+        plt.ylabel(r'Flux')
+        plt.title(r'Detected Lines')
+        plt.show()
+        utils.pyplot_rcparams_default()
+
+def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, nirsky_outfile=None,
+                      fwhm=None, sigdetec=2., line_name=None, file_root_name=None, iraf_frmt=False, 
+                      debug=False):
+    """ Create a syntetic sky spectrum at a given resolution, extract significant lines, and
+    store them in a pypeit compatibile file.
+
+    Parameters
+    ----------
+    resolution : np.float
+        resolution of the spectrograph
+    waveminmax : tuple
+        wavelength range in microns to be covered by the model.
+        Default is: (0.8, 2.6)
+    dlam : 
+        bin to be used to create the wavelength grid of the model.
+        If flgd='True' it is a bin in velocity (km/s). If flgd='False'
+        it is a bin in linear space (microns).
+        Default is: 40.0 (with flgd='True')
+    flgd : boolean
+        if flgd='True' (default) wavelengths are created with 
+        equal steps in log space. If 'False', wavelengths will be
+        created wit equal steps in linear space.
+    nirsky_outfile : str
+        name of the fits file where the model sky spectrum will be stored.
+        default is 'None' (i.e., no file will be written).
+    fwhm : float
+        fwhm in pixels used for filtering out arc lines that are too
+        wide and not considered in fits. Parameter of arc.detect_lines().
+        If set to 'None' the fwhm will be derived from the resolution as:
+        2. * central_wavelength / resolution
+    sigdetec : float
+        sigma threshold above fluctuations for line detection. Parameter
+        of arc.detect_lines(). Default = 2.
+    line_name : str
+        name of the lines to listed in the file.
+    file_root_name : str
+        name of the file where the identified lines will be stored.
+        The code automatically add '_lines.dat' at the end of the
+        root name.
+    iraf_frmt : bool
+        if True, the file is written in the IRAF format (i.e. wavelength,
+        ion name, amplitude).
+    """
+
+    wavelength, spec = nearIR_modelsky(resolution, waveminmax=waveminmax, dlam=dlam,
+                                       flgd=flgd, nirsky_outfile=nirsky_outfile, debug=False)
+
+    if fwhm is None:
+        msgs.warn("No min FWHM for the line detection set. Derived from the resolution at the center of the spectrum")
+        wl_cent = np.average(wavelength)
+        wl_fwhm = wl_cent / resolution
+        wl_bin = np.abs((wavelength-np.roll(wavelength,1))[np.where(np.abs(wavelength-wl_cent)==np.min(np.abs(wavelength-wl_cent)))])
+        fwhm = wl_fwhm / wl_bin[0]
+        if fwhm < 1.:
+             msgs.warn("Lines are unresolved. Seeing FWHM=2.pixels")
+             fwhm = 2.
+
+    if line_name is None:
+        msgs.warn("No line_name as been set. The file will contain XXX as ion")
+        line_name = 'XXX'
+
+    if file_root_name is None:
+        msgs.warn("No file_root_name as been set. The file will called OH_SKY_lines.dat")
+        file_root_name = 'OH_SKY'
+
+    create_linelist(wavelength, spec, fwhm=fwhm, sigdetec=sigdetec, line_name=line_name,
+                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug)
