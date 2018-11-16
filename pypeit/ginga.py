@@ -45,7 +45,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False):
         if raise_err:
             raise ValueError
         else:
-            msgs.warn("Problem connecting to Ginga.  Launch an RC Ginga viewer: ginga --module=RC   then continue.")
+            msgs.warn("Problem connecting to Ginga.  Launch an RC Ginga viewer: ginga --modules=RC then continue.")
             debugger.set_trace()
     # Return
     return viewer
