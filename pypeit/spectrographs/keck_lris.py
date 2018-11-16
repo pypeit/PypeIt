@@ -452,8 +452,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         else:
             sigclip = proc_par['sigclip']
             objlim = proc_par['objlim']
-        from IPython import embed
-        embed()
         return sigclip, objlim
         
     def check_headers(self, headers):
