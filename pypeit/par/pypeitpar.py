@@ -1049,17 +1049,17 @@ class WavelengthSolutionPar(ParSet):
         descr['echelle'] = 'Is this an echelle spectrograph? If yes an additional 2-d fit wavelength fit will be performed as a function ' \
                            'of spectral pixel and order number to improve the wavelength solution'
 
-        defaults['ech_nspec_coeff'] = 5
+        defaults['ech_nspec_coeff'] = 4
         dtypes['ech_nspec_coeff'] = int
         descr['ech_nspec_coeff'] = 'For echelle spectrographs, order of the final 2d fit to the spectral dimension.'
 
-        defaults['ech_norder_coeff'] = 5
+        defaults['ech_norder_coeff'] = 3
         dtypes['ech_norder_coeff'] = int
         descr['ech_norder_coeff'] = 'For echelle spectrographs, order of the final 2d fit to the order dimension.'
 
-        defaults['ech_sigrej'] = 5
-        dtypes['ech_sigrej'] = int
-        descr['ech_sigrej'] = 'For echelle spectrographs, order of the final 2d fit to the order dimension.'
+        defaults['ech_sigrej'] = 2.0
+        dtypes['ech_sigrej'] = [int,float]
+        descr['ech_sigrej'] = 'For echelle spectrographs sigma clipping rejection threshold in 2d fit to spectral and order dimensions'
 
 
         # TODO: These needs to be tidied up so we can check for valid lamps. Right now I'm not checking.
