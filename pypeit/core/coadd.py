@@ -620,7 +620,7 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             gd0 = ~smask[0,:]
             gd1 = ~smask[1,:]
             debugger.plot1d(wave[gd0], fluxes[0,gd0], xtwo=wave[gd1], ytwo=fluxes[1,gd1])
-            debugger.set_trace()
+            #debugger.set_trace()
 
     else:
         # Median of the masked array -- Best for 3 or more spectra
@@ -686,7 +686,7 @@ def one_d_coadd(spectra, smask, weights, debug=False, **kwargs):
 
     if debug:
         debugger.plot1d(wave, new_flux, new_sig)
-        debugger.set_trace()
+        #debugger.set_trace()
     # Return
     return new_spec
 
@@ -942,7 +942,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             # Apply
             if nrej > 0:
                 msgs.info("Rejecting {:d} pixels in exposure {:d}".format(nrej,qq))
-                print(rspec.data['wave'][qq,chi_mask])
+                #print(rspec.data['wave'][qq,chi_mask])
                 rmask[qq,chi_mask] = True
                 #rspec.select = qq
                 #rspec.add_to_mask(chi_mask)
