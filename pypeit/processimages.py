@@ -341,7 +341,7 @@ class ProcessImages(object):
         self.steps.append(inspect.stack()[0][3])
         return self.stack
 
-    def build_crmask(self, varframe=None, par=None):
+    def build_crmask(self, varframe=None, par=None, binning=None):
         """
         Generate the CR mask frame
 
@@ -366,7 +366,7 @@ class ProcessImages(object):
         # Run LA Cosmic to get the cosmic ray mask
         saturation = self.spectrograph.detector[self.det-1]['saturation']
         nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
-        sigclip, objlim = self.spectrograph.get_lacosmics_par(self.proc_par,binning=self.fitstbl['binning'][0])
+        sigclip, objlim = self.spectrograph.get_lacosmics_par(self.proc_par,binning=binning)
         self.crmask = procimg.lacosmic(self.det, self.stack, saturation, nonlinear,
                                          varframe=varframe, maxiter=self.proc_par['lamaxiter'],
                                          grow=self.proc_par['grow'],
