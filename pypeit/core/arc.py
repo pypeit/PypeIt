@@ -249,16 +249,16 @@ def eval2dfit(fit_dict, pixels, order):
     return wv_order_mod
 
 
-def waveimg_2dfit(fit_dict, tilts, ordermask):
-    orders = fit_dict['orders']
-    nspec = fit_dict['nspec']
-    piximg = tilts*(nspec-1)
-    waveimg = np.zeros_like(tilts)
-    for iord in orders:
-        thisorder = ordermask == iord
-        waveimg[thisorder] = eval2dfit(fit_dict,piximg[thisorder], iord)
-
-    return waveimg
+#def waveimg_2dfit(fit_dict, tilts, ordermask):
+#    orders = fit_dict['orders']
+#    nspec = fit_dict['nspec']
+#    piximg = tilts*(nspec-1)
+#    waveimg = np.zeros_like(tilts)
+#    for iord in orders:
+#        thisorder = ordermask == iord
+#        waveimg[thisorder] = eval2dfit(fit_dict,piximg[thisorder], iord)
+#
+#    return waveimg
 
 def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5):
 
