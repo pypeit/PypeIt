@@ -29,7 +29,8 @@ from pypeit import debugger
     # Grow mask in final_rej?
 
 
-def new_wave_grid(waves, wave_method='iref', iref=0, A_pix=None, v_pix=None, **kwargs):
+def new_wave_grid(waves, wave_method='iref', iref=0, wave_grid_min=None, wave_grid_max=None,
+                  A_pix=None, v_pix=None, **kwargs):
     """ Create a new wavelength grid for the
     spectra to be rebinned and coadded on
 
@@ -46,6 +47,10 @@ def new_wave_grid(waves, wave_method='iref', iref=0, A_pix=None, v_pix=None, **k
         'concatenate' -- Meld the input wavelength arrays
     iref : int, optional
       Reference spectrum
+    wave_grid_min: float, optional
+      min wavelength value for the final grid
+    wave_grid_max: float, optional
+      max wavelength value for the final grid
     A_pix : float
       Pixel size in same units as input wavelength array (e.g. Angstroms)
     v_pix : float
@@ -74,8 +79,10 @@ def new_wave_grid(waves, wave_method='iref', iref=0, A_pix=None, v_pix=None, **k
             v_pix = np.median(dv)
 
         # Generate wavelenth array
-        wave_grid_min = np.min(waves)
-        wave_grid_max = np.max(waves)
+        if wave_grid_min is None:
+            wave_grid_min = np.min(waves)
+        if wave_grid_max is None:
+            wave_grid_max = np.max(waves)
         x = np.log10(v_pix/spl + 1)
         npix = int(np.log10(wave_grid_max/wave_grid_min) / x) + 1
         wave_grid = wave_grid_min * 10**(x*np.arange(npix))
@@ -92,8 +99,10 @@ def new_wave_grid(waves, wave_method='iref', iref=0, A_pix=None, v_pix=None, **k
         if A_pix is None:
             msgs.error("Need to provide pixel size with A_pix for with this method")
         #
-        wave_grid_min = np.min(waves)
-        wave_grid_max = np.max(waves)
+        if wave_grid_min is None:
+            wave_grid_min = np.min(waves)
+        if wave_grid_max is None:
+            wave_grid_max = np.max(waves)
 
         wave_grid = np.arange(wave_grid_min, wave_grid_max + A_pix, A_pix)
 
@@ -675,7 +684,7 @@ def one_d_coadd(spectra, smask, weights, debug=False, **kwargs):
     # New obj (for passing around)
     new_spec = XSpectrum1D.from_tuple((wave, new_flux, new_sig), masking='none')
 
-    if False:
+    if debug:
         debugger.plot1d(wave, new_flux, new_sig)
         debugger.set_trace()
     # Return
