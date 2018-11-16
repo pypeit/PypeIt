@@ -482,8 +482,9 @@ def bspline_cr(spectra, n_grow_mask=1, cr_nsig=5., debug=False):
     goodp = all_s[srt] > 0.
 
     # Fit
+    # FW: everyn is not supported by robust_polyfit
     mask, bspl = utils.robust_polyfit(all_w[srt][goodp], all_f[srt][goodp], 3,
-                                        function='bspline', sigma=cr_nsig, everyn=2*spectra.nspec,
+                                        function='bspline', sigma=cr_nsig, #everyn=2*spectra.nspec,
                                         weights=1./np.sqrt(all_s[srt][goodp]), maxone=False)
     # Plot?
     if debug:
@@ -590,8 +591,11 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             idx = gd[srt]
             # The following may eliminate bright, narrow emission lines
             # FW: ToDo: everyn is nolonger supported by robust_polyfit. Change to robust_polyfit_djs in the future.
-            mask, spl = utils.robust_polyfit(waves[idx], flux[idx], 3, function='bspline',
-                    weights=1./sig[gd][srt], sigma=cr_bsigma, maxone=False)#, everyn=cr_everyn)
+            #mask, spl = utils.robust_polyfit(waves[idx], flux[idx], 3, function='bspline',
+            #        weights=1./sig[gd][srt], sigma=cr_bsigma, maxone=False)#, everyn=cr_everyn)
+            good, spl = utils.robust_polyfit_djs(waves[idx], flux[idx], 3, function='bspline',
+                    sigma=sig[gd][srt], lower=cr_bsigma, upper=cr_bsigma, use_mad=False)
+            mask = ~good
             # Reject CR (with grow)
             spec_fit = utils.func_val(spl, wave, 'bspline')
             for ii in range(2):
@@ -993,7 +997,7 @@ def write_to_disk(spec1d, outfile):
 
 
 
-def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=2.):
+def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=10.):
     """  QA plot for 1D coadd of spectra
 
     Parameters
@@ -1042,7 +1046,8 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=2.):
     # Coadd on individual
     # yrange
     medf = np.median(spec1d.flux)
-    ylim = (medf/10., yscale*medf)
+    #ylim = (medf/10., yscale*medf)
+    ylim = (np.sort([0.-2*medf, yscale*medf]))
     # Plot
     ax = plt.subplot(gs[1])
     for idx in range(ispectra.nspec):
