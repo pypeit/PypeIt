@@ -233,6 +233,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
         par['calibrations']['traceframe']['exprng'] = [None, 30]
         par['scienceframe']['exprng'] = [30, None]
+        
+        # LACosmics parameters
+        par['scienceframe']['process']['sigclip'] = 4.0
+        par['scienceframe']['process']['objlim'] = 1.5
 
         return par
 
@@ -494,20 +498,40 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             self.bpm_img[:,1052:1054] = 1
         elif det == 2:
             self.bpm_img[:,0:4] = 1
-            self.bpm_img[:,376:380] = 1
+            self.bpm_img[:,376:381] = 1
+            self.bpm_img[:,489] = 1
+            self.bpm_img[:,1333:1335] = 1
             self.bpm_img[:,2047] = 1
         elif det == 3:
+            self.bpm_img[:,221] = 1
+            self.bpm_img[:,260] = 1
+            self.bpm_img[:,366] = 1
+            self.bpm_img[:,816:819] = 1
             self.bpm_img[:,851] = 1
+            self.bpm_img[:,940] = 1
+            self.bpm_img[:,1167] = 1
+            self.bpm_img[:,1280] = 1
+            self.bpm_img[:,1301:1303] = 1
+            self.bpm_img[:,1744:1747] = 1
         elif det == 4:
             self.bpm_img[:,0:4] = 1
-            self.bpm_img[:,997:998] = 1
+            self.bpm_img[:,47] = 1
+            self.bpm_img[:,744] = 1
+            self.bpm_img[:,790:792] = 1
+            self.bpm_img[:,997:999] = 1
         elif det == 5:
-            self.bpm_img[:,129] = 1
+            self.bpm_img[:,25:27] = 1
+            self.bpm_img[:,128:130] = 1
+            self.bpm_img[:,1535:1539] = 1
         elif det == 7:
             self.bpm_img[:,426:428] = 1
+            self.bpm_img[:,676] = 1
+            self.bpm_img[:,1176:1178] = 1
         elif det == 8:
-            self.bpm_img[:,931] = 1
-            self.bpm_img[:,933] = 1
+            self.bpm_img[:,440] = 1
+            self.bpm_img[:,509:513] = 1
+            self.bpm_img[:,806] = 1
+            self.bpm_img[:,931:934] = 1
 
         return self.bpm_img
 

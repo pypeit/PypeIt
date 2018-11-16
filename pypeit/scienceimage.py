@@ -121,13 +121,14 @@ class ScienceImage(processimages.ProcessImages):
     frametype = 'science'
 
     # TODO: Merge into a single parset, one for procing, and one for scienceimage
-    def __init__(self, spectrograph, file_list, det=None, objtype='science', scidx=0, setup=None,
+    def __init__(self, spectrograph, file_list, det=None, binning = None, objtype='science', scidx=0, setup=None,
                  par=None, frame_par=None):
 
         # Instantiation attributes for this object
         self.spectrograph = spectrograph
         self.file_list = file_list
         self.det = det
+        self.binning = binning
         self.objtype = objtype
         self.scidx = scidx
         self.setup = setup
@@ -393,8 +394,8 @@ class ScienceImage(processimages.ProcessImages):
 
         if update_crmask:
             # Update the crmask by running LA cosmics again
-            self.crmask = self.build_crmask(self.sciimg - self.global_sky, varframe = rawvarframe)
-            # Build and assign the input mask
+            self.crmask = self.build_crmask(self.sciimg - self.global_sky, varframe = self.sciivar)
+            # Rebuild the mask with this new crmask
             self.mask = self._build_mask()
 
         # Step
