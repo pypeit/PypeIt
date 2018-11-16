@@ -29,7 +29,8 @@ from pypeit import debugger
     # Grow mask in final_rej?
 
 
-def new_wave_grid(waves, wave_method='iref', iref=0, A_pix=None, v_pix=None, **kwargs):
+def new_wave_grid(waves, wave_method='iref', iref=0, wave_grid_min=None, wave_grid_max=None,
+                  A_pix=None, v_pix=None, **kwargs):
     """ Create a new wavelength grid for the
     spectra to be rebinned and coadded on
 
@@ -46,6 +47,10 @@ def new_wave_grid(waves, wave_method='iref', iref=0, A_pix=None, v_pix=None, **k
         'concatenate' -- Meld the input wavelength arrays
     iref : int, optional
       Reference spectrum
+    wave_grid_min: float, optional
+      min wavelength value for the final grid
+    wave_grid_max: float, optional
+      max wavelength value for the final grid
     A_pix : float
       Pixel size in same units as input wavelength array (e.g. Angstroms)
     v_pix : float
@@ -74,8 +79,10 @@ def new_wave_grid(waves, wave_method='iref', iref=0, A_pix=None, v_pix=None, **k
             v_pix = np.median(dv)
 
         # Generate wavelenth array
-        wave_grid_min = np.min(waves)
-        wave_grid_max = np.max(waves)
+        if wave_grid_min is None:
+            wave_grid_min = np.min(waves)
+        if wave_grid_max is None:
+            wave_grid_max = np.max(waves)
         x = np.log10(v_pix/spl + 1)
         npix = int(np.log10(wave_grid_max/wave_grid_min) / x) + 1
         wave_grid = wave_grid_min * 10**(x*np.arange(npix))
@@ -92,8 +99,10 @@ def new_wave_grid(waves, wave_method='iref', iref=0, A_pix=None, v_pix=None, **k
         if A_pix is None:
             msgs.error("Need to provide pixel size with A_pix for with this method")
         #
-        wave_grid_min = np.min(waves)
-        wave_grid_max = np.max(waves)
+        if wave_grid_min is None:
+            wave_grid_min = np.min(waves)
+        if wave_grid_max is None:
+            wave_grid_max = np.max(waves)
 
         wave_grid = np.arange(wave_grid_min, wave_grid_max + A_pix, A_pix)
 
@@ -473,8 +482,9 @@ def bspline_cr(spectra, n_grow_mask=1, cr_nsig=5., debug=False):
     goodp = all_s[srt] > 0.
 
     # Fit
+    # FW: everyn is not supported by robust_polyfit
     mask, bspl = utils.robust_polyfit(all_w[srt][goodp], all_f[srt][goodp], 3,
-                                        function='bspline', sigma=cr_nsig, everyn=2*spectra.nspec,
+                                        function='bspline', sigma=cr_nsig, #everyn=2*spectra.nspec,
                                         weights=1./np.sqrt(all_s[srt][goodp]), maxone=False)
     # Plot?
     if debug:
@@ -580,8 +590,12 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             srt = np.argsort(waves[gd])
             idx = gd[srt]
             # The following may eliminate bright, narrow emission lines
-            mask, spl = utils.robust_polyfit(waves[idx], flux[idx], 3, function='bspline',
-                    weights=1./sig[gd][srt], sigma=cr_bsigma, maxone=False, everyn=cr_everyn)
+            # FW: ToDo: everyn is nolonger supported by robust_polyfit. Change to robust_polyfit_djs in the future.
+            #mask, spl = utils.robust_polyfit(waves[idx], flux[idx], 3, function='bspline',
+            #        weights=1./sig[gd][srt], sigma=cr_bsigma, maxone=False)#, everyn=cr_everyn)
+            good, spl = utils.robust_polyfit_djs(waves[idx], flux[idx], 3, function='bspline',
+                    sigma=sig[gd][srt], lower=cr_bsigma, upper=cr_bsigma, use_mad=False)
+            mask = ~good
             # Reject CR (with grow)
             spec_fit = utils.func_val(spl, wave, 'bspline')
             for ii in range(2):
@@ -610,7 +624,7 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             gd0 = ~smask[0,:]
             gd1 = ~smask[1,:]
             debugger.plot1d(wave[gd0], fluxes[0,gd0], xtwo=wave[gd1], ytwo=fluxes[1,gd1])
-            debugger.set_trace()
+            #debugger.set_trace()
 
     else:
         # Median of the masked array -- Best for 3 or more spectra
@@ -674,9 +688,9 @@ def one_d_coadd(spectra, smask, weights, debug=False, **kwargs):
     # New obj (for passing around)
     new_spec = XSpectrum1D.from_tuple((wave, new_flux, new_sig), masking='none')
 
-    if False:
+    if debug:
         debugger.plot1d(wave, new_flux, new_sig)
-        debugger.set_trace()
+        #debugger.set_trace()
     # Return
     return new_spec
 
@@ -932,7 +946,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             # Apply
             if nrej > 0:
                 msgs.info("Rejecting {:d} pixels in exposure {:d}".format(nrej,qq))
-                print(rspec.data['wave'][qq,chi_mask])
+                #print(rspec.data['wave'][qq,chi_mask])
                 rmask[qq,chi_mask] = True
                 #rspec.select = qq
                 #rspec.add_to_mask(chi_mask)
@@ -983,7 +997,7 @@ def write_to_disk(spec1d, outfile):
 
 
 
-def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=2.):
+def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=10.):
     """  QA plot for 1D coadd of spectra
 
     Parameters
@@ -1032,7 +1046,8 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=2.):
     # Coadd on individual
     # yrange
     medf = np.median(spec1d.flux)
-    ylim = (medf/10., yscale*medf)
+    #ylim = (medf/10., yscale*medf)
+    ylim = (np.sort([0.-2*medf, yscale*medf]))
     # Plot
     ax = plt.subplot(gs[1])
     for idx in range(ispectra.nspec):
