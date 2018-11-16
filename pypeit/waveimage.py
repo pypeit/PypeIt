@@ -99,7 +99,8 @@ class WaveImage(masterframe.MasterFrame):
             iwv_calib = self.wv_calib[str(slit)]
             thismask = (self.slitpix == slit)
             if self.par['echelle']:
-                tmpwv = arc.eval2dfit(self.wv_calib['fit2d'],piximg[thismask],self.wv_calib['fit2d']['orders'][slit])
+                order = self.wv_calib['fit2d']['orders'][slit]
+                tmpwv = arc.eval2dfit(self.wv_calib['fit2d'],piximg[thismask],order)/order
             else:
                 tmpwv = utils.func_val(iwv_calib['fitc'], piximg[thismask], iwv_calib['function'],
                                        minv=iwv_calib['fmin'], maxv=iwv_calib['fmax'])
