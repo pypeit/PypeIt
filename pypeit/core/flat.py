@@ -215,7 +215,7 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
 
     # Create a wider slitmask image with shift pixels padded on each side
     pad = 5.0
-    slitmask_pad = pixels.slit_pixels(slit_left_in, slit_righ_in, shape, pad)
+    slitmask_pad = pixels.slit_pixels(slit_left_in, slit_righ_in, nspat, pad = pad)
     thismask = (slitmask_pad > 0) # mask enclosing the wider slit bounadries
 
     if inmask is None:
@@ -264,6 +264,8 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         plt.ylabel('log(flat counts)')
         plt.show()
 
+    from IPython import embed
+    embed()
     # Evaluate and save
     spec_model = np.ones_like(flat)
     spec_model[thismask], _ = np.exp(spec_set_fine.value(piximg[thismask]))
@@ -316,7 +318,7 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         slit_left_out, slit_righ_out, tweak_dict = tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg,
                                                                     tweak_slits_thresh, tweak_slits_maxfrac)
         # Recreate all the quantities we need based on the tweaked slits
-        slitmask_out = pixels.slit_pixels(slit_left_out, slit_righ_out, shape, 0)
+        slitmask_out = pixels.slit_pixels(slit_left_out, slit_righ_out, nspat, pad = 0)
         thismask_out = (slitmask_out > 0)
         ximg_out, edgmask_out = pixels.ximg_and_edgemask(slit_left_out, slit_righ_out, thismask_out, trim_edg=trim_edg)
         # Note that nothing changes with the tilts, since these were already extrapolated across the whole image.

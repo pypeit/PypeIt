@@ -97,7 +97,7 @@ class WaveImage(masterframe.MasterFrame):
         # Unpack some 2-d fit parameters if this is echelle
         for slit in ok_slits:
             iwv_calib = self.wv_calib[str(slit)]
-            thismask = (self.slitpix == slit+1)
+            thismask = (self.slitpix == slit)
             if self.par['echelle']:
                 tmpwv = arc.eval2dfit(self.wv_calib['fit2d'],piximg[thismask],self.wv_calib['fit2d']['orders'][slit])
             else:

@@ -339,7 +339,7 @@ class WaveTilts(masterframe.MasterFrame):
             self.tilts, self.coeffs[:,:,slit] = self._fit_tilts(slit, doqa=doqa)
 
             # Save to final image
-            word = self.tslits_dict['slitpix'] == slit+1
+            word = self.tslits_dict['slitpix'] == slit
             self.final_tilts[word] = self.tilts[word]
 
         self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'func2D':self.par['func2D']}
