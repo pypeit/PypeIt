@@ -437,13 +437,13 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         return par
     
     def get_lascosmics_par(self,binning='1x1'):
-        # Good LACosmics parameters depends strongly on binning.
+        # Unbinned LRISr needs very aggressive LACosmics parameters.
         if binning is '1x1':
             sigclip = 3.0
             objlim = 0.5
         else:
             sigclip = 5.0
-            objlim = 3.0
+            objlim = 5.0
         return sigclip, objlim
         
     def check_headers(self, headers):
