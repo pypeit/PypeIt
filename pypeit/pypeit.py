@@ -526,8 +526,8 @@ class PypeIt(object):
 
         sci_image_files = self.fitstbl.find_frame_files('science', sci_ID=sci_ID)
         scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
-        binning =
         self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
+                                              binning = fitstbl['binning'][specobj.scidx],
                                               objtype='science', scidx=scidx, setup=self.setup,
                                               par=self.par['scienceimage'],
                                               frame_par=self.par['scienceframe'])
@@ -859,7 +859,8 @@ class MultiSlit(PypeIt):
             # frames.  Should these be different for the standards?
             self.stdI = scienceimage.ScienceImage(self.spectrograph, file_list=std_image_files,
                                           frame_par=self.par['calibrations']['standardframe'],
-                                          det=self.det, setup=self.setup, scidx=self.std_idx,
+                                          det=self.det, binning = fitstbl['binning'][self.std_idx],
+                                          setup=self.setup, scidx=self.std_idx,
                                           objtype='standard', par=self.par['scienceimage'])
             # Names and time
             _, self.std_basename = self.init_time_names(self.fitstbl,self.std_idx)
@@ -1012,6 +1013,7 @@ class Echelle(PypeIt):
         sci_image_files = self.fitstbl.find_frame_files(frametype, sci_ID=sci_ID)
         scidx = self.fitstbl.find_frames(frametype, sci_ID=sci_ID, index=True)[0]
         self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
+                                              binning=fitstbl['binning'][scidx],
                                               objtype=frametype, scidx=scidx, setup=self.setup,
                                               par=self.par['scienceimage'],
                                               frame_par=self.par['scienceframe'])
