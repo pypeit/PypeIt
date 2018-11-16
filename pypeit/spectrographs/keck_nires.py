@@ -49,7 +49,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
     @property
     def pypeline(self):
-        return 'MultiSlit'
+        return 'Echelle'
 
     def default_pypeit_par(self):
         """
@@ -267,6 +267,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # These lines are always the same
         pad = tslits_dict['pad'] if pad is None else pad
         slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
+
+        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
 
         order7bad = (slitmask == 0) & (spec_img < tslits_dict['nspec']/2)
         slitmask[order7bad] = -1
