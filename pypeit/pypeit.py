@@ -508,6 +508,7 @@ class PypeIt(object):
 #        """
 #        pass
 
+
     def init_one_science(self, sci_ID, det):
         """
         Instantiate ScienceImage class and run the first step with it
@@ -900,9 +901,8 @@ class MultiSlit(PypeIt):
                       + self.fitstbl['filename'][self.sciI.scidx])
                 return
             # Extract
-            skymodel, objmodel, ivarmodel, outmask, sobjs = self.stdI.local_skysub_extract(
-                self.caliBrate.mswave, maskslits=maskslits,
-                show_profile=self.show, show=self.show)
+            skymodel, objmodel, ivarmodel, outmask, sobjs = self.stdI.local_skysub_extract(sobjs_obj,
+                self.caliBrate.mswave, maskslits=maskslits,show_profile=self.show, show=self.show)
 
             # Save for fluxing and output later
             self.std_dict[self.std_idx][self.det] = {}
@@ -921,7 +921,7 @@ class MultiSlit(PypeIt):
                                             maskslits=maskslits, show=self.show)
 
             skymodel, objmodel, ivarmodel, outmask, sobjs \
-                    = sciI.local_skysub_extract(self.caliBrate.mswave, maskslits=maskslits,
+                    = sciI.local_skysub_extract(sobjs_obj, self.caliBrate.mswave, maskslits=maskslits,
                                                 show_profile=self.show, show=self.show)
 
             # Flexure correction?
@@ -993,37 +993,38 @@ class Echelle(PypeIt):
     def __init__(self, spectrograph, **kwargs):
         super(Echelle, self).__init__(spectrograph, **kwargs)
 
-    # JFH This should replace the init_one_science above in Multislit as well
-    def init_one_science(self, sci_ID, frametype, det):
-        """
-        Instantiate ScienceImage class and run the first step with it
-
-        Args:
-            sci_ID: int
-              binary flag indicating the science frame
-            det: int
-              detector index
-
-        Returns:
-            self.obstime : Time
-            self.basename : str
-        """
-        self.sci_ID = sci_ID
-        self.det = det
-
-        sci_image_files = self.fitstbl.find_frame_files(frametype, sci_ID=sci_ID)
-        scidx = self.fitstbl.find_frames(frametype, sci_ID=sci_ID, index=True)[0]
-        self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
-                                              binning=self.fitstbl['binning'][scidx],
-                                              objtype=frametype, scidx=scidx, setup=self.setup,
-                                              par=self.par['scienceimage'],
-                                              frame_par=self.par['scienceframe'])
-        msgs.sciexp = self.sciI  # For QA on crash
-
-        # Names and time
-        self.obstime, self.basename = self.init_time_names(self.fitstbl,scidx)
-        # Return
-        return self.obstime, self.basename  # For fluxing
+    #
+    # # JFH This should replace the init_one_science above in Multislit as well
+    # def init_one_science(self, sci_ID, frametype, det):
+    #     """
+    #     Instantiate ScienceImage class and run the first step with it
+    #
+    #     Args:
+    #         sci_ID: int
+    #           binary flag indicating the science frame
+    #         det: int
+    #           detector index
+    #
+    #     Returns:
+    #         self.obstime : Time
+    #         self.basename : str
+    #     """
+    #     self.sci_ID = sci_ID
+    #     self.det = det
+    #
+    #     sci_image_files = self.fitstbl.find_frame_files(frametype, sci_ID=sci_ID)
+    #     scidx = self.fitstbl.find_frames(frametype, sci_ID=sci_ID, index=True)[0]
+    #     self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
+    #                                           binning=self.fitstbl['binning'][scidx],
+    #                                           objtype=frametype, scidx=scidx, setup=self.setup,
+    #                                           par=self.par['scienceimage'],
+    #                                           frame_par=self.par['scienceframe'])
+    #     msgs.sciexp = self.sciI  # For QA on crash
+    #
+    #     # Names and time
+    #     self.obstime, self.basename = self.init_time_names(self.fitstbl,scidx)
+    #     # Return
+    #     return self.obstime, self.basename  # For fluxing
 
 
     def reduce_all(self, reuse_masters=False):
@@ -1055,23 +1056,25 @@ class Echelle(PypeIt):
         can_be_None = ['flexure', 'fluxcalib']
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
+# TODO Move standards to calibrations
+
         # Reduce the standards first
-        for kk, std_ID in enumerate(all_std_ID):
-            std_dict = self.reduce_exposure(std_ID, 'standard', reuse_masters=reuse_masters)
-            stddx = self.fitstbl.find_frames('standard', sci_ID=std_ID, index=True)[0]
-            self.save_exposure(stddx, std_dict, self.basename)
+#        for kk, std_ID in enumerate(all_std_ID):
+#            std_dict = self.reduce_exposure(std_ID, 'standard', reuse_masters=reuse_masters)
+#            stddx = self.fitstbl.find_frames('standard', sci_ID=std_ID, index=True)[0]
+#            self.save_exposure(stddx, std_dict, self.basename)
 
         # Save
         for kk,sci_ID in enumerate(all_sci_ID):
-            sci_dict = self.reduce_exposure(sci_ID, 'science', reuse_masters=reuse_masters)
+            sci_dict = self.reduce_exposure(sci_ID, reuse_masters=reuse_masters)
             scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
             self.save_exposure(scidx, sci_dict, self.basename)
 
         # Finish
         self.print_end_time()
 
-    # JFH Reduce exposure above should also be modified to this
-    def reduce_exposure(self, sci_ID, frametype, reuse_masters=False):
+    # TODO this simpler reduce exposure should replace the one above
+    def reduce_exposure(self, sci_ID, reuse_masters=False):
         """
         Reduce a single science exposure
 
@@ -1097,7 +1100,7 @@ class Echelle(PypeIt):
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
         #
-        scidx = self.fitstbl.find_frames(frametype, sci_ID=sci_ID, index=True)[0]
+        scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(self.fitstbl['filename'][scidx],
                                                              self.fitstbl['target'][scidx]))
         # Loop on Detectors
@@ -1121,13 +1124,13 @@ class Echelle(PypeIt):
             # Init ScienceImage class
             self.sci_ID = sci_ID
             self.det = det
-            self.init_one_science(sci_ID, frametype, det)
+            self.init_one_science(sci_ID, det)
             # Extract
 
             # ToDO make this a method load_std_trace()
             # Does a standard exist in the fitstbl? If so grab it since we need the trace. In the future this should
             # use calibgroup matching criteria
-            if (frametype == 'science') & np.any(self.fitstbl.find_frames('standard',sci_ID=sci_ID)):
+            if np.any(self.fitstbl.find_frames('standard',sci_ID=sci_ID)):
                 stddx = self.fitstbl.find_frames('standard',sci_ID=sci_ID, index=True)[0]
                 _, std_basename = self.init_time_names(self.fitstbl, stddx)
                 std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
@@ -1181,30 +1184,19 @@ class Echelle(PypeIt):
 
         # Object finding, first pass on frame without sky subtraction
         maskslits = self.caliBrate.maskslits.copy()
-        # ToDo Replace with echelle object finding routine here.
-        sobjs_obj0, nobj0 = sciI.find_objects(self.caliBrate.tslits_dict, skysub=False,maskslits=maskslits)
 
-        # Global sky subtraction, first pass. Uses skymask from object finding
-        global_sky0 = sciI.global_skysub(self.caliBrate.tslits_dict,
-                                         self.caliBrate.tilts_dict['tilts'],
-                                         use_skymask=True, maskslits=maskslits, show=self.show)
+        # Do one iteration of object finding, and sky subtract to get initial sky model
+        initial_sky = sciI.get_init_sky(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'], show = self.show)
 
-        # Object finding, second pass on frame *with* sky subtraction.
-        # Show here if requested
-        sobjs_obj, nobj = sciI.find_objects(self.caliBrate.tslits_dict, skysub=True,
-                                            maskslits=maskslits, show_peaks=self.show)
+        sobjs_ech, nobj = sciI.get_ech_objects(self.caliBrate.tslits_dict, show=self.show)
+
 
         # If there are objects, do 2nd round of global_skysub,
         # local_skysub_extract, flexure, geo_motion
         vel_corr = None
         if nobj > 0:
-            # Global sky subtraction second pass. Uses skymask from object finding
-            global_sky = sciI.global_skysub(self.caliBrate.tslits_dict,
-                                            self.caliBrate.tilts_dict['tilts'], use_skymask=True,
-                                            maskslits=maskslits, show=self.show)
-
             skymodel, objmodel, ivarmodel, outmask, sobjs \
-                    = sciI.local_skysub_extract(self.caliBrate.mswave, maskslits=maskslits,
+                    = sciI.local_skysub_extract(sobjs_ech, self.caliBrate.mswave, maskslits=maskslits,
                                                 show_profile=self.show, show=self.show)
 
             # Flexure correction?
