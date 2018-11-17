@@ -5,11 +5,23 @@
 - Modify I/O for detnum parameter
 - Modify idx code in SpecObj
 - Fixed a bug on datatype formatting
-- Reworked masteframe and all base classes to be more homogenous so that one only ever overloads the save_master and
-  load_master methods.
-- Many changes fixes wavecal/autoid.py to make the lines being used explicitly clear. This fixed many bugs in the
-  the wavelength fitting that were recently introduced.
+- Reworked masteframe and all base classes to be more homogenous so
+  that one only ever overloads the save_master and load_master
+  methods.
+- Many changes fixes wavecal/autoid.py to make the lines being used
+  explicitly clear. This fixed many bugs in the the wavelength fitting
+  that were recently introduced.
+- Introduced reidentification algorithm for wavelengths and many associated algorithms. Reidentification
+  is now the default for x-shooter and NIRES. Other changes to the wavelength interface and routines
+  to make them more compatible with echelle. 
+- Tweaked LA cosmics defaults. Add instrument specific parameters in spectrograh classes
+  along with routines that check binning and decide on best params for LRIS-RED
+- Now updating cosmic ray masking after each global sky subtraction
+- Major developments for echelle functionality, including object wavelengths, and reduction
+  control flow.
 
+ 
+  
 0.9.0
 -----
 

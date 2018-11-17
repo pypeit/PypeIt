@@ -2125,7 +2125,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None,plate_s
                 group = np.append(group, uni_group[iobj])
                 gfrac = np.append(gfrac, uni_frac[iobj])
             else:
-                # ToDo fix specobjs to get rid of these crappy loops!
+                # ToDo fix specobjs to get rid of these crappy loops! We have a problem with set_item
                 for spec in sobjs_align[on_slit]:
                     spec.ech_fracpos = uni_frac[iobj]
                     spec.ech_group = uni_group[iobj]
@@ -2151,6 +2151,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None,plate_s
             spec = sobjs_sort[indx]
             thismask = ordermask == (iord + 1)
             inmask_iord = inmask & thismask
+            # TODO make the snippet below its own function quick_extraction()
             box_rad_pix = box_radius/plate_scale_ord[iord]
             flux_tmp  = extract_boxcar(image*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
             var_tmp  = extract_boxcar(varimg*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
@@ -2162,7 +2163,10 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None,plate_s
             mask_box[:,iord,iobj] = mask_tmp
             (mean, med_sn, stddev) = sigma_clipped_stats(flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
                                                          sigma_lower=5.0,sigma_upper=5.0)
+            # ToDO assign this to sobjs_sort for use in the extraction
             SNR_arr[iord,iobj] = med_sn
+
+
 
     # Purge objects with low SNR and that don't show up in enough orders
     keep_obj = np.zeros(nobj,dtype=bool)
