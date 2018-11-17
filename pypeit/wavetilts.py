@@ -382,6 +382,8 @@ class WaveTilts(masterframe.MasterFrame):
             tilts_dict = {'tilts':tilts,'coeffs':coeffs,'func2D': head1['FUNC2D']} # This is the tilts_dict
             return tilts_dict #, head0, [filename]
 
+    # JFH THis routine does not follow the current master protocol of taking a data argument. There is no reason to
+    # save all this other information here
     def save_master(self, outfile=None):
         """
 
