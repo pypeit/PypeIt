@@ -394,7 +394,7 @@ class ScienceImage(processimages.ProcessImages):
 
         if update_crmask:
             # Update the crmask by running LA cosmics again
-            self.crmask = self.build_crmask(self.sciimg - self.global_sky, varframe = self.sciivar)
+            self.crmask = self.build_crmask(self.sciimg - self.global_sky, varframe = utils.calc_ivar(self.sciivar))
             # Rebuild the mask with this new crmask
             self.mask = self._build_mask()
 
@@ -537,7 +537,7 @@ class ScienceImage(processimages.ProcessImages):
         # Show the science image if an interactive run, only show the crmask
         if show:
             # Only mask the CRs in this image
-            self.show('image', image=self.sciimg*(self.crmask == 0), chname='sciimg', clear=True)
+            self.show('image', image=self.sciimg*(self.crmask == 0), chname='sciimg')
         return self.sciimg, self.sciivar, self.rn2img, self.crmask
 
     def _build_mask(self):
@@ -611,8 +611,7 @@ class ScienceImage(processimages.ProcessImages):
         for step in self.steps:
             getattr(self, 'get_{:s}'.format(step))()
 
-    def show(self, attr, image=None, showmask=False, sobjs=None, chname=None, slits=False,
-             clear=False):
+    def show(self, attr, image=None, showmask=False, sobjs=None, chname=None, slits=False,clear=False):
         """
         Show one of the internal images
 
