@@ -1921,9 +1921,9 @@ def pca_trace(xcen, usepca = None, npca = None, pca_explained_var=99.0,
     return pca_fit
 
 
-def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None,plate_scale=0.2, std_trace=None, ncoeff = 5,
+def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_vec = None, plate_scale=0.2, std_trace=None, ncoeff = 5,
                 npca=None,coeff_npoly=None,min_snr=0.0,nabove_min_snr=0,pca_explained_var=99.0,pca_percentile=20.0,snr_pca=3.0,
-                box_radius=2.0,sig_thresh=5.,show_peaks=False,show_fits=False,show_trace=False,debug=True):
+                box_radius=2.0,sig_thresh=5.,show_peaks=False,show_fits=False,show_trace=False,show_single_trace = False, debug=True):
     """
     Object finding for Echelle spectragraph
     image :  float ndarray
@@ -1962,11 +1962,15 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None,plate_s
 
 
     if inmask is None:
-        inmask = (ordermask > 0)
+        inmask = (ordermask > -1)
 
     frameshape = image.shape
     nspec = frameshape[0]
     norders = slit_left.shape[1]
+
+    # TODO Use the order vec below instead of 0-norders indices
+    if order_vec is None:
+        order_vec = np.arange(norders)
 
     if isinstance(plate_scale,(float, int)):
         plate_scale_ord = np.full(norders, plate_scale)
@@ -1995,17 +1999,17 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None,plate_s
     sobjs = specobjs.SpecObjs()
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up slitid and orderindx!
     for iord  in range(norders):
-        msgs.info('Finding objects on slit # {:d}'.format(iord + 1))
-        thismask = ordermask == (iord + 1)
+        msgs.info('Finding objects on slit # {:d}'.format(iord))
+        thismask = ordermask == iord
         inmask_iord = inmask & thismask
-        specobj_dict = {'setup': 'HIRES', 'slitid': iord + 1, 'scidx': 0,'det': 1, 'objtype': 'science'}
+        specobj_dict = {'setup': 'HIRES', 'slitid': iord, 'scidx': 0,'det': 1, 'objtype': 'science'}
         try:
             std_in = std_trace[:,iord]
         except TypeError:
             std_in = None
         sobjs_slit, skymask[thismask], objmask[thismask], proc_list = \
             objfind(image, thismask, slit_left[:,iord], slit_righ[:,iord], inmask=inmask_iord,std_trace=std_in,
-                            show_peaks=show_peaks,show_fits=show_fits, show_trace=show_trace,
+                            show_peaks=show_peaks,show_fits=show_fits, show_trace=show_single_trace,
                             specobj_dict=specobj_dict, sig_thresh=sig_thresh)
         # ToDO make the specobjs _set_item_ work with expressions like this spec[:].orderindx = iord
         for spec in sobjs_slit:
@@ -2097,7 +2101,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None,plate_s
             if not np.any(on_slit):
                 # Add this to the sobjs_align, and assign required tags
                 thisobj = specobjs.SpecObj(frameshape, slit_spat_pos[iord,:], slit_spec_pos, det = sobjs_align[0].det,
-                                           setup = sobjs_align[0].setup, slitid = (iord + 1),
+                                           setup = sobjs_align[0].setup, slitid = iord,
                                            scidx = sobjs_align[0].scidx, objtype=sobjs_align[0].objtype)
                 thisobj.ech_orderindx = iord
                 thisobj.spat_fracpos = uni_frac[iobj]
@@ -2149,7 +2153,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None,plate_s
         for iord in range(norders):
             indx = (sobjs_sort.ech_group == uni_group[iobj]) & (sobjs_sort.ech_orderindx == iord)
             spec = sobjs_sort[indx]
-            thismask = ordermask == (iord + 1)
+            thismask = ordermask == iord
             inmask_iord = inmask & thismask
             # TODO make the snippet below its own function quick_extraction()
             box_rad_pix = box_radius/plate_scale_ord[iord]
@@ -2212,7 +2216,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None,plate_s
                                          debug=debug)
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
-        inmask_now = inmask & (ordermask > 0)
+        inmask_now = inmask & (ordermask > -1)
         xfit_fweight = iter_tracefit(image, xinit_fweight, ncoeff, inmask = inmask_now, show_fits=show_fits)
         # Perform iterative Gaussian weighted centroiding
         xinit_gweight = xfit_fweight.copy()
@@ -2225,7 +2229,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None,plate_s
     # Set the IDs
     sobjs_final.set_idx()
     if show_trace:
-        viewer, ch = ginga.show_image(image*(ordermask > 0))
+        viewer, ch = ginga.show_image(image*(ordermask > -1))
         for iobj in range(nobj_trim):
             for iord in range(norders):
                 ## Showing the trace from objfind
