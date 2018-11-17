@@ -191,7 +191,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # self.sky_file ?
 
         # Don't instantiate these until they're needed
-        self.slitmask = None
         self.grating = None
         self.optical_model = None
         self.detector_map = None
