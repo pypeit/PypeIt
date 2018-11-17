@@ -92,7 +92,7 @@ def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_
 
 def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograph.slitmask, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
              spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0),
-             tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.07, nonlinear_counts =1e10, debug = False):
+             tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.10, nonlinear_counts =1e10, debug = False):
 
 
     """ Compute pixelflat and illumination flat from a flat field image.
@@ -153,9 +153,9 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
     tweak_slits_thresh: float, default = 0.85
       If tweak_slits is True, this sets the illumination function threshold used to tweak the slits
 
-    tweak_slits_maxfrac: float, default = 0.05
+    tweak_slits_maxfrac: float, default = 0.10
       Maximum fractinoal amount (of slit width) allowed for each trimming the left and right slit boundaries, i.e. the
-      default is 5% which means slits would shrink by at most 10%.
+      default is 10% which means slits would shrink by at most 20% (10% on each side)
 
     debug: bool, default = False
       Show plots useful for debugging. This will block further execution of the code until the plot windows are closed.
