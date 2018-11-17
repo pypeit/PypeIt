@@ -13,6 +13,8 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.core import pixels
+
 
 from pypeit import debugger
 
@@ -28,7 +30,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
     @property
     def pypeline(self):
-        return 'MultiSlit'
+        return 'Echelle'
 
     @staticmethod
     def default_pypeit_par():
@@ -160,6 +162,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 2.12,
                             ronoise         = 8.0, # ?? more precise value?
+                    # JFH TODO these are slightly off. There should actually be 4 pixels shaved off in the spectral
+                    # direction but I don't want to break the wavelength solutions.
                             datasec         = '[20:,4:2044]',
                             oscansec        = '[4:20,4:2044]',
                             suffix          = '_NIR'
@@ -180,7 +184,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['pcatype'] = 'order'
         par['calibrations']['tilts']['tracethresh'] = [10,10,10,10,10,10,10,10,10, 10, 10, 20, 20, 20,20,10]
 
-
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
@@ -188,7 +191,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir_iraf.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.json'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
@@ -250,8 +253,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         self.empty_bpm(shape=shape, filename=filename, det=det)
         return self.bpm_img
 
-
-    def slit2order(self,islit):
+    @staticmethod
+    def slit2order(islit):
 
         """
         Parameters
@@ -263,8 +266,63 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         order: int
         """
 
+        if isinstance(islit,str):
+            islit = int(islit)
+        elif isinstance(islit,np.ndarray):
+            islit = islit.astype(int)
+        elif isinstance(islit,float):
+            islit = int(islit)
+        elif isinstance(islit, int):
+            pass
+        else:
+            msgs.error('Unrecognized type for islit')
+
         orders = np.arange(26,10,-1, dtype=int)
-        return orders[int(islit)]
+        return orders[islit]
+
+
+
+    @staticmethod
+    def slitmask(tslits_dict, pad=None, binning=None):
+        """
+         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
+         overload this function to implement instrument specific slitmask behavior, for example setting
+         where the orders on an echelle spectrograph end
+
+         Parameters
+         -----------
+         tslits_dict: dict
+            Trace slits dictionary with slit boundary information
+
+         Optional Parameters
+         pad: int or float
+            Padding of the slit boundaries
+         binning: tuple
+            Spectrograph binning in spectral and spatial directions
+
+         Returns
+         -------
+         slitmask: ndarray int
+            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
+            indicating the slit number going from 0 to nslit-1 from left to right.
+
+         """
+
+        # These lines are always the same
+        pad = tslits_dict['pad'] if pad is None else pad
+        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
+
+        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
+
+        nslits = tslits_dict['lcen'].shape[1]
+        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
+        order_max = [1476,1513,1551, 1592,1687,1741,1801, 1864,1935,2007, 2025, 2025,2025,2025,2025,2025]
+        order_min = [418 ,385 , 362,  334, 303, 268, 230,  187, 140,  85,   26,    0,   0,   0,   0,   0]
+        # TODO add binning adjustments to these
+        for islit in range(nslits):
+            orderbad = (slitmask == islit) & ((spec_img < order_min[islit]) | (spec_img > order_max[islit]))
+            slitmask[orderbad] = -1
+        return slitmask
 
 
 
