@@ -571,6 +571,12 @@ class Spectrograph(object):
         slitmask = pixels.slit_pixels(tslits_dict['lcen'],tslits_dict['rcen'],tslits_dict['nspat'], pad=pad)
         return slitmask
 
+    # This routine is only for echelle spectrographs. It returns the plate scale order by order
+    @staticmethod
+    def order_platescale(self, binning=None):
+        pass
+
+
     def __repr__(self):
         # Generate string
         txt = '<{:s}: '.format(self.__class__.__name__)
