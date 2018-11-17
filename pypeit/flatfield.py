@@ -216,13 +216,15 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.mspixelflat = np.ones_like(self.rawflatimg)
         self.msillumflat = np.ones_like(self.rawflatimg)
         self.flat_model = np.zeros_like(self.rawflatimg)
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
+
 
         final_tilts = np.zeros_like(self.rawflatimg)
 
         # Loop on slits
         for slit in range(self.nslits):
             msgs.info("Computing flat field image for slit: {:d}".format(slit + 1))
-            thismask = (self.tslits_dict['slitpix'] == slit)
+            thismask = (self.slitmask == slit)
             if self.msbpm is not None:
                 inmask = ~self.msbpm
             else:
@@ -247,15 +249,9 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                 this_tilts = tracewave.coeff2tilts(this_tilts_dict['coeffs'], self.rawflatimg.shape, self.tilts_dict['func2D'])
                 final_tilts[thismask_out] = this_tilts[thismask_out]
 
-        # If we tweaked the slits update the tslits_dict and the tilts_dict
+        # If we tweaked the slits update the tilts_dict
         if self.flatpar['tweak_slits']:
             self.tilts_dict['tilts'] = final_tilts
-            # Update the tslits_dict
-            self.tslits_dict['slitpix']= pixels.slit_pixels(self.tslits_dict['lcen'], self.tslits_dict['rcen'], self.rawflatimg.shape[1])
-            # ToDo no need to store the ximg and edgmask in the tslits_dict, they can be generated on the fly
-            ximg, edge_mask = pixels.ximg_and_edgemask(self.tslits_dict['lcen'], self.tslits_dict['rcen'], self.tslits_dict['slitpix'])
-            self.tslits_dict['ximg'] = ximg
-            self.tslits_dict['edge_mask'] = edge_mask
 
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here
