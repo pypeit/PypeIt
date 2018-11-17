@@ -438,6 +438,9 @@ class ProcessImages(object):
             msgs.warn("Images already combined.  Use overwrite=True to do it again.")
             return
 
+        # JFH The fact that all these codes have no arguments and no return values make the control flow very hard to follow.
+        # I realize that everything has global scope in a class, but inputs and outputs to functions make code flow understandable.
+
         # Load images
         if 'load_images' not in self.steps:
             self.load_images()
@@ -463,6 +466,7 @@ class ProcessImages(object):
 
         # Combine
         self.stack = self.proc_images[:,:,0] if self.proc_images.shape[2] == 1 else self.combine()
+        self.raw_stack = self.stack
 
         # Apply gain?
         if apply_gain:
