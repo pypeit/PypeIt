@@ -274,8 +274,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         slitmask[order7bad] = -1
         return slitmask
 
-
-    def slit2order(self,islit):
+    @staticmethod
+    def slit2order(islit):
 
         """
         Parameters
@@ -287,10 +287,21 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         order: int
         """
 
-        orders = [7,6,5,4,3]
-        return orders[int(islit)]
+        if isinstance(islit, str):
+            islit = int(islit)
+        elif isinstance(islit, np.ndarray):
+            islit = islit.astype(int)
+        elif isinstance(islit, float):
+            islit = int(islit)
+        elif isinstance(islit, int):
+            pass
+        else:
+            msgs.error('Unrecognized type for islit')
 
-#    def ordermask(self, slitmask):
+        orders = np.arange(7, 2, -1, dtype=int)
+        return orders[islit]
+
+
 
 
 
