@@ -202,7 +202,7 @@ class ScienceImage(processimages.ProcessImages):
         """
         for obj in items:
             if getattr(self, obj) is None:
-                msgs.warn('You need to generate {:s} prior to this calibration..'.format(obj))
+                msgs.warn('You need to generate {:s} prior to this step..'.format(obj))
                 if obj in ['sciimg', 'sciivar', 'rn2_img']:
                     msgs.warn('Run the process() method')
                 elif obj in ['sobjs_obj']:
@@ -253,9 +253,12 @@ class ScienceImage(processimages.ProcessImages):
         """
 
         self.tslits_dict = tslits_dict
-        self.slitmask = self.spectrograph.slitmask(tslits_dict) if self.slitmask is None else self.slitmask
         self.maskslits = self._get_goodslits(maskslits)
         gdslits = np.where(~self.maskslits)[0]
+
+        # Build and assign the slitmask and input mask if they do not already exist
+        self.slitmask = self.spectrograph.slitmask(tslits_dict) if self.slitmask is None else self.slitmask
+        self.mask = self._build_mask() if self.mask is None else self.mask
 
         # create the ouptut images skymask and objmask
         self.skymask = np.zeros_like(self.sciimg,dtype=bool)
@@ -271,19 +274,17 @@ class ScienceImage(processimages.ProcessImages):
         else:
             image = self.sciimg
 
-        # Build and assign the input mask
-        self.mask = self._build_mask()
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
 
         # Loop on slits
         for slit in gdslits:
-            qa_title ="Finding objects on slit # {:d}".format(slit +1)
+            qa_title ="Finding objects on slit # {:d}".format(slit)
             msgs.info(qa_title)
             thismask = (self.slitmask == slit)
             inmask = (self.mask == 0) & thismask
             # Find objects
-            specobj_dict = {'setup': self.setup, 'slitid': slit+1, 'scidx': self.scidx,
+            specobj_dict = {'setup': self.setup, 'slitid': slit, 'scidx': self.scidx,
                             'det': self.det, 'objtype': self.objtype}
 
             # TODO we need to add QA paths and QA hooks. QA should be
@@ -299,8 +300,8 @@ class ScienceImage(processimages.ProcessImages):
             sobjs.add_sobj(sobjs_slit)
             self.qa_proc_list += proc_list
 
-        self.sobjs_obj = sobjs
         # Finish
+        self.sobjs_obj = sobjs
         self.nobj = len(sobjs)
 
         # Steps
@@ -312,28 +313,6 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.sobjs_obj, self.nobj
 
-    def _get_goodslits(self, maskslits):
-        """
-        Return the slits to be reduce by going through the maskslits
-        logic below. If the input maskslits is None it uses previously
-        assigned maskslits
-
-        Returns
-        -------
-        gdslits
-            numpy array of slit numbers to be reduced
-        """
-
-        # Identify the slits that we want to consider.
-        if maskslits is not None:
-            # If maskslits was passed in use it, and update self
-            self.maskslits = maskslits
-        elif (self.maskslits is None):
-            # If maskslits was not passed, and it does not exist in self, reduce all slits
-            self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
-        else: # Otherwise, if self.maskslits exists, use the previously set maskslits
-            pass
-        return self.maskslits
 
     def global_skysub(self, tslits_dict, tilts, use_skymask=True, update_crmask = True, maskslits=None, show_fit=False,
                       show=False):
@@ -359,11 +338,15 @@ class ScienceImage(processimages.ProcessImages):
         Returns:
             global_sky: (numpy.ndarray) image of the the global sky model
         """
+
         self.tslits_dict = tslits_dict
-        self.slitmask = self.spectrograph.slitmask(tslits_dict) if self.slitmask is None else self.slitmask
         self.tilts = tilts
         self.maskslits = self._get_goodslits(maskslits)
         gdslits = np.where(~self.maskslits)[0]
+
+        # Build and assign the slitmask and input mask if they do not already exist
+        self.slitmask = self.spectrograph.slitmask(tslits_dict) if self.slitmask is None else self.slitmask
+        self.mask = self._build_mask() if self.mask is None else self.mask
 
         # Prep
         self.global_sky = np.zeros_like(self.sciimg)
@@ -373,11 +356,9 @@ class ScienceImage(processimages.ProcessImages):
         skymask = self.skymask if ((self.skymask is not None) & use_skymask) \
                         else np.ones_like(self.sciimg, dtype=bool)
 
-        # Build and assign the input mask
-        self.mask = self._build_mask()
         # Loop on slits
         for slit in gdslits:
-            msgs.info("Global sky subtraction for slit: {:d}".format(slit +1))
+            msgs.info("Global sky subtraction for slit: {:d}".format(slit))
             thismask = (self.slitmask == slit)
             inmask = (self.mask == 0) & thismask & skymask
             # Find sky
@@ -409,8 +390,54 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.global_sky
 
-    def local_skysub_extract(self, waveimg, maskslits=None, show_profile=False, show_resids=False,
-                             show=False):
+    def get_init_sky(self, tslits_dict, tilts, maskslits=None, update_crmask = True, show_fit = False, show = False):
+
+        self.sobjs_obj_init, self.nobj_init = self.find_objects(tslits_dict, skysub=False,maskslits=maskslits)
+
+        # Global sky subtraction, first pass. Uses skymask from object finding step above
+        self.global_sky = self.global_skysub(tslits_dict,tilts, use_skymask=True, update_crmask = update_crmask, maskslits=maskslits,
+                                             show_fit = show_fit, show=show)
+
+        return self.global_sky
+
+    def get_ech_objects(self, tslits_dict, std_trace = None, show=False):
+
+        # Did they run process?
+        if not self._chk_objs(['sciimg', 'sciivar', 'global_sky']):
+            msgs.error('All quantities necessary to run ech_objfind() have not been set.')
+
+        # Check for global sky if it does not exist print out a warning
+
+        # Somehow implmenent masking below? Not sure it is worth it
+        #self.maskslits = self._get_goodslits(maskslits)
+        #gdslits = np.where(~self.maskslits)[0]
+
+        # Build and assign the slitmask and input mask if they do not already exist
+        self.slitmask = self.spectrograph.slitmask(tslits_dict) if self.slitmask is None else self.slitmask
+        self.mask = self._build_mask() if self.mask is None else self.mask
+
+        # This routine should only be run on sky-subtracted images
+        self.slitmask = self.spectrograph.slitmask(tslits_dict) if self.slitmask is None else self.slitmask
+        self.mask = self._build_mask() if self.mask is None else self.mask
+
+        plate_scale = self.spectrograph.order_platescale(binning = self.binning)
+        # ToDO implement parsets here!
+        self.sobjs_ech = extract.ech_objfind(self.sciimg-self.global_sky, self.sciivar, self.slitmask, tslits_dict['lcen'], tslits_dict['rcen'],
+                                             inmask=(self.mask == 0), plate_scale=plate_scale, std_trace=std_trace,ncoeff=5,
+                                             sig_thresh=5., show_peaks=True, show_fits=False, show_trace=show, debug=True)
+
+
+        self.nobj_ech = len(self.sobjs_ech)
+
+
+        # Steps
+        self.steps.append(inspect.stack()[0][3])
+        if show:
+            self.show('image', image=(self.sciimg - self.global_sky)*(self.mask == 0), chname = 'ech_objfind',sobjs=self.sobjs_ech, slits=True)
+
+        return self.sobjs_ech, self.nobj_ech
+
+    def local_skysub_extract(self, sobjs, waveimg, maskslits=None, show_profile=False, show_resids=False,show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -418,33 +445,36 @@ class ScienceImage(processimages.ProcessImages):
 
         Parameters
         ----------
+        sobjs: object
+           Specobjs object containing Specobj objects containing information about objects found.
+        waveimg: ndarray, shape (nspec, nspat)
+           Wavelength map
 
         Optional Parameters
         -------------------
-        bspline_spaceing: (float):
-           Break-point spacing for bspline
+
 
         Returns:
             global_sky: (numpy.ndarray) image of the the global sky model
         """
+
 
         self.waveimg = waveimg
         # get the good slits and assign self.maskslits
         self.maskslits = self._get_goodslits(maskslits)
         gdslits = np.where(~self.maskslits)[0]
 
+        # Build and assign the slitmask and input mask if they do not already exist
+        self.slitmask = self.spectrograph.slitmask(tslits_dict) if self.slitmask is None else self.slitmask
+        self.mask = self._build_mask() if self.mask is None else self.mask
+
         if not self._chk_objs([ # Did they run process?
                                 'sciimg', 'sciivar', 'rn2img',
-                                # Did they run object finding, self.find_objects() ?
-                                'sobjs_obj',
                                 # Did they run global sky subtraction, self.global_skysub()?
                                 'global_sky',
                                 # Did the input the right calibrations in prev steps?
                                 'tilts', 'waveimg', 'tslits_dict']):
             msgs.error('All quantities necessary to run local_skysub_extract() have not been set.')
-
-        # Build and assign the input mask
-        self.mask = self._build_mask()
 
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
@@ -461,11 +491,11 @@ class ScienceImage(processimages.ProcessImages):
         # Could actually create a model anyway here, but probably
         # overkill since nothing is extracted
 
-        self.sobjs = self.sobjs_obj.copy()
+        self.sobjs = sobjs.copy()
         # Loop on slits
         for slit in gdslits:
-            msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit+1))
-            thisobj = (self.sobjs.slitid == slit + 1) # indices of objects for this slit
+            msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit))
+            thisobj = (self.sobjs.slitid == slit) # indices of objects for this slit
             if np.any(thisobj):
                 thismask = (self.slitmask == slit) # pixels for this slit
                 # True  = Good, False = Bad for inmask
@@ -500,6 +530,31 @@ class ScienceImage(processimages.ProcessImages):
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+
+
+    def _get_goodslits(self, maskslits):
+        """
+        Return the slits to be reduce by going through the maskslits
+        logic below. If the input maskslits is None it uses previously
+        assigned maskslits
+
+        Returns
+        -------
+        gdslits
+            numpy array of slit numbers to be reduced
+        """
+
+        # Identify the slits that we want to consider.
+        if maskslits is not None:
+            # If maskslits was passed in use it, and update self
+            self.maskslits = maskslits
+        elif (self.maskslits is None):
+            # If maskslits was not passed, and it does not exist in self, reduce all slits
+            self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
+        else: # Otherwise, if self.maskslits exists, use the previously set maskslits
+            pass
+        return self.maskslits
+
 
     def process(self, bias_subtract, pixel_flat, bpm, illum_flat=None, apply_gain=True, trim=True,show=False):
         """ Process the image
