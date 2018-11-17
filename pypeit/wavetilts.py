@@ -108,6 +108,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.coeffs = None
         self.tilts_dict = None
 
+    # This method does not appear finished
     @classmethod
     def from_master_files(cls, setup, mdir='./'):
         """
@@ -123,19 +124,21 @@ class WaveTilts(masterframe.MasterFrame):
         slf
 
         """
-        # Arc
-        msarc_file = masterframe.master_name('arc', setup, mdir)
-        msarc, _, _ = self.load_master(msarc_file)
 
         # Instantiate
-        slf = cls(msarc, setup=setup)
+        slf = cls(None, setup=setup)
+        msarc_file = masterframe.master_name('arc', setup, mdir)
+        # Arc
+        msarc, _, _ = slf.load_master(msarc_file)
+        slf.msarc = msarc
+
 
         # Tilts
         mstilts_file = masterframe.master_name('tilts', setup, mdir)
         hdul = fits.open(mstilts_file)
         slf.final_tilts = hdul[0].data
         slf.tilts = slf.final_tilts
-        self.coeffs = slf.hdu[1].data
+        slf.coeffs = slf.hdu[1].data
 
         # Dict
         slf.all_trcdict = []
