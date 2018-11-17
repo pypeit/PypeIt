@@ -43,6 +43,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                             datasec         = '[1:2048,1:1024]',
                             oscansec        = '[1:2048,980:1024]'
                             )]
+        self.norders = 5
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
@@ -300,6 +301,32 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         orders = np.arange(7, 2, -1, dtype=int)
         return orders[islit]
+
+    @staticmethod
+    def order_platescale(binning = None):
+
+
+        """
+        Returns the plate scale in arcseconds for each order
+
+        Parameters
+        ----------
+        None
+
+        Optional Parameters
+        --------------------
+        binning: str
+
+        Returns
+        -------
+        order_platescale: ndarray, float
+
+        """
+
+        # NIRES has no binning, but for an instrument with binning we would do this
+        #binspatial, binspectral = parse.parse_binning(binning)
+        return np.full(5, 0.15)
+
 
 
 
