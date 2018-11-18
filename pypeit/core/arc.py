@@ -164,11 +164,12 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     fit_dict = dict(coeffs=coeffs, orders=orders, nspec_coeff=nspec_coeff, norder_coeff=norder_coeff, pixel_cen=norm_pixel[0],
                     pixel_norm=norm_pixel[1], order_cen=norm_order[0], order_norm=norm_order[1], nspec=nspec)
 
+
     fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask)
 
     return fit_dict
 
-def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask):
+def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask, setup=None, out_dir=None):
     """ QA on 2D fit of the wavelength solution
     
     Parameters
@@ -179,7 +180,12 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask):
     """
 
     utils.pyplot_rcparams()
-    
+
+    '''
+    outfile = qa.set_qa_filename(setup, method='fit2darc',
+                                 out_dir=out_dir)
+    '''
+
     # Full plot
 
     # Extract info from fit_dict
@@ -199,6 +205,8 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask):
     plt.xlabel(r'Wavelength [$\AA$]')
     plt.ylabel(r'Row [pixel]')
 
+    mx = 0.
+
     # Loop over orders
     for ii in orders:
         # define the color
@@ -217,16 +225,18 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask):
 
         wv_order_mod_res_qa = eval2dfit(fit_dict, this_pix, ii)
         res_qa = (wv_order_mod_res_qa/ii-this_wv)
-        plt.scatter((wv_order_mod_res_qa[~this_msk]/ii)+100*res_qa[~this_msk], this_pix[~this_msk],color='black')
+        plt.scatter((wv_order_mod_res_qa[~this_msk]/ii)+100*res_qa[~this_msk], this_pix[~this_msk],marker='x', color='black')
         plt.scatter((wv_order_mod_res_qa[this_msk]/ii)+100*res_qa[this_msk], this_pix[this_msk],color=(rr,gg,bb))
-    # plt.text(mx,np.max(all_pix),r'residuals $\times$100',ha="right", va="top",)
+
+        if np.max(wv_order_mod_res_qa/ii) > mx :
+            mx = np.max(wv_order_mod_res_qa/ii)
+
+    plt.text(mx,np.max(all_pixels_qa),r'residuals $\times$100',ha="right", va="top",)
 
     # Finish
     # plt.savefig(outfile, dpi=800)
     # plt.close()
-
     plt.show()
-
 
 '''
 def fit2darc_qa(fit_dict):
