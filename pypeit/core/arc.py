@@ -217,7 +217,7 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask):
 
         wv_order_mod_res_qa = eval2dfit(fit_dict, this_pix, ii)
         res_qa = (wv_order_mod_res_qa/ii-this_wv)
-        plt.scatter((wv_order_mod_res_qa/ii)+100*res_qa, this_pix,color='black',alpha=0.7)
+        plt.scatter((wv_order_mod_res_qa[~this_msk]/ii)+100*res_qa[~this_msk], this_pix[~this_msk],color='black')
         plt.scatter((wv_order_mod_res_qa[this_msk]/ii)+100*res_qa[this_msk], this_pix[this_msk],color=(rr,gg,bb))
     # plt.text(mx,np.max(all_pix),r'residuals $\times$100',ha="right", va="top",)
 
