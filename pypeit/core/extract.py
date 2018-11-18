@@ -28,6 +28,7 @@ from pypeit import ginga
 import time
 from matplotlib import pyplot as plt
 from pypeit.core import trace_slits
+from pypeit.core import arc
 
 from sklearn.decomposition import PCA
 from pypeit import specobjs
@@ -1171,6 +1172,50 @@ def parse_hand_dict(hand_extract_dict):
 
 
 def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gweight=False,show_fits=False, idx = None):
+    """ Utility routine for object find to iteratively trace and fit. Used by both objfind and ech_objfind
+
+    Parameters
+    ----------
+    image: ndaarray, float
+        Image of objects to be traced
+    xinit_in: ndarray, float
+        Initial guesses for spatial direction trace. This can either be an 2-d  array with shape
+        (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+    ncoeff: int
+        Order of polynomial fits to trace
+
+    Optional Parameter
+    ------------------
+    inmask: ndarray, bool
+        Input mask for the image
+
+    fwhm: float
+        fwhm width parameter for the flux or gaussian weighted tracing. For flux weighted trace the code does a third
+        of the iterations with window 1.3*fwhm, a third with 1.1*fwhm, and a third with fwhm. For Gaussian weighted tracing
+        it uses the fwhm to determine the sigma of the Gausisan which is used for all iterations.
+    gweight: bool, default = False
+        If gweight is True the routine does Gaussian weighted tracing, if it is False it will do flux weighted tracing.
+        Normally the approach is to do a round of flux weighted tracing first, and then refine the traces with Gaussian
+        weighted tracing.
+    show_fits: bool, default = False
+        Will plot the data and the fits.
+    idx: ndarray of strings, default = None
+        Array of idx IDs for each object. Used only if show_fits is true for the plotting.
+
+
+    Returns
+    -------
+    xpos: ndarray, float
+       The output has the same size as xinit_in and contains the fit to the spatial direction of trace for each
+       object.
+
+
+
+    Revision History
+    ----------------
+    23-June-2018  Written by J. Hennawi
+    """
+
 
     if inmask is None:
         inmask = np.ones_like(image,dtype=bool)
@@ -1215,8 +1260,10 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
                 plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
                 if np.any(~nomask):
                     plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=5.0,linestyle='None',zorder= 20, label='masked points, set to init guess')
-                if idx is not None:
+                try:
                     plt.title(title_text + ' Centroid to object {:s}.'.format(idx[iobj]))
+                except TypeError:
+                    plt.title(title_text + ' Centroid to object {:d}.'.format(iobj))
                 plt.ylim((0.995*xfit1[:, iobj].min(), 1.005*xfit1[:, iobj].max()))
                 plt.xlabel('Spectral Pixel')
                 plt.ylabel('Spatial Pixel')
@@ -1231,9 +1278,9 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
 specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 'science'}
 
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
-            hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit = 10,  bg_smth = 5.0, pkwdth = 3.0,
+            hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit = 10,  bg_smth = 5.0,
             maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (3,3), objmask_nthresh = 2.0,
-            specobj_dict=specobj_dict, show_peaks=True, show_fits = False, show_trace = False, qa_title=''):
+            specobj_dict=specobj_dict, show_peaks=False, show_fits = False, show_trace = False, qa_title=''):
 
     """ Find the location of objects in a slitmask slit or a echelle order.
 
@@ -1261,6 +1308,25 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
     Optional Parameters
     -------------------
+    inmask: float ndarray, default = None
+        Input mask image.
+    fwhm: float, default = 3.0
+        Estimated fwhm of the objects in pixels
+    hand_extract_dict: dict, default = None
+        Dictionary containing information about apertures requested by user that should be place by hand in the object list.
+        This option is useful for cases like an emission line obect that the code fails to find with its significance threshold
+    std_trace: float ndarray, shape = (nspec,), default = None
+        This is a one dimensioal array containing the standard star trace which is used as a crutch for tracing. If the
+        no standard star is provided the code uses the the slit boundaries as the crutch.
+    ncoeff: int, default = 5
+        Order of legendre polynomial fits to the trace
+    nperslit: int, default = 10
+        Maximum number of objects allowed per slit
+    bg_smth: float, default = 5.0
+        Size of the smoothing kernel in units of fwhm used to determine the background level from the smash of the image
+        along the curved traces. This background subtracted smashed image is used for peak finding to identify objects
+    pkwdth: float, defualt = 3.0
+
     ycen :  float ndarray
         Y positions corresponding to "Left"  and "Right" (expected as integers). Will be cast to an integer if floats
         are provided. This needs to have the same shape as left and right broundarys provided above. In other words,
@@ -1283,8 +1349,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     2005-2018    Improved by J. F. Hennawi and J. X. Prochaska
     23-June-2018 Ported to python by J. F. Hennawi and significantly improved
     """
-
-    from pypeit.utils import find_nminima
 
     proc_list = []  # List of processes for interactive plotting, these are passed back in case the user wants to terminate them
     # Check that peak_thresh values make sense
@@ -1336,12 +1400,16 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548,mode='nearest')
 
-    xcen, sigma_pk, ledg, redg = find_nminima(-fluxconv,nfind=nperslit, width = pkwdth,
-                                              minsep = np.fmax(fwhm, pkwdth))
-    xcen_neg,sigma_pk_neg,ledg_neg,redg_neg = find_nminima(fluxconv,nfind=nperslit, width = pkwdth,
-                                                           minsep = np.fmax(fwhm, pkwdth))
-    ypeak = np.interp(xcen,np.arange(nsamp),fluxconv)
-    ypeak_neg = np.interp(xcen_neg,np.arange(nsamp),fluxconv)
+    #xcen, sigma_pk, ledg, redg = find_nminima(-fluxconv,nfind=nperslit, width = pkwdth,minsep = np.fmax(fwhm, pkwdth))
+    #xcen_neg,sigma_pk_neg,ledg_neg,redg_neg = find_nminima(fluxconv,nfind=nperslit, width = pkwdth,minsep = np.fmax(fwhm, pkwdth))
+    #ypeak = np.interp(xcen,np.arange(nsamp),fluxconv)
+    #ypeak_neg = np.interp(xcen_neg,np.arange(nsamp),fluxconv)
+
+    # Perform initial finding with a very liberal threshold
+    ypeak, _, xcen, sigma_pk, _, _, _, _ = arc.detect_lines(fluxconv, cont_subtract = False, fwhm = fwhm,
+                                                            input_thresh = 'None',debug=False)
+    ypeak_neg, _, xcen_neg, sigma_pk_neg, _, _, _, _ = arc.detect_lines(-fluxconv, cont_subtract = False, fwhm = fwhm,
+                                                                        input_thresh = 'None',debug=False)
     # Only mask the strong peaks
     (mean0, med0, sigma0)     = sigma_clipped_stats(fluxconv, sigma=2.5)
     # Create a mask for pixels to use for a background flucutation level estimate. Mask spatial pixels that hit an object
@@ -1389,6 +1457,16 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
     xcen = xcen[not_near_edge]
     ypeak = ypeak[not_near_edge]
+
+    # If the user requested the nperslit most significant peaks have been requested, then grab and return only these lines
+    if nperslit is not None:
+        if nperslit > len(ypeak):
+            msgs.warn('Requested nperslit = {:}'.format(nperslit) + ' most significant objects but only npeak = {:}'.format(len(xcen)) +
+                      ' were found. Returning all the objects found.')
+        else:
+            ikeep = (ypeak.argsort()[::-1])[0:nperslit]
+            xcen = xcen[ikeep]
+            ypeak = ypeak[ikeep]
     npeak = len(xcen)
 
     # Instantiate a null specobj
