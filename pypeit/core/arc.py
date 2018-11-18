@@ -54,7 +54,6 @@ def fit_double_poly(all_wv_order, work2d, thismask, nspec_coeff, norder_coeff):
 
 
 def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0,debug=True, skip_QA=False):
-
     """Routine to obtain the 2D wavelength solution for an echelle spectrograph. This is calculated from the spec direction
     pixelcentroid and the order number of identified arc lines. The fit is a simple least-squares with rejections.
     This is a port of the XIDL code: x_fit2darc.pro
@@ -67,10 +66,10 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
       y-centroid position of the identified lines
     all_orders: np.array
       order number of the identified lines
-    nspec_coeff : np.int
-      order of the fitting along the spectral (pixel) direction for each order
     nspec: int
       Size of the image in the spectral direction
+    nspec_coeff : np.int
+      order of the fitting along the spectral (pixel) direction for each order
     norder_coeff : np.int
       order of the fitting in the order direction
     sigrej: np.float
@@ -162,10 +161,72 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     msgs.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
 
     orders = np.unique(all_orders)
-    fit_dict = dict(coeffs=coeffs, orders = orders, nspec_coeff = nspec_coeff, norder_coeff=norder_coeff, pixel_cen = norm_pixel[0],
-                    pixel_norm=norm_pixel[1], order_cen = norm_order[0], order_norm = norm_order[1], nspec = nspec)
+    fit_dict = dict(coeffs=coeffs, orders=orders, nspec_coeff=nspec_coeff, norder_coeff=norder_coeff, pixel_cen=norm_pixel[0],
+                    pixel_norm=norm_pixel[1], order_cen=norm_order[0], order_norm=norm_order[1], nspec=nspec)
+
+    fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask)
 
     return fit_dict
+
+def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask):
+    """ QA on 2D fit of the wavelength solution
+    
+    Parameters
+    ----------
+
+    Returns
+    -------
+    """
+
+    utils.pyplot_rcparams()
+    
+    # Full plot
+
+    # Extract info from fit_dict
+    nspec = fit_dict['nspec']
+    orders = fit_dict['orders']
+    pixel_norm = fit_dict['pixel_norm']
+    pixel_cen = fit_dict['pixel_cen']
+    nspec_coeff = fit_dict['nspec_coeff']
+    norder_coeff = fit_dict['norder_coeff']
+
+    # Define pixels array
+    all_pixels_qa = np.arange(nspec)
+
+    # Define figure properties
+    plt.figure(figsize=(7,5))
+    plt.title(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#'.format(norder_coeff,nspec_coeff,fin_rms))
+    plt.xlabel(r'Wavelength [$\AA$]')
+    plt.ylabel(r'Row [pixel]')
+
+    # Loop over orders
+    for ii in orders:
+        # define the color
+        rr = (ii-np.max(orders))/(np.min(orders)-np.max(orders))
+        gg = 0.0
+        bb = (ii-np.min(orders))/(np.max(orders)-np.min(orders))
+
+        # Plot solution
+        wv_order_mod_qa = eval2dfit(fit_dict, all_pixels_qa, ii)
+
+        plt.plot(wv_order_mod_qa/ii, all_pixels_qa,color=(rr,gg,bb), linestyle='-', linewidth=2.5)
+        # Plot residuals
+        this_pix = all_pix[all_orders == ii]
+        this_wv = all_wv[all_orders == ii]
+        this_msk = thismask[all_orders == ii]
+
+        wv_order_mod_res_qa = eval2dfit(fit_dict, this_pix, ii)
+        res_qa = (wv_order_mod_res_qa/ii-this_wv)
+        plt.scatter((wv_order_mod_res_qa/ii)+100*res_qa, this_pix,color='black',alpha=0.7)
+        plt.scatter((wv_order_mod_res_qa[this_msk]/ii)+100*res_qa[this_msk], this_pix[this_msk],color=(rr,gg,bb))
+    # plt.text(mx,np.max(all_pix),r'residuals $\times$100',ha="right", va="top",)
+
+    # Finish
+    # plt.savefig(outfile, dpi=800)
+    # plt.close()
+
+    plt.show()
+
 
 '''
 def fit2darc_qa(fit_dict):
@@ -189,28 +250,31 @@ def fit2darc_qa(fit_dict):
     pixel_cen = fit_dict['pixel_cen']
     nspec_coeff = fit_dict['nspec_coeff']
 
-    all_pix_qa = np.arange(nspec)
+    # Define pixels array
+    all_pixels_qa = np.arange(nspec)
+
+    """
     pix_nrm_qa = 2. * (all_pix_qa - pixel_cen)/pixel_norm
-    
-    
     worky_qa = pydl.flegendre(pix_nrm_qa, nspec_coeff)
-    eval2dfit
-    
+    wv_order_mod_min = eval2dfit(fit_dict, all_pix_qa, order)
     mn, mx = np.min(wv_order_mod/orders), np.max(wv_order_mod/orders)
+    """
 
     plt.figure(figsize=(7,5))
     plt.title(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#'.format(norder_coeff, nspec_coeff,fin_rms))
     plt.xlabel(r'Wavelength [$\AA$]')
     plt.ylabel(r'Row [pixel]')
 
+    # Loop over orders
     for ii in orders:
         # define the color
         rr = (ii-np.max(orders))/(np.min(orders)-np.max(orders))
         gg = 0.0
         bb = (ii-np.min(orders))/(np.max(orders)-np.min(orders))
 
-	wv_order_mod_qa = eval2dfit(fit_dict, all_pix_qa, ii)
-	tsub = np.ones_like(len(all_pix_qa),dtype=np.float64) * ii
+        wv_order_mod_qa = eval2dfit(fit_dict, all_pixels_qa, ii)
+
+	tsub = np.ones_like(len(all_pixels_qa),dtype=np.float64) * ii
 	t_nrm_qa = 2. * (tsub - norm_order[0])/norm_order[1]
 	work2d_qa = np.zeros((nspec_coeff*norder_coeff, len(all_pix_qa)), dtype=np.float64)
 	workt_qa = pydl.flegendre(t_nrm_qa, norder_coeff)
@@ -218,7 +282,7 @@ def fit2darc_qa(fit_dict):
 	    for j in range(nspec_coeff):
 		work2d_qa[j*norder_coeff+i,:] = worky_qa[j,:] * workt_qa[i,:]
 	wv_order_mod_qa = coeffs.dot(work2d_qa)
-	plt.plot(wv_order_mod_qa/ii, all_pix_qa,color=(rr,gg,bb), linestyle='-')
+	plt.plot(wv_order_mod_qa/ii, all_pixels_qa,color=(rr,gg,bb), linestyle='-')
 	# Residuals
 	resid_qa = (wv_order_mod[all_orders == ii]-all_wv_order[all_orders == ii])/all_orders[all_orders == ii]
 	plt.scatter(wv_order_mod[all_orders == ii]/all_orders[all_orders == ii]+100*resid_qa, all_pix[all_orders == ii],color=(rr,gg,bb))
@@ -282,6 +346,8 @@ def temp():
     return
 '''
 
+
+
 def eval2dfit(fit_dict, pixels, order):
     """ Evaluate the 2D fit at a given pixel and order.
 
@@ -289,8 +355,8 @@ def eval2dfit(fit_dict, pixels, order):
     ----------
     fit_dict: dict
       dictionary containing the result of the fit
-    pixel: np.array
-      pixel where you want to evaluate the fit
+    pixels: np.array
+      pixels where you want to evaluate the fit
     order: np.array
       order where you want to evaluate the fit
 
