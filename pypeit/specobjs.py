@@ -106,6 +106,7 @@ class SpecObj(object):
         self.smash_nsig = None
 
         # Some things for echelle functionality
+        self.ech_order = None
         self.ech_orderindx = None
         self.ech_group = None
         self.ech_fracpos = None
