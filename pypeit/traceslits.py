@@ -716,7 +716,6 @@ class TraceSlits(masterframe.MasterFrame):
                                                     function=self.par['function'],
                                                     polyorder=self.par['polyorder'],
                                                     ofit=self.par['pcapar'])
-        debugger.set_trace()
         # Step
         self.steps.append(inspect.stack()[0][3])
 

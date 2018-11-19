@@ -1049,7 +1049,7 @@ class HolyGrail:
 
         return best_patt_dict, best_final_fit
 
-    def run_brute(self):
+    def run_brute(self, min_nlines=10):
         """Run through the parameter space and determine the best solution
         """
 
@@ -1060,6 +1060,7 @@ class HolyGrail:
         self._det_weak = {}
         self._det_stro = {}
         for slit in range(self._nslit):
+            msgs.info("Working on slit: {}".format(slit))
             if slit not in self._ok_mask:
                 continue
             # TODO Pass in all the possible params for detect_lines to arc_lines_from_spec, and update the parset
@@ -1068,8 +1069,8 @@ class HolyGrail:
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
-            if self._all_tcent.size == 0:
-                msgs.warn("No lines to identify in slit {0:d}!".format(slit))
+            if self._all_tcent.size < min_nlines:
+                msgs.warn("Not enough lines to identify in slit {0:d}!".format(slit))
                 self._det_weak[str(slit)] = [None,None]
                 self._det_stro[str(slit)] = [None,None]
                 continue
