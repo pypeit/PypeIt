@@ -1966,6 +1966,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
 
     frameshape = image.shape
     nspec = frameshape[0]
+    nspat = frameshape[1]
     norders = slit_left.shape[1]
 
     if order_vec is None:
@@ -2056,11 +2057,12 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
     # Loop over the orders and assign each specobj a fractional position and a group number
     for iobj in range(nobj):
         for iord in range(norders):
-            on_slit = (group == uni_group[iobj]) & (sobjs_align.ech_orderindx == iord)
+            on_order = (group == uni_group[iobj]) & (sobjs_align.ech_orderindx == iord)
             # ToDO fix specobjs set_item to get rid of these crappy loops
-            for spec in sobjs_align[on_slit]:
+            for spec in sobjs_align[on_order]:
                 spec.ech_fracpos = uni_frac[iobj]
                 spec.ech_group = uni_group[iobj]
+                spec.ech_frac_was_fit = False
 
 
     # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of the good orders where
@@ -2100,24 +2102,24 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         else:
             frac_mean_new = np.full(norders, uni_frac[iobj])
 
-
+        # Now loop over the orders and add objects on the ordrers for which the current object was not found
         for iord in range(norders):
-            # Is there an object on this order that got grouped into the current group in question?
-            on_slit = (group == uni_group[iobj]) & (sobjs_align.ech_orderindx == iord)
-            if not np.any(on_slit):
+            # Is the current object detected on this order?
+            on_order = (sobjs_align.ech_group == uni_group[iobj]) & (sobjs_align.ech_orderindx == iord)
+            if not np.any(on_order):
                 # Add this to the sobjs_align, and assign required tags
                 thisobj = specobjs.SpecObj(frameshape, slit_spat_pos[iord,:], slit_spec_pos, det = sobjs_align[0].det,
                                            setup = sobjs_align[0].setup, slitid = iord,
                                            scidx = sobjs_align[0].scidx, objtype=sobjs_align[0].objtype)
                 thisobj.ech_orderindx = iord
+                thisobj.ech_order = order_vec[iord]
                 thisobj.spat_fracpos = uni_frac[iobj]
+                # Assign traces using the fractional position fit above
                 if std_trace is not None:
                     x_trace = np.interp(slit_spec_pos, spec_vec, std_trace[:,iord])
-                    #shift = np.interp(slit_spec_pos, spec_vec,slit_left[:,iord] + slit_width[:,iord]*uni_frac[iobj]) - x_trace
                     shift = np.interp(slit_spec_pos, spec_vec,slit_left[:,iord] + slit_width[:,iord]*frac_mean_new[iord]) - x_trace
                     thisobj.trace_spat = std_trace[:,iord] + shift
                 else:
-                    #thisobj.trace_spat = slit_left[:,iord] + slit_width[:,iord]*uni_frac[iobj] # new trace
                     thisobj.trace_spat = slit_left[:, iord] + slit_width[:, iord] * frac_mean_new[iord]  # new trace
                 thisobj.trace_spec = spec_vec
                 thisobj.spat_pixpos = thisobj.trace_spat[specmid]
@@ -2130,16 +2132,10 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
                 thisobj.ech_fracpos = uni_frac[iobj]
                 thisobj.ech_group = uni_group[iobj]
-                thisobj.ech_usepca = True
+                thisobj.ech_frac_was_fit = True
                 sobjs_align.add_sobj(thisobj)
                 group = np.append(group, uni_group[iobj])
                 gfrac = np.append(gfrac, uni_frac[iobj])
-            else:
-                # ToDo fix specobjs to get rid of these crappy loops! We have a problem with set_item
-                for spec in sobjs_align[on_slit]:
-                    spec.ech_fracpos = uni_frac[iobj]
-                    spec.ech_group = uni_group[iobj]
-                    spec.ech_usepca = False
 
     # Some code to ensure that the objects are sorted in the sobjs_align by fractional position on the order and by order
     # respectively
@@ -2177,7 +2173,6 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
             SNR_arr[iord,iobj] = med_sn
 
 
-
     # Purge objects with low SNR and that don't show up in enough orders
     keep_obj = np.zeros(nobj,dtype=bool)
     sobjs_trim = specobjs.SpecObjs()
@@ -2201,15 +2196,15 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
     SNR_arr_trim = SNR_arr[:,keep_obj]
 
     # Do a final loop over objects and make the final decision about which orders will be interpolated/extrapolated by the PCA
-    for iobj in range(nobj_trim):
-        SNR_now = SNR_arr_trim[:,iobj]
-        indx = (sobjs_trim.ech_group == uni_group_trim[iobj])
-        usepca = ((SNR_now < np.percentile(SNR_now, pca_percentile)) & (SNR_now < snr_pca)) | sobjs_trim[indx].ech_usepca
-        # ToDo fix specobjs to get rid of these crappy loops!
-        for iord, spec in enumerate(sobjs_trim[indx]):
-            spec.ech_usepca = usepca[iord]
-            if usepca[iord]:
-                msgs.info('Using PCA to predict trace for object #{:d}'.format(iobj) + ' on order #{:d}'.format(iord))
+    #for iobj in range(nobj_trim):
+    #    SNR_now = SNR_arr_trim[:,iobj]
+    #    indx = (sobjs_trim.ech_group == uni_group_trim[iobj])
+    #    usepca = ((SNR_now < np.percentile(SNR_now, pca_percentile)) & (SNR_now < snr_pca)) | sobjs_trim[indx].ech_usepca
+    #    # ToDo fix specobjs to get rid of these crappy loops!
+    #    for iord, spec in enumerate(sobjs_trim[indx]):
+    #        spec.ech_usepca = usepca[iord]
+    #        if usepca[iord]:
+    #            msgs.info('Using PCA to predict trace for object #{:d}'.format(iobj) + ' on order #{:d}'.format(iord))
 
     sobjs_final = sobjs_trim.copy()
     # Loop over the objects one by one and adjust/predict the traces
@@ -2235,19 +2230,34 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
     # TODO need to properly take out the mean above, and reinsert the mean here
     # Set the IDs
     sobjs_final.set_idx()
+
     if show_trace:
         viewer, ch = ginga.show_image(image*(ordermask > -1))
         for iobj in range(nobj_trim):
             for iord in range(norders):
-                ## Showing the trace from objfind
+                ## Showing the final traces from this routine
                 ginga.show_trace(viewer, ch, sobjs_final.trace_spat[iord].T, sobjs_final.idx, color='steelblue')
-                ## Showing PCA fits
+                ## Showing PCA predicted locations before recomputing flux/gaussian weighted centroiding
                 ginga.show_trace(viewer, ch, pca_fits[:,iord, iobj], str(uni_frac[iobj]), color='yellow')
 
         for spec in sobjs_trim:
-            color = 'green' if spec.ech_usepca else 'magenta'
+            color = 'green' if spec.ech_frac_was_fit else 'magenta'
             ## Showing the final flux weighted centroiding from PCA predictions
             ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
+
+        # Labels for the points
+        text_final = [dict(type='text', args=(nspat / 2 -40, nspec / 2, 'final trace'),
+                           kwargs=dict(color='steelblue', fontsize=20))]
+
+        text_pca = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 30, 'PCA fit'),kwargs=dict(color='yellow', fontsize=20))]
+
+        text_fit = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 60, 'predicted'),kwargs=dict(color='green', fontsize=20))]
+
+        text_notfit = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 90, 'originally found'),kwargs=dict(color='magenta', fontsize=20))]
+
+        canvas = viewer.canvas(ch._chname)
+        canvas_list = text_final + text_pca + text_fit + text_notfit
+        canvas.add('constructedcanvas', canvas_list)
 
     # ToDO create a skymask and objmask should probably make the stuff in the objfind code standalone objects
 
