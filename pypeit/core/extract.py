@@ -1930,15 +1930,25 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
     slit_righ:  float ndarray
         Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
         or (nspec)
-    inmask: mask for each order, parsed into robust poly fit
-    plate_scale: plate scale of your detector, in unit of arcsec/pix
-    ncoeff: order number for trace
-    npca: number of PCA components you want to keep. default is None and it will be assigned automatically by
-                    calculating the number of components contains approximately 99% of the variance
-    coeff_npoly: order of polynomial used for PCA coefficients fitting
-    min_snr: minimum SNR for object finding
-    nabove_min_snr: how many orders with SNR>min_snr you require for a TRUE object
-    pca_percentile: percentile used for determining which order is a bad order
+    inmask: ndarray, bool, shape (nspec, nspat), default = None
+        Input mask for the input image.
+    plate_scale: float or ndarray, if an ndarray shape is (norders,) default = 0.2
+       plate scale of your detector, in unit of arcsec/pix. This can either be a single float for every order, or an array
+       with size norders indicating the plate scale of each order.
+    ncoeff: int, default = 5
+       Order of polynomial fit to traces
+    npca: int, default = None
+       Nmber of PCA components you want to keep. default is None and it will be assigned automatically by calculating
+       the number of components contains approximately 99% of the variance
+    coeff_npoly: int, default = None,
+       order of polynomial used for PCA coefficients fitting. Default is None and this will be determined automatically.
+    min_snr: float, default = 0.0
+       Minimum SNR for keeping an object. For an object to be kept it must have a median S/N ratio above min_snr for
+       at least nabove_min_snr orders.
+    nabove_min_snr: int, default = 0
+       The required number of orders that an object must have with median SNR>min_snr in order to be kept.
+    pca_percentile:
+       percentile used for determining which order is a bad order
     snr_pca: SNR used for determining which order is a bad order
                     if an order with ((SNR_now < np.percentile(SNR_now, pca_percentile)) &
                     (SNR_now < snr_pca)) | sobjs_trim[indx].ech_usepca, then this order will be PCAed
@@ -1951,13 +1961,15 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
     :return: all objects found
     """
 
-
     if inmask is None:
         inmask = (ordermask > -1)
 
     frameshape = image.shape
     nspec = frameshape[0]
     norders = slit_left.shape[1]
+
+    if order_vec is None:
+        order_vec = np.arange(norders)
 
     # TODO Use the order vec below instead of 0-norders indices
     if order_vec is None:
@@ -2005,6 +2017,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         # ToDO make the specobjs _set_item_ work with expressions like this spec[:].orderindx = iord
         for spec in sobjs_slit:
             spec.ech_orderindx = iord
+            spec.ech_order = order_vec[iord]
         sobjs.add_sobj(sobjs_slit)
 
 
@@ -2037,57 +2050,59 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         gfrac[this_group] = np.median(fracpos[this_group])
 
     uni_frac = gfrac[uni_ind]
+    iord_vec = np.arange(norders)
 
     sobjs_align = sobjs.copy()
-    # Now fill in the missing objects and their traces
+    # Loop over the orders and assign each specobj a fractional position and a group number
     for iobj in range(nobj):
-        # Fitting the slit fractions of good orders and predict the bad order slit fractions
         for iord in range(norders):
             on_slit = (group == uni_group[iobj]) & (sobjs_align.ech_orderindx == iord)
+            # ToDO fix specobjs set_item to get rid of these crappy loops
             for spec in sobjs_align[on_slit]:
                 spec.ech_fracpos = uni_frac[iobj]
                 spec.ech_group = uni_group[iobj]
 
+
+    # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of the good orders where
+    # an object was found and use that fit to predict the fractional slit position on the bad orders where no object was found
+    for iobj in range(nobj):
+        # Grab all the members of this group from the object list
         igroup = sobjs_align.ech_group == uni_group[iobj]
-        thisorderindx = sobjs_align[igroup].ech_orderindx
-        if (len(thisorderindx)>3) and (len(thisorderindx)<norders):
-            order_vec = np.arange(norders)
+        nthisgroup = np.sum(igroup)
+        # Perform the fit if this objects shows up on more than three orders
+        if (nthisgroup>3) and (nthisgroup<norders):
+            thisorderindx = sobjs_align[igroup].ech_orderindx
             badorder = np.ones(norders,dtype=bool)
-            for iord in range(norders):
-                if iord in thisorderindx:
-                    badorder[iord]=False
+            goodorder = np.invert(badorder)
+            badorder[thisorderindx] = False
             xcen_good = (sobjs_align[igroup].trace_spat).T
-            slit_left_good = slit_left[:,thisorderindx]
-            slit_righ_good = slit_righ[:,thisorderindx]
-            slit_frac_good = (xcen_good-slit_left_good) / (slit_righ_good-slit_left_good)
+            slit_frac_good = (xcen_good-slit_left[:,thisorderindx])/slit_width[:,thisorderindx]
+            # Fractional slit position averaged across the spectral direction for each order
             frac_mean_good = np.mean(slit_frac_good, 0)
-            msk_frac, poly_coeff_frac = utils.robust_polyfit_djs(thisorderindx, frac_mean_good, 1, \
-                                                               function='polynomial', minv=None, maxv=None,
-                                                               bspline_par=None, \
-                                                               guesses=None, maxiter=10, inmask=None, sigma=None,
-                                                               invvar=None, \
-                                                               lower=5, upper=5, maxdev=None, maxrej=None,
-                                                               groupdim=None,
-                                                               groupsize=None, \
-                                                               groupbadpix=False, grow=0, sticky=False)
-            frac_mean_fit = utils.func_val(poly_coeff_frac, order_vec, 'polynomial')
-            frac_mean_new = frac_mean_fit.copy()
-            frac_mean_new[~badorder] = frac_mean_good
+            # Performa  linear fit to fractional slit position
+            msk_frac, poly_coeff_frac = utils.robust_polyfit_djs(thisorderindx, frac_mean_good, 1,
+                                                                 function='polynomial', maxiter=10, lower=5, upper=5,
+                                                                 use_mad= True, sticky=False)
+            frac_mean_new = np.zeros(norders)
+            frac_mean_new[badorder] = utils.func_val(poly_coeff_frac, iord_vec[badorder], 'polynomial')
+            frac_mean_new[goodorder] = frc_mean_good
             if debug:
-                plt.plot(order_vec[~badorder], frac_mean_new[~badorder], 'ko', mfc='k', markersize=8.0, label='Good Orders')
-                plt.plot(order_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
-                plt.plot(order_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Mean Fraction')
-                plt.plot(order_vec, frac_mean_fit, 'r-', label='Slit Fraction Fitting')
-                plt.xlabel('Order Vector', fontsize=14)
-                plt.ylabel('Slit Fraction', fontsize=14)
-                plt.title('Slit Fraction Fitting')
+                frac_mean_fit = utils.func_val(poly_coeff_frac, iord_vec, 'polynomial')
+                plt.plot(iord_vec[goodorder], frac_mean_new[goodorder], 'ko', mfc='k', markersize=8.0, label='Good Orders')
+                plt.plot(iord_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
+                plt.plot(iord_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
+                plt.plot(iord_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')
+                plt.xlabel('Order Index', fontsize=14)
+                plt.ylabel('Fractional Slit Position', fontsize=14)
+                plt.title('Fractional Slit Position Fitting')
                 plt.legend()
                 plt.show()
         else:
-            frac_mean_new = np.zeros(norders)+uni_frac[iobj]
+            frac_mean_new = np.full(norders, uni_frac[iobj])
+
 
         for iord in range(norders):
-            # Is there an object on this order that grouped into the current group in question?
+            # Is there an object on this order that got grouped into the current group in question?
             on_slit = (group == uni_group[iobj]) & (sobjs_align.ech_orderindx == iord)
             if not np.any(on_slit):
                 # Add this to the sobjs_align, and assign required tags
