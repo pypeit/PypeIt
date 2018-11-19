@@ -1232,7 +1232,6 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
     else:
         title_text = 'Flux Weighted'
 
-    # Note the transpose is here because we
     xfit1 = np.copy(xinit_in)
     for iiter in range(niter):
         if gweight:
@@ -1617,13 +1616,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
     msgs.info('Fitting the object traces')
 
-    # Note the transpose is here because we
-    #xpos0 = np.copy(sobjs.trace_spat.T)
-    # This xinvvar is used to handle truncated slits/orders so that they don't break the fits
-    #xfit1 = np.copy(xpos0)
-
+    # Note the transpose is here to pass in the trace_spat correctly.
     xinit_fweight = np.copy(sobjs.trace_spat.T)
-
     xfit_fweight = iter_tracefit(image, xinit_fweight,ncoeff,inmask = inmask, fwhm=fwhm,idx = sobjs.idx, show_fits=show_fits)
     xinit_gweight = np.copy(xfit_fweight)
     xfit_gweight = iter_tracefit(image, xinit_gweight,ncoeff,inmask = inmask, fwhm=fwhm,gweight = True, idx = sobjs.idx, show_fits=show_fits)
