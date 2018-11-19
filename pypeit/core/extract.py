@@ -1242,7 +1242,9 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
         # Do not do any kind of masking based on xerr1. Trace fitting is much more robust when masked pixels are simply
         # replaced by the tracing crutch
         # ToDO add maxdev functionality by adding kwargs_reject to xy2traceset
-        pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj),spec_vec), xpos1.T, ncoeff = ncoeff)
+        xinvvar = np.ones_like(xpos1.T) # Do not do weighted fits, i.e. uniform weights but set the errro to 1.0 pixel
+        pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj),spec_vec), xpos1.T, ncoeff = ncoeff, maxdev = 5.0,
+                                    maxiter=25,invvar = xinvvar)
         xfit1 = pos_set1.yfit.T
         # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
         tracemask1 = xerr1 > 990.0 # bad pixels have errors set to 999 and are returned to lie on the input trace
@@ -1777,7 +1779,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
 
 def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
-              coeff_npoly = None, debug=True):
+              coeff_npoly = None, debug=True, order_vec = None):
     """
     Use a PCA model to determine the best object (or slit edge) traces for echelle spectrographs.
 
@@ -1822,6 +1824,9 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
     nspec = xinit.shape[0]
     norders = xinit.shape[1]
 
+    if order_vec is None:
+        order_vec = np.arange(norders,dtype=float)
+
     if usepca is None:
         usepca = np.zeros(norders,dtype=bool)
 
@@ -1829,11 +1834,14 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
     use_order = np.invert(usepca)
     ngood = np.sum(use_order)
 
+    # Take out the mean position of each input trace
+    init_mean = np.mean(xinit,0)
+    xpca = xinit - init_mean
+    xpca_use = xpca[:, use_order].T
     if npca is None:
         pca_full = PCA()
-        xinit_use = (xinit[:, use_order] - np.mean(xinit[:, use_order], 0)).T
-        pca_full.fit(xinit_use)
-        var = np.cumsum(np.round(pca_full.explained_variance_ratio_, decimals=3) * 100)
+        pca_full.fit(xpca_use)
+        var = np.cumsum(np.round(pca_full.explained_variance_ratio_, decimals=6) * 100)
         if var[0]>=pca_explained_var:
             npca = 1
             msgs.info('The first PCA component contains more than {:5.3f} of the information'.format(pca_explained_var))
@@ -1861,51 +1869,44 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
         npoly_vec[ipoly] = np.fmax(coeff_npoly - ipoly,1)
 
     pca = PCA(n_components=npca)
-    xinit_use = (xinit[:,use_order] - np.mean(xinit[:,use_order],0)).T
-    pca_coeffs_use = pca.fit_transform(xinit_use)
+    pca_coeffs_use = pca.fit_transform(xpca_use)
     pca_vectors = pca.components_
 
-    order_vec = np.arange(norders,dtype=float)
     pca_coeffs_new = np.zeros((norders, npca))
     # Now loop over the dimensionality of the compression and perform a polynomial fit to
     for idim in range(npca):
         # Only fit the use_order orders, then use this to predict the others
         xfit = order_vec[use_order]
         yfit = pca_coeffs_use[:,idim]
-        norder = npoly_vec[idim]
-
-        ## Test new robust fitting with djs_reject
-        msk_new, poly_coeff_new = utils.robust_polyfit_djs(xfit, yfit, norder, \
-                                                   function='polynomial', minv=None, maxv=None, bspline_par=None, \
-                                                   guesses=None, maxiter=10, inmask=None, sigma=None, invvar=None, \
-                                                   lower=5, upper=5, maxdev=None, maxrej=None, groupdim=None,
-                                                   groupsize=None, \
-                                                   groupbadpix=False, grow=0, sticky=False)
-        pca_coeffs_new[:,idim] = utils.func_val(poly_coeff_new, order_vec, 'polynomial')
-
+        ncoeff = npoly_vec[idim]
+        msk_new, poly_coeff = utils.robust_polyfit_djs(xfit, yfit, ncoeff, function='polynomial', maxiter=20,
+                                                       lower=5, upper=5, sticky=False)
+        pca_coeffs_new[:,idim] = utils.func_val(poly_coeff, order_vec, 'polynomial')
         if debug:
             # Evaluate the fit
             xvec = np.linspace(order_vec.min(),order_vec.max(),num=100)
             robust_mask_new = msk_new == 1
             plt.plot(xfit, yfit, 'ko', mfc='None', markersize=8.0, label='pca coeff')
             plt.plot(xfit[~robust_mask_new], yfit[~robust_mask_new], 'r+', markersize=20.0,label='robust_polyfit_djs rejected')
-            plt.plot(xvec, utils.func_val(poly_coeff_new, xvec, 'polynomial'),ls='-.', color='steelblue',
-                     label='robust_polyfit_djs norder=%s'%str(norder))
-            plt.xlabel('Order Vector', fontsize=14)
-            plt.ylabel('PCA Fitting', fontsize=14)
-            plt.title('PCA Fitting on Good Orders')
+            plt.plot(xvec, utils.func_val(poly_coeff, xvec, 'polynomial'),ls='-.', color='steelblue',
+                     label='Polynomial fit of order={:d}'.format(ncoeff))
+            plt.xlabel('Order Number', fontsize=14)
+            plt.ylabel('PCA Coefficient', fontsize=14)
+            plt.title('PCA Fit for Dimension #{:d}/{:d}'.format(idim + 1,npca))
             plt.legend()
             plt.show()
 
-    spat_mean = np.mean(xinit,0)
-    pca_fit = np.outer(np.ones(nspec), spat_mean) + np.outer(pca.mean_,np.ones(norders)) + (np.dot(pca_coeffs_new, pca_vectors)).T
+    pca_model = np.outer(pca.mean_,np.ones(norders)) + (np.dot(pca_coeffs_new, pca_vectors)).T
+    pca_model_mean = np.mean(pca_model,0)
+    pca_fit = np.outer(np.ones(nspec), init_mean) + (pca_model - pca_model_mean)
 
     return pca_fit
 
 
 def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_vec = None, plate_scale=0.2, std_trace=None, ncoeff = 5,
-                npca=None,coeff_npoly=None,min_snr=0.0,nabove_min_snr=0,pca_explained_var=99.0,pca_percentile=20.0,snr_pca=3.0,
-                box_radius=2.0,sig_thresh=5.,show_peaks=False,show_fits=False,show_trace=False,show_single_trace = False, debug=True):
+                npca=None,coeff_npoly=None,min_snr=0.0,nabove_min_snr=0,pca_explained_var=99.0, box_radius=2.0, fwhm = 3.0,
+                hand_extract_dict = None, nperslit = 5, bg_smth = 5.0, extract_maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0,
+                abs_thresh = 0.0, trim_edg = (3,3), show_peaks=False,show_fits=False,show_trace=False,show_single_trace = False, debug=True):
     """
     Object finding routine for Echelle spectrographs. This routine:
        1) runs object finding on each order individually
@@ -2003,18 +2004,20 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
     sobjs = specobjs.SpecObjs()
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up slitid and orderindx!
     for iord  in range(norders):
-        msgs.info('Finding objects on slit # {:d}'.format(iord))
+        msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
         thismask = ordermask == iord
         inmask_iord = inmask & thismask
-        specobj_dict = {'setup': 'HIRES', 'slitid': iord, 'scidx': 0,'det': 1, 'objtype': 'science'}
+        specobj_dict = {'setup': 'echelle', 'slitid': iord, 'scidx': 0,'det': 1, 'objtype': 'science'}
         try:
             std_in = std_trace[:,iord]
         except TypeError:
             std_in = None
         sobjs_slit, skymask[thismask], objmask[thismask]= \
             objfind(image, thismask, slit_left[:,iord], slit_righ[:,iord], inmask=inmask_iord,std_trace=std_in,
-                            show_peaks=show_peaks,show_fits=show_fits, show_trace=show_single_trace,
-                            specobj_dict=specobj_dict, sig_thresh=sig_thresh)
+                    fwhm=fwhm,hand_extract_dict=hand_extract_dict, nperslit=nperslit, bg_smth=bg_smth,
+                    extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh, peak_thresh=peak_thresh, abs_thresh=abs_thresh,
+                    trim_edg=trim_edg, show_peaks=show_peaks,show_fits=show_fits, show_trace=show_single_trace,
+                    specobj_dict=specobj_dict)
         # ToDO make the specobjs _set_item_ work with expressions like this spec[:].orderindx = iord
         for spec in sobjs_slit:
             spec.ech_orderindx = iord
@@ -2074,23 +2077,25 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         # Perform the fit if this objects shows up on more than three orders
         if (nthisgroup>3) and (nthisgroup<norders):
             thisorderindx = sobjs_align[igroup].ech_orderindx
-            badorder = np.ones(norders,dtype=bool)
-            goodorder = np.invert(badorder)
-            badorder[thisorderindx] = False
+            goodorder = np.zeros(norders,dtype=bool)
+            goodorder[thisorderindx] = True
+            badorder = np.invert(goodorder)
             xcen_good = (sobjs_align[igroup].trace_spat).T
-            slit_frac_good = (xcen_good-slit_left[:,thisorderindx])/slit_width[:,thisorderindx]
+            slit_frac_good = (xcen_good-slit_left[:,goodorder])/slit_width[:,goodorder]
             # Fractional slit position averaged across the spectral direction for each order
             frac_mean_good = np.mean(slit_frac_good, 0)
             # Performa  linear fit to fractional slit position
-            msk_frac, poly_coeff_frac = utils.robust_polyfit_djs(thisorderindx, frac_mean_good, 1,
-                                                                 function='polynomial', maxiter=10, lower=5, upper=5,
+            msk_frac, poly_coeff_frac = utils.robust_polyfit_djs(order_vec[goodorder], frac_mean_good, 1,
+                                                                 function='polynomial', maxiter=20, lower=2, upper=2,
                                                                  use_mad= True, sticky=False)
             frac_mean_new = np.zeros(norders)
             frac_mean_new[badorder] = utils.func_val(poly_coeff_frac, iord_vec[badorder], 'polynomial')
-            frac_mean_new[goodorder] = frc_mean_good
+            frac_mean_new[goodorder] = frac_mean_good
+
             if debug:
                 frac_mean_fit = utils.func_val(poly_coeff_frac, iord_vec, 'polynomial')
-                plt.plot(iord_vec[goodorder], frac_mean_new[goodorder], 'ko', mfc='k', markersize=8.0, label='Good Orders')
+                plt.plot(iord_vec[goodorder][msk_frac], frac_mean_new[goodorder][msk_frac], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
+                plt.plot(iord_vec[goodorder][~msk_frac], frac_mean_new[goodorder][~msk_frac], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
                 plt.plot(iord_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
                 plt.plot(iord_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
                 plt.plot(iord_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')
@@ -2236,7 +2241,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         for iobj in range(nobj_trim):
             for iord in range(norders):
                 ## Showing the final traces from this routine
-                ginga.show_trace(viewer, ch, sobjs_final.trace_spat[iord].T, sobjs_final.idx, color='steelblue')
+                ginga.show_trace(viewer, ch, sobjs_final.trace_spat[iord].T, sobjs_final.idx, color='cyan')
                 ## Showing PCA predicted locations before recomputing flux/gaussian weighted centroiding
                 ginga.show_trace(viewer, ch, pca_fits[:,iord, iobj], str(uni_frac[iobj]), color='yellow')
 
@@ -2247,7 +2252,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
 
         # Labels for the points
         text_final = [dict(type='text', args=(nspat / 2 -40, nspec / 2, 'final trace'),
-                           kwargs=dict(color='steelblue', fontsize=20))]
+                           kwargs=dict(color='cyan', fontsize=20))]
 
         text_pca = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 30, 'PCA fit'),kwargs=dict(color='yellow', fontsize=20))]
 
