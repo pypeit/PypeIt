@@ -210,8 +210,8 @@ def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
     slitpix : ndarray
       Image with shape (nspec, nspat) specifying pixel locations. This is created by core_slit_pixels above.
 
-    trim_edg : tuple
-      How much to trim off each edge of each slit
+    trim_edg : tuple of integers or floats
+      How much to trim off each edge of each slit in pixels.
 
     xshift : float, optional
       Future implementation may need to shift the edges
