@@ -110,6 +110,7 @@ class SpecObj(object):
         self.ech_orderindx = None
         self.ech_group = None
         self.ech_fracpos = None
+        self.ech_frac_was_fit = None
         self.ech_usepca = False
 
         # Attributes for HAND apertures, which are object added to the extraction by hand
