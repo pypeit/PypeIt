@@ -1268,8 +1268,6 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
     return xfit1
 
 
-
-
 specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 'science'}
 
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
@@ -1778,148 +1776,51 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
 
 
-def pca_trace(xcen, usepca = None, npca = None, pca_explained_var=99.0,coeff_npoly = None, cen_npoly = 3, debug=True):
-    """
-    Using sklearn PCA tracing
-    xcen: flux weighted centroid, numpy array
-    usepca: bool array with the size equal to the number of orders. True are orders that need to be PCAed.
-                    default is None and hence all orders will be PCAed.
-    npca: number of PCA components you want to keep. default is None and it will be assigned automatically by
-                    calculating the number of components contains approximately 99% of the variance
-    pca_explained_var: explained variance cut used for auto choosing npca.
-    coeff_npoly: order of polynomial used for PCA coefficients fitting
-    cen_npoly: order of polynomail for center of traces
-    debug:
-    :return: pca fitting result
-    """
-
-    nspec = xcen.shape[0]
-    norders = xcen.shape[1]
-
-    if usepca is None:
-        usepca = np.zeros(norders,dtype=bool)
-
-    # use_order = True orders used to predict the usepca = True bad orders
-    use_order = np.invert(usepca)
-    ngood = np.sum(use_order)
-
-    if npca is None:
-        pca_full = PCA()
-        xcen_use = (xcen[:, use_order] - np.mean(xcen[:, use_order], 0)).T
-        pca_full.fit(xcen_use)
-        var = np.cumsum(np.round(pca_full.explained_variance_ratio_, decimals=3) * 100)
-        if var[0]>=pca_explained_var:
-            npca = 1
-            msgs.info('The first PCA component contains more than {:5.3f} of the information'.format(pca_explained_var))
-        else:
-            npca = int(np.ceil(np.interp(pca_explained_var, var,np.arange(norders)+1)))
-            msgs.info('Truncated PCA to contain {:5.3f}'.format(pca_explained_var) + '% of the total variance. ' +
-                      'Number of components to keep is npca = {:d}'.format(npca))
-    else:
-        npca = int(npca)
-
-    if ngood < npca:
-        msgs.warn('Not enough good traces for a PCA fit: ngood = {:d}'.format(ngood) + ' is < npca = {:d}'.format(npca))
-        msgs.warn('Using the input trace f or now')
-        return xcen
-
-    if coeff_npoly is None:
-        coeff_npoly = int(np.fmin(np.fmax(np.floor(3.3*ngood/norders),1.0),3.0))
-
-    # Polynomail coefficient for center of traces
-    if cen_npoly is None:
-        cen_npoly = int(np.fmin(np.fmax(np.floor(3.3 * ngood / norders), 1.0), 3.0))
-
-    # Polynomial coefficient for PCA coefficients
-    npoly_vec =np.zeros(npca, dtype=int)
-    # Fit first pca dimension (with largest variance) with a higher order npoly depending on number of good orders.
-    # Fit all higher dimensions (with lower variance) with a line
-    # Cascade down and use lower order polynomial for PCA directions that contain less variance
-    for ipoly in range(npca):
-        npoly_vec[ipoly] = np.fmax(coeff_npoly - ipoly,1)
-
-    pca = PCA(n_components=npca)
-    xcen_use = (xcen[:,use_order] - np.mean(xcen[:,use_order],0)).T
-    pca_coeffs_use = pca.fit_transform(xcen_use)
-    pca_vectors = pca.components_
-
-    order_vec = np.arange(norders,dtype=float)
-    pca_coeffs_new = np.zeros((norders, npca))
-    # Now loop over the dimensionality of the compression and perform a polynomial fit to
-    for idim in range(npca):
-        # Only fit the use_order orders, then use this to predict the others
-        xfit = order_vec[use_order]
-        yfit = pca_coeffs_use[:,idim]
-        norder = npoly_vec[idim]
-        msk_new, poly_coeff_new = utils.robust_polyfit_djs(xfit, yfit, norder, \
-                                                   function='polynomial', minv=None, maxv=None, bspline_par=None, \
-                                                   guesses=None, maxiter=10, inmask=None, sigma=None, invvar=None, \
-                                                   lower=5, upper=5, maxdev=None, maxrej=None, groupdim=None,
-                                                   groupsize=None, \
-                                                   groupbadpix=False, grow=0, sticky=False)
-        pca_coeffs_new[:,idim] = utils.func_val(poly_coeff_new, order_vec, 'polynomial')
-
-        if debug:
-            # Evaluate the fit
-            xvec = np.linspace(order_vec.min(),order_vec.max(),num=100)
-            robust_mask_new = msk_new == 1
-            plt.plot(xfit, yfit, 'ko', mfc='None', markersize=8.0, label='pca coeff')
-            plt.plot(xfit[~robust_mask_new], yfit[~robust_mask_new], 'r+', markersize=20.0,label='robust_polyfit_djs rejected')
-            plt.plot(xvec, utils.func_val(poly_coeff_new, xvec, 'polynomial'),ls='-.', color='steelblue',
-                     label='robust_polyfit_djs norder=%s'%str(norder))
-            plt.xlabel('Order Vector', fontsize=14)
-            plt.ylabel('PCA Fitting', fontsize=14)
-            plt.title('PCA Fitting on Good Orders')
-            plt.legend()
-            plt.show()
-
-    #ToDo should we be masking the bad orders here and interpolating/extrapolating?
-    spat_mean = np.mean(xcen,0)
-    msk_spat, poly_coeff_spat = utils.robust_polyfit_djs(order_vec, spat_mean, cen_npoly, \
-                                                       function='polynomial', minv=None, maxv=None, bspline_par=None, \
-                                                       guesses=None, maxiter=10, inmask=None, sigma=None, invvar=None, \
-                                                       lower=3, upper=3, maxdev=None, maxrej=None, groupdim=None,
-                                                       groupsize=None, \
-                                                       groupbadpix=False, grow=0, sticky=False)
-    if debug:
-        robust_mask_spat = msk_spat == 1
-        plt.plot(order_vec, spat_mean, 'ko', mfc='None', markersize=8.0, label='order center')
-        plt.plot(order_vec[~robust_mask_new], spat_mean[~robust_mask_new], 'r+', markersize=20.0,
-                 label='robust_polyfit_djs rejected')
-        plt.plot(order_vec, utils.func_val(poly_coeff_spat, order_vec, 'polynomial'), ls='-.', color='steelblue',
-                 label='robust_polyfit_djs norder=%s'%str(cen_npoly))
-        plt.xlabel('Order Vector',fontsize=14)
-        plt.ylabel('Order Center Position',fontsize=14)
-        plt.title('Order Center Fitting')
-        plt.legend()
-        plt.show()
-
-    ibad = np.where(msk_spat == 1)
-    spat_mean[ibad] = utils.func_val(poly_coeff_spat,order_vec[ibad],'polynomial')
-
-    pca_fit = np.outer(np.ones(nspec), spat_mean) + np.outer(pca.mean_,np.ones(norders)) + (np.dot(pca_coeffs_new, pca_vectors)).T
-
-    return pca_fit
-
-
-def pca_trace(xcen, usepca = None, npca = None, pca_explained_var=99.0,
+def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
               coeff_npoly = None, debug=True):
     """
-    Using sklearn PCA tracing
-    xcen: flux weighted centroid, numpy array
-    usepca: bool array with the size equal to the number of orders. True are orders that need to be PCAed.
-                    default is None and hence all orders will be PCAed. This is no longer used for object finding,
-                    but it maybe useful for trace finding.
-    npca: number of PCA components you want to keep. default is None and it will be assigned automatically by
-                    calculating the number of components contains approximately 99% of the variance
-    pca_explained_var: explained variance cut used for auto choosing npca.
-    coeff_npoly: order of polynomial used for PCA coefficients fitting
-    debug:
-    :return: pca fitting result
+    Use a PCA model to determine the best object (or slit edge) traces for echelle spectrographs.
+
+    Parameters
+    ----------
+    xinit:  ndarray, (nspec, norders)
+       Array of input traces that one wants to PCA model. For object finding this will be the traces for orders where
+       an object was detected. If an object was not detected on some orders (see ech_objfind), the standard star
+       (or order boundaries)  will be  assigned to these orders at the correct fractional slit position, and a joint PCA
+       fit will be performed to the detected traces and the standard/slit traces.
+
+    Optional Parameters
+    -------------------
+    usepca: ndarray, bool (norders,), default = None
+       Orders which have True are those that will be predicted by extrapolating the fit of the PCA coefficents for those
+       orders which have False set in this array. The default is None, which means that the coefficients of all orders
+       will be fit simultaneously and no extrapolation will be performed. For object finding, we use the standard star
+       (or slit boundaries) as the input for orders for which a trace is not identified and fit the coefficients of all
+       simultaneously. Thus no extrapolation is performed. For tracing slit boundaries it may be useful to perform
+       extrapolations.
+    npca: int, default = None
+       number of PCA components to be kept. The maximum number of possible PCA components would be = norders, which is to say
+       that no PCA compression woulud be performed. For the default of None, npca will be automatically determinedy by
+       calculating the minimum number of components required to explain 99% (pca_explained_var) of the variance in the different orders.
+    pca_explained_var: float, default = 99
+       Amount of explained variance cut used to determine where to truncate the PCA, i.e. to determine npca.
+
+    coeff_npoly: int, default = None
+       Order of polynomial fits used for PCA coefficients fitting. The defualt is None, which means that coeff_noly
+       will be automatically determined by taking the number of orders into account. PCA components that explain
+       less variance (and are thus much noiser) are fit with lower order.
+
+    debug: bool, default = False
+        Show plots useful for debugging.
+
+    Returns:
+    --------
+    pca_fit:  ndarray, float (nspec, norders)
+        Array with the same size as xinit, which contains the pca fitted orders.
     """
 
-    nspec = xcen.shape[0]
-    norders = xcen.shape[1]
+    nspec = xinit.shape[0]
+    norders = xinit.shape[1]
 
     if usepca is None:
         usepca = np.zeros(norders,dtype=bool)
@@ -1930,8 +1831,8 @@ def pca_trace(xcen, usepca = None, npca = None, pca_explained_var=99.0,
 
     if npca is None:
         pca_full = PCA()
-        xcen_use = (xcen[:, use_order] - np.mean(xcen[:, use_order], 0)).T
-        pca_full.fit(xcen_use)
+        xinit_use = (xinit[:, use_order] - np.mean(xinit[:, use_order], 0)).T
+        pca_full.fit(xinit_use)
         var = np.cumsum(np.round(pca_full.explained_variance_ratio_, decimals=3) * 100)
         if var[0]>=pca_explained_var:
             npca = 1
@@ -1946,7 +1847,7 @@ def pca_trace(xcen, usepca = None, npca = None, pca_explained_var=99.0,
     if ngood < npca:
         msgs.warn('Not enough good traces for a PCA fit: ngood = {:d}'.format(ngood) + ' is < npca = {:d}'.format(npca))
         msgs.warn('Using the input trace f or now')
-        return xcen
+        return xinit
 
     if coeff_npoly is None:
         coeff_npoly = int(np.fmin(np.fmax(np.floor(3.3*ngood/norders),1.0),3.0))
@@ -1960,8 +1861,8 @@ def pca_trace(xcen, usepca = None, npca = None, pca_explained_var=99.0,
         npoly_vec[ipoly] = np.fmax(coeff_npoly - ipoly,1)
 
     pca = PCA(n_components=npca)
-    xcen_use = (xcen[:,use_order] - np.mean(xcen[:,use_order],0)).T
-    pca_coeffs_use = pca.fit_transform(xcen_use)
+    xinit_use = (xinit[:,use_order] - np.mean(xinit[:,use_order],0)).T
+    pca_coeffs_use = pca.fit_transform(xinit_use)
     pca_vectors = pca.components_
 
     order_vec = np.arange(norders,dtype=float)
@@ -1996,7 +1897,7 @@ def pca_trace(xcen, usepca = None, npca = None, pca_explained_var=99.0,
             plt.legend()
             plt.show()
 
-    spat_mean = np.mean(xcen,0)
+    spat_mean = np.mean(xinit,0)
     pca_fit = np.outer(np.ones(nspec), spat_mean) + np.outer(pca.mean_,np.ones(norders)) + (np.dot(pca_coeffs_new, pca_vectors)).T
 
     return pca_fit
@@ -2006,14 +1907,23 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
                 npca=None,coeff_npoly=None,min_snr=0.0,nabove_min_snr=0,pca_explained_var=99.0,pca_percentile=20.0,snr_pca=3.0,
                 box_radius=2.0,sig_thresh=5.,show_peaks=False,show_fits=False,show_trace=False,show_single_trace = False, debug=True):
     """
-    Object finding for Echelle spectragraph
-    image :  float ndarray
-        Image to search for objects from. This image has shape (nspec, nspat) image.shape where the first dimension (nspec)
-        is spectral, and second dimension (nspat) is spatial. Note this image can either have the sky background in it, or have already been sky subtracted.
-        Object finding works best on sky-subtracted images, but often one runs on the frame with sky first to identify the brightest
-        objects which are then masked (see skymask below) in sky subtraction.
-    ivar: ivar for your science image, same shape with image
-    ordermask: ordermask, 2D array
+    Object finding routine for Echelle spectrographs. This routine:
+       1) runs object finding on each order individually
+       2) Links the objects found together using a friends-of-friends algorithm on fractional order position.
+       3) For objects which were only found on some orders, the standard (or the slit boundaries) are placed at the appropriate
+          fractional position along the order.
+       4) A PCA fit to the traces is performed using the routine above pca_fit
+
+    image:  float ndarray, shape (nspec, nspat)
+        Image to search for objects from. This image has shape (nspec, nspat) where the first dimension (nspec) is spectral,
+        and second dimension (nspat) is spatial. Note this image can either have the sky background in it, or have already been sky subtracted.
+        Object finding works best on sky-subtracted images. Ideally objfind would be run in another routine, global sky-subtraction performed, and
+        then this code should be run. However, it is also possible to run this code on non sky subtracted images.
+    ivar: float ndarray, shape (nspec, nspat)
+       Inverse variance image for the input image.
+    ordermask: int ndarray, shape (nspec, nspat)
+       Integer image indicating the pixels that belong to each order. Pixels that are not on an order have value -1, and those
+       that are on an order have a value equal to the order number
     slit_left:  float ndarray
         Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
         or (nspec)
@@ -2307,6 +2217,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
             spec.trace_spat = xfit_gweight[:,iord]
             spec.spat_pixpos = spec.trace_spat[specmid]
 
+    # TODO need to properly take out the mean above, and reinsert the mean here
     # Set the IDs
     sobjs_final.set_idx()
     if show_trace:
