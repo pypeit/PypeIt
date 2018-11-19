@@ -716,6 +716,7 @@ class TraceSlits(masterframe.MasterFrame):
                                                     function=self.par['function'],
                                                     polyorder=self.par['polyorder'],
                                                     ofit=self.par['pcapar'])
+        debugger.set_trace()
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -796,13 +797,25 @@ class TraceSlits(masterframe.MasterFrame):
         """
         plxbin = self.pixlocn[:, :, 0].copy()
         msgs.info("Synchronizing left and right slit traces")
-        new = False
+        print('ldiff', self.ldiffarr)
+        print('lwght', self.lwghtarr)
+        print('lnmbr', self.lnmbrarr)
+        print('rnmbr', self.rnmbrarr)
+        print('lcoeff', self.lcoeff)
+        new = True
         if new:
             minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
             xv = plxbin[:, 0]
             #
             self.lcent = utils.func_val(self.lcoeff, xv, self.par['function'], minv=minvf, maxv=maxvf)
             self.rcent = utils.func_val(self.rcoeff, xv, self.par['function'], minv=minvf, maxv=maxvf)
+            # Reset Indexing
+            self.lnmbrarr += 99999
+            self.rnmbrarr -= 99999
+            wl = np.where(self.edgearr < 0)
+            wr = np.where(self.edgearr > 0)
+            self.edgearr[wl] += 99999
+            self.edgearr[wr] -= 99999
         else:
             self.lcent, self.rcent, self.gord, \
                 self.lcoeff, self.ldiffarr, self.lnmbrarr, self.lwghtarr, \
@@ -814,6 +827,11 @@ class TraceSlits(masterframe.MasterFrame):
                                                  function=self.par['function'],
                                                  polyorder=self.par['polyorder'],
                                                  extrapolate=self.par['pcaextrap'])
+        print('ldiff', self.ldiffarr)
+        print('lwght', self.lwghtarr)
+        print('lnmbr', self.lnmbrarr)
+        print('rnmbr', self.rnmbrarr)
+        print('lcoeff', self.lcoeff)
         self.slitcen = 0.5*(self.lcent+self.rcent).T
         # Step
         self.steps.append(inspect.stack()[0][3])

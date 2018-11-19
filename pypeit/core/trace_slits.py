@@ -2508,7 +2508,6 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
                              minv=minvf, maxv=maxvf)
     rcent = utils.func_val(rcoeff[:, runq[rg] - 1 - extrapolate[0]], xv, function, minv=minvf,
                              maxv=maxvf)
-    debugger.set_trace()
 
     # Return
     return lcent, rcent, gord, lcoeff, ldiffarr, lnmbrarr, lwghtarr, \
