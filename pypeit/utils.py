@@ -1202,7 +1202,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
 
 # This should replace robust_polyfit
 def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = None, maxv = None, bspline_par = None,
-                       guesses = None, maxiter=10, inmask=None, sigma=None,invvar=None, lower=5.0, upper=5.0,
+                       guesses = None, maxiter=10, inmask=None, sigma=None,invvar=None, lower=None, upper=None,
                        maxdev=None,maxrej=None, groupdim=None,groupsize=None, groupbadpix=False, grow=0,
                        sticky=True, use_mad=True):
     """
@@ -1295,7 +1295,7 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
         ct = func_fit(xarray, yarray, function, order, w=weights*thismask,guesses=ct, minv=minv, maxv=maxv, bspline_par=bspline_par)
         ymodel = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, sigma=sigma, invvar=invvar,
-                                          lower=np.float64(lower),upper=np.float64(upper),maxdev=maxdev,maxrej=maxrej,
+                                          lower=lower,upper=upper,maxdev=maxdev,maxrej=maxrej,
                                           groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,
                                           use_mad=use_mad,sticky=sticky)
         iIter += 1
