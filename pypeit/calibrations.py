@@ -447,7 +447,6 @@ class Calibrations(object):
             # Load up and get ready
             self.traceSlits.mstrace = self.traceImage.process(bias_subtract=self.msbias,
                                                          trim=self.par['trim'], apply_gain=True)
-            _ = self.traceSlits.make_binarr()
 
             # Compute the plate scale in arcsec which is needed to trim short slits
             scidx = np.where(self.fitstbl.find_frames('science', sci_ID=self.sci_ID))[0][0]
@@ -459,8 +458,12 @@ class Calibrations(object):
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
             # Now we go forth
-            self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale)
-             # No slits?
+            try:
+                self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale)
+            except:
+                self.traceSlits.save_master()
+                msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
+            # No slits?
             if self.tslits_dict is None:
                 self.maskslits = None
                 return self.tslits_dict, self.maskslits

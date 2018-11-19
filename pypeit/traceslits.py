@@ -154,7 +154,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Key Internals
         if mstrace is not None:
-            self.binarr = self.make_binarr()
+            self.binarr = self._make_binarr()
         self.user_set = None
         self.lmin = None
         self.lmax = None
@@ -173,7 +173,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.rwghtarr = None
 
     @classmethod
-    def from_master_files(cls, root, load_pix_obj=False):
+    def from_master_files(cls, root, load_pix_obj=False, par=None):
         """
         Instantiate from the primary MasterFrame outputs of the class
 
@@ -190,6 +190,12 @@ class TraceSlits(masterframe.MasterFrame):
         fits_dict, ts_dict = load_traceslit_files(root)
         msgs.info("Loading Slits from {:s}".format(root + '.fits.gz'))
 
+        # Deal with parameters
+        if par is None:
+            if ts_dict is not None:
+                pypeitpar.TraceSlitsPar.from_dict(ts_dict['settings'])
+            else:
+                par = pypeitpar.TraceSlitsPar()
 
         # Deal with the bad pixel image
         if 'BINBPX' in fits_dict.keys():
@@ -199,8 +205,7 @@ class TraceSlits(masterframe.MasterFrame):
             binbpx = None
 
         # Instantiate from file
-        slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], binbpx=binbpx,
-                  par=pypeitpar.TraceSlitsPar.from_dict(ts_dict['settings']))
+        slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], binbpx=binbpx, par=par)
 
         # Fill in a bit more (Attributes)
         slf.steps = ts_dict['steps']
@@ -226,21 +231,6 @@ class TraceSlits(masterframe.MasterFrame):
         else:
             return self.lcen.shape[1]
 
-    def make_binarr(self):
-        """
-        Lightly process mstrace
-
-        Returns
-        -------
-        binarr : ndarray
-
-        """
-        #  Only filter in the spectral dimension, not spatial!
-        self.binarr = ndimage.uniform_filter(self.mstrace, size=(3, 1), mode='mirror')
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        return self.binarr
-
     def _edgearr_from_binarr(self):
         """
         Generate the first edgearr from the Sobolev produced siglev image
@@ -256,8 +246,8 @@ class TraceSlits(masterframe.MasterFrame):
                 = trace_slits.edgearr_from_binarr(self.binarr, self.binbpx,
                                                    medrep=self.par['medrep'],
                                                    sobel_mode=self.par['sobel_mode'],
-                                                   sigdetect=self.par['sigdetect'],
-                                                   number_slits=self.par['number'])
+                                                   sigdetect=self.par['sigdetect'])
+                                                   #number_slits=self.par['number'])
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -542,6 +532,21 @@ class TraceSlits(masterframe.MasterFrame):
         self.pixwid = (rcen-lcen).mean(0).astype(np.int)
         self.lordpix = pixels.phys_to_pix(lcen, self.pixlocn, 1)
         self.rordpix = pixels.phys_to_pix(rcen, self.pixlocn, 1)
+
+    def _make_binarr(self):
+        """
+        Lightly process mstrace
+
+        Returns
+        -------
+        binarr : ndarray
+
+        """
+        #  Only filter in the spectral dimension, not spatial!
+        self.binarr = ndimage.uniform_filter(self.mstrace, size=(3, 1), mode='mirror')
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        return self.binarr
 
 
     def _match_edges(self):
@@ -885,6 +890,7 @@ class TraceSlits(masterframe.MasterFrame):
         ----------
         attr : str, optional
           'edges' -- Show the mstrace image and the edges
+          'binarr' -- Show the binarr image
           'edgearr' -- Show the edgearr image
           'siglev' -- Show the Sobolev image
         display : str (optional)
@@ -894,9 +900,28 @@ class TraceSlits(masterframe.MasterFrame):
             viewer, ch = ginga.show_image(self.mstrace, chname='edges')
             if self.lcen is not None:
                 ginga.show_slits(viewer, ch, self.lcen, self.rcen, slit_ids = np.arange(self.lcen.shape[1]) + 1, pstep=pstep)
+        elif attr == 'binarr':
+            debugger.show_image(self.binarr, chname='binarr')
         elif attr == 'edgearr':
-            # TODO -- Figure out how to set the cut levels
-            debugger.show_image(self.edgearr, chname='edgearr')
+            if np.min(self.edgearr) == -1: # Ungrouped
+                tmp = self.mstrace.copy()
+                # Left edges
+                left = self.edgearr == -1
+                tmp[left] = -99999.
+                # Right edges
+                right = self.edgearr == 1
+                tmp[right] = 99999.
+                viewer, ch = ginga.show_image(tmp, chname='edgearr')
+            else: # Grouped
+                viewer, ch = ginga.show_image(self.mstrace, chname='edgearr')
+                # Traces
+                all_uni = np.unique(self.edgearr[self.edgearr != 0])
+                for uni in all_uni:
+                    # Color
+                    clr = 'green' if uni < 0 else 'red'
+                    # Do it
+                    tidx = np.where(self.edgearr == uni)
+                    ginga.show_trace(viewer, ch, tidx[1], trc_name=str(uni), yval=tidx[0], color=clr)
         elif attr == 'siglev':
             # TODO -- Figure out how to set the cut levels
             debugger.show_image(self.siglev, chname='siglev')
@@ -976,10 +1001,13 @@ class TraceSlits(masterframe.MasterFrame):
 
     def load_master(self, filename, force = False):
         """
-        Over-load the load function
+        Load the master frames
 
-        Returns
-        -------
+        Args:
+            filename: str
+            force: bool, optional
+
+        Returns:
 
         """
         # Load from filename extension. There is a fits and json file, and this routine also does file checking
@@ -993,7 +1021,7 @@ class TraceSlits(masterframe.MasterFrame):
             if key in fits_dict.keys():
                 setattr(self, key.lower(), fits_dict[key])
         # Remake the binarr
-        self.binarr = self.make_binarr()
+        self.binarr = self._make_binarr()
         # dict
         self.tc_dict = ts_dict['tc_dict']
         # Load the pixel objects?
@@ -1061,6 +1089,9 @@ class TraceSlits(masterframe.MasterFrame):
           'extrapord'
           'slitpix'
         """
+        # Generate binarr
+        _ = self._make_binarr()
+
         # Specify a single slit?
         if len(self.par['single']) > 0:  # Single slit
             self._edgearr_single_slit()
@@ -1072,7 +1103,8 @@ class TraceSlits(masterframe.MasterFrame):
         # Assign a number to each edge 'grouping'
         self._match_edges()
 
-        # Add in a single left/right edge?
+        # Add in a *single* left/right edge?
+        #  Only useful for longslit where one side butts up on the edge of the detector
         any_slits = self._add_left_right()
         if not any_slits:
             return None

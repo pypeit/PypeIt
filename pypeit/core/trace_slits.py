@@ -783,9 +783,13 @@ def edgearr_from_user(shape, ledge, redge, det):
 '''
 
 
-def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30., maskBadRows=False,
-                        sobel_mode='nearest', sigdetect=30., number_slits=-1):
+def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30.,
+                        sobel_mode='nearest', sigdetect=30.):
     """ Generate the edge array from an input, trace image (likely slightly filtered)
+    Primary algorithm is to run a Sobolev filter on the image and then
+    trigger on all significant features.
+
+    The bad pixel mask is also used to fuss with bad columns, etc.
 
     Parameters
     ----------
@@ -793,23 +797,17 @@ def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30., maskBadRows=False
       Calibration frame that will be used to identify slit traces (in most cases, the slit edge)
       Lightly filtered
     binbpx : ndarray
+      Bad pixel max image
     medrep : int, optional
         Number of times to perform median smoothing on the mstrace
         One uniform filter is always done
         medrep = 0 is recommended for ARMLSD
     sobel_mode : str, optional
-        ndimage.sobel mode
+        ndimage.sobel mode;  default is 'nearest'
     sigdetect : float, optional
         threshold for edge detection
-    number_slits : int, optional
-        if >0, restrict the number of slits to this value
-        not well tested
     min_sqm : float, optional
         Minimum error used when detecting a slit edge
-    maskBadRows : bool, optional
-      Mostly useful for echelle data where the slit edges are bent relative to
-      the pixel columns. Do not set this keyword to True if slit edges are
-      almost aligned with the pixel columns.
 
     Returns
     -------
@@ -820,7 +818,8 @@ def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30., maskBadRows=False
     # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
     msgs.info("Detecting slit edges in the mstrace image")
 
-    # Replace bad columns -- should put this method somewhere else
+    # Replace bad columns
+    #  TODO -- Should consider replacing bad 'rows' for rotated detectors (e.g. GMOS)
     bad_cols = np.sum(binbpx, axis=0) > (binbpx.shape[0]//2)
     if np.any(bad_cols):
         ms2 = procimg.replace_columns(binarr, bad_cols)
@@ -845,62 +844,27 @@ def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30., maskBadRows=False
     filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
     # siglev
     siglev = np.sign(filt)*(filt**2)/np.maximum(sqmstrace, min_sqm)
-    # First edge move
+
+    # First edges assigned according to S/N
     tedges = np.zeros(binarr.shape, dtype=np.float)
     wl = np.where(siglev > + sigdetect)  # A positive gradient is a left edge
     wr = np.where(siglev < - sigdetect)  # A negative gradient is a right edge
     tedges[wl] = -1.0
     tedges[wr] = +1.0
-    #if False:
-    #    import astropy.io.fits as pyfits
-    #    hdu = pyfits.PrimaryHDU(filt)
-    #    hdu.writeto("filt_{0:02d}.fits".format(det), overwrite=True)
-    #    hdu = pyfits.PrimaryHDU(sqmstrace)
-    #    hdu.writeto("sqmstrace_{0:02d}.fits".format(det), overwrite=True)
-    #    hdu = pyfits.PrimaryHDU(binarr)
-    #    hdu.writeto("binarr_{0:02d}.fits".format(det), overwrite=True)
-    #    hdu = pyfits.PrimaryHDU(siglev)
-    #    hdu.writeto("siglev_{0:02d}.fits".format(det), overwrite=True)
+
     # Clean the edges
     wcl = np.where((ndimage.maximum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == -1))
     wcr = np.where((ndimage.minimum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == +1))
     nedgear = np.zeros(siglev.shape, dtype=np.int)
     nedgear[wcl] = -1
     nedgear[wcr] = +1
-    if maskBadRows:
-        msgs.info("Searching for bad pixel rows")
-        edgsum = np.sum(nedgear, axis=0)
-        sigma = 1.4826*np.median(np.abs(edgsum-np.median(edgsum)))
-        w = np.where(np.abs(edgsum) >= 1.5*sigma)[0]
-        maskcols = np.unique(np.append(w, np.append(w+1, w-1)))
-        msgs.info("Masking {0:d} bad pixel rows".format(maskcols.size))
-        for i in range(maskcols.size):
-            if maskcols[i] < 0 or maskcols[i] >= nedgear.shape[1]:
-                continue
-            nedgear[:, maskcols[i]] = 0
+
     ######
     msgs.info("Applying bad pixel mask")
     nedgear *= (1-binbpx.astype(np.int))  # Apply to the bad pixel mask
 
-    # Cut down to user-desired number
-    if number_slits > 0:
-        sigedg = np.copy(siglev)
-        sigedg[np.where(nedgear == 0)] = 0
-        sigedg[np.where(np.isinf(sigedg) | np.isnan(sigedg))] = 0
-        # Now identify the number of most significantly detected peaks (specified by the user)
-        amnmx = np.argsort(sigedg, axis=1)
-        edgearr = np.zeros(binarr.shape, dtype=np.int)
-        xsm = np.arange(binarr.shape[0])
-        for ii in range(0, number_slits):
-            wset = np.where(sigedg[(xsm, amnmx[:, ii])] != 0)
-            edgearr[(wset[0], amnmx[wset[0], ii])] = 1
-            wset = np.where(sigedg[(xsm, amnmx[:, amnmx.shape[1] - 1 - ii])] != 0)
-            edgearr[(wset[0], amnmx[wset[0], amnmx.shape[1] - 1 - ii])] = -1
-    else:
-        edgearr = np.copy(nedgear)
-
     # Return
-    return siglev, edgearr
+    return siglev, nedgear
 
 
 def edgearr_add_left_right(edgearr, binarr, binbpx, lcnt, rcnt, ednum):
