@@ -634,7 +634,8 @@ class TraceSlits(masterframe.MasterFrame):
         _maxshift = self.par['maxshift'] if 'maxshift' in self.par.keys() else maxshift
 
         self.edgearr, self.tc_dict = trace_slits.edgearr_tcrude(self.edgearr, self.siglev,
-                                                                 self.ednum, maxshift=_maxshift)
+                                                                 self.ednum, maxshift=_maxshift,
+                                                                bpm=self.binbpx)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -795,10 +796,18 @@ class TraceSlits(masterframe.MasterFrame):
         """
         plxbin = self.pixlocn[:, :, 0].copy()
         msgs.info("Synchronizing left and right slit traces")
-        self.lcent, self.rcent, self.gord, \
-            self.lcoeff, self.ldiffarr, self.lnmbrarr, self.lwghtarr, \
-            self.rcoeff, self.rdiffarr, self.rnmbrarr, self.rwghtarr \
-                = trace_slits.synchronize_edges(self.binarr, self.edgearr, plxbin, self.lmin,
+        new = False
+        if new:
+            minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
+            xv = plxbin[:, 0]
+            #
+            self.lcent = utils.func_val(self.lcoeff, xv, self.par['function'], minv=minvf, maxv=maxvf)
+            self.rcent = utils.func_val(self.rcoeff, xv, self.par['function'], minv=minvf, maxv=maxvf)
+        else:
+            self.lcent, self.rcent, self.gord, \
+                self.lcoeff, self.ldiffarr, self.lnmbrarr, self.lwghtarr, \
+                self.rcoeff, self.rdiffarr, self.rnmbrarr, self.rwghtarr \
+                    = trace_slits.synchronize_edges(self.binarr, self.edgearr, plxbin, self.lmin,
                                                  self.lmax, self.lcoeff, self.rmin, self.rcoeff,
                                                  self.lnmbrarr, self.ldiffarr, self.lwghtarr,
                                                  self.rnmbrarr, self.rdiffarr, self.rwghtarr,

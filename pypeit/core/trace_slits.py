@@ -523,7 +523,7 @@ def edgearr_mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_sli
 
 
 def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
-                   maxshift=0.15):
+                   maxshift=0.15, bpm=None):
     """ Use trace_crude to refine slit edges
     It is also used to remove bad slit edges and merge slit edges
 
@@ -687,6 +687,14 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                     # Traces can disappear and then the crude trace can wind up hitting a neighbor
                     # Therefore, take only the continuous good piece from the starting point
                     ybad_xerr = np.where(~goodx[:,kk])[0]
+                    # Ignore bad pixels -- Somewhat kludgy
+                    if bpm is not None:
+                        keep_bad = []
+                        for ibad in ybad_xerr:
+                            xval = int(np.round(xset[ibad,kk]))
+                            if bpm[ibad, xval] == 0:
+                                keep_bad.append(ibad)
+                        ybad_xerr = np.array(keep_bad)
                     # Lower point
                     ylow = ybad_xerr < yrow
                     if np.any(ylow):
@@ -2343,6 +2351,7 @@ def remove_slit(edgearr, lcen, rcen, tc_dict, rm_slits, TOL=3.):
     # Return
     return edgearr, lcen, rcen, tc_dict
 
+
 def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff, lnmbrarr,
                       ldiffarr, lwghtarr, rnmbrarr, rdiffarr, rwghtarr, function='legendre',
                       polyorder=3, extrapolate=[0,0]):
@@ -2388,6 +2397,7 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
     if np.any(lv < 0) or np.any(lv + 1 >= binarr.shape[1]):
         msgs.warn("At least one slit is poorly traced")
         msgs.info("Refer to the manual, and adjust the input trace parameters")
+        debugger.set_trace()
         msgs.error("Cannot continue without a successful trace")
     mnvalp = np.median(binarr[:, lv + 1])  # Go one row above and one row below an order edge,
     mnvalm = np.median(binarr[:, lv - 1])  # then see which mean value is greater.
@@ -2498,6 +2508,8 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
                              minv=minvf, maxv=maxvf)
     rcent = utils.func_val(rcoeff[:, runq[rg] - 1 - extrapolate[0]], xv, function, minv=minvf,
                              maxv=maxvf)
+    debugger.set_trace()
+
     # Return
     return lcent, rcent, gord, lcoeff, ldiffarr, lnmbrarr, lwghtarr, \
                 rcoeff, rdiffarr, rnmbrarr, rwghtarr
