@@ -592,7 +592,7 @@ def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
 def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
                     ind = None, l_limit = None, r_limit=None, xlim = None, xtrunc = 1e6):
 
-    p_show_profile = None  # This is the process object that is passed back for show_profile mode
+#    p_show_profile = None  # This is the process object that is passed back for show_profile mode
     profile_model = np.exp(-0.5 *sigma_x** 2)/np.sqrt(2.0 * np.pi) * (sigma_x ** 2 < 25.)
     info_string = "FWHM=" + "{:6.2f}".format(fwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2))
     title_string = obj_string + ', ' + info_string
@@ -608,20 +608,21 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
     if (np.sum(norm) > 0.0):
         profile_model = profile_model / norm
     if (show_profile):
-        # qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, l_limit = l_limit, r_limit = r_limit, ind =good, xlim = 7.0)
+        qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, l_limit = l_limit, r_limit = r_limit,
+                       ind =ind, xlim = xlim, xtrunc=xtrunc)
         # Execute the interactive plot as another process
-        p_show_profile = multiprocessing.Process(target=qa_fit_profile, args=(sigma_x, norm_obj, profile_model),
-                                                 kwargs={'l_limit': l_limit, 'r_limit': r_limit, 'title': title_string,
-                                                         'ind': ind, 'xlim': xlim, 'xtrunc':xtrunc})
-        p_show_profile.daemon = True
-        p_show_profile.start()
+#        p_show_profile = multiprocessing.Process(target=qa_fit_profile, args=(sigma_x, norm_obj, profile_model),
+#                                                 kwargs={'l_limit': l_limit, 'r_limit': r_limit, 'title': title_string,
+#                                                         'ind': ind, 'xlim': xlim, 'xtrunc':xtrunc})
+#        p_show_profile.daemon = True
+#        p_show_profile.start()
 
-    return profile_model, p_show_profile
+    return profile_model
 
 
 def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
-                thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 3.0, wvmnx = [2900.0,30000.0],
-                hwidth = None, prof_nsigma = None, no_deriv = False, gauss = False, obj_string = '',
+                thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 3.0, wvmnx = (2900.0,30000.0),
+                maskwidth = None, prof_nsigma = None, no_deriv = False, gauss = False, obj_string = '',
                 show_profile = False):
 
     """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> sn_gauss) in which
@@ -655,7 +656,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
          S/N ratio below which code just uses a Gaussian
     wvmnx : float [default = [2900.0,30000.0]
          wavelength range of usable part of spectrum
-    hwidth : float [default = None]
+    maskwidth : float [default = None]
          object maskwidth determined from object finding algorithm. If = None,
          code defaults to use 3.0*(np.max(thisfwhm) + 1.0)
     prof_nsigma : float [default = None]
@@ -683,15 +684,13 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
 
 #    multiprocessing.get_context('spawn')
 
-    p_show_profile = None  # This is the process object that is passed back for show_profile mode
+#    p_show_profile = None  # This is the process object that is passed back for show_profile mode
 
-    if hwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
+    if maskwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
     if prof_nsigma is not None:
         no_deriv = True
 
     thisfwhm = np.fmax(thisfwhm,1.0) # require the FWHM to be greater than 1 pixel
-
-    xnew = trace_in
 
     nspat = image.shape[1]
     nspec = image.shape[0]
@@ -705,11 +704,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     sn2_sub = np.zeros((nspec,nspat))
     spline_sub = np.zeros((nspec,nspat))
 
-
     flux_sm = scipy.ndimage.filters.median_filter(flux, size=5, mode = 'reflect')
     fluxivar_sm =  scipy.ndimage.filters.median_filter(fluxivar, size = 5, mode = 'reflect')
-#    flux_sm = djs_median(flux, width = 5, boundary = 'reflect')
-    #    fluxivar_sm =  djs_median(fluxivar, width = 5, boundary = 'reflect')
     fluxivar_sm = fluxivar_sm*(fluxivar > 0.0)
 
     indsp = (wave > wvmnx[0]) & (wave < wvmnx[1]) & \
@@ -727,16 +723,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     nonzero = np.sum(ind_nonzero)
     if(nonzero >0):
         (mean, med_sn2, stddev) = sigma_clipped_stats(sn2,sigma_lower=3.0,sigma_upper=5.0)
-    else: med_sn2 = 0.0
-    sn2_med = scipy.ndimage.filters.median_filter(sn2, size=9, mode='reflect')
-    #sn2_med = djs_median(sn2, width = 9, boundary = 'reflect')
-    igood = (ivar > 0.0)
-    ngd = np.sum(igood)
-    if(ngd > 0):
-        isrt = np.argsort(wave[indsp])
-        sn2_interp = scipy.interpolate.interp1d((wave[indsp])[isrt],sn2_med[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
-        sn2_sub[igood] = sn2_interp(sub_wave[igood])
-    msgs.info('sqrt(med(S/N)^2) = ' + "{:5.2f}".format(np.sqrt(med_sn2)))
+    else:
+        med_sn2 = 0.0
 
     min_wave = np.min(wave[indsp])
     max_wave = np.max(wave[indsp])
@@ -748,6 +736,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     spline_flux1[ispline] = spline_tmp
     cont_tmp, _ = c_answer.value(wave[ispline])
     cont_flux1[ispline] = cont_tmp
+    isrt = np.argsort(wave[indsp])
     s2_1_interp = scipy.interpolate.interp1d((wave[indsp])[isrt], sn2[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
     sn2_1[ispline] = s2_1_interp(wave[ispline])
     bmask = np.zeros(nspec,dtype='bool')
@@ -756,8 +745,16 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     cmask2 = np.zeros(nspec,dtype='bool')
     cmask2[indsp] = cmask
     cont_flux1 = pydl.djs_maskinterp(cont_flux1,(cmask2 == False))
-
     (_, _, sigma1) = sigma_clipped_stats(flux[indsp],sigma_lower=3.0,sigma_upper=5.0)
+
+    igood = (ivar > 0.0)
+    sn2_med_filt = scipy.ndimage.filters.median_filter(sn2, size=9, mode='reflect')
+    if np.any(igood):
+        sn2_interp = scipy.interpolate.interp1d((wave[indsp])[isrt],sn2_med_filt[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
+        sn2_sub[igood] = sn2_interp(sub_wave[igood])
+    else:
+        msgs.error('Entire ')
+    msgs.info('sqrt(med(S/N)^2) = ' + "{:5.2f}".format(np.sqrt(med_sn2)))
 
     if(med_sn2 <= 2.0):
         spline_sub[igood]= np.fmax(sigma1,0)
@@ -778,8 +775,9 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
             spline_flux1[indbad2] = np.median(spline_flux1[~badpix])
         # take a 5-pixel median to filter out some hot pixels
         spline_flux1 = scipy.ndimage.filters.median_filter(spline_flux1,size=5,mode ='reflect')
+
         # Create the normalized object image
-        if(ngd > 0):
+        if np.any(igood):
             isrt = np.argsort(wave)
             spline_sub_interp = scipy.interpolate.interp1d(wave[isrt],spline_flux1[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
             spline_sub[igood] = spline_sub_interp(sub_wave[igood])
@@ -795,10 +793,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     good = (norm_ivar.flatten() > 0.0)
     ngood = np.sum(good)
 
-
     xtemp = (np.cumsum(np.outer(4.0 + np.sqrt(np.fmax(sn2_1, 0.0)),np.ones(nspat)))).reshape((nspec,nspat))
     xtemp = xtemp/xtemp.max()
-
 
     # norm_x is the x position along the image centered on the object  trace
     norm_x = np.outer(np.ones(nspec), sub_x) - np.outer(sub_trace,np.ones(nspat))
@@ -815,9 +811,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
         msgs.info("Too few good pixels or S/N <" + "{:5.1f}".format(sn_gauss) + " or gauss flag set")
         msgs.info("Returning Gaussian profile")
-        (profile_model, p_show_profile) = return_gaussian(sigma_x, norm_obj, thisfwhm, med_sn2, obj_string,show_profile,
-                                                          ind=good,xtrunc=7.0)
-        return (profile_model, trace_in, fwhmfit, med_sn2, p_show_profile)
+        profile_model = return_gaussian(sigma_x, norm_obj, thisfwhm, med_sn2, obj_string,show_profile,ind=good,xtrunc=7.0)
+        return (profile_model, trace_in, fwhmfit, med_sn2)
 
     mask = np.full(nspec*nspat, False, dtype=bool)
 
@@ -905,9 +900,9 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     if(ninside < 10):
         msgs.info("Too few pixels inside l_limit and r_limit")
         msgs.info("Returning Gaussian profile")
-        (profile_model, p_show_profile) = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,show_profile,
+        profile_model = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,show_profile,
                                                           ind = good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
-        return (profile_model, trace_in, fwhmfit, med_sn2, p_show_profile)
+        return (profile_model, trace_in, fwhmfit, med_sn2)
 
     sigma_iter = 3
     isort = (xtemp.flat[si[inside]]).argsort()
@@ -937,9 +932,9 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         if not np.any(mode_shift_out[1]):
             msgs.info('B-spline fit to trace correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
             msgs.info("Returning Gaussian profile")
-            (profile_model, p_show_profile) = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
-                                                              show_profile,ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
-            return (profile_model, trace_in, fwhmfit, med_sn2, p_show_profile)
+            profile_model = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
+                                            show_profile,ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
+            return (profile_model, trace_in, fwhmfit, med_sn2)
 
 
         mode_shift_set = mode_shift_out[0]
@@ -958,9 +953,9 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         if not np.any(mode_stretch_out[1]):
             msgs.info('B-spline fit to width correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
             msgs.info("Returning Gaussian profile")
-            (profile_model, p_show_profile) = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
+            profile_model  = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
                                                               show_profile,ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
-            return (profile_model, trace_in, fwhmfit, med_sn2, p_show_profile)
+            return (profile_model, trace_in, fwhmfit, med_sn2)
 
         mode_stretch_set = mode_stretch_out[0]
         temp_set = pydl.bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
@@ -993,9 +988,9 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
             if not np.any(bset_out[1]):
                 msgs.info('B-spline to profile in trace and width correction loop failed for fit to ninside = {:}'.format(ninside) + ' pixels')
                 msgs.info("Returning Gaussian profile")
-                (profile_model, p_show_profile) = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
+                profile_model = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
                                                                   show_profile, ind=good, l_limit=l_limit,r_limit=r_limit, xlim=7.0)
-                return (profile_model, trace_in, fwhmfit, med_sn2, p_show_profile)
+                return (profile_model, trace_in, fwhmfit, med_sn2)
 
             bset = bset_out[0] # This updated bset used for the next set of trace corrections
 
@@ -1108,16 +1103,17 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                   + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2)) + ", median(chi^2)={:8.3f}".format(chi_med)
     title_string = obj_string + ' ' + info_string
     if(show_profile):
-        #qa_fit_profile(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp,
-         #              l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = prof_nsigma)
+        qa_fit_profile(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp,
+                       l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = prof_nsigma, title = title_string)
 
-        p_show_profile = multiprocessing.Process(target=qa_fit_profile, args=(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp),
-                                 kwargs={'l_limit': l_limit, 'r_limit': r_limit, 'title': title_string, 'ind': ss[inside],
-                                         'xlim': prof_nsigma})
-        p_show_profile.daemon = True
-        p_show_profile.start()
+#        p_show_profile = multiprocessing.Process(target=qa_fit_profile, args=(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp),
+#                                 kwargs={'l_limit': l_limit, 'r_limit': r_limit, 'title': title_string, 'ind': ss[inside],
+#                                         'xlim': prof_nsigma})
+#        p_show_profile.daemon = True
+#        p_show_profile.start()
 
-    return (profile_model, xnew, fwhmfit, med_sn2, p_show_profile)
+#    return (profile_model, xnew, fwhmfit, med_sn2, p_show_profile)
+    return (profile_model, xnew, fwhmfit, med_sn2)
 
 
 def parse_hand_dict(hand_extract_dict):
@@ -1279,7 +1275,7 @@ specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 
 
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
             hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit = 10,  bg_smth = 5.0,
-            maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (3,3), objmask_nthresh = 2.0,
+            extract_maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (3,3), objmask_nthresh = 2.0,
             specobj_dict=specobj_dict, show_peaks=False, show_fits = False, show_trace = False, qa_title=''):
 
     """ Find the location of objects in a slitmask slit or a echelle order.
@@ -1321,19 +1317,32 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     ncoeff: int, default = 5
         Order of legendre polynomial fits to the trace
     nperslit: int, default = 10
-        Maximum number of objects allowed per slit
+        Maximum number of objects allowed per slit. The code will take the nperslit most significant detections.
     bg_smth: float, default = 5.0
         Size of the smoothing kernel in units of fwhm used to determine the background level from the smash of the image
         along the curved traces. This background subtracted smashed image is used for peak finding to identify objects
-    pkwdth: float, defualt = 3.0
-
-    ycen :  float ndarray
-        Y positions corresponding to "Left"  and "Right" (expected as integers). Will be cast to an integer if floats
-        are provided. This needs to have the same shape as left and right broundarys provided above. In other words,
-        either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
-
-    weight_image: float ndarray
-        Weight map to be applied to image before boxcar. It is a 2-d array with shape (nspec, nspat)
+    extract_maskwidth: float, default = 3.0
+        This parameter determines the initial size of the region in units of fwhm that will be used for local sky subtraction in the routine
+        skysub.local_skysub_extract.
+    sig_thresh: float, default = 5.0
+        Significance threshold for object detection. The code uses the maximum of the thresholds defined by sig_thresh,
+        peak_thresh, and abs_thresh.
+         For the default behavior peak_thresh and abs_thresh are zero, so sig_thresh defines the threshold.
+    peak_thresh: float, default = 0.0
+        Peak threshold for object detection. This is a number between 0 and 1 and represents the fraction of the brightest
+        object on the slit that will be kept as an object, i.e. if ymax is the brightest object of the spectrum smashed
+        out in the spectral direction, all objects with ypeak > peak_thresh*ymak are kept. The code uses the maximum of the
+        thresholds defined by sig_thresh, peak_thers, and abs_thresh.
+    abs_thresh: float, defalt = 0.0.
+        Absolute threshold for object detection.  Objects are found by smashing out the spectral direction along the curved
+        slit/order traces, and abs_thresh is in the units of this smashed profile.  The code uses the maximum of the
+        thresholds defined by sig_thresh, peak_thers, and abs_thresh.
+    trim_edg: tuple of integers or float, default = (3,3)
+        Ignore objects within this many pixels of the left and right slit boundaries, where the first element refers to the left
+        and second refers to the right.
+    objmask_nthresh: float, default = 2.0
+        The multiple of the final object finding threshold (see above) which is used to create the object using the value
+        of the peak flux in the slit profile (image with the spectral direction smashed out).
 
     Returns
     -------
@@ -1350,7 +1359,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     23-June-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
-    proc_list = []  # List of processes for interactive plotting, these are passed back in case the user wants to terminate them
+#    proc_list = []  # List of processes for interactive plotting, these are passed back in case the user wants to terminate them
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
         msgs.error('Invalid value of peak_thresh. It must be between 0.0 and 1.0')
@@ -1603,7 +1612,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     skymask = np.copy(thismask)
     if (len(sobjs) == 0) & (hand_extract_dict == None):
         msgs.info('No objects found')
-        return (specobjs.SpecObjs(), skymask[thismask], objmask[thismask], proc_list)
+        return (specobjs.SpecObjs(), skymask[thismask], objmask[thismask])
 
 
     msgs.info('Fitting the object traces')
@@ -1725,9 +1734,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     qobj = np.zeros_like(xtmp)
     for iobj in range(nobj):
         if skythresh > 0.0:
-            sobjs[iobj].maskwidth = maskwidth*sobjs[iobj].fwhm*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
+            sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].fwhm*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
         else:
-            sobjs[iobj].maskwidth = maskwidth*sobjs[iobj].fwhm
+            sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].fwhm
         sep = np.abs(xtmp-sobjs[iobj].spat_fracpos)
         sep_inc = sobjs[iobj].maskwidth/nsamp
         close = sep <= sep_inc
@@ -1771,7 +1780,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 #        p_show_gauss_wt.terminate()
 
 
-    return sobjs, skymask[thismask], objmask[thismask], proc_list
+    return sobjs, skymask[thismask], objmask[thismask]
 
 
 
@@ -2085,7 +2094,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
             std_in = std_trace[:,iord]
         except TypeError:
             std_in = None
-        sobjs_slit, skymask[thismask], objmask[thismask], proc_list = \
+        sobjs_slit, skymask[thismask], objmask[thismask]= \
             objfind(image, thismask, slit_left[:,iord], slit_righ[:,iord], inmask=inmask_iord,std_trace=std_in,
                             show_peaks=show_peaks,show_fits=show_fits, show_trace=show_single_trace,
                             specobj_dict=specobj_dict, sig_thresh=sig_thresh)
