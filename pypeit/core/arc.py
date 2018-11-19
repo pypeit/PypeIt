@@ -223,13 +223,13 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask, setup=
         this_wv = all_wv[all_orders == ii]
         this_msk = thismask[all_orders == ii]
 
-        wv_order_mod_res_qa = eval2dfit(fit_dict, this_pix, ii)
-        res_qa = (wv_order_mod_res_qa/ii-this_wv)
-        plt.scatter((wv_order_mod_res_qa[~this_msk]/ii)+100*res_qa[~this_msk], this_pix[~this_msk],marker='x', color='black')
-        plt.scatter((wv_order_mod_res_qa[this_msk]/ii)+100*res_qa[this_msk], this_pix[this_msk],color=(rr,gg,bb))
+        wv_order_mod_resid_qa = eval2dfit(fit_dict, this_pix, ii)
+        resid_qa = (wv_order_mod_resid_qa/ii-this_wv)
+        plt.scatter((wv_order_mod_resid_qa[~this_msk]/ii)+100*resid_qa[~this_msk], this_pix[~this_msk],marker='x', color='black')
+        plt.scatter((wv_order_mod_resid_qa[this_msk]/ii)+100*resid_qa[this_msk], this_pix[this_msk],color=(rr,gg,bb))
 
-        if np.max(wv_order_mod_res_qa/ii) > mx :
-            mx = np.max(wv_order_mod_res_qa/ii)
+        if np.max(wv_order_mod_resid_qa/ii) > mx :
+            mx = np.max(wv_order_mod_resid_qa/ii)
 
     plt.text(mx,np.max(all_pixels_qa),r'residuals $\times$100',ha="right", va="top",)
 
@@ -237,6 +237,124 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask, setup=
     # plt.savefig(outfile, dpi=800)
     # plt.close()
     plt.show()
+
+    # Individual plots
+
+    nrow = np.int(2)
+    ncol = np.int(np.ceil(len(orders)/2.))
+    utils.pyplot_rcparams()
+
+    fig, ax = plt.subplots(nrow,ncol,figsize=(4*ncol,4*nrow))
+    for ii_row in range(nrow):
+        for ii_col in range(ncol):
+            if (ii_row*ncol + ii_col) < len(orders):
+                ii = orders[ii_row*ncol + ii_col]
+
+                # define the color
+                rr = (ii-np.max(orders))/(np.min(orders)-np.max(orders))
+                gg = 0.0
+                bb = (ii-np.min(orders))/(np.max(orders)-np.min(orders))
+
+                # Evaluate function
+                wv_order_mod_qa = eval2dfit(fit_dict, all_pixels_qa, ii)
+                # Evaluate delta lambda
+                dwl=(wv_order_mod_qa[-1]-wv_order_mod_qa[0])/ii/(all_pixels_qa[-1]-all_pixels_qa[0])
+
+                # Plot the fit
+                ax[ii_row,ii_col].set_title('Order = {0:0.0f}'.format(ii))
+                ax[ii_row,ii_col].plot(all_pixels_qa, wv_order_mod_qa/ii/10000.,color=(rr,gg,bb), linestyle='-',
+                                       linewidth=2.5)
+
+                # Estimate the residuals
+                this_pix = all_pix[all_orders == ii]
+                this_wv = all_wv[all_orders == ii]
+                this_msk = thismask[all_orders == ii]
+
+                wv_order_mod_resid_qa = eval2dfit(fit_dict, this_pix, ii)
+                resid_qa = (wv_order_mod_resid_qa/ii-this_wv)
+
+                ax[ii_row,ii_col].scatter(this_pix[~this_msk],((wv_order_mod_resid_qa[~this_msk]/ii)+100*resid_qa[~this_msk])/10000.,marker='x', color='black')
+                ax[ii_row,ii_col].scatter(this_pix[this_msk], ((wv_order_mod_resid_qa[this_msk]/ii)+100*resid_qa[this_msk])/10000., color=(rr,gg,bb))
+                # rms_qa = np.sqrt(np.mean(resid_qa_mask**2))
+            else:
+                ax[ii_row, ii_col].axis('off')
+
+    fig.text(0.5, 0.04, r'Row [pixel]', ha='center', size='large')
+    fig.text(0.04, 0.5, r'Wavelength [$\mu$m]', va='center',rotation='vertical', size='large')
+    fig.suptitle(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#, residuals $\times$100'.format(norder_coeff, nspec_coeff,fin_rms))
+
+    # # Finish
+    # plt.savefig(outfile, dpi=800)
+    # plt.close()
+    plt.show()
+
+    # Residual Individual
+
+    fig, ax = plt.subplots(nrow,ncol,figsize=(4*ncol,4*nrow))
+    for ii_row in range(nrow):
+        for ii_col in range(ncol):
+            if (ii_row*ncol + ii_col) < len(orders):
+                ii = orders[ii_row*ncol + ii_col]
+
+                # define the color
+                rr = (ii-np.max(orders))/(np.min(orders)-np.max(orders))
+                gg = 0.0
+                bb = (ii-np.min(orders))/(np.max(orders)-np.min(orders))
+
+                # Evaluate function
+                wv_order_mod_qa = eval2dfit(fit_dict, all_pixels_qa, ii)
+                # Evaluate delta lambda
+                dwl=(wv_order_mod_qa[-1]-wv_order_mod_qa[0])/ii/(all_pixels_qa[-1]-all_pixels_qa[0])
+
+                # Plot the fit
+                ax[ii_row,ii_col].set_title('Order = {0:0.0f}'.format(ii))
+                # ax[ii_row,ii_col].plot(all_pixels_qa, wv_order_mod_qa/ii/10000.,color=(rr,gg,bb), linestyle='-',
+                #                        linewidth=2.5)
+
+                # Estimate the residuals
+                this_pix = all_pix[all_orders == ii]
+                this_wv = all_wv[all_orders == ii]
+                this_msk = thismask[all_orders == ii]
+
+                wv_order_mod_resid_qa = eval2dfit(fit_dict, this_pix, ii)
+                resid_qa = (wv_order_mod_resid_qa/ii-this_wv)
+
+                ax[ii_row,ii_col].scatter(this_pix[~this_msk],(resid_qa[~this_msk]*dwl),marker='x', color='black')
+                ax[ii_row,ii_col].scatter(this_pix[this_msk], (resid_qa[this_msk]*dwl), color=(rr,gg,bb))
+                # rms_qa = np.sqrt(np.mean(resid_qa_mask**2))
+            else:
+                ax[ii_row, ii_col].axis('off')
+
+    fig.text(0.5, 0.04, r'Row [pixel]', ha='center', size='large')
+    fig.text(0.04, 0.5, r'Wavelength [$\mu$m]', va='center',rotation='vertical', size='large')
+    fig.suptitle(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#, residuals $\times$100'.format(norder_coeff, nspec_coeff,fin_rms))
+
+    # # Finish
+    # plt.savefig(outfile, dpi=800)
+    # plt.close()
+    plt.show()
+
+
+    plt.rcdefaults()
+
+
+
+'''
+        plt.scatter((wv_order_mod_resid_qa[~this_msk]/ii)+100*resid_qa[~this_msk], this_pix[~this_msk],marker='x', color='black')
+        plt.scatter((wv_order_mod_resid_qa[this_msk]/ii)+100*resid_qa[this_msk], this_pix[this_msk],color=(rr,gg,bb))
+
+
+
+		ax[ii_row,ii_col].text(0.9,0.9,r'RMS={0:.2f} Pixel'.format(rms_qa/np.abs(dwl)),ha="right", va="top",
+				       transform = ax[ii_row,ii_col].transAxes)
+		ax[ii_row,ii_col].text(0.9,0.8,r'$\Delta\lambda$={0:.2f} Pixel/$\AA$'.format(np.abs(dwl)),ha="right", va="top",
+				  transform = ax[ii_row,ii_col].transAxes)
+'''
+
+
+
+
+
 
 '''
 def fit2darc_qa(fit_dict):
