@@ -214,6 +214,32 @@ def h2o_lines():
 
     return h2o_wv, h2o_rad
 
+def thar_lines():
+    """ Reads in the H2O atmospheric spectrum"
+    Detailed information are here: http://astronomy.swin.edu.au/~mmurphy/thar/index.html
+
+    Returns
+    -------
+    wavelength, flux : np.arrays
+        Wavelength [in angstrom] and flux of the ThAr lamp 
+        spectrum.
+    """
+
+    msgs.info("Reading in the ThAr spectrum")
+    arclines_dir = resource_filename('pypeit', 'data/arc_lines/')
+    thar = fits.open(arclines_dir+'thar_spec_MM201006.fits')
+
+    # create pixel array
+    thar_pix = np.arange(thar[0].header['CRPIX1'],len(thar[0].data[0,:])+1)
+    # convert pixels to wavelength in Angstrom
+    thar_wv = thar[0].header['UP_WLSRT']*10**((thar_pix-thar[0].header['CRPIX1'])*thar[0].header['CD1_1'])
+    # read in spectrum
+    thar_spec = thar[0].data[0,:]
+
+    return thar_wv, thar_spec
+
+
+
 def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
                     flgd=True, nirsky_outfile=None, T_BB=250.,
                     SCL_BB=1., SCL_OH=1., SCL_H2O=10.,
@@ -338,7 +364,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
             header['CRVAL1'] = wv_min
             header['CDELT1'] = dlam
             header['DC-FLAG'] = 0
-        hdu.writeto(outfile, overwrite = True)
+        hdu.writeto(nirsky_outfile, overwrite = True)
 
     if debug:
         utils.pyplot_rcparams()
@@ -362,11 +388,125 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         plt.legend()
         plt.xlabel(r'Wavelength [microns]')
         plt.ylabel(r'Emission')
-        plt.title(r' Sky Emission Spectrum at R={}'.format(resolution))
+        plt.title(r'Sky Emission Spectrum at R={}'.format(resolution))
         plt.show()
         utils.pyplot_rcparams_default()
 
     return np.array(wave*10000.), np.array(sky_model)
+
+def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
+                      flgd=True, thar_outfile=None, debug=False):
+    """ Generate a model of a ThAr lamp in the uvb/optical. This is based on the
+    Murphy et al. ThAr spectrum. Detailed information are here:
+    http://astronomy.swin.edu.au/~mmurphy/thar/index.html
+    Everythins is smoothed at the given resolution.
+
+    Parameters
+    ----------
+    resolution : np.float
+        resolution of the spectrograph. The ThAr lines will have a 
+        FWHM equal to:
+        fwhm_line = wl_line / resolution
+    waveminmax : tuple
+        wavelength range in angstrom to be covered by the model.
+        Default is: (3000.,10500.)
+    dlam : 
+        bin to be used to create the wavelength grid of the model.
+        If flgd='True' it is a bin in velocity (km/s). If flgd='False'
+        it is a bin in linear space (microns).
+        Default is: 40.0 (with flgd='True')
+    flgd : boolean
+        if flgd='True' (default) wavelengths are created with 
+        equal steps in log space. If 'False', wavelengths will be
+        created wit equal steps in linear space.
+    thar_outfile : str
+        name of the fits file where the model sky spectrum will be stored.
+        default is 'None' (i.e., no file will be written).
+
+    Returns
+    -------
+    wave, thar_model : np.arrays
+        wavelength (in Ang.) and flux of the final model of the ThAr lamp emission.
+    """
+
+    # Create the wavelength array:
+    wv_min = waveminmax[0]
+    wv_max = waveminmax[1]
+    if flgd :
+        msgs.info("Creating wavelength vector in velocity space.")
+        velpix = dlam # km/s
+        loglam = np.log10(1.0 + velpix/299792.458)
+        wave = np.power(10.,np.arange(np.log10(wv_min), np.log10(wv_max), loglam))
+    else :
+        msgs.info("Creating wavelength vector in linear space.")
+        wave = np.arange(wv_min, wv_max, dlam)
+
+    msgs.info("Add in ThAr lines")
+    th_wv, th_fx = thar_lines()
+
+    # select spectral region
+    filt_wl = (th_wv>=wv_min) & (th_wv<=wv_max)
+    # calculate sigma at the mean wavelenght of the ThAr spectrum
+    mn_wv = np.mean(th_wv[filt_wl])
+    # Convolve to the instrument resolution. This is only
+    # approximate.
+    smooth_fx, dwv, thar_dwv = conv2res(th_wv, th_fx,
+                                        resolution,
+                                        central_wl = mn_wv,
+                                        debug=debug)
+    # Interpolate over input wavelengths
+    interp_thar = scipy.interpolate.interp1d(th_wv, smooth_fx,
+                                             kind='cubic',
+                                             fill_value='extrapolate')
+    thar_spec = interp_thar(wave)
+
+    # remove negative artifacts
+    thar_spec[thar_spec<0.] = 0.
+    # Remove regions of the spectrum outside the wavelength covered by the ThAr model
+    if wv_min<np.min(th_wv):
+        msgs.warn("Model of the ThAr spectrum outside the template coverage.")
+        thar_spec[wave<np.min(th_wv)] = 0.
+    if wv_max<np.max(th_wv):
+        msgs.warn("Model of the ThAr spectrum outside the template coverage.")
+        thar_spec[wave>np.max(th_wv)] = 0.
+
+    if thar_outfile is not None:
+        msgs.info("Saving the ThAr model in: {}".format(thar_outfile))
+        hdu = fits.PrimaryHDU(np.array(thar_model))
+        header = hdu.header
+        if flgd :
+            header['CRVAL1'] = np.log10(wv_min)
+            header['CDELT1'] = loglam
+            header['DC-FLAG'] = 1
+        else :
+            header['CRVAL1'] = wv_min
+            header['CDELT1'] = dlam
+            header['DC-FLAG'] = 0
+        hdu.writeto(thar_outfile, overwrite = True)
+
+    if debug:
+        utils.pyplot_rcparams()
+        msgs.info("Plot of the Murphy et al. template at R={}".format(resolution))
+        plt.figure()
+        plt.plot(th_wv, th_fx,
+                 color='navy', linestyle='-', alpha=0.3,
+                 label=r'Original')
+        plt.plot(th_wv, smooth_fx, 
+                 color='crimson', linestyle='-', alpha=0.6,
+                 label=r'Convolved at R={}'.format(resolution))
+        plt.plot(wave, thar_spec, 
+                 color='maroon', linestyle='-', alpha=1.0,
+                 label=r'Convolved at R={} and resampled'.format(resolution))
+        plt.legend()
+        plt.xlabel(r'Wavelength [Ang.]')
+        plt.ylabel(r'Emission')
+        plt.title(r'Murphy et al. ThAr spectrum at R={}'.format(resolution))
+        plt.show()
+        utils.pyplot_rcparams_default()
+
+    return np.array(wave), np.array(thar_spec)
+
+
 
 def conv2res(wavelength, flux, resolution, central_wl='midpt',
              debug=False):
@@ -533,9 +673,9 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
         dat.write(file_root_name+'_line.dat',format='ascii.fixed_width')
 
 def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, nirsky_outfile=None,
-                      fwhm=None, sigdetec=2., line_name=None, file_root_name=None, iraf_frmt=False, 
+                      fwhm=None, sigdetec=2., line_name='OH', file_root_name=None, iraf_frmt=False, 
                       debug=False):
-    """ Create a syntetic sky spectrum at a given resolution, extract significant lines, and
+    """Create a syntetic sky spectrum at a given resolution, extract significant lines, and
     store them in a pypeit compatibile file.
 
     Parameters
@@ -566,7 +706,7 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
         sigma threshold above fluctuations for line detection. Parameter
         of arc.detect_lines(). Default = 2.
     line_name : str
-        name of the lines to listed in the file.
+        name of the lines to listed in the file. Default is 'OH'.
     file_root_name : str
         name of the file where the identified lines will be stored.
         The code automatically add '_lines.dat' at the end of the
@@ -599,3 +739,72 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
 
     create_linelist(wavelength, spec, fwhm=fwhm, sigdetec=sigdetec, line_name=line_name,
                     file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug)
+
+def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=True, thar_outfile=None,
+                        fwhm=None, sigdetec=2., line_name='ThAr', file_root_name=None, iraf_frmt=False,
+                        debug=False):
+    """Create a syntetic ThAr spectrum at a given resolution, extract significant lines, and
+    store them in a pypeit compatibile file. This is based on the Murphy et al. ThAr spectrum.
+    Detailed information are here: http://astronomy.swin.edu.au/~mmurphy/thar/index.html
+
+    Parameters
+    ----------
+    resolution : np.float
+        resolution of the spectrograph
+    waveminmax : tuple
+        wavelength range in ang. to be covered by the model.
+        Default is: (3000., 10500.)
+    dlam : 
+        bin to be used to create the wavelength grid of the model.
+        If flgd='True' it is a bin in velocity (km/s). If flgd='False'
+        it is a bin in linear space (angstrom).
+        Default is: 40.0 (with flgd='True')
+    flgd : boolean
+        if flgd='True' (default) wavelengths are created with 
+        equal steps in log space. If 'False', wavelengths will be
+        created wit equal steps in linear space.
+    thar_outfile : str
+        name of the fits file where the model sky spectrum will be stored.
+        default is 'None' (i.e., no file will be written).
+    fwhm : float
+        fwhm in pixels used for filtering out arc lines that are too
+        wide and not considered in fits. Parameter of arc.detect_lines().
+        If set to 'None' the fwhm will be derived from the resolution as:
+        2. * central_wavelength / resolution
+    sigdetec : float
+        sigma threshold above fluctuations for line detection. Parameter
+        of arc.detect_lines(). Default = 2.
+    line_name : str
+        name of the lines to listed in the file.
+    file_root_name : str
+        name of the file where the identified lines will be stored.
+        The code automatically add '_lines.dat' at the end of the
+        root name.
+    iraf_frmt : bool
+        if True, the file is written in the IRAF format (i.e. wavelength,
+        ion name, amplitude).
+    """
+
+    wavelength, spec = optical_modelThAr(resolution, waveminmax=waveminmax, dlam=dlam,
+                                         flgd=flgd, thar_outfile=thar_outfile, debug=False)
+    if fwhm is None:
+        msgs.warn("No min FWHM for the line detection set. Derived from the resolution at the center of the spectrum")
+        wl_cent = np.average(wavelength)
+        wl_fwhm = wl_cent / resolution
+        wl_bin = np.abs((wavelength-np.roll(wavelength,1))[np.where(np.abs(wavelength-wl_cent)==np.min(np.abs(wavelength-wl_cent)))])
+        fwhm = wl_fwhm / wl_bin[0]
+        if fwhm < 1.:
+             msgs.warn("Lines are unresolved. Seeing FWHM=2.pixels")
+             fwhm = 2.
+
+    if line_name is None:
+        msgs.warn("No line_name as been set. The file will contain XXX as ion")
+        line_name = 'XXX'
+
+    if file_root_name is None:
+        msgs.warn("No file_root_name as been set. The file will called ThAr_lines.dat")
+        file_root_name = 'ThAr'
+
+    create_linelist(wavelength, spec, fwhm=fwhm, sigdetec=sigdetec, line_name=line_name,
+                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug)
+
