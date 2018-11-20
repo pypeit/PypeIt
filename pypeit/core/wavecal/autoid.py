@@ -660,6 +660,7 @@ class ArchiveReid:
        Number of sigma for rejection for the final fit to the wavelength solution.
     """
 
+
     def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True,
                  debug_xcorr = False, debug_reid = False, debug_fits= False):
 
