@@ -718,13 +718,13 @@ class TraceSlits(masterframe.MasterFrame):
                         for kk in range(edges_dict[side]['nstart']):
                             ginga.show_trace(viewer, ch, edges_dict[side]['trace'][:, kk], trc_name=side+ str(kk),color=color[side])
         else:
-            debugger.set_trace()
             # Gemini GNIRS suggests we should do left and right echelle boundaries individually
             iter = 1
             maxiter = 3
             slit_in = slit_left.copy()
-            mask_in = left_mask.copy()
+            mask_in = mask_left.copy()
 
+            # Run on left edges
             while iter <= maxiter:
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
                 trace_dict_l = trace_slits.trace_refine(
@@ -739,15 +739,11 @@ class TraceSlits(masterframe.MasterFrame):
                 viewer, ch = ginga.show_image(self.mstrace)
                 for kk in range(trace_dict_l['left']['nstart']):
                     ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk),color='green')
-    #            for key in trace_dict_l.keys():
-    #                for kk in range(trace_dict_l[key]['nstart']):
-    #                    ginga.show_trace(viewer, ch, trace_dict_l[key]['trace'][:, kk], trc_name=key + '_' + str(kk),color=color[key])
 
-
-            # Gemini GNIRS suggests we should do left and right echelle boundaries individually
+            # Run on right edges
             iter = 1
             slit_in = slit_righ.copy()
-            mask_in = righ_mask.copy()
+            mask_in = mask_righ.copy()
             while iter <= maxiter:
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
                 trace_dict_r = trace_slits.trace_refine(
@@ -762,13 +758,17 @@ class TraceSlits(masterframe.MasterFrame):
                 for kk in range(trace_dict_r['right']['nstart']):
                     ginga.show_trace(viewer, ch, trace_dict_r['right']['trace'][:, kk], trc_name='right_' + str(kk),color='red')
 
-            from IPython import embed
-            embed()
-            viewer, ch = ginga.show_image(self.mstrace)
-            for kk in range(trace_dict_l['left']['nstart']):
-                ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk), color='green')
-            for kk in range(trace_dict_r['right']['nstart']):
-                ginga.show_trace(viewer, ch, trace_dict_r['right']['trace'][:, kk], trc_name='right_' + str(kk),color='red')
+            if show:
+                viewer, ch = ginga.show_image(self.mstrace)
+                for kk in range(trace_dict_l['left']['nstart']):
+                    ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk), color='green')
+                for kk in range(trace_dict_r['right']['nstart']):
+                    ginga.show_trace(viewer, ch, trace_dict_r['right']['trace'][:, kk], trc_name='right_' + str(kk),color='red')
+
+            # Merge
+            edges_dict = {}
+            edges_dict['left'] = trace_dict_l.copy()
+            edges_dict['right'] = trace_dict_l.copy()
 
         # Update tc_dict -- we now leave edgearr behind!
         ypos = nspec // 2
