@@ -76,9 +76,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-
         # Reidentification parameters
+        #par['calibrations']['wavelengths']['method'] = 'reidentify'
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire.json'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
