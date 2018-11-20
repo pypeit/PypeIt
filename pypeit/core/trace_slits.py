@@ -2631,10 +2631,13 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
 
+    # ToDo I would take this stuff out of this routine and put it in the calling routine. For the iterations, we've
+    # already done fits, so need to re-fit
     edge_spec = np.outer(np.ones(nedges), spec_vec)
     tset = pydl.xy2traceset(edge_spec, edges.T, ncoeff=ncoeff, maxdev=5.0, maxiter=25, invvar=edges_mask.T.astype(float))
     edges_fit = tset.yfit.T
 
+    # ToDO I think this is part is still okay
     spat_not_junk = np.sum(edges_mask, 1)
     iref = int(np.round(np.sum(spat_not_junk * spec_vec)/np.sum(spat_not_junk)))
     edges_ref = edges_fit[iref, :]
