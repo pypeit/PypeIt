@@ -204,19 +204,6 @@ class PypeIt(object):
         msgs.info("Successful Calibration!")
 
 
-#    def calibrate_one(self, sci_ID, det):
-#        """
-#        Dummy method.  Set in a child
-#
-#        Args:
-#            sci_ID:
-#            det:
-#
-#        Returns:
-#
-#        """
-#        assert False
-
     def _chk_for_std(self):
         # Can only reduce these frames if the mask is the same
         std_idx = self.fitstbl.find_frames('standard', sci_ID=self.sci_ID, index=True)
@@ -482,31 +469,23 @@ class PypeIt(object):
         """
         assert False
 
-    #JFH Moved here as it is the same for MultiSlit and Echelle
-    def _init_calibrations(self):
-        """
-        Instantiate the Calibrations class
-
-        Returns:
-
-        """
-        # TODO -- Need to make save_masters and write_qa optional
-        # Init calib dict
-        self.caliBrate \
-                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
-                                                     par=self.par['calibrations'],
-                                                     redux_path=self.par['rdx']['redux_path'],
-                                                     save_masters=True, write_qa=True,
-                                                     show=self.show)
+# This is no longer required
 
 #    def _init_calibrations(self):
 #        """
-#        Dummy method for instantiating a Calibration class
-#
+#        Instantiate the Calibrations class
 #        Returns:
 #
 #        """
-#        pass
+#        # TODO -- Need to make save_masters and write_qa optional
+#        # Init calib dict
+#        self.caliBrate \
+#                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
+#                                                     par=self.par['calibrations'],
+#                                                     redux_path=self.par['rdx']['redux_path'],
+#                                                     save_masters=True, write_qa=True,
+#                                                     show=self.show)
+
 
 
     def init_one_science(self, sci_ID, det):
@@ -630,7 +609,13 @@ class PypeIt(object):
                         self.par['rdx']['scidir'], self.par['rdx']['qadir'],
                         overwrite=self.overwrite, redux_path=self.par['rdx']['redux_path'])
         # Instantiate Calibration class
-        self._init_calibrations()
+        self.caliBrate \
+                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
+                                                     par=self.par['calibrations'],
+                                                     redux_path=self.par['rdx']['redux_path'],
+                                                     save_masters=True, write_qa=True,
+                                                     show=self.show)
+        #self._init_calibrations()
 
     def _make_setup_pypeit_file(self, files_root, extension='.fits', overwrite=False):
         """
@@ -781,48 +766,6 @@ class MultiSlit(PypeIt):
     """
     def __init__(self, spectrograph, **kwargs):
         super(MultiSlit, self).__init__(spectrograph, **kwargs)
-
-    # JFH This has been moved to PypeIt as it is the same for MulitSlit and Echelle
-#    def calibrate_one(self, sci_ID, det):
-#        """
-#        Calibrate a science exposure / detector pair
-#
-#        Args:
-#            sci_ID: int
-#              binary flag indicating the science frame
-#            det: int
-#              detector number
-#
-#        Returns:
-#
-#        """
-#        # Setup
-#        self.setup, self.setup_dict = pypsetup.instr_setup(sci_ID, det, self.fitstbl,
-#                                                           setup_dict=self.setup_dict,
-#                                                           must_exist=True)
-#        # Setup
-#        self.caliBrate.reset(self.setup, det, sci_ID, self.par['calibrations'])
-#        # Run em
-#        self.caliBrate.run_the_steps()
-#
-#        msgs.info("Successful Calibration!")
-
-#    def _init_calibrations(self):
-#        """
-#        Instantiate the Calibrations class
-#
-#        Returns:
-#
-#        """
-#        # TODO -- Need to make save_masters and write_qa optional
-#        # Init calib dict
-#        self.caliBrate \
-#                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
-#                                                     par=self.par['calibrations'],
-#                                                     redux_path=self.par['rdx']['redux_path'],
-#                                                     save_masters=True, write_qa=True,
-#                                                     show=self.show)
-
 
     def _extract_one(self, std=False):
         """
@@ -993,40 +936,40 @@ class Echelle(PypeIt):
     def __init__(self, spectrograph, **kwargs):
         super(Echelle, self).__init__(spectrograph, **kwargs)
 
-    #
-    # # JFH This should replace the init_one_science above in Multislit as well
-    # def init_one_science(self, sci_ID, frametype, det):
-    #     """
-    #     Instantiate ScienceImage class and run the first step with it
-    #
-    #     Args:
-    #         sci_ID: int
-    #           binary flag indicating the science frame
-    #         det: int
-    #           detector index
-    #
-    #     Returns:
-    #         self.obstime : Time
-    #         self.basename : str
-    #     """
-    #     self.sci_ID = sci_ID
-    #     self.det = det
-    #
-    #     sci_image_files = self.fitstbl.find_frame_files(frametype, sci_ID=sci_ID)
-    #     scidx = self.fitstbl.find_frames(frametype, sci_ID=sci_ID, index=True)[0]
-    #     self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
-    #                                           binning=self.fitstbl['binning'][scidx],
-    #                                           objtype=frametype, scidx=scidx, setup=self.setup,
-    #                                           par=self.par['scienceimage'],
-    #                                           frame_par=self.par['scienceframe'])
-    #     msgs.sciexp = self.sciI  # For QA on crash
-    #
-    #     # Names and time
-    #     self.obstime, self.basename = self.init_time_names(self.fitstbl,scidx)
-    #     # Return
-    #     return self.obstime, self.basename  # For fluxing
+    # JFH This should replace the init_one_science above in Multislit, i.e. it should be in the PypeIt parent
+    # class
+    def init_one_science(self, sci_ID, frametype, det):
+         """
+         Instantiate ScienceImage class and run the first step with it
 
+         Args:
+             sci_ID: int
+               binary flag indicating the science frame
+             det: int
+               detector index
 
+         Returns:
+             self.obstime : Time
+             self.basename : str
+         """
+         self.sci_ID = sci_ID
+         self.det = det
+
+         sci_image_files = self.fitstbl.find_frame_files(frametype, sci_ID=sci_ID)
+         scidx = self.fitstbl.find_frames(frametype, sci_ID=sci_ID, index=True)[0]
+         self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
+                                               binning=self.fitstbl['binning'][scidx],
+                                               objtype=frametype, scidx=scidx, setup=self.setup,
+                                               par=self.par['scienceimage'],
+                                               frame_par=self.par['scienceframe'])
+         msgs.sciexp = self.sciI  # For QA on crash
+
+         # Names and time
+         self.obstime, self.basename = self.init_time_names(self.fitstbl,scidx)
+         # Return
+         return self.obstime, self.basename  # For fluxing
+
+    # JFH This should be moved to PypeIt
     def reduce_all(self, reuse_masters=False):
         """
         Reduce all of the science exposures
@@ -1056,13 +999,12 @@ class Echelle(PypeIt):
         can_be_None = ['flexure', 'fluxcalib']
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
-# TODO Move standards to calibrations
 
         # Reduce the standards first
-#        for kk, std_ID in enumerate(all_std_ID):
-#            std_dict = self.reduce_exposure(std_ID, 'standard', reuse_masters=reuse_masters)
-#            stddx = self.fitstbl.find_frames('standard', sci_ID=std_ID, index=True)[0]
-#            self.save_exposure(stddx, std_dict, self.basename)
+        for kk, std_ID in enumerate(all_std_ID):
+            std_dict = self.reduce_exposure(std_ID, 'standard', reuse_masters=reuse_masters)
+            stddx = self.fitstbl.find_frames('standard', sci_ID=std_ID, index=True)[0]
+            self.save_exposure(stddx, std_dict, self.basename)
 
         # Save
         for kk,sci_ID in enumerate(all_sci_ID):
@@ -1073,7 +1015,7 @@ class Echelle(PypeIt):
         # Finish
         self.print_end_time()
 
-    # TODO this simpler reduce exposure should replace the one above
+    # JFH This simpler reduce_exposure should be moved to PypeIt
     def reduce_exposure(self, sci_ID, reuse_masters=False):
         """
         Reduce a single science exposure
@@ -1127,7 +1069,7 @@ class Echelle(PypeIt):
             self.init_one_science(sci_ID, det)
             # Extract
 
-            # ToDO make this a method load_std_trace()
+            # ToDO make this a method load_std_trace(). Not yet implemented
             # Does a standard exist in the fitstbl? If so grab it since we need the trace. In the future this should
             # use calibgroup matching criteria
             if np.any(self.fitstbl.find_frames('standard',sci_ID=sci_ID)):
@@ -1154,7 +1096,7 @@ class Echelle(PypeIt):
         # Return
         return sci_dict
 
-
+    # JFH This is the beginning of the echelle class control flow
     def _extract_one(self):
         """
         Extract a single exposure/detector pair
@@ -1245,7 +1187,6 @@ class Echelle(PypeIt):
             sobjs = sobjs_obj
 
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
-
 
     def _extract_std(self):
         self._extract_one(std=True)
