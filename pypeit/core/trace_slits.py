@@ -694,7 +694,8 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
     """
     msgs.info("Crude tracing the edges")
     # Init
-    ycen = edgearr.shape[0] // 2
+    nspec = edgearr.shape[0]
+    ycen = nspec//2
 
     # Items to return
     new_edgarr = np.zeros_like(edgearr, dtype=int)
@@ -755,6 +756,8 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                 if not np.any(msk):
                     # Next iteration
                     niter += 1
+                    tc_dict[side]['xset'] = np.append(tc_dict[side]['xset'], np.zeros((nspec,xinit.size)), axis=1)
+                    tc_dict[side]['xerr'] = np.append(tc_dict[side]['xerr'], np.zeros((nspec,xinit.size)), axis=1)
                     continue
                 else:
                     xinit = xinit[msk]
