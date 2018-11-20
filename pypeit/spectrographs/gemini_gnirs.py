@@ -47,7 +47,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # self.sky_file = ?
     @property
     def pypeline(self):
-        return 'MultiSlit'
+        return 'Echelle'
 
     def default_pypeit_par(self):
         """

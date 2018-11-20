@@ -742,6 +742,7 @@ class TraceSlits(masterframe.MasterFrame):
                         ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk),color='green')
 
             # Run on right edges
+            # ToDO start here with the right traces from the left iteration. Does this work with GNIRS?
             iter = 1
             slit_in = slit_righ.copy()
             mask_in = mask_righ.copy()
@@ -749,7 +750,7 @@ class TraceSlits(masterframe.MasterFrame):
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
                 trace_dict_r = trace_slits.trace_refine(
                     self.siglev, slit_in, mask_in, npca = None, ncoeff=5,pca_explained_var=99.8, coeff_npoly_pca=3,fwhm=3.0,
-                    sigthresh=100.0, debug=False)
+                    sigthresh=100.0, debug=debug)
                 slit_in = trace_dict_r['right']['trace']
                 mask_in = np.ones_like(slit_in,dtype=bool)
                 iter +=1
