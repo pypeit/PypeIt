@@ -2651,6 +2651,9 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     trace_model_righ = trace_model + fwhm/2.0
     msgs.info('Extracting filt_image along curved edge traces')
     filt_extract = extract.extract_asymbox2(filt_image, trace_model_left, trace_model_righ)
+    if debug:
+        ginga.show_image(filt_extract, chname ='rectified filt_image')
+
     filt_smash_mean, filt_smash_median, filt_smash_sig = sigma_clipped_stats(filt_extract, axis=0, sigma=4.0)
     # Perform initial finding with a very liberal threshold
     # Put in Gaussian smoothing here?
@@ -2672,7 +2675,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
 
     color = dict(left = 'green', right = 'red')
     if debug:
-        viewer, ch = ginga.show_image(filt_image)
+        viewer, ch = ginga.show_image(filt_image, chname = 'filt_image')
         for key in trace_dict.keys():
             for kk in range(trace_dict[key]['nstart']):
                 ginga.show_trace(viewer, ch, trace_dict[key]['trace'][:,kk],trc_name = key + '_' + str(kk), color = color[key])
