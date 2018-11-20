@@ -2617,7 +2617,7 @@ def tc_indices(tc_dict):
     return left_idx, left_xval, right_idx, right_xval
 
 def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 2,
-                 fwhm = 3.0, sigthresh = 100.0, debug=True):
+                 fwhm = 3.0, sigthresh = 100.0, upper = 2.0, lower = 2.0, debug=True):
 
     # edges_mask True = Good, Bad = False
     # filt image has left as positive, right as negative
@@ -2639,7 +2639,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     msgs.info('PCA modeling {:d} slit edges'.format(nedges))
     pca_fit, pca_poly_fit, pca_mean, pca_vectors = extract.pca_trace(
         edges_fit, npca=npca, pca_explained_var = pca_explained_var,coeff_npoly=coeff_npoly_pca, order_vec=edges_ref,
-        xinit_mean=edges_ref, debug= debug)
+        xinit_mean=edges_ref, upper = upper, lower = lower, debug= debug)
 
     # pca_poly_fit is list
     npca_out = len(pca_poly_fit)
