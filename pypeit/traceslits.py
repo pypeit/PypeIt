@@ -626,7 +626,13 @@ class TraceSlits(masterframe.MasterFrame):
             self.edgearr = trace_slits.edgearr_mslit_sync(self.edges_dict, self.tc_dict, self.ednum)
         else:
             trace_slits.sync_edges(self.tc_dict, self.mstrace.shape[1])
-        debugger.set_trace()
+
+        # Set lcen and rcen, lmin, lmax
+        self.lcen = self.tc_dict['left']['traces']
+        self.rcen = self.tc_dict['right']['traces']
+        self._set_lrminx()
+        self.extrapord = np.zeros(self.lcen.shape[1], dtype=np.bool)
+
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -712,13 +718,13 @@ class TraceSlits(masterframe.MasterFrame):
                         for kk in range(edges_dict[side]['nstart']):
                             ginga.show_trace(viewer, ch, edges_dict[side]['trace'][:, kk], trc_name=side+ str(kk),color=color[side])
         else:
-            debugger.set_trace()
             # Gemini GNIRS suggests we should do left and right echelle boundaries individually
             iter = 1
             maxiter = 3
             slit_in = slit_left.copy()
-            mask_in = left_mask.copy()
+            mask_in = mask_left.copy()
 
+            # Run on left edges
             while iter <= maxiter:
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
                 trace_dict_l = trace_slits.trace_refine(
@@ -733,15 +739,11 @@ class TraceSlits(masterframe.MasterFrame):
                 viewer, ch = ginga.show_image(self.mstrace)
                 for kk in range(trace_dict_l['left']['nstart']):
                     ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk),color='green')
-    #            for key in trace_dict_l.keys():
-    #                for kk in range(trace_dict_l[key]['nstart']):
-    #                    ginga.show_trace(viewer, ch, trace_dict_l[key]['trace'][:, kk], trc_name=key + '_' + str(kk),color=color[key])
 
-
-            # Gemini GNIRS suggests we should do left and right echelle boundaries individually
+            # Run on right edges
             iter = 1
             slit_in = slit_righ.copy()
-            mask_in = righ_mask.copy()
+            mask_in = mask_righ.copy()
             while iter <= maxiter:
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
                 trace_dict_r = trace_slits.trace_refine(
@@ -756,13 +758,17 @@ class TraceSlits(masterframe.MasterFrame):
                 for kk in range(trace_dict_r['right']['nstart']):
                     ginga.show_trace(viewer, ch, trace_dict_r['right']['trace'][:, kk], trc_name='right_' + str(kk),color='red')
 
-            from IPython import embed
-            embed()
-            viewer, ch = ginga.show_image(self.mstrace)
-            for kk in range(trace_dict_l['left']['nstart']):
-                ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk), color='green')
-            for kk in range(trace_dict_r['right']['nstart']):
-                ginga.show_trace(viewer, ch, trace_dict_r['right']['trace'][:, kk], trc_name='right_' + str(kk),color='red')
+            if show:
+                viewer, ch = ginga.show_image(self.mstrace)
+                for kk in range(trace_dict_l['left']['nstart']):
+                    ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk), color='green')
+                for kk in range(trace_dict_r['right']['nstart']):
+                    ginga.show_trace(viewer, ch, trace_dict_r['right']['trace'][:, kk], trc_name='right_' + str(kk),color='red')
+
+            # Merge
+            edges_dict = {}
+            edges_dict['left'] = trace_dict_l.copy()
+            edges_dict['right'] = trace_dict_l.copy()
 
         # Update tc_dict -- we now leave edgearr behind!
         ypos = nspec // 2
@@ -900,7 +906,7 @@ class TraceSlits(masterframe.MasterFrame):
             pos = np.where(self.edgearr > 0)
             self.edgearr[pos] += (self.ednum - 1)
 
-    def _set_lrminx(self):
+    def _set_lrminx(self, orig=False):
         """
         Set lmin, lmax, etc.
 
@@ -912,10 +918,14 @@ class TraceSlits(masterframe.MasterFrame):
         self.rmax: int (intenal)
 
         """
-        ww = np.where(self.edgearr < 0)
-        self.lmin, self.lmax = -np.max(self.edgearr[ww]), -np.min(self.edgearr[ww])  # min/max are switched because of the negative signs
-        ww = np.where(self.edgearr > 0)
-        self.rmin, self.rmax = np.min(self.edgearr[ww]), np.max(self.edgearr[ww])  # min/max are switched because of the negative signs
+        if orig:
+            ww = np.where(self.edgearr < 0)
+            self.lmin, self.lmax = -np.max(self.edgearr[ww]), -np.min(self.edgearr[ww])  # min/max are switched because of the negative signs
+            ww = np.where(self.edgearr > 0)
+            self.rmin, self.rmax = np.min(self.edgearr[ww]), np.max(self.edgearr[ww])  # min/max are switched because of the negative signs
+        else:
+            self.lmin, self.lmax = 0, self.lcen.shape[1]
+            self.rmin, self.rmax = 0, self.rcen.shape[1]
 
     def _synchronize(self):
         """
@@ -1279,10 +1289,9 @@ class TraceSlits(masterframe.MasterFrame):
         if add_user_slits is not None:
             self.add_user_slits(add_user_slits)
 
-        # Ignore orders/slits on the edge of the detector when they run off
-        #    Recommended for Echelle only
-        if ignore_orders:
-            self._ignore_orders()
+        # Recommended for Echelle only
+        #if ignore_orders:
+        #    self._ignore_orders()
 
         # Fit edges
         orig = False
@@ -1305,7 +1314,7 @@ class TraceSlits(masterframe.MasterFrame):
                 self._pca()
 
             # Remove any slits that are completely off the detector
-            #   Also remove short slits here for multi-slit and long-slit (aligntment stars)
+            #   Also remove short slits here for multi-slit and long-slit (alignment stars)
             self._trim_slits(trim_short_slits=arms, plate_scale = plate_scale)
 
         # Generate pixel arrays
