@@ -32,16 +32,16 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
                             ygap            = 0.,
                             ysize           = 1.,
                             platescale      = 0.3, # plate scale in arcsec/pixel
-                            darkcurr        = 0.01,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
+                            darkcurr        = 1.00, # electrons/pixel/hour. From: http://www.lco.cl/telescopes-information/magellan/instruments/mage/the-mage-spectrograph-user-manual
+                            saturation      = 65535., 
+                            nonlinear       = 0.99, # CCD is linear to better than 0.5 per cent up to digital saturation (65,536 DN including bias) in the Fast readout mode.
                             numamplifiers   = 1,
-                            gain            = 3.84,
-                            ronoise         = 2.9,
+                            gain            = 1.02, # depends on the readout
+                            ronoise         = 2.9, # depends on the readout
                             datasec         = '[1:2048,1:1024]',      # complementary to oscansec
                             oscansec        = '[2049:2176,1025:1152]' # as taken from the header
                             )]
-        self.norders = 22
+        self.norders = 15 # Taken from the MASE paper: https://arxiv.org/pdf/0910.1834.pdf
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?

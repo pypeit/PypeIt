@@ -306,7 +306,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # ToDO Either assume a linear trend or measure this
         # X-shooter manual says, but gives no exact numbers per order.
-        # NIR: 52.4 pixels (0.210”/pix) at order 11 to 59.9 pixels (0.184”/pix) at order 26.
+        # NIR: 52.4 pixels (0.210Ang/pix) at order 11 to 59.9 pixels (0.184Ang/pix) at order 26.
 
         # Right now I just took the average
         return np.full(16, 0.197)
