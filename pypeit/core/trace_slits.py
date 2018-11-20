@@ -2616,7 +2616,10 @@ def tc_indices(tc_dict):
     # Return
     return left_idx, left_xval, right_idx, right_xval
 
-def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 2,
+# ToDo 1) Add code to analyze the extracted filt_mean spectra to determine when the ordres are shorter.
+# ToDo 2) Add an option where the user specifies the number of slits, and so it takes only the highest peaks
+# from detect_lines
+def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 3,
                  fwhm = 3.0, sigthresh = 100.0, upper = 2.0, lower = 2.0, debug=True):
 
     # edges_mask True = Good, Bad = False
@@ -2669,7 +2672,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
         msgs.info('Found {:d} {:s} slit edges'.format(len(edge_start[igd]),key))
         trace_crutch = trace_model[:, np.round(edge_start[igd]).astype(int)]
         msgs.info('Iteratively tracing {:s} edges'.format(key))
-        trace_fweight = extract.iter_tracefit(np.fmax(sign*filt_image, 0.0), trace_crutch, ncoeff, fwhm=5.0*fwhm/3.0, niter=6)
+        trace_fweight = extract.iter_tracefit(np.fmax(sign*filt_image, 0.0), trace_crutch, ncoeff, fwhm=3.0*fwhm, niter=9)
         trace_gweight = extract.iter_tracefit(np.fmax(sign*filt_image, 0.0), trace_fweight, ncoeff, fwhm=fwhm,gweight=True, niter=6)
         trace_dict[key]['trace'] = trace_gweight
 

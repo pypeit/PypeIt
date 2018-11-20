@@ -1844,7 +1844,6 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
     if npca is None:
         pca_full = PCA()
         pca_full.fit(xpca_use)
-
         var = np.cumsum(np.round(pca_full.explained_variance_ratio_, decimals=6) * 100)
         if var[0]>=pca_explained_var:
             npca = 1
@@ -1863,6 +1862,7 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
 
     if coeff_npoly is None:
         coeff_npoly = int(np.fmin(np.fmax(np.floor(3.3*ngood/norders),1.0),3.0))
+
 
     # Polynomial coefficient for PCA coefficients
     npoly_vec =np.zeros(npca, dtype=int)
