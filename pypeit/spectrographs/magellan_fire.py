@@ -22,7 +22,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'magellan_fire'
         self.telescope = telescopes.MagellanTelescopePar()
         self.camera = 'FIRE'
-        self.numhead = 3
+        self.numhead = 1
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
@@ -120,9 +120,9 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
                 A list of headers read from a fits file
         """
         expected_values = { '0.INSTRUME': 'FIRE',
-                               '1.NAXIS': 2,
-                              '1.NAXIS1': 2048,
-                              '1.NAXIS2': 2048 }
+                               '0.NAXIS': 2,
+                              '0.NAXIS1': 2048,
+                              '0.NAXIS2': 2048 }
         super(MagellanFIRESpectrograph, self).check_headers(headers, expected_values=expected_values)
 
     def header_keys(self):
@@ -141,13 +141,13 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
 
         # Copied over defaults
         hdr_keys[0]['idname'] = 'OBSTYPE'
-        hdr_keys[0]['time'] = 'MJD-OBS'
-        #hdr_keys[0]['date'] = 'DATE-OBS'
-        hdr_keys[0]['utc'] = 'UTC'
+        #hdr_keys[0]['time'] = 'MJD-OBS'
+        hdr_keys[0]['date'] = 'DATE-OBS'
+        hdr_keys[0]['utc'] = 'UT-TIME'
         hdr_keys[0]['ra'] = 'RA'
         hdr_keys[0]['dec'] = 'DEC'
         hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['exptime'] = 'ITIME'
+        hdr_keys[0]['exptime'] = 'EXPTIME'
         hdr_keys[0]['target'] = 'OBJECT'
         hdr_keys[0]['naxis0'] = 'NAXIS2'
         hdr_keys[0]['naxis1'] = 'NAXIS1'
