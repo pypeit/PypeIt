@@ -1008,7 +1008,7 @@ class Echelle(PypeIt):
 
         # Save
         for kk,sci_ID in enumerate(all_sci_ID):
-            sci_dict = self.reduce_exposure(sci_ID, reuse_masters=reuse_masters)
+            sci_dict = self.reduce_exposure(sci_ID, 'science', reuse_masters=reuse_masters)
             scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
             self.save_exposure(scidx, sci_dict, self.basename)
 
@@ -1016,7 +1016,7 @@ class Echelle(PypeIt):
         self.print_end_time()
 
     # JFH This simpler reduce_exposure should be moved to PypeIt
-    def reduce_exposure(self, sci_ID, reuse_masters=False):
+    def reduce_exposure(self, sci_ID, frametype, reuse_masters=False):
         """
         Reduce a single science exposure
 
@@ -1042,7 +1042,7 @@ class Echelle(PypeIt):
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
         #
-        scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
+        scidx = self.fitstbl.find_frames(frametype, sci_ID=sci_ID, index=True)[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(self.fitstbl['filename'][scidx],
                                                              self.fitstbl['target'][scidx]))
         # Loop on Detectors
@@ -1072,7 +1072,7 @@ class Echelle(PypeIt):
             # ToDO make this a method load_std_trace(). Not yet implemented
             # Does a standard exist in the fitstbl? If so grab it since we need the trace. In the future this should
             # use calibgroup matching criteria
-            if np.any(self.fitstbl.find_frames('standard',sci_ID=sci_ID)):
+            if (frametype == 'science') and np.any(self.fitstbl.find_frames('standard',sci_ID=sci_ID)):
                 stddx = self.fitstbl.find_frames('standard',sci_ID=sci_ID, index=True)[0]
                 _, std_basename = self.init_time_names(self.fitstbl, stddx)
                 std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
