@@ -563,7 +563,6 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
 
     # Items to return
     new_edgarr = np.zeros_like(edgearr, dtype=int)
-    xerrarr = np.zeros_like(edgearr, dtype=float)
     tc_dict = {}
 
     # Loop on side
@@ -714,7 +713,6 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                     new_yval = np.arange(y0,y1).astype(int)  # Yes, this is necessary;  slicing fails..
                     #
                     new_edgarr[new_yval, xvals[new_yval]] = eval
-                    xerrarr[new_yval, xvals[new_yval]] = xerr[:,kk]
                     #new_edgarr[yval, xvals[yval]] = eval
                 # Flag
                 tc_dict[side]['flags'][uni_e == eval] = 1
@@ -744,13 +742,13 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                 tc_dict[side]['xval'][str(newval)] = tc_dict[side]['xval'].pop(str(oldval))
     # Remove uni_idx
     for side in ['left', 'right']:
-        for key in ['uni_idx', 'xset', 'xerr']:
+        for key in ['uni_idx']:#, 'xset', 'xerr']:
             tc_dict[side].pop(key)
     if verbose:
         print(tc_dict['left']['xval'])
         print(tc_dict['right']['xval'])
     # Return
-    return new_edgarr, tc_dict.copy(), xerrarr
+    return new_edgarr, tc_dict.copy()
 
 '''
 def edgearr_from_user(shape, ledge, redge, det):
