@@ -69,11 +69,14 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # Exposure time keyword
         hdr_keys[0]['exptime'] = 'EXPTIME'
         hdr_keys[0]['binning'] = 'BINNING'
+        # ECHANGL and XDANGL
+        hdr_keys[0]['echangl'] = 'ECHANGL'
+        hdr_keys[0]['xdangl'] = 'XDANGL'
         return hdr_keys
 
     def metadata_keys(self):
         return ['filename', 'date', 'frametype', 'idname', 'target', 'exptime', 'decker',
-                'binning']
+                'binning', 'echangl', 'xdangl']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
