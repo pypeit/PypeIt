@@ -656,24 +656,30 @@ class TraceSlits(masterframe.MasterFrame):
         slit_righ_err = self.tc_dict['right']['xerr'][:, isort_righ]
         left_mask = (slit_left_err < 900)
 
-        mask_frac_thresh = 0.50
+        mask_frac_thresh = 0.80
         mask_frac = np.sum(left_mask,0)/nspec
         keep_left = mask_frac > mask_frac_thresh
         slit_left = slit_left[:,keep_left]
         left_mask = left_mask[:,keep_left]
 
-        from IPython import embed
-        embed()
+        iter = 1
+        maxiter = 2
+        slit_in = slit_left.copy()
+        mask_in = left_mask.copy()
+        while iter <= maxiter:
+            msgs.info('Doing trace_refine iter#{:d}'.format(iter))
+            trace_dict = trace_slits.trace_refine(
+                self.siglev, slit_in, mask_in, ncoeff=5, npca=None,pca_explained_var=99.8, coeff_npoly_pca=2,fwhm=3.0,
+                sigthresh=100.0, debug=True)
+            slit_in = trace_dict['left']['trace']
+            mask_in = np.ones_like(slit_in,dtype=bool)
+            iter +=1
 
-        trace_dict = trace_slits.trace_refine(
-            self.siglev, slit_left, left_mask, ncoeff=5, npca=None,pca_explained_var=99.8, coeff_npoly_pca=2,fwhm=3.0,
-            sigdetect=5.0, debug=True)
-
-        color = dict(left='green', right='red')
-        viewer, ch = ginga.show_image(self.mstrace)
-        for key in trace_dict.keys():
-            for kk in range(trace_dict[key]['nstart']):
-                ginga.show_trace(viewer, ch, trace_dict[key]['trace'][:, kk], trc_name=key + '_' + str(kk),color=color[key])
+            color = dict(left='green', right='red')
+            viewer, ch = ginga.show_image(self.mstrace)
+            for key in trace_dict.keys():
+                for kk in range(trace_dict[key]['nstart']):
+                    ginga.show_trace(viewer, ch, trace_dict[key]['trace'][:, kk], trc_name=key + '_' + str(kk),color=color[key])
 
         """
         nspec = self.siglev.shape[0]
