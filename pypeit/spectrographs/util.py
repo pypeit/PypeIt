@@ -17,7 +17,7 @@ def valid_spectrographs():
             'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
             'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir',
             'gemini_gnirs', 'gemini_gmos_south', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
-            'magellan_fire']
+            'magellan_fire', 'magellan_mage']
 
 def load_spectrograph(spectrograph):
     """
@@ -67,6 +67,9 @@ def load_spectrograph(spectrograph):
 
     if spectrograph == 'magellan_fire':
         return spectrographs.magellan_fire.MagellanFIRESpectrograph()
+
+    if spectrograph == 'magellan_mage':
+        return spectrographs.magellan_mage.MagellanMAGESpectrograph()
 
     if spectrograph == 'shane_kast_blue':
         return spectrographs.shane_kast.ShaneKastBlueSpectrograph()
