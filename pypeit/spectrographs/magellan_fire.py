@@ -79,7 +79,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
 
         # Reidentification parameters
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.json'
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire.json'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
@@ -91,7 +91,6 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['flexure'] = pypeitpar.FlexurePar()
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
-
 
         # Set slits and tilts parameters
         par['calibrations']['tilts']['order'] = 2
@@ -108,8 +107,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['flexure'] = pypeitpar.FlexurePar()
         par['flexure']['method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['standardframe']['exprng'] = [None, 20]
-        par['calibrations']['arcframe']['exprng'] = [20, None]
+        par['calibrations']['standardframe']['exprng'] = [None, 60]
+        par['calibrations']['arcframe']['exprng'] = [1, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
         return par
@@ -178,9 +177,6 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         return (fitstbl['idname'] == 'object') \
                         & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
-
-
-
     def get_match_criteria(self):
         """Set the general matching criteria for FIRE"""
         match_criteria = {}
@@ -207,13 +203,6 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         match_criteria['arc']['match']['naxis0'] = '=0'
         match_criteria['arc']['match']['naxis1'] = '=0'
 
-        # OLD
-        # Bias
-        #match_criteria['bias']['match'] = {}
-        #match_criteria['standard']['match'] = {}
-        #match_criteria['pixelflat']['match'] = {}
-        #match_criteria['trace']['match'] = {}
-        #match_criteria['arc']['match'] = {}
         return match_criteria
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
@@ -238,8 +227,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         msgs.info("Custom bad pixel mask for FIRE")
         self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
-            self.bpm_img[:, :5] = 1.
-            self.bpm_img[:, 2040:] = 1.
+            self.bpm_img[:, :4] = 1.
 
         return self.bpm_img
 
