@@ -643,7 +643,7 @@ class TraceSlits(masterframe.MasterFrame):
                                                                  self.ednum, maxshift=_maxshift,
                                                                 bpm=self.binbpx)
 
-
+        nspec, nspat = self.siglev.shape
         nleft = self.tc_dict['left']['xset'].shape[1]
         nrigh = self.tc_dict['right']['xset'].shape[1]
         slit_left_mean = np.mean(self.tc_dict['left']['xset'],0)
@@ -655,6 +655,15 @@ class TraceSlits(masterframe.MasterFrame):
         slit_righ = self.tc_dict['right']['xset'][:, isort_righ]
         slit_righ_err = self.tc_dict['right']['xerr'][:, isort_righ]
         left_mask = (slit_left_err < 900)
+
+        mask_frac_thresh = 0.50
+        mask_frac = np.sum(left_mask,0)/nspec
+        keep_left = mask_frac > mask_frac_thresh
+        slit_left = slit_left[:,keep_left]
+        left_mask = left_mask[:,keep_left]
+
+        from IPython import embed
+        embed()
 
         trace_dict = trace_slits.trace_refine(
             self.siglev, slit_left, left_mask, ncoeff=5, npca=None,pca_explained_var=99.8, coeff_npoly_pca=2,fwhm=3.0,
