@@ -66,7 +66,9 @@ def blackbody(wavelength, T_BB=250., debug=False):
         plt.xlabel(r"Wavelength [micron]")
         plt.ylabel(r"Spectral Radiance")
         plt.title(r"Planck's law")
-        plt.show()
+        msgs.info("Close the Figure to continue.")
+        plt.show(block=True)
+        plt.close()
         utils.pyplot_rcparams_default()
 
     return blackbody, blackbody_counts
@@ -119,7 +121,9 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
         plt.legend()
         plt.xlabel(r'Wavelength')
         plt.ylabel(r'Flux')
-        plt.show()
+        msgs.info("Close the Figure to continue.")
+        plt.show(block=True)
+        plt.close()
         utils.pyplot_rcparams_default()
 
     return line_spec
@@ -190,7 +194,9 @@ def transparency(wavelength, debug=False):
         plt.xlabel(r'Wavelength [microns]')
         plt.ylabel(r'Transmission')
         plt.title(r' IR Transmission Spectra ')
-        plt.show()
+        msgs.info("Close the Figure to continue.")
+        plt.show(block=True)
+        plt.close()
         utils.pyplot_rcparams_default()
 
     # Returns
@@ -312,7 +318,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
     y = np.power(10.,logy)
 
     msgs.info("Add in a blackbody for the atmosphere.")
-    bb, bb_counts = blackbody(wave, T_BB=T_BB, debug=False)
+    bb, bb_counts = blackbody(wave, T_BB=T_BB, debug=debug)
     bb_counts = bb_counts
 
     msgs.info("Add in OH lines")
@@ -324,7 +330,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
     # scale_spec was added to match the XIDL code
     ohspec = addlines2spec(wave, oh_wv, oh_fx, resolution=resolution,
                            scale_spec=((resolution/1000.)/40.),
-                           debug=False)
+                           debug=debug)
 
     if wv_max > WAVE_WATER :
         msgs.info("Add in H2O lines")
@@ -340,7 +346,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         smooth_fx, dwv, h2o_dwv = conv2res(h2o_wv, h2o_rad,
                                            resolution,
                                            central_wl = mn_wv,
-                                           debug=False)
+                                           debug=debug)
         # Interpolate over input wavelengths
         interp_h2o = scipy.interpolate.interp1d(h2o_wv, smooth_fx,
                                                 kind='cubic', 
@@ -389,7 +395,9 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         plt.xlabel(r'Wavelength [microns]')
         plt.ylabel(r'Emission')
         plt.title(r'Sky Emission Spectrum at R={}'.format(resolution))
-        plt.show()
+        msgs.info("Close the Figure to continue.")
+        plt.show(block=True)
+        plt.close()
         utils.pyplot_rcparams_default()
 
     return np.array(wave*10000.), np.array(sky_model)
@@ -501,7 +509,9 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
         plt.xlabel(r'Wavelength [Ang.]')
         plt.ylabel(r'Emission')
         plt.title(r'Murphy et al. ThAr spectrum at R={}'.format(resolution))
-        plt.show()
+        msgs.info("Close the Figure to continue.")
+        plt.show(block=True)
+        plt.close()
         utils.pyplot_rcparams_default()
 
     return np.array(wave), np.array(thar_spec)
@@ -564,7 +574,9 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
         plt.xlabel(r'Wavelength')
         plt.ylabel(r'Flux')
         plt.title(r'Spectrum Convolved at R = {}'.format(resolution))
-        plt.show()
+        msgs.info("Close the Figure to continue.")
+        plt.show(block=True)
+        plt.close()
         utils.pyplot_rcparams_default()
 
     return flux_convolved, px_sigma, px_bin
@@ -649,8 +661,9 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
 
     msgs.info("Searching for peaks {} sigma above background".format(sigdetec))
     tampl_true, tampl, tcent, twid, centerr, ww, arcnorm, nsig = arc.detect_lines(spec, sigdetect=sigdetec,
-                                                                              fwhm=fwhm, cont_samp=cont_samp,
-                                                                              debug=debug)
+                                                                                  fwhm=fwhm, cont_samp=cont_samp,
+                                                                                  debug=debug)
+
     peaks_good = tcent[ww]
     ampl_good = tampl[ww]
     # convert from pixel location to wavelength
@@ -717,17 +730,19 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
     """
 
     wavelength, spec = nearIR_modelsky(resolution, waveminmax=waveminmax, dlam=dlam,
-                                       flgd=flgd, nirsky_outfile=nirsky_outfile, debug=False)
+                                       flgd=flgd, nirsky_outfile=nirsky_outfile, debug=debug)
 
     if fwhm is None:
         msgs.warn("No min FWHM for the line detection set. Derived from the resolution at the center of the spectrum")
         wl_cent = np.average(wavelength)
         wl_fwhm = wl_cent / resolution
         wl_bin = np.abs((wavelength-np.roll(wavelength,1))[np.where(np.abs(wavelength-wl_cent)==np.min(np.abs(wavelength-wl_cent)))])
-        fwhm = wl_fwhm / wl_bin[0]
+        # In order not to exclude all the lines, fwhm is set to 5 times
+        # the minimum fwhm of the spectrum
+        fwhm = 5. * wl_fwhm / wl_bin[0]
         if fwhm < 1.:
-             msgs.warn("Lines are unresolved. Seeing FWHM=2.pixels")
-             fwhm = 2.
+             msgs.warn("Lines are unresolved. Setting FWHM=5.pixels")
+             fwhm = 5.
 
     if line_name is None:
         msgs.warn("No line_name as been set. The file will contain XXX as ion")
@@ -786,16 +801,18 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
     """
 
     wavelength, spec = optical_modelThAr(resolution, waveminmax=waveminmax, dlam=dlam,
-                                         flgd=flgd, thar_outfile=thar_outfile, debug=False)
+                                         flgd=flgd, thar_outfile=thar_outfile, debug=debug)
     if fwhm is None:
         msgs.warn("No min FWHM for the line detection set. Derived from the resolution at the center of the spectrum")
         wl_cent = np.average(wavelength)
         wl_fwhm = wl_cent / resolution
         wl_bin = np.abs((wavelength-np.roll(wavelength,1))[np.where(np.abs(wavelength-wl_cent)==np.min(np.abs(wavelength-wl_cent)))])
-        fwhm = wl_fwhm / wl_bin[0]
+        # In order not to exclude all the lines, fwhm is set to 5 times
+        # the minimum fwhm of the spectrum
+        fwhm = 5. * wl_fwhm / wl_bin[0]
         if fwhm < 1.:
-             msgs.warn("Lines are unresolved. Seeing FWHM=2.pixels")
-             fwhm = 2.
+             msgs.warn("Lines are unresolved. Setting FWHM=5.*pixels")
+             fwhm = 5.
 
     if line_name is None:
         msgs.warn("No line_name as been set. The file will contain XXX as ion")
