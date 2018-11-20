@@ -686,7 +686,7 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
         dat.write(file_root_name+'_line.dat',format='ascii.fixed_width')
 
 def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, nirsky_outfile=None,
-                      fwhm=None, sigdetec=2., line_name='OH', file_root_name=None, iraf_frmt=False, 
+                      fwhm=None, sigdetec=3., line_name='OH', file_root_name=None, iraf_frmt=False, 
                       debug=False):
     """Create a syntetic sky spectrum at a given resolution, extract significant lines, and
     store them in a pypeit compatibile file.
@@ -756,7 +756,7 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
                     file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug)
 
 def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=True, thar_outfile=None,
-                        fwhm=None, sigdetec=2., line_name='ThAr', file_root_name=None, iraf_frmt=False,
+                        fwhm=None, sigdetec=3., line_name='ThAr', file_root_name=None, iraf_frmt=False,
                         debug=False):
     """Create a syntetic ThAr spectrum at a given resolution, extract significant lines, and
     store them in a pypeit compatibile file. This is based on the Murphy et al. ThAr spectrum.
