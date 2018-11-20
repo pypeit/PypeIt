@@ -317,13 +317,3 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         # FIRE has no binning, but for an instrument with binning we would do this
         #binspatial, binspectral = parse.parse_binning(binning)
         return np.full(5, 0.15)
-
-
-
-
-
-
-
-
-
-
