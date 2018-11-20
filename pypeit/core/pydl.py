@@ -1407,6 +1407,8 @@ class TraceSet(object):
     """
     #_func_map = {'poly': fpoly, 'legendre': flegendre,
     #                'chebyshev': fchebyshev}
+
+    # ToDO Remove the kwargs and put in all the djs_reject parameters here
     def __init__(self, *args, **kwargs):
         """This class can be initialized either with a set of xy positions,
         or with a trace set HDU from a FITS file.
@@ -1432,8 +1434,8 @@ class TraceSet(object):
                 self.xjumplo = None
                 self.xjumphi = None
                 self.xjumpval = None
-            self.lower = 5.0
-            self.upper = 5.0
+            self.lower = None
+            self.upper = None
             self.outmask = None
             self.yfit = None
         elif len(args) == 2:
@@ -1470,6 +1472,10 @@ class TraceSet(object):
                 self.maxiter = int(kwargs['maxiter'])
             else:
                 self.maxiter = 10
+            if 'maxdev' in kwargs:
+                self.maxdev = int(kwargs['maxdev'])
+            else:
+                self.maxdev = None
             if 'inmask' in kwargs:
                 inmask = kwargs['inmask']
             elif invvar is not None:
@@ -1493,11 +1499,11 @@ class TraceSet(object):
             if 'lower' in kwargs:
                 self.lower = np.float64(kwargs['lower'])
             else:
-                self.lower = 5.0
+                self.lower = None
             if 'upper' in kwargs:
                 self.upper = np.float64(kwargs['upper'])
             else:
-                self.upper = 5.0
+                self.upper = None
 
             self.coeff = np.zeros((self.nTrace, self.ncoeff+1), dtype=xpos.dtype)
             self.outmask = np.zeros(xpos.shape, dtype=np.bool)
@@ -1514,7 +1520,7 @@ class TraceSet(object):
                                                                 inmask = inmask[iTrace, :], invvar = thisinvvar,
                                                                 lower = self.lower, upper = self.upper,
                                                                 minv = self.xmin, maxv = self.xmax,
-                                                                sigma=None,maxdev=None,maxrej=None,groupdim=None,
+                                                                sigma=None,maxdev=self.maxdev,maxrej=None,groupdim=None,
                                                                 groupsize=None,groupbadpix=None,grow=0,use_mad=False,sticky=False)
                 ycurfit_djs = utils.func_val(poly_coeff, xvec, self.func, minv=self.xmin, maxv=self.xmax)
 

@@ -272,9 +272,40 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     return (sky_bmodel, obj_bmodel, outmask)
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
-                         bsp = 0.6, inmask = None, trim_edg = (3,3), std = False, prof_nsigma = None, niter=4,
+                         bsp = 0.6, inmask = None, extract_maskwidth = 3.0, trim_edg = (3,3), std = False, prof_nsigma = None, niter=4,
                          box_rad = 7, sigrej = 3.5,skysample = False, sn_gauss = 3.0, coadd_2d = False, show_profile=False,
                          show_resids=False):
+
+    """Perform local sky subtraction and  extraction
+
+     Parameters
+     ----------
+     sciimg : numpy float 2-d array (nspec, nspat)
+         sky-subtracted image
+     sciivar : numpy float 2-d array (nspec, nspat)
+         inverse variance of sky-subtracted image
+     tilts: ndarray, (nspec, nspat)
+         spectral tilts
+     waveimg numpy float 2-d array (nspec, nspat)
+         2-d wavelength map
+     global_sky : ndarray (nspec, nspat)
+         Global sky model
+     rn2_img:
+         Image with the read noise squared per pixel
+         object trace
+
+
+    Optional Parameters
+    ----------
+    extract_maskwidth: float, default = 3.0
+        This parameter determines the initial size of the region in units of fwhm that will be used for local sky subtraction. This
+        maskwidth is defined in the obfjind code, but is then updated here as the profile fitting improves the fwhm estimates
+
+     Returns
+     -------
+     :func:`tuple`
+
+     """
 
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = trim_edg)
@@ -376,7 +407,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             npoly = 1
         obj_profiles = np.zeros((nspec, nspat, objwork), dtype=float)
         sigrej_eff = sigrej
-        proc_list = [] # List of processes for interactive plotting, these are terminated at the end of each iteration sequence
+#        proc_list = [] # List of processes for interactive plotting, these are terminated at the end of each iteration sequence
         for iiter in range(1, niter + 1):
             msgs.info('--------------------------REDUCING: Iteration # ' + '{:2d}'.format(iiter) + ' of ' +
                       '{:2d}'.format(niter) + '---------------------------------------------------')
@@ -419,16 +450,16 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
 
                 obj_string = 'obj # {:}'.format(sobjs[iobj].objid) + ' on slit # {:}'.format(sobjs[iobj].slitid) + ', iter # {:}'.format(iiter) + ':'
                 if wave.any():
-                    (profile_model, xnew, fwhmfit, med_sn2, show_proc) = extract.fit_profile(img_minsky[ipix], (modelivar * outmask)[ipix],
-                                                                          waveimg[ipix],
-                                                                          sobjs[iobj].trace_spat - mincol,
-                                                                          wave, flux, fluxivar,
-                                                                          thisfwhm=sobjs[iobj].fwhm,
-                                                                          hwidth=sobjs[iobj].maskwidth,
-                                                                          prof_nsigma=sobjs[iobj].prof_nsigma,
-                                                                          sn_gauss=sn_gauss, obj_string = obj_string,
-                                                                          show_profile=show_profile)
-                    proc_list.append(show_proc)
+                    (profile_model, xnew, fwhmfit, med_sn2) = extract.fit_profile(img_minsky[ipix], (modelivar * outmask)[ipix],
+                                                                                  waveimg[ipix],
+                                                                                  sobjs[iobj].trace_spat - mincol,
+                                                                                  wave, flux, fluxivar,
+                                                                                  thisfwhm=sobjs[iobj].fwhm,
+                                                                                  maskwidth=sobjs[iobj].maskwidth,
+                                                                                  prof_nsigma=sobjs[iobj].prof_nsigma,
+                                                                                  sn_gauss=sn_gauss, obj_string = obj_string,
+                                                                                  show_profile=show_profile)
+                    #proc_list.append(show_proc)
 
                     # Update the object profile and the fwhm and mask parameters
                     obj_profiles[ipix[0], ipix[1], ii] = profile_model
@@ -436,7 +467,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     sobjs[iobj].fwhmfit = fwhmfit
                     sobjs[iobj].fwhm = np.median(fwhmfit)
                     mask_fact = 1.0 + 0.5 * np.log10(np.fmax(np.sqrt(np.fmax(med_sn2, 0.0)), 1.0))
-                    maskwidth = 3.0 * np.median(fwhmfit) * mask_fact
+                    maskwidth = extract_maskwidth*np.median(fwhmfit) * mask_fact
                     if sobjs[iobj].prof_nsigma is None:
                         sobjs[iobj].maskwidth = maskwidth
                     else:
@@ -534,10 +565,10 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 skyimage.flat[isub] = global_sky.flat[isub]
 
         # Now that iterations are complete, clear the windows if show_profile was set
-        if show_profile:
-            for proc in proc_list:
-                proc.terminate()
-                proc.join()
+#        if show_profile:
+#            for proc in proc_list:
+#                proc.terminate()
+#                proc.join()
 
         # Now that the iterations of profile fitting and sky subtraction are completed,
         # loop over the objwork objects in this grouping and perform the final extractions.
@@ -554,18 +585,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             sobjs[iobj].maxcol = maxcol
 
 
-        '''   # If requested display the model fits for this grouping
-        if SHOW_2D == True:
-            viewer, ch = ginga.show_image((sciimg - skyimage) * np.sqrt(modelivar))
-            # TODO figure out a way to overplot the pixels that were masked in red like as a scatter plot
-            for ii in range(objwork):
-                iobj = group[ii]
-                if sobjs[iobj].HAND_FLAG == False:
-                    color = 'green'
-                else:
-                    color = 'orange'
-                ginga.show_trace(viewer, ch, sobjs[iobj].trace_spat, sobjs[iobj].idx, color=color)
-        '''
 
     # If requested display the model fits for this slit
     if show_resids:

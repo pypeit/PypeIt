@@ -1200,8 +1200,9 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
     ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, bspline_par=bspline_par)
     return mask, ct
 
+# This should replace robust_polyfit
 def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = None, maxv = None, bspline_par = None,
-                       guesses = None, maxiter=10, inmask=None, sigma=None,invvar=None, lower=5.0, upper=5.0,
+                       guesses = None, maxiter=10, inmask=None, sigma=None,invvar=None, lower=None, upper=None,
                        maxdev=None,maxrej=None, groupdim=None,groupsize=None, groupbadpix=False, grow=0,
                        sticky=True, use_mad=True):
     """
@@ -1294,7 +1295,7 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = No
         ct = func_fit(xarray, yarray, function, order, w=weights*thismask,guesses=ct, minv=minv, maxv=maxv, bspline_par=bspline_par)
         ymodel = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, sigma=sigma, invvar=invvar,
-                                          lower=np.float64(lower),upper=np.float64(upper),maxdev=maxdev,maxrej=maxrej,
+                                          lower=lower,upper=upper,maxdev=maxdev,maxrej=maxrej,
                                           groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,
                                           use_mad=use_mad,sticky=sticky)
         iIter += 1
@@ -1446,6 +1447,7 @@ def yamlify(obj, debug=False):
         print(type(obj))
     return obj
 
+# This code is now deprecated and one should be using detect_lines for peak finding.
 ###########
 def fit_min(xarr, yarr, xguess, width=None):
 
@@ -1483,7 +1485,7 @@ def fit_min(xarr, yarr, xguess, width=None):
     # Return
     return xbest, sigma, errcode
 
-
+# This code is now deprecated and one should be using detect_lines for peak finding.
 def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
     """ Find minima in an input 1D array
     Parameters
