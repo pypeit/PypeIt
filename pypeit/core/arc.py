@@ -169,6 +169,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
                     order_cen=norm_order[0], order_norm=norm_order[1],
                     nspec=nspec)
 
+    debug = True
     if debug:
         fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask)
 
@@ -217,8 +218,8 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask, setup=
 
     # Global plot
     '''
-    outfile = qa.set_qa_filename(setup, method='fit2darc_global',
-                                 out_dir=out_dir)
+    outfile_global = qa.set_qa_filename(setup, method='fit2darc_global',
+                                        out_dir=out_dir)
     '''
 
     # Define figure properties
@@ -255,10 +256,10 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask, setup=
         resid_qa = (wv_order_mod_resid_qa/ii-this_wv)
         plt.scatter((wv_order_mod_resid_qa[~this_msk]/ii)+ \
                     100.*resid_qa[~this_msk], this_pix[~this_msk], \
-                    marker='x', color='black')
+                    marker='x', color='black', linewidths=2.5, s=16.)
         plt.scatter((wv_order_mod_resid_qa[this_msk]/ii)+ \
                     100.*resid_qa[this_msk], this_pix[this_msk], \
-                    color=(rr,gg,bb))
+                    color=(rr,gg,bb), linewidth=2.5, s=16.)
 
         if np.max(wv_order_mod_resid_qa/ii) > mx :
             mx = np.max(wv_order_mod_resid_qa/ii)
@@ -267,14 +268,14 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask, setup=
              ha="right", va="top")
 
     # Finish
-    # plt.savefig(outfile, dpi=800)
+    # plt.savefig(outfile_global, dpi=800)
     # plt.close()
     plt.show()
 
     # Individual plots
     '''
-    outfile = qa.set_qa_filename(setup, method='fit2darc_order',
-                                 out_dir=out_dir)
+    outfile_order = qa.set_qa_filename(setup, method='fit2darc_order',
+                                       out_dir=out_dir)
     '''
 
     # set the size of the plot
@@ -321,21 +322,24 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask, setup=
                 ax0.plot(all_pixels_qa, wv_order_mod_qa/ii/10000.,color=(rr,gg,bb), linestyle='-',
                          linewidth=2.5)
                 ax0.scatter(this_pix[~this_msk], (wv_order_mod_resid_qa[~this_msk]/ii/10000.)+ \
-                            100.*resid_wl_qa[~this_msk]/10000., marker='x', color='black')
+                            100.*resid_wl_qa[~this_msk]/10000., marker='x', color='black', \
+                            linewidth=2.5, s=16.)
                 ax0.scatter(this_pix[this_msk], (wv_order_mod_resid_qa[this_msk]/ii/10000.)+ \
-                            100.*resid_wl_qa[this_msk]/10000., color=(rr,gg,bb))
+                            100.*resid_wl_qa[this_msk]/10000., color=(rr,gg,bb), \
+                            linewidth=2.5, s=16.)
 
                 ax0.set_ylabel(r'Wavelength [$\mu$m]')
 
 
                 # Plot the residuals
-                ax1.scatter(this_pix[~this_msk],(resid_wl_qa[~this_msk]/dwl),marker='x', color='black')
-                ax1.scatter(this_pix[this_msk], (resid_wl_qa[this_msk]/dwl), color=(rr,gg,bb))
+                ax1.scatter(this_pix[~this_msk],(resid_wl_qa[~this_msk]/dwl),marker='x', color='black', \
+                            linewidth=2.5, s=16.)
+                ax1.scatter(this_pix[this_msk], (resid_wl_qa[this_msk]/dwl), color=(rr,gg,bb), \
+                            linewidth=2.5, s=16.)
                 ax1.axhline(y=0., color=(rr,gg,bb), linestyle=':', linewidth=2.5)
                 ax1.get_yaxis().set_label_coords(-0.15,0.5)
 
                 rms_qa = np.sqrt(np.mean((resid_wl_qa[this_msk])**2))
-
 
                 ax1.set_ylabel(r'Res. [pix]')
 
@@ -352,7 +356,7 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask, setup=
     fig.suptitle(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#, residuals $\times$100'.format(norder_coeff, nspec_coeff,fin_rms))
 
     # # Finish
-    # plt.savefig(outfile, dpi=800)
+    # plt.savefig(outfile_order, dpi=800)
     # plt.close()
     plt.show()
 
