@@ -107,7 +107,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['flexure']['method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
-        par['calibrations']['arcframe']['exprng'] = [1, None]
+        par['calibrations']['arcframe']['exprng'] = [20, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
         return par
@@ -161,20 +161,26 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         return hdr_keys
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime']
+        return ['filename', 'date', 'frametype', 'idname','target', 'exptime']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
         """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['pinhole', 'bias']:
             # No pinhole or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['pixelflat', 'trace']:
-            return fitstbl['idname'] == 'domeflat'
-        
-        return (fitstbl['idname'] == 'object') \
-                        & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+            return good_exp & (fitstbl['idname'] == 'PixFlat')
+        if ftype == 'standard':
+            return good_exp & (fitstbl['idname'] == 'Telluric')
+        if ftype == 'science':
+            return good_exp & (fitstbl['idname'] == 'Science')
+        if ftype == 'arc':
+            return good_exp & (fitstbl['idname'] == 'Science')
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
 
     def get_match_criteria(self):
         """Set the general matching criteria for FIRE"""
