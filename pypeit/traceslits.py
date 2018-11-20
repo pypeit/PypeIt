@@ -654,37 +654,79 @@ class TraceSlits(masterframe.MasterFrame):
         isort_righ = slit_righ_mean.argsort()
         slit_righ = self.tc_dict['right']['xset'][:, isort_righ]
         slit_righ_err = self.tc_dict['right']['xerr'][:, isort_righ]
-        left_mask = (slit_left_err < 900)
 
-        mask_frac_thresh = 0.80
-        mask_frac = np.sum(left_mask,0)/nspec
-        keep_left = mask_frac > mask_frac_thresh
+        # as a hack
+        #slit_left = np.hstack((slit_left, slit_righ))
+        #slit_left_err = np.hstack((slit_left_err, slit_righ_err))
+
+        mask_frac_thresh = 0.60
+
+        left_mask = (slit_left_err < 900)
+        mask_frac_left = np.sum(left_mask,0)/nspec
+        keep_left = mask_frac_left > mask_frac_thresh
         slit_left = slit_left[:,keep_left]
         left_mask = left_mask[:,keep_left]
 
+        righ_mask = (slit_righ_err < 900)
+        mask_frac_righ = np.sum(righ_mask,0)/nspec
+        keep_righ = mask_frac_righ > mask_frac_thresh
+        slit_righ = slit_righ[:,keep_righ]
+        righ_mask = righ_mask[:,keep_righ]
+
+        # Gemini GNIRS suggests we should do left and right echelle boundaries individually
         iter = 1
-        maxiter = 2
+        maxiter = 3
         slit_in = slit_left.copy()
         mask_in = left_mask.copy()
         while iter <= maxiter:
             msgs.info('Doing trace_refine iter#{:d}'.format(iter))
-            trace_dict = trace_slits.trace_refine(
-                self.siglev, slit_in, mask_in, ncoeff=5, npca=None,pca_explained_var=99.8, coeff_npoly_pca=2,fwhm=3.0,
+            trace_dict_l = trace_slits.trace_refine(
+                self.siglev, slit_in, mask_in, npca = None, ncoeff=5,pca_explained_var=99.8, coeff_npoly_pca=3,fwhm=3.0,
                 sigthresh=100.0, debug=True)
-            slit_in = trace_dict['left']['trace']
+            slit_in = trace_dict_l['left']['trace']
             mask_in = np.ones_like(slit_in,dtype=bool)
             iter +=1
 
             color = dict(left='green', right='red')
             viewer, ch = ginga.show_image(self.mstrace)
-            for key in trace_dict.keys():
-                for kk in range(trace_dict[key]['nstart']):
-                    ginga.show_trace(viewer, ch, trace_dict[key]['trace'][:, kk], trc_name=key + '_' + str(kk),color=color[key])
+            for kk in range(trace_dict_l['left']['nstart']):
+                ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk),color='green')
+#            for key in trace_dict_l.keys():
+#                for kk in range(trace_dict_l[key]['nstart']):
+#                    ginga.show_trace(viewer, ch, trace_dict_l[key]['trace'][:, kk], trc_name=key + '_' + str(kk),color=color[key])
+
+
+        # Gemini GNIRS suggests we should do left and right echelle boundaries individually
+        iter = 1
+        maxiter = 3
+        slit_in = slit_righ.copy()
+        mask_in = righ_mask.copy()
+        while iter <= maxiter:
+            msgs.info('Doing trace_refine iter#{:d}'.format(iter))
+            trace_dict_r = trace_slits.trace_refine(
+                self.siglev, slit_in, mask_in, npca = None, ncoeff=5,pca_explained_var=99.8, coeff_npoly_pca=3,fwhm=3.0,
+                sigthresh=100.0, debug=True)
+            slit_in = trace_dict_r['right']['trace']
+            mask_in = np.ones_like(slit_in,dtype=bool)
+            iter +=1
+
+            color = dict(left='green', right='red')
+            viewer, ch = ginga.show_image(self.mstrace)
+            for kk in range(trace_dict_r['right']['nstart']):
+                ginga.show_trace(viewer, ch, trace_dict_r['right']['trace'][:, kk], trc_name='right_' + str(kk),color='red')
+
+        from IPython import embed
+        embed()
+        viewer, ch = ginga.show_image(self.mstrace)
+        for kk in range(trace_dict_l['left']['nstart']):
+            ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk), color='green')
+        for kk in range(trace_dict_r['right']['nstart']):
+            ginga.show_trace(viewer, ch, trace_dict_r['right']['trace'][:, kk], trc_name='right_' + str(kk),color='red')
+
+
 
         # At this stage if we match up lefts and rights, we can measure the slit width and order spacing and easily predict where the
         # new orders should land.
-        from IPython import embed
-        embed()
         """
         nspec = self.siglev.shape[0]
         nspat = self.siglev.shape[1]
