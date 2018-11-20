@@ -638,7 +638,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Settings
         _maxshift = self.par['maxshift'] if 'maxshift' in self.par.keys() else maxshift
 
-        self.edgearr, self.tc_dict = trace_slits.edgearr_tcrude(self.edgearr, self.siglev,
+        self.edgearr, self.tc_dict, self.xerrarr = trace_slits.edgearr_tcrude(self.edgearr, self.siglev,
                                                                  self.ednum, maxshift=_maxshift,
                                                                 bpm=self.binbpx)
         # Step

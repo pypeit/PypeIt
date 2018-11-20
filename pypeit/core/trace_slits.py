@@ -523,7 +523,7 @@ def edgearr_mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_sli
 
 
 def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
-                   maxshift=0.15, bpm=None):
+                   maxshift=0.15, bpm=None, skip_bad=True):
     """ Use trace_crude to refine slit edges
     It is also used to remove bad slit edges and merge slit edges
 
@@ -563,6 +563,7 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
 
     # Items to return
     new_edgarr = np.zeros_like(edgearr, dtype=int)
+    xerrarr = np.zeros_like(edgearr, dtype=float)
     tc_dict = {}
 
     # Loop on side
@@ -686,7 +687,10 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                 else:
                     # Traces can disappear and then the crude trace can wind up hitting a neighbor
                     # Therefore, take only the continuous good piece from the starting point
-                    ybad_xerr = np.where(~goodx[:,kk])[0]
+                    if skip_bad:
+                        ybad_xerr = np.array([])
+                    else:
+                        ybad_xerr = np.where(~goodx[:,kk])[0]
                     # Ignore bad pixels -- Somewhat kludgy
                     if bpm is not None:
                         keep_bad = []
@@ -710,6 +714,7 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                     new_yval = np.arange(y0,y1).astype(int)  # Yes, this is necessary;  slicing fails..
                     #
                     new_edgarr[new_yval, xvals[new_yval]] = eval
+                    xerrarr[new_yval, xvals[new_yval]] = xerr[:,kk]
                     #new_edgarr[yval, xvals[yval]] = eval
                 # Flag
                 tc_dict[side]['flags'][uni_e == eval] = 1
@@ -745,7 +750,7 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
         print(tc_dict['left']['xval'])
         print(tc_dict['right']['xval'])
     # Return
-    return new_edgarr, tc_dict.copy()
+    return new_edgarr, tc_dict.copy(), xerrarr
 
 '''
 def edgearr_from_user(shape, ledge, redge, det):
