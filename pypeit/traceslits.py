@@ -25,6 +25,7 @@ from pypeit import traceimage
 
 from pypeit.par import pypeitpar
 from pypeit.par.util import parset_to_dict
+from pypeit.core import pydl
 
 
 class TraceSlits(masterframe.MasterFrame):
@@ -641,6 +642,83 @@ class TraceSlits(masterframe.MasterFrame):
         self.edgearr, self.tc_dict = trace_slits.edgearr_tcrude(self.edgearr, self.siglev,
                                                                  self.ednum, maxshift=_maxshift,
                                                                 bpm=self.binbpx)
+
+
+        nleft = self.tc_dict['left']['xset'].shape[1]
+        nrigh = self.tc_dict['right']['xset'].shape[1]
+        slit_left_mean = np.mean(self.tc_dict['left']['xset'],0)
+        isort_left = slit_left_mean.argsort()
+        slit_left = self.tc_dict['left']['xset'][:, isort_left]
+        slit_left_err = self.tc_dict['left']['xerr'][:, isort_left]
+        slit_righ_mean = np.mean(self.tc_dict['right']['xset'],0)
+        isort_righ = slit_righ_mean.argsort()
+        slit_righ = self.tc_dict['right']['xset'][:, isort_righ]
+        slit_righ_err = self.tc_dict['right']['xerr'][:, isort_righ]
+        left_mask = (slit_left_err.T < 900)
+
+        trace_dict = trace_refine(self.siglev, slit_left, left_mask, ncoeff=5, npca=None,
+                                  pca_explained_var=99.8, coeff_npoly_pca=2,fwhm=3.0, sigdetect=5.0, debug=True)
+
+
+
+        """
+        nspec = self.siglev.shape[0]
+        nspat = self.siglev.shape[1]
+        spec_vec = np.arange(nspec)
+        spat_vec = np.arange(nspat)
+        spec_vec_left = np.outer(np.ones(nleft),spec_vec)
+        invvar_left = (slit_left_err.T < 900).astype(float)
+        left_set = pydl.xy2traceset(spec_vec_left, slit_left.T, ncoeff = 5, maxdev = 5.0,maxiter = 25, invvar = invvar_left)
+        slit_left_fit = left_set.yfit.T
+        #slit_left_fit_mean = np.mean(slit_left_fit,0)
+
+        spat_not_junk = np.sum((slit_left_err < 900),1)
+        #ispec = spat_not_junk.argmax()
+        left_iref = int(np.round(np.sum(spat_not_junk * spec_vec) / np.sum(spat_not_junk)))
+        slit_left_ref = slit_left_fit[left_iref,:]
+
+        from pypeit.core import extract
+        from pypeit.core import arc
+        from astropy.stats import sigma_clipped_stats
+
+        pca_explained_var = 99.8
+        pca_fit_left, pca_poly_fit, pca_mean, pca_vectors = extract.pca_trace(slit_left_fit, npca = 3, coeff_npoly = 2,
+                                                                              debug=True,order_vec = slit_left_ref, xinit_mean = slit_left_ref)
+
+        npca = len(pca_poly_fit)
+        trace_model_left = np.zeros((nspec,nspat))
+        pca_coeff_spat =np.zeros((nspat, npca))
+        for idim, coeff in enumerate(pca_poly_fit):
+            pca_coeff_spat[:, idim] = utils.func_val(coeff, spat_vec, 'polynomial')
+
+        trace_model_left = np.outer(pca_mean, np.ones(nspat)) + (np.dot(pca_coeff_spat, pca_vectors)).T + np.arange(nspat)
+        trace_model_righ = trace_model_left + 3.0
+        siglev_extract = extract.extract_asymbox2(self.siglev, trace_model_left, trace_model_righ)
+
+        siglev_mean, siglev_median, siglev_sig = sigma_clipped_stats(siglev_extract, axis=0, sigma=4.0)
+        # Perform initial finding with a very liberal threshold
+        # Put in Gaussian smoothing here?
+        ypeak, _, left_start, sigma_pk, _, _, _, _ = arc.detect_lines(siglev_mean, cont_subtract=False, fwhm=3.0,sigdetect=5.0, debug=True)
+        nleft_new = len(left_start)
+        trace_crutch_left = trace_model_left[:,np.round(left_start).astype(int)]
+        ncoeff = 5
+        trace_left_fweight = extract.iter_tracefit(np.fmax(self.siglev,0.0),trace_crutch_left, ncoeff, fwhm=5.0, niter=6, show_fits=True)
+        trace_left_gweight = extract.iter_tracefit(np.fmax(self.siglev,0.0),trace_left_fweight, ncoeff, fwhm=3.0, gweight = True, niter=6, show_fits=True)
+
+        spat_vec = np.arange()
+
+        viewer, ch = ginga.show_image(np.fmax(self.siglev,0))
+        viewer, ch = ginga.show_image(self.mstrace)
+        for il in range(nleft_new):
+#            ginga.show_trace(viewer, ch, slit_left[:,il],trc_name = str(il), color='green')
+#            ginga.show_trace(viewer, ch, pca_fit_left[:,il],trc_name = str(il), color='yellow')
+            ginga.show_trace(viewer, ch, trace_left_gweight[:,il],trc_name = str(il), color='magenta')
+
+        for ir in range(nrigh):
+            ginga.show_trace(viewer, ch, slit_righ[:, ir], trc_name=str(ir), color='red')
+            ginga.show_trace(viewer, ch, slit_left[:,il],trc_name = str(il), color='magenta')
+        """
+
         # Step
         self.steps.append(inspect.stack()[0][3])
 
