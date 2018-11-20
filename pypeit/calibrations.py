@@ -432,7 +432,8 @@ class Calibrations(object):
             return self.tslits_dict, self.maskslits
                 
         # Instantiate (without mstrace)
-        self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, par=self.par['slits'],
+        self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, self.spectrograph,
+                                                par=self.par['slits'],
                                                 det=self.det, setup=self.setup,
                                                 master_dir=self.master_dir,
                                                 redux_path=self.redux_path,

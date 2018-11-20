@@ -367,11 +367,6 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, function='legendre', pol
     return
 
 
-
-
-
-
-
 def add_edge(ref_slit, insert_offset, earr, t_dict, final_left, final_right, left=True):
     """  Add a new edge using a reference slit
     right_slit : Reference slit for the left one
@@ -399,6 +394,143 @@ def add_edge(ref_slit, insert_offset, earr, t_dict, final_left, final_right, lef
     else:
         final_right.append(new_e)
         final_left.append(ref_slit)
+
+
+def new_add_edge(ref_slit, insert_offset, t_dict, left=True):
+    """  Add a new edge using a reference slit
+    right_slit : Reference slit for the left one
+    insert_offset : int
+      Offset fromm the right slit for the new left slit
+    """
+    # Current indices (book-keeping)
+    if left:
+        use = 'right'
+        fill = 'left'
+    else:
+        use = 'left'
+        fill = 'right'
+    traces = t_dict[use]['traces']
+
+    # TODO - Use the PCA
+    # Use the reference edge for the shape
+    new_trace = traces[:,ref_slit] + insert_offset
+    ypos = new_trace.shape[0]//2
+
+    # Add it in
+    t_dict[fill]['new_xval'].append(new_trace[ypos])
+    t_dict[fill]['new_traces'].append(new_trace)
+
+    # Return
+    return
+
+
+def sync_edges(tc_dict, nspat, insert_buff=5, add_left_edge_slit=True, verbose=False):
+    """ Method to synchronize the slit edges
+    Adds in extra edges according to a few criteria
+
+    Developed for ARMLSD
+
+    Parameters
+    ----------
+    tc_dict : dict
+       For book-keeping
+    ednum : int
+    nspat : int
+    insert_buff : int, optional
+       Offset from existing edge for any edge added in
+    add_left_edge_slit : bool, optional
+       Allow the method to add in a left slit at the edge of the detector
+
+    Returns
+    -------
+    """
+    # Init
+    for key in ['left', 'right']:
+        tc_dict[key]['new_xval'] = []
+        tc_dict[key]['new_traces'] = []
+
+    # Grab the edge indexes and xval's
+    #left_idx, left_xval, right_idx, right_xval = tc_indices(tc_dict)
+    left_xval = tc_dict['left']['xval']
+    right_xval = tc_dict['right']['xval']
+
+    # Only one slit?
+    if (len(left_xval) == 1) and (len(right_xval)==1):
+        if left_xval[0] < right_xval[0]:  # Ok slit, otherwise continue
+            return
+
+    # First slit (often up against the detector)
+    if (right_xval[0] < left_xval[0]) and add_left_edge_slit:
+        right_pix = tc_dict['right']['traces'][:,0] #np.where(edgearr == right_idx[0])
+        debugger.set_trace()
+        mn_rp = np.min(right_pix[1])
+        if mn_rp <= insert_buff:
+            msgs.warn("Partial or too small right edge at start of detector.  Skipping it.")
+        else:
+            ioff = -1*mn_rp + insert_buff
+            msgs.warn("Adding in a left edge at start of detector which mirrors the first right edge")
+            new_add_edge(0, ioff, tc_dict, left=True)
+
+    # Loop on left edges
+    for kk,left in enumerate(left_xval):
+
+        # Grab location of the next left edge
+        if kk < len(left_xval)-1:
+            next_left = left_xval[kk+1]
+        else:
+            next_left = nspat-1
+
+        # Search for a proper right edge
+        #  Should be right of the current left and left of the next left
+        gd_right = np.where((right_xval < next_left) & (right_xval > left))[0]
+        if len(gd_right) == 0:   # None found?
+            # Last slit?
+            if kk == len(left_xval)-1:
+                msgs.warn("Last slit has no right edge.  Adding one in which will not touch the detector edge")
+                left_pix = tc_dict['left']['traces'][:, kk] #np.where(edgearr == left_idx[kk])
+                mx_lp = np.max(left_pix[1])
+                if mx_lp >= nspat-1:
+                    msgs.warn("Partial left edge at end of detector.  Skipping it.")
+                else:
+                    # Stay on the detector!
+                    ioff = nspat - mx_lp - insert_buff
+                    # Add
+                    new_add_edge(-1, ioff, tc_dict, left=False)
+                continue
+            else: # Not the last slit, add one in!
+                msgs.warn("Missing a right edge for slit with left edge at {}".format(left))
+                msgs.warn("Adding in a corresponding right edge!")
+                # Offset from the next left edge
+                ioff = next_left-left-insert_buff
+                # Add
+                new_add_edge(kk, ioff, tc_dict, left=False)
+        else:
+            # Check for multiple right edges between the two lefts (i.e. missing Left)
+            #     Will only add in one missing left
+            if len(gd_right) > 1:
+                msgs.warn("Missing a left edge for slit with right edge(s) at {}".format(
+                    right_xval[gd_right[1:]]))
+                msgs.warn("Adding one (and only one)")
+                # Offset is difference between the two right slits + a buffer
+                ioff = right_xval[gd_right[0]] - right_xval[gd_right[1]] + insert_buff
+                # Add
+                new_add_edge(gd_right[1], ioff, tc_dict, left=True)
+                #add_edge(right_idx[gd_right[1]], ioff, edgearr, tc_dict, final_left, final_right, left=True)
+
+    # Add em in and then sort
+    for side in ['left', 'right']:
+        for kk, xval in enumerate(tc_dict[side]['new_xval']):
+            tc_dict[side]['xval'] = np.append(tc_dict[side]['xval'], xval)
+            tmp = tc_dict[side]['new_traces'][kk]
+            tc_dict[side]['traces'] = np.append(tc_dict[side]['traces'], np.resize(tmp, (tmp.size,1)), axis=1)
+
+        # Sort
+        isrt = np.argsort(tc_dict[side]['xval'])
+        tc_dict[side]['xval'] = tc_dict[side]['xval'][isrt]
+        tc_dict[side]['traces'] = tc_dict[side]['traces'][:,isrt]
+
+    # Return
+    return
 
 
 def edgearr_mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_slit=True, verbose=False):
@@ -531,8 +663,6 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                    maxshift=0.15, bpm=None, skip_bad=True):
     """ Use trace_crude to refine slit edges
     It is also used to remove bad slit edges and merge slit edges
-
-    Only recommended for ARMLSD
 
     Parameters
     ----------
@@ -679,6 +809,12 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                         tc_dict[side]['flags'][uni_e==eval] = -1  # Clip me
                         edgearr[edgearr==eval] = 0
                         continue
+                # All bad trace_crude?
+                if not np.any(goodx[:,kk]):
+                    msgs.warn("No good trace values. Rejecting")
+                    tc_dict[side]['flags'][uni_e==eval] = -1  # Clip me
+                    edgearr[edgearr==eval] = 0
+                    continue
 
                 # Edge is ok, keep it
                 xvals = np.round(xset[:, kk]).astype(int)
@@ -695,7 +831,7 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                         ybad_xerr = np.array([])
                     else:
                         ybad_xerr = np.where(~goodx[:,kk])[0]
-                    # Ignore bad pixels -- Somewhat kludgy
+                    # Ignore bad pixels in BPM -- Somewhat kludgy
                     if bpm is not None:
                         keep_bad = []
                         for ibad in ybad_xerr:
@@ -745,9 +881,13 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                 if newval == 0:
                     debugger.set_trace()
                 tc_dict[side]['xval'][str(newval)] = tc_dict[side]['xval'].pop(str(oldval))
+            # Remove the trace crude
+            tc_dict[side]['xset'] = tc_dict[side]['xset'][:,gde]
+            tc_dict[side]['xerr'] = tc_dict[side]['xerr'][:,gde]
+
     # Remove uni_idx
     for side in ['left', 'right']:
-        for key in ['uni_idx']:#, 'xset', 'xerr']:
+        for key in ['uni_idx']:
             tc_dict[side].pop(key)
     if verbose:
         print(tc_dict['left']['xval'])
