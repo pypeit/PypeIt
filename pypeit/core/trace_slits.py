@@ -2616,7 +2616,8 @@ def tc_indices(tc_dict):
     # Return
     return left_idx, left_xval, right_idx, right_xval
 
-def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 2, fwhm = 3.0, sigdetect = 5.0, debug=True):
+def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 2,
+                 fwhm = 3.0, sigthresh = 100.0, debug=True):
 
     # edges_mask True = Good, Bad = False
     # filt image has left as positive, right as negative
@@ -2662,7 +2663,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     trace_dict = {}
     for key,sign in zip(['left','right'], [1., -1.]):
         ypeak, _, edge_start, sigma_pk, _, igd, _, _ = arc.detect_lines(
-            sign*filt_smash_mean, cont_subtract=False, fwhm=fwhm, sigdetect=sigdetect, max_frac_fwhm = 10.0, debug=debug)
+            sign*filt_smash_mean, cont_subtract=False, fwhm=fwhm, input_thresh = sigthresh, max_frac_fwhm = 10.0, debug=debug)
         trace_dict[key] = {}
         trace_dict[key]['start'] = edge_start[igd]
         trace_dict[key]['nstart'] = len(edge_start[igd])
