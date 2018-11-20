@@ -1779,7 +1779,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
 
 def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
-              coeff_npoly = None, debug=True, order_vec = None, lower = 3.0, upper = 3.0, xinit_mean = None):
+              coeff_npoly = None, debug=True, order_vec = None, lower = 3.0, upper = 3.0, minv = None,maxv = None,
+              xinit_mean = None):
     """
     Use a PCA model to determine the best object (or slit edge) traces for echelle spectrographs.
 
@@ -1876,17 +1877,21 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
         pca_vectors = pca.components_
 
     pca_coeffs_new = np.zeros((norders, npca))
-    poly_coeffs = []
+    fit_dict = {}
     # Now loop over the dimensionality of the compression and perform a polynomial fit to
     for idim in range(npca):
         # Only fit the use_order orders, then use this to predict the others
         xfit = order_vec[use_order]
         yfit = pca_coeffs_use[:,idim]
         ncoeff = npoly_vec[idim]
+        # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
         msk_new, poly_out = utils.robust_polyfit_djs(xfit, yfit, ncoeff, function='polynomial', maxiter=25,
-                                                       lower=lower, upper=upper, sticky=False)
+                                                       lower=lower, upper=upper, sticky=False, minv = minv, maxv = maxv)
         pca_coeffs_new[:,idim] = utils.func_val(poly_out, order_vec, 'polynomial')
-        poly_coeffs.append(poly_out)
+        fit_dict[str(idim)] = {}
+        fit_dict[str(idim)]['coeffs'] = poly_out
+        fit_dict[str(idim)]['minv'] = minv
+        fit_dict[str(idim)]['maxv'] = maxv
         if debug:
             # Evaluate the fit
             xvec = np.linspace(order_vec.min(),order_vec.max(),num=100)
@@ -1902,12 +1907,12 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
             plt.show()
 
     pca_model = np.outer(pca.mean_,np.ones(norders)) + (np.dot(pca_coeffs_new, pca_vectors)).T
-    pca_model_mean = np.mean(pca_model,0)
-#    pca_fit = np.outer(np.ones(nspec), xinit_mean) + (pca_model - pca_model_mean)
-#    JFH which is correct?
+#   pca_model_mean = np.mean(pca_model,0)
+#   pca_fit = np.outer(np.ones(nspec), xinit_mean) + (pca_model - pca_model_mean)
+#   JFH which is correct?
     pca_fit = np.outer(np.ones(nspec), xinit_mean) + (pca_model)
 
-    return pca_fit, poly_coeffs, pca.mean_, pca_vectors
+    return pca_fit, fit_dict, pca.mean_, pca_vectors
 
 
 

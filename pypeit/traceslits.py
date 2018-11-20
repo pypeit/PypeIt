@@ -681,6 +681,10 @@ class TraceSlits(masterframe.MasterFrame):
                 for kk in range(trace_dict[key]['nstart']):
                     ginga.show_trace(viewer, ch, trace_dict[key]['trace'][:, kk], trc_name=key + '_' + str(kk),color=color[key])
 
+        # At this stage if we match up lefts and rights, we can measure the slit width and order spacing and easily predict where the
+        # new orders should land.
+        from IPython import embed
+        embed()
         """
         nspec = self.siglev.shape[0]
         nspat = self.siglev.shape[1]

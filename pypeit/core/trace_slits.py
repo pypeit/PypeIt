@@ -2637,15 +2637,16 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     edges_ref = edges_fit[iref, :]
 
     msgs.info('PCA modeling {:d} slit edges'.format(nedges))
-    pca_fit, pca_poly_fit, pca_mean, pca_vectors = extract.pca_trace(
+    pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
         edges_fit, npca=npca, pca_explained_var = pca_explained_var,coeff_npoly=coeff_npoly_pca, order_vec=edges_ref,
-        xinit_mean=edges_ref, upper = upper, lower = lower, debug= debug)
+        xinit_mean=edges_ref, upper = upper, lower = lower, minv = 0.0, maxv = float(nspat-1), debug= debug)
 
     # pca_poly_fit is list
-    npca_out = len(pca_poly_fit)
+    npca_out = len(poly_fit_dict)
     pca_coeff_spat = np.zeros((nspat, npca_out))
-    for idim, coeff in enumerate(pca_poly_fit):
-        pca_coeff_spat[:, idim] = utils.func_val(coeff, spat_vec, 'polynomial')
+    for idim in range(npca_out):
+        pca_coeff_spat[:, idim] = utils.func_val(poly_fit_dict[str(idim)]['coeffs'], spat_vec, 'polynomial',
+                                                 minv=poly_fit_dict[str(idim)]['minv'],maxv=poly_fit_dict[str(idim)]['maxv'])
 
     trace_model = np.outer(pca_mean, np.ones(nspat)) + (np.dot(pca_coeff_spat, pca_vectors)).T + np.arange(nspat)
     trace_model_left = trace_model - fwhm/2.0
@@ -2658,8 +2659,6 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     filt_smash_mean, filt_smash_median, filt_smash_sig = sigma_clipped_stats(filt_extract, axis=0, sigma=4.0)
     # Perform initial finding with a very liberal threshold
     # Put in Gaussian smoothing here?
-    sign = [1.0,-1.0]
-    nsign = np.zeros(2)
     trace_dict = {}
     for key,sign in zip(['left','right'], [1., -1.]):
         ypeak, _, edge_start, sigma_pk, _, igd, _, _ = arc.detect_lines(
