@@ -262,3 +262,5 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
 
         self.empty_bpm(shape=shape, filename=filename, det=det)
         return self.bpm_img
+
+
