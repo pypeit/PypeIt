@@ -2628,13 +2628,14 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     spat_vec = np.arange(nspat)
 
     edge_spec = np.outer(np.ones(nedges), spec_vec)
-    tset = pydl.xy2traceset(edge_spec, edges.T, ncoeff=ncoef, maxdev=5.0, maxiter=25, invvar=edges_mask.astype(float))
+    tset = pydl.xy2traceset(edge_spec, edges.T, ncoeff=ncoeff, maxdev=5.0, maxiter=25, invvar=edges_mask.T.astype(float))
     edges_fit = tset.yfit.T
 
     spat_not_junk = np.sum(edges_mask, 1)
     iref = int(np.round(np.sum(spat_not_junk * spec_vec)/np.sum(spat_not_junk)))
     edges_ref = edges_fit[iref, :]
 
+    msgs.info('PCA modeling {:d} slit edges'.format(nedges))
     pca_fit, pca_poly_fit, pca_mean, pca_vectors = extract.pca_trace(
         edges_fit, npca=npca, pca_explained_var = pca_explained_var,coeff_npoly=coeff_npoly_pca, order_vec=edges_ref,
         xinit_mean=edges_ref, debug= debug)
@@ -2648,6 +2649,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     trace_model = np.outer(pca_mean, np.ones(nspat)) + (np.dot(pca_coeff_spat, pca_vectors)).T + np.arange(nspat)
     trace_model_left = trace_model - fwhm/2.0
     trace_model_righ = trace_model + fwhm/2.0
+    msgs.info('Extracting filt_image along curved edge traces')
     filt_extract = extract.extract_asymbox2(filt_image, trace_model_left, trace_model_righ)
     filt_smash_mean, filt_smash_median, filt_smash_sig = sigma_clipped_stats(filt_extract, axis=0, sigma=4.0)
     # Perform initial finding with a very liberal threshold
@@ -2655,16 +2657,17 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     sign = [1.0,-1.0]
     nsign = np.zeros(2)
     trace_dict = {}
-    for key,sign in enumerate(zip(['left','right'], [1., -1.])): #sign):
-        ypeak, _, edge_start, sigma_pk, _, _, _, _ = arc.detect_lines(
-            sign*filt_smash_mean, cont_subtract=False, fwhm=fwhm, sigdetect=sigdetect, debug=debug)
+    for key,sign in zip(['left','right'], [1., -1.]):
+        ypeak, _, edge_start, sigma_pk, _, igd, _, _ = arc.detect_lines(
+            sign*filt_smash_mean, cont_subtract=False, fwhm=fwhm, sigdetect=sigdetect, max_frac_fwhm = 10.0, debug=debug)
         trace_dict[key] = {}
-        trace_dict[key]['start'] = edge_start
-        trace_dict[key]['nstart'] = len(edge_start)
-        trace_crutch = trace_model[:, np.round(edge_start).astype(int)]
+        trace_dict[key]['start'] = edge_start[igd]
+        trace_dict[key]['nstart'] = len(edge_start[igd])
+        msgs.info('Found {:d} {:s} slit edges'.format(len(edge_start[igd]),key))
+        trace_crutch = trace_model[:, np.round(edge_start[igd]).astype(int)]
         msgs.info('Iteratively tracing {:s} edges'.format(key))
-        trace_fweight = extract.iter_tracefit(np.fmax(sign*filt_image, 0.0), trace_crutch, ncoeff, fwhm=5.0*fwhm/3.0, niter=6,show_fits=True)
-        trace_gweight = extract.iter_tracefit(np.fmax(sign*filt_image, 0.0), trace_fweight, ncoeff, fwhm=fwhm,gweight=True, niter=6, show_fits=True)
+        trace_fweight = extract.iter_tracefit(np.fmax(sign*filt_image, 0.0), trace_crutch, ncoeff, fwhm=5.0*fwhm/3.0, niter=6)
+        trace_gweight = extract.iter_tracefit(np.fmax(sign*filt_image, 0.0), trace_fweight, ncoeff, fwhm=fwhm,gweight=True, niter=6)
         trace_dict[key]['trace'] = trace_gweight
 
     color = dict(left = 'green', right = 'red')
