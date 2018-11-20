@@ -1066,7 +1066,7 @@ class Echelle(PypeIt):
             # Init ScienceImage class
             self.sci_ID = sci_ID
             self.det = det
-            self.init_one_science(sci_ID, det)
+            self.init_one_science(sci_ID, frametype, det)
             # Extract
 
             # ToDO make this a method load_std_trace(). Not yet implemented
