@@ -15,6 +15,10 @@ from pypeit import debugger
 class MagellanFIRESpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Magellan/FIRE specific code
+    Important Notes:
+        For FIRE Echelle, we usually use high gain and SUTR read mode. The exposure time is usually
+        around 900s. The detector parameters below are based on such mode. Standard star and calibrations
+        are usually use Fowler 1 read mode in which case the read noise is ~20 electron.
     """
     def __init__(self):
         # Get it started
@@ -22,24 +26,25 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'magellan_fire'
         self.telescope = telescopes.MagellanTelescopePar()
         self.camera = 'FIRE'
-        self.numhead = 3
+        self.numhead = 1
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            dataext         = 0,
+                            dispaxis        = 1,
+                            dispflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
                             platescale      = 0.15,
                             darkcurr        = 0.01,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
+                            saturation      = 20000., # high gain mode, low gain is 32000
+                            nonlinear       = 1.0, # high gain mode, low gain is 0.875
                             numamplifiers   = 1,
-                            gain            = 3.84,
-                            ronoise         = 15.0,
+                            gain            = 1.2, # high gain mode, low gain is 3.8 e-/DN
+                            ronoise         = 5.0, # for high gain mode and SUTR read modes with exptime ~ 900s
                             datasec         = '[1:2048,1:2048]',
-                            oscansec        = '[:,:]'
+                            oscansec        = '[:,:4]'
                             )]
         self.norders = 22
         # Uses default timeunit
@@ -71,10 +76,9 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-
         # Reidentification parameters
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.json'
+        #par['calibrations']['wavelengths']['method'] = 'reidentify'
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire.json'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
@@ -87,13 +91,13 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
 
-
         # Set slits and tilts parameters
         par['calibrations']['tilts']['order'] = 2
-        par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+        par['calibrations']['tilts']['tracethresh'] = [10, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 10]
         par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 3.
-        par['calibrations']['slits']['pcatype'] = 'order'
+        par['calibrations']['slits']['sigdetect'] = 50
+        par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slits']['pcatype'] = 'pixel'
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -102,7 +106,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['flexure'] = pypeitpar.FlexurePar()
         par['flexure']['method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['standardframe']['exprng'] = [None, 20]
+        par['calibrations']['standardframe']['exprng'] = [None, 60]
         par['calibrations']['arcframe']['exprng'] = [20, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
@@ -120,9 +124,9 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
                 A list of headers read from a fits file
         """
         expected_values = { '0.INSTRUME': 'FIRE',
-                               '1.NAXIS': 2,
-                              '1.NAXIS1': 2048,
-                              '1.NAXIS2': 2048 }
+                               '0.NAXIS': 2,
+                              '0.NAXIS1': 2048,
+                              '0.NAXIS2': 2048 }
         super(MagellanFIRESpectrograph, self).check_headers(headers, expected_values=expected_values)
 
     def header_keys(self):
@@ -141,13 +145,13 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
 
         # Copied over defaults
         hdr_keys[0]['idname'] = 'OBSTYPE'
-        hdr_keys[0]['time'] = 'MJD-OBS'
-        #hdr_keys[0]['date'] = 'DATE-OBS'
-        hdr_keys[0]['utc'] = 'UTC'
+        #hdr_keys[0]['time'] = 'MJD-OBS'
+        hdr_keys[0]['date'] = 'DATE-OBS'
+        hdr_keys[0]['utc'] = 'UT-TIME'
         hdr_keys[0]['ra'] = 'RA'
         hdr_keys[0]['dec'] = 'DEC'
         hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['exptime'] = 'ITIME'
+        hdr_keys[0]['exptime'] = 'EXPTIME'
         hdr_keys[0]['target'] = 'OBJECT'
         hdr_keys[0]['naxis0'] = 'NAXIS2'
         hdr_keys[0]['naxis1'] = 'NAXIS1'
@@ -157,23 +161,26 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         return hdr_keys
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime']
+        return ['filename', 'date', 'frametype', 'idname','target', 'exptime']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
         """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['pinhole', 'bias']:
             # No pinhole or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['pixelflat', 'trace']:
-            return fitstbl['idname'] == 'domeflat'
-        
-        return (fitstbl['idname'] == 'object') \
-                        & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-
-
-
+            return good_exp & (fitstbl['idname'] == 'PixFlat')
+        if ftype == 'standard':
+            return good_exp & (fitstbl['idname'] == 'Telluric')
+        if ftype == 'science':
+            return good_exp & (fitstbl['idname'] == 'Science')
+        if ftype == 'arc':
+            return good_exp & (fitstbl['idname'] == 'Science')
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
 
     def get_match_criteria(self):
         """Set the general matching criteria for FIRE"""
@@ -201,13 +208,6 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         match_criteria['arc']['match']['naxis0'] = '=0'
         match_criteria['arc']['match']['naxis1'] = '=0'
 
-        # OLD
-        # Bias
-        #match_criteria['bias']['match'] = {}
-        #match_criteria['standard']['match'] = {}
-        #match_criteria['pixelflat']['match'] = {}
-        #match_criteria['trace']['match'] = {}
-        #match_criteria['arc']['match'] = {}
         return match_criteria
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
@@ -232,8 +232,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         msgs.info("Custom bad pixel mask for FIRE")
         self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
-            self.bpm_img[:, :20] = 1.
-            self.bpm_img[:, 1000:] = 1.
+            self.bpm_img[:, :4] = 1.
 
         return self.bpm_img
 
@@ -297,7 +296,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error('Unrecognized type for islit')
 
-        orders = np.arange(7, 2, -1, dtype=int)
+        orders = np.arange(32, 11, -1, dtype=int)
         return orders[islit]
 
     @staticmethod
@@ -324,13 +323,3 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         # FIRE has no binning, but for an instrument with binning we would do this
         #binspatial, binspectral = parse.parse_binning(binning)
         return np.full(5, 0.15)
-
-
-
-
-
-
-
-
-
-
