@@ -15,6 +15,10 @@ from pypeit import debugger
 class MagellanFIRESpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Magellan/FIRE specific code
+    Important Notes:
+        For FIRE Echelle, we usually use high gain and SUTR read mode. The exposure time is usually
+        around 900s. The detector parameters below are based on such mode. Standard star and calibrations
+        are usually use Fowler 1 read mode in which case the read noise is ~20 electron.
     """
     def __init__(self):
         # Get it started
@@ -34,11 +38,11 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
                             ysize           = 1.,
                             platescale      = 0.15,
                             darkcurr        = 0.01,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
+                            saturation      = 20000., # high gain mode, low gain is 32000
+                            nonlinear       = 1.0, # high gain mode, low gain is 0.875
                             numamplifiers   = 1,
-                            gain            = 3.84,
-                            ronoise         = 15.0,
+                            gain            = 1.2, # high gain mode, low gain is 3.8 e-/DN
+                            ronoise         = 5.0, # for high gain mode and SUTR read modes with exptime ~ 900s
                             datasec         = '[1:2048,1:2048]',
                             oscansec        = '[:,:4]'
                             )]
