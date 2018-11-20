@@ -654,12 +654,17 @@ class TraceSlits(masterframe.MasterFrame):
         isort_righ = slit_righ_mean.argsort()
         slit_righ = self.tc_dict['right']['xset'][:, isort_righ]
         slit_righ_err = self.tc_dict['right']['xerr'][:, isort_righ]
-        left_mask = (slit_left_err.T < 900)
+        left_mask = (slit_left_err < 900)
 
-        trace_dict = trace_refine(self.siglev, slit_left, left_mask, ncoeff=5, npca=None,
-                                  pca_explained_var=99.8, coeff_npoly_pca=2,fwhm=3.0, sigdetect=5.0, debug=True)
+        trace_dict = trace_slits.trace_refine(
+            self.siglev, slit_left, left_mask, ncoeff=5, npca=None,pca_explained_var=99.8, coeff_npoly_pca=2,fwhm=3.0,
+            sigdetect=5.0, debug=True)
 
-
+        color = dict(left='green', right='red')
+        viewer, ch = ginga.show_image(self.mstrace)
+        for key in trace_dict.keys():
+            for kk in range(trace_dict[key]['nstart']):
+                ginga.show_trace(viewer, ch, trace_dict[key]['trace'][:, kk], trc_name=key + '_' + str(kk),color=color[key])
 
         """
         nspec = self.siglev.shape[0]
