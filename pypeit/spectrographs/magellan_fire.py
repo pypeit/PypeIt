@@ -26,7 +26,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
-                            dispaxis        = 0,
+                            dataext         = 0,
+                            dispaxis        = 1,
                             dispflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -39,7 +40,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
                             gain            = 3.84,
                             ronoise         = 15.0,
                             datasec         = '[1:2048,1:2048]',
-                            oscansec        = '[:,:]'
+                            oscansec        = '[:,:4]'
                             )]
         self.norders = 22
         # Uses default timeunit
@@ -90,10 +91,11 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
 
         # Set slits and tilts parameters
         par['calibrations']['tilts']['order'] = 2
-        par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+        par['calibrations']['tilts']['tracethresh'] = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30]
         par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 3.
-        par['calibrations']['slits']['pcatype'] = 'order'
+        par['calibrations']['slits']['sigdetect'] = 50
+        par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slits']['pcatype'] = 'pixel'
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -232,8 +234,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         msgs.info("Custom bad pixel mask for FIRE")
         self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
-            self.bpm_img[:, :20] = 1.
-            self.bpm_img[:, 1000:] = 1.
+            self.bpm_img[:, :5] = 1.
+            self.bpm_img[:, 2040:] = 1.
 
         return self.bpm_img
 
@@ -297,7 +299,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error('Unrecognized type for islit')
 
-        orders = np.arange(7, 2, -1, dtype=int)
+        orders = np.arange(32, 11, -1, dtype=int)
         return orders[islit]
 
     @staticmethod
