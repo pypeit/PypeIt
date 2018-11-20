@@ -1116,7 +1116,9 @@ class TraceSlits(masterframe.MasterFrame):
             self._maxgap_prep()
 
         # Assign edges
-        self._assign_edges()
+        assign = False
+        if assign:
+            self._assign_edges()
 
         # Handle close edges (as desired by the user)
         #  JXP does not recommend using this method for multislit
