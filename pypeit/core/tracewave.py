@@ -66,9 +66,9 @@ def analyze_lines(msarc, trcdict, slit, pixcen, order=2, function='legendre', ma
         # Perform a scanning polynomial fit to the tilts
         wmfit = np.where(ytfit != maskval)
         if wmfit[0].size > order + 1:
-            cmfit = utils.func_fit(xtfit[wmfit], ytfit[wmfit], function, order, minv=0.0,
-                                     maxv=msarc.shape[1] - 1.0)
-            model = utils.func_val(cmfit, xtfit, function, minv=0.0, maxv=msarc.shape[1] - 1.0)
+            cmfit = utils.func_fit(xtfit[wmfit], ytfit[wmfit], function, order, minx=0.0,
+                                     maxx=msarc.shape[1] - 1.0)
+            model = utils.func_val(cmfit, xtfit, function, minx=0.0, maxx=msarc.shape[1] - 1.0)
         else:
             aduse[j] = False
             badlines += 1
@@ -83,10 +83,10 @@ def analyze_lines(msarc, trcdict, slit, pixcen, order=2, function='legendre', ma
 
         # Perform a robust polynomial fit to the traces
         wmsk, mcoeff = utils.robust_polyfit(xtfit[wmask], ytfit[wmask], order, function=function,
-                                              sigma=2.0, minv=0.0, maxv=msarc.shape[1] - 1.0)
+                                              sigma=2.0, minx=0.0, maxx=msarc.shape[1] - 1.0)
 
         # Save model
-        model = utils.func_val(mcoeff, xtfit, function, minv=0.0, maxv=msarc.shape[1] - 1.0)
+        model = utils.func_val(mcoeff, xtfit, function, minx=0.0, maxx=msarc.shape[1] - 1.0)
         xmodel.append(xtfit)
         ymodel.append(model)
 
@@ -611,13 +611,13 @@ def echelle_tilt(slf, msarc, det, settings_argflag, settings_spect,
             null, tempc = utils.robust_polyfit(centval[:, o][w], tiltang[:, o][w],
                                                  settings_argflag['trace']['slits']['tilts']['disporder'],
                                                  function=settings_argflag['trace']['slits']['function'], sigma=2.0,
-                                                 minv=0.0, maxv=msarc.shape[0] - 1)
+                                                 minx=0.0, maxx=msarc.shape[0] - 1)
             tcoeff[:, o] = tempc
     # Sort which orders are masked
     maskord.sort()
     xv = np.arange(msarc.shape[0])
     tiltval = utils.func_val(tcoeff, xv, settings_argflag['trace']['slits']['function'],
-                               minv=0.0, maxv=msarc.shape[0] - 1).T
+                               minx=0.0, maxx=msarc.shape[0] - 1).T
     ofit = settings_argflag['trace']['slits']['tilts']['params']
     lnpc = len(ofit) - 1
     if np.sum(1.0 - extrap_ord) > ofit[0] + 1:  # Only do a PCA if there are enough good orders
@@ -652,9 +652,9 @@ def echelle_tilt(slf, msarc, det, settings_argflag, settings_spect,
         if np.size(xtiltfit) > settings_argflag['trace']['slits']['tilts']['disporder'] + 2:
             tcoeff = utils.func_fit(xtiltfit, ytiltfit, settings_argflag['trace']['slits']['function'],
                                       settings_argflag['trace']['slits']['tilts']['disporder'],
-                                      minv=0.0, maxv=msarc.shape[0] - 1)
-            tiltval = utils.func_val(tcoeff, xv, settings_argflag['trace']['slits']['function'], minv=0.0,
-                                       maxv=msarc.shape[0] - 1)
+                                      minx=0.0, maxx=msarc.shape[0] - 1)
+            tiltval = utils.func_val(tcoeff, xv, settings_argflag['trace']['slits']['function'], minx=0.0,
+                                       maxx=msarc.shape[0] - 1)
             tilts = tiltval[:, np.newaxis].repeat(tiltang.shape[1], axis=1)
         else:
             msgs.warn("There are still not enough detections to obtain a reliable tilt trace")
@@ -821,9 +821,6 @@ def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', mask
                                        mtilt[wgd]-ytilt[wgd], fitxy,
                                        minx=0., maxx=1., miny=0., maxy=1., function=func2D)
 
-    # Compute the tilts image
-    polytilts = coeff2tilts(coeff2, msarc.shape, func2D)
-
     # TODO -- Add a rejection iteration (or two)
 
     # Residuals
@@ -836,6 +833,9 @@ def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', mask
     # QA
     if doqa:
         plot_tiltres(setup, mtilt[wgd], ytilt[wgd], yfit, slit=slit, show_QA=show_QA, out_dir=out_dir)
+
+    # Compute the tilts image
+    polytilts = coeff2tilts(coeff2, msarc.shape, func2D)
 
     # Return
     outpar = None
