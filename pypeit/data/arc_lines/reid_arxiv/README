@@ -18,3 +18,9 @@ X-shooter
 
 Created with sigdetect = 5.0. Line identifications were first done in IRAF by E. Farina to create vlt_xshooter_nir_iraf.json,
 then this database was used to reidentify the above frame, and was archived. 
+
+
+| XSHOO.2010-04-28T14:36:27.000.fits.gz | 2010-04-28T14:36:27.000 | arc             | ThAr      |  2.0000 |
+
+Created with sigdetect = 3.0. Line identifications were first done in IRAF by E. Farina to create vlt_xshooter_vis1x1_iraf.json
+
