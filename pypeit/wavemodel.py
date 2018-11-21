@@ -480,7 +480,7 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
 
     if thar_outfile is not None:
         msgs.info("Saving the ThAr model in: {}".format(thar_outfile))
-        hdu = fits.PrimaryHDU(np.array(thar_model))
+        hdu = fits.PrimaryHDU(np.array(thar_spec))
         header = hdu.header
         if flgd :
             header['CRVAL1'] = np.log10(wv_min)
@@ -676,14 +676,14 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
     Source = npeak*['wavemodel.py']
 
     if iraf_frmt:
-        msgs.info("Printing file in IRAF format: {}".format(file_root_name+'_line.dat'))
+        msgs.info("Printing file in IRAF format: {}".format(file_root_name+'_iraf_lines.dat'))
         ion = np.array(ion)
-        id_lines_iraf = np.vstack( (np.round(wave_peak,5), ion, np.round(tampl,5)) ).T
-        np.savetxt(file_root_name+'_line.dat', id_lines_iraf, fmt="%15s %6s %15s", delimiter="  ")
+        id_lines_iraf = np.vstack( (np.round(wave_peak,5), ion, np.round(ampl_good,5)) ).T
+        np.savetxt(file_root_name+'_iraf_lines.dat', id_lines_iraf, fmt="%15s %6s %15s", delimiter="  ")
     else:
-        msgs.info("Printing file: {}".format(file_root_name+'_line.dat'))
+        msgs.info("Printing file: {}".format(file_root_name+'_lines.dat'))
         dat = Table([wave_peak, ion, NIST, Instr, ampl_good, Source], names=('wave', 'ion','NIST','Instr','amplitude','Source'))
-        dat.write(file_root_name+'_line.dat',format='ascii.fixed_width')
+        dat.write(file_root_name+'_lines.dat',format='ascii.fixed_width')
 
 def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, nirsky_outfile=None,
                       fwhm=None, sigdetec=3., line_name='OH', file_root_name=None, iraf_frmt=False, 
