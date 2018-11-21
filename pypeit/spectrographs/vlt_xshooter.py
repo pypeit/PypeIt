@@ -428,6 +428,34 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         return par
 
+    @staticmethod
+    def slit2order(islit):
+
+        """
+        Parameters
+        ----------
+        islit: int, float, or string, slit number
+
+        Returns
+        -------
+        order: int
+        """
+
+        if isinstance(islit,str):
+            islit = int(islit)
+        elif isinstance(islit,np.ndarray):
+            islit = islit.astype(int)
+        elif isinstance(islit,float):
+            islit = int(islit)
+        elif isinstance(islit, int):
+            pass
+        else:
+            msgs.error('Unrecognized type for islit')
+
+        orders = np.arange(30,16,-1, dtype=int)
+        return orders[islit]
+
+
     def check_headers(self, headers):
         """
         Check headers match expectations for a VLT/XSHOOTER exposure.
