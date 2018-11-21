@@ -815,6 +815,12 @@ def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', mask
 
     # Fit the inverted model with a 2D polynomial
     msgs.info("Fitting tilts with a low order, 2D {:s}".format(func2D))
+
+    from IPython import embed
+    embed()
+
+
+
     wgd = np.where(xtilt != maskval)
     # Invert
     coeff2 = utils.polyfit2d_general(xtilt[wgd], mtilt[wgd]/(msarc.shape[0]-1),

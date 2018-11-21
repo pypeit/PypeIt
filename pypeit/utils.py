@@ -483,7 +483,7 @@ def func_der(coeffs, func, nderive=1):
                    "Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
 
-def func_fit(x, y, func, deg, x2 = None, minx=None, maxv=None, w=None, guesses=None,
+def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2=None, w=None, guesses=None,
              bspline_par=None, return_errors=False):
     """ General routine to fit a function to a given set of x,y points
 
@@ -496,7 +496,7 @@ def func_fit(x, y, func, deg, x2 = None, minx=None, maxv=None, w=None, guesses=N
     deg : int
       degree of the fit
     minx : float, optional
-    maxv
+    maxx
     w
     guesses : tuple
     bspline_par : dict
@@ -510,30 +510,30 @@ def func_fit(x, y, func, deg, x2 = None, minx=None, maxv=None, w=None, guesses=N
 
     """
 
+    # For two-d fits x = x, y = x2, y = z
     if ('2d' in func) and (x2 is not None):
         # Is this a 2d fit?
-        coeffs = polyfit2d_general(x, y, z, deg, w=None, function='polynomial',minx=None, maxx=None, miny=None, maxy=None)
-
+        return polyfit2d_general(x, x2, y, deg, w=None, function=func[:-2],minx=minx, maxx=maxx, miny=minx2, maxy=maxx2)
     elif func == "polynomial":
         return np.polynomial.polynomial.polyfit(x, y, deg, w=w)
     elif func == "legendre":
-        if minx is None or maxv is None:
+        if minx is None or maxx is None:
             if np.size(x) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
                 xmin, xmax = np.min(x), np.max(x)
         else:
-            xmin, xmax = minx, maxv
+            xmin, xmax = minx, maxx
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
         return np.polynomial.legendre.legfit(xv, y, deg, w=w)
     elif func == "chebyshev":
-        if minx is None or maxv is None:
+        if minx is None or maxx is None:
             if np.size(x) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
                 xmin, xmax = np.min(x), np.max(x)
         else:
-            xmin, xmax = minx, maxv
+            xmin, xmax = minx, maxx
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
         return np.polynomial.chebyshev.chebfit(xv, y, deg, w=w)
     elif func == "bspline":
@@ -541,7 +541,7 @@ def func_fit(x, y, func, deg, x2 = None, minx=None, maxv=None, w=None, guesses=N
             bspline_par = {}
         # TODO -- Deal with this kwargs-like kludge
         return bspline_fit(x, y, order=deg, w=w, **bspline_par)
-    elif func in ["gaussian"]:
+    elif func == "gaussian":
         # Guesses
         if guesses is None:
             ampl, cent, sigma = guess_gauss(x, y)
@@ -578,7 +578,7 @@ def func_fit(x, y, func, deg, x2 = None, minx=None, maxv=None, w=None, guesses=N
             return popt, pcov
         else:
             return popt
-    elif func in ["moffat"]:
+    elif func == "moffat":
         # Guesses
         if guesses is None:
             ampl, cent, sigma = guess_gauss(x, y)
@@ -603,7 +603,7 @@ def func_fit(x, y, func, deg, x2 = None, minx=None, maxv=None, w=None, guesses=N
                    "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
 
 
-def func_val(c, x, func, minx=None, maxx=None):
+def func_val(c, x, func, x2 = None, minx=None, maxx=None, minx2=None, maxx2=None):
     """ Generic routine to return an evaluated function
     Functional forms include:
       polynomial, legendre, chebyshev, bspline, gauss
@@ -622,7 +622,24 @@ def func_val(c, x, func, minx=None, maxx=None):
     values : ndarray
 
     """
-    if func == "polynomial":
+    # For two-d fits x = x, y = x2, y = z
+    if ('2d' in func) and (x2 is not None):
+        # Is this a 2d fit?
+        if func[:-2] == "polynomial":
+            return np.polynomial.polynomial.polyval2d(x, x2, c)
+        elif func[:-2] in ["legendre", "chebyshev"]:
+            # Scale x-direction
+            xv = scale_minmax(x, minx=minx, maxx=maxx)
+            # Scale x2-direction
+            x2v = scale_minmax(x2, minx=minx2, maxx=maxx2)
+            if func[:-2] == "legendre":
+                return np.polynomial.legendre.legval2d(xv, x2v, c)
+            elif func[:-2] == "chebyshev":
+                return np.polynomial.chebyshev.chebval2d(xv, x2v, c)
+        else:
+            msgs.error("Function {0:s} has not yet been implemented for 2d fits".format(func))
+        return None
+    elif func == "polynomial":
         return np.polynomial.polynomial.polyval(x, c)
     elif func == "legendre":
         if minx is None or maxx is None:
@@ -1005,6 +1022,7 @@ def scale_minmax(x, minx=None, maxx=None):
     return xv
 
 def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny=None, maxy=None):
+    """Document me please. I think this evaluates on an image??"""
     if function == "polynomial":
         xx, yy = np.meshgrid(x, y)
         return np.polynomial.polynomial.polyval2d(xx, yy, c)
@@ -1206,7 +1224,8 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
     return mask, ct
 
 # TODO This should replace robust_polyfit. #ToDO This routine needs to return dicts with the minx and maxx set
-def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minx = None, maxx = None, bspline_par = None,
+def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial', minx = None, maxx = None, minx2 = None, maxx2 = None,
+                       bspline_par = None,
                        guesses = None, maxiter=10, inmask=None, sigma=None,invvar=None, lower=None, upper=None,
                        maxdev=None,maxrej=None, groupdim=None,groupsize=None, groupbadpix=False, grow=0,
                        sticky=True, use_mad=True):
@@ -1217,6 +1236,8 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minx = No
     xarray: independent variable values
     yarray: dependent variable values
     order: the order of the polynomial to be used in the fitting
+    x2: ndarray, default = None
+       Do a 2d fit?
     function: which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev', 'bspline')
     minx: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
     maxx: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
@@ -1297,8 +1318,9 @@ def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minx = No
     while (not qdone) and (iIter < maxiter):
         if np.sum(thismask) <= order + 1:
             msgs.warn("More parameters than data points - fit might be undesirable")
-        ct = func_fit(xarray, yarray, function, order, w=weights*thismask,guesses=ct, minx=minx, maxx=maxx, bspline_par=bspline_par)
-        ymodel = func_val(ct, xarray, function, minx=minx, maxx=maxx)
+        ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights*thismask,guesses=ct, minx=minx, maxx=maxx,
+                      minx2=minx2,maxx2=maxx2, bspline_par=bspline_par)
+        ymodel = func_val(ct, xarray, function, minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2)
         thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, sigma=sigma, invvar=invvar,
                                           lower=lower,upper=upper,maxdev=maxdev,maxrej=maxrej,
                                           groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,

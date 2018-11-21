@@ -397,9 +397,9 @@ class TraceSlits(masterframe.MasterFrame):
             self.lcen = np.zeros((self.mstrace.shape[0], 1))
             self.rcen = np.zeros((self.mstrace.shape[0], 1))
             self.lcen[:, 0] = utils.func_val(self.lcoeff[:, 0], xint, self.par['function'],
-                                               minv=minvf, maxv=maxvf)
+                                               minx=minvf, maxx=maxvf)
             self.rcen[:, 0] = utils.func_val(self.rcoeff[:, 0], xint, self.par['function'],
-                                               minv=minvf, maxv=maxvf)
+                                               minx=minvf, maxx=maxvf)
             return True
         else:
             return False

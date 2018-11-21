@@ -252,8 +252,8 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, function='legendre', pol
                 if widx[0].size < 2*polyorder:
                     continue
                 badmsk, fitcof = utils.robust_polyfit(widx[0], widx[1], polyorder,
-                                                        function=function, minv=0,
-                                                        maxv=binarr.shape[0]-1)
+                                                        function=function, minx=0,
+                                                        maxx=binarr.shape[0]-1)
                 shbad[widx] = badmsk
                 smallhist = np.zeros(101, dtype=np.int)
                 meddiff = np.zeros(vals.size)
@@ -262,8 +262,8 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, function='legendre', pol
                     if widx[0].size == 0:
                         # These pixels were deemed to be bad
                         continue
-                    diff = widx[1] - utils.func_val(fitcof, widx[0], function, minv=0,
-                                                      maxv=binarr.shape[0]-1)
+                    diff = widx[1] - utils.func_val(fitcof, widx[0], function, minx=0,
+                                                      maxx=binarr.shape[0]-1)
                     diff = 50 + np.round(diff).astype(np.int)
                     np.add.at(smallhist, diff, 1)
                     meddiff[vv] = np.median(diff)
@@ -332,9 +332,9 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, function='legendre', pol
         commn = cntr.most_common(1)
         wedx, wedy = np.where(edgearr == commn[0][0])
         msk, cf = utils.robust_polyfit(wedx, wedy, polyorder, function=function,
-                                         minv=0, maxv=binarr.shape[0]-1)
+                                         minx=0, maxx=binarr.shape[0]-1)
         cenmodl = utils.func_val(cf, np.arange(binarr.shape[0]), function,
-                                   minv=0, maxv=binarr.shape[0]-1)
+                                   minx=0, maxx=binarr.shape[0]-1)
         if lor == -1:
             vals = np.unique(edgearr[np.where(edgearr < 0)])
         else:
@@ -1301,9 +1301,9 @@ def fit_edges(edgearr, lmin, lmax, plxbin, plybin, left=True, polyorder=3, funct
     msk, cf = utils.robust_polyfit(wedx, wedy,
                                      polyorder,
                                      function=function,
-                                     minv=0, maxv=edgearr.shape[0] - 1)
+                                     minx=0, maxx=edgearr.shape[0] - 1)
     cenmodl = utils.func_val(cf, np.arange(edgearr.shape[0]), function,
-                               minv=0, maxv=edgearr.shape[0] - 1)
+                               minx=0, maxx=edgearr.shape[0] - 1)
 
     if left:
         msgs.info("Fitting left slit traces")
@@ -1333,7 +1333,7 @@ def fit_edges(edgearr, lmin, lmax, plxbin, plybin, left=True, polyorder=3, funct
             nmbrarr[i - lmin] = i
         msk, coeff[:, i - lmin] = utils.robust_polyfit(tlfitx, tlfity, polyorder,
                                                           function=function,
-                                                          minv=minvf, maxv=maxvf)
+                                                          minx=minvf, maxx=maxvf)
     # Return
     return coeff, nmbrarr, diffarr, wghtarr
 
@@ -1962,7 +1962,7 @@ def pca_order_slit_edges(binarr, edgearr, lcent, rcent, gord, lcoeff, rcoeff, pl
     msgs.info("Performing a PCA on the order edges")
     lnpc = len(ofit) - 1
     msgs.work("May need to do a check here to make sure ofit is reasonable")
-    coeffs = utils.func_fit(xv, slitcen, function, polyorder, minv=minvf, maxv=maxvf)
+    coeffs = utils.func_fit(xv, slitcen, function, polyorder, minx=minvf, maxx=maxvf)
     for i in range(ordsnd.size):
         if i in maskord:
             if (i>=ordsnd[0]) and (i<ordsnd[-1]-1):  # JXP: Don't add orders that are already in there
@@ -2076,7 +2076,7 @@ def pca_pixel_slit_edges(binarr, edgearr, lcoeff, rcoeff, ldiffarr, rdiffarr,
     xv = np.arange(binarr.shape[0])
 
     # trace values
-    trcval = utils.func_val(tcoeff, xv, function, minv=minvf, maxv=maxvf).T
+    trcval = utils.func_val(tcoeff, xv, function, minx=minvf, maxx=maxvf).T
     msgs.work("May need to do a check here to make sure ofit is reasonable")
     lnpc = len(ofit) - 1
 
@@ -2383,7 +2383,7 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
     xv = plxbin[:, 0]
     num = (lmax - lmin) // 2
     lval = lmin + num  # Pick an order, somewhere in between lmin and lmax
-    lv = (utils.func_val(lcoeff[:, lval - lmin], xv, function, minv=minvf, maxv=maxvf) \
+    lv = (utils.func_val(lcoeff[:, lval - lmin], xv, function, minx=minvf, maxx=maxvf) \
                 + 0.5).astype(np.int)
     if np.any(lv < 0) or np.any(lv + 1 >= binarr.shape[1]):
         msgs.warn("At least one slit is poorly traced")
@@ -2408,7 +2408,7 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
         rsub = edgbtwn[1]-(lval)
     """
     if mnvalp > mnvalm:
-        lvp = (utils.func_val(lcoeff[:, lval + 1 - lmin], xv, function, minv=minvf, maxv=maxvf) \
+        lvp = (utils.func_val(lcoeff[:, lval + 1 - lmin], xv, function, minx=minvf, maxx=maxvf) \
                + 0.5).astype(np.int)
 
         edgbtwn = find_between(edgearr, lv, lvp, 1)
@@ -2424,7 +2424,7 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
             rsub = edgbtwn[1] - lval
     else:
         lvp = (utils.func_val(lcoeff[:, lval - 1 - lmin], xv, function,
-                                minv=minvf, maxv=maxvf) + 0.5).astype(np.int)
+                                minx=minvf, maxx=maxvf) + 0.5).astype(np.int)
         edgbtwn = find_between(edgearr, lvp, lv, -1)
 
         if edgbtwn[0] == -1 and edgbtwn[1] == -1:
@@ -2495,9 +2495,9 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
     rgm = np.where(np.in1d(runq, gord, invert=True))[0]
     maxord = np.max(np.append(gord, np.append(-lunq[lgm], runq[rgm])))
     lcent = utils.func_val(lcoeff[:, -lunq[lg][::-1] - 1 - extrapolate[0]], xv, function,
-                             minv=minvf, maxv=maxvf)
-    rcent = utils.func_val(rcoeff[:, runq[rg] - 1 - extrapolate[0]], xv, function, minv=minvf,
-                             maxv=maxvf)
+                             minx=minvf, maxx=maxvf)
+    rcent = utils.func_val(rcoeff[:, runq[rg] - 1 - extrapolate[0]], xv, function, minx=minvf,
+                             maxx=maxvf)
     # Return
     return lcent, rcent, gord, lcoeff, ldiffarr, lnmbrarr, lwghtarr, \
                 rcoeff, rdiffarr, rnmbrarr, rwghtarr

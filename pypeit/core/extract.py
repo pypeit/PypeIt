@@ -2085,13 +2085,15 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
             # Fractional slit position averaged across the spectral direction for each order
             frac_mean_good = np.mean(slit_frac_good, 0)
             # Performa  linear fit to fractional slit position
+
+            # TODO THIS IS A BIG BUG. THIS CODE NEEDS TO PASS BACK MINX AND MINXX to evalute the fit
             msk_frac, poly_coeff_frac = utils.robust_polyfit_djs(order_vec[goodorder], frac_mean_good, 1,
                                                                  function='polynomial', maxiter=20, lower=2, upper=2,
                                                                  use_mad= True, sticky=False)
             frac_mean_new = np.zeros(norders)
             frac_mean_new[badorder] = utils.func_val(poly_coeff_frac, iord_vec[badorder], 'polynomial')
             frac_mean_new[goodorder] = frac_mean_good
-
+            msgs.error('THis code has a giant bug.')
             if debug:
                 frac_mean_fit = utils.func_val(poly_coeff_frac, iord_vec, 'polynomial')
                 plt.plot(iord_vec[goodorder][msk_frac], frac_mean_new[goodorder][msk_frac], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
