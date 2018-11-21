@@ -809,10 +809,10 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
         wl_bin = np.abs((wavelength-np.roll(wavelength,1))[np.where(np.abs(wavelength-wl_cent)==np.min(np.abs(wavelength-wl_cent)))])
         # In order not to exclude all the lines, fwhm is set to 5 times
         # the minimum fwhm of the spectrum
-        fwhm = 5. * wl_fwhm / wl_bin[0]
+        fwhm = 1.1 * wl_fwhm / wl_bin[0]
         if fwhm < 1.:
-             msgs.warn("Lines are unresolved. Setting FWHM=5.*pixels")
-             fwhm = 5.
+             msgs.warn("Lines are unresolved. Setting FWHM=2.*pixels")
+             fwhm = 2.
 
     if line_name is None:
         msgs.warn("No line_name as been set. The file will contain XXX as ion")
