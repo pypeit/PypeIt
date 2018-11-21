@@ -786,7 +786,7 @@ def coeff2tilts(coeff2,shape,func2D,max_tilt = 1.2, min_tilt = -0.2):
     return polytilts
 
 # TODO: Change yorder to "dispaxis_order"?
-def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', maskval=-999999.9,
+def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre2d', maskval=-999999.9,
               setup=None, doqa=True, show_QA=False, out_dir=None):
 
     # ToDO please add some docs.
@@ -811,6 +811,7 @@ def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', mask
     # Unpack
     xtilt, ytilt, mtilt, wtilt = all_tilts
     #
+    # ToDO change variable labels spec_order, spat_order, get rid of this +1
     fitxy = [order+1, yorder]
 
     # Fit the inverted model with a 2D polynomial
@@ -819,26 +820,63 @@ def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre', mask
     from IPython import embed
     embed()
 
+    # This is Joe's way
+#    inmask = xtilt != maskval
+#    fitmask, coeff2 = utils.robust_polyfit_djs(xtilt[inmask], mtilt[inmask]-ytilt[inmask], fitxy, x2 = ytilt[inmask]/(msarc.shape[0]-1.0),
+#                                               function=func2D, maxiter=30,maxrej=None, lower=2.0, upper=2.0, minx=0.0, maxx=1.0, minx2=0.0,maxx2=1.0,
+#                                               use_mad=True, sticky=True)
 
 
-    wgd = np.where(xtilt != maskval)
+    inmask = xtilt != maskval
+    fitmask, coeff2 = utils.robust_polyfit_djs(xtilt[inmask], mtilt[inmask]-ytilt[inmask], fitxy, x2 = mtilt[inmask]/(msarc.shape[0]-1.0),
+                                               function=func2D, maxiter=30,maxrej=None, lower=100.0, upper=100.0, minx=0.0, maxx=1.0, minx2=0.0,maxx2=1.0,
+                                               use_mad=True, sticky=True)
+    plt.figure(figsize=(8,20))
+    deltay_fit = utils.func_val(coeff2, xtilt[inmask], func2D, x2=mtilt[inmask]/(msarc.shape[0]-1.0), minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    plt.plot(xtilt[inmask], mtilt[inmask] - deltay_fit, 'go', mfc='g',markersize=7.0, markeredgewidth=1.0, label = '2D Fit')
+    plt.plot(xtilt[inmask][fitmask], ytilt[inmask][fitmask], 'ko', mfc='None',markersize=5.0, markeredgewidth=1.0, label = 'Good Points')
+    plt.plot(xtilt[inmask][~fitmask], ytilt[inmask][~fitmask], 'ro', mfc='None',markersize=5.0, markeredgewidth=1.0, label = 'Rejected Points')
+    plt.legend()
+    plt.show()
+    res2 = (mtilt[inmask][fitmask]-ytilt[inmask][fitmask]) - deltay_fit[fitmask]
+    msgs.info("RMS (pixels): {}".format(np.std(res2)))
+
+
+#    plt.figure(figsize=(8,20))
+#    deltay_fit = utils.func_val(coeff2, xtilt[inmask], func2D, x2=mtilt[inmask]/(msarc.shape[0]-1.0), minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+#    plt.plot(xtilt[inmask], ytilt[inmask] + deltay_fit, 'go', mfc='g',markersize=7.0, markeredgewidth=1.0, label = '2D Fit')
+#    plt.plot(xtilt[inmask][fitmask], mtilt[inmask][fitmask], 'ko', mfc='None',markersize=5.0, markeredgewidth=1.0, label = 'Good Points')
+#    plt.plot(xtilt[inmask][~fitmask], mtilt[inmask][~fitmask], 'ro', mfc='None',markersize=5.0, markeredgewidth=1.0, label = 'Rejected Points')
+#    plt.legend()
+#    plt.show()
+
+    #wgd = np.where(xtilt != maskval)
     # Invert
-    coeff2 = utils.polyfit2d_general(xtilt[wgd], mtilt[wgd]/(msarc.shape[0]-1),
-                                       mtilt[wgd]-ytilt[wgd], fitxy,
+    inmask = xtilt != maskval
+    coeff2 = utils.polyfit2d_general(xtilt[inmask], mtilt[inmask]/(msarc.shape[0]-1),
+                                       mtilt[inmask]-ytilt[inmask], fitxy,
                                        minx=0., maxx=1., miny=0., maxy=1., function=func2D)
 
     # TODO -- Add a rejection iteration (or two)
 
     # Residuals
-    xv2 = utils.scale_minmax(xtilt[wgd], minx=0., maxx=1)
-    yv2 = utils.scale_minmax(mtilt[wgd]/(msarc.shape[0]-1), minx=0., maxx=1)
-    yfit = np.polynomial.legendre.legval2d(xv2, yv2, coeff2)
-    res2 = (mtilt[wgd]-ytilt[wgd]) - yfit
+    xv2 = utils.scale_minmax(xtilt[inmask], minx=0., maxx=1)
+    yv2 = utils.scale_minmax(mtilt[inmask]/(msarc.shape[0]-1), minx=0., maxx=1)
+    deltay_fit = np.polynomial.legendre.legval2d(xv2, yv2, coeff2)
+    res2 = (mtilt[inmask]-ytilt[inmask]) - deltay_fit
     msgs.info("RMS (pixels): {}".format(np.std(res2)))
+
+    plt.figure(figsize=(8, 20))
+    plt.plot(xtilt[inmask], mtilt[inmask] - deltay_fit, 'go', mfc='g', markersize=7.0, markeredgewidth=1.0,
+             label='2D Fit')
+    plt.plot(xtilt[inmask], ytilt[inmask], 'ko', mfc='None', markersize=5.0, markeredgewidth=1.0,label='Good Points')
+    plt.legend()
+    plt.show()
+
 
     # QA
     if doqa:
-        plot_tiltres(setup, mtilt[wgd], ytilt[wgd], yfit, slit=slit, show_QA=show_QA, out_dir=out_dir)
+        plot_tiltres(setup, mtilt[inmask], ytilt[inmask], deltay_fit, slit=slit, show_QA=show_QA, out_dir=out_dir)
 
     # Compute the tilts image
     polytilts = coeff2tilts(coeff2, msarc.shape, func2D)

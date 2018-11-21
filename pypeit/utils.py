@@ -513,6 +513,8 @@ def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2
     # For two-d fits x = x, y = x2, y = z
     if ('2d' in func) and (x2 is not None):
         # Is this a 2d fit?
+        from IPython embed
+        embed()
         return polyfit2d_general(x, x2, y, deg, w=None, function=func[:-2],minx=minx, maxx=maxx, miny=minx2, maxy=maxx2)
     elif func == "polynomial":
         return np.polynomial.polynomial.polyfit(x, y, deg, w=w)
@@ -1316,7 +1318,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
     qdone = False
     thismask = np.copy(inmask)
     while (not qdone) and (iIter < maxiter):
-        if np.sum(thismask) <= order + 1:
+        if np.sum(thismask) <= np.sum(order) + 1:
             msgs.warn("More parameters than data points - fit might be undesirable")
         ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights*thismask,guesses=ct, minx=minx, maxx=maxx,
                       minx2=minx2,maxx2=maxx2, bspline_par=bspline_par)
