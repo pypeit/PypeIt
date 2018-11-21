@@ -251,6 +251,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         """
 
         self.empty_bpm(shape=shape, filename=filename, det=det)
+        if det == 1:
+            
+            self.bpm_img[:360,221:224] = 1.
+
+
         return self.bpm_img
 
     @staticmethod
@@ -459,7 +464,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         """
         self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
-            self.bpm_img[1456:, 841:845] = 1.
+            self.bpm_img[2912:,824:826] = 1.
 
         return self.bpm_img
 
@@ -560,7 +565,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         """
         self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
-            self.bpm_img[1456:, 841:845] = 1.
+            self.bpm_img[:2369,720:722] = 1.
 
         return self.bpm_img
 
