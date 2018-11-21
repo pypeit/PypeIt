@@ -19,7 +19,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
     def __init__(self):
         # Get it started
         super(MagellanMAGESpectrograph, self).__init__()
-        self.spectrograph = 'magellan_MAGE'
+        self.spectrograph = 'magellan_mage'
         self.telescope = telescopes.MagellanTelescopePar()
         self.camera = 'MAGE'
         self.numhead = 3
@@ -59,7 +59,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         Set default parameters for magellan MagE reduction.
         """
         par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'magellan_MAGE'
+        par['rdx']['spectrograph'] = 'magellan_mage'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
         par['calibrations']['biasframe']['number'] = 0
