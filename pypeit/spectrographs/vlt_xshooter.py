@@ -15,6 +15,7 @@ from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import pixels
 
+from pkg_resources import resource_filename
 
 from pypeit import debugger
 
@@ -252,10 +253,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
-            
-            self.bpm_img[:360,221:224] = 1.
-
-
+            bpm_dir = resource_filename('pypeit', 'data/static_calibs/vlt_xshoooter/')
+            bpm_loc = np.loadtxt(bpm_dir+'BP_MAP_RP_NIR.dat',usecols=(0,1))
+            self.bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
         return self.bpm_img
 
     @staticmethod
