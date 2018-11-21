@@ -262,7 +262,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
         raise ValueError("Crashing out of bspline fitting")
     return tck
 
-#ToDo consider adding an inmask here as a keyword argument. Also I would prefer to remove the kwargs_bspline and
+#ToDo I would prefer to remove the kwargs_bspline and
 # and make them explicit
 def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5, lower=5,
                     maxiter=25, nord = 4, bkpt=None, fullbkpt=None,
@@ -972,7 +972,7 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
         yv = scale_minmax(y, minx=miny, maxx=maxy)
         vander = np.polynomial.legendre.legvander2d(xv, yv, deg)
     else:
-        msgs.error("Not read for this type of {:s}".format(function))
+        msgs.error("Not ready for this type of {:s}".format(function))
     # Weights
     if w is not None:
         w = np.asarray(w) + 0.0
