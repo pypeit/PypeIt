@@ -1167,7 +1167,7 @@ def parse_hand_dict(hand_extract_dict):
 
 
 
-def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gweight=False,show_fits=False, idx = None):
+def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5.0, maxiter = 25, niter=6,gweight=False,show_fits=False, idx = None, xmin = None, xmax = None):
     """ Utility routine for object find to iteratively trace and fit. Used by both objfind and ech_objfind
 
     Parameters
@@ -1243,8 +1243,8 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
         # replaced by the tracing crutch
         # ToDO add maxdev functionality by adding kwargs_reject to xy2traceset
         xinvvar = np.ones_like(xpos1.T) # Do not do weighted fits, i.e. uniform weights but set the errro to 1.0 pixel
-        pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj),spec_vec), xpos1.T, ncoeff = ncoeff, maxdev = 5.0,
-                                    maxiter=25,invvar = xinvvar)
+        pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj),spec_vec), xpos1.T, ncoeff=ncoeff, maxdev=maxdev,
+                                    maxiter=maxiter,invvar = xinvvar,xmin = xmin, xmax = xmax)
         xfit1 = pos_set1.yfit.T
         # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
         tracemask1 = xerr1 > 990.0 # bad pixels have errors set to 999 and are returned to lie on the input trace
@@ -1267,7 +1267,8 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
                 plt.legend()
                 plt.show()
 
-    return xfit1
+    # Returns the fit, the actual weighted traces, and the pos_set1 object
+    return xfit1, xpos1, pos_set1
 
 
 specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 'science'}
@@ -1618,9 +1619,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
     # Note the transpose is here to pass in the trace_spat correctly.
     xinit_fweight = np.copy(sobjs.trace_spat.T)
-    xfit_fweight = iter_tracefit(image, xinit_fweight,ncoeff,inmask = inmask, fwhm=fwhm,idx = sobjs.idx, show_fits=show_fits)
+    xfit_fweight, _, _ = iter_tracefit(image, xinit_fweight,ncoeff,inmask = inmask, fwhm=fwhm,idx = sobjs.idx, show_fits=show_fits)
     xinit_gweight = np.copy(xfit_fweight)
-    xfit_gweight = iter_tracefit(image, xinit_gweight,ncoeff,inmask = inmask, fwhm=fwhm,gweight = True, idx = sobjs.idx, show_fits=show_fits)
+    xfit_gweight, _ , _= iter_tracefit(image, xinit_gweight,ncoeff,inmask = inmask, fwhm=fwhm,gweight = True, idx = sobjs.idx, show_fits=show_fits)
 
     # assign the final trace
     for iobj in range(nobj_reg):
@@ -2093,7 +2094,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
             frac_mean_new = np.zeros(norders)
             frac_mean_new[badorder] = utils.func_val(poly_coeff_frac, iord_vec[badorder], 'polynomial')
             frac_mean_new[goodorder] = frac_mean_good
-            msgs.error('THis code has a giant bug.')
+            msgs.warn('THis code has a giant bug.')
             if debug:
                 frac_mean_fit = utils.func_val(poly_coeff_frac, iord_vec, 'polynomial')
                 plt.plot(iord_vec[goodorder][msk_frac], frac_mean_new[goodorder][msk_frac], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
@@ -2225,10 +2226,10 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
         inmask_now = inmask & (ordermask > -1)
-        xfit_fweight = iter_tracefit(image, xinit_fweight, ncoeff, inmask = inmask_now, show_fits=show_fits)
+        xfit_fweight, _, _ = iter_tracefit(image, xinit_fweight, ncoeff, inmask = inmask_now, show_fits=show_fits)
         # Perform iterative Gaussian weighted centroiding
         xinit_gweight = xfit_fweight.copy()
-        xfit_gweight = iter_tracefit(image, xinit_gweight, ncoeff, inmask = inmask_now, gweight=True,show_fits=show_fits)
+        xfit_gweight, _ , _= iter_tracefit(image, xinit_gweight, ncoeff, inmask = inmask_now, gweight=True,show_fits=show_fits)
         # Assign the new traces
         for iord, spec in enumerate(sobjs_final[igroup]):
             spec.trace_spat = xfit_gweight[:,iord]

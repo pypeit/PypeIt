@@ -2502,7 +2502,7 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
     return lcent, rcent, gord, lcoeff, ldiffarr, lnmbrarr, lwghtarr, \
                 rcoeff, rdiffarr, rnmbrarr, rwghtarr
 
-
+# TODO Make this a proper trace_crude
 def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     maxshift0=0.5, maxshift=0.15, maxerr=0.2):
     """Python port of trace_crude_idl.pro from IDLUTILS
