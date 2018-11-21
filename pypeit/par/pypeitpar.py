@@ -980,7 +980,7 @@ class ReducePar(ParSet):
         # parameter sets (like DetectorPar) and where they go needs to
         # be rethought.
         return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
-                'keck_hires_red','keck_hires_blue',
+                'keck_hires_red','keck_hires_blue','mmt_binospec',
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
                 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'magellan_fire',
                 'vlt_xshooter_nir', 'gemini_gmos_south', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham']

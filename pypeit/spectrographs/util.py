@@ -17,7 +17,7 @@ def valid_spectrographs():
             'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
             'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir',
             'gemini_gnirs', 'gemini_gmos_south', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
-            'magellan_fire', 'keck_hires_red', 'keck_hires_blue']
+            'magellan_fire', 'keck_hires_red', 'keck_hires_blue','mmt_binospec']
 
 def load_spectrograph(spectrograph):
     """
