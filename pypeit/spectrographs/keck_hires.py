@@ -102,6 +102,71 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
+        """
+        Wrapper to the raw image reader for HIRES
+
+        Args:
+            raw_file:  str, filename
+            det: int, REQUIRED
+              Desired detector
+            **null_kwargs:
+              Captured and never used
+
+        Returns:
+            raw_img: ndarray
+              Raw image;  likely unsigned int
+            head0: Header
+
+        """
+        raw_img, head0, _ = read_hires(raw_file, det=det)
+
+        return raw_img, head0
+
+    def get_image_section(self, filename, det, section='datasec'):
+        """
+        Return a string representation of a slice defining a section of
+        the detector image.
+
+        Overwrites base class function to use :func:`read_hires` to get
+        the image sections.
+
+        .. todo::
+            - It feels really ineffiecient to just get the image section
+              using the full :func:`read_hires`.  Can we parse that
+              function into something that can give you the image
+              section directly?
+
+        This is done separately for the data section and the overscan
+        section in case one is defined as a header keyword and the other
+        is defined directly.
+
+        Args:
+            filename (str):
+                data filename
+            det (int):
+                Detector number
+            section (:obj:`str`, optional):
+                The section to return.  Should be either datasec or
+                oscansec, according to the :class:`DetectorPar`
+                keywords.
+
+        Returns:
+            list, bool: A list of string representations for the image
+            sections, one string per amplifier, followed by three
+            booleans: if the slices are one indexed, if the slices
+            should include the last pixel, and if the slice should have
+            their order transposed.
+        """
+        # Read the file
+        temp, head0, secs = read_hires(filename, det)
+        if section == 'datasec':
+            return secs[0], False, False, False
+        elif section == 'oscansec':
+            return secs[1], False, False, False
+        else:
+            raise ValueError('Unrecognized keyword: {0}'.format(section))
+
     def get_match_criteria(self):
         # TODO: Matching needs to be looked at...
         match_criteria = {}
@@ -111,13 +176,17 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         match_criteria['standard']['match'] = {}
         match_criteria['standard']['match']['binning'] = ''
         # Bias
+        match_criteria['pixelflat']['number'] = 5
         match_criteria['bias']['match'] = {}
         match_criteria['bias']['match']['binning'] = ''
         # Pixelflat
+        match_criteria['pixelflat']['number'] = 5
         match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
         # Traceflat
+        match_criteria['pixelflat']['number'] = 5
         match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
         # Arc
+        match_criteria['pixelflat']['number'] = 1
         match_criteria['arc']['match'] = match_criteria['bias']['match'].copy()
 
         # Return
@@ -195,6 +264,8 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['tilts']['tracethresh'] = 20
+        # Bias
+        par['calibrations']['biasframe']['useframe'] = 'bias'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
@@ -215,7 +286,6 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         par['flexure'] = pypeitpar.FlexurePar()
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
-
         par['calibrations']['standardframe']['exprng'] = [None, 600]
         par['scienceframe']['exprng'] = [600, None]
 
@@ -266,4 +336,172 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         self.empty_bpm(shape=shape, filename=filename, det=det)
         return self.bpm_img
 
+def indexing(itt, postpix, det=None,xbin=None,ybin=None):
+    """
+    Some annoying book-keeping for instrument placement.
 
+    Parameters
+    ----------
+    itt : int
+    postpix : int
+    det : int, optional
+
+    Returns
+    -------
+
+    """
+    # Deal with single chip
+    if det is not None:
+        tt = 0
+    else:
+        tt = itt
+    ii = int(np.round(2048/xbin))
+    jj = int(np.round(4096/ybin))
+    # y indices
+    y1, y2 = 0, jj
+    o_y1, o_y2 = y1, y2
+
+    # x
+    x1, x2 = (tt%4)*ii, (tt%4 + 1)*ii
+    if det is None:
+        o_x1 = 4*ii + (tt%4)*postpix
+    else:
+        o_x1 = ii + (tt%4)*postpix
+    o_x2 = o_x1 + postpix
+
+    # Return
+    return x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2
+
+def hires_read_1chip(hdu,chipno):
+    """ Read one of the HIRES detectors
+
+    Parameters
+    ----------
+    hdu : HDUList
+    chipno : int
+
+    Returns
+    -------
+    data : ndarray
+    oscan : ndarray
+    """
+
+    # Extract datasec from header
+    datsec = hdu[chipno].header['DATASEC']
+    detsec = hdu[chipno].header['DETSEC']
+    postpix = hdu[0].header['POSTPIX']
+    precol = hdu[0].header['PRECOL']
+
+    x1_dat, x2_dat, y1_dat, y2_dat = np.array(parse.load_sections(datsec)).flatten()
+    x1_det, x2_det, y1_det, y2_det = np.array(parse.load_sections(detsec)).flatten()
+
+    # This rotates the image to be increasing wavelength to the top
+    #data = np.rot90((hdu[chipno].data).T, k=2)
+    #nx=data.shape[0]
+    #ny=data.shape[1]
+
+    # Science data
+    fullimage = hdu[chipno].data
+    data = fullimage[x1_dat:x2_dat,y1_dat:y2_dat]
+
+    # Overscan
+    oscan = fullimage[:,y2_dat:]
+
+    # Flip as needed
+    if x1_det > x2_det:
+        data = np.flipud(data)
+        oscan = np.flipud(oscan)
+    if y1_det > y2_det:
+        data = np.fliplr(data)
+        oscan = np.fliplr(oscan)
+
+    # Return
+    return data, oscan
+
+def read_hires(raw_file, det=None):
+    """
+    Read a raw HIRES data frame (one or more detectors)
+    Packed in a multi-extension HDU
+    Based on pypeit.arlris.read_lris...
+       Based on readmhdufits.pro
+
+    Parameters
+    ----------
+    raw_file : str
+      Filename
+
+    Returns
+    -------
+    array : ndarray
+      Combined image
+    header : FITS header
+    sections : tuple
+      List of datasec, oscansec sections
+    """
+
+    # Check for file; allow for extra .gz, etc. suffix
+    fil = glob.glob(raw_file + '*')
+    if len(fil) != 1:
+        msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
+    # Read
+    try:
+        msgs.info("Reading HIRES file: {:s}".format(fil[0]))
+    except AttributeError:
+        print("Reading HIRES file: {:s}".format(fil[0]))
+
+    hdu = fits.open(fil[0])
+    head0 = hdu[0].header
+
+    # Get post, pre-pix values
+    precol = head0['PRECOL']
+    postpix = head0['POSTPIX']
+    preline = head0['PRELINE']
+    postline = head0['POSTLINE']
+    detlsize = head0['DETLSIZE']
+    x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
+
+    # Create final image
+    if det is None:
+        image = np.zeros((x_npix,y_npix+4*postpix))
+
+    # Setup for datasec, oscansec
+    dsec = []
+    osec = []
+
+    # get the x and y binning factors...
+    binning = head0['BINNING']
+    if binning != '3,1':
+        msgs.warn("This binning for HIRES might not work.  But it might..")
+
+    xbin, ybin = [int(ibin) for ibin in binning.split(',')]
+
+    # HIRES detectors
+    nchip = 3
+
+
+    if det is None:
+        chips = range(nchip)
+    else:
+        chips = [det-1] # Indexing starts at 0 here
+    # Loop
+    for tt in chips:
+        data, oscan = hires_read_1chip(hdu, tt+1)
+
+        # One detector??
+        if det is not None:
+            image = np.zeros((data.shape[0],data.shape[1]+oscan.shape[1]))
+
+        # Indexing
+        x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det,xbin=xbin,ybin=ybin)
+
+        # Fill
+        image[y1:y2, x1:x2] = data
+        image[o_y1:o_y2, o_x1:o_x2] = oscan
+
+        # Sections
+        idsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1, y2, x1, x2)
+        iosec = '[{:d}:{:d},{:d}:{:d}]'.format(o_y1, o_y2, o_x1, o_x2)
+        dsec.append(idsec)
+        osec.append(iosec)
+    # Return
+    return image, head0, (dsec,osec)
