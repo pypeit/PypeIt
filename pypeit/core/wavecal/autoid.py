@@ -747,7 +747,7 @@ class ArchiveReid:
             fitc = self.wv_calib_arxiv[str(iarxiv)]['fitc']
             fitfunc = self.wv_calib_arxiv[str(iarxiv)]['function']
             fmin, fmax = self.wv_calib_arxiv[str(iarxiv)]['fmin'], self.wv_calib_arxiv[str(iarxiv)]['fmax']
-            self.wave_soln_arxiv[:, iarxiv] = utils.func_val(fitc, xrng, fitfunc, minv=fmin, maxv=fmax)
+            self.wave_soln_arxiv[:, iarxiv] = utils.func_val(fitc, xrng, fitfunc, minx=fmin, maxx=fmax)
             self.det_arxiv[str(iarxiv)] = self.wv_calib_arxiv[str(iarxiv)]['pixel_fit']
 
         # Todo should this be a separate reidentify_and_fit method? I think not
@@ -1278,7 +1278,7 @@ class HolyGrail:
                 fitc = self._all_final_fit[str(slit)]['fitc']
                 fitfunc = self._all_final_fit[str(slit)]['function']
                 fmin, fmax = self._all_final_fit[str(slit)]['fmin'], self._all_final_fit[str(slit)]['fmax']
-                wave_soln = utils.func_val(fitc, xrng, fitfunc, minv=fmin, maxv=fmax)
+                wave_soln = utils.func_val(fitc, xrng, fitfunc, minx=fmin, maxx=fmax)
                 wvc_gd_jfh[cntr] = wave_soln[self._npix//2]
                 dsp_gd_jfh[cntr]= np.median(wave_soln - np.roll(wave_soln,1))
                 cntr += 1
@@ -1361,7 +1361,7 @@ class HolyGrail:
             fitc = self._all_final_fit[str(good_slits[islit])]['fitc']
             fitfunc = self._all_final_fit[str(good_slits[islit])]['function']
             fmin, fmax = self._all_final_fit[str(good_slits[islit])]['fmin'], self._all_final_fit[str(good_slits[islit])]['fmax']
-            wave_soln = utils.func_val(fitc, xrng, fitfunc, minv=fmin, maxv=fmax)
+            wave_soln = utils.func_val(fitc, xrng, fitfunc, minx=fmin, maxx=fmax)
             wvc_good[islit] = wave_soln[self._npix // 2]
             disp_good[islit] = np.median(wave_soln - np.roll(wave_soln, 1))
 
@@ -1436,7 +1436,7 @@ class HolyGrail:
                 fitc = self._all_final_fit[str(gs)]['fitc']
                 fitfunc = self._all_final_fit[str(gs)]['function']
                 fmin, fmax = self._all_final_fit[str(gs)]['fmin'], self._all_final_fit[str(gs)]['fmax']
-                wvval = utils.func_val(fitc, gsdet, fitfunc, minv=fmin, maxv=fmax)
+                wvval = utils.func_val(fitc, gsdet, fitfunc, minx=fmin, maxx=fmax)
                 # Loop over the bad slit line pixel detections and find the nearest good slit line
                 for dd in range(bsdet.size):
                     pdiff = np.abs(bsdet[dd]-gsdet_ss)
@@ -1492,7 +1492,7 @@ class HolyGrail:
             if self._debug:
                 xrng = np.arange(self._npix)
                 xplt = np.linspace(0.0, 1.0, self._npix)
-                yplt = utils.func_val(final_fit['fitc'], xplt, 'legendre', minv=0.0, maxv=1.0)
+                yplt = utils.func_val(final_fit['fitc'], xplt, 'legendre', minx=0.0, maxx=1.0)
                 plt.plot(final_fit['pixel_fit'], final_fit['wave_fit'], 'bx')
                 plt.plot(xplt, yplt, 'r-')
                 plt.show()
@@ -1582,7 +1582,7 @@ class HolyGrail:
                 if coeffs is None:
                     coeffs = np.zeros((fitc.size, self._nslit))
                 coeffs[:, slit] = fitc.copy()
-                waves[:, slit] = utils.func_val(fitc, xv, func, minv=fmin, maxv=fmax)
+                waves[:, slit] = utils.func_val(fitc, xv, func, minx=fmin, maxx=fmax)
 
         msgs.info("Performing a PCA on the order wavelength solutions")
         pdb.set_trace()
@@ -1668,7 +1668,7 @@ class HolyGrail:
             self._all_final_fit[str(slit)] = copy.deepcopy(final_fit)
             if self._debug:
                 xplt = np.linspace(0.0, 1.0, self._npix)
-                yplt = utils.func_val(final_fit['fitc'], xplt, 'legendre', minv=0.0, maxv=1.0)
+                yplt = utils.func_val(final_fit['fitc'], xplt, 'legendre', minx=0.0, maxx=1.0)
                 plt.plot(final_fit['pixel_fit'], final_fit['wave_fit'], 'bx')
                 plt.plot(xplt, yplt, 'r-')
                 plt.show()
@@ -2197,9 +2197,9 @@ class HolyGrail:
                 signtxt = 'anitcorrelate'
             # Report
             centwave = utils.func_val(self._all_final_fit[st]['fitc'], 0.5,
-                                      self._all_final_fit[st]['function'], minv=0.0, maxv=1.0)
+                                      self._all_final_fit[st]['function'], minx=0.0, maxx=1.0)
             tempwave = utils.func_val(self._all_final_fit[st]['fitc'], 0.5 + 1.0/self._npix,
-                                      self._all_final_fit[st]['function'], minv=0.0, maxv=1.0)
+                                      self._all_final_fit[st]['function'], minx=0.0, maxx=1.0)
             centdisp = abs(centwave-tempwave)
             msgs.info(msgs.newline() +
                       '---------------------------------------------------' + msgs.newline() +

@@ -1519,10 +1519,10 @@ class TraceSet(object):
                                                                 function=self.func, maxiter = self.maxiter,
                                                                 inmask = inmask[iTrace, :], invvar = thisinvvar,
                                                                 lower = self.lower, upper = self.upper,
-                                                                minv = self.xmin, maxv = self.xmax,
+                                                                minx = self.xmin, maxx = self.xmax,
                                                                 sigma=None,maxdev=self.maxdev,maxrej=None,groupdim=None,
                                                                 groupsize=None,groupbadpix=None,grow=0,use_mad=False,sticky=False)
-                ycurfit_djs = utils.func_val(poly_coeff, xvec, self.func, minv=self.xmin, maxv=self.xmax)
+                ycurfit_djs = utils.func_val(poly_coeff, xvec, self.func, minx=self.xmin, maxx=self.xmax)
 
                 ##Using robust_polyfit_djs to do the fitting and the following part are commented out by Feige
                 #while (not qdone) and (iIter <= maxiter):
@@ -1569,7 +1569,7 @@ class TraceSet(object):
         for iTrace in range(self.nTrace):
             xvec = self.xnorm(xpos[iTrace, :], do_jump)
             #legarr = self._func_map[self.func](xvec, self.ncoeff+1) #need to be norder+1 for utils functions
-            ypos[iTrace, :] =  utils.func_val(self.coeff[iTrace, :], xvec, self.func, minv=self.xmin, maxv=self.xmax)
+            ypos[iTrace, :] =  utils.func_val(self.coeff[iTrace, :], xvec, self.func, minx=self.xmin, maxx=self.xmax)
 #            ypos[iTrace, :] = np.dot(legarr.T, self.coeff[iTrace, :])
         return (xpos, ypos)
 

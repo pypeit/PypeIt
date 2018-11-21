@@ -513,8 +513,6 @@ def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2
     # For two-d fits x = x, y = x2, y = z
     if ('2d' in func) and (x2 is not None):
         # Is this a 2d fit?
-        from IPython embed
-        embed()
         return polyfit2d_general(x, x2, y, deg, w=None, function=func[:-2],minx=minx, maxx=maxx, miny=minx2, maxy=maxx2)
     elif func == "polynomial":
         return np.polynomial.polynomial.polyfit(x, y, deg, w=w)
@@ -983,7 +981,7 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     :param w: weights
     :return: coefficients
     """
-    msgs.work("Generalize to different polynomial types")
+#    msgs.work("Generalize to different polynomial types")
     x = np.asarray(x)
     y = np.asarray(y)
     z = np.asarray(z)
@@ -1322,7 +1320,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
             msgs.warn("More parameters than data points - fit might be undesirable")
         ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights*thismask,guesses=ct, minx=minx, maxx=maxx,
                       minx2=minx2,maxx2=maxx2, bspline_par=bspline_par)
-        ymodel = func_val(ct, xarray, function, minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2)
+        ymodel = func_val(ct, xarray, function, x2 = x2, minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2)
         thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, sigma=sigma, invvar=invvar,
                                           lower=lower,upper=upper,maxdev=maxdev,maxrej=maxrej,
                                           groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,
@@ -1332,15 +1330,8 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
     outmask = np.copy(thismask)
 
-    # Final fit
-    xfit = xarray[outmask]
-    yfit = yarray[outmask]
-    if weights is not None:
-        wfit = weights[outmask]
-    else:
-        wfit = None
-
-    ct = func_fit(xfit, yfit, function, order, w=wfit, minx=minx, maxx=maxx, bspline_par=bspline_par)
+    # Do the final fit
+    ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights*outmask, minx=minx, maxx=maxx, minx2 = minx2, maxx2=maxx2, bspline_par=bspline_par)
 
     return outmask, ct
 
