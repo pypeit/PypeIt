@@ -717,7 +717,8 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
 
         # Flag: 0=not traced; 1=traced; -1=duplicate
         tc_dict[side]['flags'] = np.zeros(len(uni_e), dtype=int)
-
+        tc_dict[side]['xset'] = np.zeros((nspec,len(uni_e)))
+        tc_dict[side]['xerr'] = np.zeros((nspec,len(uni_e))) + 999.
 
         # Loop on edges to trace
         niter = 0
@@ -756,8 +757,6 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                 if not np.any(msk):
                     # Next iteration
                     niter += 1
-                    tc_dict[side]['xset'] = np.append(tc_dict[side]['xset'], np.zeros((nspec,xinit.size)), axis=1)
-                    tc_dict[side]['xerr'] = np.append(tc_dict[side]['xerr'], np.zeros((nspec,xinit.size)), axis=1)
                     continue
                 else:
                     xinit = xinit[msk]
@@ -767,13 +766,13 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                 xset, xerr = trace_crude_init(np.maximum(siglev, -0.1), np.array(xinit), yrow, maxshift=maxshift)
             else:
                 xset, xerr = trace_crude_init(np.maximum(-1*siglev, -0.1), np.array(xinit), yrow, maxshift=maxshift)
-            # Save
-            if niter == 0:
-                tc_dict[side]['xset'] = xset
-                tc_dict[side]['xerr'] = xerr
-            else: # Need to append
-                tc_dict[side]['xset'] = np.append(tc_dict[side]['xset'], xset, axis=1)
-                tc_dict[side]['xerr'] = np.append(tc_dict[side]['xerr'], xerr, axis=1)
+            # Fill it up
+            for kk,x in enumerate(xinit):
+                # Annoying index
+                idx = np.where(uni_e == edgearr[yrow,x])[0]
+                #
+                tc_dict[side]['xset'][:,idx[0]] = xset[:,kk]
+                tc_dict[side]['xerr'][:,idx[0]] = xerr[:,kk]
 
             # Good values allowing for edge of detector
             goodx = np.any([(xerr != 999.), (xset==0.), (xset==edgearr.shape[1]-1.)], axis=0)
