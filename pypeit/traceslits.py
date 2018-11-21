@@ -660,7 +660,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _pca_refine(self, mask_frac_thresh=0.8, maxiter=3, show=True, debug=True):
+    def _pca_refine(self, mask_frac_thresh=0.6, maxiter=3, show=False, debug=False):
 
         # Unpack and sort
         nspec, nspat = self.siglev.shape
@@ -730,7 +730,7 @@ class TraceSlits(masterframe.MasterFrame):
                 trace_dict_l = trace_slits.trace_refine(
                     self.siglev, slit_in, mask_in, npca = None, ncoeff=5,
                     pca_explained_var=99.8, coeff_npoly_pca=3,fwhm=3.0,
-                    sigthresh=100.0, debug=debug)
+                    sigthresh=100.0, debug=debug, maxrej=1)
                 slit_in = trace_dict_l['left']['trace']
                 mask_in = np.ones_like(slit_in,dtype=bool)
                 iter +=1
@@ -740,9 +740,8 @@ class TraceSlits(masterframe.MasterFrame):
                     viewer, ch = ginga.show_image(self.mstrace)
                     for kk in range(trace_dict_l['left']['nstart']):
                         ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk),color='green')
-
+            # TODO -- Should sync up left-right in one big while loop after doing one iteration
             # Run on right edges
-            # ToDO start here with the right traces from the left iteration. Does this work with GNIRS?
             iter = 1
             slit_in = slit_righ.copy()
             mask_in = mask_righ.copy()
@@ -750,7 +749,7 @@ class TraceSlits(masterframe.MasterFrame):
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
                 trace_dict_r = trace_slits.trace_refine(
                     self.siglev, slit_in, mask_in, npca = None, ncoeff=5,pca_explained_var=99.8, coeff_npoly_pca=3,fwhm=3.0,
-                    sigthresh=100.0, debug=debug)
+                    sigthresh=100.0, debug=debug, maxrej=1)
                 slit_in = trace_dict_r['right']['trace']
                 mask_in = np.ones_like(slit_in,dtype=bool)
                 iter +=1
@@ -1045,6 +1044,13 @@ class TraceSlits(masterframe.MasterFrame):
                 ginga.show_slits(viewer, ch, self.lcen, self.rcen, slit_ids = np.arange(self.lcen.shape[1]) + 1, pstep=pstep)
         elif attr == 'binarr':
             debugger.show_image(self.binarr, chname='binarr')
+        elif attr == 'xset':
+            viewer, ch = ginga.show_image(self.mstrace, chname='slit_xset')
+            color = dict(left='green', right='red')
+            viewer, ch = ginga.show_image(self.mstrace)
+            for side in ['left', 'right']:
+                for kk in range(self.tc_dict[side]['xset'].shape[1]):
+                    ginga.show_trace(viewer, ch, self.tc_dict[side]['xset'][:, kk], trc_name=side+ str(kk),color=color[side])
         elif attr == 'traces':
             viewer, ch = ginga.show_image(self.mstrace, chname='slit_traces')
             color = dict(left='green', right='red')

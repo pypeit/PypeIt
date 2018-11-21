@@ -1779,8 +1779,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
 
 def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
-              coeff_npoly = None, debug=True, order_vec = None, lower = 3.0, upper = 3.0, minv = None,maxv = None,
+              coeff_npoly = None, debug=True, order_vec = None, lower = 3.0,
+              upper = 3.0, minv = None,maxv = None, maxrej=1,
               xinit_mean = None):
+
     """
     Use a PCA model to determine the best object (or slit edge) traces for echelle spectrographs.
 
@@ -1886,7 +1888,9 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
         ncoeff = npoly_vec[idim]
         # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
         msk_new, poly_out = utils.robust_polyfit_djs(xfit, yfit, ncoeff, function='polynomial', maxiter=25,
-                                                       lower=lower, upper=upper, sticky=False, minv = minv, maxv = maxv)
+                                                     lower=lower, upper=upper,
+                                                     maxrej=maxrej,
+                                                     sticky=False, minv = minv, maxv = maxv)
         pca_coeffs_new[:,idim] = utils.func_val(poly_out, order_vec, 'polynomial')
         fit_dict[str(idim)] = {}
         fit_dict[str(idim)]['coeffs'] = poly_out

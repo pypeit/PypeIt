@@ -2762,7 +2762,8 @@ def tc_indices(tc_dict):
 # ToDo 2) Add an option where the user specifies the number of slits, and so it takes only the highest peaks
 # from detect_lines
 def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 3,
-                 fwhm = 3.0, sigthresh = 100.0, upper = 2.0, lower = 2.0, debug=True):
+                 fwhm = 3.0, sigthresh = 100.0, upper = 2.0, lower = 2.0, debug=True,
+                 maxrej=1):
 
     # edges_mask True = Good, Bad = False
     # filt image has left as positive, right as negative
@@ -2787,7 +2788,8 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     msgs.info('PCA modeling {:d} slit edges'.format(nedges))
     pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
         edges_fit, npca=npca, pca_explained_var = pca_explained_var,coeff_npoly=coeff_npoly_pca, order_vec=edges_ref,
-        xinit_mean=edges_ref, upper = upper, lower = lower, minv = 0.0, maxv = float(nspat-1), debug= debug)
+        xinit_mean=edges_ref, upper = upper, lower = lower, minv = 0.0, maxv = float(nspat-1), debug= debug,
+    maxrej=maxrej)
 
     # pca_poly_fit is list
     npca_out = len(poly_fit_dict)

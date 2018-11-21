@@ -458,8 +458,13 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         """
         self.empty_bpm(shape=shape, filename=filename, det=det)
+        '''
         if det == 1:
             self.bpm_img[1456:, 841:845] = 1.
+        '''
+        # The following is binning dependent!
+        #   824, 825
+        self.bpm_img[:, 851:853] = 1.
 
         return self.bpm_img
 
