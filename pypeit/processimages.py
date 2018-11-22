@@ -283,7 +283,6 @@ class ProcessImages(object):
         numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
         for kk,image in enumerate(self.raw_images):
             # Bias subtract (move here from procimg)
-
             if isinstance(msbias, np.ndarray):
                 msgs.info("Subtracting bias image from raw frame")
                 # Trim?
