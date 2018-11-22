@@ -228,7 +228,6 @@ class Calibrations(object):
 
         # How are we treating biases: 1) No bias, 2) overscan, or 3) use bias subtraction. If use bias is there a master?
         self.msbias = self.biasFrame.determine_bias_mode()
-
         if self.msbias is None:  # Build it and save it
             self.msbias = self.biasFrame.build_image()
             if self.save_masters:
