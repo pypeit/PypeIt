@@ -131,7 +131,7 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False,sig
     # we don't need to peak find or continuum subtract, but this makes the code pretty uggly.
 
     # Run line detection to get the continuum subtracted arc
-    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect, fwhm = fwhm)
+    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect, fwhm=fwhm)
     if use_raw_arc == True:
         ampl = tampl1
         use_arc = inspec1
@@ -291,7 +291,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
     y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
 
     # Do the cross-correlation first and determine the initial shift
-    shift_cc, cc_val = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, use_raw_arc = True, debug = debug)
+    shift_cc, cc_val = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, use_raw_arc = True, sigdetect = sigdetect, fwhm=fwhm, debug = debug)
 
     if cc_val < cc_thresh:
         return -1, shift_cc, 1.0, cc_val, shift_cc, cc_val
