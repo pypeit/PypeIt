@@ -53,7 +53,7 @@ def fit_double_poly(all_wv_order, work2d, thismask, nspec_coeff, norder_coeff):
     return coeffs, wv_order_mod
 
 
-def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0,debug=True, skip_QA=False):
+def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0, debug=False):
     """Routine to obtain the 2D wavelength solution for an echelle spectrograph. This is calculated from the spec direction
     pixelcentroid and the order number of identified arc lines. The fit is a simple least-squares with rejections.
     This is a port of the XIDL code: x_fit2darc.pro
@@ -167,34 +167,22 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
                     nspec_coeff=nspec_coeff, norder_coeff=norder_coeff,
                     pixel_cen=norm_pixel[0], pixel_norm=norm_pixel[1],
                     order_cen=norm_order[0], order_norm=norm_order[1],
-                    nspec=nspec)
-
-    debug = True
+                    nspec=nspec, all_pix=all_pix, all_wv=all_wv,
+                    all_orders=all_orders, all_mask=thismask)
     if debug:
-        fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask)
+        fit2darc_qa(fit_dict)
 
     return fit_dict
 
-def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask, setup=None, out_dir=None):
+
+def fit2darc_qa(fit_dict, outfile=None):
     """ QA on 2D fit of the wavelength solution.
     
     Parameters
     ----------
     fit_dict: dict
       dict of the 2D arc solution
-    fin_rms: float
-      rms of the model
-    all_wv: np.array
-     wavelength of the identified lines
-    all_pix: np.array
-      y-centroid position of the identified lines
-    all_orders: np.array
-      order number of the identified lines
-    thismas: boolean
-      mask containing the rejected lines
-    setup:
-      parameter for QA
-    out_dir:
+    outfile:
       parameter for QA
 
     Returns
@@ -212,22 +200,17 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask, setup=
     pixel_cen = fit_dict['pixel_cen']
     nspec_coeff = fit_dict['nspec_coeff']
     norder_coeff = fit_dict['norder_coeff']
+    all_wv = fit_dict['all_wv']
+    all_pix = fit_dict['all_pix']
+    all_orders = fit_dict['all_orders']
+    thismask = fit_dict['all_mask']
+    resid_wl_qa = []
 
     # Define pixels array
     all_pixels_qa = np.arange(nspec)
 
-    # Global plot
-    '''
-    outfile_global = qa.set_qa_filename(setup, method='fit2darc_global',
-                                        out_dir=out_dir)
-    '''
-
     # Define figure properties
     plt.figure(figsize=(8,5))
-    plt.title(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#'.format(
-              norder_coeff, nspec_coeff, fin_rms))
-    plt.xlabel(r'Wavelength [$\AA$]')
-    plt.ylabel(r'Row [pixel]')
 
     # Variable where to store the max wavelength covered by the
     # spectrum
@@ -254,29 +237,34 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask, setup=
         this_msk = thismask[all_orders == ii]
         wv_order_mod_resid_qa = eval2dfit(fit_dict, this_pix, ii)
         resid_qa = (wv_order_mod_resid_qa/ii-this_wv)
+        resid_wl_qa = np.append(resid_wl_qa,resid_qa[this_msk])
         plt.scatter((wv_order_mod_resid_qa[~this_msk]/ii)+ \
                     100.*resid_qa[~this_msk], this_pix[~this_msk], \
                     marker='x', color='black', linewidths=2.5, s=16.)
         plt.scatter((wv_order_mod_resid_qa[this_msk]/ii)+ \
                     100.*resid_qa[this_msk], this_pix[this_msk], \
                     color=(rr,gg,bb), linewidth=2.5, s=16.)
-
         if np.max(wv_order_mod_resid_qa/ii) > mx :
             mx = np.max(wv_order_mod_resid_qa/ii)
 
+    rms_qa = np.sqrt(np.mean((resid_wl_qa)**2))
+
     plt.text(mx,np.max(all_pixels_qa),r'residuals $\times$100', \
              ha="right", va="top")
+    plt.title(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#'.format(
+              norder_coeff, nspec_coeff, rms_qa))
+    plt.xlabel(r'Wavelength [$\AA$]')
+    plt.ylabel(r'Row [pixel]')
 
     # Finish
-    # plt.savefig(outfile_global, dpi=800)
-    # plt.close()
-    plt.show()
+    if outfile is not None:
+        plt.savefig(outfile, dpi=800)
+        plt.close()
+    else:
+        plt.show()
 
+"""
     # Individual plots
-    '''
-    outfile_order = qa.set_qa_filename(setup, method='fit2darc_order',
-                                       out_dir=out_dir)
-    '''
 
     # set the size of the plot
     nrow = np.int(2)
@@ -359,6 +347,8 @@ def fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask, setup=
     # plt.savefig(outfile_order, dpi=800)
     # plt.close()
     plt.show()
+"""
+
 
 def eval2dfit(fit_dict, pixels, order):
     """ Evaluate the 2D fit at a given pixel and order.
