@@ -416,8 +416,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             )]
         self.numhead = 1
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for VLT XSHOOTER VIS reductions.
         """
@@ -450,9 +449,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
-        ### par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
-        par['calibrations']['wavelengths']['sigdetect'] = 3.0
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.50 # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1_iraf.json'
@@ -493,7 +492,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         else:
             msgs.error('Unrecognized type for islit')
 
-        orders = np.arange(30,16,-1, dtype=int)
+        orders = np.arange(30,15,-1, dtype=int)
         return orders[islit]
 
 
