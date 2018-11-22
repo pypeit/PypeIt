@@ -263,7 +263,7 @@ def fit2darc_qa(fit_dict, outfile=None):
     else:
         plt.show()
 
-"""
+
     # Individual plots
 
     # set the size of the plot
@@ -347,7 +347,6 @@ def fit2darc_qa(fit_dict, outfile=None):
     # plt.savefig(outfile_order, dpi=800)
     # plt.close()
     plt.show()
-"""
 
 
 def eval2dfit(fit_dict, pixels, order):
@@ -730,8 +729,6 @@ def detect_lines(censpec, sigdetect = 5.0, input_thresh = None, cont_subtract=Tr
       The significance of each line detected relative to the 1sigma variation in the continuum subtracted arc in the
       the line free region. Bad lines are assigned a significance of -1, since they don't have an amplitude fit
     """
-
-    debug = True
 
     # Detect the location of the arc lines
     if verbose:
