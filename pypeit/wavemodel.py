@@ -1,3 +1,5 @@
+# Module to create models of arc lines.
+
 from __future__ import absolute_import, division, print_function
 
 import astropy
@@ -19,7 +21,6 @@ from pypeit import msgs
 from pypeit.core import arc
 from pypeit import utils
 
-# Module for creating models of arc lines.
 
 def blackbody(wavelength, T_BB=250., debug=False):
     """ Given wavelength [in microns] and Temperature in Kelvin
@@ -131,6 +132,7 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
         utils.pyplot_rcparams_default()
 
     return line_spec
+
 
 def oh_lines():
     """ Reads in the Rousselot (2000) OH line list"
@@ -744,6 +746,8 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
     iraf_frmt : bool
         if True, the file is written in the IRAF format (i.e. wavelength,
         ion name, amplitude).
+    debug : boolean
+        If True will show debug plots
     """
 
     wavelength, spec = nearIR_modelsky(resolution, waveminmax=waveminmax, dlam=dlam,
@@ -771,6 +775,7 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
 
     create_linelist(wavelength, spec, fwhm=fwhm, sigdetec=sigdetec, line_name=line_name,
                     file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug)
+
 
 def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=True, thar_outfile=None,
                         fwhm=None, sigdetec=3., line_name='ThAr', file_root_name=None, iraf_frmt=False,
@@ -815,6 +820,8 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
     iraf_frmt : bool
         if True, the file is written in the IRAF format (i.e. wavelength,
         ion name, amplitude).
+    debug : boolean
+        If True will show debug plots
     """
 
     wavelength, spec = optical_modelThAr(resolution, waveminmax=waveminmax, dlam=dlam,
