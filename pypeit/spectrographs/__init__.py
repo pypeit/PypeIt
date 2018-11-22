@@ -5,6 +5,7 @@ from pypeit.spectrographs import gemini_gmos
 from pypeit.spectrographs import keck_deimos
 from pypeit.spectrographs import keck_lris
 from pypeit.spectrographs import keck_nires
+from pypeit.spectrographs import keck_hires
 from pypeit.spectrographs import keck_nirspec
 from pypeit.spectrographs import magellan_fire
 from pypeit.spectrographs import magellan_mage
