@@ -430,6 +430,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['arcframe']['useframe']= 'overscan'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['useframe']= 'overscan'
+        par['calibrations']['biasframe']['useframe']= 'overscan'
+        # TODO THIS IS STUPID. biasframe currently determines behvior for everyone. See Issue # 554
+
         par['calibrations']['slits']['sigdetect'] = 8.0
         par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['slits']['polyorder'] = 6
@@ -459,6 +462,10 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+        # TODO FIX THIS TO USE BIASES!!
+        par['scienceframe']['useframe'] ='overscan'
+
 
         return par
 
