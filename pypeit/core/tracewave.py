@@ -160,14 +160,13 @@ def tilts_image(tilts, lordloc, rordloc, pad, sz_y):
                 tiltsimg[x,y] = (tilts[x,o]*yv + x)/dszx
     return tiltsimg
 
-def trace_tilt(ordcen, lordloc, rordloc, det, msarc, slitnum, satval,
+def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, satval,
                idsonly=False, censpec=None, maskval=-999999.9, tracethresh=20.0,
                nsmth=0, method="fweight", wv_calib=None, nonlinear_counts = 1e10):
 
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
                tracethresh=1000.0, nsmth=0):
-
     # TODO Please expand these docs! This is no simple code.
     Parameters
     ----------
@@ -182,11 +181,9 @@ def trace_tilt(ordcen, lordloc, rordloc, det, msarc, slitnum, satval,
       This is now a significance whereas before it was an absolute threshold in counts
     nsmth
     method : str (fweight or cc)
-
     Returns
     -------
     trcdict : dict
-
     """
     def pad_dict(indict):
         """ If an arc line is considered bad, fill the
@@ -272,70 +269,6 @@ def trace_tilt(ordcen, lordloc, rordloc, det, msarc, slitnum, satval,
     msgs.work("This next step could be multiprocessed to speed up the reduction")
     nspecfit = 3
     badlines = 0
-
-    from IPython import embed
-    embed()
-
-    # ToDO filter out saturated lines
-    from pypeit.core import pixels
-    from pypeit.core import trace_slits
-    from pypeit.core import extract
-    from astropy.stats import sigma_clipped_stats
-
-    # JFH-JXP code block starts here
-    nlines = arcdet.size
-    nspec = msarc.shape[0]
-    nspat = msarc.shape[1]
-    spec_vec =np.arange(nspec)
-    arc_trace = (lordloc[:,slitnum] + rordloc[:,slitnum])/2.0
-    spat_arcdet = np.interp(arcdet, spec_vec, arc_trace)
-    thismask = (pixels.slit_pixels(lordloc[:,slitnum], rordloc[:,slitnum], nspat) > -1)
-    xcen_tcrude = np.zeros((nspat, nlines))
-    xerr = np.zeros((nspat, nlines))
-    msarc_trans = (msarc*thismask).T
-    inmask = (thismask.astype(float)).T
-    ncoeff = 3
-    # TODO figure out the sub-imaging
-
-    # ToDO should we abandon the tranposing
-    for iline in range(nlines):
-        trace_out = trace_slits.trace_crude_init(msarc_trans, np.array([arcdet[iline]]), int(spat_arcdet[iline]),
-                                                 invvar=inmask, radius=2.,maxshift0=0.5,
-                                                 maxshift=0.15, maxerr=0.2)
-        xcen_tcrude[:, iline], xerr[:, iline] = trace_out[0].flatten(), trace_out[1].flatten()
-
-    # iteratively fit and flux weight
-    xcen_fit, xcen_fweight = extract.iter_tracefit(msarc_trans, xcen_tcrude, ncoeff, inmask=inmask, fwhm=5.0,
-                                                         maxiter = 35,maxdev = 1.0, niter=6, xmin=0.0,xmax = 1.0)
-
-    # stack the good traces to determine the average trace profile  which will be used as a crutch for tracing
-    delta_fit = np.abs(xcen_fit - xcen_fweight)
-    dev_mean, dev_median, dev_sig = sigma_clipped_stats(delta_fit,axis=0, sigma = 4.0,mask = (xerr > 1100))
-    err_max = 0.1
-    ispat = np.round(spat_arcdet).astype(int)
-    iline = np.arange(nlines,dtype=int)
-    good_lines = (dev_median.data < err_max) & (np.abs(delta_fit[ispat,iline]) < err_max)
-    # ToDO put in a check here on good_lines. If the number is too small, do something less agressive for choosing these
-
-    viewer, ch = ginga.show_image((msarc*thismask).T)
-    for iline in np.where(good_lines)[0]:
-        # ToDO modify ginga to take segments!!
-        ginga.show_trace(viewer, ch, xcen_new[:,iline],color='green')
-
-    # Compute the ensemble of tilts
-    # TODO I got confused about how to get the crutch becuase I cannot average the traces because they probe different parts
-    # of the image as the traces curves.  I think you need deal with these as sub-images referenced to the right slit edge
-    # and store all these legendre fits in way that can then be easily transformed back onto the image. We just need a method which that
-    # creates the sub-image, then a method, that takes a fixed size segment from the subimage and maps it back onto the image.
-    # Once we have traces defined in that sub-image we can easily collapse the legendre fits
-
-    #delta_x =  xcen_fit[:,good_lines] - np.outer(np.ones(nspat), arcdet[good_lines]) - np.outer()
-    #delta_x_mean, delta_x_median, delta_x_sig = sigma_clipped_stats(delta_x,axis=1, sigma = 4.0,mask = (xerr[:,good_lines] > 1100))
-
-
-
-    # JFH-JXP code block ends here
-
     for j in range(arcdet.size):
         # For each detection in this order
         #msgs.info("Tracing tilt of arc line {0:d}/{1:d}".format(j+1, arcdet.size))
@@ -509,81 +442,6 @@ def trace_tilt(ordcen, lordloc, rordloc, det, msarc, slitnum, satval,
     trcdict["badlines"] = badlines
     msgs.info("Completed spectral tilt tracing".format(np.sum(aduse)))
     return trcdict
-
-# This should be deprecated, since there is another version in core.artraceslits
-#def trace_fweight(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3.,maskval=999999.9):
-def trace_fweight_deprecated(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3., maskval=999999.9):
-    """ Python port of trace_fweight.pro from IDLUTILS
-
-    Parameters:
-    -----------
-    fimage: 2D ndarray
-      Image for tracing
-    xinit: ndarray
-      Initial guesses for x-trace
-    invvar: ndarray, optional
-      Inverse variance array for the image
-    radius: float, optional
-      Radius for centroiding; default to 3.0
-    maskval : float, optional
-    """
-
-    # Init
-    nx = fimage.shape[1]
-    ny = fimage.shape[0]
-    ncen = len(xinit)
-    xnew = copy.deepcopy(xinit)
-    xerr = np.zeros(ncen) + maskval
-
-    ycen = np.arange(ny, dtype=int)
-    invvar = 0. * fimage + 1.
-    x1 = xinit - radius + 0.5
-    x2 = xinit + radius + 0.5
-    ix1 = np.floor(x1).astype(int)
-    ix2 = np.floor(x2).astype(int)
-
-    fullpix = int(np.maximum(np.min(ix2-ix1)-1, 0))
-    sumw = np.zeros(ny)
-    sumxw = np.zeros(ny)
-    sumwt = np.zeros(ny)
-    sumsx1 = np.zeros(ny)
-    sumsx2 = np.zeros(ny)
-    qbad = np.array([False]*ny) 
-
-    if invvar is None: 
-        invvar = np.zeros_like(fimage) + 1. 
-
-    # Compute
-    for ii in range(0,fullpix+3):
-        spot = ix1 - 1 + ii
-        ih = np.clip(spot,0,nx-1)
-        xdiff = spot - xinit
-        #
-        wt = np.clip(radius - np.abs(xdiff) + 0.5,0,1) * ((spot >= 0) & (spot < nx))
-        sumw = sumw + fimage[ycen,ih] * wt
-        sumwt = sumwt + wt
-        sumxw = sumxw + fimage[ycen,ih] * xdiff * wt
-        var_term = wt**2 / (invvar[ycen,ih] + (invvar[ycen,ih] == 0))
-        sumsx2 = sumsx2 + var_term
-        sumsx1 = sumsx1 + xdiff**2 * var_term
-        #qbad = qbad or (invvar[ycen,ih] <= 0)
-        qbad = np.any([qbad, invvar[ycen,ih] <= 0], axis=0)
-
-    # Fill up
-    good = (sumw > 0) & (~qbad)
-    if np.sum(good) > 0:
-        delta_x = sumxw[good]/sumw[good]
-        xnew[good] = delta_x + xinit[good]
-        xerr[good] = np.sqrt(sumsx1[good] + sumsx2[good]*delta_x**2)/sumw[good]
-
-    bad = np.any([np.abs(xnew-xinit) > radius + 0.5, xinit < radius - 0.5, xinit > nx - 0.5 - radius], axis=0)
-    if np.sum(bad) > 0:
-        xnew[bad] = xinit[bad]
-        xerr[bad] = maskval
-
-    # Return
-    return xnew, xerr
-
 
 def echelle_tilt(slf, msarc, det, settings_argflag, settings_spect,
                  pcadesc="PCA trace of the spectral tilts", maskval=-999999.9, doqa=True):

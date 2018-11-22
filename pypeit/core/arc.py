@@ -402,8 +402,7 @@ def eval2dfit(fit_dict, pixels, order):
 
 def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5):
 
-    """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> sn_gauss) in which
-    fit a simple Gaussian. Port of IDL LOWREDUX long_gprofile.pro
+    """Extract a spectrum down
 
 
     Parameters

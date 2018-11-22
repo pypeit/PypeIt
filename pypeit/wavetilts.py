@@ -276,106 +276,87 @@ class WaveTilts(masterframe.MasterFrame):
 
 
         nspat = self.msarc.shape[1]
-        image = self.msarc
+        arcimg = self.msarc
+        arc_spec = self.arccen[:, slit]
         slit_left = self.tslits_dict['lcen'][:,slit].copy()
         slit_righ = self.tslits_dict['rcen'][:,slit].copy()
-        slitmask = pixels.slit_pixels(self.tslits_dict['lcen'], self.tslits_dict['rcen'], nspat)\
+        slitmask = pixels.slit_pixels(self.tslits_dict['lcen'], self.tslits_dict['rcen'], nspat)
         thismask = slitmask == slit
 
-        sigdetect = 10.0
+        # Tilt specific Optional parameters
+        tracethresh = 10.0 # threshold for tracing an arc line
+        only_these_lines = None
+        debug = True
+        n_neigh = 15
+        # Optional Parameters for arc line detection
+        sigdetect = 5.0 # This is for line finding, and hence this
+        # threshold determines the number of lines that may be removed because they are too close.
         fwhm = 4.0
         fit_frac_fwhm = 1.25
         mask_frac_fwhm = 1.0
         max_frac_fwhm = 2.0
         cont_samp = 30
         niter_cont = 3
-        debug = True
         debug_lines = True
-        # def trace_tilts(image, thismask, slit_left, slit_righ, tracethresh = None, sigdetect = 10.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_frac_fwhm = 1.0, max_frac_fwhm = 2.0, cont_samp = 30,
+        # def trace_tilts(arcimg, arc_spec, thismask, slit_left, slit_righ, only_these_lines = None, tracethresh = 10.0, only_these_lines = None, n_neigh = 15, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_frac_fwhm = 1.0, max_frac_fwhm = 2.0, cont_samp = 30,
         #    niter_cont = 3, nonlinear_counts = 1e10, verbose = False, debug=False, debug_lines = False)
 
-        nspec, nspat = image.shape
-        spec_vec = np.arange(nspec)
-        spat_vec = np.arange(nspat)
-
-        # Extract the
-        censpec = (slit_left + slit_righ)/2.0
-        tampl, tampl_cont, tcent, twid, _, w, _, tnsig = arc.detect_lines(censpec, sigdetect = sigdetect, fwhm = fwhm,
-                                                                          fit_frac_fwhm = fit_frac_fwhm,
-                                                                          mask_frac_fwhm = mask_frac_fwhm,
-                                                                          max_frac_fwhm = max_frac_fwhm,
-                                                                          cont_samp = cont_samp, niter_cont = niter_cont,
-                                                                          nonlinear_counts=nonlinear_counts, debug = debug_lines)
-
-        # Order of the polynomials to be used when fitting the tilts.
-        arcdet = (tcent[w] + 0.5).astype(np.int)
-        nsig = tnsig[w]
-
-        # Determine the best lines to use to trace the tilts
-        ncont = 15
-        aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
-        w = np.where(nsig >= tracethresh)
-        aduse[w] = 1
-        # Remove lines that are within ncont pixels
-        nuse = np.sum(aduse)
-        detuse = arcdet[aduse]
-        idxuse = np.arange(arcdet.size)[aduse]
-        olduse = aduse.copy()
-        for s in range(nuse):
-            w = np.where((np.abs(arcdet - detuse[s]) <= ncont) & (np.abs(arcdet - detuse[s]) >= 1.0))[0]
-            for u in range(w.size):
-                if nsig[w[u]] > nsig[olduse][s]:
-                    aduse[idxuse[s]] = False
-                    break
-        # TODO Perhaps a more robust version of this code would only use the lines that were used in the wavelength solution. I guess
-        # that would filter out these ghosts and it would also filter out blends for which the tracing will be less robust becuase
-        # you are trace_fweighting a blended line?
-
-        # Restricted to ID lines? [introduced to avoid LRIS ghosts]
-        if idsonly:
-            ids_pix = np.round(np.array(wv_calib[str(slitnum)]['xfit']) * (msarc.shape[0] - 1))
-            idxuse = np.arange(arcdet.size)[aduse]
-            for s in idxuse:
-                if np.min(np.abs(arcdet[s] - ids_pix)) > 2:
-                    msgs.info("Ignoring line at row={:d}".format(arcdet[s]))
-                    aduse[s] = False
-
-        # Setup the trace dictionary
-        trcdict = {"xtfit": [], "ytfit": [], "wmask": [], "arcdet": arcdet, "aduse": aduse, "badlines": 0}
-
-        msgs.info("Modelling arc line tilts with {0:d} arc lines".format(np.sum(aduse)))
-        if np.sum(aduse) == 0:
-            msgs.warn("No arc lines were deemed usable in slit {0:d} for spectral tilt".format(slitnum))
-            return None
-        # Go along each order and trace the tilts
-        # Start by masking every row, then later unmask the rows with usable arc lines
-        msgs.work("This next step could be multiprocessed to speed up the reduction")
-        nspecfit = 3
-        badlines = 0
-
-
-        nspat = self.msarc.shape[1]
-        image = self.msarc
-        slit_left = self.tslits_dict['lcen'].copy()
-        slit_righ = self.tslits_dict['rcen'].copy()
-        thismask = (pixels.slit_pixels(slit_left, slit_righ, nspat) > -1)
-
-        #def trace_tilts(image, thismask, slit_left, slit_righ,
-
-
-        # ToDO filter out saturated lines
         from pypeit.core import pixels
         from pypeit.core import trace_slits
         from pypeit.core import extract
         from astropy.stats import sigma_clipped_stats
 
-        # JFH-JXP code block starts here
-        nlines = arcdet.size
-        nspec = msarc.shape[0]
-        nspat = msarc.shape[1]
-        arc_trace = (lordloc[:, slitnum] + rordloc[:, slitnum]) / 2.0
+        nspec, nspat = arcimg.shape
+        spec_vec = np.arange(nspec)
+        spat_vec = np.arange(nspat)
 
-        spat_arcdet = np.interp(arcdet, spec_vec, arc_trace)
+        # Find peaks with a liberal threshold of sigdetect = 5.0
+        tampl_tot, tampl_cont_tot, tcent_tot, twid_tot, _, wgood, _, nsig_tot = arc.detect_lines(
+            arc_spec, sigdetect = sigdetect, fwhm = fwhm,fit_frac_fwhm = fit_frac_fwhm,mask_frac_fwhm = mask_frac_fwhm,
+            max_frac_fwhm = max_frac_fwhm,cont_samp = cont_samp, niter_cont = niter_cont,nonlinear_counts=nonlinear_counts,
+            debug = debug_lines)
+        # Good lines
+        arcdet = tcent_tot[wgood]
+        nsig = nsig_tot[wgood]
+
+        # Determine the best lines to use to trace the tilts
+        aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
+        w = np.where(nsig >= tracethresh)
+        aduse[w] = 1
+        # Remove lines that are within n_neigh pixels
+        nuse = np.sum(aduse)
+        detuse = arcdet[aduse]
+        idxuse = np.arange(arcdet.size)[aduse]
+        olduse = aduse.copy()
+        for s in range(nuse):
+            w = np.where((np.abs(arcdet - detuse[s]) <= n_neigh) & (np.abs(arcdet - detuse[s]) >= 1.0))[0]
+            for u in range(w.size):
+                if nsig[w[u]] > nsig[olduse][s]:
+                    aduse[idxuse[s]] = False
+                    break
+
+        # Restricted to ID lines? [introduced to avoid LRIS ghosts]
+        if only_these_lines is not None:
+            ids_pix = np.array(only_these_lines)
+            idxuse = np.arange(arcdet.size)[aduse]
+            for s in idxuse:
+                if np.min(np.abs(arcdet[s] - ids_pix)) > 2.0:
+                    msgs.info("Ignoring line at spectral position={:6.1f} which was not identified".format(arcdet[s]))
+                    aduse[s] = False
+
+        # Final spectral positions of arc lines we will trace
+        lines_spec = arcdet[aduse]
+        nlines = len(line_spec)
+        if nlines:
+            msgs.warn('No arc lines were deemed usable on this slit. Cannot compute tilts. Try lowering tracethresh.')
+            return None
+        else:
+            msgs.info('Modelling arc line tilts with {:d} arc lines'.format(nlines))
+
+
+        slit_cen= (slit_left + slit_righ)/2.0
+
+        lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
         thismask = (pixels.slit_pixels(lordloc[:, slitnum], rordloc[:, slitnum], nspat) > -1)
         xcen_tcrude = np.zeros((nspat, nlines))
         xerr = np.zeros((nspat, nlines))
@@ -386,7 +367,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # ToDO should we abandon the tranposing
         for iline in range(nlines):
-            trace_out = trace_slits.trace_crude_init(msarc_trans, np.array([arcdet[iline]]), int(spat_arcdet[iline]),
+            trace_out = trace_slits.trace_crude_init(msarc_trans, np.array([arcdet[iline]]), int(lines_spat[iline]),
                                                      invvar=inmask, radius=2., maxshift0=0.5,
                                                      maxshift=0.15, maxerr=0.2)
             xcen_tcrude[:, iline], xerr[:, iline] = trace_out[0].flatten(), trace_out[1].flatten()
