@@ -1,4 +1,3 @@
-# Module for creating models of arc lines.
 from __future__ import absolute_import, division, print_function
 
 import astropy
@@ -19,6 +18,8 @@ from astropy.table import Table
 from pypeit import msgs
 from pypeit.core import arc
 from pypeit import utils
+
+# Module for creating models of arc lines.
 
 def blackbody(wavelength, T_BB=250., debug=False):
     """ Given wavelength [in microns] and Temperature in Kelvin
@@ -42,9 +43,9 @@ def blackbody(wavelength, T_BB=250., debug=False):
     """
 
     # Define constants in cgs
-    PLANCK  = astropy.constants.h.cgs.value   # erg*s
-    C_LIGHT = astropy.constants.c.cgs.value   # cm/s
-    K_BOLTZ = astropy.constants.k_B.cgs.value # erg/K
+    PLANCK  = astropy.constants.h.cgs.value    # erg*s
+    C_LIGHT = astropy.constants.c.cgs.value    # cm/s
+    K_BOLTZ = astropy.constants.k_B.cgs.value  # erg/K
     RADIAN_PER_ARCSEC = 1./3600.*np.pi/180.
 
     msgs.info("Creating BB spectrum at T={}K".format(T_BB))
@@ -73,6 +74,7 @@ def blackbody(wavelength, T_BB=250., debug=False):
 
     return blackbody, blackbody_counts
 
+
 def addlines2spec(wavelength, wl_line, fl_line, resolution,
                   scale_spec=1., debug=False):
     """ Create a spectrum with a set of (gaussian) emission lines.
@@ -90,6 +92,8 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
     scale_spec : np.float
         rescale all the  normalization of the final spectrum.
         Default scale_spec=1.
+    debug : boolean
+        If True will show debug plots
 
     Returns
     -------
@@ -133,7 +137,7 @@ def oh_lines():
 
     Returns
     -------
-    wavelength, amplitute : np.arrays
+    wavelength, amplitude : np.arrays
         Wavelength [in microns] and amplitude of the OH lines.
     """
 
@@ -141,6 +145,7 @@ def oh_lines():
     skisim_dir = resource_filename('pypeit', 'data/skisim/')
     oh = np.loadtxt(skisim_dir+"rousselot2000.dat", usecols=(0, 1))
     return oh[:,0]/10000., oh[:,1] # wave converted to microns
+
 
 def transparency(wavelength, debug=False):
     """ Interpolate the atmospheric transmission model in the IR over
@@ -150,6 +155,8 @@ def transparency(wavelength, debug=False):
     ----------
     wavelength : np.array
         wavelength vector in microns
+    debug : boolean
+        If True will show debug plots
 
     Returns
     -------
@@ -202,6 +209,7 @@ def transparency(wavelength, debug=False):
     # Returns
     return transmission
 
+
 def h2o_lines():
     """ Reads in the H2O atmospheric spectrum"
 
@@ -219,6 +227,7 @@ def h2o_lines():
     h2o_rad = h2o[:,1] * 5e11 # added to match XIDL
 
     return h2o_wv, h2o_rad
+
 
 def thar_lines():
     """ Reads in the H2O atmospheric spectrum"
@@ -243,7 +252,6 @@ def thar_lines():
     thar_spec = thar[0].data[0,:]
 
     return thar_wv, thar_spec
-
 
 
 def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
@@ -291,6 +299,8 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
     WAVE_WATER : float
         wavelength (in microns) at which the H2O are inclued.
         Default: WAVE_WATER = 2.3
+    debug : boolean
+        If True will show debug plots
 
     Returns
     -------
@@ -402,6 +412,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
 
     return np.array(wave*10000.), np.array(sky_model)
 
+
 def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
                       flgd=True, thar_outfile=None, debug=False):
     """ Generate a model of a ThAr lamp in the uvb/optical. This is based on the
@@ -430,6 +441,8 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
     thar_outfile : str
         name of the fits file where the model sky spectrum will be stored.
         default is 'None' (i.e., no file will be written).
+    debug : boolean
+        If True will show debug plots
 
     Returns
     -------
@@ -517,7 +530,6 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
     return np.array(wave), np.array(thar_spec)
 
 
-
 def conv2res(wavelength, flux, resolution, central_wl='midpt',
              debug=False):
     """Convolve an imput spectrum to a specific resolution. This is only
@@ -535,6 +547,8 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
     central_wl 
         if 'midpt' the central pixel of wavelength is used, otherwise
         the central_wl will be used.
+    debug : boolean
+        If True will show debug plots
 
     Returns
     -------
@@ -581,6 +595,7 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
 
     return flux_convolved, px_sigma, px_bin
 
+
 def iraf_datareader(database_dir, id_file):
     """Reads in a line identification database created with IRAF
     identify. These are usually locate in a directory called 'database'.
@@ -625,6 +640,7 @@ def iraf_datareader(database_dir, id_file):
     pixel = pixel - 1.
 
     return pixel, line_id
+
 
 def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
                     cont_samp=10., line_name=None, file_root_name=None,
@@ -685,6 +701,7 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
         dat = Table([wave_peak, ion, NIST, Instr, ampl_good, Source], names=('wave', 'ion','NIST','Instr','amplitude','Source'))
         dat.write(file_root_name+'_lines.dat',format='ascii.fixed_width')
 
+
 def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, nirsky_outfile=None,
                       fwhm=None, sigdetec=3., line_name='OH', file_root_name=None, iraf_frmt=False, 
                       debug=False):
@@ -739,10 +756,10 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
         wl_bin = np.abs((wavelength-np.roll(wavelength,1))[np.where(np.abs(wavelength-wl_cent)==np.min(np.abs(wavelength-wl_cent)))])
         # In order not to exclude all the lines, fwhm is set to 5 times
         # the minimum fwhm of the spectrum
-        fwhm = 5. * wl_fwhm / wl_bin[0]
+        fwhm = 1.1 * wl_fwhm / wl_bin[0]
         if fwhm < 1.:
-             msgs.warn("Lines are unresolved. Setting FWHM=5.pixels")
-             fwhm = 5.
+             msgs.warn("Lines are unresolved. Setting FWHM=2.pixels")
+             fwhm = 2.
 
     if line_name is None:
         msgs.warn("No line_name as been set. The file will contain XXX as ion")
