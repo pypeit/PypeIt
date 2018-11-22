@@ -6,7 +6,7 @@
 
 
 """
-This script generates files to setup a PYPIT run
+This script generates files to setup a PypeIt run
 """
 from __future__ import (print_function, absolute_import, division,
                         unicode_literals)
