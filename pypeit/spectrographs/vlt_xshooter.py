@@ -426,7 +426,10 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Adjustments to slit and tilts for VIS
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
+        # Don't use the biases for the arcs or flats since it appears to be a different amplifier readout
+        par['calibrations']['arcframe']['useframe']= 'overscan'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
+        par['calibrations']['traceframe']['useframe']= 'overscan'
         par['calibrations']['slits']['sigdetect'] = 8.0
         par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['slits']['polyorder'] = 6
@@ -437,6 +440,10 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['tilts']['tracethresh'] = [ 20., 100., 100., 100., 100., 100., 100.,
                                                        100., 500., 500., 500., 500., 500., 500.,
                                                        500.]
+
+        # Right now the baises in
+
+
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
