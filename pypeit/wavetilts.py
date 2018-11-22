@@ -269,6 +269,160 @@ class WaveTilts(masterframe.MasterFrame):
         nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation'] \
                                 * self.spectrograph.detector[self.det-1]['nonlinear']
 
+        # JFH Code block starts here
+        ########
+        from IPython import embed
+        embed()
+
+
+        nspat = self.msarc.shape[1]
+        image = self.msarc
+        slit_left = self.tslits_dict['lcen'][:,slit].copy()
+        slit_righ = self.tslits_dict['rcen'][:,slit].copy()
+        slitmask = pixels.slit_pixels(self.tslits_dict['lcen'], self.tslits_dict['rcen'], nspat)\
+        thismask = slitmask == slit
+
+        sigdetect = 10.0
+        fwhm = 4.0
+        fit_frac_fwhm = 1.25
+        mask_frac_fwhm = 1.0
+        max_frac_fwhm = 2.0
+        cont_samp = 30
+        niter_cont = 3
+        debug = True
+        debug_lines = True
+        # def trace_tilts(image, thismask, slit_left, slit_righ, tracethresh = None, sigdetect = 10.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_frac_fwhm = 1.0, max_frac_fwhm = 2.0, cont_samp = 30,
+        #    niter_cont = 3, nonlinear_counts = 1e10, verbose = False, debug=False, debug_lines = False)
+
+        nspec, nspat = image.shape
+        spec_vec = np.arange(nspec)
+        spat_vec = np.arange(nspat)
+
+        # Extract the
+        censpec = (slit_left + slit_righ)/2.0
+        tampl, tampl_cont, tcent, twid, _, w, _, tnsig = arc.detect_lines(censpec, sigdetect = sigdetect, fwhm = fwhm,
+                                                                          fit_frac_fwhm = fit_frac_fwhm,
+                                                                          mask_frac_fwhm = mask_frac_fwhm,
+                                                                          max_frac_fwhm = max_frac_fwhm,
+                                                                          cont_samp = cont_samp, niter_cont = niter_cont,
+                                                                          nonlinear_counts=nonlinear_counts, debug = debug_lines)
+
+        # Order of the polynomials to be used when fitting the tilts.
+        arcdet = (tcent[w] + 0.5).astype(np.int)
+        nsig = tnsig[w]
+
+        # Determine the best lines to use to trace the tilts
+        ncont = 15
+        aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
+        w = np.where(nsig >= tracethresh)
+        aduse[w] = 1
+        # Remove lines that are within ncont pixels
+        nuse = np.sum(aduse)
+        detuse = arcdet[aduse]
+        idxuse = np.arange(arcdet.size)[aduse]
+        olduse = aduse.copy()
+        for s in range(nuse):
+            w = np.where((np.abs(arcdet - detuse[s]) <= ncont) & (np.abs(arcdet - detuse[s]) >= 1.0))[0]
+            for u in range(w.size):
+                if nsig[w[u]] > nsig[olduse][s]:
+                    aduse[idxuse[s]] = False
+                    break
+        # TODO Perhaps a more robust version of this code would only use the lines that were used in the wavelength solution. I guess
+        # that would filter out these ghosts and it would also filter out blends for which the tracing will be less robust becuase
+        # you are trace_fweighting a blended line?
+
+        # Restricted to ID lines? [introduced to avoid LRIS ghosts]
+        if idsonly:
+            ids_pix = np.round(np.array(wv_calib[str(slitnum)]['xfit']) * (msarc.shape[0] - 1))
+            idxuse = np.arange(arcdet.size)[aduse]
+            for s in idxuse:
+                if np.min(np.abs(arcdet[s] - ids_pix)) > 2:
+                    msgs.info("Ignoring line at row={:d}".format(arcdet[s]))
+                    aduse[s] = False
+
+        # Setup the trace dictionary
+        trcdict = {"xtfit": [], "ytfit": [], "wmask": [], "arcdet": arcdet, "aduse": aduse, "badlines": 0}
+
+        msgs.info("Modelling arc line tilts with {0:d} arc lines".format(np.sum(aduse)))
+        if np.sum(aduse) == 0:
+            msgs.warn("No arc lines were deemed usable in slit {0:d} for spectral tilt".format(slitnum))
+            return None
+        # Go along each order and trace the tilts
+        # Start by masking every row, then later unmask the rows with usable arc lines
+        msgs.work("This next step could be multiprocessed to speed up the reduction")
+        nspecfit = 3
+        badlines = 0
+
+
+        nspat = self.msarc.shape[1]
+        image = self.msarc
+        slit_left = self.tslits_dict['lcen'].copy()
+        slit_righ = self.tslits_dict['rcen'].copy()
+        thismask = (pixels.slit_pixels(slit_left, slit_righ, nspat) > -1)
+
+        #def trace_tilts(image, thismask, slit_left, slit_righ,
+
+
+        # ToDO filter out saturated lines
+        from pypeit.core import pixels
+        from pypeit.core import trace_slits
+        from pypeit.core import extract
+        from astropy.stats import sigma_clipped_stats
+
+        # JFH-JXP code block starts here
+        nlines = arcdet.size
+        nspec = msarc.shape[0]
+        nspat = msarc.shape[1]
+        arc_trace = (lordloc[:, slitnum] + rordloc[:, slitnum]) / 2.0
+
+        spat_arcdet = np.interp(arcdet, spec_vec, arc_trace)
+        thismask = (pixels.slit_pixels(lordloc[:, slitnum], rordloc[:, slitnum], nspat) > -1)
+        xcen_tcrude = np.zeros((nspat, nlines))
+        xerr = np.zeros((nspat, nlines))
+        msarc_trans = (msarc * thismask).T
+        inmask = (thismask.astype(float)).T
+        ncoeff = 3
+        # TODO figure out the sub-imaging
+
+        # ToDO should we abandon the tranposing
+        for iline in range(nlines):
+            trace_out = trace_slits.trace_crude_init(msarc_trans, np.array([arcdet[iline]]), int(spat_arcdet[iline]),
+                                                     invvar=inmask, radius=2., maxshift0=0.5,
+                                                     maxshift=0.15, maxerr=0.2)
+            xcen_tcrude[:, iline], xerr[:, iline] = trace_out[0].flatten(), trace_out[1].flatten()
+
+        # iteratively fit and flux weight
+        xcen_fit, xcen_fweight = extract.iter_tracefit(msarc_trans, xcen_tcrude, ncoeff, inmask=inmask, fwhm=5.0,
+                                                       maxiter=35, maxdev=1.0, niter=6, xmin=0.0, xmax=1.0)
+
+        # stack the good traces to determine the average trace profile  which will be used as a crutch for tracing
+        delta_fit = np.abs(xcen_fit - xcen_fweight)
+        dev_mean, dev_median, dev_sig = sigma_clipped_stats(delta_fit, axis=0, sigma=4.0, mask=(xerr > 1100))
+        err_max = 0.1
+        ispat = np.round(spat_arcdet).astype(int)
+        iline = np.arange(nlines, dtype=int)
+        good_lines = (dev_median.data < err_max) & (np.abs(delta_fit[ispat, iline]) < err_max)
+        # ToDO put in a check here on good_lines. If the number is too small, do something less agressive for choosing these
+
+        viewer, ch = ginga.show_image((msarc * thismask).T)
+        for iline in np.where(good_lines)[0]:
+            # ToDO modify ginga to take segments!!
+            ginga.show_trace(viewer, ch, xcen_new[:, iline], color='green')
+
+        # Compute the ensemble of tilts
+        # TODO I got confused about how to get the crutch becuase I cannot average the traces because they probe different parts
+        # of the image as the traces curves.  I think you need deal with these as sub-images referenced to the right slit edge
+        # and store all these legendre fits in way that can then be easily transformed back onto the image. We just need a method which that
+        # creates the sub-image, then a method, that takes a fixed size segment from the subimage and maps it back onto the image.
+        # Once we have traces defined in that sub-image we can easily collapse the legendre fits
+
+        # delta_x =  xcen_fit[:,good_lines] - np.outer(np.ones(nspat), arcdet[good_lines]) - np.outer()
+        # delta_x_mean, delta_x_median, delta_x_sig = sigma_clipped_stats(delta_x,axis=1, sigma = 4.0,mask = (xerr[:,good_lines] > 1100))
+
+        # JFH-JXP code block ends here
+
+        # JFH Code block ends here
+
         trcdict = tracewave.trace_tilt(self.tslits_dict['pixcen'], self.tslits_dict['lcen'],
                                        self.tslits_dict['rcen'], self.det, self.msarc, slit,
                                        nonlinear_counts, idsonly=self.par['idsonly'],
