@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import os
 import warnings
 import itertools
+import matplotlib
 
 import numpy as np
 
@@ -68,14 +69,17 @@ def pyplot_rcparams():
     plt.rcParams["xtick.minor.width"] = 1
     plt.rcParams["ytick.minor.width"] = 1
     plt.rcParams["axes.linewidth"] = 1
-    plt.rcParams["lines.linewidth"] = 5.5
-    plt.rcParams["lines.markeredgewidth"] = 2.0
+    plt.rcParams["lines.linewidth"] = 3
+    plt.rcParams["lines.markeredgewidth"] = 2
     plt.rcParams["patch.linewidth"] = 3
-    plt.rcParams["hatch.linewidth"] = 3.0
+    plt.rcParams["hatch.linewidth"] = 3
     plt.rcParams["font.size"] = 13
     plt.rcParams["legend.frameon"] = False
-    plt.rcParams["legend.handletextpad"] = 1.0
+    plt.rcParams["legend.handletextpad"] = 1
 
+# restore default rcparams
+def pyplot_rcparams_default():
+    matplotlib.rcParams.update(matplotlib.rcParamsDefault)
 
 
  # This code taken from this cookbook and slightly modified: https://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
