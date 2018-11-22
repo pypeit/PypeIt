@@ -227,7 +227,7 @@ def html_mf_pngs(setup, cbset, det):
                               href='arc_fit2d', label='2D Arc', slit=False)
 
     # Generate HTML
-    for key in ['strace', 'sprof', 'blaze', 'arc_fit', 'arc_pca', 'arc_fit2d', 'arc_tilt', 'fit2darc']:
+    for key in ['strace', 'sprof', 'blaze', 'arc_fit', 'arc_pca', 'arc_fit2d', 'arc_tilt']:
         png_root = set_qa_filename(idval, html_dict[key]['fname'], slit=9999)
         if html_dict[key]['slit']:  # Kludge to handle multiple slits
             png_root = png_root.replace('S9999', 'S*')
