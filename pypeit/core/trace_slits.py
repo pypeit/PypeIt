@@ -15,6 +15,7 @@ from scipy.special import erf
 import matplotlib.pyplot as plt
 from matplotlib import cm, font_manager
 
+
 from pypeit import msgs
 from pypeit.core import qa
 from pypeit.core import plot
@@ -24,6 +25,10 @@ from pypeit.core import pixels
 from pypeit.core import procimg
 from pypeit import debugger
 from pypeit.utils import calc_ivar
+from pypeit.core import extract
+from pypeit.core import arc
+from pypeit.core import pydl
+from astropy.stats import sigma_clipped_stats
 
 try:
     from pypeit import ginga
@@ -362,11 +367,6 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, function='legendre', pol
     return
 
 
-
-
-
-
-
 def add_edge(ref_slit, insert_offset, earr, t_dict, final_left, final_right, left=True):
     """  Add a new edge using a reference slit
     right_slit : Reference slit for the left one
@@ -394,6 +394,143 @@ def add_edge(ref_slit, insert_offset, earr, t_dict, final_left, final_right, lef
     else:
         final_right.append(new_e)
         final_left.append(ref_slit)
+
+
+def new_add_edge(ref_slit, insert_offset, t_dict, left=True):
+    """  Add a new edge using a reference slit
+    right_slit : Reference slit for the left one
+    insert_offset : int
+      Offset fromm the right slit for the new left slit
+    """
+    # Current indices (book-keeping)
+    if left:
+        use = 'right'
+        fill = 'left'
+    else:
+        use = 'left'
+        fill = 'right'
+    traces = t_dict[use]['traces']
+
+    # TODO - Use the PCA
+    # Use the reference edge for the shape
+    new_trace = traces[:,ref_slit] + insert_offset
+    ypos = new_trace.shape[0]//2
+
+    # Add it in
+    t_dict[fill]['new_xval'].append(new_trace[ypos])
+    t_dict[fill]['new_traces'].append(new_trace)
+
+    # Return
+    return
+
+
+def sync_edges(tc_dict, nspat, insert_buff=5, add_left_edge_slit=True, verbose=False):
+    """ Method to synchronize the slit edges
+    Adds in extra edges according to a few criteria
+
+    Developed for ARMLSD
+
+    Parameters
+    ----------
+    tc_dict : dict
+       For book-keeping
+    ednum : int
+    nspat : int
+    insert_buff : int, optional
+       Offset from existing edge for any edge added in
+    add_left_edge_slit : bool, optional
+       Allow the method to add in a left slit at the edge of the detector
+
+    Returns
+    -------
+    """
+    # Init
+    for key in ['left', 'right']:
+        tc_dict[key]['new_xval'] = []
+        tc_dict[key]['new_traces'] = []
+
+    # Grab the edge indexes and xval's
+    #left_idx, left_xval, right_idx, right_xval = tc_indices(tc_dict)
+    left_xval = tc_dict['left']['xval']
+    right_xval = tc_dict['right']['xval']
+
+    # Only one slit?
+    if (len(left_xval) == 1) and (len(right_xval)==1):
+        if left_xval[0] < right_xval[0]:  # Ok slit, otherwise continue
+            return
+
+    # First slit (often up against the detector)
+    if (right_xval[0] < left_xval[0]) and add_left_edge_slit:
+        right_pix = tc_dict['right']['traces'][:,0] #np.where(edgearr == right_idx[0])
+        debugger.set_trace()
+        mn_rp = np.min(right_pix[1])
+        if mn_rp <= insert_buff:
+            msgs.warn("Partial or too small right edge at start of detector.  Skipping it.")
+        else:
+            ioff = -1*mn_rp + insert_buff
+            msgs.warn("Adding in a left edge at start of detector which mirrors the first right edge")
+            new_add_edge(0, ioff, tc_dict, left=True)
+
+    # Loop on left edges
+    for kk,left in enumerate(left_xval):
+
+        # Grab location of the next left edge
+        if kk < len(left_xval)-1:
+            next_left = left_xval[kk+1]
+        else:
+            next_left = nspat-1
+
+        # Search for a proper right edge
+        #  Should be right of the current left and left of the next left
+        gd_right = np.where((right_xval < next_left) & (right_xval > left))[0]
+        if len(gd_right) == 0:   # None found?
+            # Last slit?
+            if kk == len(left_xval)-1:
+                msgs.warn("Last slit has no right edge.  Adding one in which will not touch the detector edge")
+                left_pix = tc_dict['left']['traces'][:, kk] #np.where(edgearr == left_idx[kk])
+                mx_lp = np.max(left_pix[1])
+                if mx_lp >= nspat-1:
+                    msgs.warn("Partial left edge at end of detector.  Skipping it.")
+                else:
+                    # Stay on the detector!
+                    ioff = nspat - mx_lp - insert_buff
+                    # Add
+                    new_add_edge(-1, ioff, tc_dict, left=False)
+                continue
+            else: # Not the last slit, add one in!
+                msgs.warn("Missing a right edge for slit with left edge at {}".format(left))
+                msgs.warn("Adding in a corresponding right edge!")
+                # Offset from the next left edge
+                ioff = next_left-left-insert_buff
+                # Add
+                new_add_edge(kk, ioff, tc_dict, left=False)
+        else:
+            # Check for multiple right edges between the two lefts (i.e. missing Left)
+            #     Will only add in one missing left
+            if len(gd_right) > 1:
+                msgs.warn("Missing a left edge for slit with right edge(s) at {}".format(
+                    right_xval[gd_right[1:]]))
+                msgs.warn("Adding one (and only one)")
+                # Offset is difference between the two right slits + a buffer
+                ioff = right_xval[gd_right[0]] - right_xval[gd_right[1]] + insert_buff
+                # Add
+                new_add_edge(gd_right[1], ioff, tc_dict, left=True)
+                #add_edge(right_idx[gd_right[1]], ioff, edgearr, tc_dict, final_left, final_right, left=True)
+
+    # Add em in and then sort
+    for side in ['left', 'right']:
+        for kk, xval in enumerate(tc_dict[side]['new_xval']):
+            tc_dict[side]['xval'] = np.append(tc_dict[side]['xval'], xval)
+            tmp = tc_dict[side]['new_traces'][kk]
+            tc_dict[side]['traces'] = np.append(tc_dict[side]['traces'], np.resize(tmp, (tmp.size,1)), axis=1)
+
+        # Sort
+        isrt = np.argsort(tc_dict[side]['xval'])
+        tc_dict[side]['xval'] = tc_dict[side]['xval'][isrt]
+        tc_dict[side]['traces'] = tc_dict[side]['traces'][:,isrt]
+
+    # Return
+    return
 
 
 def edgearr_mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_slit=True, verbose=False):
@@ -523,11 +660,9 @@ def edgearr_mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_sli
 
 
 def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
-                   maxshift=0.15):
+                   maxshift=0.15, bpm=None, skip_bad=True):
     """ Use trace_crude to refine slit edges
     It is also used to remove bad slit edges and merge slit edges
-
-    Only recommended for ARMLSD
 
     Parameters
     ----------
@@ -559,7 +694,8 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
     """
     msgs.info("Crude tracing the edges")
     # Init
-    ycen = edgearr.shape[0] // 2
+    nspec = edgearr.shape[0]
+    ycen = nspec//2
 
     # Items to return
     new_edgarr = np.zeros_like(edgearr, dtype=int)
@@ -581,7 +717,8 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
 
         # Flag: 0=not traced; 1=traced; -1=duplicate
         tc_dict[side]['flags'] = np.zeros(len(uni_e), dtype=int)
-
+        tc_dict[side]['xset'] = np.zeros((nspec,len(uni_e)))
+        tc_dict[side]['xerr'] = np.zeros((nspec,len(uni_e))) + 999.
 
         # Loop on edges to trace
         niter = 0
@@ -629,13 +766,13 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                 xset, xerr = trace_crude_init(np.maximum(siglev, -0.1), np.array(xinit), yrow, maxshift=maxshift)
             else:
                 xset, xerr = trace_crude_init(np.maximum(-1*siglev, -0.1), np.array(xinit), yrow, maxshift=maxshift)
-            # Save
-            if niter == 0:
-                tc_dict[side]['xset'] = xset
-                tc_dict[side]['xerr'] = xerr
-            else: # Need to append
-                tc_dict[side]['xset'] = np.append(tc_dict[side]['xset'], xset, axis=1)
-                tc_dict[side]['xerr'] = np.append(tc_dict[side]['xerr'], xerr, axis=1)
+            # Fill it up
+            for kk,x in enumerate(xinit):
+                # Annoying index
+                idx = np.where(uni_e == edgearr[yrow,x])[0]
+                #
+                tc_dict[side]['xset'][:,idx[0]] = xset[:,kk]
+                tc_dict[side]['xerr'][:,idx[0]] = xerr[:,kk]
 
             # Good values allowing for edge of detector
             goodx = np.any([(xerr != 999.), (xset==0.), (xset==edgearr.shape[1]-1.)], axis=0)
@@ -674,6 +811,12 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                         tc_dict[side]['flags'][uni_e==eval] = -1  # Clip me
                         edgearr[edgearr==eval] = 0
                         continue
+                # All bad trace_crude?
+                if not np.any(goodx[:,kk]):
+                    msgs.warn("No good trace values. Rejecting")
+                    tc_dict[side]['flags'][uni_e==eval] = -1  # Clip me
+                    edgearr[edgearr==eval] = 0
+                    continue
 
                 # Edge is ok, keep it
                 xvals = np.round(xset[:, kk]).astype(int)
@@ -686,7 +829,18 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                 else:
                     # Traces can disappear and then the crude trace can wind up hitting a neighbor
                     # Therefore, take only the continuous good piece from the starting point
-                    ybad_xerr = np.where(~goodx[:,kk])[0]
+                    if skip_bad:
+                        ybad_xerr = np.array([])
+                    else:
+                        ybad_xerr = np.where(~goodx[:,kk])[0]
+                    # Ignore bad pixels in BPM -- Somewhat kludgy
+                    if bpm is not None:
+                        keep_bad = []
+                        for ibad in ybad_xerr:
+                            xval = int(np.round(xset[ibad,kk]))
+                            if bpm[ibad, xval] == 0:
+                                keep_bad.append(ibad)
+                        ybad_xerr = np.array(keep_bad)
                     # Lower point
                     ylow = ybad_xerr < yrow
                     if np.any(ylow):
@@ -729,9 +883,13 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                 if newval == 0:
                     debugger.set_trace()
                 tc_dict[side]['xval'][str(newval)] = tc_dict[side]['xval'].pop(str(oldval))
+            # Remove the trace crude
+            tc_dict[side]['xset'] = tc_dict[side]['xset'][:,gde]
+            tc_dict[side]['xerr'] = tc_dict[side]['xerr'][:,gde]
+
     # Remove uni_idx
     for side in ['left', 'right']:
-        for key in ['uni_idx', 'xset', 'xerr']:
+        for key in ['uni_idx']:
             tc_dict[side].pop(key)
     if verbose:
         print(tc_dict['left']['xval'])
@@ -739,45 +897,14 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
     # Return
     return new_edgarr, tc_dict.copy()
 
-'''
-def edgearr_from_user(shape, ledge, redge, det):
-    """ Add a user-defined slit?
-     Syntax is a list of values, 2 per detector that define the slit
-     according to column values.  The 2nd value (for the right edge)
-     must be >0 to be applied.  Example for LRISr [-1, -1, 7, 295]
-     which means the code skips user-definition for the first detector
-     but adds one for the 2nd.
 
-    Parameters
-    ----------
-    shape : tuple
-    ledge : int
-    redge : int
-    det : int
-      Only used for comment so could be removed..
-
-    Returns
-    -------
-    edgearr : ndarray (int)
-      -1 : left edge
-      1 : right edge
-    """
-    edgearr = np.zeros(shape, dtype=np.int)
-    if settings['trace']['slits']['single'][redge] > 0:
-        msgs.warn("Using input slit edges on detector {:d}: [{:g},{:g}]".format(
-            det, ledge, redge))
-            #settings['trace']['slits']['single'][ledge],
-            #settings['trace']['slits']['single'][redge]))
-        msgs.warn("Better know what you are doing!")
-        edgearr[:, ledge] = -1
-        edgearr[:, redge] = +1
-    return edgearr
-'''
-
-
-def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30., maskBadRows=False,
-                        sobel_mode='nearest', sigdetect=30., number_slits=-1):
+def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30.,
+                        sobel_mode='nearest', sigdetect=30.):
     """ Generate the edge array from an input, trace image (likely slightly filtered)
+    Primary algorithm is to run a Sobolev filter on the image and then
+    trigger on all significant features.
+
+    The bad pixel mask is also used to fuss with bad columns, etc.
 
     Parameters
     ----------
@@ -785,23 +912,17 @@ def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30., maskBadRows=False
       Calibration frame that will be used to identify slit traces (in most cases, the slit edge)
       Lightly filtered
     binbpx : ndarray
+      Bad pixel max image
     medrep : int, optional
         Number of times to perform median smoothing on the mstrace
         One uniform filter is always done
         medrep = 0 is recommended for ARMLSD
     sobel_mode : str, optional
-        ndimage.sobel mode
+        ndimage.sobel mode;  default is 'nearest'
     sigdetect : float, optional
         threshold for edge detection
-    number_slits : int, optional
-        if >0, restrict the number of slits to this value
-        not well tested
     min_sqm : float, optional
         Minimum error used when detecting a slit edge
-    maskBadRows : bool, optional
-      Mostly useful for echelle data where the slit edges are bent relative to
-      the pixel columns. Do not set this keyword to True if slit edges are
-      almost aligned with the pixel columns.
 
     Returns
     -------
@@ -812,7 +933,8 @@ def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30., maskBadRows=False
     # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
     msgs.info("Detecting slit edges in the mstrace image")
 
-    # Replace bad columns -- should put this method somewhere else
+    # Replace bad columns
+    #  TODO -- Should consider replacing bad 'rows' for rotated detectors (e.g. GMOS)
     bad_cols = np.sum(binbpx, axis=0) > (binbpx.shape[0]//2)
     if np.any(bad_cols):
         ms2 = procimg.replace_columns(binarr, bad_cols)
@@ -837,62 +959,27 @@ def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30., maskBadRows=False
     filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
     # siglev
     siglev = np.sign(filt)*(filt**2)/np.maximum(sqmstrace, min_sqm)
-    # First edge move
+
+    # First edges assigned according to S/N
     tedges = np.zeros(binarr.shape, dtype=np.float)
     wl = np.where(siglev > + sigdetect)  # A positive gradient is a left edge
     wr = np.where(siglev < - sigdetect)  # A negative gradient is a right edge
     tedges[wl] = -1.0
     tedges[wr] = +1.0
-    #if False:
-    #    import astropy.io.fits as pyfits
-    #    hdu = pyfits.PrimaryHDU(filt)
-    #    hdu.writeto("filt_{0:02d}.fits".format(det), overwrite=True)
-    #    hdu = pyfits.PrimaryHDU(sqmstrace)
-    #    hdu.writeto("sqmstrace_{0:02d}.fits".format(det), overwrite=True)
-    #    hdu = pyfits.PrimaryHDU(binarr)
-    #    hdu.writeto("binarr_{0:02d}.fits".format(det), overwrite=True)
-    #    hdu = pyfits.PrimaryHDU(siglev)
-    #    hdu.writeto("siglev_{0:02d}.fits".format(det), overwrite=True)
+
     # Clean the edges
     wcl = np.where((ndimage.maximum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == -1))
     wcr = np.where((ndimage.minimum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == +1))
     nedgear = np.zeros(siglev.shape, dtype=np.int)
     nedgear[wcl] = -1
     nedgear[wcr] = +1
-    if maskBadRows:
-        msgs.info("Searching for bad pixel rows")
-        edgsum = np.sum(nedgear, axis=0)
-        sigma = 1.4826*np.median(np.abs(edgsum-np.median(edgsum)))
-        w = np.where(np.abs(edgsum) >= 1.5*sigma)[0]
-        maskcols = np.unique(np.append(w, np.append(w+1, w-1)))
-        msgs.info("Masking {0:d} bad pixel rows".format(maskcols.size))
-        for i in range(maskcols.size):
-            if maskcols[i] < 0 or maskcols[i] >= nedgear.shape[1]:
-                continue
-            nedgear[:, maskcols[i]] = 0
+
     ######
     msgs.info("Applying bad pixel mask")
     nedgear *= (1-binbpx.astype(np.int))  # Apply to the bad pixel mask
 
-    # Cut down to user-desired number
-    if number_slits > 0:
-        sigedg = np.copy(siglev)
-        sigedg[np.where(nedgear == 0)] = 0
-        sigedg[np.where(np.isinf(sigedg) | np.isnan(sigedg))] = 0
-        # Now identify the number of most significantly detected peaks (specified by the user)
-        amnmx = np.argsort(sigedg, axis=1)
-        edgearr = np.zeros(binarr.shape, dtype=np.int)
-        xsm = np.arange(binarr.shape[0])
-        for ii in range(0, number_slits):
-            wset = np.where(sigedg[(xsm, amnmx[:, ii])] != 0)
-            edgearr[(wset[0], amnmx[wset[0], ii])] = 1
-            wset = np.where(sigedg[(xsm, amnmx[:, amnmx.shape[1] - 1 - ii])] != 0)
-            edgearr[(wset[0], amnmx[wset[0], amnmx.shape[1] - 1 - ii])] = -1
-    else:
-        edgearr = np.copy(nedgear)
-
     # Return
-    return siglev, edgearr
+    return siglev, nedgear
 
 
 def edgearr_add_left_right(edgearr, binarr, binbpx, lcnt, rcnt, ednum):
@@ -961,132 +1048,6 @@ def edgearr_add_left_right(edgearr, binarr, binbpx, lcnt, rcnt, ednum):
     # Find the most common set of edges
     edgearrcp = edgearr.copy()
     return edgearrcp, lcnt, rcnt
-
-'''
-def edgearr_close_slits(binarr, edgearrcp, edgearr, ednum, maxgap, function='legendre',
-                        polyorder=3):
-    """ Fuss about with slits that are very close..
-
-    Note that edgearrcp and edgearr are *intentionally*
-    swapped from their names in driver_edge_slits.  Yes,
-    this is painfully confusing..
-
-    Not extenisvely tested
-    NOT Recommended
-
-    .. todo::
-        Improve docs for this
-
-    Return
-    ------
-    edgearrcp : ndarray
-      Which was modified in place
-    """
-
-    vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
-#    hasedge = arcytrace.close_edges(edgearrcp, vals, int(settings['trace']['slits']['maxgap']))
-    # TODO: This pure python function was translated from the cython
-    # function above but was never fully tested; compare with function
-    # in pypeit/arcytrace.pyx!
-    hasedge = close_edges(edgearrcp, vals, int(settings['trace']['slits']['maxgap']))
-
-    # Find all duplicate edges
-    edgedup = vals[np.where(hasedge == 1)]
-    if edgedup.size > 0:
-        for jj in range(edgedup.size):
-            # Raise all remaining edges by one
-            if jj != edgedup.size-1:
-                edgedup[jj+1:] += 1
-            edgearrcp[np.where(edgearrcp > edgedup[jj])] += 1
-            # Now investigate the duplicate
-            wdup = np.where(edgearrcp == edgedup[jj])
-            alldup = edgearr[wdup]
-            alldupu = np.unique(alldup)
-            cntr = Counter(edg for edg in alldup)
-            commn = cntr.most_common(alldupu.size)
-            shftsml = np.zeros(len(commn))
-            shftarr = np.zeros(wdup[0].size, dtype=np.int)
-            wghtarr = np.zeros(len(commn))
-            duploc = [None for ii in range(len(commn))]
-            for ii in range(len(commn)):
-                wghtarr[ii] = commn[ii][1]
-                duploc[ii] = np.where(edgearr[wdup] == commn[ii][0])
-            changesmade = True
-            while changesmade:
-                # Keep shifting pixels until the best match is found
-                changesmade = False
-                # First calculate the old model
-                cf = utils.func_fit(wdup[0], wdup[1]+shftarr, function, polyorder,
-                                      minv=0, maxv=binarr.shape[0]-1)
-                cenmodl = utils.func_val(cf, np.arange(binarr.shape[0]), function,
-                                           minv=0, maxv=binarr.shape[0]-1)
-                chisqold = np.abs(cenmodl[wdup[0]]-wdup[1]-shftarr).sum()
-                for ii in range(1, len(commn)):
-                    # Shift by +1
-                    adj = np.zeros(wdup[0].size)
-                    adj[duploc[ii]] += 1
-                    cf = utils.func_fit(wdup[0], wdup[1]+shftarr+adj, function, polyorder,
-                                          minv=0, maxv=binarr.shape[0]-1)
-                    cenmodl = utils.func_val(cf, np.arange(binarr.shape[0]), function,
-                                               minv=0, maxv=binarr.shape[0]-1)
-                    chisqp = np.abs(cenmodl[wdup[0]]-wdup[1]-shftarr-adj).sum()
-                    # Shift by -1
-                    adj = np.zeros(wdup[0].size)
-                    adj[duploc[ii]] -= 1
-                    cf = utils.func_fit(wdup[0], wdup[1]+shftarr+adj, function, polyorder,
-                                          minv=0, maxv=binarr.shape[0]-1)
-                    cenmodl = utils.func_val(cf, np.arange(binarr.shape[0]), function,
-                                               minv=0, maxv=binarr.shape[0]-1)
-                    chisqm = np.abs(cenmodl[wdup[0]]-wdup[1]-shftarr-adj).sum()
-                    # Test which solution is best:
-                    if chisqold < chisqp and chisqold < chisqm:
-                        # No changes are needed
-                        continue
-                    else:
-                        changesmade = True
-                        if chisqp < chisqm:
-                            shftarr[duploc[ii]] += 1
-                            shftsml[ii] += 1
-                        else:
-                            shftarr[duploc[ii]] -= 1
-                            shftsml[ii] -= 1
-            # Find the two most common edges
-            cntr = Counter(sarr for sarr in shftarr)
-            commn = cntr.most_common(2)
-            if commn[0][0] > commn[1][0]:  # Make sure that suffix 'a' is assigned the leftmost edge
-                wdda = np.where(shftarr == commn[0][0])
-                wddb = np.where(shftarr == commn[1][0])
-                shadj = commn[0][0] - commn[1][0]
-            else:
-                wdda = np.where(shftarr == commn[1][0])
-                wddb = np.where(shftarr == commn[0][0])
-                shadj = commn[1][0] - commn[0][0]
-            wvla = np.unique(edgearr[wdup][wdda])
-            wvlb = np.unique(edgearr[wdup][wddb])
-            # Now generate the dual edge
-#            arcytrace.dual_edge(edgearr, edgearrcp, wdup[0], wdup[1], wvla, wvlb, shadj,
-#                                int(settings['trace']['slits']['maxgap']), edgedup[jj])
-
-            # TODO: This pure python function was translated from the
-            # cython function above but was never fully tested; compare
-            # with function in pypeit/arcytrace.pyx!
-            dual_edge(edgearr, edgearrcp, wdup[0], wdup[1], wvla, wvlb, shadj,
-                      int(settings['trace']['slits']['maxgap']), edgedup[jj])
-    # Now introduce new edge locations
-    vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
-#        print('calling close_slits')
-#        exit()
-#    edgearrcp = arcytrace.close_slits(binarr, edgearrcp, vals,
-#                                      int(settings['trace']['slits']['maxgap']), int(ednum))
-
-    # TODO: This pure python function was translated from the cython
-    # function above but was never fully tested; compare with function
-    # in pypeit/arcytrace.pyx!
-    return close_slits(binarr, edgearrcp, vals, int(settings['trace']['slits']['maxgap']),
-                       int(ednum))
-'''
-
-
 
 
 def edgearr_final_left_right(edgearr, ednum, siglev):
@@ -1157,108 +1118,6 @@ def edgearr_final_left_right(edgearr, ednum, siglev):
     msgs.info("{0:d} left {1:s} and {2:d} right {3:s} were found in the trace".format(lcnt, letxt, rcnt, retxt))
     return edgearr, lcnt, rcnt
 
-
-
-'''
-def edgearr_ignore_orders(edgearr, fracignore, ednum):
-    """ Ignore orders/slits that run off the edge of the detector
-    Mainly used for echelle reductions
-
-    Parameters
-    ----------
-    edgearr : ndarray
-    fracignore : float
-
-    Returns
-    -------
-    edgearr
-    lmin
-    lmax
-    rmin
-    rmax
-
-    """
-
-    iterate = True
-    while iterate:
-        # Calculate the minimum and maximum left/right edges
-        ww = np.where(edgearr < 0)
-        lmin, lmax = -np.max(edgearr[ww]), -np.min(edgearr[ww])  # min/max are switched because of the negative signs
-        ww = np.where(edgearr > 0)
-        rmin, rmax = np.min(edgearr[ww]), np.max(edgearr[ww])  # min/max are switched because of the negative signs
-        # msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0]*binby)))
-
-        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(fracignore, int(edgearr.shape[0])))
-        fracpix = int(fracignore*edgearr.shape[0])
-        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(
-            fracignore, int(edgearr.shape[1])))
-        #fracpix = int(fracignore * edgearr.shape[1])
-        #msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(
-        #    settings['trace']['slits']['fracignore'], int(edgearr.shape[1])))
-        lnc, lxc, rnc, rxc, ldarr, rdarr \
-                    = ignore_orders(edgearr, fracpix, lmin, lmax, rmin, rmax)
-        lmin += lnc
-        rmin += rnc
-        lmax -= lxc
-        rmax -= rxc
-        iterate = False
-        if settings['trace']['slits']['number'] == 1:  # Another check on slits for singleSlit
-            if lmax < lmin:
-                msgs.warn("Unable to find a left edge2. Adding one in.")
-                iterate = True
-                edgearr[:, 0] = -2 * ednum
-                lcnt = 1
-            if rmax < rmin:
-                msgs.warn("Unable to find a right edge2. Adding one in.")
-                iterate = True
-                edgearr[:, -1] = 2 * ednum
-                rcnt = 1
-    # Return
-    return edgearr, lmin, lmax, rmin, rmax
-
-
-def expand_slits(slf, mstrace, det, ordcen, extord):
-    """
-    This routine will traces the locations of the slit edges
-
-    Parameters
-    ----------
-    slf : Class instance
-      An instance of the Science Exposure class
-    mstrace: numpy ndarray
-      Calibration frame that will be used to identify slit edges
-    det : int
-      Index of the detector
-    ordcen : ndarray
-      An array providing the physical pixel locations corresponding to the slit centres
-    extord : ndarray
-      A boolean mask indicating if an order was extrapolated (True = extrapolated)
-
-    Returns
-    -------
-    lordloc : ndarray
-      Locations of the left slit edges (in physical pixel coordinates)
-    rordloc : ndarray
-      Locations of the right slit edges (in physical pixel coordinates)
-    """
-
-    # Calculate the pixel locations of the order edges
-    pixcen = pixels.phys_to_pix(ordcen, slf._pixlocn[det - 1], 1)
-    msgs.info("Expanding slit traces to slit edges")
-    # TODO: Need a better name for this function; it's no longer
-    # differentiated as a cython function
-    mordwid, pordwid = base_expand_slits(mstrace, pixcen, extord.astype(int))
-
-    # Fit a function for the difference between left edge and the centre trace
-    ldiff_coeff, ldiff_fit = utils.polyfitter2d(mordwid, mask=-1,
-                                    order=settings.argflag['trace']['slits']['diffpolyorder'])
-    # Fit a function for the difference between left edge and the centre trace
-    rdiff_coeff, rdiff_fit = utils.polyfitter2d(pordwid, mask=-1,
-                                    order=settings.argflag['trace']['slits']['diffpolyorder'])
-    lordloc = ordcen - ldiff_fit.T
-    rordloc = ordcen + rdiff_fit.T
-    return lordloc, rordloc
-'''
 
 
 def fit_edges(edgearr, lmin, lmax, plxbin, plybin, left=True, polyorder=3, function='ledgendre'):
@@ -2343,6 +2202,7 @@ def remove_slit(edgearr, lcen, rcen, tc_dict, rm_slits, TOL=3.):
     # Return
     return edgearr, lcen, rcen, tc_dict
 
+
 def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff, lnmbrarr,
                       ldiffarr, lwghtarr, rnmbrarr, rdiffarr, rwghtarr, function='legendre',
                       polyorder=3, extrapolate=[0,0]):
@@ -2388,6 +2248,7 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
     if np.any(lv < 0) or np.any(lv + 1 >= binarr.shape[1]):
         msgs.warn("At least one slit is poorly traced")
         msgs.info("Refer to the manual, and adjust the input trace parameters")
+        debugger.set_trace()
         msgs.error("Cannot continue without a successful trace")
     mnvalp = np.median(binarr[:, lv + 1])  # Go one row above and one row below an order edge,
     mnvalm = np.median(binarr[:, lv - 1])  # then see which mean value is greater.
@@ -2498,6 +2359,7 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
                              minx=minvf, maxx=maxvf)
     rcent = utils.func_val(rcoeff[:, runq[rg] - 1 - extrapolate[0]], xv, function, minx=minvf,
                              maxx=maxvf)
+
     # Return
     return lcent, rcent, gord, lcoeff, ldiffarr, lnmbrarr, lwghtarr, \
                 rcoeff, rdiffarr, rnmbrarr, rwghtarr
@@ -2895,6 +2757,81 @@ def tc_indices(tc_dict):
 
     # Return
     return left_idx, left_xval, right_idx, right_xval
+
+# ToDo 1) Add code to analyze the extracted filt_mean spectra to determine when the ordres are shorter.
+# ToDo 2) Add an option where the user specifies the number of slits, and so it takes only the highest peaks
+# from detect_lines
+def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 3,
+                 fwhm = 3.0, sigthresh = 100.0, upper = 2.0, lower = 2.0, debug=True,
+                 maxrej=1):
+
+    # edges_mask True = Good, Bad = False
+    # filt image has left as positive, right as negative
+
+    nedges = edges.shape[1]
+    nspec = filt_image.shape[0]
+    nspat = filt_image.shape[1]
+    spec_vec = np.arange(nspec)
+    spat_vec = np.arange(nspat)
+
+    # ToDo I would take this stuff out of this routine and put it in the calling routine. For the iterations, we've
+    # already done fits, so need to re-fit
+    edge_spec = np.outer(np.ones(nedges), spec_vec)
+    tset = pydl.xy2traceset(edge_spec, edges.T, ncoeff=ncoeff, maxdev=5.0, maxiter=25, invvar=edges_mask.T.astype(float))
+    edges_fit = tset.yfit.T
+
+    # ToDO I think this is part is still okay
+    spat_not_junk = np.sum(edges_mask, 1)
+    iref = int(np.round(np.sum(spat_not_junk * spec_vec)/np.sum(spat_not_junk)))
+    edges_ref = edges_fit[iref, :]
+
+    msgs.info('PCA modeling {:d} slit edges'.format(nedges))
+    pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
+        edges_fit, npca=npca, pca_explained_var = pca_explained_var,coeff_npoly=coeff_npoly_pca, order_vec=edges_ref,
+        xinit_mean=edges_ref, upper = upper, lower = lower, minv = 0.0, maxv = float(nspat-1), debug= debug,
+    maxrej=maxrej)
+
+    # pca_poly_fit is list
+    npca_out = len(poly_fit_dict)
+    pca_coeff_spat = np.zeros((nspat, npca_out))
+    for idim in range(npca_out):
+        pca_coeff_spat[:, idim] = utils.func_val(poly_fit_dict[str(idim)]['coeffs'], spat_vec, 'polynomial',
+                                                 minv=poly_fit_dict[str(idim)]['minv'],maxv=poly_fit_dict[str(idim)]['maxv'])
+
+    trace_model = np.outer(pca_mean, np.ones(nspat)) + (np.dot(pca_coeff_spat, pca_vectors)).T + np.arange(nspat)
+    trace_model_left = trace_model - fwhm/2.0
+    trace_model_righ = trace_model + fwhm/2.0
+    msgs.info('Extracting filt_image along curved edge traces')
+    filt_extract = extract.extract_asymbox2(filt_image, trace_model_left, trace_model_righ)
+    if debug:
+        ginga.show_image(filt_extract, chname ='rectified filt_image')
+
+    filt_smash_mean, filt_smash_median, filt_smash_sig = sigma_clipped_stats(filt_extract, axis=0, sigma=4.0)
+    # Perform initial finding with a very liberal threshold
+    # Put in Gaussian smoothing here?
+    trace_dict = {}
+    for key,sign in zip(['left','right'], [1., -1.]):
+        ypeak, _, edge_start, sigma_pk, _, igd, _, _ = arc.detect_lines(
+            sign*filt_smash_mean, cont_subtract=False, fwhm=fwhm, input_thresh = sigthresh, max_frac_fwhm = 10.0, debug=debug)
+        trace_dict[key] = {}
+        trace_dict[key]['start'] = edge_start[igd]
+        trace_dict[key]['nstart'] = len(edge_start[igd])
+        msgs.info('Found {:d} {:s} slit edges'.format(len(edge_start[igd]),key))
+        trace_crutch = trace_model[:, np.round(edge_start[igd]).astype(int)]
+        msgs.info('Iteratively tracing {:s} edges'.format(key))
+        trace_fweight = extract.iter_tracefit(np.fmax(sign*filt_image, 0.0), trace_crutch, ncoeff, fwhm=3.0*fwhm, niter=9)
+        trace_gweight = extract.iter_tracefit(np.fmax(sign*filt_image, 0.0), trace_fweight, ncoeff, fwhm=fwhm,gweight=True, niter=6)
+        trace_dict[key]['trace'] = trace_gweight
+
+    color = dict(left = 'green', right = 'red')
+    if debug:
+        viewer, ch = ginga.show_image(filt_image, chname = 'filt_image')
+        for key in trace_dict.keys():
+            for kk in range(trace_dict[key]['nstart']):
+                ginga.show_trace(viewer, ch, trace_dict[key]['trace'][:,kk],trc_name = key + '_' + str(kk), color = color[key])
+
+
+    return trace_dict
 
 
 def slit_trace_qa(frame, ltrace, rtrace, extslit, setup, desc="",

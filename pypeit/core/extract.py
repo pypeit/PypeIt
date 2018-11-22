@@ -1780,7 +1780,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
 
 def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
-              coeff_npoly = None, debug=True, order_vec = None):
+              coeff_npoly = None, debug=True, order_vec = None, lower = 3.0,
+              upper = 3.0, minv = None,maxv = None, maxrej=1,
+              xinit_mean = None):
+
     """
     Use a PCA model to determine the best object (or slit edge) traces for echelle spectrographs.
 
@@ -1836,8 +1839,10 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
     ngood = np.sum(use_order)
 
     # Take out the mean position of each input trace
-    init_mean = np.mean(xinit,0)
-    xpca = xinit - init_mean
+    if xinit_mean is None:
+        xinit_mean = np.mean(xinit,0)
+
+    xpca = xinit - xinit_mean
     xpca_use = xpca[:, use_order].T
     if npca is None:
         pca_full = PCA()
@@ -1861,6 +1866,7 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
     if coeff_npoly is None:
         coeff_npoly = int(np.fmin(np.fmax(np.floor(3.3*ngood/norders),1.0),3.0))
 
+
     # Polynomial coefficient for PCA coefficients
     npoly_vec =np.zeros(npca, dtype=int)
     # Fit first pca dimension (with largest variance) with a higher order npoly depending on number of good orders.
@@ -1869,27 +1875,35 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
     for ipoly in range(npca):
         npoly_vec[ipoly] = np.fmax(coeff_npoly - ipoly,1)
 
-    pca = PCA(n_components=npca)
-    pca_coeffs_use = pca.fit_transform(xpca_use)
-    pca_vectors = pca.components_
+        pca = PCA(n_components=npca)
+        pca_coeffs_use = pca.fit_transform(xpca_use)
+        pca_vectors = pca.components_
 
     pca_coeffs_new = np.zeros((norders, npca))
+    fit_dict = {}
     # Now loop over the dimensionality of the compression and perform a polynomial fit to
     for idim in range(npca):
         # Only fit the use_order orders, then use this to predict the others
         xfit = order_vec[use_order]
         yfit = pca_coeffs_use[:,idim]
         ncoeff = npoly_vec[idim]
-        msk_new, poly_coeff = utils.robust_polyfit_djs(xfit, yfit, ncoeff, function='polynomial', maxiter=20,
-                                                       lower=5, upper=5, sticky=False)
-        pca_coeffs_new[:,idim] = utils.func_val(poly_coeff, order_vec, 'polynomial')
+        # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
+        msk_new, poly_out = utils.robust_polyfit_djs(xfit, yfit, ncoeff, function='polynomial', maxiter=25,
+                                                     lower=lower, upper=upper,
+                                                     maxrej=maxrej,
+                                                     sticky=False, minv = minv, maxv = maxv)
+        pca_coeffs_new[:,idim] = utils.func_val(poly_out, order_vec, 'polynomial')
+        fit_dict[str(idim)] = {}
+        fit_dict[str(idim)]['coeffs'] = poly_out
+        fit_dict[str(idim)]['minv'] = minv
+        fit_dict[str(idim)]['maxv'] = maxv
         if debug:
             # Evaluate the fit
             xvec = np.linspace(order_vec.min(),order_vec.max(),num=100)
             robust_mask_new = msk_new == 1
             plt.plot(xfit, yfit, 'ko', mfc='None', markersize=8.0, label='pca coeff')
             plt.plot(xfit[~robust_mask_new], yfit[~robust_mask_new], 'r+', markersize=20.0,label='robust_polyfit_djs rejected')
-            plt.plot(xvec, utils.func_val(poly_coeff, xvec, 'polynomial'),ls='-.', color='steelblue',
+            plt.plot(xvec, utils.func_val(poly_out, xvec, 'polynomial'),ls='-.', color='steelblue',
                      label='Polynomial fit of order={:d}'.format(ncoeff))
             plt.xlabel('Order Number', fontsize=14)
             plt.ylabel('PCA Coefficient', fontsize=14)
@@ -1898,10 +1912,13 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
             plt.show()
 
     pca_model = np.outer(pca.mean_,np.ones(norders)) + (np.dot(pca_coeffs_new, pca_vectors)).T
-    pca_model_mean = np.mean(pca_model,0)
-    pca_fit = np.outer(np.ones(nspec), init_mean) + (pca_model - pca_model_mean)
+#   pca_model_mean = np.mean(pca_model,0)
+#   pca_fit = np.outer(np.ones(nspec), xinit_mean) + (pca_model - pca_model_mean)
+#   JFH which is correct?
+    pca_fit = np.outer(np.ones(nspec), xinit_mean) + (pca_model)
 
-    return pca_fit
+    return pca_fit, fit_dict, pca.mean_, pca_vectors
+
 
 
 def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_vec = None, plate_scale=0.2, std_trace=None, ncoeff = 5,

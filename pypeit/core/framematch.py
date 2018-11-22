@@ -431,6 +431,7 @@ def match_warnings(calib_par, ftag, nmatch, numfr, target, setup=False, fluxpar=
             msgs.warn('No {0} frames for {1}'.format(ftag, target)
                       + ', but will use MasterFrames.')
         else:
+            import pdb; pdb.set_trace()
             if fluxpar is not None:
                 insufficient_frame_error(ftag)
             else:

@@ -25,6 +25,7 @@ from pypeit import traceimage
 
 from pypeit.par import pypeitpar
 from pypeit.par.util import parset_to_dict
+from pypeit.core import pydl
 
 
 class TraceSlits(masterframe.MasterFrame):
@@ -36,6 +37,7 @@ class TraceSlits(masterframe.MasterFrame):
       Trace image
     pixlocn : ndarray
       Pixel location array
+    spectrograph : Spectrograph
     binbpx : ndarray, optional
       Bad pixel mask
       If not provided, a dummy array with no masking is generated
@@ -104,7 +106,8 @@ class TraceSlits(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'trace'
 
-    def __init__(self, mstrace, pixlocn, par=None, det=None, setup=None, master_dir=None,
+    def __init__(self, mstrace, pixlocn, spectrograph,
+                 par=None, det=None, setup=None, master_dir=None,
                  redux_path=None,
                  mode=None, binbpx=None, ednum=100000):
 
@@ -121,6 +124,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Required parameters (but can be None)
         self.mstrace = mstrace
         self.pixlocn = pixlocn
+        self.spectrograph = spectrograph
 
         # Set the parameters, using the defaults if none are provided
         self.par = pypeitpar.TraceSlitsPar() if par is None else par
@@ -154,7 +158,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Key Internals
         if mstrace is not None:
-            self.binarr = self.make_binarr()
+            self.binarr = self._make_binarr()
         self.user_set = None
         self.lmin = None
         self.lmax = None
@@ -173,7 +177,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.rwghtarr = None
 
     @classmethod
-    def from_master_files(cls, root, load_pix_obj=False):
+    def from_master_files(cls, root, load_pix_obj=False, par=None):
         """
         Instantiate from the primary MasterFrame outputs of the class
 
@@ -190,6 +194,12 @@ class TraceSlits(masterframe.MasterFrame):
         fits_dict, ts_dict = load_traceslit_files(root)
         msgs.info("Loading Slits from {:s}".format(root + '.fits.gz'))
 
+        # Deal with parameters
+        if par is None:
+            if ts_dict is not None:
+                pypeitpar.TraceSlitsPar.from_dict(ts_dict['settings'])
+            else:
+                par = pypeitpar.TraceSlitsPar()
 
         # Deal with the bad pixel image
         if 'BINBPX' in fits_dict.keys():
@@ -199,8 +209,7 @@ class TraceSlits(masterframe.MasterFrame):
             binbpx = None
 
         # Instantiate from file
-        slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], binbpx=binbpx,
-                  par=pypeitpar.TraceSlitsPar.from_dict(ts_dict['settings']))
+        slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], binbpx=binbpx, par=par)
 
         # Fill in a bit more (Attributes)
         slf.steps = ts_dict['steps']
@@ -226,21 +235,6 @@ class TraceSlits(masterframe.MasterFrame):
         else:
             return self.lcen.shape[1]
 
-    def make_binarr(self):
-        """
-        Lightly process mstrace
-
-        Returns
-        -------
-        binarr : ndarray
-
-        """
-        #  Only filter in the spectral dimension, not spatial!
-        self.binarr = ndimage.uniform_filter(self.mstrace, size=(3, 1), mode='mirror')
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        return self.binarr
-
     def _edgearr_from_binarr(self):
         """
         Generate the first edgearr from the Sobolev produced siglev image
@@ -256,8 +250,8 @@ class TraceSlits(masterframe.MasterFrame):
                 = trace_slits.edgearr_from_binarr(self.binarr, self.binbpx,
                                                    medrep=self.par['medrep'],
                                                    sobel_mode=self.par['sobel_mode'],
-                                                   sigdetect=self.par['sigdetect'],
-                                                   number_slits=self.par['number'])
+                                                   sigdetect=self.par['sigdetect'])
+                                                   #number_slits=self.par['number'])
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -543,6 +537,21 @@ class TraceSlits(masterframe.MasterFrame):
         self.lordpix = pixels.phys_to_pix(lcen, self.pixlocn, 1)
         self.rordpix = pixels.phys_to_pix(rcen, self.pixlocn, 1)
 
+    def _make_binarr(self):
+        """
+        Lightly process mstrace
+
+        Returns
+        -------
+        binarr : ndarray
+
+        """
+        #  Only filter in the spectral dimension, not spatial!
+        self.binarr = ndimage.uniform_filter(self.mstrace, size=(3, 1), mode='mirror')
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        return self.binarr
+
 
     def _match_edges(self):
         """
@@ -613,7 +622,17 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         #
-        self.edgearr = trace_slits.edgearr_mslit_sync(self.edgearr, self.tc_dict, self.ednum)
+        if False:
+            self.edgearr = trace_slits.edgearr_mslit_sync(self.edges_dict, self.tc_dict, self.ednum)
+        else:
+            trace_slits.sync_edges(self.tc_dict, self.mstrace.shape[1])
+
+        # Set lcen and rcen, lmin, lmax
+        self.lcen = self.tc_dict['left']['traces']
+        self.rcen = self.tc_dict['right']['traces']
+        self._set_lrminx()
+        self.extrapord = np.zeros(self.lcen.shape[1], dtype=np.bool)
+
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -633,8 +652,132 @@ class TraceSlits(masterframe.MasterFrame):
         # Settings
         _maxshift = self.par['maxshift'] if 'maxshift' in self.par.keys() else maxshift
 
+        # JFH The edgearr looks like we could just pydl fit it and then trace with a crutch as the first step
+        # rather than using trace_crude
         self.edgearr, self.tc_dict = trace_slits.edgearr_tcrude(self.edgearr, self.siglev,
-                                                                 self.ednum, maxshift=_maxshift)
+                                                                self.ednum, maxshift=_maxshift,
+                                                                bpm=self.binbpx)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+
+    def _pca_refine(self, mask_frac_thresh=0.6, maxiter=3, show=False, debug=False):
+
+        # Unpack and sort
+        nspec, nspat = self.siglev.shape
+        # Left
+        slit_left_mean = np.mean(self.tc_dict['left']['xset'],0)
+        isort_left = slit_left_mean.argsort()
+        slit_left = self.tc_dict['left']['xset'][:, isort_left]
+        slit_left_err = self.tc_dict['left']['xerr'][:, isort_left]
+        # Right
+        slit_righ_mean = np.mean(self.tc_dict['right']['xset'],0)
+        isort_righ = slit_righ_mean.argsort()
+        slit_righ = self.tc_dict['right']['xset'][:, isort_righ]
+        slit_righ_err = self.tc_dict['right']['xerr'][:, isort_righ]
+
+        # as a hack
+        #slit_left = np.hstack((slit_left, slit_righ))
+        #slit_left_err = np.hstack((slit_left_err, slit_righ_err))
+
+        # Cut on edges
+        # Left
+        mask_left = (slit_left_err < 900)
+        mask_frac_left = np.sum(mask_left,0)/nspec
+        keep_left = mask_frac_left > mask_frac_thresh
+        slit_left = slit_left[:,keep_left]
+        mask_left = mask_left[:,keep_left]
+        # Right
+        mask_righ = (slit_righ_err < 900)
+        mask_frac_righ = np.sum(mask_righ,0)/nspec
+        keep_righ = mask_frac_righ > mask_frac_thresh
+        slit_righ = slit_righ[:,keep_righ]
+        mask_righ = mask_righ[:,keep_righ]
+
+        # Echelle or multi-slit?
+        if self.spectrograph.pypeline == 'MultiSlit':
+            # Combine left and right
+            slit_in = np.append(slit_left, slit_righ, axis=1)
+            mask_in = np.append(mask_left, mask_righ, axis=1)
+            # Run it!
+            iter = 1
+            maxiter = 1
+            while iter <= maxiter:
+                msgs.info('Doing trace_refine iter#{:d}'.format(iter))
+                edges_dict = trace_slits.trace_refine(
+                    self.siglev, slit_in, mask_in, npca = None, ncoeff=5,
+                    pca_explained_var=99.8, coeff_npoly_pca=3,fwhm=3.0,
+                    sigthresh=100.0, debug=debug)
+                # Prep for round 2
+                slit_in = np.append(edges_dict['left']['trace'],
+                                    edges_dict['right']['trace'], axis=1)
+                mask_in = np.ones_like(slit_in,dtype=bool)
+                iter +=1
+                # Show
+                if show:
+                    color = dict(left='green', right='red')
+                    viewer, ch = ginga.show_image(self.mstrace)
+                    for side in ['left', 'right']:
+                        for kk in range(edges_dict[side]['nstart']):
+                            ginga.show_trace(viewer, ch, edges_dict[side]['trace'][:, kk], trc_name=side+ str(kk),color=color[side])
+        else:
+            # Gemini GNIRS suggests we should do left and right echelle boundaries individually
+            slit_in = slit_left.copy()
+            mask_in = mask_left.copy()
+            iter = 1
+            # Run on left edges
+            while iter <= maxiter:
+                msgs.info('Doing trace_refine iter#{:d}'.format(iter))
+                trace_dict_l = trace_slits.trace_refine(
+                    self.siglev, slit_in, mask_in, npca = None, ncoeff=5,
+                    pca_explained_var=99.8, coeff_npoly_pca=3,fwhm=3.0,
+                    sigthresh=100.0, debug=debug, maxrej=1)
+                slit_in = trace_dict_l['left']['trace']
+                mask_in = np.ones_like(slit_in,dtype=bool)
+                iter +=1
+
+                if show:
+                    color = dict(left='green', right='red')
+                    viewer, ch = ginga.show_image(self.mstrace)
+                    for kk in range(trace_dict_l['left']['nstart']):
+                        ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk),color='green')
+            # TODO -- Should sync up left-right in one big while loop after doing one iteration
+            # Run on right edges
+            iter = 1
+            slit_in = slit_righ.copy()
+            mask_in = mask_righ.copy()
+            while iter <= maxiter:
+                msgs.info('Doing trace_refine iter#{:d}'.format(iter))
+                trace_dict_r = trace_slits.trace_refine(
+                    self.siglev, slit_in, mask_in, npca = None, ncoeff=5,pca_explained_var=99.8, coeff_npoly_pca=3,fwhm=3.0,
+                    sigthresh=100.0, debug=debug, maxrej=1)
+                slit_in = trace_dict_r['right']['trace']
+                mask_in = np.ones_like(slit_in,dtype=bool)
+                iter +=1
+
+                if show:
+                    color = dict(left='green', right='red')
+                    viewer, ch = ginga.show_image(self.mstrace)
+                    for kk in range(trace_dict_r['right']['nstart']):
+                        ginga.show_trace(viewer, ch, trace_dict_r['right']['trace'][:, kk], trc_name='right_' + str(kk),color='red')
+
+            if show:
+                viewer, ch = ginga.show_image(self.mstrace)
+                for kk in range(trace_dict_l['left']['nstart']):
+                    ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk), color='green')
+                for kk in range(trace_dict_r['right']['nstart']):
+                    ginga.show_trace(viewer, ch, trace_dict_r['right']['trace'][:, kk], trc_name='right_' + str(kk),color='red')
+
+            # Merge
+            edges_dict = {}
+            edges_dict['left'] = trace_dict_l['left'].copy()
+            edges_dict['right'] = trace_dict_r['right'].copy()
+
+        # Update tc_dict -- we now leave edgearr behind!
+        ypos = nspec // 2
+        for side in ['left', 'right']:
+            xvals = edges_dict[side]['trace'][ypos,:]
+            self.tc_dict[side]['xval'] = xvals
+            self.tc_dict[side]['traces'] = edges_dict[side]['trace'].copy()
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -765,7 +908,7 @@ class TraceSlits(masterframe.MasterFrame):
             pos = np.where(self.edgearr > 0)
             self.edgearr[pos] += (self.ednum - 1)
 
-    def _set_lrminx(self):
+    def _set_lrminx(self, orig=False):
         """
         Set lmin, lmax, etc.
 
@@ -777,10 +920,14 @@ class TraceSlits(masterframe.MasterFrame):
         self.rmax: int (intenal)
 
         """
-        ww = np.where(self.edgearr < 0)
-        self.lmin, self.lmax = -np.max(self.edgearr[ww]), -np.min(self.edgearr[ww])  # min/max are switched because of the negative signs
-        ww = np.where(self.edgearr > 0)
-        self.rmin, self.rmax = np.min(self.edgearr[ww]), np.max(self.edgearr[ww])  # min/max are switched because of the negative signs
+        if orig:
+            ww = np.where(self.edgearr < 0)
+            self.lmin, self.lmax = -np.max(self.edgearr[ww]), -np.min(self.edgearr[ww])  # min/max are switched because of the negative signs
+            ww = np.where(self.edgearr > 0)
+            self.rmin, self.rmax = np.min(self.edgearr[ww]), np.max(self.edgearr[ww])  # min/max are switched because of the negative signs
+        else:
+            self.lmin, self.lmax = 0, self.lcen.shape[1]
+            self.rmin, self.rmax = 0, self.rcen.shape[1]
 
     def _synchronize(self):
         """
@@ -795,16 +942,41 @@ class TraceSlits(masterframe.MasterFrame):
         """
         plxbin = self.pixlocn[:, :, 0].copy()
         msgs.info("Synchronizing left and right slit traces")
-        self.lcent, self.rcent, self.gord, \
-            self.lcoeff, self.ldiffarr, self.lnmbrarr, self.lwghtarr, \
-            self.rcoeff, self.rdiffarr, self.rnmbrarr, self.rwghtarr \
-                = trace_slits.synchronize_edges(self.binarr, self.edgearr, plxbin, self.lmin,
+        print('ldiff', self.ldiffarr)
+        print('lwght', self.lwghtarr)
+        print('lnmbr', self.lnmbrarr)
+        print('rnmbr', self.rnmbrarr)
+        print('lcoeff', self.lcoeff)
+        new = True
+        if new:
+            minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
+            xv = plxbin[:, 0]
+            #
+            self.lcent = utils.func_val(self.lcoeff, xv, self.par['function'], minv=minvf, maxv=maxvf)
+            self.rcent = utils.func_val(self.rcoeff, xv, self.par['function'], minv=minvf, maxv=maxvf)
+            # Reset Indexing
+            self.lnmbrarr += 99999
+            self.rnmbrarr -= 99999
+            wl = np.where(self.edgearr < 0)
+            wr = np.where(self.edgearr > 0)
+            self.edgearr[wl] += 99999
+            self.edgearr[wr] -= 99999
+        else:
+            self.lcent, self.rcent, self.gord, \
+                self.lcoeff, self.ldiffarr, self.lnmbrarr, self.lwghtarr, \
+                self.rcoeff, self.rdiffarr, self.rnmbrarr, self.rwghtarr \
+                    = trace_slits.synchronize_edges(self.binarr, self.edgearr, plxbin, self.lmin,
                                                  self.lmax, self.lcoeff, self.rmin, self.rcoeff,
                                                  self.lnmbrarr, self.ldiffarr, self.lwghtarr,
                                                  self.rnmbrarr, self.rdiffarr, self.rwghtarr,
                                                  function=self.par['function'],
                                                  polyorder=self.par['polyorder'],
                                                  extrapolate=self.par['pcaextrap'])
+        print('ldiff', self.ldiffarr)
+        print('lwght', self.lwghtarr)
+        print('lnmbr', self.lnmbrarr)
+        print('rnmbr', self.rnmbrarr)
+        print('lcoeff', self.lcoeff)
         self.slitcen = 0.5*(self.lcent+self.rcent).T
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -859,8 +1031,10 @@ class TraceSlits(masterframe.MasterFrame):
         ----------
         attr : str, optional
           'edges' -- Show the mstrace image and the edges
+          'binarr' -- Show the binarr image
           'edgearr' -- Show the edgearr image
           'siglev' -- Show the Sobolev image
+          'traces' -- Show the traces at an intermediate stage
         display : str (optional)
           'ginga' -- Display to an RC Ginga
         """
@@ -868,9 +1042,42 @@ class TraceSlits(masterframe.MasterFrame):
             viewer, ch = ginga.show_image(self.mstrace, chname='edges')
             if self.lcen is not None:
                 ginga.show_slits(viewer, ch, self.lcen, self.rcen, slit_ids = np.arange(self.lcen.shape[1]) + 1, pstep=pstep)
+        elif attr == 'binarr':
+            debugger.show_image(self.binarr, chname='binarr')
+        elif attr == 'xset':
+            viewer, ch = ginga.show_image(self.mstrace, chname='slit_xset')
+            color = dict(left='green', right='red')
+            viewer, ch = ginga.show_image(self.mstrace)
+            for side in ['left', 'right']:
+                for kk in range(self.tc_dict[side]['xset'].shape[1]):
+                    ginga.show_trace(viewer, ch, self.tc_dict[side]['xset'][:, kk], trc_name=side+ str(kk),color=color[side])
+        elif attr == 'traces':
+            viewer, ch = ginga.show_image(self.mstrace, chname='slit_traces')
+            color = dict(left='green', right='red')
+            viewer, ch = ginga.show_image(self.mstrace)
+            for side in ['left', 'right']:
+                for kk in range(self.tc_dict[side]['traces'].shape[1]):
+                    ginga.show_trace(viewer, ch, self.tc_dict[side]['traces'][:, kk], trc_name=side+ str(kk),color=color[side])
         elif attr == 'edgearr':
-            # TODO -- Figure out how to set the cut levels
-            debugger.show_image(self.edgearr, chname='edgearr')
+            if np.min(self.edgearr) == -1: # Ungrouped
+                tmp = self.mstrace.copy()
+                # Left edges
+                left = self.edgearr == -1
+                tmp[left] = -99999.
+                # Right edges
+                right = self.edgearr == 1
+                tmp[right] = 99999.
+                viewer, ch = ginga.show_image(tmp, chname='edgearr')
+            else: # Grouped
+                viewer, ch = ginga.show_image(self.mstrace, chname='edgearr')
+                # Traces
+                all_uni = np.unique(self.edgearr[self.edgearr != 0])
+                for uni in all_uni:
+                    # Color
+                    clr = 'green' if uni < 0 else 'red'
+                    # Do it
+                    tidx = np.where(self.edgearr == uni)
+                    ginga.show_trace(viewer, ch, tidx[1], trc_name=str(uni), yval=tidx[0], color=clr)
         elif attr == 'siglev':
             # TODO -- Figure out how to set the cut levels
             debugger.show_image(self.siglev, chname='siglev')
@@ -950,10 +1157,13 @@ class TraceSlits(masterframe.MasterFrame):
 
     def load_master(self, filename, force = False):
         """
-        Over-load the load function
+        Load the master frames
 
-        Returns
-        -------
+        Args:
+            filename: str
+            force: bool, optional
+
+        Returns:
 
         """
         # Load from filename extension. There is a fits and json file, and this routine also does file checking
@@ -967,7 +1177,7 @@ class TraceSlits(masterframe.MasterFrame):
             if key in fits_dict.keys():
                 setattr(self, key.lower(), fits_dict[key])
         # Remake the binarr
-        self.binarr = self.make_binarr()
+        self.binarr = self._make_binarr()
         # dict
         self.tc_dict = ts_dict['tc_dict']
         # Load the pixel objects?
@@ -1035,6 +1245,9 @@ class TraceSlits(masterframe.MasterFrame):
           'extrapord'
           'slitpix'
         """
+        # Generate binarr
+        _ = self._make_binarr()
+
         # Specify a single slit?
         if len(self.par['single']) > 0:  # Single slit
             self._edgearr_single_slit()
@@ -1046,7 +1259,8 @@ class TraceSlits(masterframe.MasterFrame):
         # Assign a number to each edge 'grouping'
         self._match_edges()
 
-        # Add in a single left/right edge?
+        # Add in a *single* left/right edge?
+        #  Only useful for longslit where one side butts up on the edge of the detector
         any_slits = self._add_left_right()
         if not any_slits:
             return None
@@ -1058,7 +1272,9 @@ class TraceSlits(masterframe.MasterFrame):
             self._maxgap_prep()
 
         # Assign edges
-        self._assign_edges()
+        assign = False
+        if assign:
+            self._assign_edges()
 
         # Handle close edges (as desired by the user)
         #  JXP does not recommend using this method for multislit
@@ -1069,43 +1285,45 @@ class TraceSlits(masterframe.MasterFrame):
         if not self.user_set:
             self._final_left_right()
 
-        #   Developed for ARMLSD not ARMED
-        if arms:
-            # Trace crude me
-            #   -- Mainly to deal with duplicates and improve the traces
-            self._mslit_tcrude()
-            # Synchronize and add in edges
-            self._mslit_sync()
+        # Trace crude and sync traces
+        self._mslit_tcrude()
+
+        # Refine
+        self._pca_refine()
+
+        # Synchronize and add in edges
+        self._mslit_sync()
 
         # Add user input slits
         if add_user_slits is not None:
             self.add_user_slits(add_user_slits)
 
-        # Ignore orders/slits on the edge of the detector when they run off
-        #    Recommended for Echelle only
-        if ignore_orders:
-            self._ignore_orders()
+        # Recommended for Echelle only
+        #if ignore_orders:
+        #    self._ignore_orders()
 
         # Fit edges
-        self._set_lrminx()
-        self._fit_edges('left')
-        self._fit_edges('right')
+        orig = False
+        if orig:
+            self._set_lrminx()
+            self._fit_edges('left')
+            self._fit_edges('right')
 
         # Are we done, e.g. longslit?
         #   Check if no further work is needed (i.e. there only exists one order)
         if self._chk_for_longslit():
             self.extrapord = np.zeros(1, dtype=np.bool)
         else:  # No, not done yet
-            # Synchronize
-            #   For multi-silt, mslit_sync will have done most of the work already..
-            self._synchronize()
+            if orig:
+                # Synchronize -- DEPRECATED
+                self._synchronize()
 
-            # PCA?
-            #  Whether or not a PCA is performed, lcen and rcen are generated for the first time
-            self._pca()
+                # PCA?
+                #  Whether or not a PCA is performed, lcen and rcen are generated for the first time
+                self._pca()
 
             # Remove any slits that are completely off the detector
-            #   Also remove short slits here for multi-slit and long-slit (aligntment stars)
+            #   Also remove short slits here for multi-slit and long-slit (alignment stars)
             self._trim_slits(trim_short_slits=arms, plate_scale = plate_scale)
 
         # Generate pixel arrays

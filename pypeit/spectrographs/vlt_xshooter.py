@@ -306,7 +306,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # ToDO Either assume a linear trend or measure this
         # X-shooter manual says, but gives no exact numbers per order.
-        # NIR: 52.4 pixels (0.210”/pix) at order 11 to 59.9 pixels (0.184”/pix) at order 26.
+        # NIR: 52.4 pixels (0.210Ang/pix) at order 11 to 59.9 pixels (0.184Ang/pix) at order 26.
 
         # Right now I just took the average
         return np.full(16, 0.197)
@@ -411,9 +411,50 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                                                        100., 500., 500., 500., 500., 500., 500.,
                                                        500.]
 
-#       par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
+        ### par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+        par['calibrations']['wavelengths']['sigdetect'] = 3.0
+        # Reidentification parameters
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1_iraf.json'
+        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        # Echelle parameters
+        par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         return par
+
+    @staticmethod
+    def slit2order(islit):
+
+        """
+        Parameters
+        ----------
+        islit: int, float, or string, slit number
+
+        Returns
+        -------
+        order: int
+        """
+
+        if isinstance(islit,str):
+            islit = int(islit)
+        elif isinstance(islit,np.ndarray):
+            islit = islit.astype(int)
+        elif isinstance(islit,float):
+            islit = int(islit)
+        elif isinstance(islit, int):
+            pass
+        else:
+            msgs.error('Unrecognized type for islit')
+
+        orders = np.arange(30,16,-1, dtype=int)
+        return orders[islit]
+
 
     def check_headers(self, headers):
         """
@@ -458,8 +499,13 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         """
         self.empty_bpm(shape=shape, filename=filename, det=det)
+        '''
         if det == 1:
             self.bpm_img[1456:, 841:845] = 1.
+        '''
+        # The following is binning dependent!
+        #   824, 825
+        self.bpm_img[:, 851:853] = 1.
 
         return self.bpm_img
 

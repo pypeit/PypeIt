@@ -53,7 +53,7 @@ def fit_double_poly(all_wv_order, work2d, thismask, nspec_coeff, norder_coeff):
     return coeffs, wv_order_mod
 
 
-def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0,debug=True, skip_QA=False):
+def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0, debug=False, skip_QA=False):
     """Routine to obtain the 2D wavelength solution for an echelle spectrograph. This is calculated from the spec direction
     pixelcentroid and the order number of identified arc lines. The fit is a simple least-squares with rejections.
     This is a port of the XIDL code: x_fit2darc.pro
@@ -169,7 +169,6 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
                     order_cen=norm_order[0], order_norm=norm_order[1],
                     nspec=nspec)
 
-    debug = True
     if debug:
         fit2darc_qa(fit_dict, fin_rms, all_wv, all_pix, all_orders, thismask)
 

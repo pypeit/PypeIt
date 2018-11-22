@@ -86,8 +86,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.40  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 5.  # Doesn't work for reddest chip
-        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
+        par['calibrations']['wavelengths']['sigdetect'] = 5.  # Doesn't work for reddest chip
+        par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'ArII']
+        #par['calibrations']['wavelengths']['lowest_nsig'] = 5.
 
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
@@ -237,6 +238,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker', 'dispangle']
 
 
+    '''
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
         Setup the arc parameters
@@ -273,6 +275,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             arcparam['wv_cen'] = 4000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+    '''
 
 
 class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
