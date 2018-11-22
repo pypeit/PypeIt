@@ -311,7 +311,7 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
 
 
 def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nreid_min, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
-               match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,debug_xcorr=False, debug_reid=False):
+               match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
     Parameters
@@ -434,7 +434,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
 
     # If the detections were not passed in find the lines in each spectrum
     if detections is None:
-        tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect,nonlinear_counts=nonlinear_counts)
+        tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect,nonlinear_counts=nonlinear_counts, fwhm = fwhm, debug = debug_peaks)
         detections = tcent[icut]
 
     # For convenience pull out all the spectra from the wv_calib_arxiv archive
@@ -464,7 +464,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
         this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
         success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
-            wvutils.xcorr_shift_stretch(spec_cont_sub, spec_arxiv[:, iarxiv], cc_thresh=cc_thresh, seed = random_state,
+            wvutils.xcorr_shift_stretch(spec_cont_sub, spec_arxiv[:, iarxiv], cc_thresh=cc_thresh, fwhm = fwhm, seed = random_state,
                                         debug=debug_xcorr)
         # If cc < cc_thresh or if this optimization failed, don't reidentify from this arxiv spectrum
         if success != 1:
@@ -662,10 +662,9 @@ class ArchiveReid:
 
 
     def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True,
-                 debug_xcorr = True, debug_reid = True, debug_fits= True):
+                 debug_peaks = False, debug_xcorr = False, debug_reid = False, debug_fits= False):
 
-        from IPython import embed
-        embed()
+        self.debug_peaks = debug_peaks
         self.debug_xcorr = debug_xcorr
         self.debug_reid = debug_reid
         self.debug_fits = debug_fits
@@ -692,6 +691,7 @@ class ArchiveReid:
         # Parameters for arc line detction
         self.nonlinear_counts = self.par['nonlinear_counts']
         self.sigdetect = self.par['sigdetect']
+        self.fwhm = 11.0 #
         # Paramaters that govern reidentification
         self.reid_arxiv = self.par['reid_arxiv']
         self.nreid_min = self.par['nreid_min']
@@ -758,7 +758,6 @@ class ArchiveReid:
         self.all_patt_dict = {}
         self.detections = {}
         self.wv_calib = {}
-
         self.bad_slits = np.array([], dtype=np.int)
         # Reidentify each slit, and perform a fit
         for slit in range(self.nslits):
@@ -783,6 +782,8 @@ class ArchiveReid:
                                                                                    nlocal_cc=self.nlocal_cc,
                                                                                    nonlinear_counts=self.nonlinear_counts,
                                                                                    sigdetect=self.sigdetect,
+                                                                                   fwhm = self.fwhm,
+                                                                                   debug_peaks = self.debug_peaks,
                                                                                    debug_xcorr=self.debug_xcorr,
                                                                                    debug_reid = self.debug_reid)
             # Check if an acceptable reidentification solution was found
@@ -1068,9 +1069,9 @@ class HolyGrail:
                 continue
             # TODO Pass in all the possible params for detect_lines to arc_lines_from_spec, and update the parset
             # Detect lines, and decide which tcent to use
-            self._all_tcent, self._all_ecent, self._cut_tcent, self._icut =\
+            self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _  =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
-            self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
+            self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _  =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size < min_nlines:
                 msgs.warn("Not enough lines to identify in slit {0:d}!".format(slit))
@@ -1165,9 +1166,9 @@ class HolyGrail:
             if slit not in self._ok_mask:
                 continue
             # Detect lines, and decide which tcent to use
-            self._all_tcent, self._all_ecent, self._cut_tcent, self._icut =\
+            self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _ =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
-            self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
+            self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _ =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit+ 1))
