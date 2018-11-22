@@ -254,8 +254,30 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
             bpm_dir = resource_filename('pypeit', 'data/static_calibs/vlt_xshoooter/')
-            bpm_loc = np.loadtxt(bpm_dir+'BP_MAP_RP_NIR.dat',usecols=(0,1))
-            self.bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
+            try :
+                bpm_loc = np.loadtxt(bpm_dir+'BP_MAP_RP_NIR.dat',usecols=(0,1))
+            except IOError :
+                msgs.warn('BP_MAP_RP_NIR.dat not present in the static database')
+                bpm_fits = fits.open(bpm_dir+'BP_MAP_RP_NIR.fits.gz')
+                # ToDo: this depends on datasec, biassec, dispflip, and dispaxis
+                #       and should become able to adapt to these parameters.
+                # Flipping and shifting BPM to match the PypeIt format
+                y_shift = 14
+                x_shift = 18
+                bpm_data = np.flipud(bpm_fits[0].data)
+                y_len = len(bpm_data[:,0])
+                x_len = len(bpm_data[0,:])
+                bpm_data_pypeit = np.full( ((y_len+y_shift),(x_len+x_shift)) , 0)
+                bpm_data_pypeit[:-y_shift,:-x_shift] = bpm_data_pypeit[:-y_shift,:-x_shift] + bpm_data
+                bpm_data_pypeit = np.roll(bpm_data_pypeit,-y_shift,axis=0)
+                bpm_data_pypeit = np.roll(bpm_data_pypeit,x_shift,axis=1)
+                filt_bpm = bpm_data_pypeit[1:y_len,1:x_len]>100.
+                y_bpm, x_bpm = np.where(filt_bpm)
+                bpm_loc = np.array([y_bpm,x_bpm]).T
+                np.savetxt(bpm_dir+'BP_MAP_RP_NIR.dat', bpm_loc, fmt=['%d','%d'])
+            finally :
+                self.bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
+
         return self.bpm_img
 
     @staticmethod
@@ -464,6 +486,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         """
         self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
+            # TODO: This is for the 1x1 binning it should
+            # change for other binning
             self.bpm_img[2912:,824:826] = 1.
 
         return self.bpm_img
@@ -565,6 +589,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         """
         self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
+            # TODO: This is for the 1x1 binning it should
+            # change for other binning
             self.bpm_img[:2369,720:722] = 1.
 
         return self.bpm_img
