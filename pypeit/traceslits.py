@@ -660,7 +660,9 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _pca_refine(self, mask_frac_thresh=0.6, maxiter=3, show=False, debug=False):
+    # ToDO JFH The PCA coefficients take on a wide range of values which makes mad rejection less meaingful. I wonder if we should
+    # be doing rejection and fitting using relative errors and relative error deviations.
+    def _pca_refine(self, mask_frac_thresh=0.6, maxiter=3, coeff_npoly_pca = 2, show=False, debug=True):
 
         # Unpack and sort
         nspec, nspat = self.siglev.shape
@@ -705,7 +707,7 @@ class TraceSlits(masterframe.MasterFrame):
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
                 edges_dict = trace_slits.trace_refine(
                     self.siglev, slit_in, mask_in, npca = None, ncoeff=5,
-                    pca_explained_var=99.8, coeff_npoly_pca=3,fwhm=3.0,
+                    pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca,fwhm=3.0,
                     sigthresh=100.0, debug=debug)
                 # Prep for round 2
                 slit_in = np.append(edges_dict['left']['trace'],
@@ -729,7 +731,7 @@ class TraceSlits(masterframe.MasterFrame):
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
                 trace_dict_l = trace_slits.trace_refine(
                     self.siglev, slit_in, mask_in, npca = None, ncoeff=5,
-                    pca_explained_var=99.8, coeff_npoly_pca=3,fwhm=3.0,
+                    pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca,fwhm=3.0,
                     sigthresh=100.0, debug=debug, maxrej=1)
                 slit_in = trace_dict_l['left']['trace']
                 mask_in = np.ones_like(slit_in,dtype=bool)
@@ -748,7 +750,7 @@ class TraceSlits(masterframe.MasterFrame):
             while iter <= maxiter:
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
                 trace_dict_r = trace_slits.trace_refine(
-                    self.siglev, slit_in, mask_in, npca = None, ncoeff=5,pca_explained_var=99.8, coeff_npoly_pca=3,fwhm=3.0,
+                    self.siglev, slit_in, mask_in, npca = None, ncoeff=5,pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca,fwhm=3.0,
                     sigthresh=100.0, debug=debug, maxrej=1)
                 slit_in = trace_dict_r['right']['trace']
                 mask_in = np.ones_like(slit_in,dtype=bool)
