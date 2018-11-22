@@ -460,7 +460,7 @@ class Calibrations(object):
 
             # Now we go forth
             try:
-                self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale)
+                self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale, show=self.show)
             except:
                 self.traceSlits.save_master()
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
