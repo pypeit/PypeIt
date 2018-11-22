@@ -450,7 +450,6 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
     arc_spec = np.zeros((nspec, nslits))
     spat_img = np.outer(np.ones(nspec,dtype=int), np.arange(nspat,dtype=int)) # spatial position everywhere along image
 
-
     for islit in range(nslits):
         msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit + 1))
         # Create a mask for the pixels that will contribue to the arc
@@ -732,7 +731,7 @@ def detect_lines(censpec, sigdetect = 5.0, input_thresh = None, cont_subtract=Tr
       the line free region. Bad lines are assigned a significance of -1, since they don't have an amplitude fit
     """
 
-    # debug = True
+    debug = True
 
     # Detect the location of the arc lines
     if verbose:
