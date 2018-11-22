@@ -341,7 +341,7 @@ def fit2darc_qa(fit_dict, outfile=None):
                 fig.add_subplot(ax1)
 
     fig.text(0.5, 0.04, r'Row [pixel]', ha='center', size='large')
-    fig.suptitle(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#, residuals $\times$100'.format(norder_coeff, nspec_coeff,fin_rms))
+    fig.suptitle(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#, residuals $\times$100'.format(norder_coeff, nspec_coeff,rms_qa))
 
     # # Finish
     # plt.savefig(outfile_order, dpi=800)
