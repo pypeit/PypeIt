@@ -1205,7 +1205,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Return
         return loaded
 
-    def run(self, arms=True, ignore_orders=False, add_user_slits=None, plate_scale = None):
+    def run(self, arms=True, ignore_orders=False, add_user_slits=None, plate_scale = None, show=False):
         """ Main driver for tracing slits.
 
           Code flow
@@ -1289,7 +1289,7 @@ class TraceSlits(masterframe.MasterFrame):
         self._mslit_tcrude()
 
         # Refine
-        self._pca_refine()
+        self._pca_refine(show=show)
 
         # Synchronize and add in edges
         self._mslit_sync()
