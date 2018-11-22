@@ -230,9 +230,15 @@ class WaveCalib(masterframe.MasterFrame):
 
         fit2d_dict = arc.fit2darc(all_wave, all_pixel, all_order, nspec, nspec_coeff=self.par['ech_nspec_coeff'],
                                   norder_coeff=self.par['ech_norder_coeff'],sigrej=self.par['ech_sigrej'],
-                                  debug=debug, skip_QA=skip_QA)
+                                  debug=debug)
 
         self.steps.append(inspect.stack()[0][3])
+
+        # QA
+        if not skip_QA:
+            outfile = qa.set_qa_filename(self.setup, 'arc_fit2d_qa', out_dir=self.redux_path)
+            arc.fit2darc_qa(fit2d_dict, outfile=outfile)
+
         return fit2d_dict
 
 
