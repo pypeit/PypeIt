@@ -31,7 +31,7 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, mas
     """
 
     # Find peaks
-    tampl, tampl_cont, tcent, twid, centerr, w, yprep, nsig = arc.detect_lines(spec, sigdetect = sigdetect, fwhm=fwhm,
+    tampl, tampl_cont, tcent, twid, centerr, w, arc_cont_sub, nsig = arc.detect_lines(spec, sigdetect = sigdetect, fwhm=fwhm,
                                                                                fit_frac_fwhm=fit_frac_fwhm,
                                                                                mask_frac_fwhm=mask_frac_fwhm,
                                                                                max_frac_fwhm=max_frac_fwhm,
@@ -53,7 +53,7 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, mas
 
     #debugger.set_trace()
     # Return
-    return all_tcent, all_ecent, cut_tcent, icut
+    return all_tcent, all_ecent, cut_tcent, icut, arc_cont_sub
 
 
 def shift_and_stretch(spec, shift, stretch):
