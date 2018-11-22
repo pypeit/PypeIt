@@ -124,14 +124,14 @@ def zerolag_shift_stretch(theta, y1, y2):
     corr_norm = corr_zero/corr_denom
     return -corr_norm
 
-def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False):
+def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False,sigdetect = 10.0, fwhm = 4.0):
     """ Utility routine to smooth and apply a ceiling to spectra """
 
     # ToDO can we improve the logic here. Technically if use_raw_arc = True and perecent_ceil=None
     # we don't need to peak find or continuum subtract, but this makes the code pretty uggly.
 
     # Run line detection to get the continuum subtracted arc
-    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=10.0)
+    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect, fwhm = fwhm)
     if use_raw_arc == True:
         ampl = tampl1
         use_arc = inspec1
@@ -157,7 +157,7 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False):
 
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
-def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=90.0, use_raw_arc=False, debug=False):
+def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=90.0, use_raw_arc=False, sigdetect = 10.0, fwhm = 4.0, debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
     the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
@@ -190,8 +190,8 @@ def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=90.0, use_raw_arc=False,
       the maximum of the cross-correlation coefficient at this shift
     """
 
-    y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
-    y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
+    y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
+    y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
 
     nspec = y1.shape[0]
     lags = np.arange(-nspec + 1, nspec)
@@ -216,7 +216,7 @@ def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=90.0, use_raw_arc=False,
 
 
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ceil=90.0, use_raw_arc=False,
-                        shift_mnmx=(-0.05,0.05), stretch_mnmx=(0.95,1.05), debug=False, seed = None):
+                        shift_mnmx=(-0.05,0.05), stretch_mnmx=(0.95,1.05), sigdetect = 10.0, fwhm = 4.0,debug=False, seed = None):
 
     """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
     guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
@@ -287,8 +287,8 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
 
     nspec = inspec1.size
 
-    y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
-    y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
+    y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
+    y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
 
     # Do the cross-correlation first and determine the initial shift
     shift_cc, cc_val = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, use_raw_arc = True, debug = debug)
