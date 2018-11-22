@@ -325,20 +325,16 @@ class Spectrograph(object):
     def empty_bpm(self, shape=None, filename=None, det=1, force=True):
         """
         Generate a generic (empty) BPM.
-        
-        This requires a successful call to :func:`get_image_shape`.
 
+        This requires a successful call to :func:`get_image_shape`.
         .. todo::
             Any reason this isn't returned as a boolean array?
-
         Args:
             shape: tuple, REQUIRED
             **null_kwargs:
-
         Returns:
             bpm: ndarray, int
               0=not masked; 1=masked
-
         """
         if self.bpm_img is None or force:
             if shape is None:
@@ -351,34 +347,18 @@ class Spectrograph(object):
             self.bpm_img = np.zeros(_shape, dtype=np.int8)
         return self.bpm_img
 
-    def make_bpm(self, shape=None, filename=None, det=1, force=True):
-        """Generate a default bad-pixel mask.
-
-        Currently identical to calling :func:`empty_bpm` in case
-        no static calibration file is defined. Otherwise create the
-        bpm from filename.
-
-        Parameters
-        ----------
-        shape : tuple
-            REQUIRED if filename not defined
-        filename:
-            fits  fits.gz file containing the BPM.
-
-        Returns:
-        -------
-        bpm_img : ndarray, int
-            0=not masked; 1=masked
+    def bpm(self, shape=None, filename=None, det=1, force=True):
         """
-        if filename is not None:
-            # bpm = self.empty_bpm(shape=shape, filename=filename, det=det, force=force)
-            self.bpm_img = self.load_raw_frame(filename, det=det)[0]
-            self.bpm_img[self.bpm_img>0.] = 1.
-            msgs.info("Loading bad pixel map. {:} bad pixels present.".format(np.sum(self.bpm_img)))
-        else:
-            msgs.warn("No static bad pixel map present. Creating an empty one.")
-            self.bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det, force=force)
-        return self.bpm_img.astype(int)
+        Generate a default bad-pixel mask.
+        Currently identical to calling :func:`empty_bpm`.
+        Args:
+            shape: tuple, REQUIRED
+            **null_kwargs:
+        Returns:
+            bpm: ndarray, int
+              0=not masked; 1=masked
+        """
+        return self.empty_bpm(shape=shape, filename=filename, det=det, force=force)
 
     # TODO: (KBW) I've removed all the defaults.  Should maybe revisit
     # this
