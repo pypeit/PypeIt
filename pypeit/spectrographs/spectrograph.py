@@ -142,10 +142,12 @@ class Spectrograph(object):
         # Turn to float
         img = raw_img.astype(np.float)
         # Transpose?
-        if self.detector[_det-1]['dispaxis'] == 1:
+        if self.detector[_det-1]['specaxis'] == 1:
             img = img.T
-        if self.detector[_det-1]['dispflip'] is True:
+        if self.detector[_det-1]['specflip'] is True:
             img = np.flip(img, axis=0)
+        if self.detector[_det-1]['spatflip'] is True:
+            img = np.flip(img, axis=1)
 
         # Return
         return img, head0
@@ -226,7 +228,7 @@ class Spectrograph(object):
         # Always assume normal FITS header formatting
         one_indexed = True
         include_last = True
-        transpose = self.detector[det-1]['dispaxis'] == 0
+        transpose = self.detector[det-1]['specaxis'] == 0
 
         return image_sections, one_indexed, include_last, transpose
 

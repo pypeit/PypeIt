@@ -2413,7 +2413,7 @@ class DetectorPar(ParSet):
     class, and an explanation of how to define a new instrument, see
     :ref:`instruments`.
     """
-    def __init__(self, dataext=None, dispaxis=None, dispflip=None, xgap=None, ygap=None, ysize=None,
+    def __init__(self, dataext=None, specaxis=None, specflip=None, spatflip = None, xgap=None, ygap=None, ysize=None,
                  platescale=None, darkcurr=None, saturation=None, mincounts = None, nonlinear=None,
                  numamplifiers=None, gain=None, ronoise=None, datasec=None, oscansec=None,
                  suffix=None):
@@ -2437,17 +2437,24 @@ class DetectorPar(ParSet):
         descr['dataext'] = 'Index of fits extension containing data'
 
         # TODO: Should this be detector-specific, or camera-specific?
-        defaults['dispaxis'] = 0
-        options['dispaxis'] = [ 0, 1]
-        dtypes['dispaxis'] = int
-        descr['dispaxis'] = 'Spectra are dispersed along this axis. Allowed values are 0 ' \
+        defaults['specaxis'] = 0
+        options['specaxis'] = [ 0, 1]
+        dtypes['specaxis'] = int
+        descr['specaxis'] = 'Spectra are dispersed along this axis. Allowed values are 0 ' \
                             '(first dimension for a numpy array shape) or 1 (second dimension for numpy array shape)'
 
 
-        defaults['dispflip'] = False
-        dtypes['dispflip'] = bool
-        descr['dispflip'] = 'If this is True then the dispersion dimension (specificed by the dispaxis) will be ' \
+        defaults['specflip'] = False
+        dtypes['specflip'] = bool
+        descr['specflip'] = 'If this is True then the dispersion dimension (specificed by the specaxis) will be ' \
                             'flipped so that wavelengths are always an increasing function of array index'
+
+        defaults['spatflip'] = False
+        dtypes['spatflip'] = bool
+        descr['spatflip'] = 'If this is True then the spatial dimension will be ' \
+                            'flipped so that blue orders for echelle spectra will appear spatially on the ' \
+                            'left and wavelength will increase to the right'
+
 
         defaults['xgap'] = 0.0
         dtypes['xgap'] = [int, float]
@@ -2536,7 +2543,7 @@ class DetectorPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'dataext', 'dispaxis', 'dispflip', 'xgap', 'ygap', 'ysize', 'platescale', 'darkcurr',
+        parkeys = [ 'dataext', 'specaxis', 'specflip', 'spatflip','xgap', 'ygap', 'ysize', 'platescale', 'darkcurr',
                     'saturation', 'mincounts','nonlinear', 'numamplifiers', 'gain', 'ronoise', 'datasec',
                     'oscansec', 'suffix' ]
         kwargs = {}

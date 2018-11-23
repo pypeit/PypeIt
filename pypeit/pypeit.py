@@ -991,19 +991,18 @@ class Echelle(PypeIt):
         numsci = len(all_sci_ID)
 
         # Grab the standards
-        all_std_ID = self.fitstbl['sci_ID'][self.fitstbl.find_frames('standard')]
-        numstd = len(all_std_ID)
+        #all_std_ID = self.fitstbl['sci_ID'][self.fitstbl.find_frames('standard')]
+        #numstd = len(all_std_ID)
 
         # Check par
         required = ['rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib']
         can_be_None = ['flexure', 'fluxcalib']
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
-
-        # Reduce the standards first
-        for kk, std_ID in enumerate(all_std_ID):
-            std_dict = self.reduce_exposure(std_ID, 'standard', reuse_masters=reuse_masters)
-            stddx = self.fitstbl.find_frames('standard', sci_ID=std_ID, index=True)[0]
+        # Reduce the standards first associated with the sci_IDs
+        for kk, sci_ID in enumerate(all_sci_ID):
+            std_dict = self.reduce_exposure(sci_ID, 'standard', reuse_masters=reuse_masters)
+            stddx = self.fitstbl.find_frames('standard', sci_ID=sci_ID, index=True)[0]
             self.save_exposure(stddx, std_dict, self.basename)
 
         # Save
