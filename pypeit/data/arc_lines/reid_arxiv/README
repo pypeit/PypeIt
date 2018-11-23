@@ -29,3 +29,19 @@ then this database was used to reidentify the above frame, and was archived.
   Quality assessment plots are stored in : 
   PNGs/vlt_xshooter_vis1x1_arc_2dfit_global.png
   PNGs/vlt_xshooter_vis1x1_arc_2dfit_orders.png
+  In Old/VIS_arm_ThAr_lines_atlas.pdf you may find the ThAr line atlas provided
+  by ESO. This is NOT the line list used by PypeIt, but it is a useful tool
+  for line reidentification because the flux matches (more or less) that 
+  extracted from the arc image.
+
+
+* UVB 1x1
+  -------
+
+  In Old/UVB_arm_ThAr_lines_atlas.pdf you may find the ThAr line atlas provided
+  by ESO. This is NOT the line list used by PypeIt, but it is a useful tool
+  for line reidentification because the flux matches (more or less) that 
+  extracted from the arc image.
+
+
+

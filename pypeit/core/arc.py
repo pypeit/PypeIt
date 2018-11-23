@@ -506,6 +506,17 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
         if not np.any(arc_spec[:,islit]):
             maskslit[islit] = 1
 
+
+        from IPython import embed
+        embed()
+        ## tampl, tcent, twid, _, w, yprep, nsig = detect_lines(arc_spec[:,islit])
+        tampl_true, tampl, tcent, twid, centerr, ww, yprep, nsig = detect_lines(arc_spec[:,islit])
+        np.savetxt('slit_cs_'+np.str(islit)+'.txt',yprep)
+        from astropy.io import fits
+        hdu = fits.PrimaryHDU(np.array(yprep))
+        hdu.writeto('slit_cs_'+np.str(islit)+'.fits', overwrite = True)
+
+
     return arc_spec, maskslit
 
 
