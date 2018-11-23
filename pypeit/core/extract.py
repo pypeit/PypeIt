@@ -1556,7 +1556,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         sobjs[iobj].trace_spec = spec_vec
         sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
-        sobjs[iobj].set_idx()
+        sobjs[iobj].set_idx(echelle=True)
 
         # Determine the fwhm max
         yhalf = 0.5*sobjs[iobj].smash_peakflux
@@ -2145,7 +2145,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
                     thisobj.trace_spat = slit_left[:, iord] + slit_width[:, iord] * frac_mean_new[iord]  # new trace
                 thisobj.trace_spec = spec_vec
                 thisobj.spat_pixpos = thisobj.trace_spat[specmid]
-                thisobj.set_idx()
+                thisobj.set_idx(echelle=True)
                 # Use the real detections of this objects for the FWHM
                 this_obj_id = obj_id == uni_obj_id[iobj]
                 # Assign to the fwhm of the nearest detected order
@@ -2266,7 +2266,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
 
     # TODO need to properly take out the mean above, and reinsert the mean here
     # Set the IDs
-    sobjs_final.set_idx()
+    sobjs_final.set_idx(echelle=True)
 
     if show_trace:
         viewer, ch = ginga.show_image(image*(ordermask > -1))

@@ -209,7 +209,7 @@ class TraceSlits(masterframe.MasterFrame):
             binbpx = None
 
         # Instantiate from file
-        slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], binbpx=binbpx, par=par)
+        slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], None, binbpx=binbpx, par=par)
 
         # Fill in a bit more (Attributes)
         slf.steps = ts_dict['steps']
