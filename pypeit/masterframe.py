@@ -170,8 +170,8 @@ class MasterFrame(object):
         if raw_files is not None:
             for i in range(len(raw_files)):
                 hdrname = "FRAME{0:03d}".format(i+1)
-                hdulist[0].header[hdrname] = (raw_files[i], 'PYPIT: File used to generate Master {0:s}'.format(self.frametype))
-        hdulist[0].header["FRAMETYP"] = (self.frametype, 'PYPIT: Master calibration frame type')
+                hdulist[0].header[hdrname] = (raw_files[i], 'PyepIt: File used to generate Master {0:s}'.format(self.frametype))
+        hdulist[0].header["FRAMETYP"] = (self.frametype, 'PyepIt: Master calibration frame type')
         if keywds is not None:
             for key in keywds.keys():
                 hdulist[0].header[key] = keywds[key]

@@ -323,7 +323,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.edgearr : ndarray (internal)
 
         """
-        # Reset (if needed) -- For running after PYPIT took a first pass
+        # Reset (if needed) -- For running after PyepIt took a first pass
         self.reset_edgearr_ednum()
         # Add user input slits
         self.edgearr = trace_slits.add_user_edges(self.edgearr, self.siglev, self.tc_dict, user_slits)
@@ -400,7 +400,7 @@ class TraceSlits(masterframe.MasterFrame):
 
     def _fill_tslits_dict(self):
         """
-        Build a simple object holding the key trace bits and pieces that PYPIT wants
+        Build a simple object holding the key trace bits and pieces that PyepIt wants
 
         Returns
         -------
@@ -512,7 +512,7 @@ class TraceSlits(masterframe.MasterFrame):
     def _make_pixel_arrays(self):
         """
         Generate pixel arrays
-        Primarily for later stages of PYPIT
+        Primarily for later stages of PyepIt
 
         Returns
         -------
@@ -1190,7 +1190,7 @@ class TraceSlits(masterframe.MasterFrame):
         return True
 
     def master_old(self):
-        """ Mainly for PYPIT running
+        """ Mainly for PyepIt running
 
         Parameters
         ----------
@@ -1331,7 +1331,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Generate pixel arrays
         self._make_pixel_arrays()
 
-        # fill dict for PYPIT
+        # fill dict for PyepIt
         self.tslits_dict = self._fill_tslits_dict()
 
         # Return it
