@@ -999,6 +999,8 @@ class Echelle(PypeIt):
         can_be_None = ['flexure', 'fluxcalib']
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
+        # TODO This is a bug. I can't figure out how to grab the standard exposures associated with the
+        # science files
         # Reduce the standards first associated with the sci_IDs
         for kk, sci_ID in enumerate(all_sci_ID):
             try:
