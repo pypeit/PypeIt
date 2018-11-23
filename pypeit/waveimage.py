@@ -96,12 +96,12 @@ class WaveImage(masterframe.MasterFrame):
 
         # Unpack some 2-d fit parameters if this is echelle
         for slit in ok_slits:
-            iwv_calib = self.wv_calib[str(slit)]
             thismask = (self.slitpix == slit)
             if self.par['echelle']:
-                order = self.wv_calib['fit2d']['orders'][slit]
+                order = spectrograph.slit2order(slit) 
                 tmpwv = arc.eval2dfit(self.wv_calib['fit2d'],piximg[thismask],order)/order
             else:
+                iwv_calib = self.wv_calib[str(slit)]
                 tmpwv = utils.func_val(iwv_calib['fitc'], piximg[thismask], iwv_calib['function'],
                                        minv=iwv_calib['fmin'], maxv=iwv_calib['fmax'])
             self.wave[thismask] = tmpwv
