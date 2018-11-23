@@ -98,7 +98,7 @@ class WaveImage(masterframe.MasterFrame):
         for slit in ok_slits:
             thismask = (self.slitpix == slit)
             if self.par['echelle']:
-                order = spectrograph.slit2order(slit) 
+                order = spectrograph.slit2order(slit)
                 tmpwv = arc.eval2dfit(self.wv_calib['fit2d'],piximg[thismask],order)/order
             else:
                 iwv_calib = self.wv_calib[str(slit)]
