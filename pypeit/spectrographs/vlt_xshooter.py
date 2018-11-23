@@ -591,7 +591,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_uvb'
 
         # Adjustments to slit and tilts for UVB
-        par['calibrations']['slits']['sigdetect'] = 20.
+        par['calibrations']['slits']['sigdetect'] = 8.
         par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
@@ -677,7 +677,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         if det == 1:
             # TODO: This is for the 1x1 binning it should
             # change for other binning
-            self.bpm_img[:2369,720:722] = 1.
+            self.bpm_img[:2369,1326:1328] = 1.
 
         return self.bpm_img
 
