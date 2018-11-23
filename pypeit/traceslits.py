@@ -18,14 +18,13 @@ from pypeit import msgs
 from pypeit import debugger
 from pypeit.core import pixels
 from pypeit.core import trace_slits
+from pypeit.core import extract
 from pypeit import utils
 from pypeit import masterframe
 from pypeit import ginga
-from pypeit import traceimage
 
 from pypeit.par import pypeitpar
 from pypeit.par.util import parset_to_dict
-from pypeit.core import pydl
 
 
 class TraceSlits(masterframe.MasterFrame):
@@ -370,33 +369,49 @@ class TraceSlits(masterframe.MasterFrame):
         # Steps
         self.steps.append(inspect.stack()[0][3])
 
-    def _chk_for_longslit(self):
+    def _chk_for_longslit(self, fwhm=3.):
         """
-        Are we done?, i.e. we have a simple longslit
+        Are we done?, i.e. we have a simple longslit, i.e. one left and one right
 
         Returns
         -------
-        self.lcen : ndarray (internal)
-        self.rcen : ndarray (internal)
 
         """
-        #   Check if no further work is needed (i.e. there only exists one order)
-        if (self.lmax+1-self.lmin == 1) and (self.rmax+1-self.rmin == 1):
-            plxbin = self.pixlocn[:, :, 0].copy()
-            minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
-            # Just a single order has been identified (i.e. probably longslit)
-            msgs.info("Only one slit was identified. Should be a longslit.")
-            xint = self.pixlocn[:, 0, 0]
-            # Finish
-            self.lcen = np.zeros((self.mstrace.shape[0], 1))
-            self.rcen = np.zeros((self.mstrace.shape[0], 1))
-            self.lcen[:, 0] = utils.func_val(self.lcoeff[:, 0], xint, self.par['function'],
-                                               minv=minvf, maxv=maxvf)
-            self.rcen[:, 0] = utils.func_val(self.rcoeff[:, 0], xint, self.par['function'],
-                                               minv=minvf, maxv=maxvf)
-            return True
+        orig = False
+        if orig:
+            if (self.lmax+1-self.lmin == 1) and (self.rmax+1-self.rmin == 1):
+                plxbin = self.pixlocn[:, :, 0].copy()
+                minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
+                # Just a single order has been identified (i.e. probably longslit)
+                msgs.info("Only one slit was identified. Should be a longslit.")
+                xint = self.pixlocn[:, 0, 0]
+                # Finish
+                self.lcen = np.zeros((self.mstrace.shape[0], 1))
+                self.rcen = np.zeros((self.mstrace.shape[0], 1))
+                self.lcen[:, 0] = utils.func_val(self.lcoeff[:, 0], xint, self.par['function'],
+                                                   minv=minvf, maxv=maxvf)
+                self.rcen[:, 0] = utils.func_val(self.rcoeff[:, 0], xint, self.par['function'],
+                                                   minv=minvf, maxv=maxvf)
+                return True
+            else:
+                return False
         else:
-            return False
+            if (len(self.tc_dict['left']['xval']) == 1) and (
+                    len(self.tc_dict['right']['xval']) == 1):
+                # fweight the trace crude
+                for key,sign in zip(['left','right'], [1., -1.]):
+                    trace_crutch = self.tc_dict[key]['xset']
+                    trace_fweight = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0),
+                                                          trace_crutch, self.par['polyorder'],
+                                                          fwhm=3.0*fwhm, niter=9)
+                    trace_gweight = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0),
+                                                          trace_fweight, self.par['polyorder'],
+                                                          fwhm=fwhm,gweight=True, niter=6)
+                    self.tc_dict[key]['traces'] = trace_gweight
+                return True
+            else:
+                return False
+
 
     def _fill_tslits_dict(self):
         """
@@ -627,11 +642,6 @@ class TraceSlits(masterframe.MasterFrame):
         else:
             trace_slits.sync_edges(self.tc_dict, self.mstrace.shape[1])
 
-        # Set lcen and rcen, lmin, lmax
-        self.lcen = self.tc_dict['left']['traces']
-        self.rcen = self.tc_dict['right']['traces']
-        self._set_lrminx()
-        self.extrapord = np.zeros(self.lcen.shape[1], dtype=np.bool)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -1267,6 +1277,7 @@ class TraceSlits(masterframe.MasterFrame):
         if not any_slits:
             return None
 
+        '''
         # If slits are set as "close" by the user, take the absolute value
         # of the detections and ignore the left/right edge detections
         #  Use of maxgap is NOT RECOMMENDED
@@ -1282,6 +1293,7 @@ class TraceSlits(masterframe.MasterFrame):
         #  JXP does not recommend using this method for multislit
         if self.par['maxgap'] is not None:
             self._maxgap_close()
+        '''
 
         # Final left/right edgearr fussing (as needed)
         if not self.user_set:
@@ -1290,11 +1302,6 @@ class TraceSlits(masterframe.MasterFrame):
         # Trace crude and sync traces
         self._mslit_tcrude()
 
-        # Refine
-        self._pca_refine(show=show)
-
-        # Synchronize and add in edges
-        self._mslit_sync()
 
         # Add user input slits
         if add_user_slits is not None:
@@ -1303,6 +1310,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Recommended for Echelle only
         #if ignore_orders:
         #    self._ignore_orders()
+
 
         # Fit edges
         orig = False
@@ -1314,7 +1322,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Are we done, e.g. longslit?
         #   Check if no further work is needed (i.e. there only exists one order)
         if self._chk_for_longslit():
-            self.extrapord = np.zeros(1, dtype=np.bool)
+            pass
         else:  # No, not done yet
             if orig:
                 # Synchronize -- DEPRECATED
@@ -1324,9 +1332,22 @@ class TraceSlits(masterframe.MasterFrame):
                 #  Whether or not a PCA is performed, lcen and rcen are generated for the first time
                 self._pca()
 
+            # Refine
+            self._pca_refine(show=show)
+            # Synchronize and add in edges
+            self._mslit_sync()
+
             # Remove any slits that are completely off the detector
             #   Also remove short slits here for multi-slit and long-slit (alignment stars)
-            self._trim_slits(trim_short_slits=arms, plate_scale = plate_scale)
+
+        # Set lcen and rcen, lmin, lmax
+        self.lcen = self.tc_dict['left']['traces']
+        self.rcen = self.tc_dict['right']['traces']
+        self._set_lrminx()
+        self.extrapord = np.zeros(self.lcen.shape[1], dtype=np.bool)
+
+        # Trim
+        self._trim_slits(trim_short_slits=arms, plate_scale = plate_scale)
 
         # Generate pixel arrays
         self._make_pixel_arrays()
