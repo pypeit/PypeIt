@@ -360,7 +360,7 @@ class PypeItMetaData:
         """
         Find the rows with the associated frame type.
 
-        If the index is provided, the frames must also be matched the
+        If the index is provided, the frames must also be matched to the
         relevant science frame.
 
         Args:
