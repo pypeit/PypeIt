@@ -2168,7 +2168,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
     for iobj in range(nobj):
         for iord in range(norders):
             indx = (sobjs_align.ech_obj_id == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
-            spec = sobjs_align[indx]
+            spec = sobjs_align[indx][0]
             thismask = ordermask == iord
             inmask_iord = inmask & thismask
             # TODO make the snippet below its own function quick_extraction()
@@ -2185,20 +2185,27 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
                                                          sigma_lower=5.0,sigma_upper=5.0)
             # ToDO assign this to sobjs_align for use in the extraction
             SNR_arr[iord,iobj] = med_sn
+            spec.ech_snr = med_sn
 
-
-    # Purge objects with low SNR and that don't show up in enough orders
+    # Purge objects with low SNR that don't show up in enough orders, sort the list of objects with respect to obj_id
+    # and orderindx
     keep_obj = np.zeros(nobj,dtype=bool)
     sobjs_trim = specobjs.SpecObjs()
     uni_obj_id_trim = np.array([],dtype=int)
+    obj_id_trim = np.array([],dtype=int)
     uni_frac_trim =  np.array([],dtype=float)
+    iobj_keep = 0
     for iobj in range(nobj):
         if (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr):
             keep_obj[iobj] = True
             ikeep = sobjs_align.ech_obj_id == uni_obj_id[iobj]
-            sobjs_trim.add_sobj(sobjs_align[ikeep])
+            sobjs_keep = sobjs_align[ikeep]
+            for spec in sobjs_keep:
+                spec.ech_obj_id = iobj_keep
+            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ech_orderindx)])
             uni_obj_id_trim = np.append(uni_obj_id_trim, uni_obj_id[iobj])
             uni_frac_trim = np.append(uni_frac_trim, uni_frac[iobj])
+            iobj_keep += 1
         else:
             msgs.info('Purging object #{:d}'.format(iobj) + ' which does not satisfy min_snr > {:5.2f}'.format(min_snr) +
                       ' on at least nabove_min_snr >= {:d}'.format(nabove_min_snr) + ' orders')
@@ -2212,14 +2219,14 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
 
     # Some code to ensure that the objects are sorted in the sobjs_align by fractional position on the order and by order
     # respectively
-    sobjs_sort = specobjs.SpecObjs()
-    for iobj in range(nobj_trim):
-        this_obj_id = obj_id == uni_obj_id_trim[iobj]
-        this_sobj = sobjs_trim[this_obj_id]
-        # Now rename the obj_id for this object index since some members got purged
-        for spec in this_sobj:
-            spec.ech_obj_id = iobj
-        sobjs_sort.add_sobj(this_sobj[np.argsort(this_sobj.ech_orderindx)])
+#    sobjs_sort = specobjs.SpecObjs()
+#    for iobj in range(nobj_trim):
+#        this_obj_id = sobjs_trim.ech_obj_id == uni_obj_id_trim[iobj]
+#        this_sobj = sobjs_trim[this_obj_id].copy()
+#        # Now rename the obj_id for this object index since some members got purged
+#        for spec in this_sobj:
+#            spec.ech_obj_id = iobj
+#        sobjs_sort.add_sobj(this_sobj[np.argsort(this_sobj.ech_orderindx)])
 
 
 
@@ -2240,7 +2247,9 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
     for iobj in range(nobj_trim):
         indx_obj_id = sobjs_final.ech_obj_id == iobj
         # PCA predict the masked orders which were not traced
-        pca_fits[:, :, iobj] = pca_trace((sobjs_final[indx_obj_id].trace_spat).T,usepca = None,
+        msgs.info('Fitting echelle object finding PCA for object {:d}\{:d} with median SNR = {:5.3f}'.format(
+            iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
+        pca_fits[:, :, iobj], _, _, _= pca_trace((sobjs_final[indx_obj_id].trace_spat).T,usepca = None,
                                          npca=npca, pca_explained_var=pca_explained_var, coeff_npoly=coeff_npoly,
                                          debug=debug)
         # Perform iterative flux weighted centroiding using new PCA predictions
