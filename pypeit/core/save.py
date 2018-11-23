@@ -415,11 +415,6 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         # FWHM fit from extraction
         if sobj.fwhmfit is not None:
             cols += [fits.Column(array=sobj.fwhmfit, name=str('FWHM'), format=sobj.fwhmfit.dtype)]
-        # If this is echelle write out the obj_id and the orderindx
-        if sobj.ech_obj_id is not None:
-            cols += [fits.Column(array=sobj.ech_obj_id, name=str('OBJ_ID'), format=sobj.ech_obj_id.dtype)]
-        if sobj.ech_orderindx is not None:
-            cols += [fits.Column(array=sobj.ech_orderindx, name=str('ORDERINDX'), format=sobj.ech_orderindx.dtype)]
         if ext == 1:
             # TODO -- FIX THIS KLUDGE
             try:
@@ -453,10 +448,19 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         coldefs = fits.ColDefs(cols)
         tbhdu = fits.BinTableHDU.from_columns(coldefs)
         tbhdu.name = sobj.idx
+        # If this is echelle write the obj_id and the orderindx to the header as well
+        if sobj.ech_obj_id is not None:
+            tbhdu.header['OBJ_ID'] = sobj.ech_obj_id
+        if sobj.ech_orderindx is not None:
+            tbhdu.header['ORDER'] = sobj.ech_orderindx
         hdus += [tbhdu]
+
     # A few more for the header
     prihdu.header['NSPEC'] = len(hdus) - 1
     prihdu.header['NPIX'] = npix
+    # If this is echelle write the obj_id and the orderindx to the header as well
+
+
     # Finish
     hdulist = fits.HDUList(hdus)
     #if outfile is None:
