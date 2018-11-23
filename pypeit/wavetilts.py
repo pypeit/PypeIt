@@ -365,7 +365,9 @@ class WaveTilts(masterframe.MasterFrame):
         lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
         lines_spat_int =np.round(lines_spat).astype(int)
         tilts_tc = np.zeros((nsub, nlines))
-        tilts_tc_err = np.zeros((nsub, nlines))
+        tilts_tc_err = np.zeros((nsub, nlines)) +  999.0
+        tilts_tc_spat = np.outer(np.arange(nsub), np.ones(nlines))
+        tilts_tc_spec = np.outer(np.ones(nsub), lines_spec)
 
         tilts = np.zeros((nspat, nlines))
         tilts_err = np.zeros((nspat, nlines)) + 999.0
@@ -401,9 +403,6 @@ class WaveTilts(masterframe.MasterFrame):
                 tilts_tc[:, iline], tilts_tc_err[:, iline] = tilts_now, err_now
                 tilts[np.fmax(spat_min[iline], 0):np.fmin(spat_max[iline], nspat - 1), iline] = tilts_tc[:,iline]
                 tilts_err[np.fmax(spat_min[iline], 0):np.fmin(spat_max[iline], nspat - 1), iline] = tilts_tc_err[:,iline]
-
-
-
 
 
         # iteratively fit and flux weight
