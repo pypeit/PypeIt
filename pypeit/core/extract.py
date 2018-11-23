@@ -2071,6 +2071,11 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         gfrac[this_obj_id] = np.median(fracpos[this_obj_id])
 
     uni_frac = gfrac[uni_ind]
+    # Sort with respect to fractional slit location to guarantee that we have a similarly sorted list of objects later
+    isort_frac = uni_frac.argsort()
+    uni_obj_id = uni_obj_id[isort_frac]
+    uni_frac = uni_frac[isort_frac]
+
     iord_vec = np.arange(norders)
 
     sobjs_align = sobjs.copy()
@@ -2083,6 +2088,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
                 spec.ech_fracpos = uni_frac[iobj]
                 spec.ech_obj_id = uni_obj_id[iobj]
                 spec.ech_frac_was_fit = False
+
 
 
     # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of the good orders where
@@ -2301,6 +2307,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
 
     # ToDO create a skymask and objmask should probably make the stuff in the objfind code standalone objects
 
-
+    from IPython import embed
+    embed()
     return sobjs_final
 

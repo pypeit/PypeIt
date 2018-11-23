@@ -56,7 +56,7 @@ class WaveImage(masterframe.MasterFrame):
         self.tslits_dict = tslits_dict
         self.tilts = tilts
         self.wv_calib = wv_calib
-        self.spectrograh = spectrograph
+        self.spectrograph = spectrograph
         self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
         self.par = wv_calib['par']
 
