@@ -208,6 +208,8 @@ class TraceSlits(masterframe.MasterFrame):
         else:
             binbpx = None
 
+        from IPython import embed
+        embed()
         # Instantiate from file
         slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], binbpx=binbpx, par=par)
 
