@@ -462,7 +462,7 @@ class ScienceImage(processimages.ProcessImages):
         gdslits = np.where(~self.maskslits)[0]
 
         # Build and assign the slitmask and input mask if they do not already exist
-        self.slitmask = self.spectrograph.slitmask(tslits_dict) if self.slitmask is None else self.slitmask
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict) if self.slitmask is None else self.slitmask
         self.mask = self._build_mask() if self.mask is None else self.mask
 
         if not self._chk_objs([ # Did they run process?
