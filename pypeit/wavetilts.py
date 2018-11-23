@@ -274,6 +274,11 @@ class WaveTilts(masterframe.MasterFrame):
         from IPython import embed
         embed()
 
+        from pypeit.core import pixels
+        from pypeit.core import trace_slits
+        from pypeit.core import extract
+        from astropy.stats import sigma_clipped_stats
+
 
         nspat = self.msarc.shape[1]
         arcimg = self.msarc
@@ -301,10 +306,7 @@ class WaveTilts(masterframe.MasterFrame):
         # def trace_tilts(arcimg, arc_spec, thismask, slit_left, slit_righ, only_these_lines = None, tracethresh = 10.0, only_these_lines = None, n_neigh = 15, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_frac_fwhm = 1.0, max_frac_fwhm = 2.0, cont_samp = 30,
         #    niter_cont = 3, nonlinear_counts = 1e10, verbose = False, debug=False, debug_lines = False)
 
-        from pypeit.core import pixels
-        from pypeit.core import trace_slits
-        from pypeit.core import extract
-        from astropy.stats import sigma_clipped_stats
+
 
         nspec, nspat = arcimg.shape
         spec_vec = np.arange(nspec)
@@ -346,7 +348,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Final spectral positions of arc lines we will trace
         lines_spec = arcdet[aduse]
-        nlines = len(line_spec)
+        nlines = len(lines_spec)
         if nlines:
             msgs.warn('No arc lines were deemed usable on this slit. Cannot compute tilts. Try lowering tracethresh.')
             return None
@@ -355,23 +357,54 @@ class WaveTilts(masterframe.MasterFrame):
 
 
         slit_cen= (slit_left + slit_righ)/2.0
+        slit_widp2  = int(np.ceil((slit_righ - slit_left).max()) + 2)
+        trace_int_even = slit_widp2 if slit_widp2 % 2 == 0 else slit_widp2 + 1
+        trace_int = trace_int_even//2
+        nsub = 2*trace_int + 1
 
         lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
-        tilts_tcrude = np.zeros((nspat, nlines))
-        tilts_err = np.zeros((nspat, nlines))
-        tilts_err = np.zeros((nspat, nlines))
-        spat_offset = np.zeros(nlines)
-        msarc_trans = (msarc * thismask).T
+        lines_spat_int =np.round(lines_spat).astype(int)
+        tilts_tc = np.zeros((nsub, nlines))
+        tilts_tc_err = np.zeros((nsub, nlines))
+
+        tilts = np.zeros((nspat, nlines))
+        tilts_err = np.zeros((nspat, nlines)) + 999.0
+        tilts_spat = np.outer(np.arange(nspat), np.ones(nlines))
+        tilts_spec = np.outer(np.ones(nspat), lines_spec)
+        spat_min = np.zeros(nlines,dtype=int)
+        spat_max = np.zeros(nlines,dtype=int)
+        arcimg_trans = (arcimg * thismask).T
         inmask = (thismask.astype(float)).T
         ncoeff = 3
-        # TODO figure out the sub-imaging
 
-        # ToDO should we abandon the tranposing
         for iline in range(nlines):
-            trace_out = trace_slits.trace_crude_init(msarc_trans, np.array([arcdet[iline]]), int(lines_spat[iline]),
-                                                     invvar=inmask, radius=2., maxshift0=0.5,
+            spat_min[iline] = lines_spat_int[iline] - trace_int
+            spat_max[iline] = lines_spat_int[iline] + trace_int + 1
+            sub_img = arcimg_trans[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1),:]
+            sub_inmask = inmask[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1),:]
+            trace_out = trace_slits.trace_crude_init(sub_img, np.array([lines_spec[iline]]), (sub_img.shape[0]-1)//2,
+                                                     invvar=sub_inmask, radius=2., maxshift0=0.5,
                                                      maxshift=0.15, maxerr=0.2)
-            xcen_tcrude[:, iline], xerr[:, iline] = trace_out[0].flatten(), trace_out[1].flatten()
+            tilts_now, err_now = trace_out[0].flatten(), trace_out[1].flatten()
+            # Deal with possibly falling off the chip
+            if spat_min[iline] < 0:
+                tilts_tc[-spat_min[iline]:, iline] = tilts_now
+                tilts_tc_err[-spat_min[iline]:, iline] = err_now
+                tilts[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_tc[-spat_min[iline]:, iline]
+                tilts_err[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_tc_err[-spat_min[iline]:, iline]
+            elif spat_max[iline] > (nspat-1):
+                tilts_tc[:-(spat_max[iline]-nspat +1),iline] = tilts_now
+                tilts_tc_err[:-(spat_max[iline]-nspat +1),iline] = err_now
+                tilts[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_tc[:-(spat_max[iline]-nspat +1),iline]
+                tilts_err[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_tc_err[:-(spat_max[iline]-nspat +1),iline]
+            else:
+                tilts_tc[:, iline], tilts_tc_err[:, iline] = tilts_now, err_now
+                tilts[np.fmax(spat_min[iline], 0):np.fmin(spat_max[iline], nspat - 1), iline] = tilts_tc[:,iline]
+                tilts_err[np.fmax(spat_min[iline], 0):np.fmin(spat_max[iline], nspat - 1), iline] = tilts_tc_err[:,iline]
+
+
+
+
 
         # iteratively fit and flux weight
         xcen_fit, xcen_fweight = extract.iter_tracefit(msarc_trans, xcen_tcrude, ncoeff, inmask=inmask, fwhm=5.0,
@@ -386,10 +419,10 @@ class WaveTilts(masterframe.MasterFrame):
         good_lines = (dev_median.data < err_max) & (np.abs(delta_fit[ispat, iline]) < err_max)
         # ToDO put in a check here on good_lines. If the number is too small, do something less agressive for choosing these
 
-        viewer, ch = ginga.show_image((msarc * thismask).T)
-        for iline in np.where(good_lines)[0]:
+        viewer, ch = ginga.show_image(arcimg_trans)
+        for iline in range(nlines):
             # ToDO modify ginga to take segments!!
-            ginga.show_trace(viewer, ch, xcen_new[:, iline], color='green')
+            ginga.show_trace(viewer, ch, tilts[:, iline], color='green')
 
         # Compute the ensemble of tilts
         # TODO I got confused about how to get the crutch becuase I cannot average the traces because they probe different parts
