@@ -1001,8 +1001,11 @@ class Echelle(PypeIt):
 
         # Reduce the standards first associated with the sci_IDs
         for kk, sci_ID in enumerate(all_sci_ID):
+            try:
+                stddx = self.fitstbl.find_frames('standard', sci_ID=sci_ID, index=True)[0]
+            except IndexError:
+                continue
             std_dict = self.reduce_exposure(sci_ID, 'standard', reuse_masters=reuse_masters)
-            stddx = self.fitstbl.find_frames('standard', sci_ID=sci_ID, index=True)[0]
             self.save_exposure(stddx, std_dict, self.basename)
 
         # Save
