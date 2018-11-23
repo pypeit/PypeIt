@@ -45,7 +45,7 @@ class WaveImage(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'wave'
 
-    def __init__(self, slitpix, tilts, wv_calib, setup=None, master_dir=None, mode=None,
+    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, setup=None, master_dir=None, mode=None,
                  maskslits=None):
 
         # MasterFrame
@@ -53,9 +53,11 @@ class WaveImage(masterframe.MasterFrame):
                                          master_dir=master_dir, mode=mode)
 
         # Required parameters (but can be None)
-        self.slitpix = slitpix
+        self.tslits_dict = tslits_dict
         self.tilts = tilts
         self.wv_calib = wv_calib
+        self.spectrograh = spectrograph
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
         self.par = wv_calib['par']
 
         # Optional parameters
@@ -81,7 +83,7 @@ class WaveImage(masterframe.MasterFrame):
         # Loop on slits
         ok_slits = np.where(~self.maskslits)[0]
         self.wave = np.zeros_like(self.tilts)
-        nspec =self.slitpix.shape[0]
+        nspec =self.slitmask.shape[0]
         piximg = self.tilts*(nspec-1)
 
         # Error checking on the wv_calib
@@ -96,9 +98,9 @@ class WaveImage(masterframe.MasterFrame):
 
         # Unpack some 2-d fit parameters if this is echelle
         for slit in ok_slits:
-            thismask = (self.slitpix == slit)
+            thismask = (self.slitmask == slit)
             if self.par['echelle']:
-                order = spectrograph.slit2order(slit)
+                order = self.spectrograph.slit2order(slit)
                 tmpwv = arc.eval2dfit(self.wv_calib['fit2d'],piximg[thismask],order)/order
             else:
                 iwv_calib = self.wv_calib[str(slit)]

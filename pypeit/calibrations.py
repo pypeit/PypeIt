@@ -516,8 +516,7 @@ class Calibrations(object):
 
         # Instantiate
         # ToDO we are regenerating this mask a lot in this module. Could reduce that
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
-        self.waveImage = waveimage.WaveImage(self.slitmask,self.tilts_dict['tilts'], self.wv_calib,
+        self.waveImage = waveimage.WaveImage(self.tslits_dict, self.tilts_dict['tilts'], self.wv_calib,self.spectrograph,
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], maskslits=self.maskslits)
         # Attempt to load master
