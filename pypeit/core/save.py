@@ -448,10 +448,19 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         coldefs = fits.ColDefs(cols)
         tbhdu = fits.BinTableHDU.from_columns(coldefs)
         tbhdu.name = sobj.idx
+        # If this is echelle write the obj_id and the orderindx to the header as well
+        if sobj.ech_obj_id is not None:
+            tbhdu.header['OBJ_ID'] = sobj.ech_obj_id
+        if sobj.ech_orderindx is not None:
+            tbhdu.header['ORDER'] = sobj.ech_orderindx
         hdus += [tbhdu]
+
     # A few more for the header
     prihdu.header['NSPEC'] = len(hdus) - 1
     prihdu.header['NPIX'] = npix
+    # If this is echelle write the obj_id and the orderindx to the header as well
+
+
     # Finish
     hdulist = fits.HDUList(hdus)
     #if outfile is None:
@@ -483,8 +492,12 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
     -------
 
     """
-    # Lists for a Table
-    slits, names, spat_pixpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], []
+
+
+#    if spectrograph.pypeline =='MultiSlit':
+#    elif spectrograph.pypeline == 'Echelle':
+    slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
+
     # Loop on detectors
     #for kk in range(settings.spect['mosaic']['ndet']):
     #    det = kk+1
@@ -501,7 +514,10 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
         names.append(specobj.idx)
         slits.append(specobj.slitid)
         spat_pixpos.append(specobj.spat_pixpos)
-
+        if spectrograph.pypeline == 'MultiSlit':
+            spat_fracpos.append(specobj.spat_fracpos)
+        elif spectrograph.pypeline == 'Echelle':
+            spat_fracpos.append(specobj.ech_fracpos)
         # Boxcar width
         if 'BOX_RADIUS' in specobj.boxcar.keys():
             slit_pix = 2.0*specobj.boxcar['BOX_RADIUS']
@@ -525,11 +541,17 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
     # Generate the table, if we have at least one source
     if len(names) > 0:
         obj_tbl = Table()
-        obj_tbl['slit'] = slits
-        obj_tbl['slit'].format = 'd'
+        if spectrograph.pypeline == 'MultiSlit':
+            obj_tbl['slit'] = slits
+            obj_tbl['slit'].format = 'd'
+        elif spectrograph.pypeline == 'Echelle':
+            obj_tbl['order'] = slits
+            obj_tbl['order'].format = 'd'
         obj_tbl['name'] = names
         obj_tbl['spat_pixpos'] = spat_pixpos
         obj_tbl['spat_pixpos'].format = '.1f'
+        obj_tbl['spat_fracpos'] = spat_fracpos
+        obj_tbl['spat_fracpos'].format = '.3f'
         obj_tbl['box_width'] = boxsize
         obj_tbl['box_width'].format = '.2f'
         obj_tbl['box_width'].unit = units.arcsec

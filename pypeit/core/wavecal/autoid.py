@@ -72,7 +72,7 @@ def basic(spec, lines, wv_cen, disp, sigdetect=20.,nonlinear_counts = 1e10,
     wvdata = wvdata[isrt]
 
     # Find peaks
-    all_tcent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect, nonlinear_counts = nonlinear_counts)
+    all_tcent, cut_tcent, icut, _, _= wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect, nonlinear_counts = nonlinear_counts)
 
     # Matching
     match_idx, scores = patterns.run_quad_match(cut_tcent, wave, wvdata,
@@ -156,7 +156,7 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
     npix = spec.size
 
     # Lines
-    all_tcent, cut_tcent, icut, _ = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect, nonlinear_counts = nonlinear_counts)
+    all_tcent, cut_tcent, icut, _, _ = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect, nonlinear_counts = nonlinear_counts)
 
     # Best
     best_dict = dict(nmatch=0, ibest=-1, bwv=0., sigdetect=sigdetect, unknown=False,
@@ -190,7 +190,7 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
                 nsig /= 2.
                 if nsig < lowest_nsig:
                     break
-                all_tcent, cut_tcent, icut, _ = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect, nonlinear_counts = nonlinear_counts)
+                all_tcent, cut_tcent, icut, _, _= wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect, nonlinear_counts = nonlinear_counts)
                 patterns.scan_for_matches(wv_cen, disp, npix, cut_tcent, wvdata,
                                           best_dict=best_dict, pix_tol=pix_tol)#, nsig=nsig)
 
@@ -289,7 +289,7 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
                 imsk[kk] = False
         ifit = ifit[imsk]
         # Allow for weaker lines in the fit
-        all_tcent, weak_cut_tcent, icut = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect, nonlinear_counts = nonlinear_counts)
+        all_tcent, weak_cut_tcent, icut, _, _ = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect, nonlinear_counts = nonlinear_counts)
         add_weak = []
         for weak in weak_cut_tcent:
             if np.min(np.abs(cut_tcent-weak)) > 5.:
@@ -311,7 +311,7 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
 
 
 def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nreid_min, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
-               match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,debug_xcorr=False, debug_reid=False):
+               match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
     Parameters
@@ -434,7 +434,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
 
     # If the detections were not passed in find the lines in each spectrum
     if detections is None:
-        tcent, ecent, cut_tcent, icut = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect,nonlinear_counts=nonlinear_counts)
+        tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect,nonlinear_counts=nonlinear_counts, fwhm = fwhm, debug = debug_peaks)
         detections = tcent[icut]
 
     # For convenience pull out all the spectra from the wv_calib_arxiv archive
@@ -464,7 +464,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
         this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
         success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
-            wvutils.xcorr_shift_stretch(spec, spec_arxiv[:, iarxiv], cc_thresh=cc_thresh, seed = random_state,
+            wvutils.xcorr_shift_stretch(spec_cont_sub, spec_arxiv[:, iarxiv], cc_thresh=cc_thresh, fwhm = fwhm, seed = random_state,
                                         debug=debug_xcorr)
         # If cc < cc_thresh or if this optimization failed, don't reidentify from this arxiv spectrum
         if success != 1:
@@ -479,8 +479,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
 
         if debug_xcorr:
             plt.figure(figsize=(14, 6))
-            tampl_slit = np.interp(detections, xrng, spec)
-            plt.plot(xrng, spec, color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
+            tampl_slit = np.interp(detections, xrng, spec_cont_sub)
+            plt.plot(xrng, spec_cont_sub, color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
             plt.plot(detections, tampl_slit, 'r.', markersize=10.0, label='input arc lines', zorder=10)
             tampl_arxiv = np.interp(this_det_arxiv, xrng, spec_arxiv[:, iarxiv])
             plt.plot(xrng, spec_arxiv[:, iarxiv], color='black', drawstyle='steps-mid', linestyle=':',
@@ -499,7 +499,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
                 ', stretch = {:5.4f}'.format(stretch_vec[iarxiv]) +
                 ', wv_cen = {:7.1f}'.format(wcen[iarxiv]) +
                 ', disp = {:5.3f}'.format(disp[iarxiv]))
-            plt.ylim(1.2*spec.min(), 1.5 *spec.max())
+            plt.ylim(1.2*spec_cont_sub.min(), 1.5 *spec_cont_sub.max())
             plt.legend()
             plt.show()
 
@@ -512,8 +512,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
         # Compute a "local" zero lag correlation of the slit spectrum and the shifted and stretch arxiv spectrum over a
         # a nlocal_cc_odd long segment of spectrum. We will then uses spectral similarity as a further criteria to
         # decide which lines are good matches
-        prod_smooth = scipy.ndimage.filters.convolve1d(spec*spec_arxiv_ss, window)
-        spec2_smooth = scipy.ndimage.filters.convolve1d(spec**2, window)
+        prod_smooth = scipy.ndimage.filters.convolve1d(spec_cont_sub*spec_arxiv_ss, window)
+        spec2_smooth = scipy.ndimage.filters.convolve1d(spec_cont_sub**2, window)
         arxiv2_smooth = scipy.ndimage.filters.convolve1d(spec_arxiv_ss**2, window)
         denom = np.sqrt(spec2_smooth*arxiv2_smooth)
         corr_local = np.zeros_like(denom)
@@ -571,7 +571,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
         plt.legend()
         plt.show()
         # QA Plot ofthe reidentifications
-        qa.match_qa(spec, detections, line_list, patt_dict_slit['IDs'], patt_dict_slit['scores'])
+        qa.match_qa(spec_cont_sub, detections, line_list, patt_dict_slit['IDs'], patt_dict_slit['scores'])
 
     # Use only the perfect IDs
     iperfect = np.array(patt_dict_slit['scores']) != 'Perfect'
@@ -662,8 +662,9 @@ class ArchiveReid:
 
 
     def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True,
-                 debug_xcorr = False, debug_reid = False, debug_fits= False):
+                 debug_peaks = False, debug_xcorr = False, debug_reid = False, debug_fits= False):
 
+        self.debug_peaks = debug_peaks
         self.debug_xcorr = debug_xcorr
         self.debug_reid = debug_reid
         self.debug_fits = debug_fits
@@ -690,6 +691,7 @@ class ArchiveReid:
         # Parameters for arc line detction
         self.nonlinear_counts = self.par['nonlinear_counts']
         self.sigdetect = self.par['sigdetect']
+        self.fwhm = 11.0 #
         # Paramaters that govern reidentification
         self.reid_arxiv = self.par['reid_arxiv']
         self.nreid_min = self.par['nreid_min']
@@ -756,7 +758,6 @@ class ArchiveReid:
         self.all_patt_dict = {}
         self.detections = {}
         self.wv_calib = {}
-
         self.bad_slits = np.array([], dtype=np.int)
         # Reidentify each slit, and perform a fit
         for slit in range(self.nslits):
@@ -781,6 +782,8 @@ class ArchiveReid:
                                                                                    nlocal_cc=self.nlocal_cc,
                                                                                    nonlinear_counts=self.nonlinear_counts,
                                                                                    sigdetect=self.sigdetect,
+                                                                                   fwhm = self.fwhm,
+                                                                                   debug_peaks = self.debug_peaks,
                                                                                    debug_xcorr=self.debug_xcorr,
                                                                                    debug_reid = self.debug_reid)
             # Check if an acceptable reidentification solution was found
@@ -1066,9 +1069,9 @@ class HolyGrail:
                 continue
             # TODO Pass in all the possible params for detect_lines to arc_lines_from_spec, and update the parset
             # Detect lines, and decide which tcent to use
-            self._all_tcent, self._all_ecent, self._cut_tcent, self._icut =\
+            self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _  =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
-            self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
+            self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _  =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size < min_nlines:
                 msgs.warn("Not enough lines to identify in slit {0:d}!".format(slit))
@@ -1163,9 +1166,9 @@ class HolyGrail:
             if slit not in self._ok_mask:
                 continue
             # Detect lines, and decide which tcent to use
-            self._all_tcent, self._all_ecent, self._cut_tcent, self._icut =\
+            self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _ =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
-            self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak =\
+            self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _ =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit+ 1))

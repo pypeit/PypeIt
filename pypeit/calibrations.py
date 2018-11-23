@@ -228,7 +228,6 @@ class Calibrations(object):
 
         # How are we treating biases: 1) No bias, 2) overscan, or 3) use bias subtraction. If use bias is there a master?
         self.msbias = self.biasFrame.determine_bias_mode()
-
         if self.msbias is None:  # Build it and save it
             self.msbias = self.biasFrame.build_image()
             if self.save_masters:
@@ -460,7 +459,7 @@ class Calibrations(object):
 
             # Now we go forth
             try:
-                self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale)
+                self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale, show=self.show)
             except:
                 self.traceSlits.save_master()
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")

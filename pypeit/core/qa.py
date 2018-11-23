@@ -50,8 +50,8 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
         outfile = 'QA/PNGs/Arc_1dfit_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'plot_orderfits_Arc':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/Arc_lines_{:s}_S{:04d}_'.format(root, slit)
-    elif method == 'fit2darc':
-        outfile = 'QA/PNGs/2D_Arc_lines_{:s}'.format(root)
+    elif method == 'arc_fit2d_qa':
+        outfile = 'QA/PNGs/Arc_2dfit_{:s}'.format(root)
     elif method == 'plot_tiltres':
         outfile = 'QA/PNGs/Arc_tilts_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'pca_plot':  # This is root for multiple PNGs
@@ -223,11 +223,11 @@ def html_mf_pngs(setup, cbset, det):
                               href='arc_tilts', label='Arc Tilts', slit=True)
     html_dict['arc_pca'] = dict(fname='pca_arctilt', ext='*.png',
                               href='arc_pca', label='Arc Tilt PCA', slit=False)
-    html_dict['arc_2d'] = dict(fname='fit2darc', ext='*.png',
-                              href='arc_2d', label='2D Arc', slit=False)
+    html_dict['arc_fit2d'] = dict(fname='arc_fit2d_qa', ext='*.png',
+                              href='arc_fit2d', label='2D Arc', slit=False)
 
     # Generate HTML
-    for key in ['strace', 'sprof', 'blaze', 'arc_fit', 'arc_pca', 'arc_tilt', 'fit2darc']:
+    for key in ['strace', 'sprof', 'blaze', 'arc_fit', 'arc_pca', 'arc_fit2d', 'arc_tilt']:
         png_root = set_qa_filename(idval, html_dict[key]['fname'], slit=9999)
         if html_dict[key]['slit']:  # Kludge to handle multiple slits
             png_root = png_root.replace('S9999', 'S*')
