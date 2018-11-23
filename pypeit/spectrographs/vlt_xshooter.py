@@ -151,8 +151,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 1,
-                            dispflip        = False,
+                            specaxis        = 1,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -259,7 +259,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             except IOError :
                 msgs.warn('BP_MAP_RP_NIR.dat not present in the static database')
                 bpm_fits = fits.open(bpm_dir+'BP_MAP_RP_NIR.fits.gz')
-                # ToDo: this depends on datasec, biassec, dispflip, and dispaxis
+                # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format
                 y_shift = 14
@@ -398,8 +398,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -561,8 +561,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 0,
-                            dispflip        = True,
+                            specaxis        = 0,
+                            specflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,

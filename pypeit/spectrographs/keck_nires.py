@@ -28,8 +28,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
-                            dispaxis        = 1,
-                            dispflip        = True,
+                            specaxis        = 1,
+                            specflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
