@@ -2071,11 +2071,13 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         gfrac[this_obj_id] = np.median(fracpos[this_obj_id])
 
     uni_frac = gfrac[uni_ind]
+
+    from IPython import embed
+    embed()
     # Sort with respect to fractional slit location to guarantee that we have a similarly sorted list of objects later
     isort_frac = uni_frac.argsort()
     uni_obj_id = uni_obj_id[isort_frac]
     uni_frac = uni_frac[isort_frac]
-
     iord_vec = np.arange(norders)
 
     sobjs_align = sobjs.copy()
@@ -2198,7 +2200,6 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
     keep_obj = np.zeros(nobj,dtype=bool)
     sobjs_trim = specobjs.SpecObjs()
     uni_obj_id_trim = np.array([],dtype=int)
-    obj_id_trim = np.array([],dtype=int)
     uni_frac_trim =  np.array([],dtype=float)
     iobj_keep = 0
     for iobj in range(nobj):
