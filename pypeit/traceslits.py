@@ -708,7 +708,7 @@ class TraceSlits(masterframe.MasterFrame):
                 edges_dict = trace_slits.trace_refine(
                     self.siglev, slit_in, mask_in, npca = None, ncoeff=5,
                     pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca,fwhm=3.0,
-                    sigthresh=100.0, debug=debug)
+                    sigthresh=self.par['sigdetect'], debug=debug)
                 # Prep for round 2
                 slit_in = np.append(edges_dict['left']['trace'],
                                     edges_dict['right']['trace'], axis=1)
@@ -732,7 +732,7 @@ class TraceSlits(masterframe.MasterFrame):
                 trace_dict_l = trace_slits.trace_refine(
                     self.siglev, slit_in, mask_in, npca = None, ncoeff=5,
                     pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca,fwhm=3.0,
-                    sigthresh=100.0, debug=debug, maxrej=1)
+                    sigthresh=self.par['sigdetect'], debug=debug, maxrej=1)
                 slit_in = trace_dict_l['left']['trace']
                 mask_in = np.ones_like(slit_in,dtype=bool)
                 iter +=1
@@ -751,7 +751,7 @@ class TraceSlits(masterframe.MasterFrame):
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
                 trace_dict_r = trace_slits.trace_refine(
                     self.siglev, slit_in, mask_in, npca = None, ncoeff=5,pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca,fwhm=3.0,
-                    sigthresh=100.0, debug=debug, maxrej=1)
+                    sigthresh=self.par['sigdetect'], debug=debug, maxrej=1)
                 slit_in = trace_dict_r['right']['trace']
                 mask_in = np.ones_like(slit_in,dtype=bool)
                 iter +=1
