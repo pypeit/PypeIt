@@ -23,7 +23,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         super(ShaneKastSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast'
         self.telescope = telescopes.ShaneTelescopePar()
-        self.timeunit = 's'
+        self.timeunit = 'isot'
 
     @staticmethod
     def default_pypeit_par():

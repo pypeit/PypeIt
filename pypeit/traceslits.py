@@ -22,6 +22,7 @@ from pypeit.core import extract
 from pypeit import utils
 from pypeit import masterframe
 from pypeit import ginga
+from pypeit.spectrographs import util
 
 from pypeit.par import pypeitpar
 from pypeit.par.util import parset_to_dict
@@ -208,7 +209,8 @@ class TraceSlits(masterframe.MasterFrame):
             binbpx = None
 
         # Instantiate from file
-        slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], None, binbpx=binbpx, par=par)
+        spectrograph = util.load_spectrograph(ts_dict['spectrograph'])
+        slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], spectrograph, binbpx=binbpx, par=par)
 
         # Fill in a bit more (Attributes)
         slf.steps = ts_dict['steps']
@@ -932,14 +934,8 @@ class TraceSlits(masterframe.MasterFrame):
         self.rmax: int (intenal)
 
         """
-        if orig:
-            ww = np.where(self.edgearr < 0)
-            self.lmin, self.lmax = -np.max(self.edgearr[ww]), -np.min(self.edgearr[ww])  # min/max are switched because of the negative signs
-            ww = np.where(self.edgearr > 0)
-            self.rmin, self.rmax = np.min(self.edgearr[ww]), np.max(self.edgearr[ww])  # min/max are switched because of the negative signs
-        else:
-            self.lmin, self.lmax = 0, self.lcen.shape[1]
-            self.rmin, self.rmax = 0, self.rcen.shape[1]
+        self.lmin, self.lmax = 0, self.lcen.shape[1]
+        self.rmin, self.rmax = 0, self.rcen.shape[1]
 
     def _synchronize(self):
         """
@@ -1161,6 +1157,7 @@ class TraceSlits(masterframe.MasterFrame):
         if self.tc_dict is not None:
             out_dict['tc_dict'] = self.tc_dict
         out_dict['steps'] = self.steps
+        out_dict['spectrograph'] = self.spectrograph.spectrograph
         # Clean+Write
         outfile = root+'.json'
         clean_dict = ltu.jsonify(out_dict)
@@ -1217,7 +1214,8 @@ class TraceSlits(masterframe.MasterFrame):
         # Return
         return loaded
 
-    def run(self, arms=True, ignore_orders=False, add_user_slits=None, plate_scale = None, show=False):
+    def run(self, arms=True, add_user_slits=None,
+            plate_scale = None, show=False):
         """ Main driver for tracing slits.
 
           Code flow
@@ -1277,24 +1275,6 @@ class TraceSlits(masterframe.MasterFrame):
         if not any_slits:
             return None
 
-        '''
-        # If slits are set as "close" by the user, take the absolute value
-        # of the detections and ignore the left/right edge detections
-        #  Use of maxgap is NOT RECOMMENDED
-        if self.par['maxgap'] is not None:
-            self._maxgap_prep()
-
-        # Assign edges
-        assign = False
-        if assign:
-            self._assign_edges()
-
-        # Handle close edges (as desired by the user)
-        #  JXP does not recommend using this method for multislit
-        if self.par['maxgap'] is not None:
-            self._maxgap_close()
-        '''
-
         # Final left/right edgearr fussing (as needed)
         if not self.user_set:
             self._final_left_right()
@@ -1302,43 +1282,27 @@ class TraceSlits(masterframe.MasterFrame):
         # Trace crude and sync traces
         self._mslit_tcrude()
 
-
         # Add user input slits
         if add_user_slits is not None:
             self.add_user_slits(add_user_slits)
 
-        # Recommended for Echelle only
-        #if ignore_orders:
-        #    self._ignore_orders()
-
-
+        '''
         # Fit edges
-        orig = False
         if orig:
             self._set_lrminx()
             self._fit_edges('left')
             self._fit_edges('right')
+        '''
 
-        # Are we done, e.g. longslit?
+        # Are we done, e.g. a simple longslit?
         #   Check if no further work is needed (i.e. there only exists one order)
         if self._chk_for_longslit():
             pass
         else:  # No, not done yet
-            if orig:
-                # Synchronize -- DEPRECATED
-                self._synchronize()
-
-                # PCA?
-                #  Whether or not a PCA is performed, lcen and rcen are generated for the first time
-                self._pca()
-
             # Refine
             self._pca_refine(show=show)
             # Synchronize and add in edges
             self._mslit_sync()
-
-            # Remove any slits that are completely off the detector
-            #   Also remove short slits here for multi-slit and long-slit (alignment stars)
 
         # Set lcen and rcen, lmin, lmax
         self.lcen = self.tc_dict['left']['traces']
@@ -1346,8 +1310,10 @@ class TraceSlits(masterframe.MasterFrame):
         self._set_lrminx()
         self.extrapord = np.zeros(self.lcen.shape[1], dtype=np.bool)
 
-        # Trim
-        self._trim_slits(trim_short_slits=arms, plate_scale = plate_scale)
+        # Remove any slits that are completely off the detector
+        #   Also remove short slits here for multi-slit and long-slit (alignment stars)
+        if self.nslit > 1:
+            self._trim_slits(trim_short_slits=arms, plate_scale = plate_scale)
 
         # Generate pixel arrays
         self._make_pixel_arrays()
@@ -1383,7 +1349,6 @@ class TraceSlits(masterframe.MasterFrame):
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
-
 
 
 def load_traceslit_files(root):

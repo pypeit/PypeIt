@@ -20,6 +20,23 @@ def chk_for_files(root):
     files = glob.glob(root+'*')
     return len(files) != 0
 
+@dev_suite_required
+def test_chk_kast_slits():
+    # Confirm we get simple long slit for Kast
+
+    # Red
+    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
+                                                                   'MasterTrace_ShaneKastred_600_7500_d55')
+    assert chk_for_files(mstrace_root)
+    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
+    norig = traceSlits.nslit
+    # Run me
+    traceSlits.run()
+    # Test
+    assert traceSlits.nslit == norig
+
+    # Blue
+
 
 @dev_suite_required
 def test_load_from_master_and_run():
@@ -64,5 +81,6 @@ def test_remove_slit():
     # Remove
     traceSlits.remove_slit(rm_slits)
     assert traceSlits.nslit == (norig-1)
+
 
 
