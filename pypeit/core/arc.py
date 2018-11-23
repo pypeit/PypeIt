@@ -169,13 +169,15 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
                     order_cen=norm_order[0], order_norm=norm_order[1],
                     nspec=nspec, all_pix=all_pix, all_wv=all_wv,
                     all_orders=all_orders, all_mask=thismask)
+
     if debug:
-        fit2darc_qa(fit_dict)
+        fit2darc_global_qa(fit_dict)
+        fit2darc_orders_qa(fit_dict)
 
     return fit_dict
 
 
-def fit2darc_qa(fit_dict, outfile=None):
+def fit2darc_global_qa(fit_dict, outfile=None):
     """ QA on 2D fit of the wavelength solution.
     
     Parameters
@@ -204,10 +206,10 @@ def fit2darc_qa(fit_dict, outfile=None):
     all_pix = fit_dict['all_pix']
     all_orders = fit_dict['all_orders']
     thismask = fit_dict['all_mask']
-    resid_wl_qa = []
+    resid_wl_global = []
 
     # Define pixels array
-    all_pixels_qa = np.arange(nspec)
+    all_pixels = np.arange(nspec)
 
     # Define figure properties
     plt.figure(figsize=(8,5))
@@ -225,34 +227,34 @@ def fit2darc_qa(fit_dict, outfile=None):
         bb = (ii-np.min(orders))/(np.max(orders)-np.min(orders))
 
         # evaluate solution
-        wv_order_mod_qa = eval2dfit(fit_dict, all_pixels_qa, ii)
+        wv_order_mod = eval2dfit(fit_dict, all_pixels, ii)
 
         # Plot solution
-        plt.plot(wv_order_mod_qa/ii, all_pixels_qa,color=(rr,gg,bb),
+        plt.plot(wv_order_mod/ii, all_pixels,color=(rr,gg,bb),
                  linestyle='-', linewidth=2.5)
 
         # Evaluate residuals at each order
         this_pix = all_pix[all_orders == ii]
         this_wv = all_wv[all_orders == ii]
         this_msk = thismask[all_orders == ii]
-        wv_order_mod_resid_qa = eval2dfit(fit_dict, this_pix, ii)
-        resid_qa = (wv_order_mod_resid_qa/ii-this_wv)
-        resid_wl_qa = np.append(resid_wl_qa,resid_qa[this_msk])
-        plt.scatter((wv_order_mod_resid_qa[~this_msk]/ii)+ \
-                    100.*resid_qa[~this_msk], this_pix[~this_msk], \
+        wv_order_mod_resid = eval2dfit(fit_dict, this_pix, ii)
+        resid_wl = (wv_order_mod_resid/ii-this_wv)
+        resid_wl_global = np.append(resid_wl_global,resid_wl[this_msk])
+        plt.scatter((wv_order_mod_resid[~this_msk]/ii)+ \
+                    100.*resid_wl[~this_msk], this_pix[~this_msk], \
                     marker='x', color='black', linewidths=2.5, s=16.)
-        plt.scatter((wv_order_mod_resid_qa[this_msk]/ii)+ \
-                    100.*resid_qa[this_msk], this_pix[this_msk], \
+        plt.scatter((wv_order_mod_resid[this_msk]/ii)+ \
+                    100.*resid_wl[this_msk], this_pix[this_msk], \
                     color=(rr,gg,bb), linewidth=2.5, s=16.)
-        if np.max(wv_order_mod_resid_qa/ii) > mx :
-            mx = np.max(wv_order_mod_resid_qa/ii)
+        if np.max(wv_order_mod_resid/ii) > mx :
+            mx = np.max(wv_order_mod_resid/ii)
 
-    rms_qa = np.sqrt(np.mean((resid_wl_qa)**2))
+    rms_global = np.sqrt(np.mean((resid_wl_global)**2))
 
-    plt.text(mx,np.max(all_pixels_qa),r'residuals $\times$100', \
+    plt.text(mx,np.max(all_pixels),r'residuals $\times$100', \
              ha="right", va="top")
     plt.title(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#'.format(
-              norder_coeff, nspec_coeff, rms_qa))
+              norder_coeff, nspec_coeff, rms_global))
     plt.xlabel(r'Wavelength [$\AA$]')
     plt.ylabel(r'Row [pixel]')
 
@@ -263,13 +265,49 @@ def fit2darc_qa(fit_dict, outfile=None):
     else:
         plt.show()
 
+    # restore default rcparams
+    utils.pyplot_rcparams_default()
 
-    # Individual plots
+
+def fit2darc_orders_qa(fit_dict, outfile=None):
+    """ QA on 2D fit of the wavelength solution of an Echelle spectrograph.
+    Each panel contains a single order with the global fit and the
+    residuals.
+    
+    Parameters
+    ----------
+    fit_dict: dict
+      dict of the 2D arc solution
+    outfile:
+      parameter for QA
+
+    Returns
+    -------
+    """
+
+    msgs.info("Creating QA for 2D wavelength solution")
+
+    utils.pyplot_rcparams()
+
+    # Extract info from fit_dict
+    nspec = fit_dict['nspec']
+    orders = fit_dict['orders']
+    pixel_norm = fit_dict['pixel_norm']
+    pixel_cen = fit_dict['pixel_cen']
+    nspec_coeff = fit_dict['nspec_coeff']
+    norder_coeff = fit_dict['norder_coeff']
+    all_wv = fit_dict['all_wv']
+    all_pix = fit_dict['all_pix']
+    all_orders = fit_dict['all_orders']
+    thismask = fit_dict['all_mask']
+    resid_wl_global = []
+
+    # Define pixels array
+    all_pixels = np.arange(nspec)
 
     # set the size of the plot
     nrow = np.int(2)
     ncol = np.int(np.ceil(len(orders)/2.))
-
     fig = plt.figure(figsize=(5*ncol,6*nrow))
 
     outer = gridspec.GridSpec(nrow, ncol, wspace=0.3, hspace=0.2)
@@ -293,45 +331,45 @@ def fit2darc_qa(fit_dict, outfile=None):
                 bb = (ii-np.min(orders))/(np.max(orders)-np.min(orders))
 
                 # Evaluate function
-                wv_order_mod_qa = eval2dfit(fit_dict, all_pixels_qa, ii)
+                wv_order_mod = eval2dfit(fit_dict, all_pixels, ii)
                 # Evaluate delta lambda
-                dwl=(wv_order_mod_qa[-1]-wv_order_mod_qa[0])/ii/(all_pixels_qa[-1]-all_pixels_qa[0])
+                dwl=(wv_order_mod[-1]-wv_order_mod[0])/ii/(all_pixels[-1]-all_pixels[0])
 
                 # Estimate the residuals
                 this_pix = all_pix[all_orders == ii]
                 this_wv = all_wv[all_orders == ii]
                 this_msk = thismask[all_orders == ii]
 
-                wv_order_mod_resid_qa = eval2dfit(fit_dict, this_pix, ii)
-                resid_wl_qa = (wv_order_mod_resid_qa/ii-this_wv)
+                wv_order_mod_resid = eval2dfit(fit_dict, this_pix, ii)
+                resid_wl = (wv_order_mod_resid/ii-this_wv)
+                resid_wl_global = np.append(resid_wl_global,resid_wl[this_msk])
 
                 # Plot the fit
                 ax0.set_title('Order = {0:0.0f}'.format(ii))
-                ax0.plot(all_pixels_qa, wv_order_mod_qa/ii/10000.,color=(rr,gg,bb), linestyle='-',
+                ax0.plot(all_pixels, wv_order_mod/ii/10000.,color=(rr,gg,bb), linestyle='-',
                          linewidth=2.5)
-                ax0.scatter(this_pix[~this_msk], (wv_order_mod_resid_qa[~this_msk]/ii/10000.)+ \
-                            100.*resid_wl_qa[~this_msk]/10000., marker='x', color='black', \
+                ax0.scatter(this_pix[~this_msk], (wv_order_mod_resid[~this_msk]/ii/10000.)+ \
+                            100.*resid_wl[~this_msk]/10000., marker='x', color='black', \
                             linewidth=2.5, s=16.)
-                ax0.scatter(this_pix[this_msk], (wv_order_mod_resid_qa[this_msk]/ii/10000.)+ \
-                            100.*resid_wl_qa[this_msk]/10000., color=(rr,gg,bb), \
+                ax0.scatter(this_pix[this_msk], (wv_order_mod_resid[this_msk]/ii/10000.)+ \
+                            100.*resid_wl[this_msk]/10000., color=(rr,gg,bb), \
                             linewidth=2.5, s=16.)
 
                 ax0.set_ylabel(r'Wavelength [$\mu$m]')
 
-
                 # Plot the residuals
-                ax1.scatter(this_pix[~this_msk],(resid_wl_qa[~this_msk]/dwl),marker='x', color='black', \
+                ax1.scatter(this_pix[~this_msk],(resid_wl[~this_msk]/dwl),marker='x', color='black', \
                             linewidth=2.5, s=16.)
-                ax1.scatter(this_pix[this_msk], (resid_wl_qa[this_msk]/dwl), color=(rr,gg,bb), \
+                ax1.scatter(this_pix[this_msk], (resid_wl[this_msk]/dwl), color=(rr,gg,bb), \
                             linewidth=2.5, s=16.)
                 ax1.axhline(y=0., color=(rr,gg,bb), linestyle=':', linewidth=2.5)
                 ax1.get_yaxis().set_label_coords(-0.15,0.5)
 
-                rms_qa = np.sqrt(np.mean((resid_wl_qa[this_msk])**2))
+                rms_order = np.sqrt(np.mean((resid_wl[this_msk])**2))
 
                 ax1.set_ylabel(r'Res. [pix]')
 
-                ax0.text(0.1,0.9,r'RMS={0:.3f} Pixel'.format(rms_qa/np.abs(dwl)),ha="left", va="top",
+                ax0.text(0.1,0.9,r'RMS={0:.3f} Pixel'.format(rms_order/np.abs(dwl)),ha="left", va="top",
                          transform = ax0.transAxes)
                 ax0.text(0.1,0.8,r'$\Delta\lambda$={0:.3f} Pixel/$\AA$'.format(np.abs(dwl)),ha="left", va="top",
                          transform = ax0.transAxes)
@@ -340,13 +378,18 @@ def fit2darc_qa(fit_dict, outfile=None):
                 fig.add_subplot(ax0)
                 fig.add_subplot(ax1)
 
-    fig.text(0.5, 0.04, r'Row [pixel]', ha='center', size='large')
-    fig.suptitle(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#, residuals $\times$100'.format(norder_coeff, nspec_coeff,rms_qa))
+    rms_global = np.sqrt(np.mean((resid_wl_global)**2))
 
-    # # Finish
-    # plt.savefig(outfile_order, dpi=800)
-    # plt.close()
-    plt.show()
+    fig.text(0.5, 0.04, r'Row [pixel]', ha='center', size='large')
+    fig.suptitle(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#, residuals $\times$100'.format(norder_coeff,
+                 nspec_coeff,rms_global))
+
+    # Finish
+    if outfile is not None:
+        plt.savefig(outfile, dpi=800)
+        plt.close()
+    else:
+        plt.show()
 
 
 def eval2dfit(fit_dict, pixels, order):

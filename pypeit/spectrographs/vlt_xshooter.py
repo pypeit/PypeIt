@@ -151,8 +151,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 1,
-                            dispflip        = False,
+                            specaxis        = 1,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -259,7 +259,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             except IOError :
                 msgs.warn('BP_MAP_RP_NIR.dat not present in the static database')
                 bpm_fits = fits.open(bpm_dir+'BP_MAP_RP_NIR.fits.gz')
-                # ToDo: this depends on datasec, biassec, dispflip, and dispaxis
+                # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format
                 y_shift = 14
@@ -293,13 +293,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         order: int
         """
 
-        if isinstance(islit,str):
+        if isinstance(islit, str):
             islit = int(islit)
-        elif isinstance(islit,np.ndarray):
+        elif isinstance(islit, np.ndarray):
             islit = islit.astype(int)
-        elif isinstance(islit,float):
+        elif isinstance(islit, float):
             islit = int(islit)
-        elif isinstance(islit, int):
+        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
             pass
         else:
             msgs.error('Unrecognized type for islit')
@@ -398,8 +398,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -454,7 +454,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1_iraf.json'
+        # ToDo the arxived solution is for 1x1 binning. It needs to be generalized for different binning!
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.json'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
@@ -481,13 +482,13 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         order: int
         """
 
-        if isinstance(islit,str):
+        if isinstance(islit, str):
             islit = int(islit)
-        elif isinstance(islit,np.ndarray):
+        elif isinstance(islit, np.ndarray):
             islit = islit.astype(int)
-        elif isinstance(islit,float):
+        elif isinstance(islit, float):
             islit = int(islit)
-        elif isinstance(islit, int):
+        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
             pass
         else:
             msgs.error('Unrecognized type for islit')
@@ -560,8 +561,9 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 0,
-                            dispflip        = True,
+                            specaxis        = 0,
+                            specflip        = True,
+                            spatflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -578,6 +580,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             suffix          = '_UVB'
                             )]
         self.numhead = 1
+
 
     @staticmethod
     def default_pypeit_par():
@@ -598,6 +601,35 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
 
         return par
+
+
+    @staticmethod
+    def slit2order(islit):
+
+        """
+        Parameters
+        ----------
+        islit: int, float, or string, slit number
+
+        Returns
+        -------
+        order: int
+        """
+
+        if isinstance(islit, str):
+            islit = int(islit)
+        elif isinstance(islit, np.ndarray):
+            islit = islit.astype(int)
+        elif isinstance(islit, float):
+            islit = int(islit)
+        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
+            pass
+        else:
+            msgs.error('Unrecognized type for islit')
+
+        orders = np.arange(24,12,-1, dtype=int)
+        return orders[islit]
+
 
     def check_headers(self, headers):
         """

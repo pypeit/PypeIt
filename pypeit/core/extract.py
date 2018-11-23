@@ -1,4 +1,4 @@
-""" Module for PYPIT extraction code
+""" Module for PypeIt extraction code
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
@@ -2072,6 +2072,11 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         gfrac[this_obj_id] = np.median(fracpos[this_obj_id])
 
     uni_frac = gfrac[uni_ind]
+
+    # Sort with respect to fractional slit location to guarantee that we have a similarly sorted list of objects later
+    isort_frac = uni_frac.argsort()
+    uni_obj_id = uni_obj_id[isort_frac]
+    uni_frac = uni_frac[isort_frac]
     iord_vec = np.arange(norders)
 
     sobjs_align = sobjs.copy()
@@ -2084,6 +2089,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
                 spec.ech_fracpos = uni_frac[iobj]
                 spec.ech_obj_id = uni_obj_id[iobj]
                 spec.ech_frac_was_fit = False
+
 
 
     # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of the good orders where
@@ -2194,20 +2200,15 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
     # and orderindx
     keep_obj = np.zeros(nobj,dtype=bool)
     sobjs_trim = specobjs.SpecObjs()
-    uni_obj_id_trim = np.array([],dtype=int)
-    obj_id_trim = np.array([],dtype=int)
-    uni_frac_trim =  np.array([],dtype=float)
     iobj_keep = 0
     for iobj in range(nobj):
         if (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr):
             keep_obj[iobj] = True
             ikeep = sobjs_align.ech_obj_id == uni_obj_id[iobj]
-            sobjs_keep = sobjs_align[ikeep]
+            sobjs_keep = sobjs_align[ikeep].copy()
             for spec in sobjs_keep:
                 spec.ech_obj_id = iobj_keep
             sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ech_orderindx)])
-            uni_obj_id_trim = np.append(uni_obj_id_trim, uni_obj_id[iobj])
-            uni_frac_trim = np.append(uni_frac_trim, uni_frac[iobj])
             iobj_keep += 1
         else:
             msgs.info('Purging object #{:d}'.format(iobj) + ' which does not satisfy min_snr > {:5.2f}'.format(min_snr) +
@@ -2218,31 +2219,6 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         return specobjs.SpecObjs()
 
     SNR_arr_trim = SNR_arr[:,keep_obj]
-
-
-    # Some code to ensure that the objects are sorted in the sobjs_align by fractional position on the order and by order
-    # respectively
-#    sobjs_sort = specobjs.SpecObjs()
-#    for iobj in range(nobj_trim):
-#        this_obj_id = sobjs_trim.ech_obj_id == uni_obj_id_trim[iobj]
-#        this_sobj = sobjs_trim[this_obj_id].copy()
-#        # Now rename the obj_id for this object index since some members got purged
-#        for spec in this_sobj:
-#            spec.ech_obj_id = iobj
-#        sobjs_sort.add_sobj(this_sobj[np.argsort(this_sobj.ech_orderindx)])
-
-
-
-    # Do a final loop over objects and make the final decision about which orders will be interpolated/extrapolated by the PCA
-    #for iobj in range(nobj_trim):
-    #    SNR_now = SNR_arr_trim[:,iobj]
-    #    indx = (sobjs_trim.ech_obj_id == uni_obj_id_trim[iobj])
-    #    usepca = ((SNR_now < np.percentile(SNR_now, pca_percentile)) & (SNR_now < snr_pca)) | sobjs_trim[indx].ech_usepca
-    #    # ToDo fix specobjs to get rid of these crappy loops!
-    #    for iord, spec in enumerate(sobjs_trim[indx]):
-    #        spec.ech_usepca = usepca[iord]
-    #        if usepca[iord]:
-    #            msgs.info('Using PCA to predict trace for object #{:d}'.format(iobj) + ' on order #{:d}'.format(iord))
 
     sobjs_final = sobjs_trim.copy()
     # Loop over the objects one by one and adjust/predict the traces
@@ -2301,9 +2277,6 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         canvas = viewer.canvas(ch._chname)
         canvas_list = text_final + text_pca + text_fit + text_notfit
         canvas.add('constructedcanvas', canvas_list)
-
-    # ToDO create a skymask and objmask should probably make the stuff in the objfind code standalone objects
-
 
     return sobjs_final
 

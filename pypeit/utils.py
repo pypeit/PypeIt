@@ -1343,7 +1343,7 @@ def robust_regression(x, y, ordr, outfrac, maxiter=100, function='polynomial', m
     """
     Deprecated
     """
-    msgs.bug("PYPIT using deprecated function")
+    msgs.bug("PypeIt using deprecated function")
     msgs.error("Please contact the authors")
     xsize=x.size
     infrac = 1.0-outfrac

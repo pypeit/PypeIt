@@ -37,8 +37,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 1,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -56,8 +56,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 2
                 pypeitpar.DetectorPar(
                             dataext         = 2,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -75,8 +75,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 3
                 pypeitpar.DetectorPar(
                             dataext         = 3,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -94,8 +94,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 4
                 pypeitpar.DetectorPar(
                             dataext         = 4,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -113,8 +113,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 5
                 pypeitpar.DetectorPar(
                             dataext         = 5,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -132,8 +132,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 6
                 pypeitpar.DetectorPar(
                             dataext         = 6,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -151,8 +151,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 7
                 pypeitpar.DetectorPar(
                             dataext         = 7,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -169,8 +169,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 8
                 pypeitpar.DetectorPar(
                             dataext         = 8,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1., 
