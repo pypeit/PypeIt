@@ -108,7 +108,7 @@ class SpecObj(object):
         # Some things for echelle functionality
         self.ech_order = None
         self.ech_orderindx = None
-        self.ech_group = None
+        self.ech_obj_id = None
         self.ech_fracpos = None
         self.ech_frac_was_fit = None
         self.ech_usepca = False
