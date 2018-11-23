@@ -2446,12 +2446,12 @@ class DetectorPar(ParSet):
 
         defaults['specflip'] = False
         dtypes['specflip'] = bool
-        descr['specflip'] = 'If this is True then the dispersion dimension (specificed by the dispaxis) will be ' \
+        descr['specflip'] = 'If this is True then the dispersion dimension (specificed by the specaxis) will be ' \
                             'flipped so that wavelengths are always an increasing function of array index'
 
         defaults['spatflip'] = False
         dtypes['spatflip'] = bool
-        descr['spatflip'] = 'If this is True then the spatial dimension (specificed by the dispaxis) will be ' \
+        descr['spatflip'] = 'If this is True then the spatial dimension will be ' \
                             'flipped so that blue orders for echelle spectra will appear spatially on the ' \
                             'left and wavelength will increase to the right'
 
