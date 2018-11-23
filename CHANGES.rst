@@ -19,9 +19,9 @@
 - Now updating cosmic ray masking after each global sky subtraction
 - Major developments for echelle functionality, including object wavelengths, and reduction
   control flow.
+- Introduced wavemodel.py to simulate/extract/ID sky and ThAr spectral emission lines.
 
- 
-  
+
 0.9.0
 -----
 
