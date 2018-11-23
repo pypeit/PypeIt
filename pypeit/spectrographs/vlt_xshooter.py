@@ -454,7 +454,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1_iraf.json'
+        # ToDo the arxived solution is for 1x1 binning. It needs to be generalized for different binning!
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.json'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True

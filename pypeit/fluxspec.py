@@ -40,7 +40,7 @@ class FluxSpec(masterframe.MasterFrame):
       Filename of a spec1d file to be fluxed
     spectrograph : str
       Name of the spectrograph, e.g. shane_kast_blue
-      Used only to set settings for calls to the Class outside of PYPIT
+      Used only to set settings for calls to the Class outside of PyepIt
     sens_file : str
       Filename of a sensitivity function file to be input
     setup : str
