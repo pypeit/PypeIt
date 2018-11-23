@@ -563,6 +563,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             dataext         = 0,
                             specaxis        = 0,
                             specflip        = True,
+                            spatflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
