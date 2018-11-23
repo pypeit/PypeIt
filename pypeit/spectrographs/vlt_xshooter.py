@@ -293,13 +293,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         order: int
         """
 
-        if isinstance(islit,str):
+        if isinstance(islit, str):
             islit = int(islit)
-        elif isinstance(islit,np.ndarray):
+        elif isinstance(islit, np.ndarray):
             islit = islit.astype(int)
-        elif isinstance(islit,float):
+        elif isinstance(islit, float):
             islit = int(islit)
-        elif isinstance(islit, int):
+        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
             pass
         else:
             msgs.error('Unrecognized type for islit')
@@ -482,13 +482,13 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         order: int
         """
 
-        if isinstance(islit,str):
+        if isinstance(islit, str):
             islit = int(islit)
-        elif isinstance(islit,np.ndarray):
+        elif isinstance(islit, np.ndarray):
             islit = islit.astype(int)
-        elif isinstance(islit,float):
+        elif isinstance(islit, float):
             islit = int(islit)
-        elif isinstance(islit, int):
+        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
             pass
         else:
             msgs.error('Unrecognized type for islit')
@@ -580,6 +580,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             )]
         self.numhead = 1
 
+
     @staticmethod
     def default_pypeit_par():
         """
@@ -599,6 +600,35 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
 
         return par
+
+
+    @staticmethod
+    def slit2order(islit):
+
+        """
+        Parameters
+        ----------
+        islit: int, float, or string, slit number
+
+        Returns
+        -------
+        order: int
+        """
+
+        if isinstance(islit, str):
+            islit = int(islit)
+        elif isinstance(islit, np.ndarray):
+            islit = islit.astype(int)
+        elif isinstance(islit, float):
+            islit = int(islit)
+        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
+            pass
+        else:
+            msgs.error('Unrecognized type for islit')
+
+        orders = np.arange(24,12,-1, dtype=int)
+        return orders[islit]
+
 
     def check_headers(self, headers):
         """
