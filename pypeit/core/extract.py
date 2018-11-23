@@ -2270,17 +2270,20 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
 
     if show_trace:
         viewer, ch = ginga.show_image(image*(ordermask > -1))
-        for iobj in range(nobj_trim):
-            for iord in range(norders):
-                ## Showing the final traces from this routine
-                ginga.show_trace(viewer, ch, sobjs_final.trace_spat[iord].T, sobjs_final.idx, color='cyan')
-                ## Showing PCA predicted locations before recomputing flux/gaussian weighted centroiding
-                ginga.show_trace(viewer, ch, pca_fits[:,iord, iobj], str(uni_frac[iobj]), color='yellow')
 
         for spec in sobjs_trim:
             color = 'green' if spec.ech_frac_was_fit else 'magenta'
             ## Showing the final flux weighted centroiding from PCA predictions
             ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
+
+
+        for iobj in range(nobj_trim):
+            for iord in range(norders):
+                ## Showing PCA predicted locations before recomputing flux/gaussian weighted centroiding
+                ginga.show_trace(viewer, ch, pca_fits[:,iord, iobj], str(uni_frac[iobj]), color='yellow')
+                ## Showing the final traces from this routine
+                ginga.show_trace(viewer, ch, sobjs_final.trace_spat[iord].T, sobjs_final.idx, color='cyan')
+
 
         # Labels for the points
         text_final = [dict(type='text', args=(nspat / 2 -40, nspec / 2, 'final trace'),
