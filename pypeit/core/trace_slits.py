@@ -2796,7 +2796,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     pca_coeff_spat = np.zeros((nspat, npca_out))
     for idim in range(npca_out):
         pca_coeff_spat[:, idim] = utils.func_val(poly_fit_dict[str(idim)]['coeffs'], spat_vec, 'polynomial',
-                                                 minv=poly_fit_dict[str(idim)]['minv'],maxv=poly_fit_dict[str(idim)]['maxv'])
+                                                 minx=poly_fit_dict[str(idim)]['minv'],maxx=poly_fit_dict[str(idim)]['maxv'])
 
     trace_model = np.outer(pca_mean, np.ones(nspat)) + (np.dot(pca_coeff_spat, pca_vectors)).T + np.arange(nspat)
     trace_model_left = trace_model - 0.5 #fwhm/2.0

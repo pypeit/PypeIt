@@ -1891,7 +1891,7 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
         msk_new, poly_out = utils.robust_polyfit_djs(xfit, yfit, ncoeff, function='polynomial', maxiter=25,
                                                      lower=lower, upper=upper,
                                                      maxrej=maxrej,
-                                                     sticky=False, minv = minv, maxv = maxv)
+                                                     sticky=False, minx = minv, maxx = maxv)
         pca_coeffs_new[:,idim] = utils.func_val(poly_out, order_vec, 'polynomial')
         fit_dict[str(idim)] = {}
         fit_dict[str(idim)]['coeffs'] = poly_out
