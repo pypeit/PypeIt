@@ -357,9 +357,10 @@ class WaveTilts(masterframe.MasterFrame):
         slit_cen= (slit_left + slit_righ)/2.0
 
         lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
-        thismask = (pixels.slit_pixels(lordloc[:, slitnum], rordloc[:, slitnum], nspat) > -1)
-        xcen_tcrude = np.zeros((nspat, nlines))
-        xerr = np.zeros((nspat, nlines))
+        tilts_tcrude = np.zeros((nspat, nlines))
+        tilts_err = np.zeros((nspat, nlines))
+        tilts_err = np.zeros((nspat, nlines))
+        spat_offset = np.zeros(nlines)
         msarc_trans = (msarc * thismask).T
         inmask = (thismask.astype(float)).T
         ncoeff = 3
