@@ -459,7 +459,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # TODO FIX THIS TO USE BIASES!!
