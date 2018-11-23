@@ -911,7 +911,7 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
 #        pmin = pixt[p]-(fitp-1)//2
 #        pmax = pixt[p]-(fitp-1)//2 + fitp
         pmin = pixt[p]-fit_interval
-        pmax = pixt[p]-fit_interval + fitp + 1
+        pmax = pixt[p]-fit_interval + 1
         if pmin < 0:
             pmin = 0
         if pmax > sz_a:
