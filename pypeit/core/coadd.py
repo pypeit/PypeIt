@@ -825,6 +825,12 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             write_to_disk(spectra, outfile)
         return spectra
 
+    if 'echelle' in kwargs:
+        echelle = kwargs['echelle']
+    else:
+        echelle =  False
+
+
     # Final wavelength array
     new_wave = new_wave_grid(spectra.data['wave'], wave_method=wave_grid_method, **kwargs)
 
@@ -839,7 +845,10 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     sn2, weights = sn_weight(rspec, rmask)
 
     # Scale (modifies rspec in place)
-    scales, omethod = scale_spectra(rspec, rmask, sn2, scale_method=scale_method, **kwargs)
+    if echelle:
+        msgs.work('Need add a function to scale Echelle spectra')
+    else:
+        scales, omethod = scale_spectra(rspec, rmask, sn2, scale_method=scale_method, **kwargs)
 
     # Clean bad CR :: Should be run *after* scaling
     if do_cr:
