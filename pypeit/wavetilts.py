@@ -13,8 +13,7 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit import ginga
 from pypeit.core import arc
-#from pypeit.core import tracewave
-from pypeit.core import spec_tilts
+from pypeit.core import tracewave
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 
