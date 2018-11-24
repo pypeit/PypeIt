@@ -17,6 +17,7 @@ from pypeit import calibrations
 from pypeit import scienceimage
 from pypeit import specobjs
 from pypeit import fluxspec
+from pypeit import ginga
 from pypeit.core import paths
 from pypeit.core import qa
 from pypeit.core import pypsetup
@@ -1038,6 +1039,11 @@ class Echelle(PypeIt):
               dict containing the primary outputs of extraction
 
         """
+
+        # if show is set, clear the ginga channels at the start of each new sci_ID
+        if self.show:
+            ginga.clear_all()
+
         self.sci_ID = sci_ID
 
         # Insist on re-using MasterFrames where applicable
@@ -1120,6 +1126,7 @@ class Echelle(PypeIt):
             vel_corr
 
         """
+
 
         sciI = self.sciI
 

@@ -51,6 +51,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     return viewer
 
 
+
 def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten=0, cuts=None,
                clear=False, wcs_match=False):
     """
@@ -319,6 +320,14 @@ def clear_canvas(cname):
     ch = viewer.channel(cname)
     canvas = viewer.canvas(ch._chname)
     canvas.clear()
+
+def clear_all():
+    viewer = connect_to_ginga()
+    shell = viewer.shell()
+    chnames = shell.get_channel_names()
+    for ch in chnames:
+        shell.delete_channel(ch)
+
 
 
 def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0., all_green=False, pstep=10,
