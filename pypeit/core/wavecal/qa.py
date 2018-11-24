@@ -22,9 +22,6 @@ def arc_fit_qa(fit, outfile = None, ids_only=False, title=None):
     setup: str
       For outfile
     fit : dict
-      Wavelength fit for this slit
-    slit : int
-      For outfile
     arc_spec : ndarray
       Arc spectrum
     outfile : str, optional
