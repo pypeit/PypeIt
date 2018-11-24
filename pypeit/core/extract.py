@@ -1216,8 +1216,16 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5
     if inmask is None:
         inmask = np.ones_like(image,dtype=bool)
 
+    # Allow for single vectors as input as well:
+
     nspec = xinit_in.shape[0]
-    nobj = xinit_in.shape[1]
+    if xinit_in.ndim == 1:
+        nobj = 1
+        xinit = xinit_in.reshape(nspec,1)
+    else:
+        nobj = xinit_in.shape[1]
+        xinit = xinit_in
+
     spec_vec = np.arange(nspec)
 
     msgs.info('Fitting the object traces')
@@ -1232,7 +1240,7 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5
     else:
         title_text = 'Flux Weighted'
 
-    xfit1 = np.copy(xinit_in)
+    xfit1 = np.copy(xinit)
     for iiter in range(niter):
         if gweight:
             xpos1, xerr1 = trace_slits.trace_gweight(image*inmask,xfit1, invvar=inmask.astype(float),sigma=fwhm/2.3548)
@@ -1253,7 +1261,7 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5
             for iobj in range(nobj):
                 nomask = (tracemask1[:,iobj]==0)
                 plt.plot(spec_vec[nomask],xpos1[nomask,iobj],marker='o', c='k', markersize=3.0,linestyle='None',label=title_text + ' Centroid')
-                plt.plot(spec_vec,xinit_in[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
+                plt.plot(spec_vec,xinit[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
                 plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
                 if np.any(~nomask):
                     plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=5.0,linestyle='None',zorder= 20, label='masked points, set to init guess')
@@ -1268,7 +1276,7 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5
                 plt.show()
 
     # Returns the fit, the actual weighted traces, and the pos_set1 object
-    return xfit1, xpos1, pos_set1
+    return xfit1, xpos1, xerr1, pos_set1
 
 
 specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 'science'}
@@ -1619,9 +1627,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
     # Note the transpose is here to pass in the trace_spat correctly.
     xinit_fweight = np.copy(sobjs.trace_spat.T)
-    xfit_fweight, _, _ = iter_tracefit(image, xinit_fweight,ncoeff,inmask = inmask, fwhm=fwhm,idx = sobjs.idx, show_fits=show_fits)
+    xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight,ncoeff,inmask = inmask, fwhm=fwhm,idx = sobjs.idx, show_fits=show_fits)
     xinit_gweight = np.copy(xfit_fweight)
-    xfit_gweight, _ , _= iter_tracefit(image, xinit_gweight,ncoeff,inmask = inmask, fwhm=fwhm,gweight = True, idx = sobjs.idx, show_fits=show_fits)
+    xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight,ncoeff,inmask = inmask, fwhm=fwhm,gweight = True, idx = sobjs.idx, show_fits=show_fits)
 
     # assign the final trace
     for iobj in range(nobj_reg):
@@ -2237,10 +2245,10 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
         inmask_now = inmask & (ordermask > -1)
-        xfit_fweight, _, _ = iter_tracefit(image, xinit_fweight, ncoeff, inmask = inmask_now, show_fits=show_fits)
+        xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight, ncoeff, inmask = inmask_now, show_fits=show_fits)
         # Perform iterative Gaussian weighted centroiding
         xinit_gweight = xfit_fweight.copy()
-        xfit_gweight, _ , _= iter_tracefit(image, xinit_gweight, ncoeff, inmask = inmask_now, gweight=True,show_fits=show_fits)
+        xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight, ncoeff, inmask = inmask_now, gweight=True,show_fits=show_fits)
         # Assign the new traces
         for iord, spec in enumerate(sobjs_final[indx_obj_id]):
             spec.trace_spat = xfit_gweight[:,iord]

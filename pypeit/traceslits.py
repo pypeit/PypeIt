@@ -403,10 +403,10 @@ class TraceSlits(masterframe.MasterFrame):
                 # fweight the trace crude
                 for key,sign in zip(['left','right'], [1., -1.]):
                     trace_crutch = self.tc_dict[key]['xset']
-                    trace_fweight, _, _ = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0),
+                    trace_fweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0),
                                                           trace_crutch, self.par['polyorder'],
                                                           fwhm=3.0*fwhm, niter=9)
-                    trace_gweight, _, _ = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0),
+                    trace_gweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0),
                                                           trace_fweight, self.par['polyorder'],
                                                           fwhm=fwhm,gweight=True, niter=6)
                     self.tc_dict[key]['traces'] = trace_gweight

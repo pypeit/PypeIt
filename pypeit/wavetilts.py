@@ -301,8 +301,14 @@ class WaveTilts(masterframe.MasterFrame):
         cont_samp = 30
         niter_cont = 3
         debug_lines = True
+        # Trace crude default parameters from long_wavepix.pro
+        radius = fwhm
+        nave = 5
+        maxerr = 0.2
+        maxshift = 0.1
+        maxshift0 = 0.5
         # def trace_tilts(arcimg, arc_spec, thismask, slit_left, slit_righ, only_these_lines = None, tracethresh = 10.0, only_these_lines = None, n_neigh = 15, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_frac_fwhm = 1.0, max_frac_fwhm = 2.0, cont_samp = 30,
-        #    niter_cont = 3, nonlinear_counts = 1e10, verbose = False, debug=False, debug_lines = False)
+        #    niter_cont = 3, nonlinear_counts = 1e10, verbose = False, debug=False, debug_lines = False,nave=5,maxerr=0.2,maxshift=0.1,maxshift0=0.5)
 
         nspec, nspat = arcimg.shape
         spec_vec = np.arange(nspec)
@@ -351,62 +357,110 @@ class WaveTilts(masterframe.MasterFrame):
         else:
             msgs.info('Modelling arc line tilts with {:d} arc lines'.format(nlines))
 
+        def trace_tilts_guess(arcimg, lines_spec, lines_spat, thismask, slit_left, slit_righ, tilts_guess = None, fwhm = 4.0, ncoeff = 3, max_tilt_dev = 0.1,
+                              maxerr=1.0,maxshift=3.0,maxshift0=3.0, show_fits=False, show_tilts = False):
 
-        slit_cen= (slit_left + slit_righ)/2.0
-        slit_widp2  = int(np.ceil((slit_righ - slit_left).max()) + 2)
-        trace_int_even = slit_widp2 if slit_widp2 % 2 == 0 else slit_widp2 + 1
-        trace_int = trace_int_even//2
-        nsub = 2*trace_int + 1
+            do_crude = True if tilts_guess is None else False
 
-        lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
-        lines_spat_int =np.round(lines_spat).astype(int)
+            nlines = len(lines_spec)
+            slit_cen= (slit_left + slit_righ)/2.0
+            slit_widp2  = int(np.ceil((slit_righ - slit_left).max()) + 2)
+            trace_int_even = slit_widp2 if slit_widp2 % 2 == 0 else slit_widp2 + 1
+            trace_int = trace_int_even//2
+            nsub = 2*trace_int + 1
 
-        tilts_sub = np.zeros((nsub, nlines))
-        tilts_sub_err = np.zeros((nsub, nlines))
-        tilts_sub_mask = np.zeros((nsub, nlines),dtype=bool)
-        tilts_sub_spat = np.outer(np.arange(nsub), np.ones(nlines))
-        tilts_sub_spec = np.outer(np.ones(nsub), lines_spec)
+            lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
+            lines_spat_int =np.round(lines_spat).astype(int)
 
-        tilts = np.zeros((nspat, nlines))
-        tilts_err  = np.zeros((nspat, nlines))
-        tilts_mask = np.zeros((nspat, nlines),dtype=bool) # This is true if the pixel was in a region traced
-        tilts_spat = np.outer(np.arange(nspat), np.ones(nlines))
-        tilts_spec = np.outer(np.ones(nspat), lines_spec)
-        spat_min = np.zeros(nlines,dtype=int)
-        spat_max = np.zeros(nlines,dtype=int)
-        arcimg_trans = (arcimg * thismask).T
-        inmask = (thismask.astype(float)).T
-        ncoeff = 3
+            spat_min = np.zeros(nlines,dtype=int)
+            spat_max = np.zeros(nlines,dtype=int)
 
-        for iline in range(nlines):
-            spat_min[iline] = lines_spat_int[iline] - trace_int
-            spat_max[iline] = lines_spat_int[iline] + trace_int + 1
-            sub_img = arcimg_trans[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1),:]
-            sub_inmask = inmask[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1),:]
-            trace_out = trace_slits.trace_crude_init(sub_img, np.array([lines_spec[iline]]), (sub_img.shape[0]-1)//2,
-                                                     invvar=sub_inmask, radius=2., maxshift0=3.0,
-                                                     maxshift=3.0, maxerr=1.0)
-            tilts_now, err_now = trace_out[0].flatten(), trace_out[1].flatten()
-            # Deal with possibly falling off the chip
-            if spat_min[iline] < 0:
-                tilts_sub[-spat_min[iline]:, iline] = tilts_now
-                tilts_sub_err[-spat_min[iline]:, iline] = err_now
-                tilts_sub_mask[-spat_min[iline]:, iline] = True
-                tilts[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub[-spat_min[iline]:, iline]
-                tilts_err[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub_err[-spat_min[iline]:, iline]
-                tilts_mask[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub_mask[-spat_min[iline]:, iline]
-            elif spat_max[iline] > (nspat-1):
-                tilts_sub[:-(spat_max[iline]-nspat +1),iline] = tilts_now
-                tilts_sub_err[:-(spat_max[iline]-nspat +1),iline] = err_now
-                tilts_sub_mask[:-(spat_max[iline]-nspat +1),iline] = True
-                tilts[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub[:-(spat_max[iline]-nspat +1),iline]
-                tilts_err[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub_err[:-(spat_max[iline]-nspat +1),iline]
-                tilts_mask[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub_mask[:-(spat_max[iline]-nspat +1),iline]
-            else:
-                tilts_sub[:, iline], tilts_sub_err[:, iline], tilts_sub_mask[:,iline] = tilts_now, err_now, True
-                tilts[np.fmax(spat_min[iline], 0):np.fmin(spat_max[iline], nspat - 1), iline] = tilts_sub[:,iline]
-                tilts_err[np.fmax(spat_min[iline], 0):np.fmin(spat_max[iline], nspat - 1), iline] = tilts_sub_err[:,iline]
-                tilts_mask[np.fmax(spat_min[iline], 0):np.fmin(spat_max[iline], nspat - 1), iline] = tilts_sub_mask[:,iline]
+            if inmask is None:
+                inmask = thismask
+
+            tilts_sub = np.zeros((nsub, nlines))
+            tilts_sub_fit = np.zeros((nsub, nlines))
+            tilts_sub_err = np.zeros((nsub, nlines))
+            tilts_sub_mask = np.zeros((nsub, nlines),dtype=bool)
+            tilts_sub_spat = np.outer(np.arange(nsub), np.ones(nlines))
+            tilts_sub_spec = np.outer(np.ones(nsub), lines_spec)
+
+            tilts = np.zeros((nspat, nlines))
+            tilts_fit = np.zeros((nspat, nlines))
+            tilts_err  = np.zeros((nspat, nlines))
+            tilts_mask = np.zeros((nspat, nlines),dtype=bool) # This is true if the pixel was in a region traced
+            tilts_spat = np.outer(np.arange(nspat), np.ones(nlines))
+            tilts_spec = np.outer(np.ones(nspat), lines_spec)
+
+            # Transposed image and masks for traceing
+            arcimg_trans = (arcimg * thismask).T
+            inmask_trans = (inmask*thismask).T.astype(float)
+
+            # 1) Trace the tilts from a guess. If no guess is provided from a previous iteration use trace_crude
+            for iline in range(nlines):
+                spat_min[iline] = lines_spat_int[iline] - trace_int
+                spat_max[iline] = lines_spat_int[iline] + trace_int + 1
+                sub_img = arcimg_trans[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1),:]
+                sub_inmask = inmask_trans[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1),:]
+                if do_crude:
+                    tilts_guess_now, err_now = trace_slits.trace_crude_init(
+                        sub_img, np.array([lines_spec[iline]]), (sub_img.shape[0]-1)//2,invvar=sub_inmask, radius=fwhm,
+                        nave = nave, maxshift0=maxshift0,maxshift=maxshift, maxerr=maxerr)
+                else:
+                    tilts_guess_now = tilts_guess[:,iline]
+                # Do iterative flux weighted tracing and polynomial fitting to refine these traces. This must also be done in a loop
+                # since the sub image is different for every aperture, i.e. each aperature has its own image
+                tilts_sub_fit_fw, tilts_sub_fw, tilts_sub_fw_err, tset_fw = extract.iter_tracefit(
+                    sub_img, tilts_guess_now, ncoeff,inmask=sub_inmask, fwhm=fwhm,maxdev=max_tilt_dev, niter=6,show_fits=True)
+                tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_gw_err, tset_gw = extract.iter_tracefit(
+                    sub_img, tilts_sub_fit_fw, ncoeff,inmask=sub_inmask, fwhm=fwhm,maxdev=max_tilt_dev, niter=3,show_fits=True)
+
+                # Pack the results into arrays, accounting for possibly falling off the image
+                # Deal with possibly falling off the chip
+                if spat_min[iline] < 0:
+                    tilts_sub[-spat_min[iline]:, iline], tilts_sub_fit[-spat_min[iline]:, iline]= tilts_sub_gw.flatten(), tilts_sub_fit_gw.flatten()
+                    tilts_sub_err[-spat_min[iline]:, iline] = tilts_sub_gw_err.flatten()
+                    tilts_sub_mask[-spat_min[iline]:, iline] = True
+                    tilts[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub[-spat_min[iline]:, iline]
+                    tilts_fit[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub_fit[-spat_min[iline]:, iline]
+                    tilts_err[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub_err[-spat_min[iline]:, iline]
+                    tilts_mask[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub_mask[-spat_min[iline]:, iline]
+                elif spat_max[iline] > (nspat-1):
+                    tilts_sub[:-(spat_max[iline]-nspat +1),iline], tilts_sub_fit[:-(spat_max[iline]-nspat +1),iline] = tilts_sub_gw.flatten(), tilts_sub_fit_gw.flatten()
+                    tilts_sub_err[:-(spat_max[iline] - nspat + 1), iline] = tilts_sub_gw_err.flatten()
+                    tilts_sub_mask[:-(spat_max[iline]-nspat +1),iline] = True
+                    tilts[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub[:-(spat_max[iline]-nspat +1),iline]
+                    tilts_fit[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub_fit[:-(spat_max[iline]-nspat +1),iline]
+                    tilts_err[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub_err[:-(spat_max[iline]-nspat +1),iline]
+                    tilts_mask[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1), iline] = tilts_sub_mask[:-(spat_max[iline]-nspat +1),iline]
+                else:
+                    tilts_sub[:, iline], tilts_sub_fit[:,iline] = tilts_sub_gw.flatten(), tilts_sub_fit_gw.flatten()
+                    tilts_sub_err[:, iline] = tilts_sub_gw_err.flatten()
+                    tilts_sub_mask[:, iline] = True
+                    tilts[np.fmax(spat_min[iline], 0):np.fmin(spat_max[iline], nspat - 1), iline] = tilts_sub[:,iline]
+                    tilts_fit[np.fmax(spat_min[iline], 0):np.fmin(spat_max[iline], nspat - 1), iline] = tilts_sub_fit[:,iline]
+                    tilts_err[np.fmax(spat_min[iline], 0):np.fmin(spat_max[iline], nspat - 1), iline] = tilts_sub_err[:,iline]
+                    tilts_mask[np.fmax(spat_min[iline], 0):np.fmin(spat_max[iline], nspat - 1), iline] = tilts_sub_mask[:,iline]
+
+
+            # Create the mask for the bad lines. Define the error on the bad tilt as being the
+            bad_mask = (tilts_sub_err > 900) | (tilts_sub_mask == False)
+            dev_mean, dev_median, dev_sig = sigma_clipped_stats(tilts_sub - tilts_sub_fit, mask = bad_mask, sigma=4.0,axis=0)
+
+            #
+
+
+            # Tighten it up with Gaussian weighted centroiding
+            trc_tilt_dict = dict(spat_min = spat_min, spat_max = spat_max, do_crude=do_crude, use_tilt = use_tilt,
+                                 tilts_sub_spec = tilts_sub_spec, tilts_sub_spat=tilts_sub_spat,
+                                 tilts_sub = tilts_sub, tilts_sub_fit = tilts_sub_fit, tilts_sub_err = tilts_sub_err, tilts_sub_mask = tilts_sub_mask,
+                                 tilts_spec = tilts_spec, tilts_spat = tilts_spat,
+                                 tilts = tilts, tilts_fit = tilts_fit, tilts_err=tilts_err, tilts_mask = tilts_mask)
+
+
+
+
+
 
 
         from IPython import embed

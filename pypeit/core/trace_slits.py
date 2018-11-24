@@ -2864,8 +2864,8 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
         msgs.info('Found {:d} {:s} slit edges'.format(len(edge_start[igd]),key))
         trace_crutch = trace_model[:, np.round(edge_start[igd]).astype(int)]
         msgs.info('Iteratively tracing {:s} edges'.format(key))
-        trace_fweight, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_crutch, ncoeff, fwhm=3.0*fwhm, niter=9)
-        trace_gweight, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_fweight, ncoeff, fwhm=fwhm,gweight=True, niter=6)
+        trace_fweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_crutch, ncoeff, fwhm=3.0*fwhm, niter=9)
+        trace_gweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_fweight, ncoeff, fwhm=fwhm,gweight=True, niter=6)
         trace_dict[key]['trace'] = trace_gweight
 
     color = dict(left = 'green', right = 'red')

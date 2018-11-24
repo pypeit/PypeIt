@@ -1333,6 +1333,8 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
     if iIter == maxiter:
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
     outmask = np.copy(thismask)
+    if np.sum(outmask) == 0:
+        msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
 
     # Do the final fit
     ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights*outmask, minx=minx, maxx=maxx, minx2 = minx2, maxx2=maxx2, bspline_par=bspline_par)

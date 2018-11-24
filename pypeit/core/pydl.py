@@ -1473,7 +1473,7 @@ class TraceSet(object):
             else:
                 self.maxiter = 10
             if 'maxdev' in kwargs:
-                self.maxdev = int(kwargs['maxdev'])
+                self.maxdev = kwargs['maxdev']
             else:
                 self.maxdev = None
             if 'inmask' in kwargs:
