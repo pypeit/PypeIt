@@ -342,7 +342,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         head_keys = self.gemini_header_keys()
         return head_keys
 
-    def bpm(self, filename=None, det=None, **null_kwargs):
+    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 
         Parameters
@@ -357,7 +357,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
 
         """
         # Get the empty bpm: force is always True
-        self.empty_bpm(filename=filename, det=det)
+        self.empty_bpm(shape=shape, filename=filename, det=det)
 
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on GMOSs")

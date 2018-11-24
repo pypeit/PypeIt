@@ -22,7 +22,7 @@ def chk_for_files(root):
     return len(files) != 0
 
 @dev_suite_required
-def test_chk_lris_long_slits():
+def test_chk_lris_red_long_slits():
     spectrograph = util.load_spectrograph('keck_lris_red')
     for nslit, binning, det, root in zip([1, 13, 14],
                                          [(2,2), (2,2), (2,2)],
