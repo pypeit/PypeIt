@@ -444,6 +444,7 @@ def sync_edges(tc_dict, nspat, insert_buff=5, add_left_edge_slit=True, verbose=F
     Returns
     -------
     """
+    # TODO - Should avoid adding a slit at the edge if those columns are masked in the BPM
     # Init
     for key in ['left', 'right']:
         tc_dict[key]['new_xval'] = []
@@ -465,6 +466,11 @@ def sync_edges(tc_dict, nspat, insert_buff=5, add_left_edge_slit=True, verbose=F
         mn_rp = np.min(right_pix[1])
         if mn_rp <= insert_buff:
             msgs.warn("Partial or too small right edge at start of detector.  Skipping it.")
+            # Check to see if the next one is ok
+            if (right_xval[1] < left_xval[0]):
+                msgs.warn("Adding in a left edge at start of detector which mirrors the first right edge")
+                ioff = -1*mn_rp + insert_buff
+                new_add_edge(1, ioff, tc_dict, left=True)
         else:
             ioff = -1*mn_rp + insert_buff
             msgs.warn("Adding in a left edge at start of detector which mirrors the first right edge")

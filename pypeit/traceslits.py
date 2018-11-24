@@ -644,7 +644,6 @@ class TraceSlits(masterframe.MasterFrame):
         else:
             trace_slits.sync_edges(self.tc_dict, self.mstrace.shape[1])
 
-
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -1066,7 +1065,7 @@ class TraceSlits(masterframe.MasterFrame):
             viewer, ch = ginga.show_image(self.mstrace)
             for side in ['left', 'right']:
                 for kk in range(self.tc_dict[side]['traces'].shape[1]):
-                    ginga.show_trace(viewer, ch, self.tc_dict[side]['traces'][:, kk], trc_name=side+ str(kk),color=color[side])
+                    ginga.show_trace(viewer, ch, self.tc_dict[side]['traces'][:, kk], trc_name=side+ str(kk),color=color[side], pstep=pstep)
         elif attr == 'edgearr':
             if np.min(self.edgearr) == -1: # Ungrouped
                 tmp = self.mstrace.copy()
@@ -1314,6 +1313,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Remove any slits that are completely off the detector
         #   Also remove short slits here for multi-slit and long-slit (alignment stars)
         if self.nslit > 1:
+            debugger.set_trace()
             self._trim_slits(trim_short_slits=arms, plate_scale = plate_scale)
 
         # Generate pixel arrays
