@@ -908,10 +908,9 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     centerr = -1.0*np.ones(sz_p, dtype=np.float)
 
     for p in range(sz_p):
-#        pmin = pixt[p]-(fitp-1)//2
-#        pmax = pixt[p]-(fitp-1)//2 + fitp
-        pmin = pixt[p]-fit_interval
-        pmax = pixt[p]-fit_interval + 1
+        # This interval is always symmetric about the peak
+        pmin = pixt[p] - fit_interval
+        pmax = pixt[p] + fit_interval + 1
         if pmin < 0:
             pmin = 0
         if pmax > sz_a:

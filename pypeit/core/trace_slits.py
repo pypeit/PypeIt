@@ -2541,6 +2541,7 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
     ix2 = np.floor(x2).astype(int)
 
     fullpix = int(np.maximum(np.min(ix2-ix1)-1,0))
+
     sumw = np.zeros_like(xinit)
     sumxw = np.zeros_like(xinit)
     sumwt = np.zeros_like(xinit)
@@ -2813,6 +2814,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     for key,sign in zip(['left','right'], [1., -1.]):
         ypeak, _, edge_start, sigma_pk, _, igd, _, _ = arc.detect_lines(
             sign*filt_smash_mean, cont_subtract=False, fwhm=fwhm, input_thresh = sigthresh, max_frac_fwhm = 10.0, debug=debug)
+        # ToDO add error catching here if there are no peaks found!
         trace_dict[key] = {}
         trace_dict[key]['start'] = edge_start[igd]
         trace_dict[key]['nstart'] = len(edge_start[igd])
