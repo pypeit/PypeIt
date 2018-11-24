@@ -1286,7 +1286,7 @@ class TraceSlitsPar(ParSet):
     """
     def __init__(self, function=None, polyorder=None, medrep=None, number=None, trim=None,
                  maxgap=None, maxshift=None, pad=None, sigdetect=None, fracignore=None,
-                 min_slit_width = None,
+                 min_slit_width = None, add_slits=None,
                  diffpolyorder=None, single=None, sobel_mode=None, pcatype=None, pcapar=None,
                  pcaextrap=None):
 
@@ -1373,6 +1373,7 @@ class TraceSlitsPar(ParSet):
         descr['diffpolyorder'] = 'Order of the 2D function used to fit the 2d solution for the ' \
                                  'spatial size of all orders.'
 
+        # DEPRECATED
         defaults['single'] = []
         dtypes['single'] = list
         descr['single'] = 'Add a single, user-defined slit based on its location on each ' \
@@ -1382,6 +1383,12 @@ class TraceSlitsPar(ParSet):
                           'setting single = -1, -1, 7, 295 means the code will skip the ' \
                           'user-definition for the first detector but adds one for the second. ' \
                           ' None means no user-level slits defined.'
+
+        defaults['add_slits'] = []
+        dtypes['add_slits'] = list
+        descr['add_slits'] = 'Add one or more user-defined slits.  This is a list of lists, with ' \
+                             'each sub-list having syntax (all integers):  det:x0:x1:yrow  ' \
+                             'For example,  2:2121:2322:2000,3:1201:1500:2000'
 
         defaults['sobel_mode'] = 'nearest'
         options['sobel_mode'] = TraceSlitsPar.valid_sobel_modes()
@@ -1424,7 +1431,7 @@ class TraceSlitsPar(ParSet):
         k = cfg.keys()
         parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
                     'pad', 'sigdetect', 'fracignore', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
-                    'pcatype', 'pcapar', 'pcaextrap' ]
+                    'pcatype', 'pcapar', 'pcaextrap', 'add_slits' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

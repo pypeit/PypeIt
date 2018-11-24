@@ -307,7 +307,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return any_slits
 
-    def add_user_slits(self, user_slits, run_to_finish=False):
+    def add_user_slits(self, user_slits, run_to_finish=False, orig=False):
         """
         Add a user-defined slit
 
@@ -325,9 +325,14 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         # Reset (if needed) -- For running after PyepIt took a first pass
-        self.reset_edgearr_ednum()
+        #self.reset_edgearr_ednum()
         # Add user input slits
-        self.edgearr = trace_slits.add_user_edges(self.edgearr, self.siglev, self.tc_dict, user_slits)
+        if orig:
+            self.edgearr = trace_slits.orig_add_user_edges(self.edgearr, self.siglev, self.tc_dict, user_slits)
+        else:
+            trace_slits.add_user_edges(self.tc_dict, user_slits)
+        debugger.set_trace()
+        '''
         # Finish
         if run_to_finish:
             self._set_lrminx()
@@ -336,6 +341,7 @@ class TraceSlits(masterframe.MasterFrame):
             self._synchronize()
             self._pca()
             self._trim_slits(plate_scale = plate_scale)
+        '''
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -458,7 +464,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         # Final left/right edgearr fussing (as needed)
         self.edgearr, self.lcnt, self.rcnt = trace_slits.edgearr_final_left_right(
-            self.edgearr, self.ednum, self.siglev, self.tc_dict)
+            self.edgearr, self.ednum, self.siglev)
         # Steps
         self.steps.append(inspect.stack()[0][3])
 
@@ -673,7 +679,7 @@ class TraceSlits(masterframe.MasterFrame):
 
     # ToDO JFH The PCA coefficients take on a wide range of values which makes mad rejection less meaingful. I wonder if we should
     # be doing rejection and fitting using relative errors and relative error deviations.
-    def _pca_refine(self, mask_frac_thresh=0.6, coeff_npoly_pca = 2, show=False, debug=False):
+    def _pca_refine(self, mask_frac_thresh=0.6, coeff_npoly_pca = 2, show=True, debug=False):
         """
         Mainly a driver routine to trace_slits.trace_refine() method
 
@@ -1073,7 +1079,7 @@ class TraceSlits(masterframe.MasterFrame):
             edges_dict = extras
             #
             color = dict(left='green', right='red')
-            viewer, ch = ginga.show_image(self.mstrace)
+            viewer, ch = ginga.show_image(self.mstrace, chname='refined_edges')
             if edges_dict['show'] == 'both':
                 for side in ['left', 'right']:
                     for kk in range(edges_dict[side]['nstart']):
@@ -1263,8 +1269,8 @@ class TraceSlits(masterframe.MasterFrame):
         ignore_orders : bool (optional)
           Perform ignore_orders algorithm (recommended only for echelle data)
         add_user_slits : list of lists
-          List of 2 element lists, each an [xleft, xright] pair specifying a slit edge
-          These are specified at mstrace.shape[0]//2
+          List of 3 element lists, each an [xleft, xright, yrow] specifying a slit edge
+          at a given yrow
 
         Returns
         -------
@@ -1293,22 +1299,19 @@ class TraceSlits(masterframe.MasterFrame):
         self._match_edges()
 
         # Add in a *single* left/right edge?
-        #  Mainly useful for longslit where one side butts up on the edge of the detector
+        #  Mainly useful for longslit where one or both sides butt up on the edge of the detector
         any_slits = self._add_left_right()
         if not any_slits:
             return None
 
-        # Trace crude and sync traces
-        self._mslit_tcrude()
-
         # Final left/right edgearr fussing (as needed)
-        #  Also fills in xset, xerr for longslit
+        #  Mainly useful for longslit
         if not self.user_set:
             self._final_left_right()
 
-        # Add user input slits
-        if add_user_slits is not None:
-            self.add_user_slits(add_user_slits)
+        # Trace crude in siglev image and sync traces
+        self._mslit_tcrude()
+
 
         # Are we done, e.g. a simple longslit?
         #   Check if no further work is needed (i.e. there only exists one order)
@@ -1319,6 +1322,9 @@ class TraceSlits(masterframe.MasterFrame):
             self._pca_refine(show=show)
             # Synchronize and add in edges
             self._mslit_sync()
+            # Add user input slits
+            if add_user_slits is not None:
+                self.add_user_slits(add_user_slits)
 
         # Set lcen and rcen, lmin, lmax
         self.lcen = self.tc_dict['left']['traces']
