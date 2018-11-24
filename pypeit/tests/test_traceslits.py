@@ -15,27 +15,35 @@ import numpy as np
 
 from pypeit import traceslits
 from pypeit.tests.tstutils import dev_suite_required
+from pypeit.spectrographs import util
 
 def chk_for_files(root):
     files = glob.glob(root+'*')
     return len(files) != 0
 
 @dev_suite_required
-def test_chk_lris_long_slits():
-    for root in ['MasterTrace_KeckLRISr_long_600_4310_d55']:
+def test_chk_lris_red_long_slits():
+    spectrograph = util.load_spectrograph('keck_lris_red')
+    for nslit, binning, det, root in zip([1, 13, 14],
+                                         [(2,2), (2,2), (2,2)],
+                                         [2,1,2],
+                           ['MasterTrace_KeckLRISr_long_600_4310_d55',
+                            'MasterTrace_KeckLRISr_400_8500_det1',
+                            'MasterTrace_KeckLRISr_400_8500_det2',
+                               ]):
         mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)
         assert chk_for_files(mstrace_root)
         traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
         norig = traceSlits.nslit
+        assert norig == nslit
         # Run me
-        traceSlits.run()
+        plate_scale = binning[0]*spectrograph.detector[det-1]['platescale']
+        traceSlits.run(show=False, plate_scale=plate_scale)
         # Test
         assert traceSlits.nslit == norig
 
 @dev_suite_required
 def test_chk_kast_slits():
-    # Confirm we get simple long slit for Kast
-
     # Red, blue
     for root in ['MasterTrace_ShaneKastred_600_7500_d55', 'MasterTrace_ShaneKastblue_600_4310_d55']:
         mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)
@@ -43,7 +51,7 @@ def test_chk_kast_slits():
         traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
         norig = traceSlits.nslit
         # Run me
-        traceSlits.run()
+        traceSlits.run()  # Don't need plate_scale for longslit
         # Test
         assert traceSlits.nslit == norig
 

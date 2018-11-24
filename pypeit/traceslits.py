@@ -674,7 +674,7 @@ class TraceSlits(masterframe.MasterFrame):
 
     # ToDO JFH The PCA coefficients take on a wide range of values which makes mad rejection less meaingful. I wonder if we should
     # be doing rejection and fitting using relative errors and relative error deviations.
-    def _pca_refine(self, mask_frac_thresh=0.6, maxiter=3, coeff_npoly_pca = 2, show=False, debug=True):
+    def _pca_refine(self, mask_frac_thresh=0.6, maxiter=3, coeff_npoly_pca = 2, show=False, debug=False):
 
         # Unpack and sort
         nspec, nspat = self.siglev.shape
@@ -1268,7 +1268,6 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Assign a number to each edge 'grouping'
         self._match_edges()
-        debugger.set_trace()
 
         # Add in a *single* left/right edge?
         #  Only useful for longslit where one side butts up on the edge of the detector
