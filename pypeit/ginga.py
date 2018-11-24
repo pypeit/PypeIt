@@ -329,7 +329,70 @@ def clear_all():
         shell.delete_channel(ch)
 
 
+def show_tilts(viewer, ch, tilts, tilts_spat, tilts_mask, tilts_err, tilt_flag = None, sedges=None, yoff=0., xoff=0., all_green=False, pstep=10
+               , clear_canvas = False):
+    """  Display arc image and overlay the arcline tilt measurements
+    Parameters
+    ----------
+    msarc : ndarray
+    trcdict : dict
+      Contains trace info
+    sedges : tuple
+      Arrays of the slit
+    xoff : float, optional
+      In case Ginga has an index offset.  It appears not to
+    yoff : float, optional
 
+
+    Returns
+    -------
+
+    """
+    canvas = viewer.canvas(ch._chname)
+    if clear_canvas:
+        canvas.clear()
+
+    if sedges is not None:
+        show_slits(viewer, ch,sedges[0], sedges[1])
+
+    # Show a trace
+    nspat = tilts.shape[0]
+    nlines = tilts.shape[1]
+    if tilt_flag is None:
+        tilt_flag = np.ones(nlines,dtype=bool)
+    for iline in range(nlines):
+        x = tilts_spat[:,iline] + xoff
+        y = tilts[:,iline] + yoff  # FOR IMAGING (Ginga offsets this value by 1 internally)
+        this_mask = tilts_mask[:,iline]
+        this_err = (tilts_err[:,iline] > 900)
+        if np.sum(this_mask) > 0:
+            points = list(zip(x[this_mask][::pstep].tolist(),y[this_mask][::pstep].tolist()))
+            if tilt_flag[iline]:
+                clr = 'green'  # Good line
+            else:
+                if all_green:
+                    clr = 'green'  # Bad line
+                else:
+                    clr = 'red'
+            canvas.add('path', points, color=clr)
+
+            badpix = (this_mask == True) & (this_err == True)
+            nbad = np.sum(badpix)
+            if nbad > 0:
+                xbad = x[badpix]
+                ybad = y[badpix]
+                # Now show stuff that had larger errors
+                # note: must cast numpy floats to regular python floats to pass the remote interface
+                points_bad = [dict(type='point', args=(float(xbad[i]), float(ybad[i]), 2),
+                                   kwargs=dict(style='plus', color='red')) for i in range(nbad)]
+
+                canvas.add('constructedcanvas', points_bad)
+
+    text_bad = [dict(type='text', args=(nspat / 2 - 40, tilts.max()/2, 'bad pixels'),kwargs=dict(color='red', fontsize=20))]
+    canvas.add('constructedcanvas', text_bad)
+
+
+# Old method
 def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0., all_green=False, pstep=10,
                   cname='ArcTilts'):
     """  Display arc image and overlay the arcline tilt measurements
