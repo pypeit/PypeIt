@@ -192,6 +192,8 @@ class PypeIt(object):
         Returns:
 
         """
+        # TODO THE control flow is opaue here becuase of the lack of arguments and return values! Add arguments and
+        # return values to these functions.
         # Setup
         self.setup, self.setup_dict = pypsetup.instr_setup(sci_ID, det, self.fitstbl,
                                                            setup_dict=self.setup_dict,
@@ -984,30 +986,27 @@ class Echelle(PypeIt):
 
         """
 
+        # Todo add arguments and return values here to make the control flow understandable
         self.tstart = time.time()
 
         # Science IDs are in a binary system: 1,2,4,8, etc.
         all_sci_ID = self.fitstbl['sci_ID'][self.fitstbl.find_frames('science')]
         numsci = len(all_sci_ID)
+        numsci = len(all_sci_ID)
+        basenames = [None]*numsci  # For fluxing at the very end
 
-        # Grab the standards
-        #all_std_ID = self.fitstbl['sci_ID'][self.fitstbl.find_frames('standard')]
-        #numstd = len(all_std_ID)
+
+        # Grab the set of standards that are linked to science objects, i.e. these will have sci_ID != 0
+        all_std_ID = self.fitstbl['sci_ID'][self.fitstbl.find_frames('standard') & self.fitstbl['sci_ID'] != 0]
 
         # Check par
         required = ['rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib']
         can_be_None = ['flexure', 'fluxcalib']
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
-        # TODO This is a bug. I can't figure out how to grab the standard exposures associated with the
-        # science files
-        # Reduce the standards first associated with the sci_IDs
-        for kk, sci_ID in enumerate(all_sci_ID):
-            try:
-                stddx = self.fitstbl.find_frames('standard', sci_ID=sci_ID, index=True)[0]
-            except IndexError:
-                continue
-            std_dict = self.reduce_exposure(sci_ID, 'standard', reuse_masters=reuse_masters)
+        for std_ID in all_std_ID:
+            std_dict = self.reduce_exposure(std_ID, 'standard', reuse_masters=reuse_masters)
+            stddx = self.fitstbl.find_frames('standard', sci_ID=std_ID, index=True)[0]
             self.save_exposure(stddx, std_dict, self.basename)
 
         # Save
@@ -1015,6 +1014,9 @@ class Echelle(PypeIt):
             sci_dict = self.reduce_exposure(sci_ID, 'science', reuse_masters=reuse_masters)
             scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
             self.save_exposure(scidx, sci_dict, self.basename)
+            # JFH perhaps this key should be added to the fitstbl?
+            basenames[kk] = self.basename
+
 
         # Finish
         self.print_end_time()
