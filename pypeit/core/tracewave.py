@@ -28,15 +28,18 @@ except ImportError:
     pass
 
 
-def trace_tilts_guess(arcimg, lines_spec, lines_spat, trace_int, thismask, inmask=None, tilts_guess=None, fwhm=4.0,
+def trace_tilts_guess(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=None, tilts_guess=None, fwhm=4.0,
                       ncoeff=3, maxdev_fit=0.1,percentile_reject=0.10, max_badpix_frac=0.20,
                       maxerr=1.0, maxshift=3.0, maxshift0=3.0,nave=5, show_fits=False):
+
+    slit_widp2 = slit_width + 2
+    slit_width_even = slit_widp2 if slit_widp2 % 2 == 0 else slit_widp2 + 1
+    trace_int = slit_width_even//2
 
     nspec, nspat = arcimg.shape
     do_crude = True if tilts_guess is None else False
     nlines = len(lines_spec)
-    if trace_int % 2 != 0:
-        msgs.error('The trace_int parameter must be an even integer')
+
     nsub = 2 * trace_int + 1
 
     lines_spat_int = np.round(lines_spat).astype(int)
@@ -137,7 +140,7 @@ def trace_tilts_guess(arcimg, lines_spec, lines_spat, trace_int, thismask, inmas
     msgs.info('Number of usable arc lines for tilts: {:d}/{:d}'.format(np.sum(use_tilt),nlines))
 
     # Tighten it up with Gaussian weighted centroiding
-    trc_tilt_dict = dict(nspec = nspec, nspat = nspat, spat_min=spat_min, spat_max=spat_max, do_crude=do_crude, use_tilt=use_tilt,
+    trc_tilt_dict = dict(nspec = nspec, nspat = nspat, nsub = nsub, nlines = nlines, spat_min=spat_min, spat_max=spat_max, do_crude=do_crude, use_tilt=use_tilt,
                          tilts_sub_spec=tilts_sub_spec, tilts_sub_spat=tilts_sub_spat,
                          tilts_sub=tilts_sub, tilts_sub_fit=tilts_sub_fit, tilts_sub_err=tilts_sub_err,
                          tilts_sub_mask=tilts_sub_mask,
