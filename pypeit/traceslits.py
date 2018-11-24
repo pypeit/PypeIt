@@ -197,7 +197,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Deal with parameters
         if par is None:
             if ts_dict is not None:
-                pypeitpar.TraceSlitsPar.from_dict(ts_dict['settings'])
+                par = pypeitpar.TraceSlitsPar.from_dict(ts_dict['settings'])
             else:
                 par = pypeitpar.TraceSlitsPar()
 
@@ -1268,6 +1268,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Assign a number to each edge 'grouping'
         self._match_edges()
+        debugger.set_trace()
 
         # Add in a *single* left/right edge?
         #  Only useful for longslit where one side butts up on the edge of the detector
