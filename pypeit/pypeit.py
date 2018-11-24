@@ -1086,7 +1086,7 @@ class Echelle(PypeIt):
                 pass
                 #std_trace = load.load_std_trace(std_outfile)
 
-            sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr = self._extract_one()
+            sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr = self._extract_one(std=(frametype=='standard'))
 
             # Save for outputing (after all detectors are done)
             sci_dict[det]['sciimg'] = sciimg
@@ -1103,7 +1103,7 @@ class Echelle(PypeIt):
         return sci_dict
 
     # JFH This is the beginning of the echelle class control flow
-    def _extract_one(self):
+    def _extract_one(self,std=False):
         """
         Extract a single exposure/detector pair
 
@@ -1144,7 +1144,7 @@ class Echelle(PypeIt):
         vel_corr = None
         if nobj > 0:
             skymodel, objmodel, ivarmodel, outmask, sobjs \
-                    = sciI.local_skysub_extract(sobjs_ech, self.caliBrate.mswave, maskslits=maskslits,
+                    = sciI.local_skysub_extract(sobjs_ech, self.caliBrate.mswave, maskslits=maskslits, std = std,
                                                 show_profile=self.show, show=self.show)
 
             # Flexure correction?

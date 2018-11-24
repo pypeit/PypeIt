@@ -434,7 +434,7 @@ class ScienceImage(processimages.ProcessImages):
 
         return self.sobjs_ech, self.nobj_ech
 
-    def local_skysub_extract(self, sobjs, waveimg, maskslits=None, show_profile=False, show_resids=False,show=False):
+    def local_skysub_extract(self, sobjs, waveimg, maskslits=None, std = False, show_profile=False, show_resids=False,show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -504,7 +504,7 @@ class ScienceImage(processimages.ProcessImages):
                                                       self.waveimg, self.global_sky, self.rn2img,
                                                       thismask, self.tslits_dict['lcen'][:,slit],
                                                       self.tslits_dict['rcen'][:, slit],
-                                                      self.sobjs[thisobj],
+                                                      self.sobjs[thisobj], std = std,
                                                       bsp=self.par['bspline_spacing'],
                                                       inmask=inmask, show_profile=show_profile,
                                                       show_resids=show_resids)
