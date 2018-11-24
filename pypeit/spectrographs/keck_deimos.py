@@ -473,7 +473,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     # provided it will fail.  Provide a function like in keck_lris.py
     # that forces a file to be provided?
 
-    def bpm(self, filename=None, det=None, **null_kwargs):
+    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
         Override parent bpm function with BPM specific to DEIMOS.
 
@@ -492,7 +492,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
           0 = ok; 1 = Mask
 
         """
-        self.empty_bpm(filename=filename, det=det)
+        self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
             self.bpm_img[:,1052:1054] = 1
         elif det == 2:

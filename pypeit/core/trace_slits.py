@@ -462,7 +462,6 @@ def sync_edges(tc_dict, nspat, insert_buff=5, add_left_edge_slit=True, verbose=F
     # First slit (often up against the detector)
     if (right_xval[0] < left_xval[0]) and add_left_edge_slit:
         right_pix = tc_dict['right']['traces'][:,0] #np.where(edgearr == right_idx[0])
-        debugger.set_trace()
         mn_rp = np.min(right_pix[1])
         if mn_rp <= insert_buff:
             msgs.warn("Partial or too small right edge at start of detector.  Skipping it.")
@@ -976,7 +975,8 @@ def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30.,
 
     ######
     msgs.info("Applying bad pixel mask")
-    nedgear *= (1-binbpx.astype(np.int))  # Apply to the bad pixel mask
+    nedgear *= (1-binbpx.astype(np.int))  # Apply the bad pixel mask
+    siglev *= (1-binbpx.astype(np.int))  # Apply the bad pixel mask
 
     # Return
     return siglev, nedgear
@@ -2819,8 +2819,8 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
         msgs.info('Found {:d} {:s} slit edges'.format(len(edge_start[igd]),key))
         trace_crutch = trace_model[:, np.round(edge_start[igd]).astype(int)]
         msgs.info('Iteratively tracing {:s} edges'.format(key))
-        trace_fweight = extract.iter_tracefit(np.fmax(sign*filt_image, 0.0), trace_crutch, ncoeff, fwhm=3.0*fwhm, niter=9)
-        trace_gweight = extract.iter_tracefit(np.fmax(sign*filt_image, 0.0), trace_fweight, ncoeff, fwhm=fwhm,gweight=True, niter=6)
+        trace_fweight = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_crutch, ncoeff, fwhm=3.0*fwhm, niter=9)
+        trace_gweight = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_fweight, ncoeff, fwhm=fwhm,gweight=True, niter=6)
         trace_dict[key]['trace'] = trace_gweight
 
     color = dict(left = 'green', right = 'red')

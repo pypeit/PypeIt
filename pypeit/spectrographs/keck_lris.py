@@ -480,11 +480,13 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
     # Uses parent header_keys() function
             
-    def bpm(self, filename=None, det=None, **null_kwargs):
+    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 
         Parameters
         ----------
+        shape : tuple, REQUIRED
+        filename : str, REQUIRED for binning
         det : int, REQUIRED
         **null_kwargs:
            Captured and never used
@@ -495,7 +497,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         """
         # Get the empty bpm: force is always True
-        self.empty_bpm(filename=filename, det=det)
+        self.empty_bpm(shape=shape, filename=filename, det=det)
         
         # Only defined for det=2
         if det == 2:
@@ -528,6 +530,7 @@ def read_lris(raw_file, det=None, TRIM=False):
       Detector number; Default = both
     TRIM : bool, optional
       Trim the image?
+      This doesn't work....
 
     Returns
     -------
@@ -832,30 +835,6 @@ def lris_read_amp(inp, ext):
     '''
 
     return data, predata, postdata, x1, y1
-
-
-'''
-def bpm(slf, camera, fitsdict, det):
-    """  Wrapper for core_bpm
-    Will likely be deprecated
-
-    Parameters
-    ----------
-    slf
-    camera
-    fitsdict
-    det
-
-    Returns
-    -------
-    badpix : ndarray
-
-    """
-    sidx = slf._idx_sci[0]
-    # Binning
-    xbin, ybin = [int(ii) for ii in fitsdict['binning'][sidx].split(',')]
-    return core_bpm(xbin, ybin, camera, det)
-'''
 
 
 
