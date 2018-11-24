@@ -19,6 +19,6 @@
 
 # Read in the data
 data read
- /Users/joe/python/PypeIt/pypeit/tests/files/b*fits.gz
+ /home/xavier/local/Python/PypeIt/pypeit/tests/files/b*fits.gz
 data end
 
