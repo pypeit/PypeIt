@@ -384,8 +384,8 @@ class WaveTilts(masterframe.MasterFrame):
             sub_img = arcimg_trans[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1),:]
             sub_inmask = inmask[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1),:]
             trace_out = trace_slits.trace_crude_init(sub_img, np.array([lines_spec[iline]]), (sub_img.shape[0]-1)//2,
-                                                     invvar=sub_inmask, radius=2., maxshift0=0.5,
-                                                     maxshift=0.15, maxerr=0.2)
+                                                     invvar=sub_inmask, radius=2., maxshift0=3.0,
+                                                     maxshift=3.0, maxerr=0.2)
             tilts_now, err_now = trace_out[0].flatten(), trace_out[1].flatten()
             # Deal with possibly falling off the chip
             if spat_min[iline] < 0:
@@ -434,11 +434,7 @@ class WaveTilts(masterframe.MasterFrame):
             ginga.show_trace(viewer, ch, tilts[:, iline], color='green')
 
         # Compute the ensemble of tilts
-        # TODO I got confused about how to get the crutch becuase I cannot average the traces because they probe different parts
-        # of the image as the traces curves.  I think you need deal with these as sub-images referenced to the right slit edge
-        # and store all these legendre fits in way that can then be easily transformed back onto the image. We just need a method which that
-        # creates the sub-image, then a method, that takes a fixed size segment from the subimage and maps it back onto the image.
-        # Once we have traces defined in that sub-image we can easily collapse the legendre fits
+
 
         # delta_x =  xcen_fit[:,good_lines] - np.outer(np.ones(nspat), arcdet[good_lines]) - np.outer()
         # delta_x_mean, delta_x_median, delta_x_sig = sigma_clipped_stats(delta_x,axis=1, sigma = 4.0,mask = (xerr[:,good_lines] > 1100))
