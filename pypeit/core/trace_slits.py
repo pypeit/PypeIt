@@ -976,7 +976,8 @@ def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30.,
 
     ######
     msgs.info("Applying bad pixel mask")
-    nedgear *= (1-binbpx.astype(np.int))  # Apply to the bad pixel mask
+    nedgear *= (1-binbpx.astype(np.int))  # Apply the bad pixel mask
+    siglev *= (1-binbpx.astype(np.int))  # Apply the bad pixel mask
 
     # Return
     return siglev, nedgear
