@@ -2364,12 +2364,9 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
     return lcent, rcent, gord, lcoeff, ldiffarr, lnmbrarr, lwghtarr, \
                 rcoeff, rdiffarr, rnmbrarr, rwghtarr
 
-# TODO Make this a proper trace_crude
-def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
-    maxshift0=0.5, maxshift=0.15, maxerr=0.2):
+# TODO Make this a proper trace_crude, rename consistently with IDL
+def trace_crude_init(image, xinit0, ypass, invvar=None, radius=3.0,maxshift0=0.5, maxshift=0.1, maxerr=0.2):
     """Python port of trace_crude_idl.pro from IDLUTILS
-    #TODO this routine needs better docs. I'm also not sure why it is called trace_crude_init instead of just trace_crude.
-    #TODO Consistent naming with IDLUTILS makes it easier to figure out what rourine is what.
 
     Modified for initial guess
 
@@ -2381,6 +2378,17 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
       Initial guesses for trace peak at ypass
     ypass : int
       Row for initial guesses
+
+    Optional Parameters
+    -------------------
+    radius: float, default = 3.0
+        Radius for centroiding; default to 3.0
+    maxerr: float, default = 0.2
+        Maximum error in centroid allowed for valid recentering;
+    maxshift: float, default = 0.1
+        Maximum shift in centroid allowed for valid recentering.
+    maxshift0: float, default 0.5
+        Maximum shift in centroid allowed for initial row.
 
     Returns
     -------
