@@ -458,7 +458,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         # Final left/right edgearr fussing (as needed)
         self.edgearr, self.lcnt, self.rcnt = trace_slits.edgearr_final_left_right(
-            self.edgearr, self.ednum, self.siglev)
+            self.edgearr, self.ednum, self.siglev, self.tc_dict)
         # Steps
         self.steps.append(inspect.stack()[0][3])
 
@@ -1293,17 +1293,18 @@ class TraceSlits(masterframe.MasterFrame):
         self._match_edges()
 
         # Add in a *single* left/right edge?
-        #  Only useful for longslit where one side butts up on the edge of the detector
+        #  Mainly useful for longslit where one side butts up on the edge of the detector
         any_slits = self._add_left_right()
         if not any_slits:
             return None
 
-        # Final left/right edgearr fussing (as needed)
-        if not self.user_set:
-            self._final_left_right()
-
         # Trace crude and sync traces
         self._mslit_tcrude()
+
+        # Final left/right edgearr fussing (as needed)
+        #  Also fills in xset, xerr for longslit
+        if not self.user_set:
+            self._final_left_right()
 
         # Add user input slits
         if add_user_slits is not None:

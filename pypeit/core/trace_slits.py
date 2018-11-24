@@ -888,7 +888,7 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                 if newval == 0:
                     debugger.set_trace()
                 tc_dict[side]['xval'][str(newval)] = tc_dict[side]['xval'].pop(str(oldval))
-            # Remove the trace crude
+            # Remove bad traces
             tc_dict[side]['xset'] = tc_dict[side]['xset'][:,gde]
             tc_dict[side]['xerr'] = tc_dict[side]['xerr'][:,gde]
 
@@ -1056,7 +1056,7 @@ def edgearr_add_left_right(edgearr, binarr, binbpx, lcnt, rcnt, ednum):
     return edgearrcp, lcnt, rcnt
 
 
-def edgearr_final_left_right(edgearr, ednum, siglev):
+def edgearr_final_left_right(edgearr, ednum, siglev, tc_dict):
     """ Final fussing with left/right edges, as needed
 
     Adds in missing ones, truncates when there are too many of
@@ -1067,6 +1067,8 @@ def edgearr_final_left_right(edgearr, ednum, siglev):
     edgearr : ndarray
     ednum : int
     siglev : ndarray
+    tc_dict : dict
+      Fills in xset, xerr as needed
 
     Returns
     -------
@@ -1074,6 +1076,7 @@ def edgearr_final_left_right(edgearr, ednum, siglev):
     lcnt : int
     rcnt: int
     """
+    nspec, nspat = edgearr.shape
     eaunq = np.unique(edgearr)
     lcnt = np.where(eaunq < 0)[0].size
     rcnt = np.where(eaunq > 0)[0].size
@@ -1081,10 +1084,18 @@ def edgearr_final_left_right(edgearr, ednum, siglev):
         msgs.warn("Unable to find a left edge. Adding one in.")
         edgearr[:, 0] = -2 * ednum
         lcnt = 1
+        # xset, xerr, xval
+        tc_dict['left']['xset'] = (1.*np.ones(nspec)).reshape(nspec,1)
+        tc_dict['left']['xerr'] = (999.*np.ones(nspec)).reshape(nspec,1)
+        tc_dict['left']['xval'][str(-2*ednum)] = int(1)
     if rcnt == 0:
         msgs.warn("Unable to find a right edge. Adding one in.")
         edgearr[:, -1] = 2 * ednum
         rcnt = 1
+        # xset, xerr
+        tc_dict['right']['xset'] = ((nspat-2.)*np.ones(nspec)).reshape(nspec,1)
+        tc_dict['right']['xerr'] = (999.*np.ones(nspec)).reshape(nspec,1)
+        tc_dict['right']['xval'][str(2*ednum)] = int(nspat-2)
     if (lcnt == 1) & (rcnt > 1):
         msgs.warn("Only one left edge, and multiple right edges.")
         msgs.info("Restricting right edge detection to the most significantly detected edge.")
@@ -2763,50 +2774,6 @@ def tc_indices(tc_dict):
 
     # Return
     return left_idx, left_xval, right_idx, right_xval
-
-
-def pca_refine(pypeline, siglev, sigthresh, slit_left, slit_left_err, slit_righ, slit_righ_err,
-               mask_frac_thresh=0.6, maxiter=3, coeff_npoly_pca=2, show=False, mstrace=None,
-               debug=False):
-    """
-        Drives PCA refinement
-
-    Args:
-        pypeline: str
-          Pipeline, e.g.  MultiSlit, Echelle
-          Echelle runs left and right edges separately
-        siglev: ndarray
-          Sobolev image in S/N units
-        sigthresh: float
-          Threshold for identifying slits
-        slit_left: ndarray
-          Input left edges
-        slit_left_err: ndarray
-          Input left edge errors
-        slit_righ: ndarray
-          Input right edges
-        slit_righ_err: ndarray
-          Input right edge errors
-        mask_frac_thresh: float, optional
-          Minimum fraction of the detector the edge must span to use
-          in the initial PCA
-        maxiter: int, optional
-          Number of iterations
-          2 is recommended for MultiSlit
-          3 is recommended for Echelle
-        coeff_npoly_pca: int, optional
-        show: bool, optional
-        mstrace: ndarray
-          Trace image;  only needed if show=True
-        debug: bool, optional
-
-    Returns:
-        edges_dict: dict
-          Contains the new trace edges arrays
-    """
-    # Dimensions
-    nspec, nspat = siglev.shape
-
 
 
 # ToDo 1) Add code to analyze the extracted filt_mean spectra to determine when the ordres are shorter.
