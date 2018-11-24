@@ -29,6 +29,7 @@ from pypeit.core import extract
 from pypeit.core import arc
 from pypeit.core import pydl
 from astropy.stats import sigma_clipped_stats
+from scipy import ndimage
 
 try:
     from pypeit import ginga
@@ -2365,14 +2366,14 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
                 rcoeff, rdiffarr, rnmbrarr, rwghtarr
 
 # TODO Make this a proper trace_crude, rename consistently with IDL
-def trace_crude_init(image, xinit0, ypass, invvar=None, radius=3.0,maxshift0=0.5, maxshift=0.1, maxerr=0.2):
+def trace_crude_init(image, xinit0, ypass, invvar=None, nave=5, radius=3.0,maxshift0=0.5, maxshift=0.1, maxerr=0.2):
     """Python port of trace_crude_idl.pro from IDLUTILS
 
     Modified for initial guess
 
     Parameters
     ----------
-    image : 2D ndarray
+    image : 2D ndarray, shape (nspec, nspat)
       Image for tracing
     xinit : ndarray
       Initial guesses for trace peak at ypass
@@ -2383,6 +2384,11 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=3.0,maxshift0=0.5
     -------------------
     radius: float, default = 3.0
         Radius for centroiding; default to 3.0
+    nmed = int, default = None [NOT YET IMPLEMENTED!]
+        Median filtering size down the nspec direction before performing trace
+    nave = int, default = 5
+        Boxcar averaging size down the nspec direction before performing trace. If set to None no averaging
+        will be performed.
     maxerr: float, default = 0.2
         Maximum error in centroid allowed for valid recentering;
     maxshift: float, default = 0.1
@@ -2402,14 +2408,43 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=3.0,maxshift0=0.5
     ny = image.shape[0]
     xset = np.zeros((ny,ntrace))
     xerr = np.zeros((ny,ntrace))
+    # Make copies of the image and the inverse variance image
+    imgtemp = image.copy()
     if invvar is None:
-        invvar = np.zeros_like(image) + 1.
+        invtemp = np.zeros_like(image) + 1.
+    else:
+        invtemp = invvar.copy()
 
-    #
+    # ToDo implement median filtering!
+
+    # Boxcar-sum the entire image along columns by NAVE rows
+    if nave is not None:
+        nave = np.fmax(nave,ny)
+        # Boxcar sum the entire image weighted by inverse variance over nave spectral pixels
+        kernel = np.ones((nave, 1))/float(nave)
+        imgconv = ndimage.convolve(image*invtemp, kernel, mode='nearest')
+        # Add the weights
+        invtemp = ndimage.convolve(invtemp, kernel, mode='nearest')
+        # Look for pixels with infinite errors - replace with original values
+        ibad = invtemp == 0.0
+        invtemp[ibad] = 1.0
+        imgconv[ibad] = imgtemp[ibad]
+        # Renormalize the summed image by the weights
+        imgtemp = imgconv/invtemp
+
+    # JFH It seems odd to me that one is passing invtemp to trace_fweight, i.e. this is not correct
+    # error propagation. While the image should be smoothed with inverse variance weights, the new noise
+    # of the smoothed image has changed, and proper error propagation would then give:
+    # var_convol = ndimage.convolve(1/invvar, kernel**2, mode='nearest')
+    # invvar_convol = 1.0/var_convol
+    # I have not implemented this for fear of breaking the behavior, and furthermore I think the desire was not
+    # to have trace_fweight operate on formally correct errors.
+
+
     #  Recenter INITIAL Row for all traces simultaneously
     #
     iy = ypass * np.ones(ntrace,dtype=int)
-    xfit,xfiterr = trace_fweight(image, xinit, ycen = iy, invvar=invvar, radius=radius)
+    xfit,xfiterr = trace_fweight(imgtemp, xinit, ycen = iy, invvar=invtemp, radius=radius)
     # Shift
     xshift = np.clip(xfit-xinit, -1*maxshift0, maxshift0) * (xfiterr < maxerr)
     xset[ypass,:] = xinit + xshift
@@ -2419,7 +2454,7 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=3.0,maxshift0=0.5
     for iy in range(ypass+1, ny):
         xinit = xset[iy-1, :]
         ycen = iy * np.ones(ntrace,dtype=int)
-        xfit,xfiterr = trace_fweight(image, xinit, ycen = ycen, invvar=invvar, radius=radius)
+        xfit,xfiterr = trace_fweight(imgtemp, xinit, ycen = ycen, invvar=invtemp, radius=radius)
         # Shift
         xshift = np.clip(xfit-xinit, -1*maxshift, maxshift) * (xfiterr < maxerr)
         # Save
@@ -2429,7 +2464,7 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=3.0,maxshift0=0.5
     for iy in range(ypass-1, -1,-1):
         xinit = xset[iy+1, :]
         ycen = iy * np.ones(ntrace,dtype=int)
-        xfit,xfiterr = trace_fweight(image, xinit, ycen = ycen, invvar=invvar, radius=radius)
+        xfit,xfiterr = trace_fweight(imgtemp, xinit, ycen = ycen, invvar=invtemp, radius=radius)
         # Shift
         xshift = np.clip(xfit-xinit, -1*maxshift, maxshift) * (xfiterr < maxerr)
         # Save

@@ -385,7 +385,7 @@ class WaveTilts(masterframe.MasterFrame):
             sub_inmask = inmask[np.fmax(spat_min[iline],0):np.fmin(spat_max[iline],nspat-1),:]
             trace_out = trace_slits.trace_crude_init(sub_img, np.array([lines_spec[iline]]), (sub_img.shape[0]-1)//2,
                                                      invvar=sub_inmask, radius=2., maxshift0=3.0,
-                                                     maxshift=3.0, maxerr=0.2)
+                                                     maxshift=3.0, maxerr=1.0)
             tilts_now, err_now = trace_out[0].flatten(), trace_out[1].flatten()
             # Deal with possibly falling off the chip
             if spat_min[iline] < 0:

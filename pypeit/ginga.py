@@ -388,8 +388,8 @@ def show_tilts(viewer, ch, tilts, tilts_spat, tilts_mask, tilts_err, tilt_flag =
 
                 canvas.add('constructedcanvas', points_bad)
 
-    text_bad = [dict(type='text', args=(nspat / 2 - 40, tilts.max()/2, 'bad pixels'),kwargs=dict(color='red', fontsize=20))]
-    canvas.add('constructedcanvas', text_bad)
+#    text_bad = [dict(type='text', args=(nspat / 2 - 40, tilts.max()/2, 'bad pixels'),kwargs=dict(color='red', fontsize=20))]
+#    canvas.add('constructedcanvas', text_bad)
 
 
 # Old method
