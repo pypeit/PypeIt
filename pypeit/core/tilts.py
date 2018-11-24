@@ -20,6 +20,7 @@ from pypeit.core import qa
 from pypeit.core import trace_slits
 from pypeit.core import extract
 from pypeit import debugger
+from astropy.stats import sigma_clipped_stats
 
 try:
     from pypeit import ginga
@@ -136,7 +137,7 @@ def trace_tilts_guess(arcimg, lines_spec, lines_spat, trace_int, thismask, inmas
     msgs.info('Number of usable arc lines for tilts: {:d}/{:d}'.format(np.sum(use_tilt),nlines))
 
     # Tighten it up with Gaussian weighted centroiding
-    trc_tilt_dict = dict(spat_min=spat_min, spat_max=spat_max, do_crude=do_crude, use_tilt=use_tilt,
+    trc_tilt_dict = dict(nspec = nspec, nspat = nspat, spat_min=spat_min, spat_max=spat_max, do_crude=do_crude, use_tilt=use_tilt,
                          tilts_sub_spec=tilts_sub_spec, tilts_sub_spat=tilts_sub_spat,
                          tilts_sub=tilts_sub, tilts_sub_fit=tilts_sub_fit, tilts_sub_err=tilts_sub_err,
                          tilts_sub_mask=tilts_sub_mask,
@@ -144,3 +145,115 @@ def trace_tilts_guess(arcimg, lines_spec, lines_spat, trace_int, thismask, inmas
                          tilts=tilts, tilts_fit=tilts_fit, tilts_err=tilts_err, tilts_mask=tilts_mask)
 
     return trc_tilt_dict
+
+
+def coeff2tilts(coeff2, shape, func2D, max_tilt=1.2, min_tilt=-0.2):
+    # Compute the tilts image
+    polytilts = utils.polyval2d_general(coeff2, np.linspace(0.0, 1.0, shape[1]),
+                                        np.linspace(0.0, 1.0, shape[0]),
+                                        minx=0., maxx=1., miny=0., maxy=1., function=func2D)
+    # y normalization and subtract
+    ynorm = np.outer(np.linspace(0., 1., shape[0]), np.ones(shape[1]))
+    polytilts = ynorm - polytilts / (shape[0] - 1)
+    # JFH Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
+    # wavelength solution fitting
+    polytilts = np.fmax(np.fmin(polytilts, max_tilt), min_tilt)
+
+    return polytilts
+
+
+# TODO: Change yorder to "dispaxis_order"?
+def fit_tilts(msarc, slit, all_tilts, order=2, yorder=4, func2D='legendre2d', maskval=-999999.9,
+              setup=None, doqa=True, show_QA=False, out_dir=None):
+    # ToDO please add some docs.
+    """
+
+    Args:
+        msarc:
+        slit:
+        all_tilts:
+        order:
+        yorder:
+        func2D:
+        maskval:
+        setup:
+        doqa:
+        show_QA:
+        out_dir:
+
+    Returns:
+
+    """
+    # Unpack
+    xtilt, ytilt, mtilt, wtilt = all_tilts
+    #
+    # ToDO change variable labels spec_order, spat_order, get rid of this +1
+    fitxy = [order + 1, yorder]
+
+    # Fit the inverted model with a 2D polynomial
+    msgs.info("Fitting tilts with a low order, 2D {:s}".format(func2D))
+
+    inmask = xtilt != maskval
+    fitmask, coeff2 = utils.robust_polyfit_djs(xtilt[inmask], mtilt[inmask] - ytilt[inmask], fitxy,
+                                               x2=mtilt[inmask] / (msarc.shape[0] - 1.0),
+                                               function='legendre2d', maxiter=30, maxrej=10, lower=3.0, upper=3.0,
+                                               minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0,
+                                               use_mad=True, sticky=True)
+    plt.figure(figsize=(8, 20))
+    deltay_fit = utils.func_val(coeff2, xtilt[inmask], 'legendre2d', x2=mtilt[inmask] / (msarc.shape[0] - 1.0),
+                                minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    plt.plot(xtilt[inmask], ytilt[inmask] + deltay_fit, 'go', mfc='g', markersize=5.0, markeredgewidth=1.0,
+             label='2D Fit')
+    plt.plot(xtilt[inmask][fitmask], mtilt[inmask][fitmask], 'ko', mfc='None', markersize=7.0, markeredgewidth=1.0,
+             label='Good Points')
+    plt.plot(xtilt[inmask][~fitmask], mtilt[inmask][~fitmask], 'ro', mfc='None', markersize=7.0, markeredgewidth=1.0,
+             label='Rejected Points')
+    plt.legend()
+    plt.show()
+    res2 = (mtilt[inmask][fitmask] - ytilt[inmask][fitmask]) - deltay_fit[fitmask]
+    msgs.info("RMS (pixels): {}".format(np.std(res2)))
+
+    #    plt.figure(figsize=(8,20))
+    #    deltay_fit = utils.func_val(coeff2, xtilt[inmask], func2D, x2=mtilt[inmask]/(msarc.shape[0]-1.0), minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    #    plt.plot(xtilt[inmask], ytilt[inmask] + deltay_fit, 'go', mfc='g',markersize=7.0, markeredgewidth=1.0, label = '2D Fit')
+    #    plt.plot(xtilt[inmask][fitmask], mtilt[inmask][fitmask], 'ko', mfc='None',markersize=5.0, markeredgewidth=1.0, label = 'Good Points')
+    #    plt.plot(xtilt[inmask][~fitmask], mtilt[inmask][~fitmask], 'ro', mfc='None',markersize=5.0, markeredgewidth=1.0, label = 'Rejected Points')
+    #    plt.legend()
+    #    plt.show()
+
+    # wgd = np.where(xtilt != maskval)
+    # Invert
+
+    """
+        inmask = xtilt != maskval
+        coeff2 = utils.polyfit2d_general(xtilt[inmask], mtilt[inmask]/(msarc.shape[0]-1),
+                                           mtilt[inmask]-ytilt[inmask], fitxy,
+                                           minx=0., maxx=1., miny=0., maxy=1., function=func2D)
+
+        # TODO -- Add a rejection iteration (or two)
+
+        # Residuals
+        xv2 = utils.scale_minmax(xtilt[inmask], minx=0., maxx=1)
+        yv2 = utils.scale_minmax(mtilt[inmask]/(msarc.shape[0]-1), minx=0., maxx=1)
+        deltay_fit = np.polynomial.legendre.legval2d(xv2, yv2, coeff2)
+        res2 = (mtilt[inmask]-ytilt[inmask]) - deltay_fit
+        msgs.info("RMS (pixels): {}".format(np.std(res2)))
+
+        plt.figure(figsize=(8, 20))
+        plt.plot(xtilt[inmask], mtilt[inmask] - deltay_fit, 'go', mfc='g', markersize=7.0, markeredgewidth=1.0,
+                 label='2D Fit')
+        plt.plot(xtilt[inmask], ytilt[inmask], 'ko', mfc='None', markersize=5.0, markeredgewidth=1.0,label='Good Points')
+        plt.legend()
+        plt.show()
+    """
+
+    # QA
+    if doqa:
+        plot_tiltres(setup, mtilt[inmask], ytilt[inmask], deltay_fit, slit=slit, show_QA=show_QA, out_dir=out_dir)
+
+    # Compute the tilts image
+    polytilts = coeff2tilts(coeff2, msarc.shape, func2D)
+
+    # Return
+    outpar = None
+    return polytilts, coeff2, outpar

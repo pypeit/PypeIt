@@ -1167,7 +1167,7 @@ def parse_hand_dict(hand_extract_dict):
 
 
 
-def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5.0, maxiter = 25, niter=6,gweight=False,show_fits=False, idx = None):
+def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5.0, maxiter = 25, niter=6,gweight=False,show_fits=False, idx = None, verbose=False):
     """ Utility routine for object find to iteratively trace and fit. Used by both objfind and ech_objfind
 
     Parameters
@@ -1228,7 +1228,9 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5
 
     spec_vec = np.arange(nspec)
 
-    msgs.info('Fitting the object traces')
+    if verbose:
+        msgs.info('Fitting the object traces')
+
     # Iterate flux weighted centroiding
     fwhm_vec = np.zeros(niter)
     fwhm_vec[0:niter//3] = 1.3*fwhm

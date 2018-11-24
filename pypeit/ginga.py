@@ -329,8 +329,7 @@ def clear_all():
         shell.delete_channel(ch)
 
 
-def show_tilts(viewer, ch, tilts, tilts_spat, tilts_mask, tilts_err, tilt_flag = None, sedges=None, yoff=0., xoff=0., all_green=False, pstep=10
-               , clear_canvas = False):
+def show_tilts(viewer, ch, trc_tilt_dict, plot_bad = True, sedges=None, yoff=0., xoff=0., pstep=10, clear_canvas = False):
     """  Display arc image and overlay the arcline tilt measurements
     Parameters
     ----------
@@ -355,11 +354,17 @@ def show_tilts(viewer, ch, tilts, tilts_spat, tilts_mask, tilts_err, tilt_flag =
     if sedges is not None:
         show_slits(viewer, ch,sedges[0], sedges[1])
 
+    tilts = trc_tilt_dict['tilts']
+    tilts_spat = trc_tilt_dict['tilts_spat']
+    tilts_mask = trc_tilt_dict['tilts_mask']
+    tilts_err = trc_tilt_dict['tilts_err']
+
+    use_tilt = trc_tilt_dict['use_tilt']
     # Show a trace
-    nspat = tilts.shape[0]
+    nspat = trc_tilt_dict['nspat']
+    nspec = trc_tilt_dict['nspec']
     nlines = tilts.shape[1]
-    if tilt_flag is None:
-        tilt_flag = np.ones(nlines,dtype=bool)
+    con_canvas = []
     for iline in range(nlines):
         x = tilts_spat[:,iline] + xoff
         y = tilts[:,iline] + yoff  # FOR IMAGING (Ginga offsets this value by 1 internally)
@@ -367,29 +372,34 @@ def show_tilts(viewer, ch, tilts, tilts_spat, tilts_mask, tilts_err, tilt_flag =
         this_err = (tilts_err[:,iline] > 900)
         if np.sum(this_mask) > 0:
             points = list(zip(x[this_mask][::pstep].tolist(),y[this_mask][::pstep].tolist()))
-            if tilt_flag[iline]:
-                clr = 'green'  # Good line
+            if use_tilt[iline]:
+                clr = 'cyan'  # Good line
             else:
-                if all_green:
-                    clr = 'green'  # Bad line
-                else:
-                    clr = 'red'
+                clr = 'yellow'  # Bad line
             canvas.add('path', points, color=clr)
 
-            badpix = (this_mask == True) & (this_err == True)
-            nbad = np.sum(badpix)
-            if nbad > 0:
-                xbad = x[badpix]
-                ybad = y[badpix]
-                # Now show stuff that had larger errors
-                # note: must cast numpy floats to regular python floats to pass the remote interface
-                points_bad = [dict(type='point', args=(float(xbad[i]), float(ybad[i]), 2),
-                                   kwargs=dict(style='plus', color='red')) for i in range(nbad)]
+            if plot_bad:
+                badpix = (this_mask == True) & (this_err == True)
+                nbad = np.sum(badpix)
+                if nbad > 0:
+                    xbad = x[badpix]
+                    ybad = y[badpix]
+                    # Now show stuff that had larger errors
+                    # note: must cast numpy floats to regular python floats to pass the remote interface
+                    points_bad = [dict(type='point', args=(float(xbad[i]), float(ybad[i]), 2),
+                    kwargs=dict(style='plus', color='red')) for i in range(nbad)]
 
-                canvas.add('constructedcanvas', points_bad)
+                    con_canvas.append(points_bad)
 
-#    text_bad = [dict(type='text', args=(nspat / 2 - 40, tilts.max()/2, 'bad pixels'),kwargs=dict(color='red', fontsize=20))]
-#    canvas.add('constructedcanvas', text_bad)
+
+    # Labels for the points
+    text_good = [dict(type='text', args=(nspat//2 - 40, nspec//2, 'good tilts'),kwargs=dict(color='cyan', fontsize=20))]
+
+    text_bad = [dict(type='text', args=(nspat//2 - 40, nspec//2 - 30, 'bad tilts'), kwargs=dict(color='yellow', fontsize=20))]
+
+    text_mask = [dict(type='text', args=(nspat//2 - 40, nspec//2 - 60, 'masked from fits'), kwargs=dict(color='red', fontsize=20))]
+    canvas_list = con_canvas + text_good + text_bad + text_mask
+    canvas.add('constructedcanvas', canvas_list)
 
 
 # Old method
