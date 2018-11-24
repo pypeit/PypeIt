@@ -388,8 +388,8 @@ def show_tilts(viewer, ch, trc_tilt_dict, plot_bad = True, sedges=None, yoff=0.,
             canvas.add('path', points, color=clr)
 
 
-    canvas.add(str('text'), nspat//2 - 40, nspec//2,      '   good tilts', color=str('blue'),fontsize=20.)
-    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 30, '    bad tilts', color=str('magenta'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2,      '   good tilts', color=str('cyan'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 30, '    bad tilts', color=str('yellow'),fontsize=20.)
     canvas.add(str('text'), nspat//2 - 40, nspec//2 - 60, 'masked pixels', color=str('red'),fontsize=20.)
 
 

@@ -362,11 +362,13 @@ class WaveTilts(masterframe.MasterFrame):
 
         slit_cen = (slit_left + slit_righ)/2.0
         lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
-        slit_widp2 = int(np.ceil((slit_righ - slit_left).max()) + 2)
-        trace_int_even = slit_widp2 if slit_widp2 % 2 == 0 else slit_widp2 + 1
-        trace_int = trace_int_even // 2
+        slit_width = int(np.ceil((slit_righ - slit_left).max()))
 
-        trc_tilt_dict = tracewave.trace_tilts_guess(arcimg, lines_spec, lines_spat, trace_int, thismask, inmask=None,
+
+        from IPython import embed
+        embed()
+
+        trc_tilt_dict = tracewave.trace_tilts_guess(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=None,
                                                     tilts_guess=None,fwhm=4.0,ncoeff=3, maxdev_fit=0.1, percentile_reject=0.10,
                                                     max_badpix_frac=0.20,maxerr=1.0, maxshift=3.0, maxshift0=3.0, nave=5, show_fits=False)
 
@@ -374,9 +376,6 @@ class WaveTilts(masterframe.MasterFrame):
             viewer, ch = ginga.show_image(arcimg * thismask, chname='Tilts')
             #            ginga.show_tilts(viewer, ch, tilts,tilts_spat, tilts_mask, tilts_err, sedges = (slit_left, slit_righ))
             ginga.show_tilts(viewer, ch, trc_tilt_dict, sedges=(slit_left, slit_righ), plot_bad=True, clear_canvas=True)
-
-        from IPython import embed
-        embed()
 
         # Load up
         self.all_trcdict[slit] = trc_tilt_dict.copy()
