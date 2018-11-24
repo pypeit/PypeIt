@@ -1275,7 +1275,7 @@ specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 
 
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
             hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit = 10,  bg_smth = 5.0,
-            extract_maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (3,3), objmask_nthresh = 2.0,
+            extract_maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (5,5), objmask_nthresh = 2.0,
             specobj_dict=specobj_dict, show_peaks=False, show_fits = False, show_trace = False, qa_title=''):
 
     """ Find the location of objects in a slitmask slit or a echelle order.
@@ -2088,6 +2088,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
             for spec in sobjs_align[on_order]:
                 spec.ech_fracpos = uni_frac[iobj]
                 spec.ech_obj_id = uni_obj_id[iobj]
+                spec.objid = uni_obj_id[iobj]
                 spec.ech_frac_was_fit = False
 
 
@@ -2163,6 +2164,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
                 thisobj.ech_fracpos = uni_frac[iobj]
                 thisobj.ech_obj_id = uni_obj_id[iobj]
+                thisobj.objid = uni_obj_id[iobj]
                 thisobj.ech_frac_was_fit = True
                 sobjs_align.add_sobj(thisobj)
                 obj_id = np.append(obj_id, uni_obj_id[iobj])
@@ -2208,6 +2210,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
             sobjs_keep = sobjs_align[ikeep].copy()
             for spec in sobjs_keep:
                 spec.ech_obj_id = iobj_keep
+                spec.objid = iobj_keep
             sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ech_orderindx)])
             iobj_keep += 1
         else:

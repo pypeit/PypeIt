@@ -124,7 +124,6 @@ class Calibrations(object):
         self.mspixflatnrm = None
         self.msillumflat = None
         self.mswave = None
-        #self.datasec_img = None
 
     def reset(self, setup, det, sci_ID, par=None):
         """
@@ -241,6 +240,8 @@ class Calibrations(object):
         """
         Load or generate the bad pixel mask
 
+        This needs to be for the *trimmed* image!
+
         Requirements:
            Instrument dependent
 
@@ -254,15 +255,24 @@ class Calibrations(object):
         # Generate a bad pixel mask (should not repeat)
         if 'bpm' in self.calib_dict[self.setup].keys():
             self.msbpm = self.calib_dict[self.setup]['bpm']
+            return self.mspbm
 
         # Make sure shape is defined
         self._check_shape()
 
-        # Always use the example file
+        # Always use the shape!
+        #  But some instruments need the filename too, e.g. for binning
         example_file = self.fitstbl.find_frame_files('science', sci_ID=self.sci_ID)[0]
-        bpmImage = bpmimage.BPMImage(self.spectrograph, filename=example_file, det=self.det,
-                                     msbias=self.msbias if self.par['badpix'] == 'bias' else None,
-                                     trim=self.par['trim'])
+        dsec_img = self.spectrograph.get_datasec_img(example_file, det=self.det)
+        shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+        # Check it matches the processed arc;  if not we have issues..
+        if not (self.shape == shape):
+            msgs.error("You have an untrimmed arc!  We aren't prepared for this..")
+
+        # Build it
+        bpmImage = bpmimage.BPMImage(self.spectrograph, filename=example_file,
+                                     det=self.det, shape=self.shape,
+                                     msbias=self.msbias if self.par['badpix'] == 'bias' else None)
         # Build, save, and return
         self.msbpm = bpmImage.build()
         self.calib_dict[self.setup]['bpm'] = self.msbpm
