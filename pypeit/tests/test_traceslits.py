@@ -22,12 +22,52 @@ def chk_for_files(root):
     return len(files) != 0
 
 @dev_suite_required
-def test_chk_lris_red_long_slits():
+def test_chk_deimos_slits():
+    spectrograph = util.load_spectrograph('keck_deimos')
+    for nslit, binning, det, root in zip([27],
+                                         [(1,1)],
+                                         [3],
+                                         ['MasterTrace_KeckDEIMOS_830G_8600_det3',
+                                          ]):
+        mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)
+        assert chk_for_files(mstrace_root)
+        traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
+        norig = traceSlits.nslit
+        assert norig == nslit
+        # Run me
+        plate_scale = binning[0]*spectrograph.detector[det-1]['platescale']
+        traceSlits.run(show=False, plate_scale=plate_scale)
+        # Test
+        assert traceSlits.nslit == norig
+
+@dev_suite_required
+def test_chk_lris_blue_slits():
+    spectrograph = util.load_spectrograph('keck_lris_blue')
+    for nslit, binning, det, root in zip([1, 14, 15],
+                                         [(2,2), (2,2), (2,2)],
+                                         [2,1,2],
+                                         ['MasterTrace_KeckLRISb_long_600_4000_det2',
+                                          'MasterTrace_KeckLRISb_multi_600_4000_det1',
+                                          'MasterTrace_KeckLRISb_multi_600_4000_det2',
+                                          ]):
+        mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)
+        assert chk_for_files(mstrace_root)
+        traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
+        norig = traceSlits.nslit
+        assert norig == nslit
+        # Run me
+        plate_scale = binning[0]*spectrograph.detector[det-1]['platescale']
+        traceSlits.run(show=False, plate_scale=plate_scale)
+        # Test
+        assert traceSlits.nslit == norig
+
+@dev_suite_required
+def test_chk_lris_red_slits():
     spectrograph = util.load_spectrograph('keck_lris_red')
     for nslit, binning, det, root in zip([1, 13, 14],
                                          [(2,2), (2,2), (2,2)],
                                          [2,1,2],
-                           ['MasterTrace_KeckLRISr_long_600_4310_d55',
+                           ['MasterTrace_KeckLRISr_long_600_7500_d560',
                             'MasterTrace_KeckLRISr_400_8500_det1',
                             'MasterTrace_KeckLRISr_400_8500_det2',
                                ]):

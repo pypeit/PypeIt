@@ -2764,12 +2764,77 @@ def tc_indices(tc_dict):
     # Return
     return left_idx, left_xval, right_idx, right_xval
 
+
+def pca_refine(pypeline, siglev, sigthresh, slit_left, slit_left_err, slit_righ, slit_righ_err,
+               mask_frac_thresh=0.6, maxiter=3, coeff_npoly_pca=2, show=False, mstrace=None,
+               debug=False):
+    """
+        Drives PCA refinement
+
+    Args:
+        pypeline: str
+          Pipeline, e.g.  MultiSlit, Echelle
+          Echelle runs left and right edges separately
+        siglev: ndarray
+          Sobolev image in S/N units
+        sigthresh: float
+          Threshold for identifying slits
+        slit_left: ndarray
+          Input left edges
+        slit_left_err: ndarray
+          Input left edge errors
+        slit_righ: ndarray
+          Input right edges
+        slit_righ_err: ndarray
+          Input right edge errors
+        mask_frac_thresh: float, optional
+          Minimum fraction of the detector the edge must span to use
+          in the initial PCA
+        maxiter: int, optional
+          Number of iterations
+          2 is recommended for MultiSlit
+          3 is recommended for Echelle
+        coeff_npoly_pca: int, optional
+        show: bool, optional
+        mstrace: ndarray
+          Trace image;  only needed if show=True
+        debug: bool, optional
+
+    Returns:
+        edges_dict: dict
+          Contains the new trace edges arrays
+    """
+    # Dimensions
+    nspec, nspat = siglev.shape
+
+
+
 # ToDo 1) Add code to analyze the extracted filt_mean spectra to determine when the ordres are shorter.
 # ToDo 2) Add an option where the user specifies the number of slits, and so it takes only the highest peaks
 # from detect_lines
 def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 3,
                  fwhm = 3.0, sigthresh = 100.0, upper = 2.0, lower = 2.0, debug=True,
                  maxrej=1):
+    """
+
+    Args:
+        filt_image:
+        edges:
+        edges_mask:
+        ncoeff:
+        npca:
+        pca_explained_var:
+        coeff_npoly_pca:
+        fwhm:
+        sigthresh:
+        upper:
+        lower:
+        debug:
+        maxrej:
+
+    Returns:
+
+    """
 
     # edges_mask True = Good, Bad = False
     # filt image has left as positive, right as negative

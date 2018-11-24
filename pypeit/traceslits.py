@@ -673,11 +673,35 @@ class TraceSlits(masterframe.MasterFrame):
 
     # ToDO JFH The PCA coefficients take on a wide range of values which makes mad rejection less meaingful. I wonder if we should
     # be doing rejection and fitting using relative errors and relative error deviations.
-    def _pca_refine(self, mask_frac_thresh=0.6, maxiter=3, coeff_npoly_pca = 2,
-                    show=False, debug=False):
+    def _pca_refine(self, mask_frac_thresh=0.6, coeff_npoly_pca = 2, show=False, debug=False):
+        """
+        Mainly a driver routine to trace_slits.trace_refine() method
+
+        Takes the trace_crude outputs from mslit_tcrude and performs
+        a PCA analysis to predict curvature across the detector.
+
+        Slit edges are then found in a rectified, smashed image
+
+        Behavior is distinct for multi-slit vs. echelle
+
+        Args:
+            mask_frac_thresh: float, optional
+            coeff_npoly_pca: int, optional
+            show: bool, optional
+
+        Returns:
+            Fills tc_dict with the 'traces' arrays (in left, right)
+
+        """
+        nspec, nspat = self.siglev.shape
+
+        # Fuss with parameters here
+        if self.spectrograph.pypeline == 'MultiSlit':
+            maxiter = 2
+        else:
+            maxiter = 3
 
         # Unpack and sort
-        nspec, nspat = self.siglev.shape
         # Left
         slit_left_mean = np.mean(self.tc_dict['left']['xset'],0)
         isort_left = slit_left_mean.argsort()
@@ -689,71 +713,60 @@ class TraceSlits(masterframe.MasterFrame):
         slit_righ = self.tc_dict['right']['xset'][:, isort_righ]
         slit_righ_err = self.tc_dict['right']['xerr'][:, isort_righ]
 
-        # as a hack
-        #slit_left = np.hstack((slit_left, slit_righ))
-        #slit_left_err = np.hstack((slit_left_err, slit_righ_err))
-
         # Cut on edges
         # Left
         mask_left = (slit_left_err < 900)
-        mask_frac_left = np.sum(mask_left,0)/nspec
+        mask_frac_left = np.sum(mask_left, 0) / nspec
         keep_left = mask_frac_left > mask_frac_thresh
-        slit_left = slit_left[:,keep_left]
-        mask_left = mask_left[:,keep_left]
+        slit_left = slit_left[:, keep_left]
+        mask_left = mask_left[:, keep_left]
         # Right
         mask_righ = (slit_righ_err < 900)
-        mask_frac_righ = np.sum(mask_righ,0)/nspec
+        mask_frac_righ = np.sum(mask_righ, 0) / nspec
         keep_righ = mask_frac_righ > mask_frac_thresh
-        slit_righ = slit_righ[:,keep_righ]
-        mask_righ = mask_righ[:,keep_righ]
+        slit_righ = slit_righ[:, keep_righ]
+        mask_righ = mask_righ[:, keep_righ]
 
         # Echelle or multi-slit?
         if self.spectrograph.pypeline == 'MultiSlit':
-            # Combine left and right
+            # Combine left and right slit edges
             slit_in = np.append(slit_left, slit_righ, axis=1)
             mask_in = np.append(mask_left, mask_righ, axis=1)
             # Run it!
             iter = 1
-            maxiter = 2
             while iter <= maxiter:
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
                 edges_dict = trace_slits.trace_refine(
-                    self.siglev, slit_in, mask_in, npca = None, ncoeff=5,
-                    pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca,fwhm=3.0,
+                    self.siglev, slit_in, mask_in, npca=None, ncoeff=5,
+                    pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca, fwhm=3.0,
                     sigthresh=self.par['sigdetect'], debug=debug)
-                # Prep for round 2
+                # Prep for round 2+
                 slit_in = np.append(edges_dict['left']['trace'],
                                     edges_dict['right']['trace'], axis=1)
-                mask_in = np.ones_like(slit_in,dtype=bool)
-                iter +=1
+                mask_in = np.ones_like(slit_in, dtype=bool)
+                iter += 1
                 # Show
                 if show:
-                    color = dict(left='green', right='red')
-                    viewer, ch = ginga.show_image(self.mstrace)
-                    for side in ['left', 'right']:
-                        for kk in range(edges_dict[side]['nstart']):
-                            ginga.show_trace(viewer, ch, edges_dict[side]['trace'][:, kk], trc_name=side+ str(kk),color=color[side])
+                    edges_dict['show'] = 'both'
+                    self.show('refined_edges', extras=edges_dict)
         else:
-            # Gemini GNIRS suggests we should do left and right echelle boundaries individually
+            # Run on left edges
             slit_in = slit_left.copy()
             mask_in = mask_left.copy()
             iter = 1
-            # Run on left edges
             while iter <= maxiter:
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
-                trace_dict_l = trace_slits.trace_refine(
-                    self.siglev, slit_in, mask_in, npca = None, ncoeff=5,
-                    pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca,fwhm=3.0,
-                    sigthresh=self.par['sigdetect'], debug=debug, maxrej=1)
+                trace_dict_l = trace_slits.trace_refine(self.siglev, slit_in, mask_in, npca=None, ncoeff=5,
+                                            pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca, fwhm=3.0,
+                                            sigthresh=self.par['sigdetect'], debug=debug, maxrej=1)
                 slit_in = trace_dict_l['left']['trace']
-                mask_in = np.ones_like(slit_in,dtype=bool)
-                iter +=1
+                mask_in = np.ones_like(slit_in, dtype=bool)
+                iter += 1
 
                 if show:
-                    color = dict(left='green', right='red')
-                    viewer, ch = ginga.show_image(self.mstrace)
-                    for kk in range(trace_dict_l['left']['nstart']):
-                        ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk),color='green')
+                    trace_dict_l['show'] = 'left'
+                    self.show('refined_edges', extras=trace_dict_l)
+
             # TODO -- Should sync up left-right in one big while loop after doing one iteration
             # Run on right edges
             iter = 1
@@ -761,30 +774,25 @@ class TraceSlits(masterframe.MasterFrame):
             mask_in = mask_righ.copy()
             while iter <= maxiter:
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
-                trace_dict_r = trace_slits.trace_refine(
-                    self.siglev, slit_in, mask_in, npca = None, ncoeff=5,pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca,fwhm=3.0,
-                    sigthresh=self.par['sigdetect'], debug=debug, maxrej=1)
+                trace_dict_r = trace_slits.trace_refine(self.siglev, slit_in, mask_in, npca=None, ncoeff=5, pca_explained_var=99.8,
+                                            coeff_npoly_pca=coeff_npoly_pca, fwhm=3.0,
+                                            sigthresh=self.par['sigdetect'], debug=debug, maxrej=1)
                 slit_in = trace_dict_r['right']['trace']
-                mask_in = np.ones_like(slit_in,dtype=bool)
-                iter +=1
+                mask_in = np.ones_like(slit_in, dtype=bool)
+                iter += 1
 
                 if show:
-                    color = dict(left='green', right='red')
-                    viewer, ch = ginga.show_image(self.mstrace)
-                    for kk in range(trace_dict_r['right']['nstart']):
-                        ginga.show_trace(viewer, ch, trace_dict_r['right']['trace'][:, kk], trc_name='right_' + str(kk),color='red')
-
-            if show:
-                viewer, ch = ginga.show_image(self.mstrace)
-                for kk in range(trace_dict_l['left']['nstart']):
-                    ginga.show_trace(viewer, ch, trace_dict_l['left']['trace'][:, kk], trc_name='left_' + str(kk), color='green')
-                for kk in range(trace_dict_r['right']['nstart']):
-                    ginga.show_trace(viewer, ch, trace_dict_r['right']['trace'][:, kk], trc_name='right_' + str(kk),color='red')
-
-            # Merge
+                    trace_dict_r['show'] = 'right'
+                    self.show('refined_edges', extras=trace_dict_r)
+            # Merge left and right
             edges_dict = {}
             edges_dict['left'] = trace_dict_l['left'].copy()
             edges_dict['right'] = trace_dict_r['right'].copy()
+
+            # A final show
+            if show:
+                edges_dict['show'] = 'both'
+                self.show('refined_edges', extras=edges_dict)
 
         # Update tc_dict -- we now leave edgearr behind!
         ypos = nspec // 2
@@ -1031,7 +1039,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
 
 
-    def show(self, attr='edges', pstep=50):
+    def show(self, attr='edges', pstep=50, extras=None):
         """
         Display an image or spectrum in TraceSlits
 
@@ -1043,8 +1051,9 @@ class TraceSlits(masterframe.MasterFrame):
           'edgearr' -- Show the edgearr image
           'siglev' -- Show the Sobolev image
           'traces' -- Show the traces at an intermediate stage
-        display : str (optional)
-          'ginga' -- Display to an RC Ginga
+          'refined_edges' -- Show the traces at an intermediate stage in _pca_refine()
+        extras: anything
+          Extra bits and pieces needed for plotting
         """
         if attr == 'edges':
             viewer, ch = ginga.show_image(self.mstrace, chname='edges')
@@ -1059,6 +1068,21 @@ class TraceSlits(masterframe.MasterFrame):
             for side in ['left', 'right']:
                 for kk in range(self.tc_dict[side]['xset'].shape[1]):
                     ginga.show_trace(viewer, ch, self.tc_dict[side]['xset'][:, kk], trc_name=side+ str(kk),color=color[side])
+        elif attr == 'refined_edges':
+            # Used in _pca_refine()
+            edges_dict = extras
+            #
+            color = dict(left='green', right='red')
+            viewer, ch = ginga.show_image(self.mstrace)
+            if edges_dict['show'] == 'both':
+                for side in ['left', 'right']:
+                    for kk in range(edges_dict[side]['nstart']):
+                        ginga.show_trace(viewer, ch, edges_dict[side]['trace'][:, kk], trc_name=side + str(kk),
+                                         color=color[side])
+            else:
+                for side in [edges_dict['show']]:
+                    for kk in range(edges_dict[side]['nstart']):
+                        ginga.show_trace(viewer, ch, edges_dict[side]['trace'][:, kk], trc_name='left_' + str(kk), color=color[side])
         elif attr == 'traces':
             viewer, ch = ginga.show_image(self.mstrace, chname='slit_traces')
             color = dict(left='green', right='red')
@@ -1214,8 +1238,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Return
         return loaded
 
-    def run(self, arms=True, add_user_slits=None,
-            plate_scale = None, show=False):
+    def run(self, arms=True, add_user_slits=None, plate_scale = None, show=False):
         """ Main driver for tracing slits.
 
           Code flow
@@ -1286,14 +1309,6 @@ class TraceSlits(masterframe.MasterFrame):
         if add_user_slits is not None:
             self.add_user_slits(add_user_slits)
 
-        '''
-        # Fit edges
-        if orig:
-            self._set_lrminx()
-            self._fit_edges('left')
-            self._fit_edges('right')
-        '''
-
         # Are we done, e.g. a simple longslit?
         #   Check if no further work is needed (i.e. there only exists one order)
         if self._chk_for_longslit():
@@ -1313,13 +1328,12 @@ class TraceSlits(masterframe.MasterFrame):
         # Remove any slits that are completely off the detector
         #   Also remove short slits here for multi-slit and long-slit (alignment stars)
         if self.nslit > 1:
-            debugger.set_trace()
             self._trim_slits(trim_short_slits=arms, plate_scale = plate_scale)
 
         # Generate pixel arrays
         self._make_pixel_arrays()
 
-        # fill dict for PyepIt
+        # fill dict for PypeIt
         self.tslits_dict = self._fill_tslits_dict()
 
         # Return it
