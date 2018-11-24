@@ -357,19 +357,39 @@ class WaveTilts(masterframe.MasterFrame):
         else:
             msgs.info('Modelling arc line tilts with {:d} arc lines'.format(nlines))
 
-        def trace_tilts_guess(arcimg, lines_spec, lines_spat, thismask, slit_left, slit_righ, tilts_guess = None, fwhm = 4.0, ncoeff = 3, max_tilt_dev = 0.1,
-                              maxerr=1.0,maxshift=3.0,maxshift0=3.0, show_fits=False, show_tilts = False):
+        lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
+
+        slit_cen = (slit_left + slit_righ) / 2.0
+        slit_widp2 = int(np.ceil((slit_righ - slit_left).max()) + 2)
+        trace_int_even = slit_widp2 if slit_widp2 % 2 == 0 else slit_widp2 + 1
+        trace_int = trace_int_even // 2
+
+
+        from IPython import embed
+        embed()
+
+        if show_tilts:
+            viewer, ch = ginga.show_image(arcimg * thismask, chname='Tilts')
+            #            ginga.show_tilts(viewer, ch, tilts,tilts_spat, tilts_mask, tilts_err, sedges = (slit_left, slit_righ))
+            ginga.show_tilts(trc_tilt_dict, sedges=(slit_left, slit_righ))
+
+        # Load up
+        self.all_trcdict[slit] = trc_tilt_dict.copy()
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return trcdict
+
+        """
+        def trace_tilts_guess(arcimg, lines_spec, lines_spat, trace_int, thismask, inmask = None, tilts_guess = None, fwhm = 4.0, ncoeff = 3, maxdev_fit = 0.1,
+                              percentile_reject = 0.10, max_badpix_frac = 0.20, maxerr=1.0,maxshift=3.0,maxshift0=3.0, show_fits=False, show_tilts = False):
 
             do_crude = True if tilts_guess is None else False
-
             nlines = len(lines_spec)
-            slit_cen= (slit_left + slit_righ)/2.0
-            slit_widp2  = int(np.ceil((slit_righ - slit_left).max()) + 2)
-            trace_int_even = slit_widp2 if slit_widp2 % 2 == 0 else slit_widp2 + 1
-            trace_int = trace_int_even//2
+            if trace_int % 2 != 0: 
+                msgs.error('The trace_int parameter must be an even integer')
             nsub = 2*trace_int + 1
 
-            lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
             lines_spat_int =np.round(lines_spat).astype(int)
 
             spat_min = np.zeros(nlines,dtype=int)
@@ -411,9 +431,9 @@ class WaveTilts(masterframe.MasterFrame):
                 # Do iterative flux weighted tracing and polynomial fitting to refine these traces. This must also be done in a loop
                 # since the sub image is different for every aperture, i.e. each aperature has its own image
                 tilts_sub_fit_fw, tilts_sub_fw, tilts_sub_fw_err, tset_fw = extract.iter_tracefit(
-                    sub_img, tilts_guess_now, ncoeff,inmask=sub_inmask, fwhm=fwhm,maxdev=max_tilt_dev, niter=6,show_fits=True)
+                    sub_img, tilts_guess_now, ncoeff,inmask=sub_inmask, fwhm=fwhm,maxdev=maxdev_fit, niter=6,idx = str(iline), show_fits=True)
                 tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_gw_err, tset_gw = extract.iter_tracefit(
-                    sub_img, tilts_sub_fit_fw, ncoeff,inmask=sub_inmask, fwhm=fwhm,maxdev=max_tilt_dev, niter=3,show_fits=True)
+                    sub_img, tilts_sub_fit_fw, ncoeff,inmask=sub_inmask, fwhm=fwhm,maxdev=maxdev_fit, niter=3,idx = str(iline), show_fits=True)
 
                 # Pack the results into arrays, accounting for possibly falling off the image
                 # Deal with possibly falling off the chip
@@ -445,9 +465,11 @@ class WaveTilts(masterframe.MasterFrame):
 
             # Create the mask for the bad lines. Define the error on the bad tilt as being the
             bad_mask = (tilts_sub_err > 900) | (tilts_sub_mask == False)
-            dev_mean, dev_median, dev_sig = sigma_clipped_stats(tilts_sub - tilts_sub_fit, mask = bad_mask, sigma=4.0,axis=0)
-
-            #
+            bad_pixel_count = np.sum(bad_mask,0)
+            dev_mean, dev_median, dev_sig = sigma_clipped_stats(np.abs(tilts_sub - tilts_sub_fit), mask = bad_mask, sigma=4.0,axis=0)
+            dev_mad = 1.4826*dev_median.data
+            use_tilt = (dev_mad < np.quantile(dev_mad,1.0 - percentile_reject)) & (bad_pixel_count < max_badpix_frac*nsub)
+            msgs.info('Arc line tilts: {:d}/{:d} lines are well traced and usable')
 
 
             # Tighten it up with Gaussian weighted centroiding
@@ -459,56 +481,10 @@ class WaveTilts(masterframe.MasterFrame):
 
 
 
+            return trc_tilt_dict
+        """
 
 
-
-
-        from IPython import embed
-        embed()
-        viewer, ch = ginga.show_image(arcimg*thismask,chname = 'Tilts')
-        ginga.show_tilts(viewer, ch, tilts,tilts_spat, tilts_mask, tilts_err, sedges = (slit_left, slit_righ))
-
-
-        # iteratively fit and flux weight
-        xcen_fit, xcen_fweight = extract.iter_tracefit(msarc_trans, xcen_tcrude, ncoeff, inmask=inmask, fwhm=5.0,
-                                                       maxiter=35, maxdev=1.0, niter=6, xmin=0.0, xmax=1.0)
-
-        # stack the good traces to determine the average trace profile  which will be used as a crutch for tracing
-        delta_fit = np.abs(xcen_fit - xcen_fweight)
-        dev_mean, dev_median, dev_sig = sigma_clipped_stats(delta_fit, axis=0, sigma=4.0, mask=(xerr > 1100))
-        err_max = 0.1
-        ispat = np.round(spat_arcdet).astype(int)
-        iline = np.arange(nlines, dtype=int)
-        good_lines = (dev_median.data < err_max) & (np.abs(delta_fit[ispat, iline]) < err_max)
-        # ToDO put in a check here on good_lines. If the number is too small, do something less agressive for choosing these
-
-        viewer, ch = ginga.show_image(arcimg_trans)
-        for iline in range(nlines):
-            # ToDO modify ginga to take segments!!
-            ginga.show_trace(viewer, ch, tilts[:, iline], color='green')
-
-        # Compute the ensemble of tilts
-
-
-        # delta_x =  xcen_fit[:,good_lines] - np.outer(np.ones(nspat), arcdet[good_lines]) - np.outer()
-        # delta_x_mean, delta_x_median, delta_x_sig = sigma_clipped_stats(delta_x,axis=1, sigma = 4.0,mask = (xerr[:,good_lines] > 1100))
-
-        # JFH-JXP code block ends here
-
-        # JFH Code block ends here
-
-        trcdict = tracewave.trace_tilt(self.tslits_dict['pixcen'], self.tslits_dict['lcen'],
-                                       self.tslits_dict['rcen'], self.det, self.msarc, slit,
-                                       nonlinear_counts, idsonly=self.par['idsonly'],
-                                       censpec=self.arccen[:, slit], nsmth=3,
-                                       tracethresh=tracethresh, wv_calib=wv_calib,
-                                       nonlinear_counts = nonlinear_counts)
-        # Load up
-        self.all_trcdict[slit] = trcdict.copy()
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        # Return
-        return trcdict
 
     def run(self, maskslits=None, doqa=True, wv_calib=None, gen_satmask=False):
         """ Main driver for tracing arc lines
