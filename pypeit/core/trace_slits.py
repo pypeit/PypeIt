@@ -78,13 +78,13 @@ def add_user_edges(edgearr, siglev, tc_dict, add_slits):
         for side in ['left','right']:
             # Trace crude and setup
             if side == 'left':
-                xset, xerr = trace_crude_init(np.maximum(siglev, -0.1), np.array([xleft]), yrow)
+                xset, xerr = trace_crude_init(np.maximum(siglev, -0.1), np.array([xleft]), yrow, maxshift0=0.5, maxshift=0.15, maxerr=0.2)
                 #
                 new_i = new_l
                 ref_x = left_xval
                 ref_i = left_idx
             else:
-                xset, xerr = trace_crude_init(np.maximum(-1*siglev, -0.1), np.array([xright]), yrow)
+                xset, xerr = trace_crude_init(np.maximum(-1*siglev, -0.1), np.array([xright]), yrow,maxshift0=0.5, maxshift=0.15, maxerr=0.2)
                 #
                 new_i = new_r
                 ref_x = right_xval
@@ -763,9 +763,9 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                     pass
             # Trace crude
             if side == 'left':
-                xset, xerr = trace_crude_init(np.maximum(siglev, -0.1), np.array(xinit), yrow, maxshift=maxshift)
+                xset, xerr = trace_crude_init(np.maximum(siglev, -0.1), np.array(xinit), yrow, maxshift=maxshift,maxshift0=0.5, maxerr=0.2)
             else:
-                xset, xerr = trace_crude_init(np.maximum(-1*siglev, -0.1), np.array(xinit), yrow, maxshift=maxshift)
+                xset, xerr = trace_crude_init(np.maximum(-1*siglev, -0.1), np.array(xinit), yrow, maxshift=maxshift, maxshift0=0.5, maxerr=0.2)
             # Fill it up
             for kk,x in enumerate(xinit):
                 # Annoying index
@@ -2419,10 +2419,10 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, nave=5, radius=3.0,maxsh
 
     # Boxcar-sum the entire image along columns by NAVE rows
     if nave is not None:
-        nave = np.fmax(nave,ny)
+        nave = np.fmin(nave,ny)
         # Boxcar sum the entire image weighted by inverse variance over nave spectral pixels
         kernel = np.ones((nave, 1))/float(nave)
-        imgconv = ndimage.convolve(image*invtemp, kernel, mode='nearest')
+        imgconv = ndimage.convolve(imgtemp*invtemp, kernel, mode='nearest')
         # Add the weights
         invtemp = ndimage.convolve(invtemp, kernel, mode='nearest')
         # Look for pixels with infinite errors - replace with original values
