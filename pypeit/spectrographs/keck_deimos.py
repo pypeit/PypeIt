@@ -502,6 +502,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             self.bpm_img[:,1333:1335] = 1
             self.bpm_img[:,2047] = 1
         elif det == 3:
+            self.bpm_img[:,0:4] = 1
             self.bpm_img[:,221] = 1
             self.bpm_img[:,260] = 1
             self.bpm_img[:,366] = 1
@@ -512,6 +513,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             self.bpm_img[:,1280] = 1
             self.bpm_img[:,1301:1303] = 1
             self.bpm_img[:,1744:1747] = 1
+            self.bpm_img[:,-4:] = 1
         elif det == 4:
             self.bpm_img[:,0:4] = 1
             self.bpm_img[:,47] = 1

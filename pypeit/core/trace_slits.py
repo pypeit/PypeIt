@@ -40,7 +40,59 @@ except ImportError:
 import time
 
 
-def add_user_edges(edgearr, siglev, tc_dict, add_slits):
+def add_user_edges(tc_dict, add_slits):
+    """Add user-defined slit(s)
+
+    Warning: There is no real error checking here.
+    The user is assumed to know what they are doing!
+
+    Parameters
+    ----------
+    edgearr
+    siglev
+    tc_dict
+    add_slits
+
+    Returns
+    -------
+    tc_dict is updated in place
+
+    """
+    nspec = tc_dict['left']['traces'].shape[0]
+    ycen = nspec//2
+
+    # Grab the edge indexes and xval's
+
+    # Loop me
+    for new_slit in add_slits:
+        msgs.info("Adding a user-defined slit [x0, x1, yrow]:  {}".format(new_slit))
+        # Parse
+        xleft, xright, yrow = new_slit
+
+        for xx, side in zip([xleft,xright], ['left', 'right']):
+            # Left
+            ref_x = tc_dict[side]['traces'][yrow,:]
+            # Find the closest
+            idx = np.argmin(np.abs(xx-ref_x))
+            dx = ref_x[idx]-xx
+            # New trace
+            new_trace = tc_dict[side]['traces'][:,idx] - dx
+            tc_dict[side]['traces'] = np.append(tc_dict[side]['traces'], new_trace.reshape(nspec,1), axis=1)
+            # Update xval
+            tc_dict[side]['xval'] = np.append(tc_dict[side]['xval'],int(new_trace[ycen]))
+
+    # Sort me
+    for side in ['left', 'right']:
+        allx = tc_dict[side]['xval']
+        isrt = np.argsort(allx)
+        # Do it
+        tc_dict[side]['xval'] = tc_dict[side]['xval'][isrt]
+        tc_dict[side]['traces'] = tc_dict[side]['traces'][:,isrt]
+    # Done
+    return
+
+
+def orig_add_user_edges(edgearr, siglev, tc_dict, add_slits):
     """Add user-defined slit(s)
 
     Warning: There is no real error checking here.
@@ -114,7 +166,6 @@ def add_user_edges(edgearr, siglev, tc_dict, add_slits):
                 new_r += 1
     # Return
     return edgearr
-
 
 def assign_slits(binarr, edgearr, ednum=100000, lor=-1, function='legendre', polyorder=3):
     """
@@ -445,6 +496,7 @@ def sync_edges(tc_dict, nspat, insert_buff=5, add_left_edge_slit=True, verbose=F
     Returns
     -------
     """
+    # TODO - Should avoid adding a slit at the edge if those columns are masked in the BPM
     # Init
     for key in ['left', 'right']:
         tc_dict[key]['new_xval'] = []
@@ -466,6 +518,11 @@ def sync_edges(tc_dict, nspat, insert_buff=5, add_left_edge_slit=True, verbose=F
         mn_rp = np.min(right_pix[1])
         if mn_rp <= insert_buff:
             msgs.warn("Partial or too small right edge at start of detector.  Skipping it.")
+            # Check to see if the next one is ok
+            if (right_xval[1] < left_xval[0]):
+                msgs.warn("Adding in a left edge at start of detector which mirrors the first right edge")
+                ioff = -1*mn_rp + insert_buff
+                new_add_edge(1, ioff, tc_dict, left=True)
         else:
             ioff = -1*mn_rp + insert_buff
             msgs.warn("Adding in a left edge at start of detector which mirrors the first right edge")
@@ -883,9 +940,24 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                 if newval == 0:
                     debugger.set_trace()
                 tc_dict[side]['xval'][str(newval)] = tc_dict[side]['xval'].pop(str(oldval))
-            # Remove the trace crude
-            tc_dict[side]['xset'] = tc_dict[side]['xset'][:,gde]
-            tc_dict[side]['xerr'] = tc_dict[side]['xerr'][:,gde]
+            # Remove bad traces
+            if len(gde) == 0:
+                msgs.warn("Side {} had no good edges;  Keeping one!".format(side))
+                # Keep 1 (this is mainly for Longslit)
+                xval = tc_dict[side]['xset'][ycen,:]
+                if side == 'left':
+                    idx = np.argmin(xval)
+                    tc_dict[side]['xval'][str(-1*ednum)] = xval[idx]
+                else:
+                    idx = np.argmax(xval)
+                    tc_dict[side]['xval'][str(ednum)] = xval[idx]
+                idx = np.array([idx]) # Needs to be an array for the shape
+                #
+                tc_dict[side]['xset'] = tc_dict[side]['xset'][:,idx]
+                tc_dict[side]['xerr'] = tc_dict[side]['xerr'][:,idx]
+            else:
+                tc_dict[side]['xset'] = tc_dict[side]['xset'][:,gde]
+                tc_dict[side]['xerr'] = tc_dict[side]['xerr'][:,gde]
 
     # Remove uni_idx
     for side in ['left', 'right']:
@@ -1069,6 +1141,7 @@ def edgearr_final_left_right(edgearr, ednum, siglev):
     lcnt : int
     rcnt: int
     """
+    nspec, nspat = edgearr.shape
     eaunq = np.unique(edgearr)
     lcnt = np.where(eaunq < 0)[0].size
     rcnt = np.where(eaunq > 0)[0].size
@@ -1080,7 +1153,7 @@ def edgearr_final_left_right(edgearr, ednum, siglev):
         msgs.warn("Unable to find a right edge. Adding one in.")
         edgearr[:, -1] = 2 * ednum
         rcnt = 1
-    if (lcnt == 1) & (rcnt > 1):
+    if (lcnt == 1) & (rcnt > 1):  # This is mainly in here for LRISb which is a real pain..
         msgs.warn("Only one left edge, and multiple right edges.")
         msgs.info("Restricting right edge detection to the most significantly detected edge.")
         wtst = np.where(eaunq > 0)[0]
@@ -1767,6 +1840,32 @@ def find_peak_limits(hist, pks):
     edges[:,1] = np.ma.amin(indx, axis=1)
     return edges
 
+
+def parse_user_slits(add_slits, this_det):
+    """
+    Parse the parset syntax for adding slits
+
+    Args:
+        add_slits: list
+          Taken from the parset
+        this_det: int
+          current detector
+
+    Returns:
+        user_slits: list or None
+          if list,  [[x0,x1,yrow]] with one or more entries
+
+    """
+    user_slits = []
+    for islit in add_slits:
+        det, x0, x1, yrow = [int(ii) for ii in islit.split(':')]
+        if det == this_det:
+            user_slits.append([x0,x1,yrow])
+    # Finish
+    if len(user_slits) == 0:
+        return None
+    else:
+        return user_slits
 
 
 def pca_order_slit_edges(binarr, edgearr, lcent, rcent, gord, lcoeff, rcoeff, plxbin, slitcen,
@@ -2802,12 +2901,33 @@ def tc_indices(tc_dict):
     # Return
     return left_idx, left_xval, right_idx, right_xval
 
+
 # ToDo 1) Add code to analyze the extracted filt_mean spectra to determine when the ordres are shorter.
 # ToDo 2) Add an option where the user specifies the number of slits, and so it takes only the highest peaks
 # from detect_lines
 def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 3,
                  fwhm = 3.0, sigthresh = 100.0, upper = 2.0, lower = 2.0, debug=True,
                  maxrej=1):
+    """
+
+    Args:
+        filt_image:
+        edges:
+        edges_mask:
+        ncoeff:
+        npca:
+        pca_explained_var:
+        coeff_npoly_pca:
+        fwhm:
+        sigthresh:
+        upper:
+        lower:
+        debug:
+        maxrej:
+
+    Returns:
+
+    """
 
     # edges_mask True = Good, Bad = False
     # filt image has left as positive, right as negative

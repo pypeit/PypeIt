@@ -26,6 +26,7 @@ from pypeit.metadata import PypeItMetaData
 
 from pypeit.core import procimg
 from pypeit.core import parse
+from pypeit.core import trace_slits
 
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
@@ -467,9 +468,13 @@ class Calibrations(object):
             ## Old code: binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
+            # User-defined slits??
+            user_slits = trace_slits.parse_user_slits(self.par['slits']['add_slits'], self.det)
+
             # Now we go forth
             try:
-                self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale, show=self.show)
+                self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale, show=self.show,
+                                                       add_user_slits=user_slits)
             except:
                 self.traceSlits.save_master()
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
