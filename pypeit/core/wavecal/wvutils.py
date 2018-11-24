@@ -291,30 +291,49 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
     y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
 
     # Do the cross-correlation first and determine the initial shift
-    shift_cc, cc_val = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, use_raw_arc = True, sigdetect = sigdetect, fwhm=fwhm, debug = debug)
+    shift_cc, corr_cc = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, use_raw_arc = True, sigdetect = sigdetect, fwhm=fwhm, debug = debug)
 
-    if cc_val < cc_thresh:
-        return -1, shift_cc, 1.0, cc_val, shift_cc, cc_val
+    if corr_cc < cc_thresh:
+        return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
     else:
         bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
         # TODO Can we make the differential evolution run faster?
         result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol=1e-4,
                                                        bounds=bounds, disp=False, polish=True, seed=seed)
+        corr_de = -result.fun
+        shift_de = result.x[0]
+        stretch_de = result.x[1]
         if not result.success:
             msgs.warn('Fit for shift and stretch did not converge!')
 
+        if(corr_de < corr_cc):
+            # Occasionally the differential evolution crapps out and returns a value worse that the CC value. In these cases just use the cc value
+            msgs.warn('Shift/Stretch optimizer performed worse than simple x-correlation.' +
+                      'Returning simple x-correlation shift and no stretch:' + msgs.newline() +
+                      '   Optimizer: corr={:5.3f}, shift={:5.3f}, stretch={:7.5f}'.format(corr_de, shift_de,stretch_de) + msgs.newline() +
+                      '     X-corr : corr={:5.3f}, shift={:5.3f}'.format(corr_cc,shift_cc))
+            corr_out = corr_cc
+            shift_out = shift_cc
+            stretch_out = 1.0
+            result_out = 1
+        else:
+            corr_out = corr_de
+            shift_out = shift_de
+            stretch_out = stretch_de
+            result_out = int(result.success)
+
         if debug:
             x1 = np.arange(nspec)
-            y2_trans = shift_and_stretch(y2, result.x[0], result.x[1])
+            y2_trans = shift_and_stretch(y2, shift_out, stretch_out)
             plt.figure(figsize=(14, 6))
             plt.plot(x1,y1, 'k-', drawstyle='steps', label ='inspec1')
             plt.plot(x1,y2_trans, 'r-', drawstyle='steps', label = 'inspec2, shift & stretch')
-            plt.title('shift= {:5.3f}'.format(result.x[0]) +
-                      ',  stretch = {:7.5f}'.format(result.x[1]) + ', corr = {:5.3f}'.format(-result.fun))
+            plt.title('shift= {:5.3f}'.format(shift_out) +
+                      ',  stretch = {:7.5f}'.format(stretch_out) + ', corr = {:5.3f}'.format(corr_out))
             plt.legend()
             plt.show()
 
-        return int(result.success), result.x[0], result.x[1], -result.fun, shift_cc, cc_val
+        return result_out, shift_out, stretch_out, corr_out, shift_cc, corr_cc
 
 
 

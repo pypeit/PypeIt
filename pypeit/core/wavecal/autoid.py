@@ -432,9 +432,10 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
     if nspec_arxiv != nspec:
         msgs.error('Different spectral binning is not supported yet but it will be soon')
 
-    # If the detections were not passed in find the lines in each spectrum
+    # Search for lines to continuum subtract the spectrum.
+    tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect,nonlinear_counts=nonlinear_counts, fwhm = fwhm, debug = debug_peaks)
+    # If the detections were not passed in assing them
     if detections is None:
-        tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect,nonlinear_counts=nonlinear_counts, fwhm = fwhm, debug = debug_peaks)
         detections = tcent[icut]
 
     # For convenience pull out all the spectra from the wv_calib_arxiv archive
@@ -580,7 +581,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
     if patt_dict_slit['nmatch'] < 3:
         patt_dict_slit['acceptable'] = False
 
-    return detections, patt_dict_slit
+    return detections, spec_cont_sub, patt_dict_slit
 
 
 class ArchiveReid:
@@ -661,8 +662,14 @@ class ArchiveReid:
     """
 
 
-    def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True,
+    def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True, debug_all = True,
                  debug_peaks = False, debug_xcorr = False, debug_reid = False, debug_fits= False):
+
+        if debug_all:
+            debug_peaks = True
+            debug_xcorr = True
+            debug_reid = True
+            debug_fits = True
 
         self.debug_peaks = debug_peaks
         self.debug_xcorr = debug_xcorr
@@ -739,6 +746,8 @@ class ArchiveReid:
             msgs.error('You have set ech_fix_format = True, but nslits={:d} != narxiv={:d}'.format(self.nslits,narxiv) + '.' +
                        msgs.newline() + 'The number of orders identified does not match the number of solutions in the arxiv')
 
+        # Array to hold continuum subtracted arcs
+        self.spec_cont_sub = np.zeros_like(self.spec)
         nspec_arxiv = self.wv_calib_arxiv['0']['spec'].size
         self.spec_arxiv = np.zeros((nspec_arxiv, narxiv))
         self.wave_soln_arxiv = np.zeros((nspec_arxiv, narxiv))
@@ -773,26 +782,19 @@ class ArchiveReid:
             else:
                 ind_sp = np.arange(nspec_arxiv,dtype=int)
                 det_in = self.det_arxiv
-            self.detections[str(slit)], self.all_patt_dict[str(slit)] = reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp],
-                                                                                   self.wave_soln_arxiv[:,ind_sp], det_in,
-                                                                                   self.tot_line_list,self.nreid_min,
-                                                                                   cc_thresh=self.cc_thresh,
-                                                                                   match_toler = self.match_toler,
-                                                                                   cc_local_thresh=self.cc_local_thresh,
-                                                                                   nlocal_cc=self.nlocal_cc,
-                                                                                   nonlinear_counts=self.nonlinear_counts,
-                                                                                   sigdetect=self.sigdetect,
-                                                                                   fwhm = self.fwhm,
-                                                                                   debug_peaks = self.debug_peaks,
-                                                                                   debug_xcorr=self.debug_xcorr,
-                                                                                   debug_reid = self.debug_reid)
+            self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = reidentify(
+                self.spec[:,slit], self.spec_arxiv[:,ind_sp],self.wave_soln_arxiv[:,ind_sp], det_in,
+                self.tot_line_list,self.nreid_min,cc_thresh=self.cc_thresh,match_toler = self.match_toler,
+                cc_local_thresh=self.cc_local_thresh,nlocal_cc=self.nlocal_cc,nonlinear_counts=self.nonlinear_counts,
+                sigdetect=self.sigdetect,fwhm = self.fwhm,debug_peaks = self.debug_peaks,debug_xcorr=self.debug_xcorr,
+                debug_reid = self.debug_reid)
             # Check if an acceptable reidentification solution was found
             if not self.all_patt_dict[str(slit)]['acceptable']:
                 self.wv_calib[str(slit)] = {}
                 self.bad_slits = np.append(self.bad_slits, slit)
                 continue
             # Perform the fit
-            final_fit = fitting.fit_slit(self.spec[:, slit],self.all_patt_dict[str(slit)], self.detections[str(slit)],
+            final_fit = fitting.fit_slit(self.spec_cont_sub[:, slit],self.all_patt_dict[str(slit)], self.detections[str(slit)],
                                          self.tot_line_list, match_toler=self.match_toler,func=self.func, n_first=self.n_first,
                                          sigrej_first=self.sigrej_first, n_final=self.n_final,sigrej_final=self.sigrej_final)
 
