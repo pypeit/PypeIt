@@ -462,7 +462,6 @@ def sync_edges(tc_dict, nspat, insert_buff=5, add_left_edge_slit=True, verbose=F
     # First slit (often up against the detector)
     if (right_xval[0] < left_xval[0]) and add_left_edge_slit:
         right_pix = tc_dict['right']['traces'][:,0] #np.where(edgearr == right_idx[0])
-        debugger.set_trace()
         mn_rp = np.min(right_pix[1])
         if mn_rp <= insert_buff:
             msgs.warn("Partial or too small right edge at start of detector.  Skipping it.")
