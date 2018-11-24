@@ -290,7 +290,7 @@ class WaveTilts(masterframe.MasterFrame):
         tracethresh = 10.0 # threshold for tracing an arc line
         only_these_lines = None
         debug = True
-        n_neigh = 15
+        n_neigh = 5
         # Optional Parameters for arc line detection
         sigdetect = 5.0 # This is for line finding, and hence this
         # threshold determines the number of lines that may be removed because they are too close.
@@ -307,7 +307,9 @@ class WaveTilts(masterframe.MasterFrame):
         maxerr = 0.2
         maxshift = 0.1
         maxshift0 = 0.5
-        # def trace_tilts(arcimg, arc_spec, thismask, slit_left, slit_righ, only_these_lines = None, tracethresh = 10.0, only_these_lines = None, n_neigh = 15, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_frac_fwhm = 1.0, max_frac_fwhm = 2.0, cont_samp = 30,
+        # Debug parameters
+        show_tilts = True
+        # def trace_tilts(arcimg, arc_spec, thismask, slit_left, slit_righ, only_these_lines = None, tracethresh = 10.0, only_these_lines = None, n_neigh = 5, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_frac_fwhm = 1.0, max_frac_fwhm = 2.0, cont_samp = 30,
         #    niter_cont = 3, nonlinear_counts = 1e10, verbose = False, debug=False, debug_lines = False,nave=5,maxerr=0.2,maxshift=0.1,maxshift0=0.5)
 
         nspec, nspat = arcimg.shape
@@ -357,25 +359,24 @@ class WaveTilts(masterframe.MasterFrame):
         else:
             msgs.info('Modelling arc line tilts with {:d} arc lines'.format(nlines))
 
-        lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
 
-        slit_cen = (slit_left + slit_righ) / 2.0
+        slit_cen = (slit_left + slit_righ)/2.0
+        lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
         slit_widp2 = int(np.ceil((slit_righ - slit_left).max()) + 2)
         trace_int_even = slit_widp2 if slit_widp2 % 2 == 0 else slit_widp2 + 1
         trace_int = trace_int_even // 2
 
-        trc_tilt_dict = spec_tilts.trace_tilts_guess(arcimg, lines_spec, lines_spat, trace_int, thismask, inmask=None,
-                                                tilts_guess=None,fwhm=4.0,ncoeff=3, maxdev_fit=0.1, percentile_reject=0.10,
-                                                max_badpix_frac=0.20,maxerr=1.0, maxshift=3.0, maxshift0=3.0, nave=5, show_fits=False)
-
-
-        from IPython import embed
-        embed()
+        trc_tilt_dict = tracewave.trace_tilts_guess(arcimg, lines_spec, lines_spat, trace_int, thismask, inmask=None,
+                                                    tilts_guess=None,fwhm=4.0,ncoeff=3, maxdev_fit=0.1, percentile_reject=0.10,
+                                                    max_badpix_frac=0.20,maxerr=1.0, maxshift=3.0, maxshift0=3.0, nave=5, show_fits=False)
 
         if show_tilts:
             viewer, ch = ginga.show_image(arcimg * thismask, chname='Tilts')
             #            ginga.show_tilts(viewer, ch, tilts,tilts_spat, tilts_mask, tilts_err, sedges = (slit_left, slit_righ))
             ginga.show_tilts(viewer, ch, trc_tilt_dict, sedges=(slit_left, slit_righ), plot_bad=True, clear_canvas=True)
+
+        from IPython import embed
+        embed()
 
         # Load up
         self.all_trcdict[slit] = trc_tilt_dict.copy()

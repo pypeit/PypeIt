@@ -364,20 +364,12 @@ def show_tilts(viewer, ch, trc_tilt_dict, plot_bad = True, sedges=None, yoff=0.,
     nspat = trc_tilt_dict['nspat']
     nspec = trc_tilt_dict['nspec']
     nlines = tilts.shape[1]
-    con_canvas = []
     for iline in range(nlines):
         x = tilts_spat[:,iline] + xoff
         y = tilts[:,iline] + yoff  # FOR IMAGING (Ginga offsets this value by 1 internally)
         this_mask = tilts_mask[:,iline]
         this_err = (tilts_err[:,iline] > 900)
         if np.sum(this_mask) > 0:
-            points = list(zip(x[this_mask][::pstep].tolist(),y[this_mask][::pstep].tolist()))
-            if use_tilt[iline]:
-                clr = 'cyan'  # Good line
-            else:
-                clr = 'yellow'  # Bad line
-            canvas.add('path', points, color=clr)
-
             if plot_bad:
                 badpix = (this_mask == True) & (this_err == True)
                 nbad = np.sum(badpix)
@@ -386,20 +378,19 @@ def show_tilts(viewer, ch, trc_tilt_dict, plot_bad = True, sedges=None, yoff=0.,
                     ybad = y[badpix]
                     # Now show stuff that had larger errors
                     # note: must cast numpy floats to regular python floats to pass the remote interface
-                    points_bad = [dict(type='point', args=(float(xbad[i]), float(ybad[i]), 2),
-                    kwargs=dict(style='plus', color='red')) for i in range(nbad)]
+                    points_bad = [dict(type='point', args=(float(xbad[i]), float(ybad[i]), 2),kwargs=dict(style='plus', color='red')) for i in range(nbad)]
+                    canvas.add('constructedcanvas', points_bad)
+            points = list(zip(x[this_mask][::pstep].tolist(),y[this_mask][::pstep].tolist()))
+            if use_tilt[iline]:
+                clr = 'cyan'  # Good line
+            else:
+                clr = 'yellow'  # Bad line
+            canvas.add('path', points, color=clr)
 
-                    con_canvas.append(points_bad)
 
-
-    # Labels for the points
-    text_good = [dict(type='text', args=(nspat//2 - 40, nspec//2, 'good tilts'),kwargs=dict(color='cyan', fontsize=20))]
-
-    text_bad = [dict(type='text', args=(nspat//2 - 40, nspec//2 - 30, 'bad tilts'), kwargs=dict(color='yellow', fontsize=20))]
-
-    text_mask = [dict(type='text', args=(nspat//2 - 40, nspec//2 - 60, 'masked from fits'), kwargs=dict(color='red', fontsize=20))]
-    canvas_list = con_canvas + text_good + text_bad + text_mask
-    canvas.add('constructedcanvas', canvas_list)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2,      '   good tilts', color=str('blue'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 30, '    bad tilts', color=str('magenta'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 60, 'masked pixels', color=str('red'),fontsize=20.)
 
 
 # Old method
