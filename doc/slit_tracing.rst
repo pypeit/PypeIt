@@ -33,20 +33,15 @@ Here is the flow of the algorithms.
    uses a combination of a
    median and sobel filters to identify significant
    gradients in the image along the spatial dimension.
-#. match slits:
-#. assign slits:
-   The detected edges are
-   then grouped into common edges ("Assigned").
-#. trace slits: Each
-   edge is fitted with a polynomial, and the left/right
-   edge detections are synchonized and relabelled.
-#. pca: If the user wishes, a PCA can be performed on the slit
-   edges (highly recommended for echelle data, and for
-   data where the illumination of the trace frame is
-   not uniform in the spectral direction). If a PCA
-   analysis is performed for echelle data, an
-   extrapolation can be performed to locate the echelle
-   orders near the edge of the detector.
+#. match edges:  An algorithm is performed to match edges into slits
+   for the first time.
+#. trace (cruedly) the slits: Each slit edge is traced with the trace_crude
+   algorithm and snippets of edges are (hopefully) merged
+#. if longslit (i.e. 1 slit), we are done
+#. if not longslit, the slit edges are analyzed with a PCA algorithm,
+   and slits/orders are identified from a rectified, smash of the Sobolev image
+#. synchronize: Slit edges are synchronized primarily to pick up missing edges
+#. trim: Trimming of small slits is performed
 
 Open Issues
 ===========
@@ -54,7 +49,6 @@ Open Issues
 #.  Bad columns yield fake edges.  Ideally these are masked out by the pipeline using the
     instrument-specific bad pixel mask.
 #.  Bad match at amplifier (e.g. LRISr) yields a fake slit (or worse)
-#.  Slit edges
 
 Tips on Trace Flat Frames
 =========================
@@ -105,7 +99,7 @@ is thus far recovering ~95% of the slits.
 It is highly recommended that you inspect the warning
 messages during slit tracing and then pause the code
 to inspect the MasterTrace output using the :ref:`trace-slit-script`
-script.  Perhaps the most obvious parameter to vary
+script.  The most obvious parameter to vary first
 is the :ref:`trace-slit-threshold`.
 
 Future versions of the code will allow one to add
@@ -116,9 +110,9 @@ a single slit on each detector with the
 Echelle
 -------
 
-Because the orders on an echelle are more regularly behaved
-than a typical multi-slit mask, additional and
-different algorithms are employed for the order definition.
+The primary difference currently between multi-slit and
+echelle is that the latter analyzes the left and right
+edges separately during the PCA algorithm.
 
 
 Scripts
