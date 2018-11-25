@@ -1027,6 +1027,10 @@ def scale_minmax(x, minx=None, maxx=None):
 
 def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny=None, maxy=None):
     """Document me please. I think this evaluates on an image??"""
+
+    if ('2d' in function):
+        function = function[:-2]
+
     if function == "polynomial":
         xx, yy = np.meshgrid(x, y)
         return np.polynomial.polynomial.polyval2d(xx, yy, c)

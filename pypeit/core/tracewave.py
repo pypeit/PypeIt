@@ -289,7 +289,7 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.5, func2D='l
     if doqa:
         plot_tiltres(setup, tilts_fit[tot_mask], tilts_spec[tot_mask], delta_spec_fit, slit=slit, show_QA=show_QA, out_dir=out_dir)
 
-    tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(iuse), npix_fit = np.sum(tot_mask),
+    tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
                          npix_rej = np.sum(fitmask == False), coeff2=coeff2, spec_order = spec_order, spat_order = spat_order,
                          minx = 0.0, maxx = float(nspat-1), minx2 = 0.0, maxx2 = float(nspec-1), func =func2D)
 
@@ -297,7 +297,40 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.5, func2D='l
 
 
 
-def fit2tilts(tilt_fit_dict, spat_vec=None, tilt_vec=None):
+def fit2piximg(tilt_fit_dict):
+    """
+
+    Parameters
+    ----------
+    tilt_fit_dict: dict
+        Tilt fit dictioary produced by fit_tilts
+
+    Returns
+    -------
+    piximg: ndarray, float
+       Image indicating how spectral pixel locations move across the image. This output is used in the pipeline.
+    """
+
+    # Compute the tilts image
+    nspec = tilt_fit_dict['nspec']
+    nspat = tilt_fit_dict['nspat']
+
+    spat_vec = np.arange(tilt_fit_dict['nspat'])
+    tilt_vec = np.arange(tilt_fit_dict['nspec'])
+
+    tilt_min_spec_fit = utils.polyval2d_general(tilt_fit_dict, spat_vec, tilt_vec, minx=tilt_fit_dict['minx'], maxx=tilt_fit_dict['maxx']
+                                        , miny=tilt_fit_dict['minx2'], maxy=tilt_fit_dict['maxx2'], function=tilt_fit_dict['func'])
+    # y normalization and subtract
+    spec_img = np.outer(np.arange(nspec), np.ones(nspat))
+    piximg = spec_img - tilt_min_spec_fit
+    # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
+    # wavelength solution fitting
+    piximg = np.fmax(np.fmin(piximg, nspec),-1.0)
+
+    return piximg
+
+
+def fit2tilts(tilt_fit_dict, spat_vec, tilt_vec, tilt_mask):
     """
 
     Parameters
@@ -344,6 +377,7 @@ def fit2tilts(tilt_fit_dict, spat_vec=None, tilt_vec=None):
     piximg = np.fmax(np.fmin(piximg, nspec),-1.0)
 
     return piximg, tilt_min_spec_fit
+
 
 
 

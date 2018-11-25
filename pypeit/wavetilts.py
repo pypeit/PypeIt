@@ -342,13 +342,17 @@ class WaveTilts(masterframe.MasterFrame):
                                                tilts_guess=pca_fit, fwhm=4.0, ncoeff=5, maxdev_tracefit=0.1,
                                                percentile_reject=0.10,max_badpix_frac=0.20, show_fits=False)
 
-        from IPython import embed
-        embed()
         # Now perform a fit to the tilts
         maxdev_2dfit = 0.5
-        tilt_fit_dict = fit_tilts(trc_tilt_dict1, spat_order=3, spec_order=4, maxdev=maxdev_2dfit, debug=True, doqa=True,
-                                  setup='test',slit='0', show_QA=False, out_dir='./')
+        tilt_fit_dict = tracewave.fit_tilts(trc_tilt_dict1, spat_order=3, spec_order=4, maxdev=maxdev_2dfit, debug=True,
+                                            doqa=True,setup='test',slit=0, show_QA=False, out_dir='./')
+        # Now evaluate the model of the tilts for all of our lines
+        piximg = tracewave.fit2piximg(tilt_fit_dict)
 
+        # Now trace again with the piximg model as the starting crutches
+
+        from IPython import embed
+        embed()
 
         if show_tilts:
             viewer, ch = ginga.show_image(arcimg * thismask, chname='Tilts')
