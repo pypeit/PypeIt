@@ -271,6 +271,8 @@ class WaveTilts(masterframe.MasterFrame):
 
         # JFH Code block starts here
         ########
+        # def get_tilts(npca = 2, fwhm=4.0, ncoeff=5, maxdev_tracefit=0.1,percentile_reject=0.10, max_badpix_frac=0.20, tcrude_maxerr=1.0,
+        # tcrude_maxshift=3.0, tcrude_maxshift0=3.0, tcrude_nave=5,)
 
         from pypeit.core import pixels
         from pypeit.core import extract
@@ -282,6 +284,7 @@ class WaveTilts(masterframe.MasterFrame):
         arc_spec = self.arccen[:, slit]
         slit_left = self.tslits_dict['lcen'][:,slit].copy()
         slit_righ = self.tslits_dict['rcen'][:,slit].copy()
+        inmask = (self.bpm == False)
         # Center of the slit
         slit_cen = (slit_left + slit_righ)/2.0
 
@@ -304,7 +307,7 @@ class WaveTilts(masterframe.MasterFrame):
         max_frac_fwhm = 2.5
         cont_samp = 30
         niter_cont = 3
-        debug_lines = True
+        debug_lines = False
 
         lines_spec, lines_spat = tracewave.tilts_find_lines(
             arc_spec, slit_cen, tracethresh=tracethresh, sigdetect=sigdetect, npix_neigh=npix_neigh,
@@ -314,40 +317,48 @@ class WaveTilts(masterframe.MasterFrame):
 
         slit_width = int(np.ceil((slit_righ - slit_left).max()))
 
-        trc_tilt_dict0 = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=None,
-                                              tilts_guess=None,fwhm=4.0,ncoeff=5, maxdev_fit=0.1, percentile_reject=0.10,
-                                              max_badpix_frac=0.20,maxerr=1.0, maxshift=3.0, maxshift0=3.0, nave=5,
-                                              show_fits=False)
+        trc_tilt_dict0 = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=inmask,
+                                              tilts_guess=None,fwhm=4.0,ncoeff=5, maxdev_tracefit=0.1, percentile_reject=0.10,
+                                              max_badpix_frac=0.20,tcrude_maxerr=1.0, tcrude_maxshift=3.0, tcrude_maxshift0=3.0,
+                                              tcrude_nave=5,show_fits=False)
 
         # Do a PCA fit, which rejects some outliers
         iuse = trc_tilt_dict0['use_tilt']
         nuse =np.sum(iuse)
         msgs.info('PCA modeling {:d} good tilts'.format(nuse))
         coeff_npoly_pca = None
-        npca =None
+        #npca =2
+        #pca_explained_var = None
+        # TODO Should we truncate this PCA by hand, or just let it explain variance
         pca_explained_var = 99.8
+
+        # PCA fit good orders, and predict bad orders
         pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
-            trc_tilt_dict0['tilts_sub_fit'], npca=npca, pca_explained_var=pca_explained_var, coeff_npoly=coeff_npoly_pca,
+            trc_tilt_dict0['tilts_sub_fit'], predict=np.invert(iuse), pca_explained_var=pca_explained_var, coeff_npoly=coeff_npoly_pca,
             order_vec=lines_spec,xinit_mean=lines_spec, minv=0.0, maxv=float(trc_tilt_dict0['nsub'] - 1), debug=True)
 
-        trc_tilt_dict1 = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=None,
-                                               tilts_guess=pca_fit, fwhm=4.0, ncoeff=5, maxdev_fit=0.1,
-                                               percentile_reject=0.10,
-                                               max_badpix_frac=0.20, maxerr=1.0, maxshift=3.0, maxshift0=3.0, nave=5,
-                                               show_fits=False)
+        # Now trace again with the PCA predictions as the starting crutches
+        trc_tilt_dict1 = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=inmask,
+                                               tilts_guess=pca_fit, fwhm=4.0, ncoeff=5, maxdev_tracefit=0.1,
+                                               percentile_reject=0.10,max_badpix_frac=0.20, show_fits=False)
+
+        from IPython import embed
+        embed()
+        # Now perform a fit to the tilts
+        maxdev_2dfit = 0.5
+        tilt_fit_dict = fit_tilts(trc_tilt_dict1, spat_order=3, spec_order=4, maxdev=maxdev_2dfit, debug=True, doqa=True,
+                                  setup='test',slit='0', show_QA=False, out_dir='./')
 
 
         if show_tilts:
             viewer, ch = ginga.show_image(arcimg * thismask, chname='Tilts')
             # ginga.show_tilts(viewer, ch, tilts,tilts_spat, tilts_mask, tilts_err, sedges = (slit_left, slit_righ))
-            ginga.show_tilts(viewer, ch, trc_tilt_dict1, sedges=(slit_left, slit_righ), plot_bad=True, clear_canvas=False)
+            ginga.show_tilts(viewer, ch, trc_tilt_dict1, sedges=(slit_left, slit_righ), points = True, clear_canvas=True)
 
 
         # Now do a fit
 
 
-        from IPython import embed
-        embed()
 
         # Load up
         self.all_trcdict[slit] = trc_tilt_dict.copy()
@@ -360,27 +371,28 @@ class WaveTilts(masterframe.MasterFrame):
     def run(self, maskslits=None, doqa=True, wv_calib=None, gen_satmask=False):
         """ Main driver for tracing arc lines
 
-        Code flow:
-           1.  Extract an arc spectrum down the center of each slit/order
-           2.  Loop on slits/orders
-             i.   Trace the arc lines (fweight is the default)
-             ii.  Fit the individual arc lines
-             iii.  2D Fit to the offset from pixcen
-             iv. Save
+            Code flow:
+               1.  Extract an arc spectrum down the center of each slit/order
+               2.  Loop on slits/orders
+                 i.   Trace the arc lines (fweight is the default)
+                 ii.  Fit the individual arc lines
+                 iii.  2D Fit to the offset from pixcen
+                 iv. Save
 
-        Parameters
-        ----------
-        maskslits : ndarray (bool), optional
-        doqa : bool
-        wv_calib : dict
-        gen_satmask : bool, optional
-          Generate a saturation mask?
+            Parameters
+            ----------
+            maskslits : ndarray (bool), optional
+            doqa : bool
+            wv_calib : dict
+            gen_satmask : bool, optional
+              Generate a saturation mask?
 
-        Returns
-        -------
-        self.final_tilts
-        maskslits
-        """
+            Returns
+            -------
+            self.final_tilts
+            maskslits
+            """
+
         # If the user sets no tilts, return here
         if self.par['method'].lower() == "zero":
             # Assuming there is no spectral tilt

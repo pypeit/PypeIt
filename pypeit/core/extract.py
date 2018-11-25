@@ -1789,7 +1789,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
 
 
-def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
+def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
               coeff_npoly = None, debug=True, order_vec = None, lower = 3.0,
               upper = 3.0, minv = None,maxv = None, maxrej=1,
               xinit_mean = None):
@@ -1807,7 +1807,7 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
 
     Optional Parameters
     -------------------
-    usepca: ndarray, bool (norders,), default = None
+    predict: ndarray, bool (norders,), default = None
        Orders which have True are those that will be predicted by extrapolating the fit of the PCA coefficents for those
        orders which have False set in this array. The default is None, which means that the coefficients of all orders
        will be fit simultaneously and no extrapolation will be performed. For object finding, we use the standard star
@@ -1841,11 +1841,11 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
     if order_vec is None:
         order_vec = np.arange(norders,dtype=float)
 
-    if usepca is None:
-        usepca = np.zeros(norders,dtype=bool)
+    if predict is None:
+        predict = np.zeros(norders,dtype=bool)
 
-    # use_order = True orders used to predict the usepca = True bad orders
-    use_order = np.invert(usepca)
+    # use_order = True orders used to predict the predict = True bad orders
+    use_order = np.invert(predict)
     ngood = np.sum(use_order)
 
     # Take out the mean position of each input trace
@@ -1854,23 +1854,25 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
 
     xpca = xinit - xinit_mean
     xpca_use = xpca[:, use_order].T
+    pca_full = PCA()
+    pca_full.fit(xpca_use)
+    var = np.cumsum(np.round(pca_full.explained_variance_ratio_, decimals=6) * 100)
     if npca is None:
-        pca_full = PCA()
-        pca_full.fit(xpca_use)
-        var = np.cumsum(np.round(pca_full.explained_variance_ratio_, decimals=6) * 100)
         if var[0]>=pca_explained_var:
             npca = 1
             msgs.info('The first PCA component contains more than {:5.3f} of the information'.format(pca_explained_var))
         else:
-            npca = int(np.ceil(np.interp(pca_explained_var, var,np.arange(norders)+1)))
+            npca = int(np.ceil(np.interp(pca_explained_var, var,np.arange(ngood)+1)))
             msgs.info('Truncated PCA to contain {:5.3f}'.format(pca_explained_var) + '% of the total variance. ' +
                       'Number of components to keep is npca = {:d}'.format(npca))
     else:
         npca = int(npca)
+        var_trunc = np.interp(float(npca),np.arange(ngood)+1.0, var)
+        msgs.info('Truncated PCA with npca={:d} components contains {:5.3f}'.format(npca, var_trunc) + '% of the total variance.')
 
     if ngood < npca:
         msgs.warn('Not enough good traces for a PCA fit: ngood = {:d}'.format(ngood) + ' is < npca = {:d}'.format(npca))
-        msgs.warn('Using the input trace f or now')
+        msgs.warn('Using the input trace for now')
         return xinit
 
     if coeff_npoly is None:
@@ -1978,9 +1980,6 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
        The required number of orders that an object must have with median SNR>min_snr in order to be kept.
     pca_percentile:
        percentile used for determining which order is a bad order
-    snr_pca: SNR used for determining which order is a bad order
-                    if an order with ((SNR_now < np.percentile(SNR_now, pca_percentile)) &
-                    (SNR_now < snr_pca)) | sobjs_trim[indx].ech_usepca, then this order will be PCAed
     box_radius: box_car extraction radius
     sig_thresh: threshord for finding objects
     show_peaks: whether plotting the QA of peak finding of your object in each order
@@ -2241,7 +2240,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         # PCA predict the masked orders which were not traced
         msgs.info('Fitting echelle object finding PCA for object {:d}\{:d} with median SNR = {:5.3f}'.format(
             iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
-        pca_fits[:, :, iobj], _, _, _= pca_trace((sobjs_final[indx_obj_id].trace_spat).T,usepca = None,
+        pca_fits[:, :, iobj], _, _, _= pca_trace((sobjs_final[indx_obj_id].trace_spat).T,
                                          npca=npca, pca_explained_var=pca_explained_var, coeff_npoly=coeff_npoly,
                                          debug=debug)
         # Perform iterative flux weighted centroiding using new PCA predictions

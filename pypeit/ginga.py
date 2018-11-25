@@ -338,7 +338,7 @@ def clear_all():
         shell.delete_channel(ch)
 
 
-def show_tilts(viewer, ch, trc_tilt_dict, plot_bad = True, sedges=None, yoff=0., xoff=0., pstep=10, clear_canvas = False):
+def show_tilts(viewer, ch, trc_tilt_dict, plot_bad = True, sedges=None, yoff=0., xoff=0., pstep=10, points=False, clear_canvas = False):
     """  Display arc image and overlay the arcline tilt measurements
     Parameters
     ----------
@@ -379,42 +379,43 @@ def show_tilts(viewer, ch, trc_tilt_dict, plot_bad = True, sedges=None, yoff=0.,
         this_mask = tilts_mask[:,iline]
         this_err = (tilts_err[:,iline] > 900)
         if np.sum(this_mask) > 0:
-            y = tilts[:, iline] + yoff
-            # Plot the actual Gaussian weighted centroids of the arc lines that were traced
-            goodpix = (this_mask == True) & (this_err == False)
-            ngood = np.sum(goodpix)
-            if ngood > 0:
-                xgood = x[goodpix]
-                ygood = y[goodpix]
-                # note: must cast numpy floats to regular python floats to pass the remote interface
-                points_good = [dict(type='circle',
-                                    args=(float(xgood[i]), float(ygood[i]), 2),
-                                    kwargs=dict(radius=2.0, color='green',fill=True)) for i in range(ngood)]
-                canvas.add('constructedcanvas', points_good)
-            badpix = (this_mask == True) & (this_err == True)
-            nbad = np.sum(badpix)
-            if nbad > 0:
-                xbad = x[badpix]
-                ybad = y[badpix]
-                # Now show stuff that had larger errors
-                # note: must cast numpy floats to regular python floats to pass the remote interface
-                points_bad = [dict(type='circle',
-                                   args=(float(xbad[i]), float(ybad[i]), 2),
-                                   kwargs=dict(radius=2.0, color='red', fill=True)) for i in range(nbad)]
-                canvas.add('constructedcanvas', points_bad)
-            # Now plot the polynomial fits to the the Gaussian weighted centroids
+            if points: # Plot the gaussian weighted tilt centers
+                y = tilts[:, iline] + yoff
+                # Plot the actual Gaussian weighted centroids of the arc lines that were traced
+                goodpix = (this_mask == True) & (this_err == False)
+                ngood = np.sum(goodpix)
+                if ngood > 0:
+                    xgood = x[goodpix]
+                    ygood = y[goodpix]
+                    # note: must cast numpy floats to regular python floats to pass the remote interface
+                    points_good = [dict(type='squarebox',
+                                        args=(float(xgood[i]), float(ygood[i]), 0.7),
+                                        kwargs=dict(color='cyan',fill=True, fillalpha=0.5)) for i in range(ngood)]
+                    canvas.add('constructedcanvas', points_good)
+                badpix = (this_mask == True) & (this_err == True)
+                nbad = np.sum(badpix)
+                if nbad > 0:
+                    xbad = x[badpix]
+                    ybad = y[badpix]
+                    # Now show stuff that had larger errors
+                    # note: must cast numpy floats to regular python floats to pass the remote interface
+                    points_bad = [dict(type='squarebox',
+                                       args=(float(xbad[i]), float(ybad[i]), 0.7),
+                                       kwargs=dict(color='red', fill=True,fillalpha=0.5)) for i in range(nbad)]
+                    canvas.add('constructedcanvas', points_bad)
+                # Now plot the polynomial fits to the the Gaussian weighted centroids
             y = tilts_fit[:, iline] + yoff
             points = list(zip(x[this_mask][::pstep].tolist(),y[this_mask][::pstep].tolist()))
             if use_tilt[iline]:
-                clr = 'cyan'  # Good line
+                clr = 'blue'  # Good line
             else:
                 clr = 'yellow'  # Bad line
-            canvas.add('path', points, color=clr, linewidth=5)
+            canvas.add('path', points, color=clr, linewidth=3)
 
 
-    canvas.add(str('text'), nspat//2 - 40, nspec//2,      'good tilt fit', color=str('cyan'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2,      'good tilt fit', color=str('blue'),fontsize=20.)
     canvas.add(str('text'), nspat//2 - 40, nspec//2 - 30, 'bad  tilt fit', color=str('yellow'),fontsize=20.)
-    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 60, 'trace good', color=str('green'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 60, 'trace good', color=str('cyan'),fontsize=20.)
     canvas.add(str('text'), nspat//2 - 40, nspec//2 - 60, 'trace masked', color=str('red'),fontsize=20.)
 
 
