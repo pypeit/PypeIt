@@ -318,7 +318,7 @@ def fit2piximg(tilt_fit_dict):
     spat_vec = np.arange(tilt_fit_dict['nspat'])
     tilt_vec = np.arange(tilt_fit_dict['nspec'])
 
-    tilt_min_spec_fit = utils.polyval2d_general(tilt_fit_dict, spat_vec, tilt_vec, minx=tilt_fit_dict['minx'], maxx=tilt_fit_dict['maxx']
+    tilt_min_spec_fit = utils.polyval2d_general(tilt_fit_dict['coeff2'], spat_vec, tilt_vec, minx=tilt_fit_dict['minx'], maxx=tilt_fit_dict['maxx']
                                         , miny=tilt_fit_dict['minx2'], maxy=tilt_fit_dict['maxx2'], function=tilt_fit_dict['func'])
     # y normalization and subtract
     spec_img = np.outer(np.arange(nspec), np.ones(nspat))
@@ -330,7 +330,7 @@ def fit2piximg(tilt_fit_dict):
     return piximg
 
 
-def fit2tilts(tilt_fit_dict, spat_vec, tilt_vec, tilt_mask):
+def fit2tilts(tilt_fit_dict, spat_vec, tilt_vec):
     """
 
     Parameters
@@ -338,8 +338,6 @@ def fit2tilts(tilt_fit_dict, spat_vec, tilt_vec, tilt_mask):
     tilt_fit_dict: dict
         Tilt fit dictioary produced by fit_tilts
 
-    Optional Parameters
-    -------------------
     spat_vec: ndarray, float, default = None
         Spatial positions where tilt fit is desired
     tilt_vec: ndarray, float, default = None
@@ -348,10 +346,6 @@ def fit2tilts(tilt_fit_dict, spat_vec, tilt_vec, tilt_mask):
 
     Returns
     -------
-    tuple: piximg, tilt_min_spec_fit
-
-    piximg: ndarray, float
-       Image indicating how spectral pixel locations move across the image. This output is used in the pipeline.
     tilt_min_spec_fit: ndarray, float
        The actualy thing that was fit in computing the tilts, which is the trace of the spectra lines minuse the
        spectral pixel location of the central trace. See above. This output is only really used for debugging and
@@ -363,20 +357,9 @@ def fit2tilts(tilt_fit_dict, spat_vec, tilt_vec, tilt_mask):
     nspec = tilt_fit_dict['nspec']
     nspat = tilt_fit_dict['nspat']
 
-    if spat_vec is None and tilt_vec is None:
-        spat_vec = np.arange(tilt_fit_dict['nspat'])
-        tilt_vec = np.arange(tilt_fit_dict['nspec'])
-
-    tilt_min_spec_fit = utils.polyval2d_general(tilt_fit_dict, spat_vec, tilt_vec, minx=tilt_fit_dict['minx'], maxx=tilt_fit_dict['maxx']
+    tilt_min_spec_fit = utils.polyval2d_general(tilt_fit_dict['coeff2'], spat_vec, tilt_vec, minx=tilt_fit_dict['minx'], maxx=tilt_fit_dict['maxx']
                                         , miny=tilt_fit_dict['minx2'], maxy=tilt_fit_dict['maxx2'], function=tilt_fit_dict['func'])
-    # y normalization and subtract
-    spec_img = np.outer(np.arange(nspec), np.ones(nspat))
-    piximg = spec_img - tilt_min_spec_fit
-    # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
-    # wavelength solution fitting
-    piximg = np.fmax(np.fmin(piximg, nspec),-1.0)
-
-    return piximg, tilt_min_spec_fit
+    return tilt_min_spec_fit
 
 
 
