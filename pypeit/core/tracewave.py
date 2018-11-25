@@ -152,14 +152,15 @@ def trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=Non
         tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_gw_err, tset_gw = extract.iter_tracefit(
             sub_img, tilts_sub_fit_fw, ncoeff, inmask=sub_inmask, fwhm=fwhm, maxdev=maxdev_fit, niter=3, idx=str(iline),
             show_fits=show_fits)
-
+        # Boxcar extract the thismask to have a mask indicating whether a tilt is defined along the spatial direction
+        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_gw, fwhm/2.0) > 0.99*fwhm)
         # Pack the results into arrays, accounting for possibly falling off the image
         # Deal with possibly falling off the chip
         if spat_min[iline] < 0:
             tilts_sub[     -spat_min[iline]:,iline] = tilts_sub_gw.flatten()
             tilts_sub_fit[ -spat_min[iline]:,iline] = tilts_sub_fit_gw.flatten()
             tilts_sub_err[ -spat_min[iline]:,iline] = tilts_sub_gw_err.flatten()
-            tilts_sub_mask[-spat_min[iline]:,iline] = sub_thismask
+            tilts_sub_mask[-spat_min[iline]:,iline] = tilts_sub_mask_box
             tilts[     min_spat:max_spat,iline] = tilts_sub[     -spat_min[iline]:,iline]
             tilts_fit[ min_spat:max_spat,iline] = tilts_sub_fit[ -spat_min[iline]:,iline]
             tilts_err[ min_spat:max_spat,iline] = tilts_sub_err[ -spat_min[iline]:,iline]
@@ -168,7 +169,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=Non
             tilts_sub[     :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_gw.flatten()
             tilts_sub_fit[ :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_fit_gw.flatten()
             tilts_sub_err[ :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_gw_err.flatten()
-            tilts_sub_mask[:-(spat_max[iline] - nspat + 1),iline] = sub_thismask
+            tilts_sub_mask[:-(spat_max[iline] - nspat + 1),iline] = tilts_sub_mask_box
             tilts[     min_spat:max_spat,iline] = tilts_sub[     :-(spat_max[iline] - nspat + 1),iline]
             tilts_fit[ min_spat:max_spat,iline] = tilts_sub_fit[ :-(spat_max[iline] - nspat + 1),iline]
             tilts_err[ min_spat:max_spat,iline] = tilts_sub_err[ :-(spat_max[iline] - nspat + 1),iline]
@@ -177,7 +178,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=Non
             tilts_sub[     :,iline] = tilts_sub_gw.flatten()
             tilts_sub_fit[ :,iline] = tilts_sub_fit_gw.flatten()
             tilts_sub_err[ :,iline] = tilts_sub_gw_err.flatten()
-            tilts_sub_mask[:,iline] = sub_thismask
+            tilts_sub_mask[:,iline] = tilts_sub_mask_box
             tilts[     min_spat:max_spat,iline] = tilts_sub[     :,iline]
             tilts_fit[ min_spat:max_spat,iline] = tilts_sub_fit[ :,iline]
             tilts_err[ min_spat:max_spat,iline] = tilts_sub_err[ :,iline]

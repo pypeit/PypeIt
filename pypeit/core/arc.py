@@ -688,7 +688,8 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     plt.show()
 
 # ToDO JFH nfitpix should be chosen based on the spectral sampling of the spectroscopic setup
-def detect_lines(censpec, sigdetect = 5.0, input_thresh = None, cont_subtract=True, fwhm = 4.0, fit_frac_fwhm=1.25, mask_frac_fwhm = 1.0, max_frac_fwhm = 2.5, cont_samp = 30,
+def detect_lines(censpec, sigdetect = 5.0, input_thresh = None, cont_subtract=True, fwhm = 4.0, fit_frac_fwhm=1.25, cont_frac_fwhm = 1.0,
+                 max_frac_fwhm = 2.5, cont_samp = 30,
                  nonlinear_counts=1e10, niter_cont = 3,nfind = None, verbose = False, debug=False, debug_peak_find = False):
     """
     Extract an arc down the center of the chip and identify
@@ -721,7 +722,7 @@ def detect_lines(censpec, sigdetect = 5.0, input_thresh = None, cont_subtract=Tr
     max_frac_fwhm:  float, default = 2.5
        maximum width allowed for usable arc lines expressed relative to the fwhm.
 
-    mask_frac_fwhm float, default = 1.0
+    cont_frac_fwhm float, default = 1.0
        width used for masking peaks in the spectrum when the continuum is being defined. Expressed as a fraction of the fwhm
        parameter
 
@@ -788,7 +789,7 @@ def detect_lines(censpec, sigdetect = 5.0, input_thresh = None, cont_subtract=Tr
         nspec = detns.size
         spec_vec = np.arange(nspec)
         cont_now = np.arange(nspec)
-        mask_sm = np.round(mask_frac_fwhm*fwhm).astype(int)
+        mask_sm = np.round(cont_frac_fwhm*fwhm).astype(int)
         mask_odd = mask_sm + 1 if mask_sm % 2 == 0 else mask_sm
         for iter in range(niter_cont):
             arc_now = detns - cont_now

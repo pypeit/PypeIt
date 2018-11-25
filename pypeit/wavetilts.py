@@ -273,109 +273,81 @@ class WaveTilts(masterframe.MasterFrame):
         ########
 
         from pypeit.core import pixels
-        from pypeit.core import trace_slits
         from pypeit.core import extract
-        from astropy.stats import sigma_clipped_stats
 
+        show_tilts = True
 
         nspat = self.msarc.shape[1]
         arcimg = self.msarc
         arc_spec = self.arccen[:, slit]
         slit_left = self.tslits_dict['lcen'][:,slit].copy()
         slit_righ = self.tslits_dict['rcen'][:,slit].copy()
+        # Center of the slit
+        slit_cen = (slit_left + slit_righ)/2.0
+
         slitmask = pixels.slit_pixels(self.tslits_dict['lcen'], self.tslits_dict['rcen'], nspat)
         thismask = slitmask == slit
 
         # Tilt specific Optional parameters
-        tracethresh = 10.0 # threshold for tracing an arc line
-        only_these_lines = None
+        tracethresh = 10.0 # significance threshold for an arc line to be traced
+        sigdetect = 5.0 # This is the significance threshold for finding neighboring lines. The number of these neighboring lines
+        #  determines how many nsig > tracethresh lines that may be removed because they are too close.
+        npix_neigh = 7.0
+        only_these_lines = None # These are lines from the wavelength solution that are known to be good. If set code only uses these
+        # identified lines to avoid problems with ghosts (is this still necessary with new tracing code?)
         debug = True
-        n_neigh = 5
-        # Optional Parameters for arc line detection
-        sigdetect = 5.0 # This is for line finding, and hence this
-        # threshold determines the number of lines that may be removed because they are too close.
+
+        # Optional Parameters for tilts_find_lines
         fwhm = 4.0
         fit_frac_fwhm = 1.25
-        mask_frac_fwhm = 1.0
-        max_frac_fwhm = 2.0
+        cont_frac_fwhm = 1.0
+        max_frac_fwhm = 2.5
         cont_samp = 30
         niter_cont = 3
         debug_lines = True
-        # Trace crude default parameters from long_wavepix.pro
-        radius = fwhm
-        nave = 5
-        maxerr = 0.2
-        maxshift = 0.1
-        maxshift0 = 0.5
-        # Debug parameters
-        show_tilts = True
-        # def trace_tilts(arcimg, arc_spec, thismask, slit_left, slit_righ, only_these_lines = None, tracethresh = 10.0, only_these_lines = None, n_neigh = 5, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25, mask_frac_fwhm = 1.0, max_frac_fwhm = 2.0, cont_samp = 30,
-        #    niter_cont = 3, nonlinear_counts = 1e10, verbose = False, debug=False, debug_lines = False,nave=5,maxerr=0.2,maxshift=0.1,maxshift0=0.5)
 
-        nspec, nspat = arcimg.shape
-        spec_vec = np.arange(nspec)
-        spat_vec = np.arange(nspat)
-
-        # Find peaks with a liberal threshold of sigdetect = 5.0
-        tampl_tot, tampl_cont_tot, tcent_tot, twid_tot, _, wgood, _, nsig_tot = arc.detect_lines(
-            arc_spec, sigdetect = sigdetect, fwhm = fwhm,fit_frac_fwhm = fit_frac_fwhm,mask_frac_fwhm = mask_frac_fwhm,
-            max_frac_fwhm = max_frac_fwhm,cont_samp = cont_samp, niter_cont = niter_cont,nonlinear_counts=nonlinear_counts,
+        lines_spec, lines_spat = tracewave.tilts_find_lines(
+            arc_spec, slit_cen, tracethresh=tracethresh, sigdetect=sigdetect, npix_neigh=npix_neigh,
+            only_these_lines=only_these_lines, fwhm=fwhm, nonlinear_counts=nonlinear_counts, fit_frac_fwhm=fit_frac_fwhm,
+            cont_frac_fwhm=cont_frac_fwhm, max_frac_fwhm=max_frac_fwhm, cont_samp=cont_samp, niter_cont=niter_cont,
             debug = debug_lines)
-        # Good lines
-        arcdet = tcent_tot[wgood]
-        nsig = nsig_tot[wgood]
 
-        # Determine the best lines to use to trace the tilts
-        aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
-        w = np.where(nsig >= tracethresh)
-        aduse[w] = 1
-        # Remove lines that are within n_neigh pixels
-        nuse = np.sum(aduse)
-        detuse = arcdet[aduse]
-        idxuse = np.arange(arcdet.size)[aduse]
-        olduse = aduse.copy()
-        for s in range(nuse):
-            w = np.where((np.abs(arcdet - detuse[s]) <= n_neigh) & (np.abs(arcdet - detuse[s]) >= 1.0))[0]
-            for u in range(w.size):
-                if nsig[w[u]] > nsig[olduse][s]:
-                    aduse[idxuse[s]] = False
-                    break
-
-        # Restricted to ID lines? [introduced to avoid LRIS ghosts]
-        if only_these_lines is not None:
-            ids_pix = np.array(only_these_lines)
-            idxuse = np.arange(arcdet.size)[aduse]
-            for s in idxuse:
-                if np.min(np.abs(arcdet[s] - ids_pix)) > 2.0:
-                    msgs.info("Ignoring line at spectral position={:6.1f} which was not identified".format(arcdet[s]))
-                    aduse[s] = False
-
-        # Final spectral positions of arc lines we will trace
-        lines_spec = arcdet[aduse]
-        nlines = len(lines_spec)
-        if nlines == 0:
-            msgs.warn('No arc lines were deemed usable on this slit. Cannot compute tilts. Try lowering tracethresh.')
-            return None
-        else:
-            msgs.info('Modelling arc line tilts with {:d} arc lines'.format(nlines))
-
-
-        slit_cen = (slit_left + slit_righ)/2.0
-        lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
         slit_width = int(np.ceil((slit_righ - slit_left).max()))
+
+        trc_tilt_dict0 = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=None,
+                                              tilts_guess=None,fwhm=4.0,ncoeff=5, maxdev_fit=0.1, percentile_reject=0.10,
+                                              max_badpix_frac=0.20,maxerr=1.0, maxshift=3.0, maxshift0=3.0, nave=5,
+                                              show_fits=False)
+
+        # Do a PCA fit, which rejects some outliers
+        iuse = trc_tilt_dict0['use_tilt']
+        nuse =np.sum(iuse)
+        msgs.info('PCA modeling {:d} good tilts'.format(nuse))
+        coeff_npoly_pca = None
+        npca =None
+        pca_explained_var = 99.8
+        pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
+            trc_tilt_dict0['tilts_sub_fit'], npca=npca, pca_explained_var=pca_explained_var, coeff_npoly=coeff_npoly_pca,
+            order_vec=lines_spec,xinit_mean=lines_spec, minv=0.0, maxv=float(trc_tilt_dict0['nsub'] - 1), debug=True)
+
+        trc_tilt_dict1 = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=None,
+                                               tilts_guess=pca_fit, fwhm=4.0, ncoeff=5, maxdev_fit=0.1,
+                                               percentile_reject=0.10,
+                                               max_badpix_frac=0.20, maxerr=1.0, maxshift=3.0, maxshift0=3.0, nave=5,
+                                               show_fits=False)
+
+
+        if show_tilts:
+            viewer, ch = ginga.show_image(arcimg * thismask, chname='Tilts')
+            # ginga.show_tilts(viewer, ch, tilts,tilts_spat, tilts_mask, tilts_err, sedges = (slit_left, slit_righ))
+            ginga.show_tilts(viewer, ch, trc_tilt_dict1, sedges=(slit_left, slit_righ), plot_bad=True, clear_canvas=False)
+
+
+        # Now do a fit
 
 
         from IPython import embed
         embed()
-
-        trc_tilt_dict = tracewave.trace_tilts_guess(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=None,
-                                                    tilts_guess=None,fwhm=4.0,ncoeff=3, maxdev_fit=0.1, percentile_reject=0.10,
-                                                    max_badpix_frac=0.20,maxerr=1.0, maxshift=3.0, maxshift0=3.0, nave=5, show_fits=False)
-
-        if show_tilts:
-            viewer, ch = ginga.show_image(arcimg * thismask, chname='Tilts')
-            #            ginga.show_tilts(viewer, ch, tilts,tilts_spat, tilts_mask, tilts_err, sedges = (slit_left, slit_righ))
-            ginga.show_tilts(viewer, ch, trc_tilt_dict, sedges=(slit_left, slit_righ), plot_bad=True, clear_canvas=True)
 
         # Load up
         self.all_trcdict[slit] = trc_tilt_dict.copy()

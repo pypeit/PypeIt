@@ -11,6 +11,15 @@ import os
 import numpy as np
 import time
 
+# A note from ejeschke on how to use the canvas add command in ginga: https://github.com/ejeschke/ginga/issues/720
+# c
+# The add() command can add any of the shape types that are defined under ginga.canvas.types. The good part is that if you
+# go to that directory in the ginga source tree (ginga/canvas/types) and browse the source, you will find a parameter
+# description table at the beginning of each type definition, describing each parameter in the type and what it is for.
+# Most of the standard geometric types are in basic.py and there are specialized ones in utils.py, astro.py and layer.py. Looking at
+# the classes will also tell you which parameters are positional and which are keyword.
+
+
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
 #from pypeit import ardebug as debugger
 #import pdb as debugger
@@ -355,6 +364,7 @@ def show_tilts(viewer, ch, trc_tilt_dict, plot_bad = True, sedges=None, yoff=0.,
         show_slits(viewer, ch,sedges[0], sedges[1])
 
     tilts = trc_tilt_dict['tilts']
+    tilts_fit = trc_tilt_dict['tilts_fit']
     tilts_spat = trc_tilt_dict['tilts_spat']
     tilts_mask = trc_tilt_dict['tilts_mask']
     tilts_err = trc_tilt_dict['tilts_err']
@@ -365,32 +375,47 @@ def show_tilts(viewer, ch, trc_tilt_dict, plot_bad = True, sedges=None, yoff=0.,
     nspec = trc_tilt_dict['nspec']
     nlines = tilts.shape[1]
     for iline in range(nlines):
-        x = tilts_spat[:,iline] + xoff
-        y = tilts[:,iline] + yoff  # FOR IMAGING (Ginga offsets this value by 1 internally)
+        x = tilts_spat[:,iline] + xoff # FOR IMAGING (Ginga offsets this value by 1 internally)
         this_mask = tilts_mask[:,iline]
         this_err = (tilts_err[:,iline] > 900)
         if np.sum(this_mask) > 0:
-            if plot_bad:
-                badpix = (this_mask == True) & (this_err == True)
-                nbad = np.sum(badpix)
-                if nbad > 0:
-                    xbad = x[badpix]
-                    ybad = y[badpix]
-                    # Now show stuff that had larger errors
-                    # note: must cast numpy floats to regular python floats to pass the remote interface
-                    points_bad = [dict(type='point', args=(float(xbad[i]), float(ybad[i]), 2),kwargs=dict(style='plus', color='red')) for i in range(nbad)]
-                    canvas.add('constructedcanvas', points_bad)
+            y = tilts[:, iline] + yoff
+            # Plot the actual Gaussian weighted centroids of the arc lines that were traced
+            goodpix = (this_mask == True) & (this_err == False)
+            ngood = np.sum(goodpix)
+            if ngood > 0:
+                xgood = x[goodpix]
+                ygood = y[goodpix]
+                # note: must cast numpy floats to regular python floats to pass the remote interface
+                points_good = [dict(type='circle',
+                                    args=(float(xgood[i]), float(ygood[i]), 2),
+                                    kwargs=dict(radius=2.0, color='green',fill=True)) for i in range(ngood)]
+                canvas.add('constructedcanvas', points_good)
+            badpix = (this_mask == True) & (this_err == True)
+            nbad = np.sum(badpix)
+            if nbad > 0:
+                xbad = x[badpix]
+                ybad = y[badpix]
+                # Now show stuff that had larger errors
+                # note: must cast numpy floats to regular python floats to pass the remote interface
+                points_bad = [dict(type='circle',
+                                   args=(float(xbad[i]), float(ybad[i]), 2),
+                                   kwargs=dict(radius=2.0, color='red', fill=True)) for i in range(nbad)]
+                canvas.add('constructedcanvas', points_bad)
+            # Now plot the polynomial fits to the the Gaussian weighted centroids
+            y = tilts_fit[:, iline] + yoff
             points = list(zip(x[this_mask][::pstep].tolist(),y[this_mask][::pstep].tolist()))
             if use_tilt[iline]:
                 clr = 'cyan'  # Good line
             else:
                 clr = 'yellow'  # Bad line
-            canvas.add('path', points, color=clr)
+            canvas.add('path', points, color=clr, linewidth=5)
 
 
-    canvas.add(str('text'), nspat//2 - 40, nspec//2,      '   good tilts', color=str('cyan'),fontsize=20.)
-    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 30, '    bad tilts', color=str('yellow'),fontsize=20.)
-    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 60, 'masked pixels', color=str('red'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2,      'good tilt fit', color=str('cyan'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 30, 'bad  tilt fit', color=str('yellow'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 60, 'trace good', color=str('green'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 60, 'trace masked', color=str('red'),fontsize=20.)
 
 
 # Old method
