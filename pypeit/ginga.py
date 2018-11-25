@@ -338,7 +338,7 @@ def clear_all():
         shell.delete_channel(ch)
 
 
-def show_tilts(viewer, ch, trc_tilt_dict, plot_bad = True, sedges=None, yoff=0., xoff=0., pstep=10, points=False, clear_canvas = False):
+def show_tilts(viewer, ch, trc_tilt_dict, crutch=False, plot_bad = True, sedges=None, yoff=0., xoff=0., pstep=10, points=False, clear_canvas = False):
     """  Display arc image and overlay the arcline tilt measurements
     Parameters
     ----------
@@ -364,7 +364,12 @@ def show_tilts(viewer, ch, trc_tilt_dict, plot_bad = True, sedges=None, yoff=0.,
         show_slits(viewer, ch,sedges[0], sedges[1])
 
     tilts = trc_tilt_dict['tilts']
-    tilts_fit = trc_tilt_dict['tilts_fit']
+    # Crutch is set plot the crutch instead of the tilt itself
+    if crutch:
+        tilts_fit = trc_tilt_dict['tilts_fit']
+    else:
+        tilts_fit = trc_tilt_dict['tilts_crutch']
+
     tilts_spat = trc_tilt_dict['tilts_spat']
     tilts_mask = trc_tilt_dict['tilts_mask']
     tilts_err = trc_tilt_dict['tilts_err']

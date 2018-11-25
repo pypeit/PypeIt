@@ -280,6 +280,7 @@ class WaveTilts(masterframe.MasterFrame):
         show_tilts = True
 
         nspat = self.msarc.shape[1]
+        nspec = self.msarc.shape[0]
         arcimg = self.msarc
         arc_spec = self.arccen[:, slit]
         slit_left = self.tslits_dict['lcen'][:,slit].copy()
@@ -288,11 +289,11 @@ class WaveTilts(masterframe.MasterFrame):
         # Center of the slit
         slit_cen = (slit_left + slit_righ)/2.0
 
-        slitmask = pixels.slit_pixels(self.tslits_dict['lcen'], self.tslits_dict['rcen'], nspat)
+        slitmask = self.spectrograph.slitmask(self.tslits_dict)
         thismask = slitmask == slit
 
         # Tilt specific Optional parameters
-        tracethresh = 10.0 # significance threshold for an arc line to be traced
+        tracethresh = 20.0 # significance threshold for an arc line to be traced
         sigdetect = 5.0 # This is the significance threshold for finding neighboring lines. The number of these neighboring lines
         #  determines how many nsig > tracethresh lines that may be removed because they are too close.
         npix_neigh = 7.0
@@ -327,29 +328,81 @@ class WaveTilts(masterframe.MasterFrame):
         nuse =np.sum(iuse)
         msgs.info('PCA modeling {:d} good tilts'.format(nuse))
         coeff_npoly_pca = None
-        #npca =2
         #pca_explained_var = None
         # TODO Should we truncate this PCA by hand, or just let it explain variance
         pca_explained_var = 99.8
-
+        npca = 2
         # PCA fit good orders, and predict bad orders
         pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
-            trc_tilt_dict0['tilts_sub_fit'], predict=np.invert(iuse), pca_explained_var=pca_explained_var, coeff_npoly=coeff_npoly_pca,
+            trc_tilt_dict0['tilts_sub_fit'], predict=np.invert(iuse), npca = npca, coeff_npoly=coeff_npoly_pca,
             order_vec=lines_spec,xinit_mean=lines_spec, minv=0.0, maxv=float(trc_tilt_dict0['nsub'] - 1), debug=True)
 
         # Now trace again with the PCA predictions as the starting crutches
         trc_tilt_dict1 = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=inmask,
                                                tilts_guess=pca_fit, fwhm=4.0, ncoeff=5, maxdev_tracefit=0.1,
-                                               percentile_reject=0.10,max_badpix_frac=0.20, show_fits=False)
+                                               percentile_reject=0.20,max_badpix_frac=0.20, show_fits=False)
 
         # Now perform a fit to the tilts
-        maxdev_2dfit = 0.5
-        tilt_fit_dict = tracewave.fit_tilts(trc_tilt_dict1, spat_order=3, spec_order=4, maxdev=maxdev_2dfit, debug=True,
+        maxdev_2dfit = 1.0
+        tilt_fit_dict1 = tracewave.fit_tilts(trc_tilt_dict1, spat_order=3, spec_order=2, maxdev=maxdev_2dfit, debug=True,
                                             doqa=True,setup='test',slit=0, show_QA=False, out_dir='./')
         # Now evaluate the model of the tilts for all of our lines
-        piximg = tracewave.fit2piximg(tilt_fit_dict)
+        piximg1 = tracewave.fit2piximg(tilt_fit_dict1)
+        # Since the y independent variable is the tilts in the way we do the 2d fit, and soem tilts are spurios, it does
+        # no good to evaluate the global fit at these spurious tilts to get the new tracing crutches. The following is a
+        # hack to determine this from the piximg. Perhaps there is a better way.
+        spec_img = np.outer(np.arange(nspec), np.ones(nspat))
+        spec_vec = np.arange(nspec)
+        nlines=len(lines_spec)
+        interp_flag = np.ones(nlines,dtype=bool)
+        tilts_crutch = np.zeros((nspat, nlines))
+        spat_min = trc_tilt_dict1['spat_min']
+        spat_max = trc_tilt_dict1['spat_max']
+        piximg1[np.invert(thismask)] = 1e10
+        # Is there a faster more clever way to do this?
+        for iline in range(nlines):
+            min_spat = np.fmax(spat_min[iline], 0)
+            max_spat = np.fmin(spat_max[iline], nspat - 1)
+            min_spec = int(np.fmax(np.round(lines_spec[iline]) - 10,0))
+            max_spec = int(np.fmin(np.round(lines_spec[iline]) + 10,nspec-1))
+            piximg_sub = piximg1[min_spec:max_spec,:]
+            for ispat in range(min_spat,max_spat):
+                if np.any(np.diff(piximg_sub[:,ispat] < 0)):
+                    # If we ever encounter an unsorted piximg_sub the logic below makes no sense so just use the
+                    # previous polynomial fit as the crutch and exit this loop
+                    tilts_crutch[ispat,iline] = trc_tilt_dict1['tilts_fit'][:,iline]
+                    msgs.warn('piximg is not monotonic. Your tilts are probably bad')
+                    break
+                else:
+                    tilts_crutch[ispat,iline] = np.interp(lines_spec[iline],piximg_sub[:,ispat],spec_vec[min_spec:max_spec])
+
+        trc_tilt_dict1['tilts_crutch'] = tilts_crutch
+        # Now trace again with the PCA predictions as the starting crutches
+        trc_tilt_dict2 = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=inmask,
+                                               tilts_guess=tilts_crutch, fwhm=4.0, ncoeff=5, maxdev_tracefit=0.1,
+                                               percentile_reject=0.20,max_badpix_frac=0.20, show_fits=False)
+
+        # Now perform a second fit to the tilts
+        maxdev_2dfit = 1.0
+        tilt_fit_dict2 = tracewave.fit_tilts(trc_tilt_dict2, spat_order=3, spec_order=2, maxdev=maxdev_2dfit, debug=True,
+                                            doqa=True,setup='test',slit=0, show_QA=False, out_dir='./')
+        # Now evaluate the model of the tilts for all of our lines
+        piximg = tracewave.fit2piximg(tilt_fit_dict2)
+
+
+        """
+        for iline in range(nlines):
+            min_spat = np.fmax(spat_min[iline], 0)
+            max_spat = np.fmin(spat_max[iline], nspat - 1)
+            sub_img = (piximg*thismask)[:, min_spat:max_spat]
+            spec_img_sub = spec_img[  :, min_spat:max_spat]
+            ispec_min = np.argmin(np.abs(sub_img - lines_spec[iline]), axis=0)
+            tilts_crutch[min_spat:max_spat,iline] = spec_img_sub[ispec_min,np.arange(sub_img.shape[1])]
+        """
 
         # Now trace again with the piximg model as the starting crutches
+
+
 
         from IPython import embed
         embed()
@@ -357,7 +410,12 @@ class WaveTilts(masterframe.MasterFrame):
         if show_tilts:
             viewer, ch = ginga.show_image(arcimg * thismask, chname='Tilts')
             # ginga.show_tilts(viewer, ch, tilts,tilts_spat, tilts_mask, tilts_err, sedges = (slit_left, slit_righ))
-            ginga.show_tilts(viewer, ch, trc_tilt_dict1, sedges=(slit_left, slit_righ), points = True, clear_canvas=True)
+            ginga.show_tilts(viewer, ch, trc_tilt_dict1, crutch=True, sedges=(slit_left, slit_righ), points = True, clear_canvas=True)
+
+#        from matplotlib import pyplot as plt
+#        tilt_mask = trc_tilt_dict1['tilts_mask']
+#        plt.plot(trc_tilt_dict1['tilts_spat'][tilt_mask], tilts_crutch[tilt_mask], 'ko', markersize=2.0)
+#        plt.plot(trc_tilt_dict1['tilts_spat'][tilt_mask], trc_tilt_dict1['tilts_fit'][tilt_mask], 'ro', mfc='none', markersize=2.0)
 
 
         # Now do a fit
