@@ -366,9 +366,9 @@ def show_tilts(viewer, ch, trc_tilt_dict, crutch=False, plot_bad = True, sedges=
     tilts = trc_tilt_dict['tilts']
     # Crutch is set plot the crutch instead of the tilt itself
     if crutch:
-        tilts_fit = trc_tilt_dict['tilts_fit']
-    else:
         tilts_fit = trc_tilt_dict['tilts_crutch']
+    else:
+        tilts_fit = trc_tilt_dict['tilts_fit']
 
     tilts_spat = trc_tilt_dict['tilts_spat']
     tilts_mask = trc_tilt_dict['tilts_mask']

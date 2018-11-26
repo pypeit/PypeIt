@@ -102,7 +102,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     def determine_bias_mode(self):
         # How are we treating biases?
         # 1) No bias subtraction
-        if self.par['useframe'] is None:
+        if self.par['useframe'].lower() == 'none':
             msgs.info("Will not perform bias/dark subtraction")
             self.msbias = None
         # 2) Use overscan

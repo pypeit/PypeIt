@@ -85,7 +85,7 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sigdetect=5.0, npix_n
 
 
 def trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=None, tilts_guess=None, fwhm=4.0,
-                ncoeff=3, maxdev_tracefit=0.1,percentile_reject=0.10, max_badpix_frac=0.20,
+                ncoeff=3, maxdev_tracefit=1.0,sigrej_trace=3.0, max_badpix_frac=0.20,
                 tcrude_maxerr=1.0, tcrude_maxshift=3.0, tcrude_maxshift0=3.0,tcrude_nave=5, show_fits=False, debug = False):
 
     slit_widp2 = slit_width + 2
@@ -143,7 +143,14 @@ def trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=Non
                 # This is full image size tilt trace, sub-window it
                 tilts_guess_now = tilts_guess[min_spat:max_spat, iline]
             else:
-                tilts_guess_now = tilts_guess[:, iline]
+                # If it is a sub-trace, deal with falling off the image
+                if spat_min[iline] < 0:
+                    tilts_guess_now = tilts_guess[-spat_min[iline]:,iline]
+                elif spat_max[iline] > (nspat-1):
+                    tilts_guess_now = tilts_guess[:-(spat_max[iline] - nspat + 1),iline]
+                else:
+                    tilts_guess_now = tilts_guess[:, iline]
+
         # Do iterative flux weighted tracing and polynomial fitting to refine these traces. This must also be done in a loop
         # since the sub image is different for every aperture, i.e. each aperature has its own image
         tilts_sub_fit_fw, tilts_sub_fw, tilts_sub_fw_err, tset_fw = extract.iter_tracefit(
@@ -189,8 +196,16 @@ def trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=Non
     bad_pixel_count = np.sum(bad_mask, 0)
     dev_mean, dev_median, dev_sig = sigma_clipped_stats(np.abs(tilts_sub - tilts_sub_fit), mask=bad_mask, sigma=4.0,
                                                         axis=0)
+    good_line = np.any(bad_mask == False,axis=0) # Is it masked everywhere?
+    # Median absolute deviation for each line quantifies the goodnes of tracing
     dev_mad = 1.4826*dev_median.data
-    use_tilt = (dev_mad < np.quantile(dev_mad, 1.0 - percentile_reject)) & (bad_pixel_count < max_badpix_frac * nsub)
+    # Now reject outliers from this distribution
+    dev_mad_dist_median = np.median(dev_mad[good_line])
+    dev_mad_dist_mad = 1.4826*np.median(np.abs(dev_mad[good_line] - dev_mad_dist_median)) # i.e. this is like the sigma
+    # Reject lines that are sigrej trace outliers
+    mad_keep = np.abs((dev_mad - dev_mad_dist_median)/dev_mad_dist_mad) < sigrej_trace
+
+    use_tilt = (mad_keep) & (bad_pixel_count < max_badpix_frac * nsub) & good_line
     nuse = np.sum(use_tilt)
     msgs.info('Number of usable arc lines for tilts: {:d}/{:d}'.format(nuse,nlines))
 
@@ -244,10 +259,12 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.5, func2D='l
     tilts_spec = trc_tilt_dict['tilts_spec'][:,use_tilt] # line_spec spectral pixel position
     tilts_mask = trc_tilt_dict['tilts_mask'][:,use_tilt] # Reflects if trace is on the slit
 
-    delta_tilt  = np.abs(tilts - tilts_fit)
+    # Let's just let the code do the rejection
+    #delta_tilt  = np.abs(tilts - tilts_fit)
 
     # Do one last round of rejection here at the pixel level, i.e. we already rejected lines before
-    tot_mask = tilts_mask & (delta_tilt < maxdev) & (tilts_err < 900)
+    #tot_mask = tilts_mask & (delta_tilt < maxdev) & (tilts_err < 900)
+    tot_mask = tilts_mask & (tilts_err < 900)
     fitxy = [spat_order, spec_order]
 
     # Fit the inverted model with a 2D polynomial

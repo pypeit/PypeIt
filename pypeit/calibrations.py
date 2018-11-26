@@ -168,9 +168,10 @@ class Calibrations(object):
 
         """
         # Check for existing data
-        if not self._chk_objs(['msbias']):
-            self.msarc = None
-            return self.msarc
+        ## JFH This check is wrong, if the user does not want to bias subtract, then it causes a crash
+#        if not self._chk_objs(['msbias']):
+#            self.msarc = None
+#            return self.msarc
 
         # Check internals
         self._chk_set(['setup', 'det', 'sci_ID', 'par'])
@@ -228,7 +229,8 @@ class Calibrations(object):
 
         # How are we treating biases: 1) No bias, 2) overscan, or 3) use bias subtraction. If use bias is there a master?
         self.msbias = self.biasFrame.determine_bias_mode()
-        if self.msbias is None:  # Build it and save it
+        # This could be made more elegant, like maybe msbias should be set to 'none' analgous to how overscan is treated???
+        if (self.msbias is None) and (self.par['biasframe']['useframe'] != 'none'):  # Build it and save it
             self.msbias = self.biasFrame.build_image()
             if self.save_masters:
                 self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,steps=self.biasFrame.steps)

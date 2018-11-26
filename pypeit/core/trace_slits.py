@@ -2543,6 +2543,7 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, nave=5, radius=3.0,maxsh
     #  Recenter INITIAL Row for all traces simultaneously
     #
     iy = ypass * np.ones(ntrace,dtype=int)
+
     xfit,xfiterr = trace_fweight(imgtemp, xinit, ycen = iy, invvar=invtemp, radius=radius)
     # Shift
     xshift = np.clip(xfit-xinit, -1*maxshift0, maxshift0) * (xfiterr < maxerr)
@@ -2645,13 +2646,12 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
 
     # Figure out dimensions of xinit
     dim = xinit_in.shape
+    npix = dim[0]
     ndim = xinit_in.ndim
     if (ndim == 1):
         nTrace = 1
-        npix = dim[0]
     else:
         nTrace = dim[1]
-        npix = dim[0]
 
     ncen = xinit_in.size
 
@@ -2660,6 +2660,9 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
     xnew = xinit.astype(float)
     xerr = np.full(ncen,999.0)
 
+    if npix > fimage.shape[0]:
+        raise ValueError('The number of pixels in xinit npix={:d} will run of the image nspec={:d}'.format(npix,fimage.shape[0]))
+
     if ycen is None:
         if ndim == 1:
             ycen = np.arange(npix, dtype='int')
@@ -2667,12 +2670,19 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
             ycen = np.outer(np.arange(npix, dtype='int'), np.ones(nTrace, dtype='int'))
         else:
             raise ValueError('xinit is not 1 or 2 dimensional')
+    else: # check values of input ycen
+        if (ycen.min() < 0) | (ycen.max() > (fimage.shape[0] - 1)):
+            raise ValueError('Input ycen values will run off the fimage')
 
     ycen_out = ycen.astype(int)
     ycen_out = ycen_out.flatten()
 
     if np.size(xinit) != np.size(ycen_out):
         raise ValueError('Number of elements in xinit and ycen must be equal')
+
+#    if npix != fimage.shape[0]:
+#        raise ValueError('Number of elements in xinit npix = {:d} does not match spectral dimension of '
+#                         'input image {:d}'.format(npix,fimage.shape[0]))
 
     if invvar is None:
         invvar = np.zeros_like(fimage) + 1.
@@ -2796,13 +2806,12 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
 
     # Figure out dimensions of xinit
     dim = xinit_in.shape
+    npix = dim[0]
     ndim = xinit_in.ndim
     if (ndim == 1):
         nTrace = 1
-        npix = dim[0]
     else:
         nTrace = dim[1]
-        npix = dim[0]
 
     ncen = xinit_in.size
 
@@ -2811,6 +2820,10 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
     xnew = xinit.astype(float)
     xerr = np.full(ncen,999.)
 
+    if npix > fimage.shape[0]:
+        raise ValueError(
+            'The number of pixels in xinit npix={:d} will run of the image nspec={:d}'.format(npix, fimage.shape[0]))
+
     if ycen is None:
         if ndim == 1:
             ycen = np.arange(npix, dtype=int)
@@ -2818,12 +2831,21 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
             ycen = np.outer(np.arange(npix, dtype='int'), np.ones(nTrace, dtype='int'))
         else:
             raise ValueError('xinit is not 1 or 2 dimensional')
+    else: # check value of input ycen
+        if (ycen.min() < 0) | (ycen.max() > (fimage.shape[0] - 1)):
+            raise ValueError('Input ycen values will run off the fimage')
 
     ycen_out = ycen.astype(int)
     ycen_out = ycen_out.flatten()
 
+
     if np.size(xinit) != np.size(ycen_out):
         raise ValueError('Number of elements in xinit and ycen must be equal')
+
+
+#    if npix != fimage.shape[0]:
+#        raise ValueError('Number of elements in xinit npix = {:d} does not match spectral dimension of '
+#                         'input image {:d}'.format(npix,fimage.shape[0]))
 
     if invvar is None:
         invvar = np.zeros_like(fimage) + 1.
