@@ -1003,9 +1003,9 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     if w is not None:
         w = np.asarray(w) + 0.0
         if w.ndim != 1:
-            msgs.bug("arutils.polyfit2d - Expected 1D vector for weights")
+            msgs.bug("utils.polyfit2d - Expected 1D vector for weights")
         if len(x) != len(w) or len(y) != len(w) or len(x) != len(y):
-            msgs.bug("arutils.polyfit2d - Expected x, y and weights to have same length")
+            msgs.bug("utils.polyfit2d - Expected x, y and weights to have same length")
         z = z * w
         vander = vander * w[:,np.newaxis]
     # Reshape
