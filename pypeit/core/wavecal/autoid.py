@@ -698,7 +698,7 @@ class ArchiveReid:
         # Parameters for arc line detction
         self.nonlinear_counts = self.par['nonlinear_counts']
         self.sigdetect = self.par['sigdetect']
-        self.fwhm = 11.0 #
+        self.fwhm = self.par['fwhm']
         # Paramaters that govern reidentification
         self.reid_arxiv = self.par['reid_arxiv']
         self.nreid_min = self.par['nreid_min']

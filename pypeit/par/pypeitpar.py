@@ -1001,7 +1001,7 @@ class WavelengthSolutionPar(ParSet):
     def __init__(self, reference=None, method=None,
                  echelle = None, ech_fix_format = None, ech_nspec_coeff = None, ech_norder_coeff = None, ech_sigrej = None,
                  lamps=None, nonlinear_counts = None,
-                 sigdetect=None, reid_arxiv = None, nreid_min = None, cc_thresh = None, cc_local_thresh = None,
+                 sigdetect=None, fwhm=None, reid_arxiv = None, nreid_min = None, cc_thresh = None, cc_local_thresh = None,
                  nlocal_cc = None, rms_threshold=None,match_toler=None, func=None, n_first=None, n_final =None,
                  sigrej_first=None, sigrej_final=None,wv_cen=None, disp=None,numsearch=None,nfitpix=None, IDpixels=None,
                  IDwaves=None, medium=None, frame=None):
@@ -1089,6 +1089,10 @@ class WavelengthSolutionPar(ParSet):
         defaults['sigdetect'] = 5.
         dtypes['sigdetect'] = [int, float]
         descr['sigdetect'] = 'Detection threshold for arc lines'
+
+        defaults['fwhm'] = 4.
+        dtypes['fwhm'] = [int, float]
+        descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in *unbinned* pixels.'
 
         # These are the parameters used for reidentification
         defaults['reid_arxiv']=None
@@ -1228,7 +1232,7 @@ class WavelengthSolutionPar(ParSet):
         k = cfg.keys()
         parkeys = [ 'reference', 'method',
                     'echelle', 'ech_fix_format', 'ech_nspec_coeff', 'ech_norder_coeff', 'ech_sigrej',
-                    'lamps', 'nonlinear_counts', 'sigdetect',
+                    'lamps', 'nonlinear_counts', 'sigdetect', 'fwhm'
                     'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh', 'nlocal_cc',
                     'rms_threshold', 'match_toler', 'func', 'n_first','n_final', 'sigrej_first', 'sigrej_final',
                     'wv_cen', 'disp', 'numsearch', 'nfitpix','IDpixels', 'IDwaves', 'medium', 'frame']
@@ -1479,8 +1483,8 @@ class WaveTiltsPar(ParSet):
         previously `disporder`?  If so, I think I prefer the generality
         of `disporder`...
     """
-    def __init__(self, idsonly=None, tracethresh=None, order=None, function=None, yorder=None,
-                 func2D=None, method=None, params=None):
+    def __init__(self, idsonly=None, tracethresh=None, nfwhm_neigh=None, maxdev_tracefit=None, sigrej_trace=None, spat_order=None, spec_order=None,
+                 func2D=None):
 
 
         # Grab the parameter names and values from the function
@@ -1498,6 +1502,10 @@ class WaveTiltsPar(ParSet):
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
+        #maxdev_tracefit = 1.0,
+        #sigrej_trace = 3.0, max_badpix_frac = 0.20, tcrude_nave = 5,
+        #npca = 1, coeff_npoly_pca = 1, sigrej_pca = 2.0,
+
         defaults['idsonly'] = False
         dtypes['idsonly'] = bool
         descr['idsonly'] = 'Only use the arc lines that have an identified wavelength to trace ' \
@@ -1507,36 +1515,70 @@ class WaveTiltsPar(ParSet):
         dtypes['tracethresh'] = [int, float, list, numpy.ndarray]
         descr['tracethresh'] = 'Significance threshold for arcs to be used in tracing wavelength tilts.'
 
-        defaults['order'] = 2
-        dtypes['order'] = int
-        descr['order'] = 'Order of the polynomial function to be used for the tilt of an ' \
-                         'individual arc line.  Must be 1 for echelle data (Echelle pipeline).'
 
-        defaults['function'] = 'legendre'
+        defaults['nfwhm_neigh'] = 3.0
+        dtypes['nfwhm_neigh'] = [int, float]
+        descr['nfwhm_neigh'] = 'Required separation between neighboring arc lines for them to be considered for tilt tracing in units of the ' \
+                               'the spectral fwhm (see wavelength parset where fwhm is defined)'
+
+        defaults['maxdev_tracefit'] = 1.0
+        dtypes['maxdev_tracefit'] = [int, float]
+        descr['maxdev_tracefit'] = 'Maximum absolute deviation for the legendre polynomial fits to individual ' \
+                                   'arc tilt fits during iterative trace fitting (flux weighted, then gaussian weighted)'
+
+        defaults['sigrej_trace'] = 3.0
+        dtypes['sigrej_trace'] = [int, float]
+        descr['sigrej_trace'] = 'Outlier rejection significance to determine which traced arc lines should be included in the global fit'
+
+        defaults['spat_order'] = 5
+        dtypes['spat_order'] = int
+        descr['spat_order'] = 'Order of the legendre polynomial to be fit to the the tilt of an arc line. This parameter determines' \
+                              'both the orer of the *individual* arc line tilts, as well as the order of the spatial direction of the' \
+                              '2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the' \
+                              'slit/order'
+
+        defaults['spec_order'] = 3
+        dtypes['spat_order'] = int
+        descr['spat_order'] = 'Order of the spectral direction of the 2d legendre polynomial (spatial, spectral) that is ' \
+                              'fit to obtain a global solution for the tilts across the slit/order'
+
+        defaults['func2d'] = 'legendre'
+        dtypes['func2d'] = str
+        descr['func2d'] = 'Type of function for 2D fit'
+
+        defaults['maxdev2d'] = 1.0
+        dtypes['maxdev2d'] = [int, float]
+        descr['maxdev2d'] = 'Maximum absolute deviation rejection threshold which determines which pixels on a fit to an arc line tilt ' \
+                            'are rejected by the global 2D fit because they exceed this value'
+
+        defaults['sigrej2d'] = 3.0
+        dtypes['sigrej2d'] = [int, float]
+        descr['sigrej2d'] = 'Outlier rejection significance determining which pixels on a fit to an arc line tilt ' \
+                            'are rejected by the global 2D fit'
+
+
+        # Right now this is not used the fits are hard wired to be legendre for the individual fits.
+        #defaults['function'] = 'legendre'
         # TODO: Allowed values?
-        dtypes['function'] = str
-        descr['function'] = 'Type of function for arc line fits'
+        #dtypes['function'] = str
+        #descr['function'] = 'Type of function for arc line fits'
 
-        defaults['yorder'] = 4
-        dtypes['yorder'] = int
-        descr['yorder'] = 'Order of the polynomial function to be used to fit the tilts ' \
-                          'along the y direction.'
+        #defaults['yorder'] = 4
+        #dtypes['yorder'] = int
+        #descr['yorder'] = 'Order of the polynomial function to be used to fit the tilts ' \
+        #                  'along the y direction.'
 
-        defaults['func2D'] = 'legendre'
-        # TODO: Allowed values?
-        dtypes['func2D'] = str
-        descr['func2D'] = 'Type of function for 2D fit'
 
-        defaults['method'] = 'spca'
-        options['method'] = WaveTiltsPar.valid_methods()
-        dtypes['method'] = str
-        descr['method'] = 'Method used to trace the tilt of the slit along an order.  ' \
-                          'Options are: {0}'.format(', '.join(options['method']))
+        #defaults['method'] = 'spca'
+        #options['method'] = WaveTiltsPar.valid_methods()
+        #dtypes['method'] = str
+        #descr['method'] = 'Method used to trace the tilt of the slit along an order.  ' \
+        #                  'Options are: {0}'.format(', '.join(options['method']))
 
         # TODO: Need to add checks that check params against method
-        defaults['params'] = [ 1, 1, 0 ]
-        dtypes['params'] = [ int, list ]
-        descr['params'] = 'Parameters to use for the provided method.  TODO: Need more explanation'
+        #defaults['params'] = [ 1, 1, 0 ]
+        #dtypes['params'] = [ int, list ]
+        #descr['params'] = 'Parameters to use for the provided method.  TODO: Need more explanation'
 
         # Instantiate the parameter set
         super(WaveTiltsPar, self).__init__(list(pars.keys()),
@@ -1550,19 +1592,18 @@ class WaveTiltsPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'idsonly', 'tracethresh', 'order', 'function', 'yorder', 'func2D',
-                    'method', 'params' ]
+        parkeys = [ 'idsonly', 'tracethresh', 'maxdev_tracefit', 'sigrej_trace','nfwhm_neigh', 'spat_order', 'spec_order', 'func2D']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
 
-    @staticmethod
-    def valid_methods():
-        """
-        Return the valid methods to use for tilt tracing.
-        """
-        return [ 'pca', 'spca', 'spline', 'interp', 'perp', 'zero' ]
+    #@staticmethod
+    #def valid_methods():
+    #    """
+    #    Return the valid methods to use for tilt tracing.
+    #    """
+    #    return [ 'pca', 'spca', 'spline', 'interp', 'perp', 'zero' ]
 
     def validate(self):
         # Convert param to list

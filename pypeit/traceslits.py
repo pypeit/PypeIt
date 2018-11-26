@@ -555,10 +555,17 @@ class TraceSlits(masterframe.MasterFrame):
             rcen = self.rcen
         # Convert physical traces into a pixel trace
         msgs.info("Converting physical trace locations to nearest pixel")
-        self.pixcen = pixels.phys_to_pix(0.5*(lcen+rcen), self.pixlocn, 1)
+        # JFH I don't understand what these routines are doing, or why this is necessary. But it produces some weird pixelization
+        # that I don't like. Commenting this out for now.
+        #self.pixcen = pixels.phys_to_pix(0.5*(lcen+rcen), self.pixlocn, 1)
+        #self.pixwid = (rcen-lcen).mean(0).astype(np.int)
+        #self.lordpix = pixels.phys_to_pix(lcen, self.pixlocn, 1)
+        #self.rordpix = pixels.phys_to_pix(rcen, self.pixlocn, 1)
+
+        self.pixcen = 0.5*(lcen+rcen)
         self.pixwid = (rcen-lcen).mean(0).astype(np.int)
-        self.lordpix = pixels.phys_to_pix(lcen, self.pixlocn, 1)
-        self.rordpix = pixels.phys_to_pix(rcen, self.pixlocn, 1)
+        self.lordpix = lcen
+        self.rordpix = rcen
 
     def _make_binarr(self):
         """
@@ -1149,7 +1156,7 @@ class TraceSlits(masterframe.MasterFrame):
             hdus = fits.ImageHDU(self.siglev.astype(np.float32))
             hdus.name = 'SIGLEV'
             hdulist.append(hdus)
-        # PIXLOCN -- may be Deprecated
+        # PIXLOCN -- may be Deprecated.
         hdup = fits.ImageHDU(self.pixlocn.astype(np.float32))
         hdup.name = 'PIXLOCN'
         hdulist.append(hdup)
@@ -1164,6 +1171,10 @@ class TraceSlits(masterframe.MasterFrame):
             hdurt = fits.ImageHDU(self.rcen)
             hdurt.name = 'RCEN'
             hdulist.append(hdurt)
+        if self.pixcen is not None:
+            hdulf = fits.ImageHDU(self.pixcen)
+            hdulf.name = 'PIXCEN'
+            hdulist.append(hdulf)
         if self.lcen_tweak is not None:
             hdulf = fits.ImageHDU(self.lcen_tweak)
             hdulf.name = 'LCEN_TWEAK'
@@ -1220,7 +1231,7 @@ class TraceSlits(masterframe.MasterFrame):
         # dict
         self.tc_dict = ts_dict['tc_dict']
         # Load the pixel objects?
-        self._make_pixel_arrays()
+        #self._make_pixel_arrays()  # JFH This should *NOT* be done here anymore
         # Fill
         self._fill_tslits_dict()
         # Success

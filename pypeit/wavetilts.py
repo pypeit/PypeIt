@@ -57,7 +57,7 @@ class WaveTilts(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'tilts'
 
-    def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
+    def __init__(self, msarc, spectrograph=None, par=None, wavepar = None, det=None, setup=None, master_dir=None,
                  mode=None, tslits_dict=None, redux_path=None, bpm=None):
 
         # TODO: (KBW) Why was setup='' in this argument list and
@@ -76,6 +76,9 @@ class WaveTilts(masterframe.MasterFrame):
                                          master_dir=master_dir, mode=mode)
 
         self.par = pypeitpar.WaveTiltsPar() if par is None else par
+
+        self.wavepar = pypeitpar.WavelengthSolutionPar() if wavepar is None else wavepar
+
 
         # Parameters (but can be None)
         self.msarc = msarc
@@ -214,7 +217,39 @@ class WaveTilts(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return self.arccen, self.arc_maskslit
 
-    def _fit_tilts(self, slit, show_QA=False, doqa=True):
+    def _find_lines(self, arcspec, slit_cen, slit,debug_lines=False):
+
+        # Find good lines for the tilts
+        tracethresh_in = self.par['tracethresh']
+        if isinstance(tracethresh_in,(float, int)):
+            tracethresh = tracethresh_in
+        elif isinstance(tracethresh_in, (list, np.ndarray)):
+            tracethresh = tracethresh_in[slit]
+        else:
+            raise ValueError('Invalid input for parameter tracethresh')
+
+        nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
+
+        if self.par['idsonly'] is not None:
+            # Put in some hook here for getting the lines out of the wave calib for i.e. LRIS ghosts.
+            only_these_lines = None
+            pass
+        else:
+            only_these_lines = None
+
+
+        # Optional Parameters for tilts_find_lines
+        self.lines_spec, self.lines_spat = tracewave.tilts_find_lines(
+            arcspec, slit_cen, tracethresh=tracethresh, sigdetect=self.par['sigdetect'],
+            nfwhm_neigh=self.par['nfwhm_neigh'],only_these_lines=only_these_lines, fwhm=self.wavepar['fwhm'],
+            nonlinear_counts=nonlinear_counts, debug_lines = debug_lines)
+
+        self.steps.append(inspect.stack()[0][3])
+        return self.lines_spec, self.lines_spat
+
+
+
+    def _fit_tilts(self, trc_tilt_dict, slit, show_QA=False, doqa=True, debug=True):
         """
 
         Parameters
@@ -231,17 +266,17 @@ class WaveTilts(masterframe.MasterFrame):
         coeffs
 
         """
-        self.tilts, coeffs, self.outpar = tilts.fit_tilts(self.msarc, slit, self.all_ttilts[slit],
-                                                        order=self.par['order'],
-                                                        yorder=self.par['yorder'],
-                                                        func2D=self.par['func2D'],
-                                                        setup=self.setup, show_QA=show_QA,
-                                                        doqa=doqa, out_dir=self.redux_path)
+        # Now perform a fit to the tilts
+        self.tilt_fit_dict = tracewave.fit_tilts(
+            trc_tilt_dict, spat_order=self.par['spat_order'], spec_order=self.par['spec_order'],maxdev=self.par['maxdev2d'],
+            sigrej=self.par['sigrej2d'],func2d=self.par['func2d'],doqa=doqa,setup=self.setup,slit=slit, show_QA=show_QA,
+            out_dir=self.redux_path, debug=debug)
+
         # Step
         self.steps.append(inspect.stack()[0][3])
-        return self.tilts, coeffs
+        return self.tilt_fit_dict
 
-    def _trace_tilts(self, slit, wv_calib=None):
+    def _trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, bpm):
         """
 
         Parameters
@@ -257,27 +292,26 @@ class WaveTilts(masterframe.MasterFrame):
           Filled in self.all_trcdict[]
 
         """
-        # Determine the tilts for this slit
-        tracethresh_in = self.par['tracethresh']
-        if isinstance(tracethresh_in,(float, int)):
-            tracethresh = tracethresh_in
-        elif isinstance(tracethresh_in, (list, np.ndarray)):
-            tracethresh = tracethresh_in[slit]
-        else:
-            raise ValueError('Invalid input for parameter tracethresh')
 
-        nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation'] \
-                                * self.spectrograph.detector[self.det-1]['nonlinear']
+
+        self.trace_dict = tracewave.trace_tilts(
+            arcimg, lines_spec, lines_spat, thismask, inmask=bpm, fwhm=self.wavepar['fwhm'],
+            spat_order=self.par['spat_order'], maxdev_tracefit=self.par['maxdev_tracefit'],
+            sigrej_trace=self.par['sigrej_trace'])
+
+
 
         # JFH Code block starts here
         ########
         # def get_tilts(npca = 2, fwhm=4.0, ncoeff=5, maxdev_tracefit=0.1,percentile_reject=0.10, max_badpix_frac=0.20, tcrude_maxerr=1.0,
         # tcrude_maxshift=3.0, tcrude_maxshift0=3.0, tcrude_nave=5,)
 
+        # DEBUGGIN
+        slit = 4
+
         from pypeit.core import pixels
         from pypeit.core import extract
 
-        show_tilts = True
 
         nspat = self.msarc.shape[1]
         nspec = self.msarc.shape[0]
@@ -293,7 +327,7 @@ class WaveTilts(masterframe.MasterFrame):
         thismask = slitmask == slit
 
         # Tilt specific Optional parameters
-        tracethresh = 20.0 # significance threshold for an arc line to be traced
+        tracethresh = 10.0 # significance threshold for an arc line to be traced
         sigdetect = 5.0 # This is the significance threshold for finding neighboring lines. The number of these neighboring lines
         #  determines how many nsig > tracethresh lines that may be removed because they are too close.
         nfwhm_neigh = 3.0
@@ -306,10 +340,6 @@ class WaveTilts(masterframe.MasterFrame):
         coeff_npoly_pca = 1 # Polynomial order for fit to PCA coefficients to improve tracing
         sigrej_pca = 2.0 # Outlier rejection significance for PCA fit to arc line coefficients
         ncoeff = 5 # Order of legendre polynomial fits to the tilts
-        spec_order = 3
-        maxdev_2d = 1.0 # Maximum absolute deviation used in rejection for 2d legendre polynomial fit to ensemble of all spectral line tilts
-        sigrej_2d = 3.0 # Outlier significance threshold for rejection for 2d legendre polynomial fit to ensemble of all spectral line tilts
-        debug = True
 
         max_badpix_frac = 0.20 # Maximum fraction of total pixels masked by the trace_gweight algorithm (because the residuals are too large)
         # Trace Crude parameters
@@ -319,26 +349,15 @@ class WaveTilts(masterframe.MasterFrame):
         tcrude_nave = 5
         show_tracefits = False # show the trace fits
 
-        # Optional Parameters for tilts_find_lines
-        fwhm = 4.0 # expected spectral fwhm of the arc lines
-        fit_frac_fwhm = 1.25
-        cont_frac_fwhm = 1.0
-        max_frac_fwhm = 2.5
-        cont_samp = 30
-        niter_cont = 3
-        debug_lines = False
-
-
-        lines_spec, lines_spat = tracewave.tilts_find_lines(
-            arc_spec, slit_cen, tracethresh=tracethresh, sigdetect=sigdetect, nfwhm_neigh=nfwhm_neigh,
-            only_these_lines=only_these_lines, fwhm=fwhm, nonlinear_counts=nonlinear_counts, fit_frac_fwhm=fit_frac_fwhm,
-            cont_frac_fwhm=cont_frac_fwhm, max_frac_fwhm=max_frac_fwhm, cont_samp=cont_samp, niter_cont=niter_cont,
-            debug = debug_lines)
-
-        slit_width = int(np.ceil((slit_righ - slit_left).max()))
+        # These are parameters for 2D fitting
+        spec_order = 4
+        maxdev_2d = 1.0 # Maximum absolute deviation used in rejection for 2d legendre polynomial fit to ensemble of all spectral line tilts
+        sigrej_2d = 3.0 # Outlier significance threshold for rejection for 2d legendre polynomial fit to ensemble of all spectral line tilts
+        show_tilts = True
+        debug = True
 
         trc_tilt_dict0 = tracewave.trace_tilts_work(
-            arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=inmask,
+            arcimg, lines_spec, lines_spat, thismask, inmask=inmask,
             tilts_guess=None,fwhm=fwhm,ncoeff=ncoeff, maxdev_tracefit=maxdev_tracefit,
             sigrej_trace=sigrej_trace, max_badpix_frac=max_badpix_frac,
             tcrude_maxerr=tcrude_maxerr, tcrude_maxshift=tcrude_maxshift,
@@ -365,7 +384,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Now trace again with the PCA predictions as the starting crutches
         trc_tilt_dict1 = tracewave.trace_tilts_work(
-            arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=inmask,
+            arcimg, lines_spec, lines_spat, thismask, inmask=inmask,
             tilts_guess=pca_fit, fwhm=fwhm,ncoeff=ncoeff, maxdev_tracefit=maxdev_tracefit,
             sigrej_trace=sigrej_trace, max_badpix_frac=max_badpix_frac,
             show_fits=show_tracefits)
@@ -382,12 +401,6 @@ class WaveTilts(masterframe.MasterFrame):
         embed()
 
         # Now trace again with the piximg model as the starting crutches
-
-
-        if show_tilts:
-            viewer, ch = ginga.show_image(arcimg * thismask, chname='Tilts')
-            # ginga.show_tilts(viewer, ch, tilts,tilts_spat, tilts_mask, tilts_err, sedges = (slit_left, slit_righ))
-            ginga.show_tilts(viewer, ch, trc_tilt_dict1, sedges=(slit_left, slit_righ), points = True, clear_canvas=True)
 
 
         """
@@ -513,11 +526,12 @@ class WaveTilts(masterframe.MasterFrame):
         self.coeffs = np.zeros((self.par['order'] + 2,self.par['yorder'] +1,self.nslit))
         # Loop on all slits
         for slit in gdslits:
+
+            # Identify lines for tracing tilts
+            _ = self._find_lines(self.arccen[:,slit], self.tslits_dict['pixcen'], slit)
+
             # Trace
             _ = self._trace_tilts(slit, wv_calib=wv_calib)
-
-            # Model line-by-line
-            _ = self._analyze_lines(slit)
 
             # 2D model of the tilts
             #   Includes QA
@@ -646,6 +660,15 @@ class WaveTilts(masterframe.MasterFrame):
         display : str (optional)
           'ginga' -- Display to an RC Ginga
         """
+
+        viewer, ch = ginga.show_image(self.arcimg*(self.slitmask == slit), chname='Tilts')
+        ginga.show_tilts(
+            viewer, ch, self.trace_dict, sedges=(self.tslits_dict['lcen'][:,slit],self.tslits_dict['rcen'][:,slit]),
+            points = True, clear_canvas=True)
+
+        # TODO Need to update the show function!
+
+        """
         # ToDO I don't see why we are not looping over all slits for all of this. Why should we restrict to an individual fit?
         if (self.tslits_dict['lcen'] is not None) and (slit is not None):
             sedges=(self.tslits_dict['lcen'][:,slit], self.tslits_dict['rcen'][:,slit])
@@ -695,6 +718,7 @@ class WaveTilts(masterframe.MasterFrame):
                 ginga.show_image(self.final_tilts)
         else:
             msgs.error('Unrecognized attribute')
+        """
 
     def __repr__(self):
         # Generate sets string
