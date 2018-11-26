@@ -28,7 +28,7 @@ except ImportError:
     pass
 
 
-def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sigdetect=5.0, npix_neigh=5.0,
+def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sigdetect=5.0, nfwhm_neigh=5.0,
                     only_these_lines=None, fwhm=4.0, nonlinear_counts=1e10, fit_frac_fwhm=1.25, cont_frac_fwhm=1.0,
                     max_frac_fwhm=2.0, cont_samp=30, niter_cont=3, debug = False):
 
@@ -44,6 +44,7 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sigdetect=5.0, npix_n
     arcdet = tcent_tot[wgood]
     nsig = nsig_tot[wgood]
 
+    npix_neigh = nfwhm_neigh*fwhm
     # Determine the best lines to use to trace the tilts
     aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
     w = np.where(nsig >= tracethresh)
@@ -84,9 +85,9 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sigdetect=5.0, npix_n
     return lines_spec, lines_spat
 
 
-def trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=None, tilts_guess=None, fwhm=4.0,
-                ncoeff=3, maxdev_tracefit=1.0,sigrej_trace=3.0, max_badpix_frac=0.20,
-                tcrude_maxerr=1.0, tcrude_maxshift=3.0, tcrude_maxshift0=3.0,tcrude_nave=5, show_fits=False, debug = False):
+def trace_tilts_work(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=None, tilts_guess=None, fwhm=4.0,
+                     ncoeff=3, maxdev_tracefit=1.0,sigrej_trace=3.0, max_badpix_frac=0.20,
+                     tcrude_maxerr=1.0, tcrude_maxshift=3.0, tcrude_maxshift0=3.0,tcrude_nave=5, show_fits=False, debug = False):
 
     slit_widp2 = slit_width + 2
     slit_width_even = slit_widp2 if slit_widp2 % 2 == 0 else slit_widp2 + 1
@@ -221,8 +222,10 @@ def trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=Non
     return trc_tilt_dict
 
 
+#def trace_tilts():
 
-def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.5, func2D='legendre2d', doqa=True, setup = 'test',
+
+def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.5, sigrej = 3.0, func2D='legendre2d', doqa=True, setup = 'test',
               slit = '0', show_QA=False, out_dir=None, debug=True):
     """
 
@@ -279,12 +282,13 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.5, func2D='l
     # determine the mapping which brings the spectral line back to the same spectral_pos on extracted arc for which
     # we determined the wavelength solution
 
-    fitmask, coeff2 = utils.robust_polyfit_djs(tilts_spat[tot_mask], tilts_fit[tot_mask] - tilts_spec[tot_mask],
+    fitmask, coeff2 = utils.robust_polyfit_djs(tilts_spat[tot_mask], (tilts_fit[tot_mask] - tilts_spec[tot_mask]),
                                                fitxy,x2=tilts_fit[tot_mask],
-                                               function='legendre2d', maxiter=100, maxrej=20, lower=3.0, upper=3.0,
+                                               function='legendre2d', maxiter=100, lower=sigrej, upper=sigrej,
+                                               maxdev=maxdev,
                                                minx=0.0, maxx=float(nspat-1), minx2=0.0, maxx2=float(nspec-1),
-                                               use_mad=True, sticky=True)
-    delta_spec_fit = utils.func_val(coeff2, tilts_spat[tot_mask], 'legendre2d', x2=tilts_fit[tot_mask],
+                                               use_mad=True, sticky=False)
+    delta_spec_fit = utils.func_val(coeff2, tilts_spat[tot_mask], func2D, x2=tilts_fit[tot_mask],
                                     minx=0.0, maxx=float(nspat-1), minx2=0.0, maxx2=float(nspec-1))
     res2 = (tilts_fit[tot_mask][fitmask] - tilts_spec[tot_mask][fitmask]) - delta_spec_fit[fitmask]
     msgs.info("RMS (pixels): {}".format(np.std(res2)))
@@ -335,8 +339,10 @@ def fit2piximg(tilt_fit_dict):
     spat_vec = np.arange(tilt_fit_dict['nspat'])
     tilt_vec = np.arange(tilt_fit_dict['nspec'])
 
-    tilt_min_spec_fit = utils.polyval2d_general(tilt_fit_dict['coeff2'], spat_vec, tilt_vec, minx=tilt_fit_dict['minx'], maxx=tilt_fit_dict['maxx']
-                                        , miny=tilt_fit_dict['minx2'], maxy=tilt_fit_dict['maxx2'], function=tilt_fit_dict['func'])
+    tilt_min_spec_fit = utils.polyval2d_general(
+        tilt_fit_dict['coeff2'], spat_vec, tilt_vec, minx=tilt_fit_dict['minx'], maxx=tilt_fit_dict['maxx'],
+        miny=tilt_fit_dict['minx2'], maxy=tilt_fit_dict['maxx2'],
+        function=tilt_fit_dict['func'])
     # y normalization and subtract
     spec_img = np.outer(np.arange(nspec), np.ones(nspat))
     piximg = spec_img - tilt_min_spec_fit
@@ -374,8 +380,11 @@ def fit2tilts(tilt_fit_dict, spat_vec, tilt_vec):
     nspec = tilt_fit_dict['nspec']
     nspat = tilt_fit_dict['nspat']
 
-    tilt_min_spec_fit = utils.polyval2d_general(tilt_fit_dict['coeff2'], spat_vec, tilt_vec, minx=tilt_fit_dict['minx'], maxx=tilt_fit_dict['maxx']
-                                        , miny=tilt_fit_dict['minx2'], maxy=tilt_fit_dict['maxx2'], function=tilt_fit_dict['func'])
+    tilt_min_spec_fit = utils.polyval2d_general(
+        tilt_fit_dict['coeff2'], spat_vec, tilt_vec,
+        minx=tilt_fit_dict['minx'], maxx=tilt_fit_dict['maxx'],
+        miny=tilt_fit_dict['minx2'], maxy=tilt_fit_dict['maxx2'],
+        function=tilt_fit_dict['func'])
     return tilt_min_spec_fit
 
 

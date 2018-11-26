@@ -773,7 +773,7 @@ class ArchiveReid:
             # ToDO should we still be populating wave_calib with an empty dict here?
             if slit not in self.ok_mask:
                 continue
-            msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit + 1,self.nslits))
+            msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit,self.nslits-1))
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
             if self.ech_fix_format:
@@ -807,7 +807,7 @@ class ArchiveReid:
             # Is the RMS below the threshold?
             if final_fit['rms'] > self.rms_threshold:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Reidentify report for slit {0:d}/{1:d}:'.format(slit + 1, self.nslits) + msgs.newline() +
+                          'Reidentify report for slit {0:d}/{1:d}:'.format(slit, self.nslits-1) + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Need to add additional spectra to arxiv to improve fits'.format(
                               final_fit['rms']) + msgs.newline() +
                           '---------------------------------------------------')
@@ -827,7 +827,7 @@ class ArchiveReid:
         for slit in range(self.nslits):
             # Prepare a message for bad wavelength solutions
             badmsg = '---------------------------------------------------' + msgs.newline() +\
-                     'Final report for slit {0:d}/{1:d}:'.format(slit + 1, self.nslits) + msgs.newline() +\
+                     'Final report for slit {0:d}/{1:d}:'.format(slit, self.nslits) + msgs.newline() +\
                      '  Wavelength calibration not performed!'
             if slit not in self.ok_mask:
                 msgs.warn(badmsg)
@@ -845,7 +845,7 @@ class ArchiveReid:
             cen_disp = self.wv_calib[st]['cen_disp']
             msgs.info(msgs.newline() +
                       '---------------------------------------------------' + msgs.newline() +
-                      'Final report for slit {0:d}/{1:d}:'.format(slit + 1, self.nslits) + msgs.newline() +
+                      'Final report for slit {0:d}/{1:d}:'.format(slit, self.nslits-1) + msgs.newline() +
                       '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                       '  Number of lines detected      = {:d}'.format(self.detections[st].size) + msgs.newline() +
                       '  Number of lines that were fit = {:d}'.format(len(self.wv_calib[st]['pixel_fit'])) + msgs.newline() +
@@ -1459,7 +1459,7 @@ class HolyGrail:
             # Finalize the best guess of each line
             # Initialise the patterns dictionary
             patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sigdetect=self._sigdetect,
-                             mask=np.zeros(bsdet.size, dtype=np.bool))
+                             mask=np.zeros(bsdet.size, dtype=np.bool), scores = None)
             patt_dict['sign'] = sign
             patt_dict['bwv'] = np.median(wcen[wcen != 0.0])
             patt_dict['bdisp'] = np.median(disp[disp != 0.0])
@@ -1649,7 +1649,7 @@ class HolyGrail:
             if not patt_dict['acceptable']:
                 new_bad_slits = np.append(new_bad_slits, slit)
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Cross-match report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
+                          'Cross-match report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
                           '  Lines could not be identified! Will try cross matching iteratively' + msgs.newline() +
                           '---------------------------------------------------')
                 continue
@@ -1658,13 +1658,13 @@ class HolyGrail:
                 # This pattern wasn't good enough
                 new_bad_slits = np.append(new_bad_slits, slit)
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Cross-match report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
+                          'Cross-match report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
                           '  Fit was not good enough! Will try cross matching iteratively' + msgs.newline() +
                           '---------------------------------------------------')
                 continue
             if final_fit['rms'] > self._rms_threshold:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Cross-match report for slit {0:d}/{1:d}:'.format(slit + 1, self._nslit) + msgs.newline() +
+                          'Cross-match report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Will try cross matching iteratively'.format(final_fit['rms']) + msgs.newline() +
                           '---------------------------------------------------')
                 # Store this result in new_bad_slits, so the iteration can be performed,

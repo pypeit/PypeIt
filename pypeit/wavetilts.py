@@ -296,21 +296,26 @@ class WaveTilts(masterframe.MasterFrame):
         tracethresh = 20.0 # significance threshold for an arc line to be traced
         sigdetect = 5.0 # This is the significance threshold for finding neighboring lines. The number of these neighboring lines
         #  determines how many nsig > tracethresh lines that may be removed because they are too close.
-        npix_neigh = 7.0
+        nfwhm_neigh = 3.0
         only_these_lines = None # These are lines from the wavelength solution that are known to be good. If set code only uses these
         # identified lines to avoid problems with ghosts (is this still necessary with new tracing code?)
-        ncoeff = 3 # Order of legendre polynomial fits to the tilts
-        spec_order = 2
-        maxdev_2dfit = 1.0 #
-        debug = True
-        maxdev_tracefit = 1.0 # maximum deviation
+        maxdev_tracefit = 1.0 # maximum deviation for iterative trace fitting (flux weighted, then gaussian weighted)
         sigrej_trace = 3.0 # From each line we compute a median absolute deviation of the trace from the polynomial fit. We then
         # analyze the distribution of mads for all the lines, and reject sigrej_trace outliers from that distribution.
+        npca = 1 # Order of PCA for iteration to improve tracing
+        coeff_npoly_pca = 1 # Polynomial order for fit to PCA coefficients to improve tracing
+        sigrej_pca = 2.0 # Outlier rejection significance for PCA fit to arc line coefficients
+        ncoeff = 5 # Order of legendre polynomial fits to the tilts
+        spec_order = 3
+        maxdev_2d = 1.0 # Maximum absolute deviation used in rejection for 2d legendre polynomial fit to ensemble of all spectral line tilts
+        sigrej_2d = 3.0 # Outlier significance threshold for rejection for 2d legendre polynomial fit to ensemble of all spectral line tilts
+        debug = True
+
         max_badpix_frac = 0.20 # Maximum fraction of total pixels masked by the trace_gweight algorithm (because the residuals are too large)
         # Trace Crude parameters
         tcrude_maxerr = 1.0 #
         tcrude_maxshift = 3.0
-        tcrude_maxshift0 = 3.0,
+        tcrude_maxshift0 = 3.0
         tcrude_nave = 5
         show_tracefits = False # show the trace fits
 
@@ -323,55 +328,69 @@ class WaveTilts(masterframe.MasterFrame):
         niter_cont = 3
         debug_lines = False
 
+
         lines_spec, lines_spat = tracewave.tilts_find_lines(
-            arc_spec, slit_cen, tracethresh=tracethresh, sigdetect=sigdetect, npix_neigh=npix_neigh,
+            arc_spec, slit_cen, tracethresh=tracethresh, sigdetect=sigdetect, nfwhm_neigh=nfwhm_neigh,
             only_these_lines=only_these_lines, fwhm=fwhm, nonlinear_counts=nonlinear_counts, fit_frac_fwhm=fit_frac_fwhm,
             cont_frac_fwhm=cont_frac_fwhm, max_frac_fwhm=max_frac_fwhm, cont_samp=cont_samp, niter_cont=niter_cont,
             debug = debug_lines)
 
         slit_width = int(np.ceil((slit_righ - slit_left).max()))
 
-        trc_tilt_dict0 = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=inmask,
-                                               tilts_guess=None,fwhm=fwhm,ncoeff=ncoeff, maxdev_tracefit=maxdev_tracefit,
-                                               sigrej_trace=sigrej_trace, max_badpix_frac=max_badpix_frac,
-                                               tcrude_maxerr=tcrude_maxerr, tcrude_maxshift=tcrude_maxshift,
-                                               tcrude_maxshift0=tcrude_maxshift0,
-                                               tcrude_nave=tcrude_nave,show_fits=show_tracefits)
+        trc_tilt_dict0 = tracewave.trace_tilts_work(
+            arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=inmask,
+            tilts_guess=None,fwhm=fwhm,ncoeff=ncoeff, maxdev_tracefit=maxdev_tracefit,
+            sigrej_trace=sigrej_trace, max_badpix_frac=max_badpix_frac,
+            tcrude_maxerr=tcrude_maxerr, tcrude_maxshift=tcrude_maxshift,
+            tcrude_maxshift0=tcrude_maxshift0,
+            tcrude_nave=tcrude_nave,show_fits=show_tracefits)
         # Now evaluate the model of the tilts for all of our lines
         # Testing!!!!
         # Now perform a fit to the tilts
-        tilt_fit_dict0 = tracewave.fit_tilts(trc_tilt_dict0, spat_order=3, spec_order=2, maxdev=maxdev_2dfit, debug=True,
-                                            doqa=True,setup='test',slit=0, show_QA=False, out_dir='./')
-        # Now evaluate the model of the tilts for all of our lines
-        piximg0 = tracewave.fit2piximg(tilt_fit_dict0)
-
+        tilt_fit_dict0 = tracewave.fit_tilts(trc_tilt_dict0, spat_order=ncoeff, spec_order=spec_order,debug=True,
+                                             maxdev=maxdev_2d, sigrej=sigrej_2d,
+                                             doqa=True,setup='test',slit=0, show_QA=False, out_dir='./')
 
         # Do a PCA fit, which rejects some outliers
         iuse = trc_tilt_dict0['use_tilt']
         nuse =np.sum(iuse)
         msgs.info('PCA modeling {:d} good tilts'.format(nuse))
-        coeff_npoly_pca = None
         #pca_explained_var = None
         # TODO Should we truncate this PCA by hand, or just let it explain variance
-        pca_explained_var = 99.8
-        npca = 2
         # PCA fit good orders, and predict bad orders
         pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
             trc_tilt_dict0['tilts_sub_fit'], predict=np.invert(iuse), npca = npca, coeff_npoly=coeff_npoly_pca,
-            order_vec=lines_spec,xinit_mean=lines_spec, minv=0.0, maxv=float(trc_tilt_dict0['nsub'] - 1), debug=True)
+            lower=sigrej_pca, upper=sigrej_pca, order_vec=lines_spec,xinit_mean=lines_spec,
+            minv=0.0, maxv=float(trc_tilt_dict0['nsub'] - 1), debug=True)
 
         # Now trace again with the PCA predictions as the starting crutches
-        trc_tilt_dict1 = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=inmask,
-                                               tilts_guess=pca_fit, fwhm=fwhm,ncoeff=ncoeff, maxdev_tracefit=maxdev_tracefit,
-                                               sigrej_trace=sigrej_trace, max_badpix_frac=max_badpix_frac,
-                                               show_fits=show_tracefits)
+        trc_tilt_dict1 = tracewave.trace_tilts_work(
+            arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=inmask,
+            tilts_guess=pca_fit, fwhm=fwhm,ncoeff=ncoeff, maxdev_tracefit=maxdev_tracefit,
+            sigrej_trace=sigrej_trace, max_badpix_frac=max_badpix_frac,
+            show_fits=show_tracefits)
 
 
         # Now perform a fit to the tilts
-        tilt_fit_dict1 = tracewave.fit_tilts(trc_tilt_dict1, spat_order=ncoeff, spec_order=spec_order, maxdev=maxdev_2dfit, debug=True,
-                                            doqa=True,setup='test',slit=0, show_QA=False, out_dir='./')
+        tilt_fit_dict1 = tracewave.fit_tilts(trc_tilt_dict1, spat_order=ncoeff, spec_order=spec_order, debug=True,
+                                             maxdev=maxdev_2d, sigrej=sigrej_2d,
+                                             doqa=True,setup='test',slit=0, show_QA=False, out_dir='./')
         # Now evaluate the model of the tilts for all of our lines
         piximg1 = tracewave.fit2piximg(tilt_fit_dict1)
+
+        from IPython import embed
+        embed()
+
+        # Now trace again with the piximg model as the starting crutches
+
+
+        if show_tilts:
+            viewer, ch = ginga.show_image(arcimg * thismask, chname='Tilts')
+            # ginga.show_tilts(viewer, ch, tilts,tilts_spat, tilts_mask, tilts_err, sedges = (slit_left, slit_righ))
+            ginga.show_tilts(viewer, ch, trc_tilt_dict1, sedges=(slit_left, slit_righ), points = True, clear_canvas=True)
+
+
+        """
         # Since the y independent variable is the tilts in the way we do the 2d fit, and soem tilts are spurios, it does
         # no good to evaluate the global fit at these spurious tilts to get the new tracing crutches. The following is a
         # hack to determine this from the piximg. Perhaps there is a better way.
@@ -400,6 +419,7 @@ class WaveTilts(masterframe.MasterFrame):
                 else:
                     tilts_crutch[ispat,iline] = np.interp(lines_spec[iline],piximg_sub[:,ispat],spec_vec[min_spec:max_spec])
 
+
         trc_tilt_dict1['tilts_crutch'] = tilts_crutch
         # Now trace again with the PCA predictions as the starting crutches
         trc_tilt_dict2 = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=inmask,
@@ -408,21 +428,12 @@ class WaveTilts(masterframe.MasterFrame):
                                                show_fits=show_tracefits)
 
         # Now perform a second fit to the tilts
-        tilt_fit_dict2 = tracewave.fit_tilts(trc_tilt_dict2, spat_order=ncoeff, spec_order=spec_order, maxdev=maxdev_2dfit, debug=True,
-                                            doqa=True,setup='test',slit=0, show_QA=False, out_dir='./')
+        tilt_fit_dict2 = tracewave.fit_tilts(trc_tilt_dict2, spat_order=ncoeff, spec_order=spec_order, debug=True,
+                                             maxdev=maxdev_2d, sigrej=sigrej_2d,
+                                             doqa=True,setup='test',slit=0, show_QA=False, out_dir='./')
         # Now evaluate the model of the tilts for all of our lines
         piximg2 = tracewave.fit2piximg(tilt_fit_dict2)
-
-        from IPython import embed
-        embed()
-
-        # Now trace again with the piximg model as the starting crutches
-
-
-        if show_tilts:
-            viewer, ch = ginga.show_image(arcimg * thismask, chname='Tilts')
-            # ginga.show_tilts(viewer, ch, tilts,tilts_spat, tilts_mask, tilts_err, sedges = (slit_left, slit_righ))
-            ginga.show_tilts(viewer, ch, trc_tilt_dict1, crutch=False, sedges=(slit_left, slit_righ), points = True, clear_canvas=True)
+        """
 
 #        from matplotlib import pyplot as plt
 #        tilt_mask = trc_tilt_dict1['tilts_mask']

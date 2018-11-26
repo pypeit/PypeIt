@@ -2500,6 +2500,8 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, nave=5, radius=3.0,maxsh
     xset : Trace for each fiber
     xerr : Estimated error in that trace
     """
+    # JFH TODO add error checking on input parameters
+
     # Init
     xinit = xinit0.astype(float)
     #xinit = xinit[0:3]
