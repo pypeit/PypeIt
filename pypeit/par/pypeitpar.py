@@ -1232,7 +1232,7 @@ class WavelengthSolutionPar(ParSet):
         k = cfg.keys()
         parkeys = [ 'reference', 'method',
                     'echelle', 'ech_fix_format', 'ech_nspec_coeff', 'ech_norder_coeff', 'ech_sigrej',
-                    'lamps', 'nonlinear_counts', 'sigdetect', 'fwhm'
+                    'lamps', 'nonlinear_counts', 'sigdetect', 'fwhm', 
                     'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh', 'nlocal_cc',
                     'rms_threshold', 'match_toler', 'func', 'n_first','n_final', 'sigrej_first', 'sigrej_final',
                     'wv_cen', 'disp', 'numsearch', 'nfitpix','IDpixels', 'IDwaves', 'medium', 'frame']
@@ -1484,7 +1484,7 @@ class WaveTiltsPar(ParSet):
         of `disporder`...
     """
     def __init__(self, idsonly=None, tracethresh=None, nfwhm_neigh=None, maxdev_tracefit=None, sigrej_trace=None, spat_order=None, spec_order=None,
-                 func2D=None):
+                 func2d=None, maxdev2d=None, sigrej2d=None):
 
 
         # Grab the parameter names and values from the function
@@ -1592,11 +1592,15 @@ class WaveTiltsPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'idsonly', 'tracethresh', 'maxdev_tracefit', 'sigrej_trace','nfwhm_neigh', 'spat_order', 'spec_order', 'func2D']
+        parkeys = [ 'idsonly', 'tracethresh', 'maxdev_tracefit', 'sigrej_trace','nfwhm_neigh', 'spat_order', 'spec_order', 'func2d','maxdev2d', 'sigrej2d']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
+
+
+    def validate(self):
+        pass
 
     #@staticmethod
     #def valid_methods():
@@ -1605,11 +1609,11 @@ class WaveTiltsPar(ParSet):
     #    """
     #    return [ 'pca', 'spca', 'spline', 'interp', 'perp', 'zero' ]
 
-    def validate(self):
-        # Convert param to list
-        if isinstance(self.data['params'], int):
-            self.data['params'] = [self.data['params']]
-        pass
+#    def validate(self):
+#        # Convert param to list
+#        if isinstance(self.data['params'], int):
+#            self.data['params'] = [self.data['params']]
+#        pass
 
 # TODO: JFH. This parameter class is now deprecated
 # From artrace.trace_objects_in_slit

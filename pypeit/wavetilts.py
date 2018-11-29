@@ -343,7 +343,7 @@ class WaveTilts(masterframe.MasterFrame):
 
             # 2D model of the tilts
             #   Includes QA
-            self.piximg, self.coeffs[:,:,slit] = self._fit_tilts(self.trace_dict, slit,doqa=doqa, debug=debug):
+            self.piximg, self.coeffs[:,:,slit] = self._fit_tilts(self.trace_dict, slit,doqa=doqa, debug=debug)
 
             # Save to final image
             self.final_piximg[thismask] = self.piximg[thismask]
