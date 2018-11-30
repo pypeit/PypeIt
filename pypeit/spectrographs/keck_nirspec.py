@@ -58,7 +58,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['number'] = 0
         par['calibrations']['pixelflatframe']['number'] = 5
         par['calibrations']['traceframe']['number'] = 5
-        par['calibrations']['arcframe']['number'] = 0
+        par['calibrations']['arcframe']['number'] = 1
         # Set wave tilts order
         par['calibrations']['tilts']['order'] = 2
         # Scienceimage default parameters

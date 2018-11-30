@@ -208,8 +208,10 @@ class WaveTilts(masterframe.MasterFrame):
         """
         # Extract an arc down each slit/order
         inmask = (self.bpm == 0) if self.bpm is not None else None
+        slitmask = self.spectrograph.slitmask(self.tslits_dict) if self.slitmask is None else self.slitmask
+
         self.arccen, self.arc_maskslit = arc.get_censpec(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
-                                                         self.slitmask, self.msarc, inmask = inmask)
+                                                         slitmask, self.msarc, inmask = inmask)
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.arccen, self.arc_maskslit
