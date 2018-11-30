@@ -79,8 +79,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 5.0
-        par['calibrations']['wavelengths']['lowest_nsig'] = 3.0
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 2
@@ -231,36 +230,5 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
-
-    # JFH This is defunct now as it is in the parset.
-    def setup_arcparam(self, arcparam, fitstbl=None, arc_idx=None,
-                       msarc_shape=None, **null_kwargs):
-        """
-
-        Args:
-            arcparam:
-            disperser:
-            fitstbl:
-            arc_idx:
-            msarc_shape:
-            **null_kwargs:
-
-        Returns:
-
-        """
-        # ToDo need to parse the sigdetect parameter to be here for detect_lines function in arc.py
-        #      I force change sigdetect=5 for GNIRS.
-        arcparam['lamps'] = ['OH_GNIRS'] # Line lamps on
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation'] # lines abovet this are masked
-        arcparam['sigdetect'] = 5.0         # Min significance for arc lines to be used
-#        arcparam['lowest_nsig'] = 3.0         # Min significance for arc lines to be used
-        arcparam['wvmnx'] = [8000.,26000.]  # Guess at wavelength range
-        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3 # 3 was default, 1 seems to work better        # Matcing tolerance (pixels)
-        arcparam['func'] = 'legendre'       # Function for fitting
-        arcparam['n_first'] = 2             # Order of polynomial for first fit
-        arcparam['n_final'] = 4  #was default    # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2            # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.0    # Number of sigma for rejection (final fit)
 
 
