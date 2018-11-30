@@ -192,7 +192,7 @@ def test_setup_keck_nires():
 def test_setup_keck_nirspec():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_NIRSPEC/NIRSPEC-1')
     droot += '/'
-    pargs = setup.parser([droot, 'keck_nirspec'])
+    pargs = setup.parser([droot, 'keck_nirspec_low'])
     setup.main(pargs)
 
     cwd = os.getcwd()

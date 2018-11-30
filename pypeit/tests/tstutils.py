@@ -47,11 +47,9 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
         ret.append(msarc)
 
     if tslits:
-        TSlits = traceslits.TraceSlits.from_master_files(os.path.join(master_dir,
-                                                                      'MasterTrace_A_01_aa'))
-        TSlits._make_pixel_arrays()
-        _ = TSlits._fill_tslits_dict()
-        ret.append(TSlits)
+        traceSlits = traceslits.TraceSlits(None,None)
+        traceSlits.load_master(os.path.join(master_dir,'MasterTrace_A_01_aa'))
+        ret.append(traceSlits.tslits_dict)
 
     if tilts:
         wvTilts = wavetilts.WaveTilts(None, spectrograph=spectrograph, setup=setup,

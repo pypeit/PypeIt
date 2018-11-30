@@ -13,7 +13,7 @@ def valid_spectrographs():
     # TODO: Is there a more clever way to do this?  If we change these
     # names, we could do something like what's done in
     # pypeit.instantiate_me.
-    return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
+    return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec_low',
             'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
             'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir',
             'gemini_gnirs', 'gemini_gmos_south', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
@@ -68,8 +68,8 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'keck_nires':
         return spectrographs.keck_nires.KeckNIRESSpectrograph()
 
-    if spectrograph == 'keck_nirspec':
-        return spectrographs.keck_nirspec.KeckNIRSPECSpectrograph()
+    if spectrograph == 'keck_nirspec_low':
+        return spectrographs.keck_nirspec.KeckNIRSPECLowSpectrograph()
 
     if spectrograph == 'magellan_fire':
         return spectrographs.magellan_fire.MagellanFIRESpectrograph()
