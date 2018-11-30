@@ -49,6 +49,8 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
     if tslits:
         traceSlits = traceslits.TraceSlits(None,None)
         traceSlits.load_master(os.path.join(master_dir,'MasterTrace_A_01_aa'))
+        # This is a bit of a hack, but I'm adding the mstrace to the dict since we need it in the flat field test
+        traceSlits.tslits_dict['mstrace'] = traceSlits.mstrace
         ret.append(traceSlits.tslits_dict)
 
     if tilts:
@@ -66,6 +68,7 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
                                         master_dir=master_dir, mode=mode)
         wv_calib = Wavecalib.master()
         ret.append(wv_calib)
+
 
     # Return
     return ret

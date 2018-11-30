@@ -1,7 +1,7 @@
 # Module to run tests on wavemodel.py
 
 import numpy as np
-from pypeit.wavemodel import transparency
+from pypeit import wavemodel
 import pytest
 
 try:
@@ -15,6 +15,6 @@ def test_transparency():
     """
 
     wave_test = np.arange(0.7,2.9,0.001)
-    tran_test = transparency(wave_test, debug=True)
+    tran_test = wavemodel.transparency(wave_test, debug=False)
 
     assert np.max(tran_test) - np.min(tran_test) == 1.

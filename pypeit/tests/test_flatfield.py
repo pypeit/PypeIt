@@ -55,14 +55,14 @@ def data_path(filename):
 @dev_suite_required
 def test_run():
     # Masters
-    spectrograph, TSlits, tilts_dict, datasec_img \
+    spectrograph, tslits_dict, tilts_dict, datasec_img \
                 = load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True,
                                          datasec=True)
     # Instantiate
     flatField = flatfield.FlatField(spectrograph=spectrograph, det=1, tilts_dict=tilts_dict,
-                                    tslits_dict=TSlits.tslits_dict.copy())
+                                    tslits_dict=tslits_dict.copy())
     # Use mstrace
-    flatField.rawflatimg = TSlits.mstrace.copy()
+    flatField.rawflatimg = tslits_dict['mstrace'].copy()
     mspixelflatnrm, msillumflat = flatField.run()
     assert np.isclose(np.median(mspixelflatnrm), 1.0)
 
