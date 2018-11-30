@@ -197,9 +197,10 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             return fitstbl['lampstat06'] == 1
 
         raise ValueError('No implementation for status = {0}'.format(status))
-        
+
     def get_match_criteria(self):
-        """Set the general matching criteria for Keck NIRSPEC."""
+
+        """Set the general matching criteria for GNIRS. Copied from NIRES"""
         match_criteria = {}
         for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
@@ -215,19 +216,14 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         match_criteria['pixelflat']['match'] = {}
         match_criteria['pixelflat']['match']['naxis0'] = '=0'
         match_criteria['pixelflat']['match']['naxis1'] = '=0'
-        match_criteria['pixelflat']['match']['decker'] = ''
-        match_criteria['pixelflat']['match']['dispname'] = ''
 
         match_criteria['trace']['match'] = {}
         match_criteria['trace']['match']['naxis0'] = '=0'
         match_criteria['trace']['match']['naxis1'] = '=0'
-        match_criteria['trace']['match']['decker'] = ''
-        match_criteria['trace']['match']['dispname'] = ''
 
         match_criteria['arc']['match'] = {}
         match_criteria['arc']['match']['naxis0'] = '=0'
         match_criteria['arc']['match']['naxis1'] = '=0'
-        match_criteria['arc']['match']['dispname'] = ''
 
         return match_criteria
 

@@ -170,26 +170,23 @@ def test_setup_keck_deimos():
 
 @dev_suite_required
 def test_setup_keck_nires():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_NIRES')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_NIRES/NIRES/')
     droot += '/'
     pargs = setup.parser([droot, 'keck_nires'])
-    # TODO: There currently is no Echelle PypeIt class, so this should
-    # fail
-    with pytest.raises(PypeItError):
-        setup.main(pargs)
+    setup.main(pargs)
 
-#    cwd = os.getcwd()
-#    setup_dir = os.path.join(cwd, 'setup_files')
-#    assert os.path.isdir(setup_dir), 'No setup_files directory created'
-#
-#    files = glob.glob(os.path.join(setup_dir, 'keck_nires*'))
-#    ext = [f.split('.')[-1] for f in files]
-#    expected = ['lst', 'pypeit', 'setups', 'sorted']
-#    assert np.all([e in ext for e in expected]), \
-#            'Did not find all setup file extensions: {0}'.format(expected)
-#
-#    # Clean-up
-#    shutil.rmtree(setup_dir)
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+
+    files = glob.glob(os.path.join(setup_dir, 'keck_nires*'))
+    ext = [f.split('.')[-1] for f in files]
+    expected = ['lst', 'pypeit', 'setups', 'sorted']
+    assert np.all([e in ext for e in expected]), \
+            'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
 
 @dev_suite_required
 def test_setup_keck_nirspec():
