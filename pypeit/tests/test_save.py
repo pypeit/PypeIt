@@ -55,7 +55,10 @@ def test_save2d_fits():
     sci_dict[0]['finalsky'] = dum + 0.1
     basename = 'test'
     scidx = 5
-    save.save_2d_images(sci_dict, fitstbl, scidx, 0, setup, data_path('MF')+'_'+spectrograph,
+    path = fitstbl['directory'][scidx]
+    ifile = fitstbl['filename'][scidx]
+    rawfile = os.path.join(path, ifile)
+    save.save_2d_images(sci_dict, rawfile, 0, setup, data_path('MF')+'_'+spectrograph,
                         data_path(''), basename)
     # Read and test
     head0 = fits.getheader(data_path('spec2d_test.fits'))
