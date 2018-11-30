@@ -285,7 +285,7 @@ class WaveTilts(masterframe.MasterFrame):
         return trace_dict
 
 
-    def run(self, maskslits=None, doqa=True,debug=True):
+    def run(self, maskslits=None, wv_calib = None, doqa=True,debug=True):
         """ Main driver for tracing arc lines
 
             Code flow:
@@ -310,11 +310,12 @@ class WaveTilts(masterframe.MasterFrame):
             maskslits
             """
 
+        # JFH Do we need a zero method? I think we don't
         # If the user sets no tilts, return here
-        if self.par['method'].lower() == "zero":
-            # Assuming there is no spectral tilt
-            self.final_piximg = np.outer(np.linspace(0.0, 1.0, self.msarc.shape[0]), np.ones(self.msarc.shape[1]))
-            return self.final_piximg, None, None
+#        if self.par['method'].lower() == "zero":
+#            # Assuming there is no spectral tilt
+#            self.final_piximg = np.outer(np.linspace(0.0, 1.0, self.msarc.shape[0]), np.ones(self.msarc.shape[1]))
+#            return self.final_piximg, None, None
 
         if maskslits is None:
             maskslits = np.zeros(self.nslit, dtype=bool)

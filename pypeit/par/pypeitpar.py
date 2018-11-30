@@ -1232,7 +1232,7 @@ class WavelengthSolutionPar(ParSet):
         k = cfg.keys()
         parkeys = [ 'reference', 'method',
                     'echelle', 'ech_fix_format', 'ech_nspec_coeff', 'ech_norder_coeff', 'ech_sigrej',
-                    'lamps', 'nonlinear_counts', 'sigdetect', 'fwhm', 
+                    'lamps', 'nonlinear_counts', 'sigdetect', 'fwhm',
                     'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh', 'nlocal_cc',
                     'rms_threshold', 'match_toler', 'func', 'n_first','n_final', 'sigrej_first', 'sigrej_final',
                     'wv_cen', 'disp', 'numsearch', 'nfitpix','IDpixels', 'IDwaves', 'medium', 'frame']
