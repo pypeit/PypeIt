@@ -43,6 +43,8 @@ def load_spectrograph(spectrograph):
     # that objects are not fully defined.
     if spectrograph is None:
         return None
+    # TODO: Would it make more sense here to return a generic spectrogrpah here
+    # rather than return None?
 
     if isinstance(spectrograph, spectrographs.spectrograph.Spectrograph):
         return spectrograph

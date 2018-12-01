@@ -16,6 +16,7 @@ from pypeit.core import arc
 from pypeit.core import tracewave
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit import spectrographs
 import copy
 
 from pypeit import debugger
@@ -70,15 +71,20 @@ class WaveTilts(masterframe.MasterFrame):
         # TODO: (KBW) Do we need this?  It's only used to get the
         # non-linear counts and the name of the master directory
 
-        self.spectrograph = load_spectrograph(spectrograph)
+        # TODO In my opinion this logic ought to be in the load_spectrograph function, i.e it should simply return
+        # the generic spectrograph if spectrograph is None
+        if spectrograph is None:
+            self.spectrograph = spectrographs.spectrograph.Spectrograph()
+        else:
+            self.spectrograph = load_spectrograph(spectrograph)
+
+        self.par = pypeitpar.WaveTiltsPar() if par is None else par
+        self.wavepar = pypeitpar.WavelengthSolutionPar() if wavepar is None else wavepar
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
                                          master_dir=master_dir, mode=mode)
 
-        self.par = pypeitpar.WaveTiltsPar() if par is None else par
-
-        self.wavepar = pypeitpar.WavelengthSolutionPar() if wavepar is None else wavepar
 
         # Parameters (but can be None)
         self.msarc = msarc
@@ -210,8 +216,10 @@ class WaveTilts(masterframe.MasterFrame):
         else:
             only_these_lines = None
 
-
+        debug_lines=True
         # Find lines
+        from IPython import embed
+        embed()
         lines_spec, lines_spat = tracewave.tilts_find_lines(
             arcspec, slit_cen, tracethresh=tracethresh, sigdetect=self.par['sigdetect'],
             nfwhm_neigh=self.par['nfwhm_neigh'],only_these_lines=only_these_lines, fwhm=self.wavepar['fwhm'],

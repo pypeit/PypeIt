@@ -439,9 +439,10 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['number'] = -1
         par['calibrations']['slits']['fracignore'] = 0.01
 
-        par['calibrations']['tilts']['tracethresh'] = [ 20., 100., 100., 100., 100., 100., 100.,
-                                                       100., 500., 500., 500., 500., 500., 500.,
-                                                       500.]
+        # These are the defaults
+#        par['calibrations']['tilts']['tracethresh'] = 20.0
+#        par['calibrations']['tilts']['sigdetect'] = 5.0
+
 
         # Right now the baises in
 
@@ -452,6 +453,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.50 # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['fwhm'] = 11.0 # This is for 1x1 binning. Needs to be divided by binning for binned data!!
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         # ToDo the arxived solution is for 1x1 binning. It needs to be generalized for different binning!

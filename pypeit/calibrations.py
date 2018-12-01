@@ -676,7 +676,7 @@ class Calibrations(object):
 
         # Instantiate
         self.waveTilts = wavetilts.WaveTilts(self.msarc, spectrograph=self.spectrograph,
-                                             par=self.par['tilts'], det=self.det,
+                                             par=self.par['tilts'], wavepar = self.par['wavelengths'], det=self.det,
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'],
                                              tslits_dict=self.tslits_dict,
