@@ -72,9 +72,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-
         # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.json'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
@@ -83,6 +81,9 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+        # Tilt parameters
+        par['calibrations']['tilts']['spat_order'] =  3
+        par['calibrations']['tilts']['spec_order'] =  5
 
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()

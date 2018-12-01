@@ -314,7 +314,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None,fwhm=4.0,s
 
     # TODO THE PCA may not be necessary. It appears to improve the results though for some instruments where the
     # tracing is problematic. We could consider making this optional to speed things up.
-    debug_pca_fit = True
+    debug_pca_fit = False
     if debug_pca_fit:
         # !!!! FOR TESTING ONLY!!!!  Evaluate the model fit to the tilts for all of our lines
         msgs.info('TESTING: Performing an initial fit before PCA.')

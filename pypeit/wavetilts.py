@@ -222,7 +222,7 @@ class WaveTilts(masterframe.MasterFrame):
 
 
 
-    def _fit_tilts(self, trc_tilt_dict, slit_cen, slit, spat_order, spec_order, show_QA=False, doqa=True, debug=True):
+    def _fit_tilts(self, trc_tilt_dict, slit_cen, spat_order, spec_order, slit, show_QA=False, doqa=True, debug=True):
         """
 
         Parameters
@@ -284,7 +284,7 @@ class WaveTilts(masterframe.MasterFrame):
         return trace_dict
 
 
-    def run(self, maskslits=None, wv_calib = None, doqa=True,debug=True):
+    def run(self, maskslits=None, wv_calib = None, doqa=True, show_QA=True, debug=True):
         """ Main driver for tracing arc lines
 
             Code flow:
@@ -309,13 +309,6 @@ class WaveTilts(masterframe.MasterFrame):
             maskslits
             """
 
-#        JFH Do we need a zero method? I think we don't
-#        If the user sets no tilts, return here
-#        if self.par['method'].lower() == "zero":
-#            #Assuming there is no spectral tilt
-#            self.final_piximg = np.outer(np.linspace(0.0, 1.0, self.msarc.shape[0]), np.ones(self.msarc.shape[1]))
-#            return self.final_piximg, None, None
-
         if maskslits is None:
             maskslits = np.zeros(self.nslit, dtype=bool)
 
@@ -330,9 +323,12 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Final tilts image
         self.final_tilts = np.zeros_like(self.msarc)
-        max_spat_dim = (np.asarray(self.par['spat_order'] + 1)).max()
-        max_spec_dim = (np.asarray(self.par['spat_order'] + 1)).max()
+        max_spat_dim = (np.asarray(self.par['spat_order']) + 1).max()
+        max_spec_dim = (np.asarray(self.par['spec_order']) + 1).max()
         self.coeffs = np.zeros((max_spat_dim, max_spec_dim,self.nslit))
+        self.spat_order = np.zeros(self.nslit, dtype=int)
+        self.spec_order = np.zeros(self.nslit, dtype=int)
+
         # Loop on all slits
         for slit in gdslits:
             # Identify lines for tracing tilts
@@ -342,20 +338,18 @@ class WaveTilts(masterframe.MasterFrame):
             # Trace
             self.trace_dict = self._trace_tilts(self.msarc, self.lines_spec, self.lines_spat, thismask, slit)
 
-            # 2D model of the tilts
-            #   Includes QA
-            spec_order = self._parse_param(self.par, 'spec_order', slit)
-            spat_order = self._parse_param(self.par, 'spat_order', slit)
-            self.tilts, coeff_out = self._fit_tilts(self.trace_dict, self.slitcen[:,slit], slit,doqa=doqa, debug=debug)
-            from IPython import embed
-            embed()
+            self.spat_order[slit] = self._parse_param(self.par, 'spat_order', slit)
+            self.spec_order[slit] = self._parse_param(self.par, 'spec_order', slit)
+            # 2D model of the tilts, includes construction of QA
 
-            self.coeffs[0:spat_order+1, 0:spec_order+1 , slit] = coeff_out
-
+            self.tilts, coeff_out = self._fit_tilts(self.trace_dict, self.slitcen[:,slit], self.spat_order[slit],
+                                                    self.spec_order[slit], slit,doqa=doqa, show_QA = show_QA, debug=debug)
+            self.coeffs[0:self.spat_order[slit]+1, 0:self.spec_order[slit]+1 , slit] = coeff_out
             # Save to final image
             self.final_tilts[thismask] = self.tilts[thismask]
 
-        self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen': self.slitcen, 'func2d':self.par['func2d']}
+        self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen': self.slitcen, 'func2d':self.par['func2d'],
+                           'nslit': self.nslit, 'spat_order': self.spat_order, 'spec_order': self.spec_order}
         return self.tilts_dict, maskslits
 
     def load_master(self, filename, exten = 0, force = False):
@@ -375,8 +369,11 @@ class WaveTilts(masterframe.MasterFrame):
             head1 = hdu[1].header
             coeffs = hdu[1].data
             slitcen = hdu[2].data
-            tilts_dict = {'tilts':tilts,'coeffs':coeffs,'slitcen':slitcen,'func2d': head1['FUNC2D']} # This is the tilts_dict
-            return tilts_dict #, head0, [filename]
+            spat_order = hdu[3].data
+            spec_order = hdu[4].data
+            tilts_dict = {'tilts':tilts,'coeffs':coeffs,'slitcen':slitcen,'func2d': head1['FUNC2D'], 'nslit': head1['NSLIT'],
+                          'spat_order':spat_order, 'spec_order':spec_order}
+            return tilts_dict
 
     # JFH THis routine does not follow the current master protocol of taking a data argument. There is no reason to
     # save all this other information here
@@ -406,9 +403,14 @@ class WaveTilts(masterframe.MasterFrame):
         hdul = [hdu0]
         hdu_coeff = fits.ImageHDU(tilts_dict['coeffs'])
         hdu_coeff.header['FUNC2D'] = tilts_dict['func2d']
+        hdu_coeff.header['NSLIT'] = tilts_dict['nslit']
         hdul.append(hdu_coeff)
         hdu_slitcen = fits.ImageHDU(tilts_dict['slitcen'])
         hdul.append(hdu_slitcen)
+        hdu_spat_order = fits.ImageHDU(tilts_dict['spat_order'])
+        hdul.append(hdu_spat_order)
+        hdu_spec_order = fits.ImageHDU(tilts_dict['spec_order'])
+        hdul.append(hdu_spec_order)
         # Finish
         hdulist = fits.HDUList(hdul)
         hdulist.writeto(_outfile, clobber=True)
