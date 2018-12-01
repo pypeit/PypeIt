@@ -218,8 +218,6 @@ class WaveTilts(masterframe.MasterFrame):
 
         debug_lines=True
         # Find lines
-        from IPython import embed
-        embed()
         lines_spec, lines_spat = tracewave.tilts_find_lines(
             arcspec, slit_cen, tracethresh=tracethresh, sigdetect=self.par['sigdetect'],
             nfwhm_neigh=self.par['nfwhm_neigh'],only_these_lines=only_these_lines, fwhm=self.wavepar['fwhm'],
