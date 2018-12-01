@@ -85,9 +85,22 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
             msgs.info("Extinction correction not applied")
             senstot = sensfunc_obs
 
-        extract['FLAM'] = extract['COUNTS'] * senstot/ exptime
-        extract['FLAM_SIG'] = (senstot/exptime)/ (np.sqrt(extract['COUNTS_IVAR']))
-        extract['FLAM_IVAR'] = extract['COUNTS_IVAR'] / (senstot / exptime) **2
+        flam = extract['COUNTS'] * senstot/ exptime
+        flam_sig = (senstot/exptime)/ (np.sqrt(extract['COUNTS_IVAR']))
+        flam_var = extract['COUNTS_IVAR'] / (senstot / exptime) **2
+
+        # Mask bad pixels
+        msgs.info(" Masking bad pixels")
+        msk = np.zeros_like(senstot).astype(bool)
+        msk[senstot <= 0.] = True
+        msk[extract['COUNTS_IVAR'] <= 0.] = True
+        flam[msk] = 0.
+        flam_sig[msk] = 0.
+        flam_var[msk] = 0.
+
+        extract['FLAM'] = flam
+        extract['FLAM_SIG'] = flam_sig
+        extract['FLAM_IVAR'] = flam_var
 
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
