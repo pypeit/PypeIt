@@ -91,11 +91,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
 
         # Set slits and tilts parameters
-        par['calibrations']['tilts']['order'] = 2
-        par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10]
-        par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 3.
-        par['calibrations']['slits']['pcatype'] = 'order'
+        par['calibrations']['tilts']['tracethresh'] = 10.0
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters

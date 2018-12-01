@@ -402,8 +402,8 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 1.0, sigrej = 
     delta_spec_fit = xnspecmin1*utils.func_val(coeff2, tilts_spat[tot_mask]/xnspatmin1, func2d, x2=tilts_fit[tot_mask]/xnspecmin1,
                                                minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
     # Residuals in pixels
-    res2 = (tilts_fit[tot_mask][fitmask] - tilts_spec[tot_mask][fitmask]) - delta_spec_fit[fitmask]
-    rms = np.std(res2)
+    res = (tilts_fit[tot_mask][fitmask] - tilts_spec[tot_mask][fitmask]) - delta_spec_fit[fitmask]
+    rms = np.std(res)
     msgs.info("RMS (pixels): {}".format(rms))
 
 
@@ -425,7 +425,7 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 1.0, sigrej = 
 
     # QA
     if doqa:
-        plot_tiltres(setup, tilts_fit[tot_mask], tilts_spec[tot_mask], delta_spec_fit, slit=slit, show_QA=show_QA, out_dir=out_dir)
+        plot_tiltres(setup, tilts_fit[tot_mask], tilts_spec[tot_mask], delta_spec_fit, fitmask, slit=slit, show_QA=show_QA, out_dir=out_dir)
 
     tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
                          npix_rej = np.sum(fitmask == False), coeff2=coeff2, spec_order = spec_order, spat_order = spat_order,
@@ -510,7 +510,7 @@ def fit2delta(tilt_fit_dict, spat_vec, tilt_vec):
 
 
 
-def plot_tiltres(setup, mtilt, ytilt, yfit, slit=None, outfile=None, show_QA=False, out_dir=None):
+def plot_tiltres(setup, mtilt, ytilt, yfit, fitmask, slit=None, outfile=None, show_QA=False, out_dir=None):
     """ Generate a QA plot of the residuals for the fit to the tilts
     One slit at a time
 
@@ -532,16 +532,21 @@ def plot_tiltres(setup, mtilt, ytilt, yfit, slit=None, outfile=None, show_QA=Fal
     ax = plt.gca()
 
     # Scatter plot
-    res = (mtilt-ytilt) - yfit
-    ax.scatter(mtilt, res)
-
-    rms = np.std(res)
+    res = (mtilt - ytilt) - yfit
+    xmin = 0.95*np.asarray([ytilt,mtilt]).min()
+    xmax = 1.05*np.asarray([ytilt,mtilt]).max()
+    ax.hlines(0.0, xmin, xmax,linestyle='--', color='green')
+    ax.plot(ytilt[fitmask], (res[fitmask]), 'ko', mfc='k', markersize=5.0, label='Good Points')
+    ax.plot(ytilt[~fitmask],(res[~fitmask]), 'ro', mfc='r', markersize=5.0, label='Rejected Points')
+    #ax.scatter(mtilt, res)
+    rms = np.std(res[fitmask])
     ax.text(0.90, 0.90, 'Slit {:d}:  RMS (pix) = {:0.5f}'.format(slit, rms),
-            transform=ax.transAxes, size='large', ha='right', color='black')
+            transform=ax.transAxes, size='large', ha='right', color='black',fontsize=16)
     # Label
     ax.set_xlabel('Spectral Pixel')
     ax.set_ylabel('RMS (pixels)')
     ax.set_title('RMS of Each Arc Line Traced')
+    ax.set_xlim((xmin,xmax))
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     if show_QA:

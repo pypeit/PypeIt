@@ -183,7 +183,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         return msframe
 
-    def run(self, debug=True, show=False):
+    def run(self, debug=False, show=False):
         """
         Main driver to generate normalized flat field and illumination flats
         Code flow:
