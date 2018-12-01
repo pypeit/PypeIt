@@ -202,14 +202,6 @@ class WaveTilts(masterframe.MasterFrame):
     def _find_lines(self, arcspec, slit_cen, slit, debug_lines=False):
 
         # Find good lines for the tilts
-        tracethresh_in = self.par['tracethresh']
-        if isinstance(tracethresh_in,(float, int)):
-            tracethresh = tracethresh_in
-        elif isinstance(tracethresh_in, (list, np.ndarray)):
-            tracethresh = tracethresh_in[slit]
-        else:
-            raise ValueError('Invalid input for parameter tracethresh')
-
         nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
 
         if self.par['idsonly'] is not None:
@@ -219,7 +211,7 @@ class WaveTilts(masterframe.MasterFrame):
         else:
             only_these_lines = None
 
-        # Find lines
+        tracethresh = self._parse_param(self.par, 'tracethresh', slit)
         lines_spec, lines_spat = tracewave.tilts_find_lines(
             arcspec, slit_cen, tracethresh=tracethresh, sigdetect=self.par['sigdetect'],
             nfwhm_neigh=self.par['nfwhm_neigh'],only_these_lines=only_these_lines, fwhm=self.wavepar['fwhm'],
@@ -230,7 +222,7 @@ class WaveTilts(masterframe.MasterFrame):
 
 
 
-    def _fit_tilts(self, trc_tilt_dict, slit_cen, slit, show_QA=False, doqa=True, debug=True):
+    def _fit_tilts(self, trc_tilt_dict, slit_cen, slit, spat_order, spec_order, show_QA=False, doqa=True, debug=True):
         """
 
         Parameters
@@ -247,9 +239,10 @@ class WaveTilts(masterframe.MasterFrame):
         coeffs
 
         """
+
         # Now perform a fit to the tilts
         tilt_fit_dict = tracewave.fit_tilts(
-            trc_tilt_dict, spat_order=self.par['spat_order'], spec_order=self.par['spec_order'],maxdev=self.par['maxdev2d'],
+            trc_tilt_dict, spat_order=spat_order, spec_order=spec_order,maxdev=self.par['maxdev2d'],
             sigrej=self.par['sigrej2d'],func2d=self.par['func2d'],doqa=doqa,setup=self.setup,slit=slit, show_QA=show_QA,
             out_dir=self.redux_path, debug=debug)
 
@@ -337,7 +330,9 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Final tilts image
         self.final_tilts = np.zeros_like(self.msarc)
-        self.coeffs = np.zeros((self.par['spat_order'] + 1,self.par['spec_order'] + 1,self.nslit))
+        max_spat_dim = (np.asarray(self.par['spat_order'] + 1)).max()
+        max_spec_dim = (np.asarray(self.par['spat_order'] + 1)).max()
+        self.coeffs = np.zeros((max_spat_dim, max_spec_dim,self.nslit))
         # Loop on all slits
         for slit in gdslits:
             # Identify lines for tracing tilts
@@ -349,7 +344,13 @@ class WaveTilts(masterframe.MasterFrame):
 
             # 2D model of the tilts
             #   Includes QA
-            self.tilts, self.coeffs[:,:,slit] = self._fit_tilts(self.trace_dict, self.slitcen[:,slit], slit,doqa=doqa, debug=debug)
+            spec_order = self._parse_param(self.par, 'spec_order', slit)
+            spat_order = self._parse_param(self.par, 'spat_order', slit)
+            self.tilts, coeff_out = self._fit_tilts(self.trace_dict, self.slitcen[:,slit], slit,doqa=doqa, debug=debug)
+            from IPython import embed
+            embed()
+
+            self.coeffs[0:spat_order+1, 0:spec_order+1 , slit] = coeff_out
 
             # Save to final image
             self.final_tilts[thismask] = self.tilts[thismask]
@@ -411,6 +412,19 @@ class WaveTilts(masterframe.MasterFrame):
         # Finish
         hdulist = fits.HDUList(hdul)
         hdulist.writeto(_outfile, clobber=True)
+
+    def _parse_param(self, par, key, slit):
+
+        # Find good lines for the tilts
+        param_in = par[key]
+        if isinstance(param_in, (float, int)):
+            param = param_in
+        elif isinstance(param_in, (list, np.ndarray)):
+            param = param_in[slit]
+        else:
+            raise ValueError('Invalid input for parameter {:s}'.format(key))
+
+        return param
 
     def show(self, attr, slit=None, display='ginga', cname=None):
         """

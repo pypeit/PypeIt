@@ -1513,7 +1513,8 @@ class WaveTiltsPar(ParSet):
 
         defaults['tracethresh'] = 20.
         dtypes['tracethresh'] = [int, float, list, numpy.ndarray]
-        descr['tracethresh'] = 'Significance threshold for arcs to be used in tracing wavelength tilts.'
+        descr['tracethresh'] = 'Significance threshold for arcs to be used in tracing wavelength tilts. ' \
+                               'This can be a single number or a list/array providing the value for each slit'
 
 
         defaults['sigdetect'] = 10.
@@ -1539,16 +1540,18 @@ class WaveTiltsPar(ParSet):
         descr['sigrej_trace'] = 'Outlier rejection significance to determine which traced arc lines should be included in the global fit'
 
         defaults['spat_order'] = 5
-        dtypes['spat_order'] = int
+        dtypes['spat_order'] = [int, float, list, numpy.ndarray]
         descr['spat_order'] = 'Order of the legendre polynomial to be fit to the the tilt of an arc line. This parameter determines' \
                               'both the orer of the *individual* arc line tilts, as well as the order of the spatial direction of the' \
                               '2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the' \
-                              'slit/order'
+                              'slit/order. This can be a single number or a list/array providing the value for each slit'
 
         defaults['spec_order'] = 4
-        dtypes['spec_order'] = int
+        dtypes['spec_order'] = [int, float, list, numpy.ndarray]
         descr['spec_order'] = 'Order of the spectral direction of the 2d legendre polynomial (spatial, spectral) that is ' \
-                              'fit to obtain a global solution for the tilts across the slit/order'
+                              'fit to obtain a global solution for the tilts across the slit/order. ' \
+                              'This can be a single number or a list/array providing the value for each slit'
+
 
         defaults['func2d'] = 'legendre2d'
         dtypes['func2d'] = str
