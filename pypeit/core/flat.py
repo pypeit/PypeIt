@@ -184,6 +184,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
     3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
+    debug = True
     shape = flat.shape
     if shape != tilts_dict['tilts'].shape:
         msgs.error('Something is very wrong. Tilt image shape does not match flat field image shape')
@@ -307,6 +308,8 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
     ximg_1pix = 1.0/slitwidth
     # Use breakpoints at a spacing of a 1/10th of a pixel, but do not allow a bsp smaller than the typical sampling
     ximg_bsp  = np.fmax(ximg_1pix/10.0, ximg_samp*1.2)
+    from IPython import embed
+    embed()
     bsp_set = pydl.bspline(ximg_fit,nord=4, bkspace=ximg_bsp)
     fullbkpt = bsp_set.breakpoints
     spat_set, outmask_spat, spatfit, _ = utils.bspline_profile(ximg_fit, normimg, np.ones_like(normimg),np.ones_like(normimg),

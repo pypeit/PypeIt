@@ -384,7 +384,7 @@ class Calibrations(object):
                     # Write the final_tilts using the new slit boundaries to the MasterTilts file
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
                     self.waveTilts.tilts_dict = self.flatField.tilts_dict
-                    self.waveTilts.save_master(self.flatField.tilts_dict)
+                    self.waveTilts.save_master(self.flatField.tilts_dict, steps=self.waveTilts.steps)
 
         # 4) If we still don't have a pixel flat, then just use unity
         # everywhere and print out a warning
@@ -688,7 +688,7 @@ class Calibrations(object):
                     = self.waveTilts.run(maskslits=self.maskslits, wv_calib=self.wv_calib,
                                          doqa=self.write_qa)
             if self.save_masters:
-                self.waveTilts.save_master(self.tilts_dict)
+                self.waveTilts.save_master(self.tilts_dict, steps=self.waveTilts.steps)
         else:
             self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
 

@@ -216,7 +216,6 @@ class WaveTilts(masterframe.MasterFrame):
         else:
             only_these_lines = None
 
-        debug_lines=True
         # Find lines
         lines_spec, lines_spat = tracewave.tilts_find_lines(
             arcspec, slit_cen, tracethresh=tracethresh, sigdetect=self.par['sigdetect'],
@@ -388,6 +387,7 @@ class WaveTilts(masterframe.MasterFrame):
         -------
         """
 
+
         _outfile = self.ms_name if outfile is None else outfile
         # Additional keywords for the Header
         keywds = None if steps is None else dict(steps=','.join(steps))
@@ -404,7 +404,7 @@ class WaveTilts(masterframe.MasterFrame):
         hdul.append(hdu_coeff)
         # Finish
         hdulist = fits.HDUList(hdul)
-        hdulist.writeto(outfile, clobber=True)
+        hdulist.writeto(_outfile, clobber=True)
 
     def show(self, attr, slit=None, display='ginga', cname=None):
         """
