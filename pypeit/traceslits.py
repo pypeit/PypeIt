@@ -1223,7 +1223,7 @@ class TraceSlits(masterframe.MasterFrame):
             return False
         # Load up self
         self.binbpx = fits_dict['BINBPX'].astype(float)  # Special
-        for key in ['MSTRACE', 'PIXLOCN', 'LCEN', 'RCEN', 'LCEN_TWEAK', 'RCEN_TWEAK', 'EDGEARR', 'SIGLEV']:
+        for key in ['MSTRACE', 'PIXLOCN', 'LCEN', 'RCEN', 'PIXCEN', 'LCEN_TWEAK', 'RCEN_TWEAK', 'EDGEARR', 'SIGLEV']:
             if key in fits_dict.keys():
                 setattr(self, key.lower(), fits_dict[key])
         # Remake the binarr
@@ -1416,7 +1416,7 @@ def load_traceslit_files(root):
         msgs.error("This is an out-of-date MasterTrace flat.  You will need to make a new one")
 
     # Load me
-    for key in ['MSTRACE', 'PIXLOCN', 'BINBPX', 'LCEN', 'RCEN', 'LCEN_TWEAK', 'RCEN_TWEAK', 'EDGEARR', 'SIGLEV']:
+    for key in ['MSTRACE', 'PIXLOCN', 'BINBPX', 'LCEN', 'RCEN', 'LCEN_TWEAK', 'RCEN_TWEAK', 'PIXCEN', 'EDGEARR', 'SIGLEV']:
         if key in names:
             fits_dict[key] = hdul[names.index(key)].data
 

@@ -6,20 +6,14 @@ import inspect
 import copy
 
 import numpy as np
-
-from scipy import interpolate
-
 import matplotlib.pyplot as plt
 
 from pypeit import msgs
 from pypeit.core import arc
 from pypeit import utils
-from pypeit.core import parse
-from pypeit.core import pca
 from pypeit.core import qa
 from pypeit.core import trace_slits
 from pypeit.core import extract
-from pypeit import debugger
 from astropy.stats import sigma_clipped_stats
 
 try:
@@ -50,7 +44,9 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sigdetect=5.0, nfwhm_
     aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
     w = np.where(nsig >= tracethresh)
     aduse[w] = 1
-    # Remove lines that are within npix_neigh pixels
+    # Remove lines that are within npix_neigh pixels.
+    # #ToDO replce this with a near-neighbor based approach, where
+    # we identify groups and take the brightest line in a given group?
     nuse = np.sum(aduse)
     detuse = arcdet[aduse]
     idxuse = np.arange(arcdet.size)[aduse]
@@ -230,7 +226,8 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, tilt
 
 
     # Tighten it up with Gaussian weighted centroiding
-    trc_tilt_dict = dict(nspec = nspec, nspat = nspat, nsub = nsub, nlines = nlines, spat_min=spat_min, spat_max=spat_max, do_crude=do_crude, use_tilt=use_tilt,
+    trc_tilt_dict = dict(nspec = nspec, nspat = nspat, nsub = nsub, nlines = nlines, nuse = nuse,
+                         spat_min=spat_min, spat_max=spat_max, do_crude=do_crude, use_tilt=use_tilt,
                          tilts_sub_spec=tilts_sub_spec, tilts_sub_spat=tilts_sub_spat,
                          tilts_sub=tilts_sub, tilts_sub_fit=tilts_sub_fit, tilts_sub_err=tilts_sub_err,
                          tilts_sub_mask=tilts_sub_mask,
@@ -310,20 +307,21 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None,fwhm=4.0,s
 
     # TODO THE PCA may not be necessary. It appears to improve the results though for some instruments where the
     # tracing is problematic. We could consider making this optional to speed things up.
-    debug_pca_fit = False
+    debug_pca_fit = True
     if debug_pca_fit:
         # !!!! FOR TESTING ONLY!!!!  Evaluate the model fit to the tilts for all of our lines
-        tilt_fit_dict0 = fit_tilts(trc_tilt_dict0, spat_order=spat_order, spec_order=4, debug=True,
-                                   maxdev=1.0, sigrej=3.0,doqa=True, setup='test', slit=0, show_QA=False, out_dir='./')
+        msgs.info('TESTING: Performing an initial fit before PCA.')
+        tilt_fit_dict0 = fit_tilts(trace_dict0, spat_order=spat_order, spec_order=4, debug=True,
+                                   maxdev=1.0, sigrej=3.0,doqa=True, setup='test', slit='0', show_QA=False, out_dir='./')
 
     # Do a PCA fit, which rejects some outliers
-    iuse = trc_tilt_dict0['use_tilt']
+    iuse = trace_dict0['use_tilt']
     nuse = np.sum(iuse)
     msgs.info('PCA modeling {:d} good tilts'.format(nuse))
     pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
-        trc_tilt_dict0['tilts_sub_fit'], predict=np.invert(iuse), npca=npca, coeff_npoly=coeff_npoly_pca,
+        trace_dict0['tilts_sub_fit'], predict=np.invert(iuse), npca=npca, coeff_npoly=coeff_npoly_pca,
         lower=sigrej_pca, upper=sigrej_pca, order_vec=lines_spec, xinit_mean=lines_spec,
-        minv=0.0, maxv=float(trc_tilt_dict0['nsub'] - 1), debug=debug_pca)
+        minv=0.0, maxv=float(trace_dict0['nsub'] - 1), debug=debug_pca)
 
     # Now trace again with the PCA predictions as the starting crutches
     trace_dict1 = trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=inmask,tilts_guess=pca_fit,
@@ -362,6 +360,9 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 1.0, sigrej = 
 
     nspec = trc_tilt_dict['nspec']
     nspat = trc_tilt_dict['nspat']
+    xnspecmin1 = float(nspec-1)
+    xnspatmin1 = float(nspat-1)
+    nspat = trc_tilt_dict['nspat']
     use_tilt = trc_tilt_dict['use_tilt']                 # mask for good/bad tilts, based on aggregate fit, frac good pixels
     tilts = trc_tilt_dict['tilts'][:,use_tilt]           # gaussian weighted centroid
     tilts_fit = trc_tilt_dict['tilts_fit'][:,use_tilt]   # legendre polynomial fit
@@ -390,14 +391,16 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 1.0, sigrej = 
     # determine the mapping which brings the spectral line back to the same spectral_pos on extracted arc for which
     # we determined the wavelength solution
 
-    fitmask, coeff2 = utils.robust_polyfit_djs(tilts_spat[tot_mask], (tilts_fit[tot_mask] - tilts_spec[tot_mask]),
-                                               fitxy,x2=tilts_fit[tot_mask],
+    # Fits are done in dimensionless coordinates to allow for different binnings between i.e. the arc and the science frame
+    fitmask, coeff2 = utils.robust_polyfit_djs(tilts_spat[tot_mask]/xnspatmin1,
+                                               (tilts_fit[tot_mask] - tilts_spec[tot_mask])/xnspecmin1,
+                                               fitxy,x2=tilts_fit[tot_mask]/xnspecmin1,
                                                function='legendre2d', maxiter=100, lower=sigrej, upper=sigrej,
-                                               maxdev=maxdev,
-                                               minx=0.0, maxx=float(nspat-1), minx2=0.0, maxx2=float(nspec-1),
+                                               maxdev=maxdev,minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0,
                                                use_mad=True, sticky=False)
-    delta_spec_fit = utils.func_val(coeff2, tilts_spat[tot_mask], func2d, x2=tilts_fit[tot_mask],
-                                    minx=0.0, maxx=float(nspat-1), minx2=0.0, maxx2=float(nspec-1))
+    delta_spec_fit = xnspecmin1*utils.func_val(coeff2, tilts_spat[tot_mask]/xnspatmin1, func2d, x2=tilts_fit[tot_mask]/xnspecmin1,
+                                               minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    # Residuals in pixels
     res2 = (tilts_fit[tot_mask][fitmask] - tilts_spec[tot_mask][fitmask]) - delta_spec_fit[fitmask]
     msgs.info("RMS (pixels): {}".format(np.std(res2)))
 
@@ -420,13 +423,13 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 1.0, sigrej = 
 
     tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
                          npix_rej = np.sum(fitmask == False), coeff2=coeff2, spec_order = spec_order, spat_order = spat_order,
-                         minx = 0.0, maxx = float(nspat-1), minx2 = 0.0, maxx2 = float(nspec-1), func =func2d)
+                         minx = 0.0, maxx = 1.0, minx2 = 0.0, maxx2 = 1.0, func =func2d)
 
     return tilt_fit_dict
 
 
 
-def fit2piximg(shape, coeff2, function):
+def fit2tilts(shape, coeff2, function):
     """
 
     Parameters
@@ -442,22 +445,25 @@ def fit2piximg(shape, coeff2, function):
 
     # Compute the tilts image
     nspec, nspat = shape
-    spat_vec = np.arange(nspat)
-    tilt_vec = np.arange(nspec)
+    xnspecmin1 = float(nspec-1)
+    xnspatmin1 = float(nspat-1)
+    spat_vec = np.arange(nspat)/xnspecmin1
+    tilt_vec = np.arange(nspec)/xnspatmin1
 
-    tilt_min_spec_fit = utils.polyval2d_general(coeff2, spat_vec, tilt_vec,
-        minx = 0.0, maxx = float(nspat - 1), miny = 0.0, maxy = float(nspec - 1),function=function)
-    # y normalization and subtract
-    spec_img = np.outer(np.arange(nspec), np.ones(nspat))
-    piximg = spec_img - tilt_min_spec_fit
+    delta_spec_fit_nrm = utils.polyval2d_general(coeff2, spat_vec, tilt_vec,
+                                             minx = 0.0, maxx = 1.0, miny = 0.0, maxy = 1.0,
+                                             function=function)
+    # normalized spec image
+    spec_img = np.outer(np.arange(nspec), np.ones(nspat))/xnspecmin1
+    tilts = (spec_img - delta_spec_fit_nrm)
     # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
     # wavelength solution fitting
-    piximg = np.fmax(np.fmin(piximg, nspec),-1.0)
+    tilts = np.fmax(np.fmin(tilts, 1.2),-0.2)
 
-    return piximg
+    return tilts
 
 
-def fit2tilts(tilt_fit_dict, spat_vec, tilt_vec):
+def fit2deltay(tilt_fit_dict, spat_vec, tilt_vec):
     """
 
     Parameters
@@ -483,11 +489,13 @@ def fit2tilts(tilt_fit_dict, spat_vec, tilt_vec):
     # Compute the tilts image
     nspec = tilt_fit_dict['nspec']
     nspat = tilt_fit_dict['nspat']
+    xnspecmin1 = float(nspec-1)
+    xnspatmin1 = float(nspat-1)
 
     tilt_min_spec_fit = utils.polyval2d_general(
-        tilt_fit_dict['coeff2'], spat_vec, tilt_vec,
-        minx=tilt_fit_dict['minx'], maxx=tilt_fit_dict['maxx'],
-        miny=tilt_fit_dict['minx2'], maxy=tilt_fit_dict['maxx2'],
+        tilt_fit_dict['coeff2'], spat_vec/xnspatmin1, tilt_vec/xnspecmin1,
+        minx=0.0, maxx=1.0,
+        miny=0.0, maxy=1.0,
         function=tilt_fit_dict['func'])
     return tilt_min_spec_fit
 

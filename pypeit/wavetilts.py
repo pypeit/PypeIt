@@ -80,14 +80,11 @@ class WaveTilts(masterframe.MasterFrame):
 
         self.wavepar = pypeitpar.WavelengthSolutionPar() if wavepar is None else wavepar
 
-
         # Parameters (but can be None)
         self.msarc = msarc
-        if bpm is None:
-            self.bpm = np.zeros_like(msarc)
-        else:
-            self.bpm = bpm
         self.tslits_dict = tslits_dict
+        self.bpm = bpm
+        self.inmask = (self.bpm == 0) if self.bpm is not None else None
 
         # Optional parameters
         self.det = det
@@ -104,12 +101,12 @@ class WaveTilts(masterframe.MasterFrame):
         # Key Internals
         self.mask = None
         self.all_trace_dict = [None]*self.nslit
-        self.piximg = None
+        self.tilts = None
         # 2D fits are stored as a dictionary rather than list because we will jsonify the dict
         self.all_fit_dict = [None]*self.nslit
 
         # Main outputs
-        self.final_piximg = None
+        self.final_tilts = None
         self.fit_dict = None
         self.trace_dict = None
 
@@ -185,7 +182,6 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Extract an arc down each slit/order
-        inmask = (self.bpm == 0) if self.bpm is not None else None
         slitmask = self.spectrograph.slitmask(self.tslits_dict) if self.slitmask is None else self.slitmask
 
         self.arccen, self.arc_maskslit = arc.get_censpec(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
@@ -194,7 +190,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return self.arccen, self.arc_maskslit
 
-    def _find_lines(self, arcspec, slit_cen, slit,debug_lines=False):
+    def _find_lines(self, arcspec, slit_cen, slit, debug_lines=False):
 
         # Find good lines for the tilts
         tracethresh_in = self.par['tracethresh']
@@ -215,7 +211,7 @@ class WaveTilts(masterframe.MasterFrame):
             only_these_lines = None
 
 
-        # Optional Parameters for tilts_find_lines
+        # Find lines
         lines_spec, lines_spat = tracewave.tilts_find_lines(
             arcspec, slit_cen, tracethresh=tracethresh, sigdetect=self.par['sigdetect'],
             nfwhm_neigh=self.par['nfwhm_neigh'],only_these_lines=only_these_lines, fwhm=self.wavepar['fwhm'],
@@ -250,14 +246,14 @@ class WaveTilts(masterframe.MasterFrame):
             out_dir=self.redux_path, debug=debug)
 
         # Evaluate the fit
-        piximg = tracewave.fit2piximg((tilt_fit_dict['nspec'], tilt_fit_dict['nspat']),tilt_fit_dict['coeff2'], tilt_fit_dict['func'])
+        tilts = tracewave.fit2tilts((tilt_fit_dict['nspec'], tilt_fit_dict['nspat']),tilt_fit_dict['coeff2'], tilt_fit_dict['func'])
 
         # Step
         self.all_fit_dict[slit] = copy.deepcopy(tilt_fit_dict)
         self.steps.append(inspect.stack()[0][3])
-        return piximg, tilt_fit_dict['coeff2']
+        return tilts, tilt_fit_dict['coeff2']
 
-    def _trace_tilts(self, arcimg, lines_spec, lines_spat, bpm, thismask, slit):
+    def _trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit):
         """
 
         Parameters
@@ -275,7 +271,7 @@ class WaveTilts(masterframe.MasterFrame):
         """
 
         trace_dict = tracewave.trace_tilts(
-            arcimg, lines_spec, lines_spat, thismask, inmask=bpm, fwhm=self.wavepar['fwhm'],
+            arcimg, lines_spec, lines_spat, thismask, inmask=self.inmask, fwhm=self.wavepar['fwhm'],
             spat_order=self.par['spat_order'], maxdev_tracefit=self.par['maxdev_tracefit'],
             sigrej_trace=self.par['sigrej_trace'])
 
@@ -293,8 +289,8 @@ class WaveTilts(masterframe.MasterFrame):
             Code flow:
                1.  Extract an arc spectrum down the center of each slit/order
                2.  Loop on slits/orders
-                 i.   Trace the arc lines (fweight is the default)
-                 ii.  Fit the individual arc lines
+                 i.   Trace and fit the arc lines (This is done twice, once with trace_crude as the tracing crutch, then
+                      again with a PCA model fit as the crutch)
                  iii.  2D Fit to the offset from pixcen
                  iv. Save
 
@@ -312,10 +308,10 @@ class WaveTilts(masterframe.MasterFrame):
             maskslits
             """
 
-        # JFH Do we need a zero method? I think we don't
-        # If the user sets no tilts, return here
+#        JFH Do we need a zero method? I think we don't
+#        If the user sets no tilts, return here
 #        if self.par['method'].lower() == "zero":
-#            # Assuming there is no spectral tilt
+#            #Assuming there is no spectral tilt
 #            self.final_piximg = np.outer(np.linspace(0.0, 1.0, self.msarc.shape[0]), np.ones(self.msarc.shape[1]))
 #            return self.final_piximg, None, None
 
@@ -332,26 +328,25 @@ class WaveTilts(masterframe.MasterFrame):
         gdslits = np.where(self.mask == 0)[0]
 
         # Final tilts image
-        self.final_piximg = np.zeros_like(self.msarc)
+        self.final_tilts = np.zeros_like(self.msarc)
         self.coeffs = np.zeros((self.par['spec_order'] + 2,self.par['spat_order'],self.nslit))
         # Loop on all slits
         for slit in gdslits:
-
             # Identify lines for tracing tilts
-            self.lines_spec, self.lines_spat = self._find_lines(self.arccen[:,slit], self.tslits_dict['pixcen'], slit)
+            self.lines_spec, self.lines_spat = self._find_lines(self.arccen[:,slit], self.tslits_dict['pixcen'][:,slit], slit)
 
             thismask = self.slitmask == slit
             # Trace
-            self.trace_dict = self._trace_tilts(self.msarc, self.lines_spec, self.lines_spat, self.bpm, thismask, slit)
+            self.trace_dict = self._trace_tilts(self.msarc, self.lines_spec, self.lines_spat, thismask, slit)
 
             # 2D model of the tilts
             #   Includes QA
-            self.piximg, self.coeffs[:,:,slit] = self._fit_tilts(self.trace_dict, slit,doqa=doqa, debug=debug)
+            self.tilts, self.coeffs[:,:,slit] = self._fit_tilts(self.trace_dict, slit,doqa=doqa, debug=debug)
 
             # Save to final image
-            self.final_piximg[thismask] = self.piximg[thismask]
+            self.final_tilts[thismask] = self.tilts[thismask]
 
-        self.tilts_dict = {'piximg':self.final_piximg, 'coeffs':self.coeffs, 'func2D':self.par['func2D']}
+        self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'func2D':self.par['func2D']}
         return self.tilts_dict, maskslits
 
     def load_master(self, filename, exten = 0, force = False):
@@ -375,7 +370,7 @@ class WaveTilts(masterframe.MasterFrame):
 
     # JFH THis routine does not follow the current master protocol of taking a data argument. There is no reason to
     # save all this other information here
-    def save_master(self, final_piximg, coeffs, func2d, outfile=None, steps=None, overwrite=True):
+    def save_master(self, final_tilts, coeffs, func2d, outfile=None, steps=None, overwrite=True):
         """
 
         Parameters
@@ -397,7 +392,7 @@ class WaveTilts(masterframe.MasterFrame):
         #
         msgs.info("Saving master {0:s} frame as:".format(self.frametype) + msgs.newline() + _outfile)
 
-        hdu0 = fits.PrimaryHDU(final_piximg)
+        hdu0 = fits.PrimaryHDU(final_tilts)
         hdul = [hdu0]
         hdu_coeff = fits.ImageHDU(coeffs)
         hdu_coeff.header['FUNC2D'] = func2d

@@ -350,6 +350,7 @@ class Spectrograph(object):
             _shape = self.get_raw_image_shape(filename=filename, det=det)
         else:
             _shape = shape
+        # JFH I think all masks should be boolean aside from the bitmask.
         self.bpm_img = np.zeros(_shape, dtype=np.int8)
         # Return
         return self.bpm_img
@@ -466,9 +467,6 @@ class Spectrograph(object):
                 raise ValueError('Keyword {0} in extension {1} has incorrect value.  '.format(
                                     card, ext)
                                  + 'Expected {0} but found {1}.'.format(v, headers[ext][card]))
-
-    def setup_arcparam(self, **null_kwargs):
-        return None
 
     @property
     def ndet(self):

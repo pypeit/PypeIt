@@ -1483,7 +1483,7 @@ class WaveTiltsPar(ParSet):
         previously `disporder`?  If so, I think I prefer the generality
         of `disporder`...
     """
-    def __init__(self, idsonly=None, tracethresh=None, nfwhm_neigh=None, maxdev_tracefit=None, sigrej_trace=None, spat_order=None, spec_order=None,
+    def __init__(self, idsonly=None, tracethresh=None, sigdetect=None, nfwhm_neigh=None, maxdev_tracefit=None, sigrej_trace=None, spat_order=None, spec_order=None,
                  func2d=None, maxdev2d=None, sigrej2d=None):
 
 
@@ -1515,6 +1515,14 @@ class WaveTiltsPar(ParSet):
         dtypes['tracethresh'] = [int, float, list, numpy.ndarray]
         descr['tracethresh'] = 'Significance threshold for arcs to be used in tracing wavelength tilts.'
 
+
+        defaults['sigdetect'] = 10.
+        dtypes['sigdetect'] = [int, float]
+        descr['sigdetect'] = 'Significance threshold for arcs to be used in line identification. The tracethresh parameter' \
+                             ' above determines the significance threshold of lines that will be traced. This parameter ' \
+                             ' determines which lines are detected. The latter impacts the near-neighbor rejection, since it ' \
+                             ' a large number of less significant lines will result in more lines getting rejected becuase of ' \
+                             ' weaker neighbors'
 
         defaults['nfwhm_neigh'] = 3.0
         dtypes['nfwhm_neigh'] = [int, float]
@@ -1592,7 +1600,7 @@ class WaveTiltsPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'idsonly', 'tracethresh', 'maxdev_tracefit', 'sigrej_trace','nfwhm_neigh', 'spat_order', 'spec_order', 'func2d','maxdev2d', 'sigrej2d']
+        parkeys = [ 'idsonly', 'tracethresh', 'sigdetect', 'maxdev_tracefit', 'sigrej_trace','nfwhm_neigh', 'spat_order', 'spec_order', 'func2d','maxdev2d', 'sigrej2d']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
