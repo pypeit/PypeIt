@@ -59,8 +59,8 @@ class WaveTilts(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'tilts'
 
-    def __init__(self, msarc, spectrograph=None, par=None, wavepar = None, det=None, setup=None, master_dir=None,
-                 mode=None, tslits_dict=None, redux_path=None, bpm=None):
+    def __init__(self, msarc, tslits_dict, spectrograph=None, par=None, wavepar = None, det=None, setup=None, master_dir=None,
+                 mode=None, redux_path=None, bpm=None):
 
         # TODO: (KBW) Why was setup='' in this argument list and
         # setup=None in all the others?  Is it because of the
@@ -99,8 +99,11 @@ class WaveTilts(masterframe.MasterFrame):
         # Attributes
         if self.tslits_dict is not None:
             self.nslit = self.tslits_dict['lcen'].shape[1]
+            self.slitcen = self.tslits_dict['slitcen']
         else:
             self.nslit = 0
+            self.slitcen = None
+
         self.steps = []
         self.slitmask = None
 
@@ -227,7 +230,7 @@ class WaveTilts(masterframe.MasterFrame):
 
 
 
-    def _fit_tilts(self, trc_tilt_dict, slit, show_QA=False, doqa=True, debug=True):
+    def _fit_tilts(self, trc_tilt_dict, slit_cen, slit, show_QA=False, doqa=True, debug=True):
         """
 
         Parameters
@@ -251,7 +254,7 @@ class WaveTilts(masterframe.MasterFrame):
             out_dir=self.redux_path, debug=debug)
 
         # Evaluate the fit
-        tilts = tracewave.fit2tilts((tilt_fit_dict['nspec'], tilt_fit_dict['nspat']),tilt_fit_dict['coeff2'], tilt_fit_dict['func'])
+        tilts = tracewave.fit2tilts((tilt_fit_dict['nspec'], tilt_fit_dict['nspat']),slit_cen,tilt_fit_dict['coeff2'], tilt_fit_dict['func'])
 
         # Step
         self.all_fit_dict[slit] = copy.deepcopy(tilt_fit_dict)
@@ -296,7 +299,7 @@ class WaveTilts(masterframe.MasterFrame):
                2.  Loop on slits/orders
                  i.   Trace and fit the arc lines (This is done twice, once with trace_crude as the tracing crutch, then
                       again with a PCA model fit as the crutch)
-                 iii.  2D Fit to the offset from pixcen
+                 iii.  2D Fit to the offset from slitcen
                  iv. Save
 
             Parameters
@@ -338,7 +341,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Loop on all slits
         for slit in gdslits:
             # Identify lines for tracing tilts
-            self.lines_spec, self.lines_spat = self._find_lines(self.arccen[:,slit], self.tslits_dict['pixcen'][:,slit], slit)
+            self.lines_spec, self.lines_spat = self._find_lines(self.arccen[:,slit], self.slitcen[:,slit], slit)
 
             thismask = self.slitmask == slit
             # Trace
@@ -346,12 +349,12 @@ class WaveTilts(masterframe.MasterFrame):
 
             # 2D model of the tilts
             #   Includes QA
-            self.tilts, self.coeffs[:,:,slit] = self._fit_tilts(self.trace_dict, slit,doqa=doqa, debug=debug)
+            self.tilts, self.coeffs[:,:,slit] = self._fit_tilts(self.trace_dict, self.slitcen[:,slit], slit,doqa=doqa, debug=debug)
 
             # Save to final image
             self.final_tilts[thismask] = self.tilts[thismask]
 
-        self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'func2d':self.par['func2d']}
+        self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen': self.slitcen, 'func2d':self.par['func2d']}
         return self.tilts_dict, maskslits
 
     def load_master(self, filename, exten = 0, force = False):
@@ -370,7 +373,8 @@ class WaveTilts(masterframe.MasterFrame):
             tilts = hdu[0].data
             head1 = hdu[1].header
             coeffs = hdu[1].data
-            tilts_dict = {'tilts':tilts,'coeffs':coeffs,'func2d': head1['FUNC2D']} # This is the tilts_dict
+            slitcen = hdu[2].data
+            tilts_dict = {'tilts':tilts,'coeffs':coeffs,'slitcen':slitcen,'func2d': head1['FUNC2D']} # This is the tilts_dict
             return tilts_dict #, head0, [filename]
 
     # JFH THis routine does not follow the current master protocol of taking a data argument. There is no reason to
@@ -402,6 +406,8 @@ class WaveTilts(masterframe.MasterFrame):
         hdu_coeff = fits.ImageHDU(tilts_dict['coeffs'])
         hdu_coeff.header['FUNC2D'] = tilts_dict['func2d']
         hdul.append(hdu_coeff)
+        hdu_slitcen = fits.ImageHDU(tilts_dict['slitcen'])
+        hdul.append(hdu_slitcen)
         # Finish
         hdulist = fits.HDUList(hdul)
         hdulist.writeto(_outfile, clobber=True)

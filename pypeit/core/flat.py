@@ -206,14 +206,12 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
         npoly_in = 7
         npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol/10.)).astype(int)),1)
 
-    # Generate the edgemask using the original slit boundaries and thismask_in
-    ximg_in, edgmask_in = pixels.ximg_and_edgemask(slit_left_in, slit_righ_in, thismask_in, trim_edg=trim_edg)
-
     # Create a tilts image that encompasses the whole image, rather than just the thismask_in slit pixels
-    tilts = tracewave.fit2tilts(shape, tilts_dict['coeffs'], tilts_dict['func2d'])
+    tilts = tracewave.fit2tilts(shape, tilts_dict['slitcen'], tilts_dict['coeffs'], tilts_dict['func2d'])
     piximg = tilts * (nspec-1)
     pixvec = np.arange(nspec)
 
+    ximg_in, edgmask_in = pixels.ximg_and_edgemask(slit_left_in, slit_righ_in, thismask_in, trim_edg=trim_edg)
     # Create a fractional position image ximg that encompasses the whole image, rather than just the thismask_in slit pixels
     spat_img = np.outer(np.ones(nspec), np.arange(nspat)) # spatial position everywhere along image
     slit_left_img = np.outer(slit_left_in, np.ones(nspat))   # left slit boundary replicated spatially
@@ -308,8 +306,6 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
     ximg_1pix = 1.0/slitwidth
     # Use breakpoints at a spacing of a 1/10th of a pixel, but do not allow a bsp smaller than the typical sampling
     ximg_bsp  = np.fmax(ximg_1pix/10.0, ximg_samp*1.2)
-    from IPython import embed
-    embed()
     bsp_set = pydl.bspline(ximg_fit,nord=4, bkspace=ximg_bsp)
     fullbkpt = bsp_set.breakpoints
     spat_set, outmask_spat, spatfit, _ = utils.bspline_profile(ximg_fit, normimg, np.ones_like(normimg),np.ones_like(normimg),
@@ -333,6 +329,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
         ximg_out, edgmask_out = pixels.ximg_and_edgemask(slit_left_out, slit_righ_out, thismask_out, trim_edg=trim_edg)
         # Note that nothing changes with the tilts, since these were already extrapolated across the whole image.
     else:
+        # Generate the edgemask using the original slit boundaries and thismask_in
         slit_left_out = np.copy(slit_left_in)
         slit_righ_out = np.copy(slit_righ_in)
         thismask_out = thismask_in
