@@ -1127,6 +1127,7 @@ class TraceSlits(masterframe.MasterFrame):
             # TODO -- Figure out how to set the cut levels
             debugger.show_image(self.siglev, chname='siglev')
 
+    # JFH TODO this needs an argument to follow convention for save_master
     def save_master(self, root=None, gzip=True):
         """
         Write the main pieces of TraceSlits to the hard drive as a MasterFrame

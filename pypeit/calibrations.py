@@ -383,7 +383,8 @@ class Calibrations(object):
                     self.traceSlits.save_master()
                     # Write the final_tilts using the new slit boundaries to the MasterTilts file
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
-                    self.waveTilts.save_master()
+                    self.waveTilts.tilts_dict = self.flatField.tilts_dict
+                    self.waveTilts.save_master(self.flatField.tilts_dict)
 
         # 4) If we still don't have a pixel flat, then just use unity
         # everywhere and print out a warning

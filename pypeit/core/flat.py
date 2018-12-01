@@ -210,8 +210,6 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
 
     # Create a tilts image that encompasses the whole image, rather than just the thismask_in slit pixels
     tilts = tracewave.fit2tilts(shape, tilts_dict['coeffs'], tilts_dict['func2d'])
-    from IPython import embed
-    embed()
     piximg = tilts * (nspec-1)
     pixvec = np.arange(nspec)
 
