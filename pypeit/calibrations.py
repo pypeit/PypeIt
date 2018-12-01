@@ -687,7 +687,7 @@ class Calibrations(object):
                     = self.waveTilts.run(maskslits=self.maskslits, wv_calib=self.wv_calib,
                                          doqa=self.write_qa)
             if self.save_masters:
-                self.waveTilts.save_master()
+                self.waveTilts.save_master(self.tilts_dict)
         else:
             self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
 

@@ -329,7 +329,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Final tilts image
         self.final_tilts = np.zeros_like(self.msarc)
-        self.coeffs = np.zeros((self.par['spec_order'] + 2,self.par['spat_order'],self.nslit))
+        self.coeffs = np.zeros((self.par['spat_order'] + 1,self.par['spec_order'] + 1,self.nslit))
         # Loop on all slits
         for slit in gdslits:
             # Identify lines for tracing tilts
@@ -346,7 +346,7 @@ class WaveTilts(masterframe.MasterFrame):
             # Save to final image
             self.final_tilts[thismask] = self.tilts[thismask]
 
-        self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'func2D':self.par['func2D']}
+        self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'func2d':self.par['func2d']}
         return self.tilts_dict, maskslits
 
     def load_master(self, filename, exten = 0, force = False):
@@ -365,12 +365,12 @@ class WaveTilts(masterframe.MasterFrame):
             tilts = hdu[0].data
             head1 = hdu[1].header
             coeffs = hdu[1].data
-            tilts_dict = {'tilts':tilts,'coeffs':coeffs,'func2D': head1['FUNC2D']} # This is the tilts_dict
+            tilts_dict = {'tilts':tilts,'coeffs':coeffs,'func2d': head1['FUNC2D']} # This is the tilts_dict
             return tilts_dict #, head0, [filename]
 
     # JFH THis routine does not follow the current master protocol of taking a data argument. There is no reason to
     # save all this other information here
-    def save_master(self, final_tilts, coeffs, func2d, outfile=None, steps=None, overwrite=True):
+    def save_master(self, tilts_dict, outfile=None, steps=None, overwrite=True):
         """
 
         Parameters
@@ -391,11 +391,10 @@ class WaveTilts(masterframe.MasterFrame):
             return
         #
         msgs.info("Saving master {0:s} frame as:".format(self.frametype) + msgs.newline() + _outfile)
-
-        hdu0 = fits.PrimaryHDU(final_tilts)
+        hdu0 = fits.PrimaryHDU(tilts_dict['tilts'])
         hdul = [hdu0]
-        hdu_coeff = fits.ImageHDU(coeffs)
-        hdu_coeff.header['FUNC2D'] = func2d
+        hdu_coeff = fits.ImageHDU(tilts_dict['coeffs'])
+        hdu_coeff.header['FUNC2D'] = tilts_dict['func2d']
         hdul.append(hdu_coeff)
         # Finish
         hdulist = fits.HDUList(hdul)

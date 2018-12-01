@@ -183,7 +183,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         return msframe
 
-    def run(self, debug=False, show=False):
+    def run(self, debug=True, show=False):
         """
         Main driver to generate normalized flat field and illumination flats
         Code flow:
@@ -231,8 +231,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                 inmask = np.ones_like(self.rawflatimg,dtype=bool)
 
             # Fit flats for a single slit
-            this_tilts_dict = {'tilts':self.tilts_dict['tilts'], 'coeffs':self.tilts_dict['coeffs'][:,:,slit],
-                               'func2D':self.tilts_dict['func2D']}
+            this_tilts_dict = {'tilts':self.tilts_dict['tilts'], 'coeffs':self.tilts_dict['coeffs'][:,:,slit].copy(),
+                               'func2d':self.tilts_dict['func2d']}
             nonlinear_counts = self.spectrograph.detector[self.det - 1]['nonlinear']*\
                                self.spectrograph.detector[self.det - 1]['saturation']
             pixelflat, illumflat, flat_model, thismask_out, slit_left_out, slit_righ_out = \
@@ -246,7 +246,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             if self.flatpar['tweak_slits']:
                 self.tslits_dict['lcen'][:, slit] = slit_left_out
                 self.tslits_dict['rcen'][:, slit] = slit_righ_out
-                this_tilts = tracewave.coeff2tilts(this_tilts_dict['coeffs'], self.rawflatimg.shape, self.tilts_dict['func2D'])
+                this_tilts = tracewave.fit2tilts(self.rawflatimg.shape, this_tilts_dict['coeffs'], this_tilts_dict['func2d'])
                 final_tilts[thismask_out] = this_tilts[thismask_out]
 
         # If we tweaked the slits update the tilts_dict

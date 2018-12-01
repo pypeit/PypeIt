@@ -239,7 +239,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, tilt
 
 def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None,fwhm=4.0,spat_order=5, maxdev_tracefit=1.0,
                 sigrej_trace=3.0, max_badpix_frac=0.20, tcrude_nave = 5,
-                npca = 1, coeff_npoly_pca = 1, sigrej_pca = 2.0,debug_pca = True, show_tracefits=False):
+                npca = 1, coeff_npoly_pca = 2, sigrej_pca = 2.0,debug_pca = True, show_tracefits=False):
 
     """
     Use a PCA model to determine the best object (or slit edge) traces for echelle spectrographs.
@@ -453,8 +453,8 @@ def fit2tilts(shape, coeff2, function):
     nspec, nspat = shape
     xnspecmin1 = float(nspec-1)
     xnspatmin1 = float(nspat-1)
-    spat_vec = np.arange(nspat)/xnspecmin1
-    tilt_vec = np.arange(nspec)/xnspatmin1
+    spat_vec = np.arange(nspat)/xnspatmin1
+    tilt_vec = np.arange(nspec)/xnspecmin1
 
     delta_spec_fit_nrm = utils.polyval2d_general(coeff2, spat_vec, tilt_vec,
                                              minx = 0.0, maxx = 1.0, miny = 0.0, maxy = 1.0,
@@ -469,7 +469,7 @@ def fit2tilts(shape, coeff2, function):
     return tilts
 
 
-def fit2deltay(tilt_fit_dict, spat_vec, tilt_vec):
+def fit2delta(tilt_fit_dict, spat_vec, tilt_vec):
     """
 
     Parameters
@@ -485,10 +485,11 @@ def fit2deltay(tilt_fit_dict, spat_vec, tilt_vec):
 
     Returns
     -------
-    tilt_min_spec_fit: ndarray, float
-       The actualy thing that was fit in computing the tilts, which is the trace of the spectra lines minuse the
+    delta_spec_fit: ndarray, float
+       The actual thing that was fit in computing the tilts, which is the trace of the spectra lines minuse the
        spectral pixel location of the central trace. See above. This output is only really used for debugging and
-       internal functionality.
+       internal functionality. Note that we fit the dimensionless quantity, but this has the nspec-1 multiplied back
+       in (as in the QA), so that that the units are pixels.
 
     """
 
@@ -498,12 +499,12 @@ def fit2deltay(tilt_fit_dict, spat_vec, tilt_vec):
     xnspecmin1 = float(nspec-1)
     xnspatmin1 = float(nspat-1)
 
-    tilt_min_spec_fit = utils.polyval2d_general(
+    delta_spec_fit = xnspecmin1*utils.polyval2d_general(
         tilt_fit_dict['coeff2'], spat_vec/xnspatmin1, tilt_vec/xnspecmin1,
         minx=0.0, maxx=1.0,
         miny=0.0, maxy=1.0,
         function=tilt_fit_dict['func'])
-    return tilt_min_spec_fit
+    return delta_spec_fit
 
 
 

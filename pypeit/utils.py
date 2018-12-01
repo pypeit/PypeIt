@@ -1039,14 +1039,6 @@ def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny
         xv = scale_minmax(x, minx=minx, maxx=maxx)
         # Scale y-direction
         yv = scale_minmax(y, minx=miny, maxx=maxy)
-        #if miny is None or maxy is None:
-        #    if np.size(y) == 1:
-        #        ymin, ymax = -1.0, 1.0
-        #    else:
-        #        ymin, ymax = np.min(y), np.max(y)
-        #else:
-        #    ymin, ymax = miny, maxy
-        #yv = 2.0 * (y-ymin)/(ymax-ymin) - 1.0
         xx, yy = np.meshgrid(xv, yv)
         if function == "legendre":
             return np.polynomial.legendre.legval2d(xx, yy, c)

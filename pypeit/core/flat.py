@@ -209,7 +209,9 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
     ximg_in, edgmask_in = pixels.ximg_and_edgemask(slit_left_in, slit_righ_in, thismask_in, trim_edg=trim_edg)
 
     # Create a tilts image that encompasses the whole image, rather than just the thismask_in slit pixels
-    tilts = tracewave.coeff2tilts(tilts_dict['coeffs'], shape, tilts_dict['func2D'], max_tilt=1.2, min_tilt=-0.2)
+    tilts = tracewave.fit2tilts(shape, tilts_dict['coeffs'], tilts_dict['func2d'])
+    from IPython import embed
+    embed()
     piximg = tilts * (nspec-1)
     pixvec = np.arange(nspec)
 
@@ -369,7 +371,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
         plt.ylabel('Normflat Spatial Profile')
         plt.show()
 
-    msgs.info('Performing illumination + scattered light flat field fit')
+    msgs.info('Performing illumination + scattembedered light flat field fit')
 
     # Flat field pixels for fitting spectral direction
     isrt_spec = np.argsort(piximg[thismask_out])
