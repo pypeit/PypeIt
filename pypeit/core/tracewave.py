@@ -319,7 +319,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None,fwhm=4.0,s
         # !!!! FOR TESTING ONLY!!!!  Evaluate the model fit to the tilts for all of our lines
         msgs.info('TESTING: Performing an initial fit before PCA.')
         # JFH Note spec_order is hard wired here as we don't pass it in
-        tilt_fit_dict0 = fit_tilts(trace_dict0, spat_order=spat_order, spec_order=4, debug=True,
+        tilt_fit_dict0 = fit_tilts(trace_dict0, spat_order=spat_order, spec_order=6, debug=True,
                                    maxdev=1.0, sigrej=3.0,doqa=True, setup='test', slit=0, show_QA=True)
 
     # Do a PCA fit, which rejects some outliers
