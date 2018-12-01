@@ -311,8 +311,9 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None,fwhm=4.0,s
     if debug_pca_fit:
         # !!!! FOR TESTING ONLY!!!!  Evaluate the model fit to the tilts for all of our lines
         msgs.info('TESTING: Performing an initial fit before PCA.')
+        # JFH Note spec_order is hard wired here as we don't pass it in
         tilt_fit_dict0 = fit_tilts(trace_dict0, spat_order=spat_order, spec_order=4, debug=True,
-                                   maxdev=1.0, sigrej=3.0,doqa=True, setup='test', slit='0', show_QA=False, out_dir='./')
+                                   maxdev=1.0, sigrej=3.0,doqa=True, setup='test', slit=0, show_QA=True)
 
     # Do a PCA fit, which rejects some outliers
     iuse = trace_dict0['use_tilt']
@@ -332,7 +333,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None,fwhm=4.0,s
 
 
 def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 1.0, sigrej = 3.0, func2d='legendre2d', doqa=True, setup = 'test',
-              slit = '0', show_QA=False, out_dir=None, debug=True):
+              slit = 0, show_QA=False, out_dir=None, debug=True):
     """
 
     Parameters
@@ -395,25 +396,30 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 1.0, sigrej = 
     fitmask, coeff2 = utils.robust_polyfit_djs(tilts_spat[tot_mask]/xnspatmin1,
                                                (tilts_fit[tot_mask] - tilts_spec[tot_mask])/xnspecmin1,
                                                fitxy,x2=tilts_fit[tot_mask]/xnspecmin1,
-                                               function='legendre2d', maxiter=100, lower=sigrej, upper=sigrej,
+                                               function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
                                                maxdev=maxdev,minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0,
                                                use_mad=True, sticky=False)
     delta_spec_fit = xnspecmin1*utils.func_val(coeff2, tilts_spat[tot_mask]/xnspatmin1, func2d, x2=tilts_fit[tot_mask]/xnspecmin1,
                                                minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
     # Residuals in pixels
     res2 = (tilts_fit[tot_mask][fitmask] - tilts_spec[tot_mask][fitmask]) - delta_spec_fit[fitmask]
-    msgs.info("RMS (pixels): {}".format(np.std(res2)))
+    rms = np.std(res2)
+    msgs.info("RMS (pixels): {}".format(rms))
 
 
+    # TODO: Make this a part of the standard QA and write to a file
     if debug:
-        plt.figure(figsize=(8, 20))
-        plt.plot(tilts_spat[tot_mask],tilts_spec[tot_mask] + delta_spec_fit, 'go', mfc='g', markersize=5.0,
+        plt.figure(figsize=(12, 20))
+        plt.plot(tilts_spat[tot_mask],tilts_spec[tot_mask] + delta_spec_fit, 'gs', mfc='g', markersize=2.0,
                  markeredgewidth=1.0,label='2D Fit')
-        plt.plot(tilts_spat[tot_mask][fitmask], tilts_fit[tot_mask][fitmask], 'ko', mfc='None', markersize=7.0,
-                 markeredgewidth=1.0,label='Good Points')
-        plt.plot(tilts_spat[tot_mask][~fitmask], tilts_fit[tot_mask][~fitmask], 'ro', mfc='None', markersize=7.0,
-                 markeredgewidth=1.0,
-        label='Rejected Points')
+        plt.plot(tilts_spat[tot_mask][fitmask], tilts_fit[tot_mask][fitmask], 'ks', mfc='None', markersize=5.0,
+                 markeredgewidth=0.5,label='Good Points')
+        plt.plot(tilts_spat[tot_mask][~fitmask], tilts_fit[tot_mask][~fitmask], 'rs', mfc='None', markersize=5.0,
+                 markeredgewidth=0.5,label='Rejected Points')
+        plt.xlabel('Spatial Pixel')
+        plt.ylabel('Spectral Pixel')
+        plt.title('Tilts vs Fit (spat_order, spec_order)=({:d},{:d}) for slit={:d}: RMS = {:5.3f}'.format(spat_order,
+                                                                                                          spec_order,slit,rms))
         plt.legend()
         plt.show()
 
@@ -532,9 +538,9 @@ def plot_tiltres(setup, mtilt, ytilt, yfit, slit=None, outfile=None, show_QA=Fal
     ax.text(0.90, 0.90, 'Slit {:d}:  RMS (pix) = {:0.5f}'.format(slit, rms),
             transform=ax.transAxes, size='large', ha='right', color='black')
     # Label
-    ax.set_xlabel('Row')
-    ax.set_ylabel('Residual (pix)')
-
+    ax.set_xlabel('Spectral Pixel')
+    ax.set_ylabel('RMS (pixels)')
+    ax.set_title('RMS of Each Arc Line Traced')
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     if show_QA:

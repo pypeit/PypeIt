@@ -39,7 +39,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['number'] = 1
 
         # Set wave tilts order
-        par['calibrations']['tilts']['spat_order'] = 2
+        par['calibrations']['tilts']['spat_order'] = 3
 
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
