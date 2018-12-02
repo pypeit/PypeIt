@@ -180,37 +180,44 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, tilt
         tilts_sub_fit_fw, tilts_sub_fw, tilts_sub_fw_err, tset_fw = extract.iter_tracefit(
             sub_img, tilts_guess_now, spat_order, inmask=sub_inmask, fwhm=fwhm, maxdev=maxdev, niter=6, idx=str(iline),
             show_fits=show_fits)
-        tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_gw_err, tset_gw = extract.iter_tracefit(
-            sub_img, tilts_sub_fit_fw, spat_order, inmask=sub_inmask, fwhm=fwhm, maxdev=maxdev, niter=3, idx=str(iline),
-            show_fits=show_fits)
+        tilts_sub_fit_gw = tilts_sub_fit_fw
+        tilts_sub_gw = tilts_sub_fw
+        tilts_sub_gw_err = tilts_sub_fw_err
+        ## TESTING!!!
+#        tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_gw_err, tset_gw = extract.iter_tracefit(
+#            sub_img, tilts_sub_fit_fw, spat_order, inmask=sub_inmask, fwhm=fwhm, maxdev=maxdev, niter=3, idx=str(iline),
+#            show_fits=show_fits)
         # Boxcar extract the thismask to have a mask indicating whether a tilt is defined along the spatial direction
         tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_gw, fwhm/2.0) > 0.99*fwhm)
         # Pack the results into arrays, accounting for possibly falling off the image
         # Deal with possibly falling off the chip
-        tilts_sub_dspat[:, iline] = tilts_dspat[spat_min[iline]:spat_max[iline],iline]
         if spat_min[iline] < 0:
-            tilts_sub[     -spat_min[iline]:,iline] = tilts_sub_gw.flatten()
-            tilts_sub_fit[ -spat_min[iline]:,iline] = tilts_sub_fit_gw.flatten()
-            tilts_sub_err[ -spat_min[iline]:,iline] = tilts_sub_gw_err.flatten()
-            tilts_sub_mask[-spat_min[iline]:,iline] = tilts_sub_mask_box
+            tilts_sub[      -spat_min[iline]:,iline] = tilts_sub_gw.flatten()
+            tilts_sub_fit[  -spat_min[iline]:,iline] = tilts_sub_fit_gw.flatten()
+            tilts_sub_err[  -spat_min[iline]:,iline] = tilts_sub_gw_err.flatten()
+            tilts_sub_mask[ -spat_min[iline]:,iline] = tilts_sub_mask_box
+            tilts_sub_dspat[-spat_min[iline]:,iline] = tilts_dspat[min_spat:max_spat,iline]
             tilts[     min_spat:max_spat,iline] = tilts_sub[     -spat_min[iline]:,iline]
             tilts_fit[ min_spat:max_spat,iline] = tilts_sub_fit[ -spat_min[iline]:,iline]
             tilts_err[ min_spat:max_spat,iline] = tilts_sub_err[ -spat_min[iline]:,iline]
             tilts_mask[min_spat:max_spat,iline] = tilts_sub_mask[-spat_min[iline]:,iline]
         elif spat_max[iline] > (nspat - 1):
-            tilts_sub[     :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_gw.flatten()
-            tilts_sub_fit[ :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_fit_gw.flatten()
-            tilts_sub_err[ :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_gw_err.flatten()
-            tilts_sub_mask[:-(spat_max[iline] - nspat + 1),iline] = tilts_sub_mask_box
+            tilts_sub[      :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_gw.flatten()
+            tilts_sub_fit[  :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_fit_gw.flatten()
+            tilts_sub_err[  :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_gw_err.flatten()
+            tilts_sub_mask[ :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_mask_box
+            tilts_sub_dspat[:-(spat_max[iline] - nspat + 1),iline] = tilts_dspat[min_spat:max_spat,iline]
+
             tilts[     min_spat:max_spat,iline] = tilts_sub[     :-(spat_max[iline] - nspat + 1),iline]
             tilts_fit[ min_spat:max_spat,iline] = tilts_sub_fit[ :-(spat_max[iline] - nspat + 1),iline]
             tilts_err[ min_spat:max_spat,iline] = tilts_sub_err[ :-(spat_max[iline] - nspat + 1),iline]
             tilts_mask[min_spat:max_spat,iline] = tilts_sub_mask[:-(spat_max[iline] - nspat + 1),iline]
         else:
-            tilts_sub[     :,iline] = tilts_sub_gw.flatten()
-            tilts_sub_fit[ :,iline] = tilts_sub_fit_gw.flatten()
-            tilts_sub_err[ :,iline] = tilts_sub_gw_err.flatten()
-            tilts_sub_mask[:,iline] = tilts_sub_mask_box
+            tilts_sub[      :,iline] = tilts_sub_gw.flatten()
+            tilts_sub_fit[  :,iline] = tilts_sub_fit_gw.flatten()
+            tilts_sub_err[  :,iline] = tilts_sub_gw_err.flatten()
+            tilts_sub_mask[ :,iline] = tilts_sub_mask_box
+            tilts_sub_dspat[:,iline] = tilts_dspat[min_spat:max_spat,iline]
             tilts[     min_spat:max_spat,iline] = tilts_sub[     :,iline]
             tilts_fit[ min_spat:max_spat,iline] = tilts_sub_fit[ :,iline]
             tilts_err[ min_spat:max_spat,iline] = tilts_sub_err[ :,iline]
@@ -370,6 +377,7 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
 
     import matplotlib as mpl
     from matplotlib.lines import Line2D
+    import itertools
 
     nspec = trc_tilt_dict['nspec']
     nspat = trc_tilt_dict['nspat']
@@ -380,8 +388,10 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
     nspat = trc_tilt_dict['nspat']
     use_tilt = trc_tilt_dict['use_tilt']                 # mask for good/bad tilts, based on aggregate fit, frac good pixels
     nuse = np.sum(use_tilt)
-    tilts = trc_tilt_dict['tilts'][:,use_tilt]           # gaussian weighted centroid
-    tilts_fit = trc_tilt_dict['tilts_fit'][:,use_tilt]   # legendre polynomial fit
+#    tilts = trc_tilt_dict['tilts'][:,use_tilt]           # gaussian weighted centroid
+#   TeSTING!!!
+    tilts_fit = trc_tilt_dict['tilts'][:,use_tilt]   # legendre polynomial fit
+#    tilts_fit = trc_tilt_dict['tilts_fit'][:,use_tilt]   # legendre polynomial fit
     tilts_err = trc_tilt_dict['tilts_err'][:,use_tilt]   # gaussian weighted centroidding error
     tilts_dspat = trc_tilt_dict['tilts_dspat'][:,use_tilt] # spatial offset from the central trace
     tilts_spec = trc_tilt_dict['tilts_spec'][:,use_tilt] # line_spec spectral pixel position
@@ -428,9 +438,10 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
     # These are locations that were fit but were rejected
     rej_mask = tot_mask & np.invert(fitmask)
 
-    # TODO: Make this a part of the standard QA and write to a file
+    # TODO: Make these plots a part of the standard QA and write to a file
     if debug:
 
+        # QA1
         xmin = 1.1*tilts_dspat[tot_mask].min()
         xmax = 1.1*tilts_dspat[tot_mask].max()
 
@@ -454,6 +465,10 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
                      'RMS/FWHM={:5.3f}'.format(spat_order,spec_order,slit,rms, rms/fwhm),fontsize=15)
         plt.show()
 
+        # QA2
+        marker_tuple = ('o', 'v', '<', '>', '8', 's', 'p', 'P', '*', 'X', 'D', 'd', 'x')
+        marker = itertools.cycle(marker_tuple)
+
         # Show the fit residuals as a function of spatial position
         line_indx = np.outer(np.ones(nspat), np.arange(nuse))
         lines_spec = tilts_spec[0,:]
@@ -468,15 +483,16 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
             iall = (line_indx == iline) & tot_mask
             irej = (line_indx == iline) & tot_mask & rej_mask
             this_color = cmap(iline)
+            this_marker = next(marker)
             # plot the residuals
             ax.plot(tilts_dspat[iall], (tilts_fit[iall] - tilts_spec[iall]) - delta_spec_fit[iall], color=this_color,
-                    linewidth=2, linestyle='-')
+                    linestyle=' ', marker=this_marker, mfc=this_color, markersize=5.0, alpha=0.7)
             ax.plot(tilts_dspat[irej],(tilts_fit[irej] - tilts_spec[irej]) - delta_spec_fit[irej],linestyle=' ',
-                    marker='o', color = 'limegreen', mfc='limegreen', markersize=5.0)
+                    marker=this_marker, color = 'limegreen', mfc='limegreen', markersize=5.0, alpha=0.7)
 
         ax.hlines(0.0, xmin, xmax, linestyle='--', linewidth=2.0, color='k', zorder=10)
 
-        legend_elements = [Line2D([0], [0], color='cornflowerblue', linewidth=3, linestyle='-', label='residual'),
+        legend_elements = [Line2D([0], [0], color='cornflowerblue', linestyle=' ', marker='s', mfc='cornflowerblue', markersize=5.0, label='residual'),
                            Line2D([0], [0], color='limegreen', linestyle=' ', marker='o', mfc='limegreen', markersize=7.0, label='rejected')]
 
         ax.set_xlim((xmin,xmax))

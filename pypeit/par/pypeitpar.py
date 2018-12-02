@@ -1546,7 +1546,7 @@ class WaveTiltsPar(ParSet):
                               '2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the' \
                               'slit/order. This can be a single number or a list/array providing the value for each slit'
 
-        defaults['spec_order'] = 4
+        defaults['spec_order'] = 5
         dtypes['spec_order'] = [int, float, list, numpy.ndarray]
         descr['spec_order'] = 'Order of the spectral direction of the 2d legendre polynomial (spatial, spectral) that is ' \
                               'fit to obtain a global solution for the tilts across the slit/order. ' \
@@ -1557,7 +1557,7 @@ class WaveTiltsPar(ParSet):
         dtypes['func2d'] = str
         descr['func2d'] = 'Type of function for 2D fit'
 
-        defaults['maxdev2d'] = 0.2
+        defaults['maxdev2d'] = 0.25
         dtypes['maxdev2d'] = [int, float]
         descr['maxdev2d'] = 'Maximum absolute deviation (in units of fwhm) rejection threshold used to determines which pixels in global 2d fits to ' \
                             'arc line tilts are rejected because they deviate from the model by more than this value'
