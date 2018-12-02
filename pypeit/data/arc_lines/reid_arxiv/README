@@ -1,0 +1,20 @@
+
+
+
+NIRES
+-----------
+keck_nires.json is based on holy-grail applies to this frame:
+|     filename         |                  date | frametype      |      target | exptime |
+| s180604_0089.fits.gz | 2018-06-0412:56:12.38 |    science,arc |  J1724+1901 |   300.0 |
+
+Created with Holy Grail, sigdetect = 5.0, and line list OH_NIRES
+
+
+
+
+X-shooter
+---------
+| XSHOO.2016-08-02T09:32:03.463.fits.gz | 2016-08-02T09:32:03.463 | science,arc     | J0100     |   900.0 |
+
+Created with sigdetect = 5.0. Line identifications were first done in IRAF by E. Farina to create vlt_xshooter_nir_iraf.json,
+then this database was used to reidentify the above frame, and was archived. 

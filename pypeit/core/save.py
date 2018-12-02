@@ -543,7 +543,7 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
                       format='ascii.fixed_width', overwrite=True)
 
 
-def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
+def save_2d_images(sci_output, rawfile, ext0, setup, mfdir,
                    outdir, basename, clobber=True, update_det=None):
     """ Write 2D images to the hard drive
 
@@ -565,9 +565,7 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
     hdus, prihdu = init_hdus(update_det, outfile)
     if hdus is None:
         # Original header
-        path = fitstbl['directory'][scidx]
-        ifile = fitstbl['filename'][scidx]
-        head0 = fits.getheader(os.path.join(path, ifile), ext=ext0)
+        head0 = fits.getheader(rawfile, ext=ext0)
 
         # Primary HDU for output
         prihdu = fits.PrimaryHDU()

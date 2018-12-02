@@ -28,6 +28,14 @@ class KeckTelescopePar(TelescopePar):
                                                fratio=15,
                                                diameter=10)
 
+class MagellanTelescopePar(TelescopePar):
+    def __init__(self):
+        super(MagellanTelescopePar, self).__init__(name='MAGELLAN',
+                                               longitude=70.6858,
+                                               latitude=-29.0283,
+                                               elevation=2516.0,
+                                               diameter=6.5)
+
 class ShaneTelescopePar(TelescopePar):
     def __init__(self):
         super(ShaneTelescopePar, self).__init__(name='SHANE',

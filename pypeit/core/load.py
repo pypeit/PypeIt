@@ -16,6 +16,7 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit import debugger
+from pypeit.core import parse
 
 def load_extraction(name, frametype='<None>', wave=True):
     msgs.info('Loading a pre-existing {0} extraction frame:'.format(frametype)
@@ -199,6 +200,22 @@ def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
     spec = XSpectrum1D.from_file(fname, exten=exten, **rsp_kwargs)
     # Return
     return spec
+
+def load_std_trace(spec1dfile, det):
+
+    sdet = parse.get_dnum(det, prefix=False)
+    hdulist_1d = fits.open(spec1dfile)
+    det_nm = 'DET{:s}'.format(sdet)
+    for hdu in hdulist_1d:
+        if det_nm in hdu.name:
+            tbl = Table(hdu.data)
+            # TODO what is the data model for echelle standards? This routine needs to distinguish between echelle and longslit
+            from IPython import embed
+            embed()
+            trace = tbl['TRACE']
+
+    return trace
+
 
 def waveids(fname):
     infile = fits.open(fname)

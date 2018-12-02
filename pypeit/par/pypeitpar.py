@@ -272,7 +272,7 @@ class ProcessImagesPar(ParSet):
         dtypes['rmcompact'] = bool
         descr['rmcompact'] = 'Remove compact detections in LA cosmics routine'
 
-        defaults['sigclip'] = 5.0
+        defaults['sigclip'] = 4.5
         dtypes['sigclip'] = [int, float]
         descr['sigclip'] = 'Sigma level for rejection in LA cosmics routine'
 
@@ -280,7 +280,7 @@ class ProcessImagesPar(ParSet):
         dtypes['sigfrac'] = [int, float]
         descr['sigfrac'] = 'Fraction for the lower clipping threshold in LA cosmics routine.'
 
-        defaults['objlim'] = 5.0
+        defaults['objlim'] = 3.0
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
@@ -979,10 +979,12 @@ class ReducePar(ParSet):
         # to be redefined here.   To fix this, spectrograph specific
         # parameter sets (like DetectorPar) and where they go needs to
         # be rethought.
-        return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
-                'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
-                'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 
-                'vlt_xshooter_nir', 'gemini_gmos_south', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham']
+        return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires',
+                'keck_hires_red', 'keck_hires_blue', 'mmt_binospec',
+                'keck_nirspec_low', 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret',
+                'tng_dolores', 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
+                'magellan_fire', 'magellan_mage', 'vlt_xshooter_nir', 'gemini_gmos_south',
+                'gemini_gmos_north_e2v', 'gemini_gmos_north_ham']
 
     def validate(self):
         pass
@@ -996,10 +998,13 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, reference=None, method=None, lamps=None, rms_threshold=None, nonlinear_counts = None,
-                 match_toler=None, func=None, n_first=None, n_final =None, sigrej_first=None, sigrej_final=None,
-                 wv_cen = None, disp = None,
-                 numsearch=None,nfitpix=None, IDpixels=None, IDwaves=None, medium=None, frame=None, min_nsig=None, lowest_nsig=None):
+    def __init__(self, reference=None, method=None,
+                 echelle = None, ech_fix_format = None, ech_nspec_coeff = None, ech_norder_coeff = None, ech_sigrej = None,
+                 lamps=None, nonlinear_counts = None,
+                 sigdetect=None, reid_arxiv = None, nreid_min = None, cc_thresh = None, cc_local_thresh = None,
+                 nlocal_cc = None, rms_threshold=None,match_toler=None, func=None, n_first=None, n_final =None,
+                 sigrej_first=None, sigrej_final=None,wv_cen=None, disp=None,numsearch=None,nfitpix=None, IDpixels=None,
+                 IDwaves=None, medium=None, frame=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1014,6 +1019,8 @@ class WavelengthSolutionPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+
+        # TODO JFH Does sky actually do anything?
         # TODO: Only test for 'pixel' is ever used. I.e. 'arc' or 'sky'
         # does not make a difference.
         defaults['reference'] = 'arc'
@@ -1022,14 +1029,41 @@ class WavelengthSolutionPar(ParSet):
         descr['reference'] = 'Perform wavelength calibration with an arc, sky frame.  Use ' \
                              '\'pixel\' for no wavelength solution.'
 
-        defaults['method'] = 'arclines'
+        defaults['method'] = 'holy-grail'
         options['method'] = WavelengthSolutionPar.valid_methods()
         dtypes['method'] = str
-        descr['method'] = 'Method to use to fit the individual arc lines.  ' \
-                          '\'fit\' is likely more accurate, but \'simple\' uses a polynomial ' \
-                          'fit (to the log of a gaussian) and is fast and reliable.  ' \
-                          '\'arclines\' uses the arclines python package.' \
-                          'Options are: {0}'.format(', '.join(options['method']))
+        descr['method'] = 'Method to use to fit the individual arc lines. Most of these methods are now deprecated ' \
+                          'as they fail most of the time without significant parameter tweaking. ' \
+                          '\'holy-grail\' attempts to get a first guess at line IDs by looking for patterns in the ' \
+                          'line locations. It is fully automated and works really well excpet for when it does not' \
+                          '\'reidentify\' is now the preferred method, however it requires that an archive of ' \
+                          'wavelength solution has been constructed for your instrument/grating combination'' \
+                          ''Options are: {0}'.format(', '.join(options['method']))
+#        descr['method'] = 'Method to use to fit the individual arc lines.  ' \
+#                          '\'fit\' is likely more accurate, but \'simple\' uses a polynomial ' \
+#                          'fit (to the log of a gaussian) and is fast and reliable.  ' \
+#                          '\'arclines\' uses the arclines python package.' \
+#                          'Options are: {0}'.format(', '.join(options['method']))
+
+        # Echelle wavelength calibration stuff
+        defaults['echelle'] = False
+        dtypes['echelle'] = bool
+        descr['echelle'] = 'Is this an echelle spectrograph? If yes an additional 2-d fit wavelength fit will be performed as a function ' \
+                           'of spectral pixel and order number to improve the wavelength solution'
+
+        defaults['ech_nspec_coeff'] = 4
+        dtypes['ech_nspec_coeff'] = int
+        descr['ech_nspec_coeff'] = 'For echelle spectrographs, order of the final 2d fit to the spectral dimension. ' \
+                                   'You should choose this to be the n_final of the fits to the individual orders.'
+
+        defaults['ech_norder_coeff'] = 4
+        dtypes['ech_norder_coeff'] = int
+        descr['ech_norder_coeff'] = 'For echelle spectrographs, order of the final 2d fit to the order dimension.'
+
+        defaults['ech_sigrej'] = 2.0
+        dtypes['ech_sigrej'] = [int,float]
+        descr['ech_sigrej'] = 'For echelle spectrographs sigma clipping rejection threshold in 2d fit to spectral and order dimensions'
+
 
         # TODO: These needs to be tidied up so we can check for valid lamps. Right now I'm not checking.
         # Force lamps to be a list
@@ -1045,29 +1079,72 @@ class WavelengthSolutionPar(ParSet):
 
         # ToDo Should this be in counts or ADU? Currently the arcs are in ADU (which actually sort of makes sense here) but the
         # name of the parameter is counts. Perhaps we should just change this to nonlinear_adu or something to avoid confusion.
+
+        # These are the parameters used for arc line detection
         defaults['nonlinear_counts'] = 1e10
         dtypes['nonlinear_counts'] = float
         descr['nonlinear_counts'] = 'Arc lines above this saturation threshold are not used in wavelength solution fits because they cannot' \
                                     'be accurately centroided'
 
-        defaults['rms_threshold'] = 0.15
-        dtypes['rms_threshold'] = float
-        descr['rms_threshold'] = 'Minimum RMS for keeping a slit solution'
+        defaults['sigdetect'] = 5.
+        dtypes['sigdetect'] = [int, float]
+        descr['sigdetect'] = 'Detection threshold for arc lines'
 
-        defaults['min_nsig'] = 10.
-        dtypes['min_nsig'] = float
-        descr['min_nsig'] = 'Detection threshold for arc lines for "standard" lines'
+        # These are the parameters used for reidentification
+        defaults['reid_arxiv']=None
+        dtypes['reid_arxiv'] = str
+        descr['reid_arxiv'] = 'Name of the archival wavelength solution file that will be used for the wavelength ' \
+                              'reidentification if the wavelength solution method = reidentify'
 
-        defaults['lowest_nsig'] = 5.
-        dtypes['lowest_nsig'] = float
-        descr['lowest_nsig'] = 'Detection threshold for arc lines for "weakest" lines'
+        defaults['nreid_min'] = 1
+        dtypes['nreid_min'] = int
+        descr['nreid_min'] = 'Minimum number of times that a given candidate reidentified line must be properly matched ' \
+                             'with a line in the arxiv to be considered a good reidentification. If there is a lot of ' \
+                             'duplication in the arxiv of the spectra in question (i.e. multislit) set this to a number ' \
+                             'like 1-4. For echelle this depends on the number of solutions in the arxiv. For fixed format ' \
+                             'echelle (ESI, X-SHOOTER, NIRES) set this 1. For an echelle with a tiltable grating, it will ' \
+                             'depend on the number of solutions in the arxiv.'
+
+        defaults['cc_thresh'] = 0.80
+        dtypes['cc_thresh'] = float
+        descr['cc_thresh'] = 'Threshold for the *global* cross-correlation coefficient between an input spectrum and member ' \
+                             'of the archive required to attempt reidentification. Spectra from the archive with a lower ' \
+                             'cross-correlation are not used for reidentification'
+
+        defaults['cc_local_thresh'] = 0.80
+        dtypes['cc_local_thresh'] = float
+        descr['cc_local_thresh'] = 'Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  ' \
+                                   'between an input spectrum and the shifted and stretched archive spectrum above which a ' \
+                                   'line must be to be considered a good line for reidentification. The local cross-correlation ' \
+                                   'is evaluated at each candidate reidentified line (using a window of nlocal_cc), and is then ' \
+                                   'used to score the the reidentified lines to arrive at the final set of good reidentifications'
+
+        defaults['nlocal_cc'] = 11
+        dtypes['nlocal_cc'] = int
+        descr['nlocal_cc'] = 'Size of pixel window used for local cross-correlation computation for each arc line. If not ' \
+                             'an odd number one will be added to it to make it odd.'
+
+        defaults['ech_fix_format'] = True
+        dtypes['ech_fix_format'] = bool
+        descr['ech_fix_format'] = 'Is this a fixed format echelle like ESI, X-SHOOTER, or NIRES. If so reidentification ' \
+                                  'will assume that each order in the data is aligned with a single order in the reid arxiv'
+
+
+
 
         # These are the parameters used for the iterative fitting of the arc lines
-        defaults['match_toler'] = 3.0
+        defaults['rms_threshold'] = 0.15
+        dtypes['rms_threshold'] = float
+        descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution'
+
+        defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
-        descr['match_toler'] = 'Matching tolerance when searching for new lines in iterative fitting of wavelength solution.' \
-                               'This is the difference in pixels between the wavlength assigned to an arc line by an iteration of ' \
-                               'the wavelength solution to the wavelength in the line list.'
+        descr['match_toler'] = 'Matching tolerance in pixels when searching for new lines. This is the difference ' \
+                               'in pixels between the wavlength assigned to an arc line by an iteration of the wavelength ' \
+                               'solution to the wavelength in the line list. This parameter is also used as the matching ' \
+                               'tolerance in pixels for a line reidentification. A good line match must match within this ' \
+                               'tolerance to the shifted and stretched archive spectrum, and the archive wavelength ' \
+                               'solution at this match must be within match_toler dispersion elements from the line in line list.'
 
         defaults['func'] = 'legendre'
         dtypes['func'] = str
@@ -1089,6 +1166,7 @@ class WavelengthSolutionPar(ParSet):
         dtypes['sigrej_final'] = float
         descr['sigrej_final'] = 'Number of sigma for rejection for the final guess to the wavelength solution.'
 
+        # TODO: Not used
         # Backwards compatibility with basic and semi_brute algorithms
         defaults['wv_cen'] = 0.0
         dtypes['wv_cen'] = float
@@ -1099,7 +1177,6 @@ class WavelengthSolutionPar(ParSet):
         descr['disp'] = 'Dispersion. Backwards compatibility with basic and semi-brute algorithms.'
 
 
-        # TODO: Not used
         defaults['numsearch'] = 20
         dtypes['numsearch'] = int
         descr['numsearch'] = 'Number of brightest arc lines to search for in preliminary ' \
@@ -1130,6 +1207,12 @@ class WavelengthSolutionPar(ParSet):
         descr['frame'] = 'Frame of reference for the wavelength calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['frame']))
 
+        # This is now defunct
+        #defaults['min_nsig'] = 10.
+        #dtypes['min_nsig'] = float
+        #descr['min_nsig'] = 'Detection threshold for arc lines for "standard" lines'
+
+
 
         # Instantiate the parameter set
         super(WavelengthSolutionPar, self).__init__(list(pars.keys()),
@@ -1143,10 +1226,12 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'reference', 'method', 'lamps', 'rms_threshold', 'nonlinear_counts', 'match_toler', 'func', 'n_first',
-                    'n_final', 'sigrej_first', 'sigrej_final',
-                    'wv_cen', 'disp', 'numsearch', 'nfitpix',
-                    'IDpixels', 'IDwaves', 'medium', 'frame', 'min_nsig', 'lowest_nsig']
+        parkeys = [ 'reference', 'method',
+                    'echelle', 'ech_fix_format', 'ech_nspec_coeff', 'ech_norder_coeff', 'ech_sigrej',
+                    'lamps', 'nonlinear_counts', 'sigdetect',
+                    'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh', 'nlocal_cc',
+                    'rms_threshold', 'match_toler', 'func', 'n_first','n_final', 'sigrej_first', 'sigrej_final',
+                    'wv_cen', 'disp', 'numsearch', 'nfitpix','IDpixels', 'IDwaves', 'medium', 'frame']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1164,7 +1249,7 @@ class WavelengthSolutionPar(ParSet):
         """
         Return the valid wavelength solution methods.
         """
-        return [ 'simple', 'fit', 'arclines' ]
+        return [ 'simple', 'semi-brute', 'basic','holy-grail', 'reidentify']
 
     @staticmethod
     def valid_lamps():
@@ -2558,7 +2643,7 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT' ]
+        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN' ]
 
     def validate(self):
         pass

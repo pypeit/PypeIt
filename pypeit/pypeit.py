@@ -10,6 +10,7 @@ import datetime
 import numpy as np
 from collections import OrderedDict
 
+from astropy.time import Time
 from pypeit import msgs
 from pypeit import pypeitsetup
 from pypeit import calibrations
@@ -177,18 +178,31 @@ class PypeIt(object):
         qa.gen_mf_html(self.pypeit_file)
         qa.gen_exp_html()
 
+
     def calibrate_one(self, sci_ID, det):
         """
-        Dummy method.  Set in a child
+        Calibrate a science exposure / detector pair
 
         Args:
-            sci_ID:
-            det:
+            sci_ID: int
+              binary flag indicating the science frame
+            det: int
+              detector number
 
         Returns:
 
         """
-        assert False
+        # Setup
+        self.setup, self.setup_dict = pypsetup.instr_setup(sci_ID, det, self.fitstbl,
+                                                           setup_dict=self.setup_dict,
+                                                           must_exist=True)
+        # Setup
+        self.caliBrate.reset(self.setup, det, sci_ID, self.par['calibrations'])
+        # Run em
+        self.caliBrate.run_the_steps()
+
+        msgs.info("Successful Calibration!")
+
 
     def _chk_for_std(self):
         # Can only reduce these frames if the mask is the same
@@ -264,7 +278,8 @@ class PypeIt(object):
                 for key in ['ra', 'dec', 'airmass', 'exptime']:
                     std_header[key.upper()] = self.fitstbl[std_idx][key]
                 # Go
-                FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs.specobjs, spectrograph=self.spectrograph, setup=self.setup, master_dir=self.caliBrate.master_dir, std_header=std_header, mode=self.par['calibrations']['masters'])
+                FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs.specobjs, spectrograph=self.spectrograph,
+                                           setup=self.setup, master_dir=self.caliBrate.master_dir, std_header=std_header, mode=self.par['calibrations']['masters'])
                 sens_dict = FxSpec.get_sens_dict(self.fitstbl[std_idx])
             else:
                 # User provided it
@@ -429,7 +444,8 @@ class PypeIt(object):
         save.save_obj_info(all_specobjs, self.fitstbl, self.spectrograph, basename,
                            os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir']))
         # Write 2D images for the Science Frame
-        save.save_2d_images(s_dict, self.fitstbl, sidx, self.spectrograph.primary_hdrext,
+        rawfile = os.path.join(self.fitstbl['directory'][sidx], self.fitstbl['filename'][sidx]) # Need the rawfile header
+        save.save_2d_images(s_dict, rawfile, self.spectrograph.primary_hdrext,
                             self.setup, self.caliBrate.master_dir,
                             os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir']),
                             basename, update_det=self.par['rdx']['detnum'])
@@ -453,14 +469,24 @@ class PypeIt(object):
         """
         assert False
 
-    def _init_calibrations(self):
-        """
-        Dummy method for instantiating a Calibration class
+# This is no longer required
 
-        Returns:
+#    def _init_calibrations(self):
+#        """
+#        Instantiate the Calibrations class
+#        Returns:
+#
+#        """
+#        # TODO -- Need to make save_masters and write_qa optional
+#        # Init calib dict
+#        self.caliBrate \
+#                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
+#                                                     par=self.par['calibrations'],
+#                                                     redux_path=self.par['rdx']['redux_path'],
+#                                                     save_masters=True, write_qa=True,
+#                                                     show=self.show)
 
-        """
-        pass
+
 
     def init_one_science(self, sci_ID, det):
         """
@@ -482,15 +508,70 @@ class PypeIt(object):
         sci_image_files = self.fitstbl.find_frame_files('science', sci_ID=sci_ID)
         scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
         self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
+                                              binning = self.fitstbl['binning'][scidx],
                                               objtype='science', scidx=scidx, setup=self.setup,
                                               par=self.par['scienceimage'],
                                               frame_par=self.par['scienceframe'])
         msgs.sciexp = self.sciI  # For QA on crash
 
         # Names and time
-        self.obstime, self.basename = self.sciI.init_time_names(self.fitstbl)
+        self.obstime, self.basename = self.init_time_names(self.fitstbl, scidx)
         # Return
         return self.obstime, self.basename  # For fluxing
+
+    # Move out of the scienceimage class to here. It is more appropriate here where fitstable exists
+    def init_time_names(self, fitstbl, scidx):
+        """
+        Setup the basename (for file output mainly)
+        and time objects (for heliocentric)
+
+        Parameters
+        ----------
+        camera : str
+          Taken from settings['mosaic']['camera']
+        timeunit : str
+          mjd
+
+        Returns
+        -------
+        self.time : Time
+        self.basename : str
+
+        """
+
+        timeunit = self.spectrograph.timeunit
+        camera = self.spectrograph.camera
+
+        self.fitstbl = fitstbl
+
+        # TODO: Given that we just read the file header to get the
+        # datasec_img in the init function above, I don't see why I need
+        # to access the fits table for exptime and binning. This
+        # information is also in the headers. By simply pulling the
+        # stuff from the header, we would remove the fitstbl entirely.
+        # Another option would be to put the datasec_img stuff in the
+        # fitstbl for each detector
+        self.exptime = self.fitstbl['exptime'][scidx]
+        self.binning = self.fitstbl['binning'][scidx]
+
+        # This should have been set when we construct the fitstbl
+        try:
+            tval = Time(fitstbl['time'][scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
+        except:
+            debugger.set_trace()
+
+        # Time
+        tiso = Time(tval, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
+        dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
+        self.time = tval
+        # Basename
+        self.inst_name = camera
+        self.target_name = self.fitstbl['target'][scidx].replace(" ", "")
+        self.basename = self.target_name+'_'+self.inst_name+'_'+ \
+                         datetime.datetime.strftime(dtime, '%Y%b%dT') + \
+                         tiso.value.split("T")[1].replace(':','')
+        # Return
+        return self.time, self.basename
 
 
     def init_setup(self, pypeit_file, redux_path=None, calibration_check=True):
@@ -528,7 +609,13 @@ class PypeIt(object):
                         self.par['rdx']['scidir'], self.par['rdx']['qadir'],
                         overwrite=self.overwrite, redux_path=self.par['rdx']['redux_path'])
         # Instantiate Calibration class
-        self._init_calibrations()
+        self.caliBrate \
+                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
+                                                     par=self.par['calibrations'],
+                                                     redux_path=self.par['rdx']['redux_path'],
+                                                     save_masters=True, write_qa=True,
+                                                     show=self.show)
+        #self._init_calibrations()
 
     def _make_setup_pypeit_file(self, files_root, extension='.fits', overwrite=False):
         """
@@ -680,47 +767,6 @@ class MultiSlit(PypeIt):
     def __init__(self, spectrograph, **kwargs):
         super(MultiSlit, self).__init__(spectrograph, **kwargs)
 
-    def calibrate_one(self, sci_ID, det):
-        """
-        Calibrate a science exposure / detector pair
-
-        Args:
-            sci_ID: int
-              binary flag indicating the science frame
-            det: int
-              detector number
-
-        Returns:
-
-        """
-        # Setup
-        self.setup, self.setup_dict = pypsetup.instr_setup(sci_ID, det, self.fitstbl,
-                                                           setup_dict=self.setup_dict,
-                                                           must_exist=True)
-        # Setup
-        self.caliBrate.reset(self.setup, det, sci_ID, self.par['calibrations'])
-        # Run em
-        self.caliBrate.run_the_steps()
-
-        msgs.info("Successful Calibration!")
-
-    def _init_calibrations(self):
-        """
-        Instantiate the Calibrations class
-
-        Returns:
-
-        """
-        # TODO -- Need to make save_masters and write_qa optional
-        # Init calib dict
-        self.caliBrate \
-                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
-                                                     par=self.par['calibrations'],
-                                                     redux_path=self.par['rdx']['redux_path'],
-                                                     save_masters=True, write_qa=True,
-                                                     show=self.show)
-
-
     def _extract_one(self, std=False):
         """
         Extract a single exposure/detector pair
@@ -758,10 +804,11 @@ class MultiSlit(PypeIt):
             # frames.  Should these be different for the standards?
             self.stdI = scienceimage.ScienceImage(self.spectrograph, file_list=std_image_files,
                                           frame_par=self.par['calibrations']['standardframe'],
-                                          det=self.det, setup=self.setup, scidx=self.std_idx,
+                                          det=self.det, binning = self.fitstbl['binning'][self.std_idx],
+                                          setup=self.setup, scidx=self.std_idx,
                                           objtype='standard', par=self.par['scienceimage'])
             # Names and time
-            _, self.std_basename = self.stdI.init_time_names(self.fitstbl)
+            _, self.std_basename = self.init_time_names(self.fitstbl,self.std_idx)
             #
             sciI = self.stdI
         else:
@@ -784,7 +831,7 @@ class MultiSlit(PypeIt):
         # finding
         global_sky0 = sciI.global_skysub(self.caliBrate.tslits_dict,
                                          self.caliBrate.tilts_dict['tilts'],
-                                         use_skymask=True, maskslits=maskslits, show=self.show)
+                                         use_skymask=True,maskslits=maskslits, show=self.show)
 
         # Object finding, second pass on frame *with* sky subtraction.
         # Show here if requested
@@ -797,9 +844,8 @@ class MultiSlit(PypeIt):
                       + self.fitstbl['filename'][self.sciI.scidx])
                 return
             # Extract
-            skymodel, objmodel, ivarmodel, outmask, sobjs = self.stdI.local_skysub_extract(
-                self.caliBrate.mswave, maskslits=maskslits,
-                show_profile=self.show, show=self.show)
+            skymodel, objmodel, ivarmodel, outmask, sobjs = self.stdI.local_skysub_extract(sobjs_obj,
+                self.caliBrate.mswave, maskslits=maskslits,show_profile=self.show, show=self.show)
 
             # Save for fluxing and output later
             self.std_dict[self.std_idx][self.det] = {}
@@ -818,7 +864,281 @@ class MultiSlit(PypeIt):
                                             maskslits=maskslits, show=self.show)
 
             skymodel, objmodel, ivarmodel, outmask, sobjs \
-                    = sciI.local_skysub_extract(self.caliBrate.mswave, maskslits=maskslits,
+                    = sciI.local_skysub_extract(sobjs_obj, self.caliBrate.mswave, maskslits=maskslits,
+                                                show_profile=self.show, show=self.show)
+
+            # Flexure correction?
+            if self.par['flexure']['method'] != 'skip':
+                sky_file, sky_spectrum = self.spectrograph.archive_sky_spectrum()
+                flex_list = wave.flexure_obj(sobjs, maskslits, self.par['flexure']['method'],
+                                             sky_spectrum, sky_file=sky_file,
+                                             mxshft=self.par['flexure']['maxshift'])
+                # QA
+                wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list,
+                                out_dir=self.par['rdx']['redux_path'])
+
+            # Helio
+            # Correct Earth's motion
+            # vel_corr = -999999.9
+            if (self.caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
+                    and (self.caliBrate.par['wavelengths']['reference'] != 'pixel'):
+                if sobjs is not None:
+                    msgs.info("Performing a {0} correction".format(
+                                                    self.caliBrate.par['wavelengths']['frame']))
+
+                    vel, vel_corr \
+                            = wave.geomotion_correct(sobjs, maskslits, self.fitstbl, self.sciI.scidx,
+                                                     self.obstime,
+                                                     self.spectrograph.telescope['longitude'],
+                                                     self.spectrograph.telescope['latitude'],
+                                                     self.spectrograph.telescope['elevation'],
+                                                     self.caliBrate.par['wavelengths']['frame'])
+                else:
+                    msgs.info('There are no objects on detector {0} to perform a '.format(self.det)
+                              + '{1} correction'.format(self.caliBrate.par['wavelengths']['frame']))
+            else:
+                msgs.info('A wavelength reference-frame correction will not be performed.')
+
+        else:
+            msgs.warn('No objects to extract for science frame' + msgs.newline()
+                      + self.fitstbl['filename'][self.sciI.scidx])
+            # set to first pass global sky
+            skymodel = global_sky0
+            objmodel = np.zeros_like(sciimg)
+            # Set to sciivar. Could create a model but what is the point?
+            ivarmodel = np.copy(sciivar)
+            # Set to inmask in case on objects were found
+            outmask = sciI.mask
+            # empty specobjs object from object finding
+            sobjs = sobjs_obj
+
+        return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
+
+    def _extract_std(self):
+        self._extract_one(std=True)
+
+    # THESE ARENT USED YET BUT WE SHOULD CONSIDER IT
+    @staticmethod
+    def default_sci_find_obj_steps():
+        return ['process', 'find_objects', 'global_skysub', 'find_objects']
+
+    @staticmethod
+    def default_std_find_obj_steps():
+        return ['process', 'global_skysub', 'find_objects']
+
+
+
+class Echelle(PypeIt):
+    """
+    Child of PypeIt for Multislit and Longslit reductions
+
+    """
+    def __init__(self, spectrograph, **kwargs):
+        super(Echelle, self).__init__(spectrograph, **kwargs)
+
+    # JFH This should replace the init_one_science above in Multislit, i.e. it should be in the PypeIt parent
+    # class
+    def init_one_science(self, sci_ID, frametype, det):
+         """
+         Instantiate ScienceImage class and run the first step with it
+
+         Args:
+             sci_ID: int
+               binary flag indicating the science frame
+             det: int
+               detector index
+
+         Returns:
+             self.obstime : Time
+             self.basename : str
+         """
+         self.sci_ID = sci_ID
+         self.det = det
+
+         sci_image_files = self.fitstbl.find_frame_files(frametype, sci_ID=sci_ID)
+         scidx = self.fitstbl.find_frames(frametype, sci_ID=sci_ID, index=True)[0]
+         self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
+                                               binning=self.fitstbl['binning'][scidx],
+                                               objtype=frametype, scidx=scidx, setup=self.setup,
+                                               par=self.par['scienceimage'],
+                                               frame_par=self.par['scienceframe'])
+         msgs.sciexp = self.sciI  # For QA on crash
+
+         # Names and time
+         self.obstime, self.basename = self.init_time_names(self.fitstbl,scidx)
+         # Return
+         return self.obstime, self.basename  # For fluxing
+
+    # JFH This should be moved to PypeIt
+    def reduce_all(self, reuse_masters=False):
+        """
+        Reduce all of the science exposures
+        Generate all needed calibration files
+
+        Args:
+            reuse_masters (:obj:`bool`, optional):
+                Use the master frames if available (same as setting
+                par['calibrations']['masters'] = 'reuse'.
+
+        Returns:
+
+        """
+
+        self.tstart = time.time()
+
+        # Science IDs are in a binary system: 1,2,4,8, etc.
+        all_sci_ID = self.fitstbl['sci_ID'][self.fitstbl.find_frames('science')]
+        numsci = len(all_sci_ID)
+
+        # Grab the standards
+        all_std_ID = self.fitstbl['sci_ID'][self.fitstbl.find_frames('standard')]
+        numstd = len(all_std_ID)
+
+        # Check par
+        required = ['rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib']
+        can_be_None = ['flexure', 'fluxcalib']
+        self.par.validate_keys(required=required, can_be_None=can_be_None)
+
+
+        # Reduce the standards first
+        for kk, std_ID in enumerate(all_std_ID):
+            std_dict = self.reduce_exposure(std_ID, 'standard', reuse_masters=reuse_masters)
+            stddx = self.fitstbl.find_frames('standard', sci_ID=std_ID, index=True)[0]
+            self.save_exposure(stddx, std_dict, self.basename)
+
+        # Save
+        for kk,sci_ID in enumerate(all_sci_ID):
+            sci_dict = self.reduce_exposure(sci_ID, 'science', reuse_masters=reuse_masters)
+            scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
+            self.save_exposure(scidx, sci_dict, self.basename)
+
+        # Finish
+        self.print_end_time()
+
+    # JFH This simpler reduce_exposure should be moved to PypeIt
+    def reduce_exposure(self, sci_ID, frametype, reuse_masters=False):
+        """
+        Reduce a single science exposure
+
+        Args:
+            sci_ID: int
+              binary flag indicating the science frame
+            reuse_masters: bool, optional
+              Reuse MasterFrame files (where available)
+
+
+        Returns:
+            sci_dict: dict
+              dict containing the primary outputs of extraction
+
+        """
+        self.sci_ID = sci_ID
+
+        # Insist on re-using MasterFrames where applicable
+        if reuse_masters:
+            self.par['calibrations']['masters'] = 'reuse'
+
+        sci_dict = OrderedDict()  # This needs to be ordered
+        sci_dict['meta'] = {}
+        sci_dict['meta']['vel_corr'] = 0.
+        #
+        scidx = self.fitstbl.find_frames(frametype, sci_ID=sci_ID, index=True)[0]
+        msgs.info("Reducing file {0:s}, target {1:s}".format(self.fitstbl['filename'][scidx],
+                                                             self.fitstbl['target'][scidx]))
+        # Loop on Detectors
+        for kk in range(self.spectrograph.ndet):
+            det = kk + 1  # Detectors indexed from 1
+            self.det = det
+            if self.par['rdx']['detnum'] is not None:
+                detnum = [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'],int) else self.par['rdx']['detnum']
+                if det not in map(int, detnum):
+                    msgs.warn("Skipping detector {:d}".format(det))
+                    continue
+                else:
+                    msgs.warn("Restricting the reduction to detector {:d}".format(det))
+            # Setup
+            msgs.info("Working on detector {0}".format(det))
+            sci_dict[det] = {}
+
+            # Calibrate
+            self.calibrate_one(sci_ID, det)
+
+            # Init ScienceImage class
+            self.sci_ID = sci_ID
+            self.det = det
+            self.init_one_science(sci_ID, frametype, det)
+            # Extract
+
+            # ToDO make this a method load_std_trace(). Not yet implemented
+            # Does a standard exist in the fitstbl? If so grab it since we need the trace. In the future this should
+            # use calibgroup matching criteria
+            if (frametype == 'science') and np.any(self.fitstbl.find_frames('standard',sci_ID=sci_ID)):
+                stddx = self.fitstbl.find_frames('standard',sci_ID=sci_ID, index=True)[0]
+                _, std_basename = self.init_time_names(self.fitstbl, stddx)
+                std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
+                                       'spec1d_{:s}.fits'.format(std_basename))
+                pass
+                #std_trace = load.load_std_trace(std_outfile)
+
+            sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr = self._extract_one()
+
+            # Save for outputing (after all detectors are done)
+            sci_dict[det]['sciimg'] = sciimg
+            sci_dict[det]['sciivar'] = sciivar
+            sci_dict[det]['skymodel'] = skymodel
+            sci_dict[det]['objmodel'] = objmodel
+            sci_dict[det]['ivarmodel'] = ivarmodel
+            sci_dict[det]['outmask'] = outmask
+            sci_dict[det]['specobjs'] = sobjs   #utils.unravel_specobjs([specobjs])
+            if vel_corr is not None:
+                sci_dict['meta']['vel_corr'] = vel_corr
+
+        # Return
+        return sci_dict
+
+    # JFH This is the beginning of the echelle class control flow
+    def _extract_one(self):
+        """
+        Extract a single exposure/detector pair
+
+        sci_ID and det need to have been set internally prior to calling this method
+
+        Returns:
+            sciimg
+            sciivar
+            skymodel
+            objmodel
+            ivarmodel
+            outmask
+            sobjs
+            vel_corr
+
+        """
+
+        sciI = self.sciI
+
+        # Process images (includes inverse variance image, rn2 image,
+        # and CR mask)
+        sciimg, sciivar, rn2img, crmask \
+                = sciI.process(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+                               self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
+                               apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
+
+        # Object finding, first pass on frame without sky subtraction
+        maskslits = self.caliBrate.maskslits.copy()
+
+        # Do one iteration of object finding, and sky subtract to get initial sky model
+        initial_sky = sciI.get_init_sky(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'], show = self.show)
+
+        sobjs_ech, nobj = sciI.get_ech_objects(self.caliBrate.tslits_dict, show=self.show)
+
+
+        # If there are objects, do 2nd round of global_skysub,
+        # local_skysub_extract, flexure, geo_motion
+        vel_corr = None
+        if nobj > 0:
+            skymodel, objmodel, ivarmodel, outmask, sobjs \
+                    = sciI.local_skysub_extract(sobjs_ech, self.caliBrate.mswave, maskslits=maskslits,
                                                 show_profile=self.show, show=self.show)
 
             # Flexure correction?

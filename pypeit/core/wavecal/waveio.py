@@ -8,19 +8,34 @@ import datetime
 
 from pkg_resources import resource_filename
 
+
 from astropy.table import Table, Column, vstack
 from astropy.io import fits
-
 from linetools import utils as ltu
-
+from pypeit import wavecalib
 from pypeit import msgs
-
 import pypeit  # For path
 from pypeit.core.wavecal import defs
 
 line_path = resource_filename('pypeit', '/data/arc_lines/lists/')
 nist_path = resource_filename('pypeit','/data/arc_lines/NIST/')
+reid_arxiv_path = resource_filename('pypeit','/data/arc_lines/reid_arxiv/')
 
+def load_reid_arxiv(arxiv_file):
+    # ToDO put in some code to allow user specified files rather than everything in the main directory
+    calibfile = reid_arxiv_path + arxiv_file
+    wv_calib_arxiv, par = wavecalib.load_wv_calib(calibfile)
+    # Pop out par and steps if they were inserted in this calibration dictionary
+    try:
+        wv_calib_arxiv.pop('steps')
+    except KeyError:
+        pass
+    try:
+        wv_calib_arxiv.pop('par')
+    except KeyError:
+        pass
+
+    return wv_calib_arxiv, par
 
 def load_by_hand():
     """ By-hand line list

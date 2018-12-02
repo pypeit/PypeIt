@@ -125,9 +125,13 @@ def main(args, unit_test=False, path=''):
                 ind = files.index(fkey)
                 use_obj = iobj[ind]
             # Find object indices
-            mtch_obj, idx = specobjs.mtch_obj_to_objects(use_obj, fdict[fkey], **local_kwargs)
+            # FW: mtch_obj_to_objects will return None when no matching and raise TypeError: cannot unpack non-iterable NoneType object
+            try:
+                mtch_obj, idx = specobjs.mtch_obj_to_objects(use_obj, fdict[fkey], **local_kwargs)
+            except TypeError:
+                mtch_obj = None
             if mtch_obj is None:
-                print("No object {:s} in file {:s}".format(iobj, fkey))
+                msgs.info("No object {:s} in file {:s}".format(iobj, fkey))
             elif len(mtch_obj) == 1:
                 #Check if optimal extraction is present in all  objects.
                 # If not, warn the user and set ex_value to 'box'.

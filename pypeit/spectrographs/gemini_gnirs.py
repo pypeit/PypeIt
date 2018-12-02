@@ -79,8 +79,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 5.0
-        par['calibrations']['wavelengths']['lowest_nsig'] = 3.0
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 2
@@ -171,23 +170,38 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-  
+
+
+
+
     def get_match_criteria(self):
-        """Set the general matching criteria for Shane Kast."""
+
+        """Set the general matching criteria for GNIRS. Copied from NIRES"""
         match_criteria = {}
         for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
 
         match_criteria['standard']['match'] = {}
+#        match_criteria['standard']['match']['naxis0'] = '=0'
+#        match_criteria['standard']['match']['naxis1'] = '=0'
+
+        match_criteria['bias']['match'] = {}
+#        match_criteria['bias']['match']['naxis0'] = '=0'
+#        match_criteria['bias']['match']['naxis1'] = '=0'
 
         match_criteria['pixelflat']['match'] = {}
+#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
+#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
 
         match_criteria['trace']['match'] = {}
+#        match_criteria['trace']['match']['naxis0'] = '=0'
+#        match_criteria['trace']['match']['naxis1'] = '=0'
 
         match_criteria['arc']['match'] = {}
+#        match_criteria['arc']['match']['naxis0'] = '=0'
+#        match_criteria['arc']['match']['naxis1'] = '=0'
 
         return match_criteria
-
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
@@ -216,36 +230,5 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
-
-    # JFH This is defunct now as it is in the parset.
-    def setup_arcparam(self, arcparam, fitstbl=None, arc_idx=None,
-                       msarc_shape=None, **null_kwargs):
-        """
-
-        Args:
-            arcparam:
-            disperser:
-            fitstbl:
-            arc_idx:
-            msarc_shape:
-            **null_kwargs:
-
-        Returns:
-
-        """
-        # ToDo need to parse the sigdetect parameter to be here for detect_lines function in arc.py
-        #      I force change sigdetect=5 for GNIRS.
-        arcparam['lamps'] = ['OH_GNIRS'] # Line lamps on
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation'] # lines abovet this are masked
-        arcparam['min_nsig'] = 5.0         # Min significance for arc lines to be used
-        arcparam['lowest_nsig'] = 3.0         # Min significance for arc lines to be used
-        arcparam['wvmnx'] = [8000.,26000.]  # Guess at wavelength range
-        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3 # 3 was default, 1 seems to work better        # Matcing tolerance (pixels)
-        arcparam['func'] = 'legendre'       # Function for fitting
-        arcparam['n_first'] = 2             # Order of polynomial for first fit
-        arcparam['n_final'] = 4  #was default    # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2            # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.0    # Number of sigma for rejection (final fit)
 
 

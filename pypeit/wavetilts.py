@@ -69,11 +69,6 @@ class WaveTilts(masterframe.MasterFrame):
         # TODO: (KBW) Do we need this?  It's only used to get the
         # non-linear counts and the name of the master directory
 
-        # JFH I think then name of the master directory is usually
-        # passed in via setup. I don't see why we need spectrograph for
-        # that. If it is just saturation limits that are needed I would
-        # advocate passing those in as individual keyword parameters to
-        # whatever method in this class uses them.
         self.spectrograph = load_spectrograph(spectrograph)
 
         # MasterFrame
@@ -100,6 +95,7 @@ class WaveTilts(masterframe.MasterFrame):
         else:
             self.nslit = 0
         self.steps = []
+        self.slitmask = None
 
         # Key Internals
         self.mask = None
@@ -112,6 +108,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.coeffs = None
         self.tilts_dict = None
 
+    # This method does not appear finished
     @classmethod
     def from_master_files(cls, setup, mdir='./'):
         """
@@ -127,19 +124,21 @@ class WaveTilts(masterframe.MasterFrame):
         slf
 
         """
-        # Arc
-        msarc_file = masterframe.master_name('arc', setup, mdir)
-        msarc, _, _ = self.load_master(msarc_file)
 
         # Instantiate
-        slf = cls(msarc, setup=setup)
+        slf = cls(None, setup=setup)
+        msarc_file = masterframe.master_name('arc', setup, mdir)
+        # Arc
+        msarc, _, _ = slf.load_master(msarc_file)
+        slf.msarc = msarc
+
 
         # Tilts
         mstilts_file = masterframe.master_name('tilts', setup, mdir)
         hdul = fits.open(mstilts_file)
         slf.final_tilts = hdul[0].data
         slf.tilts = slf.final_tilts
-        self.coeffs = slf.hdu[1].data
+        slf.coeffs = slf.hdu[1].data
 
         # Dict
         slf.all_trcdict = []
@@ -209,8 +208,10 @@ class WaveTilts(masterframe.MasterFrame):
         """
         # Extract an arc down each slit/order
         inmask = (self.bpm == 0) if self.bpm is not None else None
+        slitmask = self.spectrograph.slitmask(self.tslits_dict) if self.slitmask is None else self.slitmask
+
         self.arccen, self.arc_maskslit = arc.get_censpec(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
-                                                     self.tslits_dict['slitpix'], self.msarc, inmask = inmask)
+                                                         slitmask, self.msarc, inmask = inmask)
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.arccen, self.arc_maskslit
@@ -316,6 +317,8 @@ class WaveTilts(masterframe.MasterFrame):
         if maskslits is None:
             maskslits = np.zeros(self.nslit, dtype=bool)
 
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
+
         # Extract the arc spectra for all slits
         self.arccen, self.arc_maskslit = self._extract_arcs()
 
@@ -339,7 +342,7 @@ class WaveTilts(masterframe.MasterFrame):
             self.tilts, self.coeffs[:,:,slit] = self._fit_tilts(slit, doqa=doqa)
 
             # Save to final image
-            word = self.tslits_dict['slitpix'] == slit+1
+            word = self.slitmask == slit
             self.final_tilts[word] = self.tilts[word]
 
         self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'func2D':self.par['func2D']}
@@ -381,6 +384,8 @@ class WaveTilts(masterframe.MasterFrame):
             tilts_dict = {'tilts':tilts,'coeffs':coeffs,'func2D': head1['FUNC2D']} # This is the tilts_dict
             return tilts_dict #, head0, [filename]
 
+    # JFH THis routine does not follow the current master protocol of taking a data argument. There is no reason to
+    # save all this other information here
     def save_master(self, outfile=None):
         """
 
@@ -486,7 +491,6 @@ class WaveTilts(masterframe.MasterFrame):
 
             ynorm = np.outer(np.linspace(0., 1., self.msarc.shape[0]), np.ones(self.msarc.shape[1]))
             polytilts = (ynorm-self.tilts)*(self.msarc.shape[0]-1)
-            slitpix = self.tslits_dict['slitpix']
             # arcdet is only the approximately nearest pixel (not even necessarily)
             for idx in np.where(self.all_trcdict[slit-1]['aduse'])[0]:
                 xnow = np.arange(self.msarc.shape[1])
@@ -497,7 +501,7 @@ class WaveTilts(masterframe.MasterFrame):
                     ycen = self.all_trcdict[slit-1]['ycen'][idx]
                 ynow = ycen + polytilts[int(ycen),:]
                 # Only plot the xnow, ynow values that are on this slit
-                onslit = (slitpix[int(np.rint(xnow)),int(np.rint(ynow))]) == slit
+                onslit = (slitmask[int(np.rint(xnow)),int(np.rint(ynow))]) == slit
                 tmp['xtfit'].append(xnow[onslit])
                 tmp['ytfit'].append(ynow[onslit])
 

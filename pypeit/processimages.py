@@ -341,7 +341,7 @@ class ProcessImages(object):
         self.steps.append(inspect.stack()[0][3])
         return self.stack
 
-    def build_crmask(self, varframe=None, par=None):
+    def build_crmask(self, stack, varframe=None, par=None, binning=None):
         """
         Generate the CR mask frame
 
@@ -366,13 +366,14 @@ class ProcessImages(object):
         # Run LA Cosmic to get the cosmic ray mask
         saturation = self.spectrograph.detector[self.det-1]['saturation']
         nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
-        self.crmask = procimg.lacosmic(self.det, self.stack, saturation, nonlinear,
+        sigclip, objlim = self.spectrograph.get_lacosmics_par(self.proc_par,binning=binning)
+        self.crmask = procimg.lacosmic(self.det, stack, saturation, nonlinear,
                                          varframe=varframe, maxiter=self.proc_par['lamaxiter'],
                                          grow=self.proc_par['grow'],
                                          remove_compact_obj=self.proc_par['rmcompact'],
-                                         sigclip=self.proc_par['sigclip'],
+                                         sigclip=sigclip,
                                          sigfrac=self.proc_par['sigfrac'],
-                                         objlim=self.proc_par['objlim'])
+                                         objlim=objlim)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -437,6 +438,9 @@ class ProcessImages(object):
             msgs.warn("Images already combined.  Use overwrite=True to do it again.")
             return
 
+        # JFH The fact that all these codes have no arguments and no return values make the control flow very hard to follow.
+        # I realize that everything has global scope in a class, but inputs and outputs to functions make code flow understandable.
+
         # Load images
         if 'load_images' not in self.steps:
             self.load_images()
@@ -462,6 +466,7 @@ class ProcessImages(object):
 
         # Combine
         self.stack = self.proc_images[:,:,0] if self.proc_images.shape[2] == 1 else self.combine()
+        self.raw_stack = self.stack
 
         # Apply gain?
         if apply_gain:

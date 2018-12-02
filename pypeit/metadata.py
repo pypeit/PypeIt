@@ -704,6 +704,7 @@ class PypeItMetaData:
                 # Find the files of this type
                 gd_match = self.find_frames(ftag)
 
+
                 # How many matching frames are required?  This is instrument specific
                 numfr = (1 if ftag == 'arc' else 0) if setup \
                             else calib_par['{0}frame'.format(ftag)]['number']

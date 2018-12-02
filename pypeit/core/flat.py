@@ -26,6 +26,9 @@ from pypeit import debugger
 from pypeit import utils
 from pypeit.core import pydl
 from matplotlib import pyplot as plt
+from pypeit.spectrographs.spectrograph import Spectrograph
+import copy
+
 import scipy
 
 def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_thresh, tweak_slits_maxfrac):
@@ -87,10 +90,9 @@ def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_
     return slit_left_out, slit_righ_out, tweak_dict
 
 
-
-def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
+def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograph.slitmask, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
              spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0),
-             tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.07, nonlinear_counts =1e10, debug = False):
+             tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.10, nonlinear_counts =1e10, debug = False):
 
 
     """ Compute pixelflat and illumination flat from a flat field image.
@@ -104,19 +106,18 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     tilts_dict: dict
           Dictionary containing wavelength tilts image and other information indicating how wavelengths move across the slit
 
-    thismask_in:  boolean ndarray, shape (nspec, nspat)
-        Boolean mask image specifying the pixels which lie on the slit/order according to the initial slit/order bounadries.
-        The convention is: True = on the slit/order, False  = off the slit/order
-
-    slit_left_in:  float ndarray, shape  (nspec, 1) or (nspec)
-        Left boundary of slit/order to be extracted (given as floating pt pixels).
-
-    slit_righ_in:  float ndarray, shape  (nspec, 1) or (nspec)
-        Right boundary of slit/order to be extracted (given as floating pt pixels).
-
+    tslits_dict: dict
+          Dictionary with information on the slit boundaries
+    slit: int
+          Slit currently being considered
 
     Optional Parameters
     -------------------
+    slitmask_func: function, default pypeit.spectrographs.spectrograh.Spectrograph.slitmask
+          Function for creating a slitmask image from the tslits_dict. This is spectrograph specific and should be in
+          the spectrorgraphs class file, since for fixed format echelle's we want to mask certain parts of the orders. The default whill just use
+          the generic function which forms the basis of the spectrograph specific ones.
+
     inmask: boolean ndarray, shape (nspec, nspat), default inmask = None
       Input mask for pixels not to be included in sky subtraction fits. True = Good (not masked), False = Bad (masked)
 
@@ -152,9 +153,9 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     tweak_slits_thresh: float, default = 0.85
       If tweak_slits is True, this sets the illumination function threshold used to tweak the slits
 
-    tweak_slits_maxfrac: float, default = 0.05
+    tweak_slits_maxfrac: float, default = 0.10
       Maximum fractinoal amount (of slit width) allowed for each trimming the left and right slit boundaries, i.e. the
-      default is 5% which means slits would shrink by at most 10%.
+      default is 10% which means slits would shrink by at most 20% (10% on each side)
 
     debug: bool, default = False
       Show plots useful for debugging. This will block further execution of the code until the plot windows are closed.
@@ -190,6 +191,11 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     nspec = shape[0]
     nspat = shape[1]
 
+    # Get the thismask_in and input slit bounadries from the tslits_dict
+    slit_left_in = tslits_dict_in['lcen'][:,slit]
+    slit_righ_in = tslits_dict_in['rcen'][:,slit]
+    thismask_in = (slitmask_func(tslits_dict_in) == slit)
+
     # Compute some things using the original slit boundaries and thismask_in
 
     # Approximate number of pixels sampling each spatial pixel for this (original) slit.
@@ -215,8 +221,8 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
 
     # Create a wider slitmask image with shift pixels padded on each side
     pad = 5.0
-    slitmask_pad = pixels.slit_pixels(slit_left_in, slit_righ_in, shape, pad)
-    thismask = (slitmask_pad > 0) # mask enclosing the wider slit bounadries
+    slitmask_pad = slitmask_func(tslits_dict_in, pad = pad)
+    thismask = (slitmask_pad == slit) # mask enclosing the wider slit bounadries
 
     if inmask is None:
         inmask = np.copy(thismask)
@@ -316,13 +322,16 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         slit_left_out, slit_righ_out, tweak_dict = tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg,
                                                                     tweak_slits_thresh, tweak_slits_maxfrac)
         # Recreate all the quantities we need based on the tweaked slits
-        slitmask_out = pixels.slit_pixels(slit_left_out, slit_righ_out, shape, 0)
-        thismask_out = (slitmask_out > 0)
+        tslits_dict_out = copy.deepcopy(tslits_dict_in)
+        tslits_dict_out['lcen'][:,slit] = slit_left_out
+        tslits_dict_out['rcen'][:,slit] = slit_righ_out
+        slitmask_out = slitmask_func(tslits_dict_out)
+        thismask_out = (slitmask_out == slit)
         ximg_out, edgmask_out = pixels.ximg_and_edgemask(slit_left_out, slit_righ_out, thismask_out, trim_edg=trim_edg)
         # Note that nothing changes with the tilts, since these were already extrapolated across the whole image.
     else:
-        slit_left_out = np.copy(slit_left)
-        slit_righ_out = np.copy(slit_righ)
+        slit_left_out = np.copy(slit_left_in)
+        slit_righ_out = np.copy(slit_righ_in)
         thismask_out = thismask_in
         ximg_out = ximg_in
 
