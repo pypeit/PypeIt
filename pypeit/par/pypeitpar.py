@@ -541,10 +541,10 @@ class FlexurePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['method'] = 'boxcar'
+        defaults['method'] = 'skip'
         options['method'] = FlexurePar.valid_methods()
         dtypes['method'] = str
-        descr['method'] = 'Method used to correct for flexure. Use None for no correction.  If ' \
+        descr['method'] = 'Method used to correct for flexure. Use skip for no correction.  If ' \
                           'slitcen is used, the flexure correction is performed before the ' \
                           'extraction of objects.  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
@@ -2141,6 +2141,7 @@ class PypeItPar(ParSet):
                                 'extraction'
 
         # Flexure is turned OFF by default
+        defaults['flexure'] = FlexurePar()
         dtypes['flexure'] = [ ParSet, dict ]
         descr['flexure'] = 'Parameters used by the flexure-correction procedure.  Flexure ' \
                            'corrections are not performed by default.  To turn on, either ' \
