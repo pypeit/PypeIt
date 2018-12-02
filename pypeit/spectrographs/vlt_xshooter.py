@@ -431,7 +431,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par = VLTXShooterSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'vlt_xshooter_vis'
 
-        # Adjustments to slit and tilts for VIS
+        # Adjustments to parameters for VIS
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         # Don't use the biases for the arcs or flats since it appears to be a different amplifier readout
         par['calibrations']['arcframe']['useframe']= 'overscan'
@@ -448,7 +448,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['fracignore'] = 0.01
 
         # These are the defaults
-        par['calibrations']['tilts']['tracethresh'] = [10.0] + 14*[20.0]
+        par['calibrations']['tilts']['tracethresh'] = [15.0] + 14*[20.0]
+        par['calibrations']['tilts']['spat_order'] =  3
         par['calibrations']['tilts']['spec_order'] =  [5, 5, 5] + 12*[7] # + [5]
 
         # 1D wavelength solution
