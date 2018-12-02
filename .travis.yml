@@ -91,8 +91,8 @@ matrix:
                EVENT_TYPE='pull_request push cron'
         #- os: linux
         #  env: PYTHON_VERSION=2.7 ASTROPY_VERSION=lts
-        - os: linux
-          env: ASTROPY_VERSION=lts
+        #- os: linux
+        #  env: ASTROPY_VERSION=lts
 
         # Try all python versions and Numpy versions. Since we can assume that
         # the Numpy developers have taken care of testing Numpy with different
