@@ -41,6 +41,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         # Correct for flexure using the default approach
         par['flexure'] = pypeitpar.FlexurePar()
+        par['fluxure']
         return par
 
     def header_keys(self):
