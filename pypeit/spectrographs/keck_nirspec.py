@@ -68,6 +68,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['flexure'] = pypeitpar.FlexurePar()
         par['flexure']['method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
+        par['calibrations']['arcframe']['exprng'] = [1, None]
         par['calibrations']['biasframe']['exprng'] = [None, 2]
         par['calibrations']['darkframe']['exprng'] = [None, 5]
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
@@ -163,9 +164,13 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             # Don't type pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'arc':
-            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 1) \
-                        & (fitstbl['idname'] == 'arclamp')
-
+            # TODO: This is a kludge.  Allow science frames to also be
+            # classified as arcs
+            is_arc = self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 1) \
+                            & (fitstbl['idname'] == 'arclamp')
+            is_obj = self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 0) \
+                        & (fitstbl['idname'] == 'object')
+            return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 

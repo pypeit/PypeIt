@@ -539,18 +539,18 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
 
     narxiv_used = np.sum(wcen != 0.0)
     # Initialise the patterns dictionary, sigdetect not used anywhere
-    patt_dict_slit = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sigdetect=sigdetect,mask=np.zeros(detections.size, dtype=np.bool))
     if (narxiv_used == 0) or (len(np.unique(line_indx)) < 3):
+        patt_dict_slit = patterns.empty_patt_dict(detections.size)
+        patt_dict_slit['sigdetect'] = sigdetect
         return detections, patt_dict_slit
 
 
     # Finalize the best guess of each line
-
+    patt_dict_slit = patterns.solve_xcorr(detections, wvdata, det_indx, line_indx, line_cc,nreid_min=nreid_min,cc_local_thresh=cc_local_thresh)
     patt_dict_slit['sign'] = sign # This is not used anywhere
     patt_dict_slit['bwv'] = np.median(wcen[wcen != 0.0])
     patt_dict_slit['bdisp'] = np.median(disp[disp != 0.0])
-    patterns.solve_xcorr(detections, wvdata, det_indx, line_indx, line_cc, patt_dict=patt_dict_slit,nreid_min=nreid_min,
-                         cc_local_thresh=cc_local_thresh)
+    patt_dict_slit['sigdetect'] = sigdetect
 
     if debug_reid:
         plt.figure(figsize=(14, 6))

@@ -590,9 +590,6 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             srt = np.argsort(waves[gd])
             idx = gd[srt]
             # The following may eliminate bright, narrow emission lines
-            # FW: ToDo: everyn is nolonger supported by robust_polyfit. Change to robust_polyfit_djs in the future.
-            #mask, spl = utils.robust_polyfit(waves[idx], flux[idx], 3, function='bspline',
-            #        weights=1./sig[gd][srt], sigma=cr_bsigma, maxone=False)#, everyn=cr_everyn)
             good, spl = utils.robust_polyfit_djs(waves[idx], flux[idx], 3, function='bspline',
                     sigma=sig[gd][srt], lower=cr_bsigma, upper=cr_bsigma, use_mad=False)
             mask = ~good
