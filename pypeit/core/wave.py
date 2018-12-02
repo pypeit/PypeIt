@@ -665,7 +665,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
             ax.set_xlabel('Lag')
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        plt.savefig(outfile, dpi=600)
+        plt.savefig(outfile, dpi=400)
         plt.close()
 
         # Sky line QA (just one object)
@@ -727,7 +727,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
                    handletextpad=0.3, fontsize='small', numpoints=1)
 
         # Finish
-        plt.savefig(outfile, dpi=800)
+        plt.savefig(outfile, dpi=400)
         plt.close()
         #plt.close()
 
@@ -815,7 +815,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
 
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        plt.savefig(outfile, dpi=600)
+        plt.savefig(outfile, dpi=400)
         plt.close()
 
         # Sky line QA (just one object)
@@ -877,7 +877,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
                    handletextpad=0.3, fontsize='small', numpoints=1)
 
         # Finish
-        plt.savefig(outfile, dpi=800)
+        plt.savefig(outfile, dpi=400)
         plt.close()
         #plt.close()
 

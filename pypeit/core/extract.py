@@ -1989,6 +1989,8 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
     :return: all objects found
     """
 
+    # TODO Update FOF algorithm here with the one from scikit-learn.
+
     if inmask is None:
         inmask = (ordermask > -1)
 
