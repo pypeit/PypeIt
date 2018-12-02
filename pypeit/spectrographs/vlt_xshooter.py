@@ -567,9 +567,10 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
 
+        binspatial, binspectral = parse.parse_binning(binning)
         # These are the order boundaries determined by eye by JFH.
-        order_max = [tslits_dict['nspat']-1]*self.norders
-        order_min = [0]*self.norders
+        order_max = np.asarray([4000]*14 + [3000])//binspectral
+        order_min = np.asarray([2000,1000] + [0]*13)//binspectral
         # TODO add binning adjustments to these
         for iorder in range(self.norders):
             orderbad = (slitmask == iorder) & ((spec_img < order_min[iorder]) | (spec_img > order_max[iorder]))

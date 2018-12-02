@@ -191,8 +191,6 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask
     # Get the thismask_in and input slit bounadries from the tslits_dict
     slit_left_in = tslits_dict_in['lcen'][:,slit]
     slit_righ_in = tslits_dict_in['rcen'][:,slit]
-    from IPython import embed
-    embed()
     thismask_in = spectrograph.slitmask(tslits_dict_in) == slit
 
     # Compute some things using the original slit boundaries and thismask_in
