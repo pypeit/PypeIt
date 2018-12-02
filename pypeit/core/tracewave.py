@@ -256,7 +256,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, tilt
 
 def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None,fwhm=4.0,spat_order=5, maxdev_tracefit=0.2,
                 sigrej_trace=3.0, max_badpix_frac=0.20, tcrude_nave = 5,
-                npca = 1, coeff_npoly_pca = 2, sigrej_pca = 2.0,debug_pca = True, show_tracefits=False):
+                npca = 1, coeff_npoly_pca = 2, sigrej_pca = 2.0,debug_pca = False, show_tracefits=False):
 
     """
     Use a PCA model to determine the best object (or slit edge) traces for echelle spectrographs.
@@ -350,7 +350,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None,fwhm=4.0,s
 
 
 def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 3.0, func2d='legendre2d', doqa=True, setup = 'test',
-              slit = 0, show_QA=False, out_dir=None, debug=True):
+              slit = 0, show_QA=False, out_dir=None, debug=False):
     """
 
     Parameters

@@ -216,7 +216,7 @@ class WaveTilts(masterframe.MasterFrame):
 
 
 
-    def _fit_tilts(self, trc_tilt_dict, slit_cen, spat_order, spec_order, slit, show_QA=False, doqa=True, debug=True):
+    def _fit_tilts(self, trc_tilt_dict, slit_cen, spat_order, spec_order, slit, show_QA=False, doqa=True, debug=False):
         """
 
         Parameters
@@ -278,7 +278,7 @@ class WaveTilts(masterframe.MasterFrame):
         return trace_dict
 
 
-    def run(self, maskslits=None, wv_calib = None, doqa=True, show_QA=True, debug=True):
+    def run(self, maskslits=None, wv_calib = None, doqa=True, show_QA=False, debug=False):
         """ Main driver for tracing arc lines
 
             Code flow:
