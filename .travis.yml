@@ -34,7 +34,7 @@ env:
         - SKLEARN_VERSION=stable
         - MAIN_CMD='python setup.py'
         - SETUP_CMD='test'
-        - CONDA_DEPENDENCIES='scipy h5py pyyaml matplotlib future numba'
+        - CONDA_DEPENDENCIES='scipy h5py pyyaml matplotlib future numba scikit-learn configobj'
         - PIP_DEPENDENCIES=''
         - EVENT_TYPE='pull_request push'
         - TASK='test'
@@ -91,8 +91,8 @@ matrix:
                EVENT_TYPE='pull_request push cron'
         #- os: linux
         #  env: PYTHON_VERSION=2.7 ASTROPY_VERSION=lts
-        - os: linux
-          env: ASTROPY_VERSION=lts
+        #- os: linux
+        #  env: ASTROPY_VERSION=lts
 
         # Try all python versions and Numpy versions. Since we can assume that
         # the Numpy developers have taken care of testing Numpy with different
@@ -107,8 +107,8 @@ matrix:
         #  env: PYTHON_VERSION=3.4 NUMPY_VERSION=1.9
         #- os: linux
         #  env: PYTHON_VERSION=3.5 NUMPY_VERSION=1.10
-        - os: linux
-          env: NUMPY_VERSION=1.14
+        #- os: linux
+        #  env: NUMPY_VERSION=1.14
 
         - os: linux
           env: NUMPY_VERSION=1.15
@@ -140,7 +140,7 @@ before_install:
     - hash -r
     - conda config --set always_yes yes --set changeps1 no
     - conda update --yes conda
-    - conda install -c https://conda.anaconda.org/asmeurer gsl
+    #- conda install -c https://conda.anaconda.org/asmeurer gsl
 
     # UPDATE APT-GET LISTINGS
     - sudo apt-get update
@@ -154,9 +154,9 @@ install:
     - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/linetools/linetools.git; fi
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/profxj/ginga.git; fi
-    - conda install numpy
-    - conda install configobj
-    - conda install scikit-learn
+    #- conda install numpy
+    #- conda install configobj
+    #- conda install scikit-learn
 
 script:
     - $MAIN_CMD $SETUP_CMD
