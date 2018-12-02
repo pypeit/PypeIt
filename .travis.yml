@@ -31,6 +31,7 @@ env:
         - PYTHON_VERSION=3.6
         - ASTROPY_VERSION=stable
         - NUMPY_VERSION=stable
+        - SKLEARN_VERSION=stable
         - MAIN_CMD='python setup.py'
         - SETUP_CMD='test'
         - CONDA_DEPENDENCIES='scipy h5py pyyaml matplotlib future numba'
