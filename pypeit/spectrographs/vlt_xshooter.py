@@ -40,8 +40,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         # Correct for flexure using the default approach
-        par['flexure'] = pypeitpar.FlexurePar()
-        par['fluxure']
+#        par['flexure'] = pypeitpar.FlexurePar()
+        # Right now turn off flexure compensation
         return par
 
     def header_keys(self):
@@ -472,7 +472,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # TODO FIX THIS TO USE BIASES!!
         par['scienceframe']['useframe'] ='overscan'
-
 
         return par
 
