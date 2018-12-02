@@ -1862,12 +1862,12 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
             npca = 1
             msgs.info('The first PCA component contains more than {:5.3f} of the information'.format(pca_explained_var))
         else:
-            npca = int(np.ceil(np.interp(pca_explained_var, var,np.arange(ngood)+1)))
+            npca = int(np.ceil(np.interp(pca_explained_var, var,np.arange(var.size)+1)))
             msgs.info('Truncated PCA to contain {:5.3f}'.format(pca_explained_var) + '% of the total variance. ' +
                       'Number of components to keep is npca = {:d}'.format(npca))
     else:
         npca = int(npca)
-        var_trunc = np.interp(float(npca),np.arange(ngood)+1.0, var)
+        var_trunc = np.interp(float(npca),np.arange(var.size)+1.0, var)
         msgs.info('Truncated PCA with npca={:d} components contains {:5.3f}'.format(npca, var_trunc) + '% of the total variance.')
 
     if ngood < npca:

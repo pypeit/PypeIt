@@ -1539,7 +1539,7 @@ class WaveTiltsPar(ParSet):
         dtypes['sigrej_trace'] = [int, float]
         descr['sigrej_trace'] = 'Outlier rejection significance to determine which traced arc lines should be included in the global fit'
 
-        defaults['spat_order'] = 5
+        defaults['spat_order'] = 3
         dtypes['spat_order'] = [int, float, list, numpy.ndarray]
         descr['spat_order'] = 'Order of the legendre polynomial to be fit to the the tilt of an arc line. This parameter determines' \
                               'both the orer of the *individual* arc line tilts, as well as the order of the spatial direction of the' \
