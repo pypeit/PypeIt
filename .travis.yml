@@ -156,6 +156,7 @@ install:
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/profxj/ginga.git; fi
     - conda install numpy
     - conda install configobj
+    - conda install scikit-learn
 
 script:
     - $MAIN_CMD $SETUP_CMD
@@ -163,3 +164,4 @@ script:
 
 after_success:
     - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='pypit/tests/coveragerc'; fi
+
