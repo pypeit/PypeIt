@@ -487,7 +487,7 @@ def func_der(coeffs, func, nderive=1):
                    "Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
 
-def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2=None, w=None, guesses=None,
+def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2=None, w=None, inmask = None, guesses=None,
              bspline_par=None, return_errors=False):
     """ General routine to fit a function to a given set of x,y points
 
@@ -514,41 +514,64 @@ def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2
 
     """
 
+    if inmask is not None:
+        x_out = x[inmask]
+        y_out = y[inmask]
+        if x2 is not None:
+            x2_out = x2[inmask]
+        else:
+            x2_out = None
+        if w is not None:
+            w_out = w[inmask]
+        else:
+            w_out = None
+    else:
+        x_out = x
+        y_out = y
+        if x2 is not None:
+            x2_out = x2
+        else:
+            x2_out = None
+        if w is not None:
+            w_out = w
+        else:
+            w_out = None
+
     # For two-d fits x = x, y = x2, y = z
-    if ('2d' in func) and (x2 is not None):
+    if ('2d' in func) and (x2_out is not None):
         # Is this a 2d fit?
-        return polyfit2d_general(x, x2, y, deg, w=None, function=func[:-2],minx=minx, maxx=maxx, miny=minx2, maxy=maxx2)
+        return polyfit2d_general(x_out, x2_out, y_out, deg, w=w_out, function=func[:-2],minx=minx, maxx=maxx, miny=minx2, maxy=maxx2)
     elif func == "polynomial":
-        return np.polynomial.polynomial.polyfit(x, y, deg, w=w)
+        return np.polynomial.polynomial.polyfit(x_out, y_out, deg, w=w_out)
     elif func == "legendre":
         if minx is None or maxx is None:
-            if np.size(x) == 1:
+            if np.size(x_out) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
-                xmin, xmax = np.min(x), np.max(x)
+                xmin, xmax = np.min(x_out), np.max(x_out)
         else:
             xmin, xmax = minx, maxx
-        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.legendre.legfit(xv, y, deg, w=w)
+        xv = 2.0 * (x_out-xmin)/(xmax-xmin) - 1.0
+        return np.polynomial.legendre.legfit(xv, y_out, deg, w=w_out)
     elif func == "chebyshev":
         if minx is None or maxx is None:
-            if np.size(x) == 1:
+            if np.size(x_out) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
-                xmin, xmax = np.min(x), np.max(x)
+                xmin, xmax = np.min(x_out), np.max(x_out)
         else:
             xmin, xmax = minx, maxx
-        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.chebyshev.chebfit(xv, y, deg, w=w)
+        xv = 2.0 * (x_out-xmin)/(xmax-xmin) - 1.0
+        return np.polynomial.chebyshev.chebfit(xv, y_out, deg, w=w_out)
     elif func == "bspline":
         if bspline_par is None:
             bspline_par = {}
         # TODO -- Deal with this kwargs-like kludge
-        return bspline_fit(x, y, order=deg, w=w, **bspline_par)
+        return bspline_fit(x_out, y_out, order=deg, w=w_out, **bspline_par)
     elif func == "gaussian":
         # Guesses
         if guesses is None:
-            ampl, cent, sigma = guess_gauss(x, y)
+            ampl, cent, sigma = guess_gauss(x_out, y_out)
             # As first guess choose slope and intercept to be zero
             b = 0
             m = 0
@@ -562,19 +585,19 @@ def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2
             elif deg == 5:
                 m, b, ampl, cent, sigma = guesses
         # Error
-        if w is not None:
-            sig_y = 1./w
+        if w_out is not None:
+            sig_y = 1./w_out
         else:
             sig_y = None
         if deg == 2:  # 2 parameter fit
-            popt, pcov = curve_fit(gauss_2deg, x, y, p0=[ampl, sigma], sigma=sig_y)
+            popt, pcov = curve_fit(gauss_2deg, x_out, y_out, p0=[ampl, sigma], sigma=sig_y)
         elif deg == 3:  # Standard 3 parameters
-            popt, pcov = curve_fit(gauss_3deg, x, y, p0=[ampl, cent, sigma],
+            popt, pcov = curve_fit(gauss_3deg, x_out, y_out, p0=[ampl, cent, sigma],
                                    sigma=sig_y)
         elif deg == 4:  # 4 parameters
-            popt, pcov = curve_fit(gauss_4deg, x, y, p0=[b, ampl, cent, sigma],sigma=sig_y)
+            popt, pcov = curve_fit(gauss_4deg, x_out, y_out, p0=[b, ampl, cent, sigma],sigma=sig_y)
         elif deg == 5:  # 5 parameters
-            popt, pcov = curve_fit(gauss_5deg, x, y, p0=[m, b, ampl, cent, sigma],sigma=sig_y)
+            popt, pcov = curve_fit(gauss_5deg, x_out, y_out, p0=[m, b, ampl, cent, sigma],sigma=sig_y)
         else:
             msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
         # Return
@@ -585,19 +608,19 @@ def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2
     elif func == "moffat":
         # Guesses
         if guesses is None:
-            ampl, cent, sigma = guess_gauss(x, y)
+            ampl, cent, sigma = guess_gauss(x_out, y_out)
             p0 = ampl
             p2 = 3. # Standard guess
             p1 = (2.355*sigma)/(2*np.sqrt(2**(1./p2)-1))
         else:
             p0,p1,p2 = guesses
         # Error
-        if w is not None:
-            sig_y = 1./w
+        if w_out is not None:
+            sig_y = 1./w_out
         else:
             sig_y = None
         if deg == 3:  # Standard 3 parameters
-            popt, pcov = curve_fit(moffat, x, y, p0=[p0,p1,p2], sigma=sig_y)
+            popt, pcov = curve_fit(moffat, x_out, y_out, p0=[p0,p1,p2], sigma=sig_y)
         else:
             msgs.error("Not prepared for deg={:d} for Moffat fit".format(deg))
         # Return
@@ -1318,7 +1341,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
     while (not qdone) and (iIter < maxiter):
         if np.sum(thismask) <= np.sum(order) + 1:
             msgs.warn("More parameters than data points - fit might be undesirable")
-        ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights*thismask,guesses=ct, minx=minx, maxx=maxx,
+        ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask=thismask,guesses=ct, minx=minx, maxx=maxx,
                       minx2=minx2,maxx2=maxx2, bspline_par=bspline_par)
         ymodel = func_val(ct, xarray, function, x2 = x2, minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2)
         thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, sigma=sigma, invvar=invvar,
@@ -1333,7 +1356,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
         msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
 
     # Do the final fit
-    ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights*outmask, minx=minx, maxx=maxx, minx2 = minx2, maxx2=maxx2, bspline_par=bspline_par)
+    ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask = outmask, minx=minx, maxx=maxx, minx2 = minx2, maxx2=maxx2, bspline_par=bspline_par)
 
     return outmask, ct
 

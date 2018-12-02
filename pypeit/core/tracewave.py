@@ -16,6 +16,8 @@ from pypeit.core import trace_slits
 from pypeit.core import extract
 from astropy.stats import sigma_clipped_stats
 
+
+
 try:
     from pypeit import ginga
 except ImportError:
@@ -365,6 +367,10 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 1.0, sigrej = 
 
     """
 
+    import itertools
+    import matplotlib as mpl
+    from matplotlib.lines import Line2D
+    from matplotlib.pyplot import cm
 
     nspec = trc_tilt_dict['nspec']
     nspat = trc_tilt_dict['nspat']
@@ -372,6 +378,7 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 1.0, sigrej = 
     xnspatmin1 = float(nspat-1)
     nspat = trc_tilt_dict['nspat']
     use_tilt = trc_tilt_dict['use_tilt']                 # mask for good/bad tilts, based on aggregate fit, frac good pixels
+    nuse = np.sum(use_tilt)
     tilts = trc_tilt_dict['tilts'][:,use_tilt]           # gaussian weighted centroid
     tilts_fit = trc_tilt_dict['tilts_fit'][:,use_tilt]   # legendre polynomial fit
     tilts_err = trc_tilt_dict['tilts_err'][:,use_tilt]   # gaussian weighted centroidding error
@@ -400,39 +407,87 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 1.0, sigrej = 
     # we determined the wavelength solution
 
     # Fits are done in dimensionless coordinates to allow for different binnings between i.e. the arc and the science frame
-    fitmask, coeff2 = utils.robust_polyfit_djs(tilts_dspat[tot_mask]/xnspatmin1,
-                                               (tilts_fit[tot_mask] - tilts_spec[tot_mask])/xnspecmin1,
-                                               fitxy,x2=tilts_fit[tot_mask]/xnspecmin1,
+    fitmask, coeff2 = utils.robust_polyfit_djs(tilts_dspat.flatten()/xnspatmin1,
+                                               (tilts_fit.flatten() - tilts_spec.flatten())/xnspecmin1,
+                                               fitxy,x2=tilts_fit.flatten()/xnspecmin1, inmask = tot_mask.flatten(),
                                                function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
                                                maxdev=maxdev,minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0,
                                                use_mad=True, sticky=False)
-    delta_spec_fit = xnspecmin1*utils.func_val(coeff2, tilts_dspat[tot_mask]/xnspatmin1, func2d, x2=tilts_fit[tot_mask]/xnspecmin1,
+
+    fitmask = fitmask.reshape(tilts_dspat.shape)
+    delta_spec_fit1 = xnspecmin1*utils.func_val(coeff2, tilts_dspat[tot_mask]/xnspatmin1, func2d, x2=tilts_fit[tot_mask]/xnspecmin1,
                                                minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    delta_spec_fit = np.zeros_like(tilts_dspat)
+    delta_spec_fit[tot_mask] = delta_spec_fit1
     # Residuals in pixels
-    res = (tilts_fit[tot_mask][fitmask] - tilts_spec[tot_mask][fitmask]) - delta_spec_fit[fitmask]
+    res = (tilts_fit[fitmask] - tilts_spec[fitmask]) - delta_spec_fit[fitmask]
     rms = np.std(res)
     msgs.info("RMS (pixels): {}".format(rms))
-
+    # These are locations that were fit but were rejected
+    rej_mask = tot_mask & np.invert(fitmask)
 
     # TODO: Make this a part of the standard QA and write to a file
     if debug:
         plt.figure(figsize=(12, 20))
-        plt.plot(tilts_dspat[tot_mask],tilts_spec[tot_mask] + delta_spec_fit, 'gs', mfc='g', markersize=2.0,
+        plt.plot(tilts_dspat[tot_mask],tilts_spec[tot_mask] + delta_spec_fit[tot_mask], 'gs', mfc='g', markersize=2.0,
                  markeredgewidth=1.0,label='2D Fit')
         plt.plot(tilts_dspat[tot_mask][fitmask], tilts_fit[tot_mask][fitmask], 'ks', mfc='None', markersize=5.0,
                  markeredgewidth=0.5,label='Good Points')
         plt.plot(tilts_dspat[tot_mask][~fitmask], tilts_fit[tot_mask][~fitmask], 'rs', mfc='None', markersize=5.0,
                  markeredgewidth=0.5,label='Rejected Points')
-        plt.xlabel('Spatial Pixel')
+        plt.xlabel('Spatial Offset from Central Trace (pixels)')
         plt.ylabel('Spectral Pixel')
         plt.title('Tilts vs Fit (spat_order, spec_order)=({:d},{:d}) for slit={:d}: RMS = {:5.3f}'.format(spat_order,
                                                                                                           spec_order,slit,rms))
         plt.legend()
         plt.show()
 
+        #color_tuple = ('green', 'red', 'cyan', 'magenta', 'blue', 'darkorange', 'yellow', 'dodgerblue', 'purple',
+        #               'lightgreen', 'cornflowerblue')
+
+        #colors = itertools.cycle(color_tuple)
+
+        xmin = 0.95*tilts_dspat[tot_mask].min()
+        xmax = 1.05*tilts_dspat[tot_mask].max()
+        line_indx = np.outer(np.ones(nspat), np.arange(nuse))
+
+        fig, ax = plt.subplots(figsize=(14, 12))
+
+        cmap = mpl.cm.get_cmap('coolwarm', nuse)
+        # dummy mappable shows the spectral pixel
+        lines_spec = tilts_spec[0,:]
+        dummie_cax = ax.scatter(lines_spec, lines_spec, c=lines_spec, cmap=cmap)
+        ax.cla()
+
+        for iline in range(nuse):
+            iall = (line_indx == iline) & tot_mask
+            irej = (line_indx == iline) & tot_mask & rej_mask
+            this_color = cmap(iline)
+            # plot the residuals
+            ax.plot(tilts_dspat[iall], (tilts_fit[iall] - tilts_spec[iall]) - delta_spec_fit[iall], color=this_color,
+                    linewidth=2, linestyle='-')
+            ax.plot(tilts_dspat[irej],(tilts_fit[irej] - tilts_spec[irej]) - delta_spec_fit[irej],linestyle=' ',
+                    marker='o', color = 'limegreen', mfc='limegreen', markersize=5.0)
+#            ax.plot(tilts_dspat[iall], (tilts_fit[iall] - tilts_spec[iall]), color=this_color,linewidth=2, linestyle='-')
+#            ax.plot(tilts_dspat[iall], delta_spec_fit[iall], color=this_color,linewidth=2, linestyle=':')
+#            ax.plot(tilts_dspat[irej],(tilts_fit[irej] - tilts_spec[irej]), 'ro', mfc='r', markersize=5.0)
+
+
+        ax.hlines(0.0, xmin, xmax, linestyle='--', linewidth=2.0, color='k', zorder=10)
+
+        legend_elements = [Line2D([0], [0], color='cornflowerblue', linewidth=3, linestyle='-', label='residual'),
+                           Line2D([0], [0], color='limegreen', linestyle=' ', marker='o', mfc='limegreen', markersize=7.0, label='rejected')]
+
+        ax.set_xlim((xmin,xmax))
+        ax.set_xlabel('Spatial Offset from Central Trace (pixels)')
+        ax.set_ylabel('Arc Line Tilt (pixels)')
+        ax.legend(handles=legend_elements)
+        cb = fig.colorbar(dummie_cax, ticks=lines_spec)
+        cb.set_label('Spectral Pixel')
+
     # QA
     if doqa:
-        plot_tiltres(setup, tilts_fit[tot_mask], tilts_spec[tot_mask], delta_spec_fit, fitmask, slit=slit, show_QA=show_QA, out_dir=out_dir)
+        plot_tiltres(setup, tilts_fit[tot_mask], tilts_spec[tot_mask], delta_spec_fit[tot_mask], fitmask, slit=slit, show_QA=show_QA, out_dir=out_dir)
 
     tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
                          npix_rej = np.sum(fitmask == False), coeff2=coeff2, spec_order = spec_order, spat_order = spat_order,
@@ -494,7 +549,7 @@ def plot_tiltres(setup, mtilt, ytilt, yfit, fitmask, slit=None, outfile=None, sh
         outfile = qa.set_qa_filename(setup, method, slit=slit, out_dir=out_dir)
 
     # Setup
-    plt.figure(figsize=(8, 4.0))
+    plt.figure(figsize=(8, 4))
     plt.clf()
     ax = plt.gca()
 
@@ -525,6 +580,8 @@ def plot_tiltres(setup, mtilt, ytilt, yfit, fitmask, slit=None, outfile=None, sh
     plt.rcdefaults()
 
     return
+
+
 
 
 #TODO this should be deleted, but I'm saving some it for now becasue I'm still testing.
