@@ -1530,10 +1530,10 @@ class WaveTiltsPar(ParSet):
         descr['nfwhm_neigh'] = 'Required separation between neighboring arc lines for them to be considered for tilt tracing in units of the ' \
                                'the spectral fwhm (see wavelength parset where fwhm is defined)'
 
-        defaults['maxdev_tracefit'] = 1.0
+        defaults['maxdev_tracefit'] = 0.2
         dtypes['maxdev_tracefit'] = [int, float]
-        descr['maxdev_tracefit'] = 'Maximum absolute deviation for the legendre polynomial fits to individual ' \
-                                   'arc tilt fits during iterative trace fitting (flux weighted, then gaussian weighted)'
+        descr['maxdev_tracefit'] = 'Maximum absolute deviation (in units of fwhm) for the legendre polynomial fits to individual ' \
+                                   'arc line tilt fits during iterative trace fitting (flux weighted, then gaussian weighted)'
 
         defaults['sigrej_trace'] = 3.0
         dtypes['sigrej_trace'] = [int, float]
@@ -1557,10 +1557,10 @@ class WaveTiltsPar(ParSet):
         dtypes['func2d'] = str
         descr['func2d'] = 'Type of function for 2D fit'
 
-        defaults['maxdev2d'] = 1.0
+        defaults['maxdev2d'] = 0.2
         dtypes['maxdev2d'] = [int, float]
-        descr['maxdev2d'] = 'Maximum absolute deviation rejection threshold which determines which pixels on a fit to an arc line tilt ' \
-                            'are rejected by the global 2D fit because they exceed this value'
+        descr['maxdev2d'] = 'Maximum absolute deviation (in units of fwhm) rejection threshold used to determines which pixels in global 2d fits to ' \
+                            'arc line tilts are rejected because they deviate from the model by more than this value'
 
         defaults['sigrej2d'] = 3.0
         dtypes['sigrej2d'] = [int, float]

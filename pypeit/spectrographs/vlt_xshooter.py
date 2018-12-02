@@ -448,9 +448,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['fracignore'] = 0.01
 
         # These are the defaults
-        par['calibrations']['tilts']['tracethresh'] = [15.0] + 14*[20.0]
+        par['calibrations']['tilts']['tracethresh'] = 15
         par['calibrations']['tilts']['spat_order'] =  3
-        par['calibrations']['tilts']['spec_order'] =  [5, 5, 5] + 12*[7] # + [5]
+        par['calibrations']['tilts']['spec_order'] =  5 # [5, 5, 5] + 12*[7] # + [5]
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
