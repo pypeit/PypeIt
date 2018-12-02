@@ -171,6 +171,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             )]
         self.numhead = 1
 
+    @property
+    def norders(self):
+        return 16
+
+
     def default_pypeit_par(self):
         """
         Set default parameters for XSHOOTER NIR reductions.
@@ -280,8 +285,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         return self.bpm_img
 
-    @staticmethod
-    def slit2order(islit):
+    def slit2order(self, islit):
 
         """
         Parameters
@@ -307,12 +311,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         orders = np.arange(26,10,-1, dtype=int)
         return orders[islit]
 
-    @staticmethod
     def order_platescale(self, binning = None):
 
 
         """
-        Returns the plate scale in arcseconds for each order
+        Returns the spatial plate scale in arcseconds for each order
 
         Parameters
         ----------
@@ -333,16 +336,16 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # ToDO Either assume a linear trend or measure this
         # X-shooter manual says, but gives no exact numbers per order.
-        # NIR: 52.4 pixels (0.210Ang/pix) at order 11 to 59.9 pixels (0.184Ang/pix) at order 26.
+        # NIR: 52.4 pixels (0.210"/pix) at order 11 to 59.9 pixels (0.184"/pix) at order 26.
 
-        # Right now I just took the average
-        return np.full(16, 0.197)
+        # Right now I just assume a simple linear trend
+        slit_vec = np.arange(self.norders)
+        order_vec = self.slit2order(slit_vec)
+        plate_scale = 0.184 + (order_vec - 26)*(0.184-0.210)/(26 - 11)
+        return plate_scale
 
 
-
-
-    @staticmethod
-    def slitmask(tslits_dict, pad=None, binning=None):
+    def slitmask(self, tslits_dict, pad=None, binning=None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
          overload this function to implement instrument specific slitmask behavior, for example setting
@@ -416,6 +419,11 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             )]
         self.numhead = 1
 
+
+    @property
+    def norders(self):
+        return 15
+
     def default_pypeit_par(self):
         """
         Set default parameters for VLT XSHOOTER VIS reductions.
@@ -466,8 +474,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         return par
 
-    @staticmethod
-    def slit2order(islit):
+    def slit2order(self, islit):
 
         """
         Parameters
@@ -494,7 +501,83 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         return orders[islit]
 
 
-    def check_headers(self, headers):
+
+    def order_platescale(self, binning = None):
+
+
+        """
+        Returns the plate scale in arcseconds for each order
+
+        Parameters
+        ----------
+        None
+
+        Optional Parameters
+        --------------------
+        binning: str
+
+        Returns
+        -------
+        order_platescale: ndarray, float
+
+        """
+
+        # VIS has no binning, but for an instrument with binning we would do this
+        binspatial, binspectral = parse.parse_binning(binning)
+
+        # ToDO Either assume a linear trend or measure this
+        # X-shooter manual says, but gives no exact numbers per order.
+        # VIS: 65.9 pixels (0.167"/pix) at order 17 to 72.0 pixels (0.153"/pix) at order 30.
+
+        # Right now I just assume a simple linear trend
+        slit_vec = np.arange(self.norders)
+        order_vec = self.slit2order(slit_vec)
+        plate_scale = 0.153 + (order_vec - 30)*(0.153-0.167)/(30 - 17)
+        return plate_scale*binspatial
+
+
+    def slitmask(self, tslits_dict, pad=None, binning=None):
+        """
+         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
+         overload this function to implement instrument specific slitmask behavior, for example setting
+         where the orders on an echelle spectrograph end
+
+         Parameters
+         -----------
+         tslits_dict: dict
+            Trace slits dictionary with slit boundary information
+
+         Optional Parameters
+         pad: int or float
+            Padding of the slit boundaries
+         binning: tuple
+            Spectrograph binning in spectral and spatial directions
+
+         Returns
+         -------
+         slitmask: ndarray int
+            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
+            indicating the slit number going from 0 to nslit-1 from left to right.
+
+         """
+
+        # These lines are always the same
+        pad = tslits_dict['pad'] if pad is None else pad
+        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
+
+        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
+
+        # These are the order boundaries determined by eye by JFH.
+        order_max = [tslits_dict['nspat']-1]*self.norders
+        order_min = [0]*self.norders
+        # TODO add binning adjustments to these
+        for iorder in range(self.norders):
+            orderbad = (slitmask == iorder) & ((spec_img < order_min[iorder]) | (spec_img > order_max[iorder]))
+            slitmask[orderbad] = -1
+        return slitmask
+
+
+    def check_headers(self, headers, expected_values = None):
         """
         Check headers match expectations for a VLT/XSHOOTER exposure.
 
@@ -505,9 +588,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
             headers (list):
                 A list of headers read from a fits file
         """
-        expected_values = { '0.INSTRUME': 'XSHOOTER',
-                            '0.HIERARCH ESO SEQ ARM': 'VIS',
-                            '0.NAXIS': 2 }
+
+        if expected_values is None:
+            expected_values = { '0.INSTRUME': 'XSHOOTER','0.HIERARCH ESO SEQ ARM': 'VIS','0.NAXIS': 2 }
         super(VLTXShooterVISSpectrograph, self).check_headers(headers,
                                                               expected_values=expected_values)
 
@@ -600,8 +683,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         return par
 
 
-    @staticmethod
-    def slit2order(islit):
+    def slit2order(self, islit):
 
         """
         Parameters
@@ -628,7 +710,37 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         return orders[islit]
 
 
-    def check_headers(self, headers):
+
+    def order_platescale(self, binning = None):
+
+
+        """
+        Returns the plate scale in arcseconds for each order
+
+        Parameters
+        ----------
+        None
+
+        Optional Parameters
+        --------------------
+        binning: str
+
+        Returns
+        -------
+        order_platescale: ndarray, float
+
+        """
+
+        binspatial, binspectral = parse.parse_binning(binning)
+
+        # ToDO Either assume a linear trend or measure this
+        # X-shooter manual says, but gives no exact numbers per order.
+        # UVB: 65.9 pixels (0.167“/pix) at order 14 to 70.8 pixels (0.155”/pix) at order 24
+
+        # Right now I just took the average
+        return np.full(self.norders, 0.161)*binspatial
+
+    def check_headers(self, headers, expected_values=None):
         """
         Check headers match expectations for a VLT/XSHOOTER exposure.
 
@@ -639,9 +751,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
             headers (list):
                 A list of headers read from a fits file
         """
-        expected_values = { '0.INSTRUME': 'XSHOOTER',
-                            '0.HIERARCH ESO SEQ ARM': 'UVB',
-                               '0.NAXIS': 2 }
+        if expected_values is None:
+            expected_values = { '0.INSTRUME': 'XSHOOTER','0.HIERARCH ESO SEQ ARM': 'UVB','0.NAXIS': 2 }
         super(VLTXShooterUVBSpectrograph, self).check_headers(headers,
                                                               expected_values=expected_values)
 

@@ -236,8 +236,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
-    @staticmethod
-    def slitmask(tslits_dict, pad=None, binning=None):
+    def slitmask(self, tslits_dict, pad=None, binning=None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
          overload this function to implement instrument specific slitmask behavior, for example setting
@@ -272,8 +271,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         slitmask[order7bad] = -1
         return slitmask
 
-    @staticmethod
-    def slit2order(islit):
+    def slit2order(self, islit):
 
         """
         Parameters
@@ -299,8 +297,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         orders = np.arange(7, 2, -1, dtype=int)
         return orders[islit]
 
-    @staticmethod
-    def order_platescale(binning = None):
+    def order_platescale(self, binning = None):
 
 
         """

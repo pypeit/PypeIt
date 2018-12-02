@@ -820,7 +820,7 @@ class MultiSlit(PypeIt):
         # Process images (includes inverse variance image, rn2 image,
         # and CR mask)
         sciimg, sciivar, rn2img, crmask \
-                = sciI.process(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+                = sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
                                self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
                                apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
 
@@ -1133,9 +1133,9 @@ class Echelle(PypeIt):
         # Process images (includes inverse variance image, rn2 image,
         # and CR mask)
         sciimg, sciivar, rn2img, crmask \
-                = sciI.process(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
-                               self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
-                               apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
+                = sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+                            self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
+                            apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
 
         # Object finding, first pass on frame without sky subtraction
         maskslits = self.caliBrate.maskslits.copy()

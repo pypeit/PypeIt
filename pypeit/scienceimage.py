@@ -7,8 +7,6 @@ import numpy as np
 import time
 import datetime
 
-from multiprocessing import Process
-
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
@@ -16,7 +14,6 @@ from pypeit import processimages
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import ginga
-from pypeit.core import procimg
 from pypeit.core import skysub
 from pypeit.core import extract
 from pypeit.core import trace_slits
@@ -24,7 +21,6 @@ from pypeit.par import pypeitpar
 
 from pypeit.bitmask import BitMask
 
-from pypeit import debugger
 
 class ScienceImageBitMask(BitMask):
     """
@@ -553,7 +549,7 @@ class ScienceImage(processimages.ProcessImages):
         return self.maskslits
 
 
-    def process(self, bias_subtract, pixel_flat, bpm, illum_flat=None, apply_gain=True, trim=True,show=False):
+    def proc(self, bias_subtract, pixel_flat, bpm, illum_flat=None, apply_gain=True, trim=True,show=False):
         """ Process the image
 
         Wrapper to ProcessImages.process()

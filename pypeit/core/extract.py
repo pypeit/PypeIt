@@ -1936,7 +1936,7 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
 def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_vec = None, plate_scale=0.2, std_trace=None, ncoeff = 5,
                 npca=None,coeff_npoly=None,min_snr=0.0,nabove_min_snr=0,pca_explained_var=99.0, box_radius=2.0, fwhm = 3.0,
                 hand_extract_dict = None, nperslit = 5, bg_smth = 5.0, extract_maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0,
-                abs_thresh = 0.0, trim_edg = (3,3), show_peaks=False,show_fits=False,show_trace=False,show_single_trace = False, debug=True):
+                abs_thresh = 0.0, trim_edg = (5,5), show_peaks=False,show_fits=False,show_trace=False,show_single_trace = False, debug=True):
     """
     Object finding routine for Echelle spectrographs. This routine:
        1) runs object finding on each order individually

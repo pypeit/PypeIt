@@ -369,7 +369,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
                             ysize           = 1.,
                             platescale      = 0.774,
                             darkcurr        = 0.0,
-                            saturation      = 65535.,
+                            saturation      = 120000., # JFH adjusted to this level as the flat are otherwise saturated
                             nonlinear       = 0.76,
                             numamplifiers   = 1,
                             gain            = 3.0,
@@ -396,7 +396,6 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        #par['calibrations']['wavelengths']['lowest_nsig'] = 5.
 
         return par
 

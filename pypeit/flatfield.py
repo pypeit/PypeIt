@@ -238,7 +238,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                                self.spectrograph.detector[self.det - 1]['saturation']
             pixelflat, illumflat, flat_model, thismask_out, slit_left_out, slit_righ_out = \
                 flat.fit_flat(self.rawflatimg, this_tilts_dict, self.tslits_dict, slit,
-                              slitmask_func = self.spectrograph.slitmask, inmask=inmask,tweak_slits = self.flatpar['tweak_slits'],
+                              spectrograph = self.spectrograph, inmask=inmask,tweak_slits = self.flatpar['tweak_slits'],
                               nonlinear_counts=nonlinear_counts, debug=debug)
             self.mspixelflat[thismask_out] = pixelflat[thismask_out]
             self.msillumflat[thismask_out] = illumflat[thismask_out]

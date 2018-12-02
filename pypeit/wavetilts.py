@@ -71,13 +71,7 @@ class WaveTilts(masterframe.MasterFrame):
         # TODO: (KBW) Do we need this?  It's only used to get the
         # non-linear counts and the name of the master directory
 
-        # TODO In my opinion this logic ought to be in the load_spectrograph function, i.e it should simply return
-        # the generic spectrograph if spectrograph is None
-        if spectrograph is None:
-            self.spectrograph = spectrographs.spectrograph.Spectrograph()
-        else:
-            self.spectrograph = load_spectrograph(spectrograph)
-
+        self.spectrograph = load_spectrograph(spectrograph)
         self.par = pypeitpar.WaveTiltsPar() if par is None else par
         self.wavepar = pypeitpar.WavelengthSolutionPar() if wavepar is None else wavepar
 
