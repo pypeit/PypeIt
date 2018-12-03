@@ -97,7 +97,6 @@ def test_bpm(multi_caliBrate):
     # Prep
     multi_caliBrate.shape = (2048,350)
     # Build
-    pytest.set_trace()
     bpm = multi_caliBrate.get_bpm()
     assert bpm.shape == (2048,350)
     assert np.sum(bpm) == 0.
