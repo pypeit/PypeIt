@@ -552,7 +552,10 @@ class PypeIt(object):
         # Another option would be to put the datasec_img stuff in the
         # fitstbl for each detector
         self.exptime = self.fitstbl['exptime'][scidx]
-        self.binning = self.fitstbl['binning'][scidx]
+        try:
+            self.binning = self.fitstbl['binning'][scidx]
+        except:
+            self.binning = (1,1)
 
         # This should have been set when we construct the fitstbl
         try:
