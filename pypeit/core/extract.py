@@ -1848,6 +1848,10 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
     use_order = np.invert(predict)
     ngood = np.sum(use_order)
 
+    if ngood == 0:
+        msgs.warn('There are no good traces to PCA fit. There is probably a bug somewhere. Exiting and returning input traces.')
+        return xinit
+
     # Take out the mean position of each input trace
     if xinit_mean is None:
         xinit_mean = np.mean(xinit,0)
@@ -1857,22 +1861,24 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
     pca_full = PCA()
     pca_full.fit(xpca_use)
     var = np.cumsum(np.round(pca_full.explained_variance_ratio_, decimals=6) * 100)
+    npca_full = var.size
     if npca is None:
         if var[0]>=pca_explained_var:
             npca = 1
             msgs.info('The first PCA component contains more than {:5.3f} of the information'.format(pca_explained_var))
         else:
-            npca = int(np.ceil(np.interp(pca_explained_var, var,np.arange(var.size)+1)))
+            npca = int(np.ceil(np.interp(pca_explained_var, var,np.arange(npca_full)+1)))
             msgs.info('Truncated PCA to contain {:5.3f}'.format(pca_explained_var) + '% of the total variance. ' +
                       'Number of components to keep is npca = {:d}'.format(npca))
     else:
         npca = int(npca)
-        var_trunc = np.interp(float(npca),np.arange(var.size)+1.0, var)
+        var_trunc = np.interp(float(npca),np.arange(npca_full)+1.0, var)
         msgs.info('Truncated PCA with npca={:d} components contains {:5.3f}'.format(npca, var_trunc) + '% of the total variance.')
 
-    if ngood < npca:
-        msgs.warn('Not enough good traces for a PCA fit: ngood = {:d}'.format(ngood) + ' is < npca = {:d}'.format(npca))
-        msgs.warn('Using the input trace for now')
+    if npca_full < npca:
+        msgs.warn('Not enough good traces for a PCA fit of the requested dimensionality. The full (non-compressing) PCA has size: '
+                  'npca_full = {:d}'.format(npca_full) + ' is < npca = {:d}'.format(npca))
+        msgs.warn('Using the input trace for now. But you should lower npca <= npca_full')
         return xinit
 
     if coeff_npoly is None:
