@@ -241,6 +241,10 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, tilt
     nuse = np.sum(use_tilt)
     msgs.info('Number of usable arc lines for tilts: {:d}/{:d}'.format(nuse,nlines))
 
+    if (nuse < 0.05*nlines):
+        msgs.warn('This slit/order would have too many rejected lines. We should be rejecting nuse ={:d} out of '
+                  'nlines = {:d} total lines'.format(nuse,nlines) +  msgs.newline() +
+                  'We are will proceed without rejecting anything but something is probably very wrong with this slit/order.')
 
     # Tighten it up with Gaussian weighted centroiding
     trc_tilt_dict = dict(nspec = nspec, nspat = nspat, nsub = nsub, nlines = nlines, nuse = nuse,
@@ -703,9 +707,6 @@ def plot_tiltres(setup, mtilt, ytilt, yfit, fitmask, fwhm, slit=None, outfile=No
                                              doqa=True,setup='test',slit=0, show_QA=False, out_dir='./')
         # Now evaluate the model of the tilts for all of our lines
         piximg1 = tracewave.fit2piximg(tilt_fit_dict1)
-
-        from IPython import embed
-        embed()
 
         # Now trace again with the piximg model as the starting crutches
 
