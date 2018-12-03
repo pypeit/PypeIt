@@ -544,9 +544,9 @@ class Spectrograph(object):
         return self.detector[det-1]['platescale']/tel_platescale
 
     @staticmethod
-    def slitmask(tslits_dict, pad = None, binning = None):
+    def slitmask(tslits_dict, pad=None, binning=None):
         """
-         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
+         Generic routine to construct a slitmask image from a tslits_dict. Children of this class can
          overload this function to implement instrument specific slitmask behavior, for example setting
          where the orders on an echelle spectrograph end
 

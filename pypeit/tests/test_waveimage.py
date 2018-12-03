@@ -35,8 +35,8 @@ def test_build_me():
     mode = 'reuse'
     nslits = tslits_dict['lcen'].shape[1]
     maskslits = np.zeros(nslits, dtype=bool)
-    slitmask = spectrograph.slitmask(tslits_dict)
-    wvImg = waveimage.WaveImage(slitmask, tilts_dict['tilts'], wv_calib, setup=setup,
+
+    wvImg = waveimage.WaveImage(tslits_dict, tilts_dict['tilts'], wv_calib, spectrograph, setup=setup,
                                 maskslits=maskslits, master_dir=master_dir, mode=mode)
     # Build
     wave = wvImg._build_wave()
