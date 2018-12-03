@@ -1803,6 +1803,7 @@ class HolyGrail:
 
         if self._verbose:
             msgs.info("Begin pattern matching")
+
         # First run pattern recognition assuming pixels correlate with wavelength
         dindexp, lindexp, wvcenp, dispsp = generate_patterns(use_tcent, wavedata, self._npix,
                                                              detsrch, lstsrch, pix_tol)
@@ -2064,6 +2065,8 @@ class HolyGrail:
         # Perform final fit to the line IDs
         if self._thar:
             NIST_lines = (self._line_lists['NIST'] > 0) & (np.char.find(self._line_lists['Source'].data, 'MURPHY') >= 0)
+        elif 'OH_R24000' in self._lines:
+            NIST_lines = self._line_lists['NIST'] == 0
         else:
             NIST_lines = self._line_lists['NIST'] > 0
         ifit = np.where(patt_dict['mask'])[0]
