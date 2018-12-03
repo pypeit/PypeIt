@@ -242,9 +242,11 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, tilt
     msgs.info('Number of usable arc lines for tilts: {:d}/{:d}'.format(nuse,nlines))
 
     if (nuse < 0.05*nlines):
-        msgs.warn('This slit/order would have too many rejected lines. We should be rejecting nuse ={:d} out of '
-                  'nlines = {:d} total lines'.format(nuse,nlines) +  msgs.newline() +
+        msgs.warn('This slit/order would have too many rejected lines.' + msgs.newline() +
+                  'We should be rejecting nuse ={:d} out of nlines = {:d} total lines'.format(nuse,nlines) +  msgs.newline() +
                   'We are will proceed without rejecting anything but something is probably very wrong with this slit/order.')
+        use_tilt = np.ones(nlines,dtype=bool)
+        nuse = nlines
 
     # Tighten it up with Gaussian weighted centroiding
     trc_tilt_dict = dict(nspec = nspec, nspat = nspat, nsub = nsub, nlines = nlines, nuse = nuse,
@@ -470,9 +472,6 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
         plt.show()
 
         # QA2
-        marker_tuple = ('o', 'v', '<', '>', '8', 's', 'p', 'P', '*', 'X', 'D', 'd', 'x')
-        marker = itertools.cycle(marker_tuple)
-
         # Show the fit residuals as a function of spatial position
         line_indx = np.outer(np.ones(nspat), np.arange(nuse))
         lines_spec = tilts_spec[0,:]
@@ -487,16 +486,15 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
             iall = (line_indx == iline) & tot_mask
             irej = (line_indx == iline) & tot_mask & rej_mask
             this_color = cmap(iline)
-            this_marker = next(marker)
             # plot the residuals
             ax.plot(tilts_dspat[iall], (tilts_fit[iall] - tilts_spec[iall]) - delta_spec_fit[iall], color=this_color,
-                    linestyle=' ', marker=this_marker, mfc=this_color, markersize=5.0, alpha=0.7)
+                    linestyle='-', linewidth=3.0, marker='None', alpha=0.5)
             ax.plot(tilts_dspat[irej],(tilts_fit[irej] - tilts_spec[irej]) - delta_spec_fit[irej],linestyle=' ',
-                    marker=this_marker, color = 'limegreen', mfc='limegreen', markersize=5.0, alpha=0.7)
+                    marker='o', color = 'limegreen', mfc='limegreen', markersize=5.0)
 
         ax.hlines(0.0, xmin, xmax, linestyle='--', linewidth=2.0, color='k', zorder=10)
 
-        legend_elements = [Line2D([0], [0], color='cornflowerblue', linestyle=' ', marker='s', mfc='cornflowerblue', markersize=5.0, label='residual'),
+        legend_elements = [Line2D([0], [0], color='cornflowerblue', linestyle='-', linewidth=3.0, label='residual'),
                            Line2D([0], [0], color='limegreen', linestyle=' ', marker='o', mfc='limegreen', markersize=7.0, label='rejected')]
 
         ax.set_xlim((xmin,xmax))
