@@ -1109,7 +1109,7 @@ class WavelengthSolutionPar(ParSet):
                              'echelle (ESI, X-SHOOTER, NIRES) set this 1. For an echelle with a tiltable grating, it will ' \
                              'depend on the number of solutions in the arxiv.'
 
-        defaults['cc_thresh'] = 0.80
+        defaults['cc_thresh'] = 0.70
         dtypes['cc_thresh'] = float
         descr['cc_thresh'] = 'Threshold for the *global* cross-correlation coefficient between an input spectrum and member ' \
                              'of the archive required to attempt reidentification. Spectra from the archive with a lower ' \

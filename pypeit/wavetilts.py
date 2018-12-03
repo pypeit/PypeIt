@@ -278,7 +278,7 @@ class WaveTilts(masterframe.MasterFrame):
         return trace_dict
 
 
-    def run(self, maskslits=None, doqa=True, show_QA=False, debug=False):
+    def run(self, maskslits=None, doqa=True, show_QA=True, debug=False):
         """ Main driver for tracing arc lines
 
             Code flow:

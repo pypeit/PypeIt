@@ -542,7 +542,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
     if (narxiv_used == 0) or (len(np.unique(line_indx)) < 3):
         patt_dict_slit = patterns.empty_patt_dict(detections.size)
         patt_dict_slit['sigdetect'] = sigdetect
-        return detections, patt_dict_slit
+        return detections, spec_cont_sub, patt_dict_slit
 
 
     # Finalize the best guess of each line

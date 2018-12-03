@@ -28,7 +28,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                 pypeitpar.DetectorPar(
                             dataext         = 1,
                             specaxis        = 0,
-                            specflip        = True,
+                            specflip=True,
+                            spatflip=True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -68,11 +69,16 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['useframe'] = 'overscan'
 
         # Wavelengths
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 2
+
+        # Slits
+        par['calibrations']['slits']['sigdetect'] = 220.
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 0.5
 
 
         # Scienceimage default parameters
