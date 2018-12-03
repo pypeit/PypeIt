@@ -285,7 +285,8 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None, gauss=Fal
     inmask: float ndarray, default = None
         Input mask image.
     gauss: bool, default = False
-        If true the code will trace the arc lines usign Gaussian weighted centroiding
+        If true the code will trace the arc lines usign Gaussian weighted centroiding (trace_gweight) instead of the default,
+        which is flux weighted centroiding (trace_fweight)
     fwhm: float
        Expected FWHM of the arc lines.
     spat_order: int, default = None
@@ -501,6 +502,8 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
         cb = fig.colorbar(dummie_cax, ticks=lines_spec)
         cb.set_label('Spectral Pixel')
         plt.show()
+
+    # TODO Add QA where we overlay the final model of the tilts on the image using ginga!
 
     # QA
     if doqa:
