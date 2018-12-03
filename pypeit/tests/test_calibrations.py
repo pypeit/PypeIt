@@ -129,7 +129,7 @@ def test_wv_calib(multi_caliBrate):
     wv_calib, maskslits = multi_caliBrate.get_wv_calib()
     assert isinstance(wv_calib, dict)
     assert wv_calib['0'] is not None
-    assert wv_calib['0']['rms'] < 0.1
+    assert wv_calib['0']['rms'] < 0.2
     assert isinstance(maskslits, np.ndarray)
 
 
