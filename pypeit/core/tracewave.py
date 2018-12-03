@@ -386,7 +386,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None, gauss=Fal
         arcimg, lines_spec, lines_spat, thismask, inmask=inmask, gauss=gauss, tilts_guess=None, fwhm=fwhm, spat_order=spat_order,
         maxdev_tracefit=maxdev_tracefit,sigrej_trace=sigrej_trace, max_badpix_frac=max_badpix_frac,
         tcrude_maxerr=tcrude_maxerr, tcrude_maxshift=tcrude_maxshift,tcrude_maxshift0=tcrude_maxshift0,
-        tcrude_nave=tcrude_nave, show_fits=show_tracefits)
+        tcrude_nave=tcrude_nave, show_tracefits=show_tracefits)
 
     # TODO THE PCA may not be necessary. It appears to improve the results though for some instruments where the
     # tracing is problematic. We could consider making this optional to speed things up.
@@ -410,7 +410,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None, gauss=Fal
     # Now trace again with the PCA predictions as the starting crutches
     trace_dict1 = trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=inmask, gauss=gauss, tilts_guess=pca_fit,
                                       fwhm=fwhm, spat_order=spat_order, maxdev_tracefit=maxdev_tracefit,sigrej_trace=sigrej_trace,
-                                      max_badpix_frac=max_badpix_frac,show_fits=show_tracefits)
+                                      max_badpix_frac=max_badpix_frac,show_tracefits=show_tracefits)
 
     return trace_dict1
 
