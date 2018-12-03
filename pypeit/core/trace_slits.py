@@ -2987,7 +2987,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
                                                  minx=poly_fit_dict[str(idim)]['minv'],maxx=poly_fit_dict[str(idim)]['maxv'])
 
     trace_model = np.outer(pca_mean, np.ones(nspat)) + (np.dot(pca_coeff_spat, pca_vectors)).T + np.arange(nspat)
-    # TODO what should the aperture here be?
+    # JFH What should this aperture size be? I think fwhm=3.0 since that is the width of the sobel filter
     trace_model_left = trace_model - fwhm/2.0
     trace_model_righ = trace_model + fwhm/2.0
 #    trace_model_left = trace_model - 0.5 #fwhm/2.0

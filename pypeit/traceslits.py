@@ -331,7 +331,6 @@ class TraceSlits(masterframe.MasterFrame):
             self.edgearr = trace_slits.orig_add_user_edges(self.edgearr, self.siglev, self.tc_dict, user_slits)
         else:
             trace_slits.add_user_edges(self.tc_dict, user_slits)
-        debugger.set_trace()
         '''
         # Finish
         if run_to_finish:
