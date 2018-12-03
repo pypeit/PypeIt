@@ -51,7 +51,6 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, mas
     cut_tcent = all_tcent[cut_sig]
     icut = np.where(cut_sig)[0]
 
-    #debugger.set_trace()
     # Return
     return all_tcent, all_ecent, cut_tcent, icut, arc_cont_sub
 
