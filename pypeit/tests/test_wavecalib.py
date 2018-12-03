@@ -70,7 +70,7 @@ def test_user_redo():
     # Do it
     new_wv_calib = waveCalib._build_wv_calib('holy-grail', skip_QA=True)
     # Test
-    assert new_wv_calib['0']['rms'] < 0.1
+    assert new_wv_calib['0']['rms'] < 0.2
     # Now also test the utility script that reads in the wavecalib
     wv_calib_load, par = wavecalib.load_wv_calib(wvcalib_file)
     assert np.all(wv_calib['0']['fitc'] == wv_calib_load['0']['fitc'])
