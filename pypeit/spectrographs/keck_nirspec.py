@@ -58,7 +58,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['number'] = 0
         par['calibrations']['pixelflatframe']['number'] = 5
         par['calibrations']['traceframe']['number'] = 5
-        par['calibrations']['arcframe']['number'] = 0
+        par['calibrations']['arcframe']['number'] = 1
         # Set wave tilts order
         par['calibrations']['tilts']['order'] = 2
         # Scienceimage default parameters
@@ -68,6 +68,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['flexure'] = pypeitpar.FlexurePar()
         par['flexure']['method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
+        par['calibrations']['arcframe']['exprng'] = [1, None]
         par['calibrations']['biasframe']['exprng'] = [None, 2]
         par['calibrations']['darkframe']['exprng'] = [None, 5]
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
@@ -79,18 +80,15 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['tracethresh'] = 10.
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Good for NIRSPEC-1
-        par['calibrations']['wavelengths']['lowest_nsig'] = 5.      # Good for NIRSPEC-1
-        par['calibrations']['wavelengths']['min_nsig'] = 5.      # Good for NIRSPEC-1
+        par['calibrations']['wavelengths']['sigdetect'] = 5.      # Good for NIRSPEC-1
 
         return par
 
     def check_headers(self, headers):
         """
         Check headers match expectations for an LRISb exposure.
-
         See also
         :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
         Args:
             headers (list):
                 A list of headers read from a fits file
@@ -106,7 +104,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         """
         Return a dictionary with the header keywords to read from the
         fits file.
-
         Returns:
             dict: A nested dictionary with the header keywords to read.
             The first level gives the extension to read and the second
@@ -167,26 +164,27 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             # Don't type pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'arc':
-            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 1) \
-                        & (fitstbl['idname'] == 'arclamp')
-
+            # TODO: This is a kludge.  Allow science frames to also be
+            # classified as arcs
+            is_arc = self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 1) \
+                            & (fitstbl['idname'] == 'arclamp')
+            is_obj = self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 0) \
+                        & (fitstbl['idname'] == 'object')
+            return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def lamps(self, fitstbl, status):
         """
         Check the lamp status.
-
         Args:
             fitstbl (:obj:`astropy.table.Table`):
                 The table with the fits header meta data.
             status (:obj:`str`):
                 The status to check.  Can be `off`, `arcs`, or `dome`.
-
         Returns:
             numpy.ndarray: A boolean array selecting fits files that
             meet the selected lamp status.
-
         Raises:
             ValueError:
                 Raised if the status is not one of the valid options.
@@ -241,15 +239,12 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     # TODO: This function is unstable to shape...
     def bpm(self, shape=None, **null_kwargs):
         """ Generate a BPM
-
         Parameters
         ----------
         shape : tuple, REQUIRED
-
         Returns
         -------
         badpix : ndarray
-
         """
         if shape is None:
             raise ValueError('Must provide shape for Keck NIRSPEC bpm.')
@@ -285,40 +280,11 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
     def header_keys(self):
         """
         Header keys specific to keck_nirspec
-
         Returns:
-
         """
         head_keys = self.nirspec_header_keys()
         # Add the name of the filter used
         head_keys[0]['filter'] = 'FILNAME'
         return head_keys
     '''
-
-    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None, msarc_shape=None,
-                       binspectral=None, **null_kwargs):
-        """
-
-        Args:
-            arcparam:
-            disperser:
-            fitstbl:
-            arc_idx:
-            msarc_shape:
-            **null_kwargs:
-
-        Returns:
-
-        """
-        arcparam['lamps'] = ['OH_R24000']
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 1000.       # Minimum amplitude
-
-        if fitstbl['filter1'][arc_idx] == 'NIRSPEC-1':
-            arcparam['n_first'] = 2  # Too much curvature for 1st order
-            arcparam['disp'] = 2.1093  # Ang per pixel for Low-Res, NIRSPEC-1 filter
-            arcparam['b1'] = 1. / arcparam['disp'] / msarc_shape[0]
-            arcparam['wvmnx'][0] = 9400.  # Min wavelength
-            arcparam['wvmnx'][1] = 11300.  # Max wavelength
-            arcparam['wv_cen'] = 10000.  # Central wavelength
 

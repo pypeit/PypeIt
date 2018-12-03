@@ -200,7 +200,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, satval,
     dnum = parse.get_dnum(det)
 
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
-    tampl, tcent, twid, _, w, _ , tnsig = arc.detect_lines(censpec, nfitpix=7, nonlinear_counts=nonlinear_counts)
+    tampl, tampl_cont, tcent, twid, _, w, _ , tnsig = arc.detect_lines(censpec, fit_frac_fwhm=1.75, nonlinear_counts=nonlinear_counts)
 
     # TODO: Validate satval value?
 #    satval = settings_det['saturation']*settings_det['nonlinear']

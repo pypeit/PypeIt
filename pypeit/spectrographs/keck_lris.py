@@ -330,11 +330,11 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 10.0
-        par['calibrations']['wavelengths']['lowest_nsig'] = 10.0
+        par['calibrations']['wavelengths']['sigdetect'] = 10.0
+        #par['calibrations']['wavelengths']['lowest_nsig'] = 10.0
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['n_first'] = 2
+        par['calibrations']['wavelengths']['n_first'] = 1
 
 
         return par
@@ -431,12 +431,31 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['min_nsig'] = 10.0
-        par['calibrations']['wavelengths']['lowest_nsig'] =5.0
-
+        par['calibrations']['wavelengths']['sigdetect'] = 10.0
+        # reidentification stuff
+        #par['calibrations']['wavelengths']['method'] = 'reidentify'
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400_8500_d560.json'
 
 
         return par
+
+    def get_lacosmics_par(self,proc_par,binning='1x1'):
+        par = self.default_pypeit_par()
+        default_sigclip = par['scienceframe']['process']['sigclip']
+        default_objlim = par['scienceframe']['process']['objlim']
+        # Check whether the user has changed the parameters.
+        if (proc_par['sigclip'] == default_sigclip) and (proc_par['objlim'] == default_objlim):
+            # Unbinned LRISr needs very aggressive LACosmics parameters.
+            if binning is '1x1':
+                sigclip = 3.0
+                objlim = 0.5
+            else:
+                sigclip = 5.0
+                objlim = 5.0
+        else:
+            sigclip = proc_par['sigclip']
+            objlim = proc_par['objlim']
+        return sigclip, objlim
 
     def check_headers(self, headers):
         """

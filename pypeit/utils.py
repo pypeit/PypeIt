@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import os
 import warnings
 import itertools
+import matplotlib
 
 import numpy as np
 
@@ -12,7 +13,7 @@ from scipy import interpolate
 from astropy import units
 from astropy.io import fits
 from astropy.convolution import convolve, Gaussian1DKernel
-
+from matplotlib import pyplot as plt
 
 # Imports for fast_running_median
 from collections import deque
@@ -47,6 +48,39 @@ def bspline_inner_knots(all_knots):
     i0=pos[0]
     i1=pos[-1]
     return all_knots[i0:i1]
+
+
+
+# params for pretty matplotlib plots
+def pyplot_rcparams():
+    # set some plotting parameters
+    plt.rcParams["xtick.top"] = True
+    plt.rcParams["ytick.right"] = True
+    plt.rcParams["xtick.minor.visible"] = True
+    plt.rcParams["ytick.minor.visible"] = True
+    plt.rcParams["ytick.direction"] = 'in'
+    plt.rcParams["xtick.direction"] = 'in'
+    plt.rcParams["xtick.major.size"] = 6
+    plt.rcParams["ytick.major.size"] = 6
+    plt.rcParams["xtick.minor.size"] = 3
+    plt.rcParams["ytick.minor.size"] = 3
+    plt.rcParams["xtick.major.width"] = 1
+    plt.rcParams["ytick.major.width"] = 1
+    plt.rcParams["xtick.minor.width"] = 1
+    plt.rcParams["ytick.minor.width"] = 1
+    plt.rcParams["axes.linewidth"] = 1
+    plt.rcParams["lines.linewidth"] = 3
+    plt.rcParams["lines.markeredgewidth"] = 2
+    plt.rcParams["patch.linewidth"] = 3
+    plt.rcParams["hatch.linewidth"] = 3
+    plt.rcParams["font.size"] = 13
+    plt.rcParams["legend.frameon"] = False
+    plt.rcParams["legend.handletextpad"] = 1
+
+# restore default rcparams
+def pyplot_rcparams_default():
+    matplotlib.rcParams.update(matplotlib.rcParamsDefault)
+
 
  # This code taken from this cookbook and slightly modified: https://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
 def smooth(x, window_len, window='flat'):
@@ -391,6 +425,9 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
                     relative_factor = np.sqrt(this_chi2)
                 relative_factor = max(relative_factor,1.0)
             # Rejection
+            # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
+            # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
+            # further consideration. I think requiring stick to be set is the more transparent behavior.
             maskwork, qdone = pydl.djs_reject(ydata, yfit, invvar=invvar,
                                          inmask=tempin, outmask=maskwork,
                                          upper=upper*relative_factor,
@@ -1124,6 +1161,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
     mskcnt = np.sum(mask)
     # Iterate, and mask out new values on each iteration
     ct = guesses
+
     while True:
         w = np.where(mask == 0)
         xfit = xarray[w]
@@ -1136,7 +1174,8 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
                       guesses=ct, minv=minv, maxv=maxv, bspline_par=bspline_par)
         yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
-        if xarray.size-np.sum(mask) <= order+2:
+        #if xarray.size-np.sum(mask) <= order+2: JFH fixed this bug
+        if xarray.size - np.sum(mask) <= order + 1:
             if verbose:
                 msgs.warn("More parameters than data points - fit might be undesirable")
             break  # More data was masked than allowed by order
@@ -1153,6 +1192,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
             mask[w] = 1
         if mskcnt == np.sum(mask): break  # No new values have been included in the mask
         mskcnt = np.sum(mask)
+
     # Final fit
     w = np.where(mask == 0)
     xfit = xarray[w]
@@ -1164,6 +1204,120 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
     ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, bspline_par=bspline_par)
     return mask, ct
 
+# This should replace robust_polyfit
+def robust_polyfit_djs(xarray, yarray, order, function = 'polynomial', minv = None, maxv = None, bspline_par = None,
+                       guesses = None, maxiter=10, inmask=None, sigma=None,invvar=None, lower=None, upper=None,
+                       maxdev=None,maxrej=None, groupdim=None,groupsize=None, groupbadpix=False, grow=0,
+                       sticky=True, use_mad=True):
+    """
+    A robust polynomial fit is performed to the xarray, yarray pairs
+    mask[i] = 1 are good values
+
+    xarray: independent variable values
+    yarray: dependent variable values
+    order: the order of the polynomial to be used in the fitting
+    function: which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev', 'bspline')
+    minv: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
+    maxv: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
+    guesses : tuple
+    bspline_par : dict
+        Passed to bspline_fit()
+    maxiter : :class:`int`, optional
+         Maximum number of rejection iterations, default 10.  Set this to
+         zero to disable rejection.
+    inmask : :class:`numpy.ndarray`, optional
+        Input mask.  Bad points are marked with a value that evaluates to ``False``.
+        Must have the same number of dimensions as `data`. Points masked as bad "False" in the inmask
+        will also always evaluate to "False" in the outmask
+    sigma : :class: float or `numpy.ndarray`, optional
+        Standard deviation of the yarray, used to reject points based on the values
+        of `upper` and `lower`. This can either be a single float for the entire yarray or a ndarray with the same
+        shape as the yarray.
+    invvar : :class: float or `numpy.ndarray`, optional
+        Inverse variance of the data, used to reject points based on the values
+        of `upper` and `lower`.  This can either be a single float for the entire yarray or a ndarray with the same
+        shape as the yarray. If both `sigma` and `invvar` are set the code will return an error.
+    lower : :class:`int` or :class:`float`, optional
+        If set, reject points with data < model - lower * sigma.
+    upper : :class:`int` or :class:`float`, optional
+        If set, reject points with data > model + upper * sigma.
+    maxdev : :class:`int` or :class:`float`, optional
+        If set, reject points with abs(data-model) > maxdev.  It is permitted to
+        set all three of `lower`, `upper` and `maxdev`.
+    maxrej: :class:`int` or :class:`numpy.ndarray`, optional
+        Maximum number of points to reject in this iteration.  If `groupsize` or
+        `groupdim` are set to arrays, this should be an array as well.
+    groupdim: class: `int`
+        Dimension along which to group the data; set to 1 to group along the 1st dimension, 2 for the 2nd dimension, etc.
+        If data has shape [100,200], then setting GROUPDIM=2 is equivalent to grouping the data with groupsize=100.
+        In either case, there are 200 groups, specified by [*,i]. NOT WELL TESTED IN PYTHON!
+    groupsize: class: `int`
+        If this and maxrej are set, then reject a maximum of maxrej points per group of groupsize points.  If groupdim is also
+        set, then this specifies sub-groups within that. NOT WELL TESTED IN PYTHON!!
+    groupbadpix : :class:`bool`, optional
+        If set to ``True``, consecutive sets of bad pixels are considered groups,
+        overriding the values of `groupsize`.
+    grow : :class:`int`, optional, default = 0
+        If set to a non-zero integer, N, the N nearest neighbors of rejected
+        pixels will also be rejected.
+    sticky : :class:`bool`, optional, default is True
+        If set to ``True``, pixels rejected in one iteration remain rejected in
+        subsequent iterations, even if the model changes. If
+    use_mad : :class: `bool`, optional, defaul = False
+        It set to ``True``, compute the median of the maximum absolute deviation between the data and use this for the rejection instead of
+        the default which is to compute the standard deviation of the yarray - modelfit. Note that it is not possible to specify use_mad=True
+        and also pass in values for sigma or invvar, and the code will return an error if this is done.
+
+
+    Returns:
+    --------
+    :return: mask, ct -- mask is an array of the masked values, ct is the coefficients of the robust polyfit.
+    """
+
+    # Setup the initial mask
+    if inmask is None:
+        inmask = np.ones(xarray.size, dtype=bool)
+
+    if sigma is not None and invvar is not None:
+        msgs.error('You cannot specify both sigma and invvar')
+    elif sigma is not None:
+        weights = 1.0/sigma**2
+    elif invvar is not None:
+        weights = np.copy(invvar)
+    else:
+        weights = np.ones(xarray.size,dtype=float)
+
+    # Iterate, and mask out new values on each iteration
+    ct = guesses
+
+    iIter = 0
+    qdone = False
+    thismask = np.copy(inmask)
+    while (not qdone) and (iIter < maxiter):
+        if np.sum(thismask) <= order + 1:
+            msgs.warn("More parameters than data points - fit might be undesirable")
+        ct = func_fit(xarray, yarray, function, order, w=weights*thismask,guesses=ct, minv=minv, maxv=maxv, bspline_par=bspline_par)
+        ymodel = func_val(ct, xarray, function, minv=minv, maxv=maxv)
+        thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, sigma=sigma, invvar=invvar,
+                                          lower=lower,upper=upper,maxdev=maxdev,maxrej=maxrej,
+                                          groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,
+                                          use_mad=use_mad,sticky=sticky)
+        iIter += 1
+    if iIter == maxiter:
+        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
+    outmask = np.copy(thismask)
+
+    # Final fit
+    xfit = xarray[outmask]
+    yfit = yarray[outmask]
+    if weights is not None:
+        wfit = weights[outmask]
+    else:
+        wfit = None
+
+    ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, bspline_par=bspline_par)
+
+    return outmask, ct
 
 def robust_regression(x, y, ordr, outfrac, maxiter=100, function='polynomial', min=None, max=None):
     """
@@ -1297,6 +1451,7 @@ def yamlify(obj, debug=False):
         print(type(obj))
     return obj
 
+# This code is now deprecated and one should be using detect_lines for peak finding.
 ###########
 def fit_min(xarr, yarr, xguess, width=None):
 
@@ -1334,7 +1489,7 @@ def fit_min(xarr, yarr, xguess, width=None):
     # Return
     return xbest, sigma, errcode
 
-
+# This code is now deprecated and one should be using detect_lines for peak finding.
 def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
     """ Find minima in an input 1D array
     Parameters

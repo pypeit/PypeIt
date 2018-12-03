@@ -16,8 +16,8 @@ from pypeit import msgs
 from pypeit.core import arc
 from pypeit import debugger
 
-
-def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10, debug=False):
+def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, mask_frac_fwhm=1.0,max_frac_fwhm=2.0,
+                        cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
     """
     Parameters
     ----------
@@ -31,8 +31,12 @@ def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10, debug=Fal
     """
 
     # Find peaks
-    tampl, tcent, twid, centerr, w, yprep, nsig = arc.detect_lines(spec, nfitpix=7, sigdetect = 0.7*min_nsig,
-                                                                   nonlinear_counts = nonlinear_counts, debug=debug)
+    tampl, tampl_cont, tcent, twid, centerr, w, yprep, nsig = arc.detect_lines(spec, sigdetect = sigdetect, fwhm=fwhm,
+                                                                               fit_frac_fwhm=fit_frac_fwhm,
+                                                                               mask_frac_fwhm=mask_frac_fwhm,
+                                                                               max_frac_fwhm=max_frac_fwhm,
+                                                                               cont_samp=cont_samp,niter_cont = niter_cont,
+                                                                               nonlinear_counts = nonlinear_counts, debug=debug)
     all_tcent = tcent[w]
     all_tampl = tampl[w]
     all_ecent = centerr[w]
@@ -43,7 +47,7 @@ def arc_lines_from_spec(spec, min_nsig =10.0, nonlinear_counts = 1e10, debug=Fal
     #cut_amp = all_tampl > min_ampl
 
     # Cut on significance
-    cut_sig = all_nsig > min_nsig
+    cut_sig = all_nsig > sigdetect
     cut_tcent = all_tcent[cut_sig]
     icut = np.where(cut_sig)[0]
 
@@ -119,17 +123,27 @@ def zerolag_shift_stretch(theta, y1, y2):
     corr_norm = corr_zero/corr_denom
     return -corr_norm
 
-def smooth_and_ceil(inspec1, smooth, percent_ceil):
+def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False):
     """ Utility routine to smooth and apply a ceiling to spectra """
 
-    if percent_ceil is not None:
-        # Find the 20sigma peaks
-        tampl1, tcent1, twid1, centerr1, w1, yprep1, nsig1 = arc.detect_lines(inspec1, nfitpix=7, sigdetect = 10.0)
-        # Find peaks
-        ceil1 = np.percentile(tampl1, percent_ceil)
-        spec1 = np.fmin(inspec1, ceil1)
+    # ToDO can we improve the logic here. Technically if use_raw_arc = True and perecent_ceil=None
+    # we don't need to peak find or continuum subtract, but this makes the code pretty uggly.
+
+    # Run line detection to get the continuum subtracted arc
+    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=10.0)
+    if use_raw_arc == True:
+        ampl = tampl1
+        use_arc = inspec1
     else:
-        spec1 = np.copy(inspec1)
+        ampl = tampl1_cont
+        use_arc = arc1
+
+    if percent_ceil is not None:
+        # If this is set, set a ceiling on the greater > 10sigma peaks
+        ceil1 = np.percentile(ampl, percent_ceil)
+        spec1 = np.fmin(use_arc, ceil1)
+    else:
+        spec1 = np.copy(use_arc)
 
     if smooth is not None:
         y1 = scipy.ndimage.filters.gaussian_filter(spec1, smooth)
@@ -138,26 +152,11 @@ def smooth_and_ceil(inspec1, smooth, percent_ceil):
 
     return y1
 
-# This code does not currently work yet and has bugs in the lag computation.
-#def cross_correlate(y1,y2):
 
-#    if y1.shape != y2.shape:
-#        msgs.error('cross_correlate only works for equal sized arrays')
-#    nspec =y1.shape
-#    next2 = 2**(nspec-1).bit_length()
-#    f1 = np.fft.fft(y1,n=next2)
-#    f2 = np.fft.fft(np.flipud(y2),n=next2)
-#    cc_raw = np.real(np.fft.ifft(f1 * f2))
-#    cc = np.fft.fftshift(cc_raw)
-#    corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
-#    cc_norm = cc/corr_denom
-#    zero_index = int(next2/2) - 1
-#    lags = zero_index - np.arange(next2)
-#    return lags, cc_norm
 
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
-def xcorr_shift(inspec1,inspec2,smooth=5.0,percent_ceil=90.0,debug=False):
+def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=90.0, use_raw_arc=False, debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
     the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
@@ -178,6 +177,8 @@ def xcorr_shift(inspec1,inspec2,smooth=5.0,percent_ceil=90.0,debug=False):
       Appply a ceiling to the input spectra at the percent_ceil percentile level of the distribution of peak amplitudes.
       This prevents extremely strong lines from completely dominating the cross-correlation, which can
       causes the cross-correlation to have spurious noise spikes that are not the real maximum.
+    use_raw_arc: bool, default = False
+      If this parameter is True the raw arc will be used rather than the continuum subtracted arc
     debug: boolean, default = False
 
     Returns
@@ -188,17 +189,17 @@ def xcorr_shift(inspec1,inspec2,smooth=5.0,percent_ceil=90.0,debug=False):
       the maximum of the cross-correlation coefficient at this shift
     """
 
-    y1 = smooth_and_ceil(inspec1,smooth,percent_ceil)
-    y2 = smooth_and_ceil(inspec2,smooth,percent_ceil)
-
+    y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
+    y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
 
     nspec = y1.shape[0]
     lags = np.arange(-nspec + 1, nspec)
     corr = scipy.signal.correlate(y1, y2, mode='full')
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
     corr_norm = corr/corr_denom
-    output = arc.detect_lines(corr_norm, nfitpix=7, sigdetect=5.0, fwhm=20.0, mask_width = 10.0, cont_samp=30, nfind = 1)
-    pix_max = output[1]
+    tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(corr_norm, sigdetect=3.0,
+                                                                                     fit_frac_fwhm=1.5, fwhm=5.0,
+                                                                                     mask_frac_fwhm=1.0, cont_samp=30, nfind = 1)
     corr_max = np.interp(pix_max, np.arange(lags.shape[0]),corr_norm)
     lag_max  = np.interp(pix_max, np.arange(lags.shape[0]),lags)
     if debug:
@@ -213,7 +214,8 @@ def xcorr_shift(inspec1,inspec2,smooth=5.0,percent_ceil=90.0,debug=False):
     return lag_max[0], corr_max[0]
 
 
-def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, percent_ceil = 90.0, shift_mnmx = (-0.05,0.05), stretch_mnmx = (0.95,1.05), debug = False):
+def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ceil=90.0, use_raw_arc=False,
+                        shift_mnmx=(-0.05,0.05), stretch_mnmx=(0.95,1.05), debug=False, seed = None):
 
     """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
     guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
@@ -231,12 +233,20 @@ def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, percent_ceil = 90.0, shi
 
     Optional Parameters
     -------------------
+    cc_thresh: float, default = -1.0
+      A number in the range [-1.0,1.0] which is the threshold on the initial cross-correlation coefficient for the shift/stretch.
+      If the value of the initial cross-correlation is < cc_thresh the code will just exit and return this value and the best shift.
+      This is desirable behavior since the shif/stretch optimization is slow and this allows one to test how correlated the spectra are
+      before attempting it, since there is little value in that expensive computation for spectra with little overlap. The default cc_thresh =-1.0
+      means shift/stretch is always attempted since the cross correlation coeficcient cannot be less than -1.0.
     smooth: float, default
       Gaussian smoothing in pixels applied to both spectra for the computations. Default is 5.0
     percent_ceil: float, default=90.0
       Appply a ceiling to the input spectra at the percent_ceil percentile level of the distribution of peak amplitudes.
       This prevents extremely strong lines from completely dominating the cross-correlation, which can
       causes the cross-correlation to have spurious noise spikes that are not the real maximum.
+    use_raw_arc: bool, default = False
+      If this parameter is True the raw arc will be used rather than the continuum subtracted arc
     shift_mnmx: tuple of floats, default = (-0.05,0.05)
       Range to search for the shift in the optimization about the initial cross-correlation based estimate of the shift.
       The optimization will search the window (shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]) where nspec
@@ -244,108 +254,66 @@ def xcorr_shift_stretch(inspec1, inspec2, smooth = 5.0, percent_ceil = 90.0, shi
     stretch_mnmx: tuple of floats, default = (0.97,1.03)
       Range to search for the stretch in the optimization. The code may not work well if this range is significantly expanded
       because the linear approximation used to transform the arc starts to break down.
+    seed: int or np.random.RandomState, optional, default = None
+       Seed for scipy.optimize.differential_evolution optimizer. If not specified, the calculation will not be repeatable
+    debug = False
+       Show plots to the screen useful for debugging.
 
     Returns
     -------
-    success: boolean
-      boolean indicating whether the optimization exited successfully indicating that the shift and stretch are reliable
+    success: int
+      A flag indicating the exist status.
+          success  = 1, shift and stretch performed via sucessful optimization
+          success  = 0, shift and stretch optimization failed
+          success  = -1, initial x-correlation is below cc_thresh (see above), so shift/stretch optimization was not attempted
     shift: float
-      the optimal shift which was determined
+      the optimal shift which was determined.
+      If cc_thresh is set, and the initial cross-correlation is < cc_thresh,  then this will be just the cross-correlation shift
     stretch: float
-      the optimal stretch which was determined
+      the optimal stretch which was determined.
+      If cc_thresh is set, and the initial cross-correlation is < cc_thresh,  then this will be just be 1.0
     cross_corr: float
       the value of the cross-correlation coefficient at the optimal shift and stretch. This is a number between zero and unity,
       which unity indicating a perfect match between the two spectra.
+      If cc_thresh is set, and the initial cross-correlation is < cc_thresh, this will be just the initial cross-correlation
     shift_init:
       The initial shift determined by maximizing the cross-correlation coefficient without allowing for a stretch.
+      If cc_thresh is set, and the initial cross-correlation is < cc_thresh, this will be just the shift from the initial cross-correlation
     cross_corr_init:
-      The maximum of the initial cross-correlation coefficient determined without allowing for a stretch
+      The maximum of the initial cross-correlation coefficient determined without allowing for a stretch.
+      If cc_thresh is set, and the initial cross-correlation is < cc_thresh, this will be just the initial cross-correlation
     """
 
     nspec = inspec1.size
 
-    y1 = smooth_and_ceil(inspec1,smooth,percent_ceil)
-    y2 = smooth_and_ceil(inspec2,smooth,percent_ceil)
+    y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
+    y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
 
-    # Do the cross-correlation first and determine the
-    shift_cc, cc_val = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, debug = debug)
+    # Do the cross-correlation first and determine the initial shift
+    shift_cc, cc_val = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, use_raw_arc = True, debug = debug)
 
-    bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
-    # ToDo can we make tol = 1e-3 and speed things up. Someone needs to test this.
-    result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol = 1e-4,
-                                                   bounds=bounds, disp=False, polish=True)
-
-    if not result.success:
-        msgs.warn('Fit for shift and stretch did not converge!')
-
-    if debug:
-        x1 = np.arange(nspec)
-        inspec2_trans = shift_and_stretch(inspec2, result.x[0], result.x[1])
-        plt.plot(x1,inspec1, 'k-', drawstyle='steps', label ='inspec1')
-        plt.plot(x1,inspec2_trans, 'r-', drawstyle='steps', label = 'inspec2')
-        plt.title('shift= {:5.3f}'.format(result.x[0]) +
-                  ',  stretch = {:7.5f}'.format(result.x[1]) + ', corr = {:5.3f}'.format(-result.fun))
-        plt.legend()
-        plt.show()
-
-
-    return result.success, result.x[0], result.x[1], -result.fun, shift_cc, cc_val
-
-
-
-# JFH ToDo This algorithm for computing the shift and stretch is unstable. It was hanging but that has been fixed
-# by ading the bounds. However, I think it is producing bogus results in many cases.
-def match_peaks_old(inspec1, inspec2, smooth=5.0, debug=False):
-    """ Stretch and shift inspec2 until it matches inspec1
-    """
-
-    # Initial estimate
-    p0 = np.array([0.0])
-    nspec = inspec1.size
-    specs = (inspec1, inspec2, smooth,)
-
-    try:
-        res = curve_fit(shift_stretch, specs, np.array([0.0]), p0,  bounds = (-nspec, nspec))
-        #res = curve_fit(shift_stretch, specs, np.array([0.0]), p0, epsfcn=1.0)
-    except ValueError:
-        # Probably no overlap of the two spectra
-        return None, None
-    stretch = res[0][0]
-    _, shift = shift_stretch(specs, stretch, retshift=True)
-
-    if debug:
-        inspec2_adj = resample(inspec2, int(inspec1.size + stretch))
-        x1 = np.arange(inspec1.shape[0])
-        x2 = np.arange(inspec2_adj.shape[0]) + shift
-        from matplotlib import pyplot as plt
-        plt.plot(x1, inspec1, 'k-', drawstyle='steps')
-        plt.plot(x2, inspec2_adj, 'r-', drawstyle='steps')
-        plt.show()
-
-    return stretch, shift
-
-
-# JFH I think this should be done with scipy.optimize to find the maximum value of the cc correlation as a function of
-# shift and stretch, rather than with curve_fit
-def shift_stretch_old(specs, p, retshift=False):
-    inspec1, inspec2, smooth = specs
-    y1 = scipy.ndimage.filters.gaussian_filter(inspec1, smooth)
-    y2 = scipy.ndimage.filters.gaussian_filter(inspec2, smooth)
-    y1size = y1.size
-    y2size = int(y1size + p)
-    y2 = resample(y2, y2size)
-    df = np.min([y1size // 2 - 1, y2size // 2 - 1])
-    size = y1size + y2size - 1
-    fsize = 2 ** np.int(np.ceil(np.log2(size)))  # Use this size for a more efficient computation
-    conv = np.fft.fft(y1, fsize)
-    conv *= scipy.conj(np.fft.fft(y2, fsize))
-    cc = scipy.ifft(conv)  # [df:df+y1size]
-    shift = np.argmax(np.abs(cc))
-    stretch = 1.0 / np.max(np.abs(cc))
-    if retshift:
-        return np.array([stretch]), shift
+    if cc_val < cc_thresh:
+        return -1, shift_cc, 1.0, cc_val, shift_cc, cc_val
     else:
-        return np.array([stretch])
+        bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
+        # TODO Can we make the differential evolution run faster?
+        result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol=1e-4,
+                                                       bounds=bounds, disp=False, polish=True, seed=seed)
+        if not result.success:
+            msgs.warn('Fit for shift and stretch did not converge!')
+
+        if debug:
+            x1 = np.arange(nspec)
+            y2_trans = shift_and_stretch(y2, result.x[0], result.x[1])
+            plt.figure(figsize=(14, 6))
+            plt.plot(x1,y1, 'k-', drawstyle='steps', label ='inspec1')
+            plt.plot(x1,y2_trans, 'r-', drawstyle='steps', label = 'inspec2, shift & stretch')
+            plt.title('shift= {:5.3f}'.format(result.x[0]) +
+                      ',  stretch = {:7.5f}'.format(result.x[1]) + ', corr = {:5.3f}'.format(-result.fun))
+            plt.legend()
+            plt.show()
+
+        return int(result.success), result.x[0], result.x[1], -result.fun, shift_cc, cc_val
 
 
 
@@ -431,3 +399,22 @@ def hist_wavedisp(waves, disps, dispbin=None, wavebin=None, scale=1.0, debug=Fal
     """
 
     return hist_wd, cent_w, cent_d
+
+
+# JFH attempt with just FFT
+# This code does not currently work yet and has bugs in the lag computation.
+#def cross_correlate(y1,y2):
+
+#    if y1.shape != y2.shape:
+#        msgs.error('cross_correlate only works for equal sized arrays')
+#    nspec =y1.shape
+#    next2 = 2**(nspec-1).bit_length()
+#    f1 = np.fft.fft(y1,n=next2)
+#    f2 = np.fft.fft(np.flipud(y2),n=next2)
+#    cc_raw = np.real(np.fft.ifft(f1 * f2))
+#    cc = np.fft.fftshift(cc_raw)
+#    corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
+#    cc_norm = cc/corr_denom
+#    zero_index = int(next2/2) - 1
+#    lags = zero_index - np.arange(next2)
+#    return lags, cc_norm

@@ -11,15 +11,14 @@ from matplotlib import pyplot as plt
 
 from astropy.table import vstack
 
+import copy
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc
+from pypeit.core import wavecal
 from pypeit.core import qa
-#from pypeit.core import masters
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core.wavecal import autoid
-from pypeit.core.wavecal import waveio
 import linetools.utils
 
 
@@ -29,15 +28,12 @@ from pypeit import debugger
 
 class WaveCalib(masterframe.MasterFrame):
     """Class to guide slit/order tracing
-
     .. todo::
         - Need to clean up these docs.
-
     Parameters
     ----------
     msarc : ndarray
       Arc image, created by the ArcImage class
-
     Optional Parameters
     --------------------
     settings : dict, optional
@@ -104,23 +100,19 @@ class WaveCalib(masterframe.MasterFrame):
         self.arccen = None
 
 
-    def _build_wv_calib(self, method, skip_QA=False, use_method='general'):
+    def _build_wv_calib(self, method, skip_QA=False):
         """
         Main routine to generate the wavelength solutions in a loop over slits
-
         Wrapper to arc.simple_calib or arc.calib_with_arclines
-
         Parameters
         ----------
         method : str
           'simple' -- arc.simple_calib
           'arclines' -- arc.calib_with_arclines
         skip_QA : bool, optional
-
         Returns
         -------
         self.wv_calib : dict
-
         """
         # Obtain a list of good slits
         ok_mask = np.where(self.maskslits == 0)[0]
@@ -136,9 +128,9 @@ class WaveCalib(masterframe.MasterFrame):
             #self.par['match_toler'] = 3.
             #self.arcparam['Nstrong'] = 13
 
-            CuI = waveio.load_line_list('CuI', use_ion=True, NIST=True)
-            ArI = waveio.load_line_list('ArI', use_ion=True, NIST=True)
-            ArII = waveio.load_line_list('ArII', use_ion=True, NIST=True)
+            CuI = wavecal.waveio.load_line_list('CuI', use_ion=True, NIST=True)
+            ArI = wavecal.waveio.load_line_list('ArI', use_ion=True, NIST=True)
+            ArII = wavecal.waveio.load_line_list('ArII', use_ion=True, NIST=True)
             llist = vstack([CuI, ArI, ArII])
             self.arcparam['llist'] = llist
 
@@ -146,78 +138,109 @@ class WaveCalib(masterframe.MasterFrame):
                                                     nfitpix=self.par['nfitpix'],
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
-        elif method == 'arclines':
-            if ok_mask is None:
-                ok_mask = np.arange(self.arccen.shape[1])
+        elif method == 'semi-brute':
+            debugger.set_trace()  # THIS IS BROKEN
+            final_fit = {}
+            for slit in ok_mask:
+                # HACKS BY JXP
+                self.par['wv_cen'] = 8670.
+                self.par['disp'] = 1.524
+                # ToDO remove these hacks and use the parset in semi_brute
+                best_dict, ifinal_fit = wavecal.autoid.semi_brute(self.arccen[:, slit],
+                                                                  self.par['lamps'], self.par['wv_cen'],
+                                                                  (self)['disp'],match_toler=self.par['match_toler'],
+                                                                  func=self.par['func'],n_first=self.par['n_first'],
+                                                                  sigrej_first=self.par['n_first'],
+                                                                  n_final=self.par['n_final'],
+                                                                  sigrej_final=self.par['sigrej_final'],
+                                                                  sigdetect=self.par['sigdetect'],
+                                                                  nonlinear_counts= self.par['nonlinear_counts'])
+                final_fit[str(slit)] = ifinal_fit.copy()
+        elif method == 'basic':
+            final_fit = {}
+            for slit in ok_mask:
+                status, ngd_match, match_idx, scores, ifinal_fit = \
+                    wavecal.autoid.basic(self.arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
+                                 nonlinear_counts = self.par['nonlinear_counts'])
+                final_fit[str(slit)] = ifinal_fit.copy()
+        elif method == 'holy-grail':
+            # Sometimes works, sometimes fails
+            arcfitter = wavecal.autoid.HolyGrail(self.arccen, par = self.par, ok_mask=ok_mask)
+            patt_dict, final_fit = arcfitter.get_results()
+        elif method == 'reidentify':
+            # Now preferred
+            arcfitter = wavecal.autoid.ArchiveReid(self.arccen, par=self.par, ok_mask=ok_mask)
+            patt_dict, final_fit = arcfitter.get_results()
 
-            if use_method == "semi-brute":
-                debugger.set_trace()  # THIS IS BROKEN
-                final_fit = {}
-                for slit in ok_mask:
-                    # HACKS BY JXP
-                    self.par['wv_cen'] = 8670.
-                    self.par['disp'] = 1.524
-                    # ToDO remove these hacks and use the parset in semi_brute
-                    best_dict, ifinal_fit = autoid.semi_brute(self.arccen[:, slit],
-                                                              self.par['lamps'], self.par['wv_cen'],
-                                                              self.par['disp'],
-                                                              match_toler=self.par['match_toler'], func=self.par['func'],
-                                                              n_first=self.par['n_first'],sigrej_first=self.par['n_first'],
-                                                              n_final=self.par['n_final'], sigrej_final=self.par['sigrej_final'],
-                                                              min_nsig=self.par['min_nsig'],
-                                                              nonlinear_counts= self.par['nonlinear_counts'])
-                    final_fit[str(slit)] = ifinal_fit.copy()
-            elif use_method == "basic":
-                final_fit = {}
-                for slit in ok_mask:
-                    status, ngd_match, match_idx, scores, ifinal_fit = \
-                        autoid.basic(self.arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
-                                     nonlinear_counts = self.par['nonlinear_counts'])
-                    final_fit[str(slit)] = ifinal_fit.copy()
-            else:
-                # Now preferred
-                arcfitter = autoid.General(self.arccen, par = self.par, ok_mask=ok_mask)
-                patt_dict, final_fit = arcfitter.get_results()
-            self.wv_calib = final_fit
+
+        else:
+            msgs.error('Unrecognized wavelength calibration method: {:}'.format(use_method))
+
+        self.wv_calib = final_fit
 
         # QA
         if not skip_QA:
             for slit in ok_mask:
                 outfile = qa.set_qa_filename(self.setup, 'arc_fit_qa', slit=(slit + 1), out_dir=self.redux_path)
-                arc.arc_fit_qa(self.wv_calib[str(slit)], outfile)
+                wavecal.qa.arc_fit_qa(self.wv_calib[str(slit)], outfile = outfile)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
         return self.wv_calib
 
-    def calibrate_spec(self, slit, method='arclines'):
-        """
-        TODO: Deprecate this function? It's only being used by the tests
-        User method to calibrate a given spectrum from a chosen slit
 
-        Wrapper to arc.simple_calib or arc.calib_with_arclines
+    def _echelle_2dfit(self, wv_calib,debug=True, skip_QA = False):
+        """
+        Evaluate 2-d wavelength solution for echelle data. Unpacks wv_calib for slits to be input into  arc.fit2darc
 
         Parameters
         ----------
-        slit : int
-        method : str, optional
-          'simple' -- arc.simple_calib
-          'arclines' -- arc.calib_with_arclines
+        wv_calib: dict
+           Wavelength calibration
+
+        Optional Parameters
+        -------------------
+        debug: bool, default = False
+           Show debugging info
+        skip_QA: bool, default = False
+          Not yet implemented
 
         Returns
         -------
-        iwv_calib : dict
-          Solution for that single slit
-
+        fit2d_dict: dict
+           dictionary containing information from 2-d fit
         """
-        spec = self.wv_calib[str(slit)]['spec']
-        if method == 'simple':
-            iwv_calib = arc.simple_calib(self.msarc, self.par, self.arccen[:, slit])
-        elif method == 'arclines':
-            iwv_calib = arc.calib_with_arclines(self.par, spec.reshape((spec.size, 1)))
-        else:
-            msgs.error("Not an allowed method")
-        return iwv_calib
+
+        msgs.info('Fitting 2-d wavelength solution for echelle....')
+        all_wave = np.array([], dtype=float)
+        all_pixel = np.array([], dtype=float)
+        all_order = np.array([],dtype=float)
+
+        # Obtain a list of good slits
+        ok_mask = np.where(self.maskslits == 0)[0]
+        nspec = self.msarc.shape[0]
+        for islit in wv_calib.keys():
+            if int(islit) not in ok_mask:
+                continue
+            iorder = self.spectrograph.slit2order(islit)
+            mask_now = wv_calib[islit]['mask']
+            all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'][mask_now])
+            all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'][mask_now])
+            all_order = np.append(all_order, np.full_like(wv_calib[islit]['pixel_fit'][mask_now], float(iorder)))
+
+        fit2d_dict = arc.fit2darc(all_wave, all_pixel, all_order, nspec, nspec_coeff=self.par['ech_nspec_coeff'],
+                                  norder_coeff=self.par['ech_norder_coeff'],sigrej=self.par['ech_sigrej'],
+                                  debug=debug)
+
+        self.steps.append(inspect.stack()[0][3])
+
+        # QA
+        if not skip_QA:
+            outfile = qa.set_qa_filename(self.setup, 'arc_fit2d_qa', out_dir=self.redux_path)
+            arc.fit2darc_qa(fit2d_dict, outfile=outfile)
+
+        return fit2d_dict
+
 
     def _extract_arcs(self, lordloc, rordloc, slitpix):
         """
@@ -241,8 +264,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         inmask = (self.bpm == 0) if self.bpm is not None else None
-        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,
-                                                      inmask=inmask)
+        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,inmask=inmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -283,7 +305,7 @@ class WaveCalib(masterframe.MasterFrame):
                 if key in ['steps', 'par']:  # This isn't really necessary
                     continue
                 for tkey in self.wv_calib[key].keys():
-                    if tkey in ['tcent', 'spec', 'xfit', 'yfit', 'xrej']:
+                    if isinstance(self.wv_calib[key][tkey], list):
                         self.wv_calib[key][tkey] = np.array(self.wv_calib[key][tkey])
             # parset
             if 'par' in self.wv_calib.keys():
@@ -299,7 +321,11 @@ class WaveCalib(masterframe.MasterFrame):
         #
         msgs.info("Saving master {0:s} frame as:".format(self.frametype) + msgs.newline() + _outfile)
         # Wavelength fit(s)
-        gddict = linetools.utils.jsonify(data)
+
+        # jsonify has the annoying property that it modifies the objects when it jsonifies them so make a copy,
+        # which converts lists to arrays, so we make a copy
+        data_for_json = copy.deepcopy(data)
+        gddict = linetools.utils.jsonify(data_for_json)
         linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
         # Finish
         msgs.info("Master {0:s} frame saved successfully:".format(self.frametype) + msgs.newline() + _outfile)
@@ -322,7 +348,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Set mask based on wv_calib
         mask = np.array([True]*nslit)
         for key in self.wv_calib.keys():
-            if key in ['steps', 'par']:
+            if key in ['steps', 'par', 'fit2d']:
                 continue
             #
             mask[int(key)] = False
@@ -362,20 +388,23 @@ class WaveCalib(masterframe.MasterFrame):
         # Extract an arc down each slit
         _, _ = self._extract_arcs(lordloc, rordloc, slitpix)
 
-
-        #if self.arcparam is None:
-        #    _ = self._load_arcparam()
-
         # Fill up the calibrations and generate QA
         self.wv_calib = self._build_wv_calib(self.par['method'], skip_QA=skip_QA)
-        self.wv_calib['steps'] = self.steps
-        sv_par = self.par.data.copy()
-        #sv_par.pop('llist')
-        self.wv_calib['par'] = sv_par
+
+        # Return
+        if self.par['echelle'] is True:
+            fit2d_dict = self._echelle_2dfit(self.wv_calib, skip_QA = skip_QA)
+            self.wv_calib['fit2d'] = fit2d_dict
 
         # Build mask
-        self._make_maskslits(lordloc.shape[1])
-        # Return
+        nslits = lordloc.shape[1]
+        self._make_maskslits(nslits)
+
+        # Pack up
+        self.wv_calib['steps'] = self.steps
+        sv_par = self.par.data.copy()
+        self.wv_calib['par'] = sv_par
+
         return self.wv_calib, self.maskslits
 
     def show(self, item, slit=None):
@@ -411,7 +440,7 @@ class WaveCalib(masterframe.MasterFrame):
             ax.set_ylabel('Counts')
             plt.show()
         elif item == 'fit':
-            arc.arc_fit_qa(None, self.wv_calib[str(slit)], slit, outfile='show')
+            wavecal.qa.arc_fit_qa(self.wv_calib[str(slit)])
 
     def __repr__(self):
         # Generate sets string
@@ -423,6 +452,35 @@ class WaveCalib(masterframe.MasterFrame):
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
+
+    def calibrate_spec(self, slit, method='arclines'):
+        """
+        TODO: Deprecate this function? It's only being used by the tests
+        User method to calibrate a given spectrum from a chosen slit
+
+        Wrapper to arc.simple_calib or arc.calib_with_arclines
+
+        Parameters
+        ----------
+        slit : int
+        method : str, optional
+          'simple' -- arc.simple_calib
+          'arclines' -- arc.calib_with_arclines
+
+        Returns
+        -------
+        iwv_calib : dict
+          Solution for that single slit
+
+        """
+        spec = self.wv_calib[str(slit)]['spec']
+        if method == 'simple':
+            iwv_calib = arc.simple_calib(self.msarc, self.par, self.arccen[:, slit])
+        elif method == 'arclines':
+            iwv_calib = arc.calib_with_arclines(self.par, spec.reshape((spec.size, 1)))
+        else:
+            msgs.error("Not an allowed method")
+        return iwv_calib
 
 
 def load_wv_calib(filename):

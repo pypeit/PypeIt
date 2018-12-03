@@ -512,8 +512,9 @@ class Calibrations(object):
             return self.mswave
 
         # Instantiate
-        self.waveImage = waveimage.WaveImage(self.tslits_dict['slitpix'],
-                                             self.tilts_dict['tilts'], self.wv_calib,
+        # ToDO we are regenerating this mask a lot in this module. Could reduce that
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
+        self.waveImage = waveimage.WaveImage(self.slitmask,self.tilts_dict['tilts'], self.wv_calib,
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], maskslits=self.maskslits)
         # Attempt to load master
@@ -578,9 +579,10 @@ class Calibrations(object):
         self.wv_calib = self.waveCalib.master()
         # Build?
         if self.wv_calib is None:
+            self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
             self.wv_calib, _ = self.waveCalib.run(self.tslits_dict['lcen'],
                                                   self.tslits_dict['rcen'],
-                                                  self.tslits_dict['slitpix'],
+                                                  self.slitmask,
                                                   nonlinear=nonlinear, skip_QA=(not self.write_qa))
             # Save to Masters
             if self.save_masters:
@@ -758,4 +760,5 @@ class MultiSlitCalibrations(Calibrations):
     def default_steps():
         return ['bias', 'arc', 'bpm', 'pixlocn', 'slits', 'wv_calib', 'tilts',
                 'flats', 'wave']
+
 

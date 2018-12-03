@@ -9,6 +9,8 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.core import pixels
+
 
 from pypeit import debugger
 
@@ -31,7 +33,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
-                            platescale      = 0.123,
+                            platescale      = 0.15,
                             darkcurr        = 0.01,
                             saturation      = 65535.,
                             nonlinear       = 0.76,
@@ -41,13 +43,14 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                             datasec         = '[1:2048,1:1024]',
                             oscansec        = '[1:2048,980:1024]'
                             )]
+        self.norders = 5
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
 
     @property
     def pypeline(self):
-        return 'MultiSlit'
+        return 'Echelle'
 
     def default_pypeit_par(self):
         """
@@ -66,10 +69,26 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 10.0
-        par['calibrations']['wavelengths']['lowest_nsig'] =10.0
-        par['calibrations']['wavelengths']['lamps'] = ['OH_triplespec']
+        par['calibrations']['wavelengths']['sigdetect']=5.0
+        par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+
+        # Reidentification parameters
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.json'
+        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        # Echelle parameters
+        par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
+        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypeitpar.FlexurePar()
+        par['scienceframe']['process']['sigclip'] = 20.0
+        par['scienceframe']['process']['satpix'] ='nothing'
+
 
         # Set slits and tilts parameters
         par['calibrations']['tilts']['order'] = 2
@@ -154,21 +173,43 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         
         return (fitstbl['idname'] == 'object') \
                         & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-  
+
+
+
+
     def get_match_criteria(self):
-        """Set the general matching criteria for Shane Kast."""
+        """Set the general matching criteria for NIRES"""
         match_criteria = {}
         for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
 
-        # Bias
-        match_criteria['bias']['match'] = {}
-        #match_criteria['bias']['match']['binning'] = ''
-
         match_criteria['standard']['match'] = {}
+        match_criteria['standard']['match']['naxis0'] = '=0'
+        match_criteria['standard']['match']['naxis1'] = '=0'
+
+        match_criteria['bias']['match'] = {}
+        match_criteria['bias']['match']['naxis0'] = '=0'
+        match_criteria['bias']['match']['naxis1'] = '=0'
+
         match_criteria['pixelflat']['match'] = {}
+        match_criteria['pixelflat']['match']['naxis0'] = '=0'
+        match_criteria['pixelflat']['match']['naxis1'] = '=0'
+
         match_criteria['trace']['match'] = {}
+        match_criteria['trace']['match']['naxis0'] = '=0'
+        match_criteria['trace']['match']['naxis1'] = '=0'
+
         match_criteria['arc']['match'] = {}
+        match_criteria['arc']['match']['naxis0'] = '=0'
+        match_criteria['arc']['match']['naxis1'] = '=0'
+
+        # OLD
+        # Bias
+        #match_criteria['bias']['match'] = {}
+        #match_criteria['standard']['match'] = {}
+        #match_criteria['pixelflat']['match'] = {}
+        #match_criteria['trace']['match'] = {}
+        #match_criteria['arc']['match'] = {}
         return match_criteria
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
@@ -198,50 +239,100 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
+    @staticmethod
+    def slitmask(tslits_dict, pad=None, binning=None):
+        """
+         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
+         overload this function to implement instrument specific slitmask behavior, for example setting
+         where the orders on an echelle spectrograph end
 
+         Parameters
+         -----------
+         tslits_dict: dict
+            Trace slits dictionary with slit boundary information
 
-    def setup_arcparam(self, arcparam, fitstbl=None, arc_idx=None,
-                       msarc_shape=None, **null_kwargs):
+         Optional Parameters
+         pad: int or float
+            Padding of the slit boundaries
+         binning: tuple
+            Spectrograph binning in spectral and spatial directions
+
+         Returns
+         -------
+         slitmask: ndarray int
+            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
+            indicating the slit number going from 0 to nslit-1 from left to right.
+
+         """
+
+        # These lines are always the same
+        pad = tslits_dict['pad'] if pad is None else pad
+        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
+
+        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
+
+        order7bad = (slitmask == 0) & (spec_img < tslits_dict['nspec']/2)
+        slitmask[order7bad] = -1
+        return slitmask
+
+    @staticmethod
+    def slit2order(islit):
+
+        """
+        Parameters
+        ----------
+        islit: int, float, or string, slit number
+
+        Returns
+        -------
+        order: int
         """
 
-        Args:
-            arcparam:
-            disperser:
-            fitstbl:
-            arc_idx:
-            msarc_shape:
-            **null_kwargs:
+        if isinstance(islit, str):
+            islit = int(islit)
+        elif isinstance(islit, np.ndarray):
+            islit = islit.astype(int)
+        elif isinstance(islit, float):
+            islit = int(islit)
+        elif isinstance(islit, int):
+            pass
+        else:
+            msgs.error('Unrecognized type for islit')
 
-        Returns:
+        orders = np.arange(7, 2, -1, dtype=int)
+        return orders[islit]
+
+    @staticmethod
+    def order_platescale(binning = None):
+
+
+        """
+        Returns the plate scale in arcseconds for each order
+
+        Parameters
+        ----------
+        None
+
+        Optional Parameters
+        --------------------
+        binning: str
+
+        Returns
+        -------
+        order_platescale: ndarray, float
 
         """
 
-        arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_nsig'] = 50.0         # Min significance for arc lines to be used
-        arcparam['lowest_nsig'] = 10.0         # Min significance for arc lines to be used
-        arcparam['wvmnx'] = [8000.,26000.]  # Guess at wavelength range
-        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3         # Matcing tolerance (pixels)
-        arcparam['func'] = 'legendre'       # Function for fitting
-        arcparam['n_first'] = 2             # Order of polynomial for first fit
-        arcparam['n_final'] = 4             # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2            # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.0    # Number of sigma for rejection (final fit)
+        # NIRES has no binning, but for an instrument with binning we would do this
+        #binspatial, binspectral = parse.parse_binning(binning)
+        return np.full(5, 0.15)
 
 
-#        arcparam['llist'] = ''
-#        arcparam['disp'] = 2.              # Ang/unbinned pixel
-#        arcparam['b1'] = 0.                # Pixel fit term (binning independent)
-#        arcparam['b2'] = 0.                # Pixel fit term
-#        arcparam['wv_cen'] = 0.            # Estimate of central wavelength
-#        arcparam['wvmnx'] = [9000., 25000.] # Guess at wavelength range
-#        arcparam['disp_toler'] = 0.1       # 10% tolerance
-#        arcparam['match_toler'] = 3.       # Matching tolerance (pixels)
-#        arcparam['func'] = 'legendre'      # Function for fitting
-#        arcparam['n_first'] = 1            # Order of polynomial for first fit
-#        arcparam['n_final'] = 3            # Order of polynomial for final fit
-#        arcparam['nsig_rej'] = 2.          # Number of sigma for rejection
-#        arcparam['nsig_rej_final'] = 2.0   # Number of sigma for rejection (final fit)
-#        arcparam['Nstrong'] = 13           # Number of lines for auto-analysis
+
+
+
+
+
+
+
 

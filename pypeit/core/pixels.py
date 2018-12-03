@@ -86,118 +86,59 @@ def phys_to_pix(array, pixlocn, axis):
     return pix.ravel() if doravel else pix
 
 
-'''
-def slit_pixels(slf, frameshape, det):
-    """ Wrapper to the core_slit_pixels method
-    May be Deprecated in a future Refactor
-
-    Parameters
-    ----------
-    slf : class
-      Science Exposure Class
-    frameshape : tuple
-      A two element tuple providing the shape of a trace frame.
-    det : int
-      Detector index
-
-    Returns
-    -------
-
-    """
-    return core_slit_pixels(slf._lordloc[det-1], slf._rordloc[det-1], frameshape,
-                settings.argflag['trace']['slits']['pad'])
-'''
-
-# ToDo add this function to the instrument class to enable ordermasks and trimming or orders
-# ToDO rewrite this function to use images rather than loops as in flat_fit.py
-def slit_pixels(all_lordloc_in, all_rordloc_in, frameshape, pad):
+def slit_pixels(slit_left_in, slit_righ_in, nspat, pad = 0.0):
     """ Generate an image indicating the slit/order associated with each pixel.
 
     Parameters
     ----------
-    all_lordloc : ndarray
+    slit_left : ndarray
         Array containing the left trace. This can either be a 2-d array with shape (nspec, nTrace)
         for multiple traces, or simply a 1-d array with shape  (nspec) for a single trace.
 
-    all_rordloc : ndarray
+    slit_righ : ndarray
         Array containing the right trace. This can either be a 2-d array with shape (nspec, nTrace)
         for multiple traces, or simply a 1-d array with shape  (nspec) for a single trace.
 
-    frameshape : tuple
-      A two element tuple providing the shape of a trace frame.
+    nspat : tuple
+      Spatial dimension of the frames
 
-    pad : int
+    pad : int or float
+      Pad the mask in both dimensions by this amount.
 
     Returns
     -------
-    msordloc : ndarray
-      An image assigning each pixel to a slit number. A zero value indicates
+    slitmask : ndarray int
+      An image assigning each pixel to a slit number. A value of -1 indicates
       that this pixel does not belong to any slit.
     """
 
     # This little bit of code allows the input lord and rord to either be (nspec, nslit) arrays or a single
     # vectors of size (nspec)
-    if all_lordloc_in.ndim == 2:
-        nslits = all_lordloc_in.shape[1]
-        all_lordloc = all_lordloc_in
-        all_rordloc = all_rordloc_in
+    nspec = slit_left_in.shape[0]
+    if slit_left_in.ndim == 2:
+        nslits = slit_left_in.shape[1]
+        all_lordloc = slit_left_in
+        all_rordloc = slit_righ_in
     else:
         nslits = 1
-        all_lordloc = all_lordloc_in.reshape(all_lordloc_in.size,1)
-        all_rordloc = all_rordloc_in.reshape(all_rordloc_in.size,1)
+        all_lordloc = slit_left_in.reshape(slit_left_in.size,1)
+        all_rordloc = slit_righ_in.reshape(slit_righ_in.size,1)
 
-#    nslits = all_lordloc.shape[1]
-    msordloc = np.zeros(frameshape)
-    for o in range(nslits):
-        lordloc = all_lordloc[:, o]
-        rordloc = all_rordloc[:, o]
-        ordloc = locate_order(lordloc, rordloc, frameshape[0], frameshape[1], int(pad))
-        word = np.where(ordloc != 0)
-        if word[0].size == 0:
-            msgs.warn("There are no pixels in slit {0:d}".format(o + 1))
+    slitmask = np.full((nspec, nspat),-1,dtype=int)
+    spat_img = np.outer(np.ones(nspec,dtype=int), np.arange(nspat,dtype=int)) # spatial position everywhere along image
+
+    for islit in range(nslits):
+        left_trace_img = np.outer(all_lordloc[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
+        righ_trace_img = np.outer(all_rordloc[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
+        thismask = (spat_img > (left_trace_img - pad)) & (spat_img < (righ_trace_img + pad))
+        if not np.any(thismask):
+            msgs.warn("There are no pixels in slit {:d}".format(islit))
             continue
-        msordloc[word] = o + 1
-    return msordloc
+        slitmask[thismask] = islit
+    return slitmask
 
 
-def locate_order(lordloc, rordloc, sz_x, sz_y, pad):
-    """
-    Generate a boolean image that identifies which pixels belong to the
-    slit associated with the supplied left and right slit edges.
 
-    Parameters
-    ----------
-    lordloc : ndarray
-      Location of the left slit edges of 1 slit
-    rordloc : ndarray
-      Location of the right slit edges of 1 slit
-    sz_x : int
-      The size of an image in the spectral (0th) dimension
-    sz_y : int
-      The size of an image in the spatial (1st) dimension
-    pad : int
-      Additional pixels to pad the left and right slit edges
-
-    Returns
-    -------
-    orderloc : ndarray
-      An image the same size as the input frame, containing values from 0-1.
-      0 = pixel is not in the specified slit
-      1 = pixel is in the specified slit
-    """
-    ow = (rordloc-lordloc)/2.0
-    oc = (rordloc+lordloc)/2.0
-    ymin = (oc-ow).astype(int)-pad
-    ymax = (oc+ow).astype(int)+1+pad
-    indx = np.invert((ymax < 0) | (ymin >= sz_y))
-    ymin[ymin < 0] = 0
-    ymax[ymax > sz_y-1] = sz_y-1
-    indx &= (ymax > ymin)
-
-    orderloc = np.zeros((sz_x,sz_y), dtype=int)
-    for x in np.arange(sz_x)[indx]:
-        orderloc[x,ymin[x]:ymax[x]] = 1
-    return orderloc
 
 
 def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
@@ -269,8 +210,8 @@ def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
     slitpix : ndarray
       Image with shape (nspec, nspat) specifying pixel locations. This is created by core_slit_pixels above.
 
-    trim_edg : tuple
-      How much to trim off each edge of each slit
+    trim_edg : tuple of integers or floats
+      How much to trim off each edge of each slit in pixels.
 
     xshift : float, optional
       Future implementation may need to shift the edges

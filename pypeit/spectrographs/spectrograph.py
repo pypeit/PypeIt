@@ -16,7 +16,7 @@ from linetools.spectra import xspectrum1d
 from pypeit import msgs
 from pypeit.core import parse
 from pypeit.par import pypeitpar
-
+from pypeit.core import pixels
 
 # TODO: Consider changing the name of this to Instrument
 class Spectrograph(object):
@@ -86,6 +86,12 @@ class Spectrograph(object):
     @staticmethod
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
+    
+    def get_lacosmics_par(self,proc_par,binning=None):
+        # Workaround to make these parameters a function of binning for LRIS.
+        sigclip = proc_par['sigclip']
+        objlim = proc_par['objlim']
+        return sigclip, objlim
 
     def _check_telescope(self):
         # Check the detector
@@ -534,6 +540,42 @@ class Spectrograph(object):
 
         return self.detector[det-1]['platescale']/tel_platescale
 
+    @staticmethod
+    def slitmask(tslits_dict, pad = None, binning = None):
+        """
+         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
+         overload this function to implement instrument specific slitmask behavior, for example setting
+         where the orders on an echelle spectrograph end
+
+         Parameters
+         -----------
+         tslits_dict: dict
+            Trace slits dictionary with slit boundary information
+
+         Optional Parameters
+         pad: int or float
+            Padding of the slit boundaries
+         binning: tuple
+            Spectrograph binning in spectral and spatial directions
+
+         Returns
+         -------
+         slitmask: ndarray int
+            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
+            indicating the slit number going from 0 to nslit-1 from left to right.
+
+         """
+
+        # These lines are always the same
+        pad = tslits_dict['pad'] if pad is None else pad
+        slitmask = pixels.slit_pixels(tslits_dict['lcen'],tslits_dict['rcen'],tslits_dict['nspat'], pad=pad)
+        return slitmask
+
+    # This routine is only for echelle spectrographs. It returns the plate scale order by order
+    @staticmethod
+    def order_platescale(self, binning=None):
+        pass
+
 
     def __repr__(self):
         # Generate string
@@ -543,3 +585,4 @@ class Spectrograph(object):
         txt += ' camera={:s}'.format(self.camera)
         txt += '>'
         return txt
+
