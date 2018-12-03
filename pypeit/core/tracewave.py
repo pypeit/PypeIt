@@ -285,7 +285,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None, gauss=Fal
     inmask: float ndarray, default = None
         Input mask image.
     gauss: bool, default = False
-        If true the code will trace the arc lines usign Gaussian weighted centroiding 
+        If true the code will trace the arc lines usign Gaussian weighted centroiding
     fwhm: float
        Expected FWHM of the arc lines.
     spat_order: int, default = None
@@ -396,17 +396,13 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
     nspat = trc_tilt_dict['nspat']
     use_tilt = trc_tilt_dict['use_tilt']                 # mask for good/bad tilts, based on aggregate fit, frac good pixels
     nuse = np.sum(use_tilt)
-#    tilts = trc_tilt_dict['tilts'][:,use_tilt]           # gaussian weighted centroid
-#   TeSTING!!!
-    tilts_fit = trc_tilt_dict['tilts'][:,use_tilt]   # legendre polynomial fit
-#    tilts_fit = trc_tilt_dict['tilts_fit'][:,use_tilt]   # legendre polynomial fit
+    tilts = trc_tilt_dict['tilts'][:,use_tilt]   # legendre polynomial fit
+#   JFH Before we were fitting the fits. Now we fit the actual flux weighted centroided tilts.
+#   tilts_fit = trc_tilt_dict['tilts_fit'][:,use_tilt]   # legendre polynomial fit
     tilts_err = trc_tilt_dict['tilts_err'][:,use_tilt]   # gaussian weighted centroidding error
     tilts_dspat = trc_tilt_dict['tilts_dspat'][:,use_tilt] # spatial offset from the central trace
     tilts_spec = trc_tilt_dict['tilts_spec'][:,use_tilt] # line_spec spectral pixel position
     tilts_mask = trc_tilt_dict['tilts_mask'][:,use_tilt] # Reflects if trace is on the slit
-
-    # Let's just let the code do the rejection
-    #delta_tilt  = np.abs(tilts - tilts_fit)
 
     # Do one last round of rejection here at the pixel level, i.e. we already rejected lines before
     #tot_mask = tilts_mask & (delta_tilt < maxdev) & (tilts_err < 900)
@@ -427,19 +423,19 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
 
     # Fits are done in dimensionless coordinates to allow for different binnings between i.e. the arc and the science frame
     fitmask, coeff2 = utils.robust_polyfit_djs(tilts_dspat.flatten()/xnspatmin1,
-                                               (tilts_fit.flatten() - tilts_spec.flatten())/xnspecmin1,
-                                               fitxy,x2=tilts_fit.flatten()/xnspecmin1, inmask = tot_mask.flatten(),
+                                               (tilts.flatten() - tilts_spec.flatten())/xnspecmin1,
+                                               fitxy,x2=tilts.flatten()/xnspecmin1, inmask = tot_mask.flatten(),
                                                function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
                                                maxdev=maxdev_pix/xnspecmin1,minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0,
                                                use_mad=True, sticky=False)
 
     fitmask = fitmask.reshape(tilts_dspat.shape)
-    delta_spec_fit1 = xnspecmin1*utils.func_val(coeff2, tilts_dspat[tot_mask]/xnspatmin1, func2d, x2=tilts_fit[tot_mask]/xnspecmin1,
+    delta_spec_fit1 = xnspecmin1*utils.func_val(coeff2, tilts_dspat[tot_mask]/xnspatmin1, func2d, x2=tilts[tot_mask]/xnspecmin1,
                                                minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
     delta_spec_fit = np.zeros_like(tilts_dspat)
     delta_spec_fit[tot_mask] = delta_spec_fit1
     # Residuals in pixels
-    res = (tilts_fit[fitmask] - tilts_spec[fitmask]) - delta_spec_fit[fitmask]
+    res = (tilts[fitmask] - tilts_spec[fitmask]) - delta_spec_fit[fitmask]
     rms = np.std(res)
     msgs.info("RMS (pixels): {}".format(rms))
     msgs.info("RMS/FWHM: {}".format(rms/fwhm))
@@ -458,9 +454,9 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
         # dummy mappable shows the spectral pixel
         #dummie_cax = ax.scatter(lines_spec, lines_spec, c=lines_spec, cmap=cmap)
         ax.cla()
-        ax.plot(tilts_dspat[tot_mask], tilts_fit[tot_mask], color='black', linestyle=' ', mfc ='None', marker='o',
+        ax.plot(tilts_dspat[tot_mask], tilts[tot_mask], color='black', linestyle=' ', mfc ='None', marker='o',
                 markersize = 9.0, markeredgewidth=1.0,zorder=4, label='Good Tilt')
-        ax.plot(tilts_dspat[rej_mask], tilts_fit[rej_mask], color ='red',linestyle=' ', mfc = 'None', marker='o',
+        ax.plot(tilts_dspat[rej_mask], tilts[rej_mask], color ='red',linestyle=' ', mfc = 'None', marker='o',
                 markersize=9.0, markeredgewidth=2.0, zorder=5, label='Rejected')
         ax.plot(tilts_dspat[tot_mask], tilts_spec[tot_mask] + delta_spec_fit[tot_mask], color='black', linestyle=' ', marker='o',
                 markersize = 2.0,markeredgewidth=1.0,zorder=1)
@@ -489,9 +485,9 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
             irej = (line_indx == iline) & tot_mask & rej_mask
             this_color = cmap(iline)
             # plot the residuals
-            ax.plot(tilts_dspat[iall], (tilts_fit[iall] - tilts_spec[iall]) - delta_spec_fit[iall], color=this_color,
+            ax.plot(tilts_dspat[iall], (tilts[iall] - tilts_spec[iall]) - delta_spec_fit[iall], color=this_color,
                     linestyle='-', linewidth=3.0, marker='None', alpha=0.5)
-            ax.plot(tilts_dspat[irej],(tilts_fit[irej] - tilts_spec[irej]) - delta_spec_fit[irej],linestyle=' ',
+            ax.plot(tilts_dspat[irej],(tilts[irej] - tilts_spec[irej]) - delta_spec_fit[irej],linestyle=' ',
                     marker='o', color = 'limegreen', mfc='limegreen', markersize=5.0)
 
         ax.hlines(0.0, xmin, xmax, linestyle='--', linewidth=2.0, color='k', zorder=10)
@@ -509,7 +505,7 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
 
     # QA
     if doqa:
-        plot_tiltres(setup, tilts_fit[tot_mask], tilts_spec[tot_mask], delta_spec_fit[tot_mask], fitmask[tot_mask], fwhm, slit=slit, show_QA=show_QA, out_dir=out_dir)
+        plot_tiltres(setup, tilts[tot_mask], tilts_spec[tot_mask], delta_spec_fit[tot_mask], fitmask[tot_mask], fwhm, slit=slit, show_QA=show_QA, out_dir=out_dir)
 
     tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
                          npix_rej = np.sum(fitmask == False), coeff2=coeff2, spec_order = spec_order, spat_order = spat_order,
