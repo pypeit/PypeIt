@@ -348,11 +348,10 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         # Set mask based on wv_calib
-        mask = np.array([True]*nslit)
+        mask = np.array([True]*nslit, bool)
         for key in self.wv_calib.keys():
             if key in ['steps', 'par', 'fit2d']:
                 continue
-            #
             mask[int(key)] = False
         self.maskslits = mask
         return self.maskslits
