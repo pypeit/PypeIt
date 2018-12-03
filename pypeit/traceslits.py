@@ -1330,7 +1330,7 @@ class TraceSlits(masterframe.MasterFrame):
             pass
         else:  # No, not done yet
             # Refine
-            self._pca_refine(debug=True, show=show)
+            self._pca_refine(debug=False, show=show)
             # Synchronize and add in edges
             self._mslit_sync()
             # Add user input slits
