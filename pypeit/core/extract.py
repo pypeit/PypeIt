@@ -1850,7 +1850,7 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
 
     if ngood == 0:
         msgs.warn('There are no good traces to PCA fit. There is probably a bug somewhere. Exiting and returning input traces.')
-        return xinit
+        return xinit, {}, None, None
 
     # Take out the mean position of each input trace
     if xinit_mean is None:
@@ -1879,7 +1879,7 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
         msgs.warn('Not enough good traces for a PCA fit of the requested dimensionality. The full (non-compressing) PCA has size: '
                   'npca_full = {:d}'.format(npca_full) + ' is < npca = {:d}'.format(npca))
         msgs.warn('Using the input trace for now. But you should lower npca <= npca_full')
-        return xinit
+        return xinit, {}, None, None
 
     if coeff_npoly is None:
         coeff_npoly = int(np.fmin(np.fmax(np.floor(3.3*ngood/norders),1.0),3.0))
