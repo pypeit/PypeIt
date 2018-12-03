@@ -647,6 +647,7 @@ class TraceSlits(masterframe.MasterFrame):
         if False:
             self.edgearr = trace_slits.edgearr_mslit_sync(self.edges_dict, self.tc_dict, self.ednum)
         else:
+            debugger.set_trace()
             trace_slits.sync_edges(self.tc_dict, self.mstrace.shape[1])
 
         # Step

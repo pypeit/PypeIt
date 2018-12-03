@@ -475,7 +475,7 @@ def new_add_edge(ref_slit, insert_offset, t_dict, left=True):
     return
 
 
-def sync_edges(tc_dict, nspat, insert_buff=5, add_left_edge_slit=True, verbose=False):
+def sync_edges(tc_dict, nspat, insert_buff=5, verbose=False):
     """ Method to synchronize the slit edges
     Adds in extra edges according to a few criteria
 
@@ -489,8 +489,6 @@ def sync_edges(tc_dict, nspat, insert_buff=5, add_left_edge_slit=True, verbose=F
     nspat : int
     insert_buff : int, optional
        Offset from existing edge for any edge added in
-    add_left_edge_slit : bool, optional
-       Allow the method to add in a left slit at the edge of the detector
 
     Returns
     -------
@@ -511,21 +509,29 @@ def sync_edges(tc_dict, nspat, insert_buff=5, add_left_edge_slit=True, verbose=F
         if left_xval[0] < right_xval[0]:  # Ok slit, otherwise continue
             return
 
-    # First slit (often up against the detector)
-    if (right_xval[0] < left_xval[0]) and add_left_edge_slit:
-        right_pix = tc_dict['right']['traces'][:,0] #np.where(edgearr == right_idx[0])
-        mn_rp = np.min(right_pix[1])
+
+    # Deal with missing left edges first (at left edge of detector)
+    missing_lefts = np.where(right_xval < left_xval[0])[0]
+
+    for kk in missing_lefts:
+        # Grab the trace
+        right_pix = tc_dict['right']['traces'][:,kk] #np.where(edgearr == right_idx[0])
+        mn_rp = np.min(right_pix)
         if mn_rp <= insert_buff:
             msgs.warn("Partial or too small right edge at start of detector.  Skipping it.")
+            '''
             # Check to see if the next one is ok
             if (right_xval[1] < left_xval[0]):
                 msgs.warn("Adding in a left edge at start of detector which mirrors the first right edge")
                 ioff = -1*mn_rp + insert_buff
                 new_add_edge(1, ioff, tc_dict, left=True)
+            '''
         else:
             ioff = -1*mn_rp + insert_buff
             msgs.warn("Adding in a left edge at start of detector which mirrors the first right edge")
-            new_add_edge(0, ioff, tc_dict, left=True)
+            new_add_edge(kk, ioff, tc_dict, left=True)
+
+    debugger.set_trace()
 
     # Loop on left edges
     for kk,left in enumerate(left_xval):
