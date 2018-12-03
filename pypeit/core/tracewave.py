@@ -260,7 +260,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, tilt
     return trc_tilt_dict
 
 
-def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None,fwhm=4.0,spat_order=5, maxdev_tracefit=0.2,
+def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None, gauss=False,fwhm=4.0,spat_order=5, maxdev_tracefit=0.2,
                 sigrej_trace=3.0, max_badpix_frac=0.20, tcrude_nave = 5,
                 npca = 1, coeff_npoly_pca = 2, sigrej_pca = 2.0,debug_pca = False, show_tracefits=False):
 
@@ -284,6 +284,8 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None,fwhm=4.0,s
     -------------------
     inmask: float ndarray, default = None
         Input mask image.
+    gauss: bool, default = False
+        If true the code will trace the arc lines usign Gaussian weighted centroiding 
     fwhm: float
        Expected FWHM of the arc lines.
     spat_order: int, default = None
