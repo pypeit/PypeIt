@@ -385,7 +385,6 @@ def fit_tilts(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 
 
     import matplotlib as mpl
     from matplotlib.lines import Line2D
-    import itertools
 
     nspec = trc_tilt_dict['nspec']
     nspat = trc_tilt_dict['nspat']
