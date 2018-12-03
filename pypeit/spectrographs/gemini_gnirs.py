@@ -66,16 +66,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['number'] = 1
         # Bias
         par['calibrations']['biasframe']['useframe'] = 'overscan'
-        # Set slits and tilts parameters
-        par['calibrations']['tilts']['order'] = 2
-        par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10]
-        par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['min_slit_width'] = 4.0
-        par['calibrations']['slits']['number'] = 6
-        par['calibrations']['slits']['pcatype'] = 'order'
-        par['calibrations']['slits']['sigdetect'] = 300
-        par['calibrations']['slits']['pcapar'] = [4,3, 2, 1,0]
 
         # Wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..

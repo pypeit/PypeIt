@@ -667,8 +667,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         self.numhead = 1
 
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for VLT XSHOOTER UVB reductions.
         """
