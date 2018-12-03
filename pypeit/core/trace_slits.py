@@ -2987,8 +2987,11 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
                                                  minx=poly_fit_dict[str(idim)]['minv'],maxx=poly_fit_dict[str(idim)]['maxv'])
 
     trace_model = np.outer(pca_mean, np.ones(nspat)) + (np.dot(pca_coeff_spat, pca_vectors)).T + np.arange(nspat)
-    trace_model_left = trace_model - 0.5 #fwhm/2.0
-    trace_model_righ = trace_model + 0.5 #fwhm/2.0
+    # TODO what should the aperture here be?
+    trace_model_left = trace_model - fwhm/2.0
+    trace_model_righ = trace_model + fwhm/2.0
+#    trace_model_left = trace_model - 0.5 #fwhm/2.0
+#    trace_model_righ = trace_model + 0.5 #fwhm/2.0
     msgs.info('Extracting filt_image along curved edge traces')
     filt_extract = extract.extract_asymbox2(filt_image, trace_model_left, trace_model_righ)
     if debug:
@@ -3061,12 +3064,14 @@ def slit_trace_qa(frame, ltrace, rtrace, extslit, setup, desc="",
         nrm_frame = np.zeros_like(frame)
         for ii in range(ntrc):
             xtrc = (ltrace[:, ii] + rtrace[:, ii])/2.
-            ixtrc = np.round(xtrc).astype(int)
-            # Simple 'extraction'
-            dumi = np.zeros((frame.shape[0], 3))
-            for jj in range(3):
-                dumi[:, jj] = frame[ycen, ixtrc-1+jj]
-            trc = np.median(dumi, axis=1)
+            # Extract the flux down this trace
+            trc = extract.extract_boxcar(frame,xtrc,1.5)
+#           JFH this is buggy when there are bad traces.
+#            # Simple 'extraction'
+#            dumi = np.zeros((frame.shape[0], 3))
+#            for jj in range(3):
+#                dumi[:, jj] = frame[ycen, ixtrc-1+jj]
+#            trc = np.median(dumi, axis=1)
             # Find portion of the image and normalize
             for yy in ycen:
                 xi = max(0, int(ltrace[yy, ii])-3)

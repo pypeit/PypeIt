@@ -378,6 +378,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
 
         nslits = tslits_dict['lcen'].shape[1]
+        if nslits != self.norders:
+            msgs.error('There is a problem with your slit bounadries. You have nslits={:d} orders, whereas NIR has norders={:d}'.format(nslits,self.norders))
         # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
         order_max = [1476,1513,1551, 1592,1687,1741,1801, 1864,1935,2007, 2025, 2025,2025,2025,2025,2025]
         order_min = [418 ,385 , 362,  334, 303, 268, 230,  187, 140,  85,   26,    0,   0,   0,   0,   0]
