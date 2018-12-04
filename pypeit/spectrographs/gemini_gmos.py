@@ -86,7 +86,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.40  # Might be grating dependent..
-        # TODO: min_sig and lowest_nsig are no longer a parameters
+        # TODO: min_sig and lowest_nsig are no longer parameters
         #par['calibrations']['wavelengths']['min_nsig'] = 5.  # Doesn't work for reddest chip
         #par['calibrations']['wavelengths']['lowest_nsig'] = 5.
 
