@@ -557,12 +557,17 @@ class PypeIt(object):
         self.exptime = self.fitstbl['exptime'][scidx]
         self.binning = self.fitstbl['binning'][scidx]
 
-        # This should have been set when we construct the fitstbl
+        # This should have been set when we construct the fitstbl.
+        #
+        # JFH These time routines need to exit cleanly with warnings rather than crashing the code
+        # until we get the fitstbl working in as stable way.
         try:
             tval = Time(fitstbl['time'][scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
         except:
-            debugger.set_trace()
-
+            msgs.warn('There is no time in the fitstbl.' + msgs.newline() +
+            'The time and heliocentric corrections will be off!!' + msgs.newline() +
+            'This is a bad idea. Continuing with a dummy time value')
+            tval = '2010-01-01'
         # Time
         tiso = Time(tval, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
         dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
