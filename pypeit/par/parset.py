@@ -426,6 +426,11 @@ class ParSet(object):
                 The level for the configuration output.  Sets the
                 indentation level and the number of square brackets
                 assigned to the section name.
+            exclude_defaults (:obj:`bool`, optional):
+                Do not include any parameters that are identical to the
+                defaults.
+            include_descr (:obj:`bool`, optional):
+                Include the descriptions of each parameter as comments.
 
         Returns:
             list: The list of the lines to write to a configuration
@@ -632,6 +637,11 @@ class ParSet(object):
                 exists, the file is automatically overwritten.
             quiet (:obj:`bool`, optional):
                 Suppress all standard output from the function.
+            exclude_defaults (:obj:`bool`, optional):
+                Do not include any parameters that are identical to the
+                defaults.
+            include_descr (:obj:`bool`, optional):
+                Include the descriptions of each parameter as comments.
 
         Raises:
             ValueError:
