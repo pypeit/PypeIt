@@ -356,7 +356,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.maskslits = mask
         return self.maskslits
 
-    def run(self, lordloc, rordloc, slitpix, nonlinear=None, skip_QA=False):
+    def run(self, lordloc, rordloc, slitpix, nonlinear=None, skip_QA=False, debug=True):
         """
         Main driver for wavelength calibration
 
@@ -394,7 +394,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Return
         if self.par['echelle'] is True:
-            fit2d_dict = self._echelle_2dfit(self.wv_calib, skip_QA = skip_QA)
+            fit2d_dict = self._echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
             self.wv_calib['fit2d'] = fit2d_dict
 
         # Build mask

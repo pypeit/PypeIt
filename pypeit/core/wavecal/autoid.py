@@ -552,6 +552,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
     patt_dict_slit['bdisp'] = np.median(disp[disp != 0.0])
     patt_dict_slit['sigdetect'] = sigdetect
 
+
+
     if debug_reid:
         plt.figure(figsize=(14, 6))
         # Plot a summary of the local x-correlation values for each line on each slit
@@ -662,7 +664,7 @@ class ArchiveReid:
     """
 
 
-    def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True, debug_all = False,
+    def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True, debug_all = True,
                  debug_peaks = False, debug_xcorr = False, debug_reid = False, debug_fits= False):
 
         if debug_all:
@@ -782,11 +784,14 @@ class ArchiveReid:
             else:
                 ind_sp = np.arange(nspec_arxiv,dtype=int)
                 det_in = self.det_arxiv
+
+            sigdetect = self._parse_param(self.par, 'sigdetect', slit)
+            cc_thresh = self._parse_param(self.par, 'cc_thresh', slit)
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = reidentify(
                 self.spec[:,slit], self.spec_arxiv[:,ind_sp],self.wave_soln_arxiv[:,ind_sp], det_in,
-                self.tot_line_list,self.nreid_min,cc_thresh=self.cc_thresh,match_toler = self.match_toler,
+                self.tot_line_list,self.nreid_min,cc_thresh=cc_thresh,match_toler = self.match_toler,
                 cc_local_thresh=self.cc_local_thresh,nlocal_cc=self.nlocal_cc,nonlinear_counts=self.nonlinear_counts,
-                sigdetect=self.sigdetect,fwhm = self.fwhm,debug_peaks = self.debug_peaks,debug_xcorr=self.debug_xcorr,
+                sigdetect=sigdetect,fwhm = self.fwhm,debug_peaks = self.debug_peaks,debug_xcorr=self.debug_xcorr,
                 debug_reid = self.debug_reid)
             # Check if an acceptable reidentification solution was found
             if not self.all_patt_dict[str(slit)]['acceptable']:
@@ -794,9 +799,11 @@ class ArchiveReid:
                 self.bad_slits = np.append(self.bad_slits, slit)
                 continue
             # Perform the fit
+
+            n_final = self._parse_param(self.par, 'n_final', slit)
             final_fit = fitting.fit_slit(self.spec_cont_sub[:, slit],self.all_patt_dict[str(slit)], self.detections[str(slit)],
                                          self.tot_line_list, match_toler=self.match_toler,func=self.func, n_first=self.n_first,
-                                         sigrej_first=self.sigrej_first, n_final=self.n_final,sigrej_final=self.sigrej_final)
+                                         sigrej_first=self.sigrej_first, n_final=n_final,sigrej_final=self.sigrej_final)
 
             # Did the fit succeed?
             if final_fit is None:
@@ -805,7 +812,8 @@ class ArchiveReid:
                 self.bad_slits = np.append(self.bad_slits, slit)
                 continue
             # Is the RMS below the threshold?
-            if final_fit['rms'] > self.rms_threshold:
+            rms_threshold = self._parse_param(self.par, 'rms_threshold', slit)
+            if final_fit['rms'] > rms_threshold:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Reidentify report for slit {0:d}/{1:d}:'.format(slit, self.nslits-1) + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Need to add additional spectra to arxiv to improve fits'.format(
@@ -842,6 +850,7 @@ class ArchiveReid:
                 signtxt = 'anitcorrelate'
             # Report
             cen_wave = self.wv_calib[st]['cen_wave']
+
             cen_disp = self.wv_calib[st]['cen_disp']
             msgs.info(msgs.newline() +
                       '---------------------------------------------------' + msgs.newline() +
@@ -855,9 +864,22 @@ class ArchiveReid:
                       '  Final RMS of fit              = {:g}'.format(self.wv_calib[st]['rms']))
         return
 
-
     def get_results(self):
         return copy.deepcopy(self.all_patt_dict), copy.deepcopy(self.wv_calib)
+
+
+    def _parse_param(self, par, key, slit):
+
+        # Find good lines for the tilts
+        param_in = par[key]
+        if isinstance(param_in, (float, int)):
+            param = param_in
+        elif isinstance(param_in, (list, np.ndarray)):
+            param = param_in[slit]
+        else:
+            raise ValueError('Invalid input for parameter {:s}'.format(key))
+
+        return param
 
 
 

@@ -10,7 +10,7 @@ from pypeit.core.wavecal import qa
 from pypeit import msgs
 
 
-def fit_slit(spec, patt_dict, tcent, line_lists, outroot=None, slittxt="Slit", thar=False,match_toler=3.0,
+def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, slittxt="Slit", thar=False,match_toler=3.0,
              func='legendre', n_first=2,sigrej_first=2.0,n_final=4,sigrej_final=3.0,verbose=False):
 
     """ Perform a fit to the wavelength solution. Wrapper for iterative fitting code.
@@ -23,11 +23,12 @@ def fit_slit(spec, patt_dict, tcent, line_lists, outroot=None, slittxt="Slit", t
       dictionary of patterns
     tcent: ndarray
       List of the detections in this slit to be fit using the patt_dict
-    outroot : str
-      root directory to save QA
-
+    line_lists: astropy Table
+      Table containing the line list
     Optional Parameters
     -------------------
+    vel_tol: float, default = 1.0
+      Tolerance in km/s for matching lines in the IDs to lines in the NIST database. The default is 1.0 km/s
     outroot: str
       Path for QA file.
     slittxt : str
@@ -78,7 +79,7 @@ def fit_slit(spec, patt_dict, tcent, line_lists, outroot=None, slittxt="Slit", t
     # Purge UNKNOWNS from ifit
     imsk = np.ones(len(ifit), dtype=np.bool)
     for kk, idwv in enumerate(np.array(patt_dict['IDs'])[ifit]):
-        if np.min(np.abs(line_lists['wave'][NIST_lines] - idwv)) > 0.01:
+        if (np.min(np.abs(line_lists['wave'][NIST_lines] - idwv)))/idwv*3.0e5 > vel_tol:
             imsk[kk] = False
     ifit = ifit[imsk]
     # Fit
@@ -89,6 +90,7 @@ def fit_slit(spec, patt_dict, tcent, line_lists, outroot=None, slittxt="Slit", t
                                       plot_fil=plot_fil, verbose=verbose)
     except TypeError:
         # A poor fitting result, this can be ignored.
+        msgs.warn('Fit failed for this slit')
         return None
 
     if plot_fil is not None:

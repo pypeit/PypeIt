@@ -1087,8 +1087,8 @@ class WavelengthSolutionPar(ParSet):
                                     'be accurately centroided'
 
         defaults['sigdetect'] = 5.
-        dtypes['sigdetect'] = [int, float]
-        descr['sigdetect'] = 'Detection threshold for arc lines'
+        dtypes['sigdetect'] =  [int, float, list, numpy.ndarray]
+        descr['sigdetect'] = 'Detection threshold for arc lines. This can be a single number or a list/array providing the value for each slit'
 
         defaults['fwhm'] = 4.
         dtypes['fwhm'] = [int, float]
@@ -1110,10 +1110,10 @@ class WavelengthSolutionPar(ParSet):
                              'depend on the number of solutions in the arxiv.'
 
         defaults['cc_thresh'] = 0.70
-        dtypes['cc_thresh'] = float
+        dtypes['cc_thresh'] = [float, list, numpy.ndarray]
         descr['cc_thresh'] = 'Threshold for the *global* cross-correlation coefficient between an input spectrum and member ' \
                              'of the archive required to attempt reidentification. Spectra from the archive with a lower ' \
-                             'cross-correlation are not used for reidentification'
+                             'cross-correlation are not used for reidentification. This can be a single number or a list/array providing the value for each slit'
 
         defaults['cc_local_thresh'] = 0.80
         dtypes['cc_local_thresh'] = float
@@ -1138,8 +1138,8 @@ class WavelengthSolutionPar(ParSet):
 
         # These are the parameters used for the iterative fitting of the arc lines
         defaults['rms_threshold'] = 0.15
-        dtypes['rms_threshold'] = float
-        descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution'
+        dtypes['rms_threshold'] = [float, list, numpy.ndarray]
+        descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution. This can be a single number or a list/array providing the value for each slit'
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
@@ -1162,9 +1162,11 @@ class WavelengthSolutionPar(ParSet):
         dtypes['sigrej_first'] = float
         descr['sigrej_first'] = 'Number of sigma for rejection for the first guess to the wavelength solution.'
 
+
         defaults['n_final'] = 4
-        dtypes['n_final'] = int
-        descr['n_final'] = 'Order of final fit to the wavelength solution.'
+        dtypes['n_final'] = [int, float, list, numpy.ndarray]
+        descr['n_final'] = 'Order of final fit to the wavelength solution. This can be a single number or a list/array providing the value for each slit'
+
 
         defaults['sigrej_final'] = 3.0
         dtypes['sigrej_final'] = float

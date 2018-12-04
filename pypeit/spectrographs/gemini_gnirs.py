@@ -50,6 +50,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     def pypeline(self):
         return 'Echelle'
 
+    @property
+    def norders(self):
+        return 6
+
     def default_pypeit_par(self):
         """
         Set default parameters for Gemini GNIRS reductions.
@@ -70,10 +74,27 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
-        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['sigdetect'] = 5
         par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 2
+        par['calibrations']['wavelengths']['n_final'] = [1,3,3,3,3,3]
+
+        # Reidentification parameters
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.6
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.json'
+        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        # Echelle parameters
+        # JFH This is provisional these IDs should be checked.
+        par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
+        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+        # Tilts
+        par['calibrations']['tilts']['tracethresh'] = [3.0,10,20,20,20,20]
+
 
         # Slits
         par['calibrations']['slits']['sigdetect'] = 220.
@@ -168,6 +189,31 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         return np.zeros(len(fitstbl), dtype=bool)
 
 
+    def slit2order(self, islit):
+
+        """
+        Parameters
+        ----------
+        islit: int, float, or string, slit number
+
+        Returns
+        -------
+        order: int
+        """
+
+        if isinstance(islit, str):
+            islit = int(islit)
+        elif isinstance(islit, np.ndarray):
+            islit = islit.astype(int)
+        elif isinstance(islit, float):
+            islit = int(islit)
+        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
+            pass
+        else:
+            msgs.error('Unrecognized type for islit')
+
+        orders = np.arange(8,2,-1, dtype=int)
+        return orders[islit]
 
 
     def get_match_criteria(self):
