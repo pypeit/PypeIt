@@ -830,7 +830,6 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     else:
         echelle =  False
 
-
     # Final wavelength array
     new_wave = new_wave_grid(spectra.data['wave'], wave_method=wave_grid_method, **kwargs)
 
@@ -846,7 +845,8 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
     # Scale (modifies rspec in place)
     if echelle:
-        msgs.work('Need add a function to scale Echelle spectra')
+        msgs.work('Need add a function to scale Echelle spectra. scale_spectra does not work for echelle')
+        #scales, omethod = scale_spectra(rspec, rmask, sn2, scale_method='median', **kwargs)
     else:
         scales, omethod = scale_spectra(rspec, rmask, sn2, scale_method=scale_method, **kwargs)
 
@@ -856,8 +856,11 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
     # Initial coadd
     spec1d = one_d_coadd(rspec, rmask, weights)
+    spec1d_old = one_d_coadd(rspec, rmask, weights)
+
 
     # Init standard deviation
+    # FW: Not sure why calling this function as you initial the std_dev = 0. in the following.
     std_dev, _ = get_std_dev(rspec, rmask, spec1d, **kwargs)
     msgs.info("Initial std_dev = {:g}".format(std_dev))
 
@@ -971,6 +974,8 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
         #var_corr = var_corr * std_dev
         msgs.info("Desired variance correction: {:g}".format(var_corr))
         msgs.info("New standard deviation: {:g}".format(std_dev))
+
+        # FW: I didn't quite get why scaling individual exposures on sigma
         if do_var_corr:
             msgs.info("Correcting variance")
             for ispec in range(rspec.nspec):
