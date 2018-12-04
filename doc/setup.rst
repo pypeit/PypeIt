@@ -91,27 +91,29 @@ is failing to automatically recognize your science or arc frames.
 Execution
 ---------
 
-The setup script requires two inputs: the root of the data
-files (with the full path) and the instrument name.  Here is an example::
+The setup script requires two inputs: the root of the data files and the
+instrument name.  Importantly, the file root must contain the full path.
+Trailing letters are treated as the common root name of all the `fits`
+files; to search a full directory for fits files, regardless of their
+root name, the provided path *must* have a trailing `/` character.  As
+always, to get help with a PypeIt script, use the `-h` option.  Here is
+an example::
 
     pypeit_setup /Users/xavier/Keck/LRIS/data/2016apr06/Raw/LB keck_lris_blue
 
-The code will search for all FITS files with the inputted root.
-Note that the root should **not** contain a wild-card.
+The code will search for all `*.fits` and `*.fits.gz` files with the
+provided root.  Generally, the provided path should **not** contain a
+wild-card; however, you can search through multiple directories as
+follows::
 
-Alternatively, one can generate a PypeIt File (with extension .pypeit)
-and add `run setup True` to the file.
-
-Note that both of these options set default values in the codes
-and may over-ride user settings.
-
+    pypeit_setup "/Users/xavier/Keck/LRIS/data/2016apr06/Raw/*/LB" keck_lris_blue
 
 Output without --custom
 =======================
 
-When pypeit_setup is run without --custom (Step 2 of the :doc:`cookbook`),
-the pypeit_setup script generates several outputs in a folder
-named *setup_files*.  Here is a brief description of these.
+When `pypeit_setup` is run without `--custom` (Step 2 of the
+:doc:`cookbook`), the script generates several outputs in a folder named
+*setup_files*.  Here is a brief description of these.
 
 .. _setups-file:
 

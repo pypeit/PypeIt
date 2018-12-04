@@ -449,21 +449,28 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
 
 
 def build_group_dict(fitstbl, setupIDs, all_sci_idx, all_sci_ID):
-    """ Generate a group dict
-    Only used for generating the .sorted output file
-
-    Parameters
-    ---------
-    fitstbl : PypeItMetaData
-    setupIDs : list
-    all_sci_idx : ndarray
-      all the science frame indices in the fitstbl
-
-    Returns
-    -------
-    group_dict : dict
     """
-    type_keys = framematch.FrameTypeBitMask().keys() + ['failures']
+    Build a dictionary with the list of exposures of each type for a
+    given instrumental setup.
+
+    Args:
+        fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
+            The metadata table for the fits files to reduce.
+        setupIDs (:obj:`list`):
+            The list of setups.
+        all_sci_idx (:obj:`list`):
+            The indices of the science frames in the data table.
+            TODO: Why is this needed?
+        all_sci_ID (:obj:`list`):
+            The ID number assigned to each science frame.
+
+    Returns:
+        dict: A dictionary with the list of file names associated with
+        each instrument configuration.  It also provides the list of
+        science and standard star targets. TODO: How are the latter
+        used, if at all?
+    """
+    type_keys = framematch.FrameTypeBitMask().keys() + ['None']
 
     group_dict = {}
     for sc,setupID in enumerate(setupIDs):
@@ -475,24 +482,26 @@ def build_group_dict(fitstbl, setupIDs, all_sci_idx, all_sci_ID):
         # Plan init
         if config_key not in group_dict.keys():
             group_dict[config_key] = {}
-            #for key in filesort.keys():
             for key in type_keys:
-                if key not in ['unknown', 'dark']:
-                    group_dict[config_key][key] = []
+#                if key not in ['None', 'dark']:
+#                    group_dict[config_key][key] = []
+                group_dict[config_key][key] = []
                 group_dict[config_key]['sciobj'] = []
                 group_dict[config_key]['stdobj'] = []
         # Fill group_dict too
-        #for key in filesort.keys():
         for key in type_keys:
-            if key in ['unknown', 'dark', 'failures']:
-                continue
-            indices = np.where(fitstbl.find_frames(key, sci_ID=sci_ID))[0]
+#            if key in ['None', 'dark']:
+#                continue
+            indices = np.where(fitstbl.find_frames(key))[0] if key in ['None', 'dark'] \
+                        else np.where(fitstbl.find_frames(key, sci_ID=sci_ID))[0]
             for idx in indices:
                 # Only add if new
                 if fitstbl['filename'][idx] not in group_dict[config_key][key]:
                     group_dict[config_key][key].append(fitstbl['filename'][idx])
+                    # TODO: How is this used?
                     if key == 'standard' and 'target' in fitstbl.keys():  # Add target name
                         group_dict[config_key]['stdobj'].append(fitstbl['target'][idx])
+                # TODO: How is this used?
                 if key == 'science' and 'target' in fitstbl.keys():  # Add target name
                     group_dict[config_key]['sciobj'].append(fitstbl['target'][scidx])
 

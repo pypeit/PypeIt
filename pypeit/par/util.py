@@ -370,15 +370,66 @@ def _read_pypeit_file_lines(ifile):
 
 
 def _determine_data_format(lines):
-    """Determine how the data is formatted in the pypeit file."""
-    return 'table' if len(lines) > 1 and lines[1][0] == '|' else 'raw'
+    """
+    Determine the format of the data block in the pypeit file.
+
+    The test used in this function is pretty basic.  A table format is
+    assumed if the first character in *any* line is `|`.
+
+    Args:
+        lines (:obj:`list`):
+            The list of lines read from the data block of the pypeit
+            file.
+    
+
+    """
+    for l in lines:
+        if l[0] == '|':
+            return 'table'
+    return 'raw'
 
 
 def _read_data_file_table(lines, file_check=True):
-    """Read the file table format."""
-    space_ind = lines[0].index(" ")
-    path = lines[0][space_ind+1:]
-    header = [ l.strip() for l in lines[1].split('|') ][1:-1]
+    """
+    Read the file table format.
+    
+    Args:
+        lines (:obj:`list`):
+            List of lines *within the data* block read from the pypeit
+            file.
+        file_check (:obj:`bool`, optional):
+            Check if the specified data files exist.
+    
+    Returns:
+        list, dict, Table:  Returns the list of data file names, a
+        dictionary with the frame types of each file where the key of
+        the dictionary is the file name, and a Table with the data
+        provided in the pypeit file.  Note that the files listed in the
+        first object contain the full path, whereas the file names in
+        the frame type dictionary and the data table do not include the
+        full path to the file.
+
+    Raise:
+        PypeItError:
+            Raised if `file_check=True` and any of the specified files
+            to not exist, or if the table does not have a 'filename' or
+            'frametype' column.
+    """
+
+    # Allow for multiple paths
+    paths = []
+    for l in lines:
+        space_ind = l.index(" ")
+        if l[:space_ind].strip() != 'path':
+            break
+        paths += [ l[space_ind+1:] ]
+
+    npaths = len(paths)
+    header = [ l.strip() for l in lines[npaths].split('|') ][1:-1]
+
+    print(paths)
+    import pdb
+    pdb.set_trace()
 
     # Minimum columns required
     if 'filename' not in header:
@@ -387,11 +438,11 @@ def _read_data_file_table(lines, file_check=True):
         msgs.error('Table format failure: No \'frametype\' column.')
 
     # Build the table
-    nfiles = len(lines) - 2
+    nfiles = len(lines) - npaths - 1
     tbl = np.empty((nfiles, len(header)), dtype=object)
 
     for i in range(nfiles):
-        row = np.array([ l.strip() for l in lines[i+2].split('|') ])[1:-1]
+        row = np.array([ l.strip() for l in lines[i+npaths+1].split('|') ])[1:-1]
         if len(row) != tbl.shape[1]:
             raise ValueError('Data and header lines have mismatched columns!')
         tbl[i,:] = row
@@ -400,12 +451,19 @@ def _read_data_file_table(lines, file_check=True):
         data[key] = tbl[:,i]
     tbl = Table(data)
 
+    import pdb
+    pdb.set_trace()
+
+
     # Build full paths to file and set frame types
     frametype = {}
     data_files = []
     for i in range(nfiles):
         frametype[tbl['filename'][i]] = tbl['frametype'][i]
-        filename = os.path.join(path, tbl['filename'][i])
+        for p in paths:
+            filename = os.path.join(p, tbl['filename'][i])
+            if os.path.isfile(filename):
+                break
         data_files.append(filename)
         if not os.path.isfile(filename) and file_check:
             msgs.error('File does not exist: {0}'.format(filename))

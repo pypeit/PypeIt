@@ -478,7 +478,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                              '3.CCDNAME': '19-2' }
         super(KeckLRISRSpectrograph, self).check_headers(headers, expected_values=expected_values)
 
-    # Uses parent header_keys() function
+    def header_keys(self):
+        hdr_keys = super(KeckLRISRSpectrograph, self).header_keys()
+        hdr_keys[0]['filter1'] = 'REDFILT'
+        return hdr_keys
             
     def bpm(self, filename=None, det=None, **null_kwargs):
         """ Generate a BPM

@@ -7,6 +7,7 @@ from __future__ import division
 from __future__ import unicode_literals
 
 import os
+import string
 
 import numpy as np
 
@@ -356,6 +357,119 @@ class PypeItMetaData:
         
         msgs.error('Bad time unit')
 
+    def get_configuration(self, indx, cfg_keys=None):
+        """
+        Return the configuration dictionary for a given frame.
+
+        Args:
+            indx (:obj:`int`):
+                The index of the table row to use to construct the
+                configuration.
+            cfg_keys (:obj:`list`, optional):
+                The list of metadata keys to use to construct the
+                configuration.  If None, the `configuration_keys` of
+                :attr:`spectrograph` is used.
+
+        Returns:
+            dict: A dictionary with the metadata values from the
+            selected row.
+        """
+        _cfg_keys = self.spectrograph.configuration_keys() if cfg_keys in None else cfg_keys
+        return {k:self.table[k][indx] for k in _cfg_keys}
+
+    def unique_configurations(self):
+        """
+        Return the unique instrument configurations.
+
+        If run before the 'configuration' column is initialized, this
+        function determines the unique instrument configurations by
+        finding unique combinations of the items in the metadata table
+        listed by the spectrograph `configuration_keys` method.
+
+        If run after the 'configuration' column has been set, this
+        simply constructs the configuration dictionary using the unique
+        configurations in that column.
+
+        Returns:
+            dict: A nested dictionary, one dictionary per configuration
+            with the associated values of the metadata associated with
+            each configuration.
+        """
+        if 'configuration' in self.keys():
+            uniq, indx = numpy.unique(self.table['configuration'], return_index=True)
+            ignore = uniq == 'None'
+            configs = {}
+            for i in range(len(uniq)):
+                if ignore[i]:
+                    continue
+                configs[uniq[i]] = self.get_configuration(indx[i])
+            return configs
+
+        # Get the list of keys to use
+        cfg_keys = self.spectrograph.configuration_keys()
+
+        # Configuration identifiers are iterations through the
+        # upper-case letters: A, B, C, etc.
+        cfg_iter = string.ascii_uppercase
+        cfg_indx = 0
+
+        # Use the first file to set the first unique configuration
+        configs = {}
+        configs[cfg_iter[cfg_indx]] = self.get_configuration(0, cfg_keys=cfg_keys)
+        cfg_indx += 1
+
+        # Check if any of the other files show a different
+        # configuration.  The check is for *exact* equality, meaning
+        # *any* difference in the values for the keywords listed in
+        # `cfg_keys` will lead to a new configuration.
+        nrows = len(self)
+        for i in range(1,nrows):
+            unique = False
+            for c in configs.values():
+                if not numpy.all([c[k] == self.table[k][i] for k in cfg_keys]):
+                    unique = True
+                    break
+            if unique:
+                if cfg_indx == len(cfg_iter):
+                    msgs.error('Cannot assign more than {0} configurations!'.format(len(cfg_iter)))
+                configs[cfg_iter[cfg_indx]] = self.get_configuration(i, cfg_keys=cfg_keys)
+                cfg_indx += 1
+
+        return configs
+
+    def set_configurations(self, configs):
+        """
+        Assign each frame to a configuration and include it in the
+        metadata table.
+
+        The internal table is edited *in place*.
+
+        Args:
+            configs (:obj:`dict`):
+                A nested dictionary, one dictionary per configuration
+                with the associated values of the metadata associated
+                with each configuration.  The metadata keywords in the
+                dictionary should be the same as in the table, and the
+                keywords used to set the configuration should be the
+                same as returned by the spectrograph
+                `configuration_keys` method.  The latter is not checked.
+
+        Raises:
+            PypeItError:
+                Raised if none of the keywords in the provided
+                configuration match with the metadata keywords.
+        """
+        for k, cfg in configs.items():
+            if len(set(cfg.keys()) - set(self.keys())) > 0:
+                msgs.error('Configuration {0} defined using unavailable keywords!'.format(k))
+
+        self.table['configuration'] = 'None'
+        nrows = len(self)
+        for i in range(nrows):
+            for d, cfg in configs.items():
+                if numpy.all([cfg[d] == self.table[d][i] for d in cfg.keys()]):
+                    self.table['configuration'][i] = d
+
     def find_frames(self, ftype, sci_ID=None, index=False):
         """
         Find the rows with the associated frame type.
@@ -378,7 +492,7 @@ class PypeItMetaData:
         """
         if 'framebit' not in self.keys():
             raise ValueError('Frame types are not set.  First run get_frame_types.')
-        if ftype is 'unknown':
+        if ftype is 'None':
             return self['framebit'] == 0
         indx = self.bitmask.flagged(self['framebit'], ftype)
         if sci_ID is not None:
