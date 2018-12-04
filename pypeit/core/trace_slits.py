@@ -561,6 +561,7 @@ def sync_edges(tc_dict, nspat, insert_buff=5, verbose=False):
                 mx_lp = np.max(left_pix[1])
                 if mx_lp >= nspat-1:
                     msgs.warn("Partial left edge at end of detector.  Skipping it.")
+                    good_left[kk] = False
                 else:
                     # Stay on the detector!
                     ioff = nspat - mx_lp - insert_buff
