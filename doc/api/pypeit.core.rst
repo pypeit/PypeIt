@@ -21,7 +21,6 @@ Submodules
    pypeit.core.flux
    pypeit.core.framematch
    pypeit.core.load
-   pypeit.core.masters
    pypeit.core.parse
    pypeit.core.paths
    pypeit.core.pca

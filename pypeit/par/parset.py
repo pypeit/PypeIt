@@ -267,33 +267,47 @@ class ParSet(object):
         return self._output_string(header=self.cfg_section)
 
     
-    def _output_string(self, header=None):
+    def _output_string(self, header=None, value_only=False):
         """
-        Constructs the short-format table strings for the :func:`__repr__`
-        method.
+        Constructs the short-format table strings for the
+        :func:`__repr__` method.
+        
 
         Args:
             header (:obj:`str`, optional):
                 String header to provide for the table.  This is
                 typically the name of the configuration section.
+            value_only (:obj:`bool`, optional):
+                By default, the table includes the parameter key, its
+                current value, the default value, its data type, and if
+                the value can be a callable function.  If
+                `value_only=True`, only the paramter key and current
+                value are returned.
 
         Returns:
             str: Single long string with the parameter table for the
             :func:`__repr__` method.
         """
         additional_par_strings = []
-        data_table = numpy.empty((self.npar+1, 5), dtype=object)
-        data_table[0,:] = ['Parameter', 'Value', 'Default', 'Type', 'Callable']
+        ncol = 2 if value_only else 5
+        data_table = numpy.empty((self.npar+1, ncol), dtype=object)
+        data_table[0,:] = ['Parameter', 'Value'] if value_only \
+                            else ['Parameter', 'Value', 'Default', 'Type', 'Callable']
         for i, k in enumerate(self.keys()):
             data_table[i+1,0] = k
             if isinstance(self.data[k], ParSet):
                 _header = k if header is None else '{0}:{1}'.format(header, k)
-                additional_par_strings += [ self.data[k]._output_string(header=_header) ]
+                additional_par_strings += [ self.data[k]._output_string(header=_header,
+                                                                        value_only=value_only) ]
                 data_table[i+1,1] = 'see below'
-                data_table[i+1,2] = 'see below'
+                if not value_only:
+                    data_table[i+1,2] = 'see below'
             else:
                 data_table[i+1,1] = ParSet._data_string(self.data[k])
-                data_table[i+1,2] = ParSet._data_string(self.default[k])
+                if not value_only:
+                    data_table[i+1,2] = ParSet._data_string(self.default[k])
+            if value_only:
+                continue
             data_table[i+1,3] = ', '.join([t.__name__ for t in self.dtype[k]])
             data_table[i+1,4] = self.can_call[k].__repr__()
 
@@ -395,7 +409,8 @@ class ParSet(object):
 
 
     @staticmethod
-    def config_lines(par, section_name=None, section_comment=None, section_level=0):
+    def config_lines(par, section_name=None, section_comment=None, section_level=0,
+                     exclude_defaults=False, include_descr=True):
         """
         Recursively generate the lines of a configuration file based on
         the provided ParSet or dict (par).
@@ -428,6 +443,8 @@ class ParSet(object):
         lines += [ section_indent + '['*(section_level+1) + section_name
                    + ']'*(section_level+1) ]
 
+        min_lines = len(lines)
+
         # Add all the parameters that are not ParSets
         for k in par.keys():
             # Skip it if this element is a ParSet
@@ -443,33 +460,42 @@ class ParSet(object):
                     for i, v in enumerate(par[k]):
                         indx = str(i+1).zfill(ndig)
                         # Try to add the section comment
-                        try:
-                            section_comment = par.descr[k] + ': ' + indx
-                        except:
-                            section_comment = None
+                        section_comment = None
+                        if include_descr:
+                            try:
+                                section_comment = par.descr[k] + ': ' + indx
+                            except:
+                                pass
                         lines += ParSet.config_lines(v, section_name=k+indx,
                                                      section_comment=section_comment,
-                                                     section_level=section_level+1)
+                                                     section_level=section_level+1,
+                                                     exclude_defaults=exclude_defaults,
+                                                     include_descr=include_descr)
                     continue
 
             # Working with a single element
             # Try to add the description for this parameter
             try:
-                if par.descr[k] is not None:
+                if par.descr[k] is not None and include_descr:
                     lines += ParSet._config_comment(par.descr[k], component_indent)
             except:
                 pass
-            lines += [ component_indent + k + ' = ' + ParSet._data_string(par[k]) ]
+            if not exclude_defaults or par[k] != par.default[k]:
+                lines += [ component_indent + k + ' = ' + ParSet._data_string(par[k]) ]
 
         # Then add the items that are ParSets as subsections
         for k in parset_keys:
-            try:
-                section_comment = par.descr[k]
-            except:
-                section_comment = None
+            section_comment = None
+            if include_descr:
+                try:
+                    section_comment = par.descr[k]
+                except:
+                    pass
             lines += ParSet.config_lines(par[k], section_name=k, section_comment=section_comment,
-                                         section_level=section_level+1)
-        return lines
+                                         section_level=section_level+1,
+                                         exclude_defaults=exclude_defaults,
+                                         include_descr=include_descr)
+        return lines if len(lines) > min_lines else []
 
 
     @staticmethod
@@ -579,7 +605,7 @@ class ParSet(object):
             raise
 
     def to_config(self, cfg_file=None, section_name=None, section_comment=None, section_level=0,
-                  append=False, quiet=False):
+                  append=False, quiet=False, exclude_defaults=False, include_descr=True):
         """
         Write/Append the parameter set to a configuration file.
 
@@ -623,10 +649,13 @@ class ParSet(object):
             for k in self.keys():
                 if self.data[k] is None:
                     continue
+                section_comment = self.descr[k] if include_descr else None
                 config_output += ParSet.config_lines(self.data[k], section_name=k,
-                                                     section_comment=self.descr[k],
-                                                     section_level=section_level)
-                config_output += ['']
+                                                     section_comment=section_comment,
+                                                     section_level=section_level,
+                                                     exclude_defaults=exclude_defaults,
+                                                     include_descr=include_descr)
+#                config_output += ['']
         else:
             # Cannot write the parameters as a configuration file
             # without a top-level configuration section
@@ -637,7 +666,9 @@ class ParSet(object):
             _section_comment = self.cfg_comment if section_comment is None else section_comment
             config_output += ParSet.config_lines(self, section_name=_section_name,
                                                  section_comment=_section_comment,
-                                                 section_level=section_level)
+                                                 section_level=section_level,
+                                                 exclude_defaults=exclude_defaults,
+                                                 include_descr=include_descr)
 
         if cfg_file is None:
             # Only return the list of lines for the output file.  Useful

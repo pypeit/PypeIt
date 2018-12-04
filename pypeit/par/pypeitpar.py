@@ -118,7 +118,8 @@ class FrameGroupPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['frametype'] = 'bias'
+#        defaults['frametype'] = 'bias'
+        defaults['frametype'] = frametype       # This is a kludge
         options['frametype'] = FrameGroupPar.valid_frame_types()
         dtypes['frametype'] = str
         descr['frametype'] = 'Frame type.  ' \
@@ -174,6 +175,7 @@ class FrameGroupPar(ParSet):
 
     def validate(self):
         if self.data['useframe'] is None:
+            self.default['useframe'] = self.data['frametype']
             self.data['useframe'] = self.data['frametype']
         if len(self.data['exprng']) != 2:
             raise ValueError('exprng must be a list with two items.')
