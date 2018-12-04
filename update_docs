@@ -1,0 +1,7 @@
+cd doc
+make clean ; make apirst
+cd ../
+git add doc/api
+
+printf "Now check the modified files with:\n\n    git status\n\nAnd commit the changes with: \n\n   git commit -m 'updated docs'\n\n"
+
