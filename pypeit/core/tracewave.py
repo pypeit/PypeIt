@@ -24,16 +24,16 @@ except ImportError:
     pass
 
 
-def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sigdetect=5.0, nfwhm_neigh=5.0,
+def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_neigh=5.0,
                     only_these_lines=None, fwhm=4.0, nonlinear_counts=1e10, fit_frac_fwhm=1.25, cont_frac_fwhm=1.0,
-                    max_frac_fwhm=2.0, cont_samp=30, niter_cont=3, debug_lines=False, debug_peaks=False):
+                    max_frac_fwhm=2.0, cont_samp=30, niter_cont=3, debug_lines=False, debug_peaks=True):
 
 
     nspec = arc_spec.size
     spec_vec = np.arange(nspec)
     # Find peaks with a liberal threshold of sigdetect = 5.0
     tampl_tot, tampl_cont_tot, tcent_tot, twid_tot, _, wgood, arc_cont_sub, nsig_tot = arc.detect_lines(
-        arc_spec, sigdetect=sigdetect, fwhm=fwhm, fit_frac_fwhm=fit_frac_fwhm, cont_frac_fwhm=cont_frac_fwhm,
+        arc_spec, sigdetect=np.min([sig_neigh,tracethresh]), fwhm=fwhm, fit_frac_fwhm=fit_frac_fwhm, cont_frac_fwhm=cont_frac_fwhm,
         max_frac_fwhm=max_frac_fwhm, cont_samp=cont_samp, niter_cont=niter_cont, nonlinear_counts=nonlinear_counts,
         debug=debug_peaks)
     # Good lines
@@ -54,12 +54,11 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sigdetect=5.0, nfwhm_
     idxuse = np.arange(arcdet.size)[aduse]
     olduse = aduse.copy()
     for s in range(nuse):
-        w = np.where((np.abs(arcdet - detuse[s]) <= npix_neigh) & (np.abs(arcdet - detuse[s]) >= 1.0))[0]
+        w = np.where((np.abs(arcdet - detuse[s]) <= npix_neigh) & (np.abs(arcdet - detuse[s]) >= 1.0) & (nsig > sig_neigh))[0]
         for u in range(w.size):
             if nsig[w[u]] > nsig[olduse][s]:
                 aduse[idxuse[s]] = False
                 break
-
     # Restricted to ID lines? [introduced to avoid LRIS ghosts]
     if only_these_lines is not None:
         ids_pix = np.array(only_these_lines)

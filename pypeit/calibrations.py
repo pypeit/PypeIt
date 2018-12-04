@@ -685,7 +685,7 @@ class Calibrations(object):
         if self.tilts_dict is None:
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.tilts_dict, self.wt_maskslits \
-                    = self.waveTilts.run(maskslits=self.maskslits,doqa=self.write_qa)
+                    = self.waveTilts.run(maskslits=self.maskslits,doqa=self.write_qa, show=self.show)
             if self.save_masters:
                 self.waveTilts.save_master(self.tilts_dict, steps=self.waveTilts.steps)
         else:

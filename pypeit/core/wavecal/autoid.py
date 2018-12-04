@@ -308,7 +308,8 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
     # Return
     return best_dict, final_fit
 
-
+# TODO Make det_arxiv an optional input. In the event that the Line IDs don't exist in the arxiv, simply run peak finding and
+# interpolate the wavelength solution onto those line locations to the get initial IDs
 
 def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nreid_min, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):

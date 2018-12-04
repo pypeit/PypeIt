@@ -193,7 +193,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return self.arccen, self.arc_maskslit
 
-    def _find_lines(self, arcspec, slit_cen, slit, debug_lines=False):
+    def _find_lines(self, arcspec, slit_cen, slit, debug=False):
 
         # Find good lines for the tilts
         nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
@@ -207,9 +207,9 @@ class WaveTilts(masterframe.MasterFrame):
 
         tracethresh = self._parse_param(self.par, 'tracethresh', slit)
         lines_spec, lines_spat = tracewave.tilts_find_lines(
-            arcspec, slit_cen, tracethresh=tracethresh, sigdetect=self.par['sigdetect'],
+            arcspec, slit_cen, tracethresh=tracethresh, sig_neigh=self.par['sig_neigh'],
             nfwhm_neigh=self.par['nfwhm_neigh'],only_these_lines=only_these_lines, fwhm=self.wavepar['fwhm'],
-            nonlinear_counts=nonlinear_counts, debug_lines = debug_lines)
+            nonlinear_counts=nonlinear_counts, debug_peaks=False, debug_lines = debug)
 
         self.steps.append(inspect.stack()[0][3])
         return lines_spec, lines_spat
@@ -278,7 +278,7 @@ class WaveTilts(masterframe.MasterFrame):
         return trace_dict
 
 
-    def run(self, maskslits=None, doqa=True, show_QA=True, debug=False):
+    def run(self, maskslits=None, doqa=True, debug=True, show=False):
         """ Main driver for tracing arc lines
 
             Code flow:
@@ -326,7 +326,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Loop on all slits
         for slit in gdslits:
             # Identify lines for tracing tilts
-            self.lines_spec, self.lines_spat = self._find_lines(self.arccen[:,slit], self.slitcen[:,slit], slit)
+            self.lines_spec, self.lines_spat = self._find_lines(self.arccen[:,slit], self.slitcen[:,slit], slit, debug=debug)
 
             thismask = self.slitmask == slit
             # Trace
@@ -337,7 +337,7 @@ class WaveTilts(masterframe.MasterFrame):
             # 2D model of the tilts, includes construction of QA
 
             self.tilts, coeff_out = self._fit_tilts(self.trace_dict, self.slitcen[:,slit], self.spat_order[slit],
-                                                    self.spec_order[slit], slit,doqa=doqa, show_QA = show_QA, debug=debug)
+                                                    self.spec_order[slit], slit,doqa=doqa, show_QA = show, debug=show)
             self.coeffs[0:self.spat_order[slit]+1, 0:self.spec_order[slit]+1 , slit] = coeff_out
             # Save to final image
             self.final_tilts[thismask] = self.tilts[thismask]

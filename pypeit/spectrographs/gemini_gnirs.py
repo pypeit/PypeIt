@@ -74,7 +74,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
-        par['calibrations']['wavelengths']['sigdetect'] = 5
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 2
@@ -93,8 +93,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Tilts
-        par['calibrations']['tilts']['tracethresh'] = [3.0,10,20,20,20,20]
-
+        par['calibrations']['tilts']['tracethresh'] = [5.0,10,10,10,10,10]
+        par['calibrations']['tilts']['sig_neigh'] = 5.0
+        par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
 
         # Slits
         par['calibrations']['slits']['sigdetect'] = 220.

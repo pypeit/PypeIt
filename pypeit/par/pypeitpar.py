@@ -1485,7 +1485,7 @@ class WaveTiltsPar(ParSet):
         previously `disporder`?  If so, I think I prefer the generality
         of `disporder`...
     """
-    def __init__(self, idsonly=None, tracethresh=None, sigdetect=None, nfwhm_neigh=None, maxdev_tracefit=None, sigrej_trace=None, spat_order=None, spec_order=None,
+    def __init__(self, idsonly=None, tracethresh=None, sig_neigh=None, nfwhm_neigh=None, maxdev_tracefit=None, sigrej_trace=None, spat_order=None, spec_order=None,
                  func2d=None, maxdev2d=None, sigrej2d=None):
 
 
@@ -1519,13 +1519,13 @@ class WaveTiltsPar(ParSet):
                                'This can be a single number or a list/array providing the value for each slit'
 
 
-        defaults['sigdetect'] = 10.
-        dtypes['sigdetect'] = [int, float]
-        descr['sigdetect'] = 'Significance threshold for arcs to be used in line identification. The tracethresh parameter' \
-                             ' above determines the significance threshold of lines that will be traced. This parameter ' \
-                             ' determines which lines are detected. The latter impacts the near-neighbor rejection, since it ' \
-                             ' a large number of less significant lines will result in more lines getting rejected becuase of ' \
-                             ' weaker neighbors'
+        defaults['sig_neigh'] = 10.
+        dtypes['sig_neigh'] = [int, float]
+        descr['sig_neigh'] = 'Significance threshold for arcs to be used in line identification for the purpose of identifying neighboring lines.' \
+                             'The tracethresh parameter above determines the significance threshold of lines that will be traced, but these lines' \
+                             ' must be at least nfwhm_neigh fwhm away from neighboring lines. This parameter determines the significance above which' \
+                             ' a line must be to be considered a possible colliding neighbor. A low value of sig_neigh will result in an overall' \
+                             ' larger number of lines, which will result in more lines above tracethresh getting rejected'
 
         defaults['nfwhm_neigh'] = 3.0
         dtypes['nfwhm_neigh'] = [int, float]
@@ -1605,7 +1605,7 @@ class WaveTiltsPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'idsonly', 'tracethresh', 'sigdetect', 'maxdev_tracefit', 'sigrej_trace','nfwhm_neigh', 'spat_order', 'spec_order', 'func2d','maxdev2d', 'sigrej2d']
+        parkeys = [ 'idsonly', 'tracethresh', 'sig_neigh', 'maxdev_tracefit', 'sigrej_trace','nfwhm_neigh', 'spat_order', 'spec_order', 'func2d','maxdev2d', 'sigrej2d']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
