@@ -449,9 +449,18 @@ def add_edge(ref_slit, insert_offset, earr, t_dict, final_left, final_right, lef
 
 def new_add_edge(ref_slit, insert_offset, t_dict, left=True):
     """  Add a new edge using a reference slit
-    right_slit : Reference slit for the left one
-    insert_offset : int
-      Offset fromm the right slit for the new left slit
+
+    Args:
+        ref_slit: int
+        insert_offset: int
+          Offset from the right slit for the new left slit
+          or vice-versa
+        t_dict: dict
+        left: bool, optional
+
+    Returns:
+        Fills tdict in-place
+
     """
     # Current indices (book-keeping)
     if left:
@@ -509,29 +518,28 @@ def sync_edges(tc_dict, nspat, insert_buff=5, verbose=False):
         if left_xval[0] < right_xval[0]:  # Ok slit, otherwise continue
             return
 
+    # Masks: True is a good edge, False is bad
+    good_left = np.ones_like(left_xval, dtype=bool)
+    good_right = np.ones_like(right_xval, dtype=bool)
+
 
     # Deal with missing left edges first (at left edge of detector)
-    missing_lefts = np.where(right_xval < left_xval[0])[0]
+    rights_missing_lefts = np.where(right_xval < left_xval[0])[0]
 
-    for kk in missing_lefts:
+    for kk in rights_missing_lefts:
         # Grab the trace
         right_pix = tc_dict['right']['traces'][:,kk] #np.where(edgearr == right_idx[0])
         mn_rp = np.min(right_pix)
         if mn_rp <= insert_buff:
+            good_right[kk] = False
             msgs.warn("Partial or too small right edge at start of detector.  Skipping it.")
-            '''
-            # Check to see if the next one is ok
-            if (right_xval[1] < left_xval[0]):
-                msgs.warn("Adding in a left edge at start of detector which mirrors the first right edge")
-                ioff = -1*mn_rp + insert_buff
-                new_add_edge(1, ioff, tc_dict, left=True)
-            '''
         else:
-            ioff = -1*mn_rp + insert_buff
-            msgs.warn("Adding in a left edge at start of detector which mirrors the first right edge")
+            if kk == 0:
+                ioff = -1*mn_rp + insert_buff
+            else:
+                ioff = right_xval[kk-1] - right_xval[kk] + insert_buff
+            msgs.warn("Adding in a left edge near start of detector which mirrors the first right edge")
             new_add_edge(kk, ioff, tc_dict, left=True)
-
-    debugger.set_trace()
 
     # Loop on left edges
     for kk,left in enumerate(left_xval):
@@ -578,6 +586,13 @@ def sync_edges(tc_dict, nspat, insert_buff=5, verbose=False):
                 # Add
                 new_add_edge(gd_right[1], ioff, tc_dict, left=True)
                 #add_edge(right_idx[gd_right[1]], ioff, edgearr, tc_dict, final_left, final_right, left=True)
+
+    # Deal with good
+    tc_dict['right']['xval'] = tc_dict['right']['xval'][good_right]
+    tc_dict['right']['traces'] = tc_dict['right']['traces'][:,good_right]
+    tc_dict['left']['xval'] = tc_dict['left']['xval'][good_left]
+    tc_dict['left']['traces'] = tc_dict['left']['traces'][:,good_left]
+
 
     # Add em in and then sort
     for side in ['left', 'right']:
