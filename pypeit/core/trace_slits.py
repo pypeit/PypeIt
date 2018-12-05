@@ -2945,25 +2945,37 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
                  fwhm = 3.0, sigthresh = 100.0, upper = 2.0, lower = 2.0, debug=True, fweight_boost=1.,
                  maxrej=1):
     """
+    Refines input trace using a PCA analysis
 
     Args:
-        filt_image:
-        edges:
-        edges_mask:
-        ncoeff:
-        npca:
-        pca_explained_var:
-        coeff_npoly_pca:
-        fwhm:
-        sigthresh:
-        upper:
-        lower:
+        filt_image: ndarray
+          Filtered image (usually Sobolev)
+        edges: ndarray
+          Current set of edges
+        edges_mask: ndarray
+          Mask o fedges;  1 = Good
+        ncoeff: int, optional
+          Order of polynomial for fits
+        npca: int, optional
+          If provided, restrict the PCA analysis to this order
+        pca_explained_var: float, optional
+          If npca=None, the PCA will add coefficients until explaining this amount of the variance
+        coeff_npoly_pca: int, optional
+        fwhm: float, optional
+          Size used for tracing (fweight and gweight)
+        sigthresh: float, optional
+          Threshold for an edge to be included
+        upper: float, optional
+        lower: float, optional
         debug:
         fweight_boost: float, optional
           Boost on fwhm for fweight.  This was 3.0 at one point (and that may be preferred for echelle instruments)
-        maxrej:
+        maxrej: int, optional
+          Rejection parameter for PCA.  1 makes the rejection go slowly (preferred)
 
     Returns:
+        trace_dict: dict
+          dict containing the edge output
 
     """
 
