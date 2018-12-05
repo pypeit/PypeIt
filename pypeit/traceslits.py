@@ -897,6 +897,8 @@ class TraceSlits(masterframe.MasterFrame):
 
     def remove_slit(self, rm_slits, TOL = 3.):
         """
+        DEPRECATED
+
         Remove a user-specified slit
 
         Wrapper to trace_slits.remove_slit()
@@ -922,6 +924,26 @@ class TraceSlits(masterframe.MasterFrame):
         """
         self.edgearr, self.lcen, self.rcen, self.tc_dict = trace_slits.remove_slit(
             self.edgearr, self.lcen, self.rcen, self.tc_dict, rm_slits, TOL=TOL)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+
+    def rm_user_slits(self, user_slits):
+        """
+        Remove one or more slits (as applicable)
+
+        Wrapper to trace_slits.rm_user_edges()
+
+        Parameters
+        ----------
+        user_slits : list
+
+        Returns
+        -------
+        self.tc_dict is modified in-place
+
+        """
+        # Add user input slits
+        trace_slits.rm_user_edges(self.tc_dict, user_slits)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -959,6 +981,8 @@ class TraceSlits(masterframe.MasterFrame):
 
     def _synchronize(self):
         """
+        DEPRECATED
+
         Perform final synchronization
 
         Wrapper to trace_slits.synchronize
@@ -1255,7 +1279,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Return
         return loaded
 
-    def run(self, arms=True, add_user_slits=None, plate_scale = None, show=False):
+    def run(self, arms=True, add_user_slits=None, rm_user_slits=None, plate_scale = None, show=False):
         """ Main driver for tracing slits.
 
           Code flow
@@ -1282,6 +1306,9 @@ class TraceSlits(masterframe.MasterFrame):
         add_user_slits : list of lists
           List of 3 element lists, each an [xleft, xright, yrow] specifying a slit edge
           at a given yrow
+        rm_user_slits : list of lists
+          List of 2 element lists, each an [xcen, yrow] specifying a slit center.  Any
+          slit containing it will be removed
 
         Returns
         -------
@@ -1336,6 +1363,9 @@ class TraceSlits(masterframe.MasterFrame):
             # Add user input slits
             if add_user_slits is not None:
                 self.add_user_slits(add_user_slits)
+            # Remove user input slits
+            if rm_user_slits is not None:
+                self.rm_user_slits(rm_user_slits)
 
         # Set lcen and rcen, lmin, lmax
         self.lcen = self.tc_dict['left']['traces']

@@ -29,7 +29,6 @@ from pypeit.core import extract
 from pypeit.core import arc
 from pypeit.core import pydl
 from astropy.stats import sigma_clipped_stats
-from scipy import ndimage
 
 try:
     from pypeit import ginga
@@ -61,8 +60,6 @@ def add_user_edges(tc_dict, add_slits):
     nspec = tc_dict['left']['traces'].shape[0]
     ycen = nspec//2
 
-    # Grab the edge indexes and xval's
-
     # Loop me
     for new_slit in add_slits:
         msgs.info("Adding a user-defined slit [x0, x1, yrow]:  {}".format(new_slit))
@@ -89,6 +86,54 @@ def add_user_edges(tc_dict, add_slits):
         tc_dict[side]['xval'] = tc_dict[side]['xval'][isrt]
         tc_dict[side]['traces'] = tc_dict[side]['traces'][:,isrt]
     # Done
+    return
+
+def rm_user_edges(tc_dict, rm_slits):
+    """
+    Remove one or more slits, as applicable
+
+    Code compares exisiting slits (which must be sycnhronized)
+    against the input requeest and removes any that match.
+
+    Args:
+        tc_dict: dict
+        rm_slits: list
+          xcen,yrow pairs
+
+    Returns:
+        Modifies tc_dict in place
+
+    """
+    # Mask me
+    good_left = np.ones_like(tc_dict['left']['xval'], dtype=bool)
+    good_right = np.ones_like(tc_dict['right']['xval'], dtype=bool)
+    # Check
+    if good_left.size != good_right.size:
+        msgs.error("Slits need to be sync'd to use this method!")
+    # Loop me
+    for rm_slit in rm_slits:
+        # Deconstruct
+        xcen, yrow = rm_slit
+        # Edges
+        lefts = tc_dict['left']['traces'][yrow,:]
+        rights = tc_dict['right']['traces'][yrow,:]
+        # Match?
+        bad_slit = (lefts < xcen) & (rights > xcen)
+        if np.any(bad_slit):
+            # Double check
+            if np.sum(bad_slit) != 1:
+                msgs.error("Something went horribly wrong in edge tracing")
+            #
+            idx = np.where(bad_slit)[0]
+            msgs.info("Removing user-supplied slit at {},{}".format(xcen,yrow))
+            good_right[idx] = False
+            good_left[idx] = False
+    # Finish
+    tc_dict['right']['xval'] = tc_dict['right']['xval'][good_right]
+    tc_dict['right']['traces'] = tc_dict['right']['traces'][:,good_right]
+    tc_dict['left']['xval'] = tc_dict['left']['xval'][good_left]
+    tc_dict['left']['traces'] = tc_dict['left']['traces'][:,good_left]
+
     return
 
 
@@ -1863,26 +1908,38 @@ def find_peak_limits(hist, pks):
     return edges
 
 
-def parse_user_slits(add_slits, this_det):
+def parse_user_slits(add_slits, this_det, rm=False):
     """
     Parse the parset syntax for adding slits
 
     Args:
-        add_slits: list
+        add_slits: str, list
           Taken from the parset
         this_det: int
           current detector
+        rm: bool, optional
+          Remove instead of add?
 
     Returns:
         user_slits: list or None
-          if list,  [[x0,x1,yrow]] with one or more entries
+          if list,  [[x0,x1,yrow]] for add with one or more entries
+          if list,  [[xcen,yrow]] for rm with one or more entries
 
     """
+    # Might not be a list yet (only a str)
+    if not isinstance(add_slits, list):
+        add_slits = [add_slits]
+    #
     user_slits = []
     for islit in add_slits:
-        det, x0, x1, yrow = [int(ii) for ii in islit.split(':')]
-        if det == this_det:
-            user_slits.append([x0,x1,yrow])
+        if not rm:
+            det, x0, x1, yrow = [int(ii) for ii in islit.split(':')]
+            if det == this_det:
+                user_slits.append([x0,x1,yrow])
+        else:
+            det, xcen, yrow = [int(ii) for ii in islit.split(':')]
+            if det == this_det:
+                user_slits.append([xcen,yrow])
     # Finish
     if len(user_slits) == 0:
         return None
@@ -2952,26 +3009,40 @@ def tc_indices(tc_dict):
 # ToDo 2) Add an option where the user specifies the number of slits, and so it takes only the highest peaks
 # from detect_lines
 def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 3,
-                 fwhm = 3.0, sigthresh = 100.0, upper = 2.0, lower = 2.0, debug=True,
+                 fwhm = 3.0, sigthresh = 100.0, upper = 2.0, lower = 2.0, debug=True, fweight_boost=1.,
                  maxrej=1):
     """
+    Refines input trace using a PCA analysis
 
     Args:
-        filt_image:
-        edges:
-        edges_mask:
-        ncoeff:
-        npca:
-        pca_explained_var:
-        coeff_npoly_pca:
-        fwhm:
-        sigthresh:
-        upper:
-        lower:
+        filt_image: ndarray
+          Filtered image (usually Sobolev)
+        edges: ndarray
+          Current set of edges
+        edges_mask: ndarray
+          Mask o fedges;  1 = Good
+        ncoeff: int, optional
+          Order of polynomial for fits
+        npca: int, optional
+          If provided, restrict the PCA analysis to this order
+        pca_explained_var: float, optional
+          If npca=None, the PCA will add coefficients until explaining this amount of the variance
+        coeff_npoly_pca: int, optional
+        fwhm: float, optional
+          Size used for tracing (fweight and gweight)
+        sigthresh: float, optional
+          Threshold for an edge to be included
+        upper: float, optional
+        lower: float, optional
         debug:
-        maxrej:
+        fweight_boost: float, optional
+          Boost on fwhm for fweight.  This was 3.0 at one point (and that may be preferred for echelle instruments)
+        maxrej: int, optional
+          Rejection parameter for PCA.  1 makes the rejection go slowly (preferred)
 
     Returns:
+        trace_dict: dict
+          dict containing the edge output
 
     """
 
@@ -3033,7 +3104,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
         msgs.info('Found {:d} {:s} slit edges'.format(len(edge_start[igd]),key))
         trace_crutch = trace_model[:, np.round(edge_start[igd]).astype(int)]
         msgs.info('Iteratively tracing {:s} edges'.format(key))
-        trace_fweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_crutch, ncoeff, fwhm=3.0*fwhm, niter=9)
+        trace_fweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_crutch, ncoeff, fwhm=fweight_boost*fwhm, niter=9)
         trace_gweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_fweight, ncoeff, fwhm=fwhm,gweight=True, niter=6)
         trace_dict[key]['trace'] = trace_gweight
 
