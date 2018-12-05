@@ -56,6 +56,7 @@ def lines():
     line_dict['OH_XSHOOTER'] = 2**12
     line_dict['OH_GNIRS'] = 2**13
     line_dict['OH_NIRES'] = 2**14
+    line_dict['ThAr_XSHOOTER_VIS'] = 2**15
 
     #
     return line_dict

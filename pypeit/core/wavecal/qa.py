@@ -52,7 +52,7 @@ def arc_fit_qa(fit, outfile = None, ids_only=False, title=None):
             figsize = (8,4)
             idfont = 'xx-small'
     fig = plt.figure(figsize=figsize)
-    gs = gridspec.GridSpec(nrows,ncols, figure = fig)
+    gs = gridspec.GridSpec(nrows,ncols)#, figure = fig)
 
 
     # Simple spectrum plot

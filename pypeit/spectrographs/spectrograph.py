@@ -38,7 +38,9 @@ class Spectrograph(object):
             for each detector in the spectrograph
         naxis (tuple):
             A tuple with the lengths of the two axes for current
-            detector image.
+            detector image; often trimmmed.
+        raw_naxis (tuple):
+            A tuple with the lengths of the two axes for untrimmed detector image.
         datasec_img (:obj:`numpy.ndarray`):
             An image identifying the amplifier that reads each detector
             pixel.
@@ -56,6 +58,7 @@ class Spectrograph(object):
         self.camera = None
         self.detector = None
         self.naxis = None
+        self.raw_naxis = None
         self.datasec_img = None
         self.bpm_img = None
 
@@ -142,10 +145,12 @@ class Spectrograph(object):
         # Turn to float
         img = raw_img.astype(np.float)
         # Transpose?
-        if self.detector[_det-1]['dispaxis'] == 1:
+        if self.detector[_det-1]['specaxis'] == 1:
             img = img.T
-        if self.detector[_det-1]['dispflip'] is True:
+        if self.detector[_det-1]['specflip'] is True:
             img = np.flip(img, axis=0)
+        if self.detector[_det-1]['spatflip'] is True:
+            img = np.flip(img, axis=1)
 
         # Return
         return img, head0
@@ -226,14 +231,13 @@ class Spectrograph(object):
         # Always assume normal FITS header formatting
         one_indexed = True
         include_last = True
-        transpose = self.detector[det-1]['dispaxis'] == 0
+        transpose = self.detector[det-1]['specaxis'] == 0
 
         return image_sections, one_indexed, include_last, transpose
 
     def get_datasec_img(self, filename, det=1, force=True):
         """
-        Create an image identifying the amplifier used to read each
-        pixel.
+        Create an image identifying the amplifier used to read each pixel.
 
         .. todo::
             - I find 1-indexing to be highly annoying...
@@ -258,13 +262,13 @@ class Spectrograph(object):
             # Check the detector is defined
             self._check_detector()
             # Get the image shape
-            self.get_image_shape(filename=filename, det=det)
+            self.get_raw_image_shape(filename=filename, det=det)
 
             data_sections, one_indexed, include_end, transpose \
                     = self.get_image_section(filename, det, section='datasec')
 
             # Initialize the image (0 means no amplifier)
-            self.datasec_img = np.zeros(self.naxis, dtype=int)
+            self.datasec_img = np.zeros(self.raw_naxis, dtype=int)
             for i in range(self.detector[det-1]['numamplifiers']):
                 # Convert the data section from a string to a slice
                 datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
@@ -274,9 +278,9 @@ class Spectrograph(object):
                 self.datasec_img[datasec] = i+1
         return self.datasec_img
 
-    def get_image_shape(self, filename=None, det=None, force=True):
+    def get_raw_image_shape(self, filename=None, det=None, force=True):
         """
-        Get the shape of the image data for a given detector using a
+        Get the *untrimmed* shape of the image data for a given detector using a
         file.  :attr:`detector` must be defined.
 
         Fails if filename is None and the instance does not have a
@@ -309,49 +313,48 @@ class Spectrograph(object):
                 input and available attributes.
         """
         # Cannot be determined
-        if (self.naxis is None or force) and filename is None:
+        if (self.raw_naxis is None or force) and filename is None:
             raise ValueError('Cannot determine image shape!  Must have NAXIS predefined or '
                              'provide a file to read.')
 
         # Return the predefined value
-        if self.naxis is not None:
-            return self.naxis
+        if self.raw_naxis is not None:
+            return self.raw_naxis
 
         # Use a file
         self._check_detector()
-        self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
-        return self.naxis
+        self.raw_naxis = (self.load_raw_frame(filename, det=det)[0]).shape
+        return self.raw_naxis
 
-    def empty_bpm(self, shape=None, filename=None, det=1, force=True):
+    def empty_bpm(self, shape=None, filename=None, det=1):
         """
         Generate a generic (empty) BPM.
-        
-        This requires a successful call to :func:`get_image_shape`.
+        If shape is None, this requires a successful call to :func:`get_image_shape`.
 
         .. todo::
             Any reason this isn't returned as a boolean array?
 
         Args:
             shape: tuple, REQUIRED
-            **null_kwargs:
 
         Returns:
             bpm: ndarray, int
               0=not masked; 1=masked
 
         """
-        if self.bpm_img is None or force:
-            if shape is None:
-                # Check the detector is defined
-                self._check_detector()
-                # Get the image shape
-                _shape = self.get_image_shape(filename=filename, det=det)
-            else:
-                _shape = shape
-            self.bpm_img = np.zeros(_shape, dtype=np.int8)
+        if shape is None:
+            msgs.error("THIS IS NOT GOING TO WORK")
+            # Check the detector is defined
+            self._check_detector()
+            # Get the image shape
+            _shape = self.get_raw_image_shape(filename=filename, det=det)
+        else:
+            _shape = shape
+        self.bpm_img = np.zeros(_shape, dtype=np.int8)
+        # Return
         return self.bpm_img
 
-    def bpm(self, shape=None, filename=None, det=1, force=True):
+    def bpm(self, shape=None, filename=None, det=1):
         """
         Generate a default bad-pixel mask.
 
@@ -366,7 +369,7 @@ class Spectrograph(object):
               0=not masked; 1=masked
 
         """
-        return self.empty_bpm(shape=shape, filename=filename, det=det, force=force)
+        return self.empty_bpm(shape=shape, filename=filename, det=det)
 
     # TODO: (KBW) I've removed all the defaults.  Should maybe revisit
     # this
@@ -541,9 +544,9 @@ class Spectrograph(object):
         return self.detector[det-1]['platescale']/tel_platescale
 
     @staticmethod
-    def slitmask(tslits_dict, pad = None, binning = None):
+    def slitmask(tslits_dict, pad=None, binning=None):
         """
-         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
+         Generic routine to construct a slitmask image from a tslits_dict. Children of this class can
          overload this function to implement instrument specific slitmask behavior, for example setting
          where the orders on an echelle spectrograph end
 

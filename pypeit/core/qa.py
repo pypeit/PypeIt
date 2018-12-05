@@ -1,4 +1,4 @@
-""" Module for QA in PYPIT
+""" Module for QA in PypeIt
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
@@ -50,8 +50,10 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
         outfile = 'QA/PNGs/Arc_1dfit_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'plot_orderfits_Arc':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/Arc_lines_{:s}_S{:04d}_'.format(root, slit)
-    elif method == 'arc_fit2d_qa':
-        outfile = 'QA/PNGs/Arc_2dfit_{:s}'.format(root)
+    elif method == 'arc_fit2d_global_qa':
+        outfile = 'QA/PNGs/Arc_2dfit_global_{:s}'.format(root)
+    elif method == 'arc_fit2d_orders_qa':
+        outfile = 'QA/PNGs/Arc_2dfit_orders_{:s}'.format(root)
     elif method == 'plot_tiltres':
         outfile = 'QA/PNGs/Arc_tilts_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'pca_plot':  # This is root for multiple PNGs
@@ -212,22 +214,24 @@ def html_mf_pngs(setup, cbset, det):
     # Organize the outputs
     html_dict = {}
     html_dict['strace'] = dict(fname='slit_trace_qa', ext='',
-        href='strace', label='Slit Trace', slit=False)
+                               href='strace', label='Slit Trace', slit=False)
     html_dict['sprof'] = dict(fname='slit_profile_qa', ext='*.png',
                               href='sprof', label='Slit Profile', slit=False)
     html_dict['blaze'] = dict(fname='plot_orderfits_Blaze', ext='*.png',
-                               href='blaze', label='Blaze', slit=False)
+                              href='blaze', label='Blaze', slit=False)
     html_dict['arc_fit'] = dict(fname='arc_fit_qa', ext='',
-                              href='arc_fit', label='Arc 1D Fit', slit=True)
+                                href='arc_fit', label='Arc 1D Fit', slit=True)
     html_dict['arc_tilt'] = dict(fname='plot_tiltres', ext='*.png',
-                              href='arc_tilts', label='Arc Tilts', slit=True)
+                                 href='arc_tilts', label='Arc Tilts', slit=True)
     html_dict['arc_pca'] = dict(fname='pca_arctilt', ext='*.png',
-                              href='arc_pca', label='Arc Tilt PCA', slit=False)
-    html_dict['arc_fit2d'] = dict(fname='arc_fit2d_qa', ext='*.png',
-                              href='arc_fit2d', label='2D Arc', slit=False)
+                                href='arc_pca', label='Arc Tilt PCA', slit=False)
+    html_dict['arc_fit2d_global'] = dict(fname='arc_fit2d_global_qa', ext='*.png',
+                                         href='arc_fit2d_global', label='2D Arc Global', slit=False)
+    html_dict['arc_fit2d_orders'] = dict(fname='arc_fit2d_orders_qa', ext='*.png',
+                                         href='arc_fit2d_orders', label='2D Arc Orders', slit=False)
 
     # Generate HTML
-    for key in ['strace', 'sprof', 'blaze', 'arc_fit', 'arc_pca', 'arc_fit2d', 'arc_tilt']:
+    for key in ['strace', 'sprof', 'blaze', 'arc_fit', 'arc_pca', 'arc_fit2d_global', 'arc_fit2d_orders', 'arc_tilt']:
         png_root = set_qa_filename(idval, html_dict[key]['fname'], slit=9999)
         if html_dict[key]['slit']:  # Kludge to handle multiple slits
             png_root = png_root.replace('S9999', 'S*')

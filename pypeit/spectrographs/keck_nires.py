@@ -28,8 +28,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
-                            dispaxis        = 1,
-                            dispflip        = True,
+                            specaxis        = 1,
+                            specflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -294,7 +294,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             islit = islit.astype(int)
         elif isinstance(islit, float):
             islit = int(islit)
-        elif isinstance(islit, int):
+        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
             pass
         else:
             msgs.error('Unrecognized type for islit')

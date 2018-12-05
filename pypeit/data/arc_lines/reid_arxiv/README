@@ -16,5 +16,32 @@ X-shooter
 ---------
 | XSHOO.2016-08-02T09:32:03.463.fits.gz | 2016-08-02T09:32:03.463 | science,arc     | J0100     |   900.0 |
 
-Created with sigdetect = 5.0. Line identifications were first done in IRAF by E. Farina to create vlt_xshooter_nir_iraf.json,
+Created with sigdetect = 5.0. Line identifications were first done in IRAF by Ema Farina to create vlt_xshooter_nir_iraf.json,
 then this database was used to reidentify the above frame, and was archived. 
+
+
+* VIS 1x1
+  -------
+  | XSHOO.2010-04-28T14:36:27.000.fits.gz | 2010-04-28T14:36:27.000 | arc | ThAr | 2.0000 |
+  Created with sigdetect = 3.0. Line identifications were first done in
+  IRAF by Ema Farina to create Old/vlt_xshooter_vis1x1_iraf.json. This
+  database was than re-Id within PypeIt and archived as: vlt_xshooter_vis1x1.json.
+  Quality assessment plots are stored in : 
+  PNGs/vlt_xshooter_vis1x1_arc_2dfit_global.png
+  PNGs/vlt_xshooter_vis1x1_arc_2dfit_orders.png
+  In Old/VIS_arm_ThAr_lines_atlas.pdf you may find the ThAr line atlas provided
+  by ESO. This is NOT the line list used by PypeIt, but it is a useful tool
+  for line reidentification because the flux matches (more or less) that 
+  extracted from the arc image.
+
+
+* UVB 1x1
+  -------
+
+  In Old/UVB_arm_ThAr_lines_atlas.pdf you may find the ThAr line atlas provided
+  by ESO. This is NOT the line list used by PypeIt, but it is a useful tool
+  for line reidentification because the flux matches (more or less) that 
+  extracted from the arc image.
+
+
+

@@ -27,7 +27,7 @@ from pypeit import debugger
 class TraceImage(processimages.ProcessImages):
     """
     This class is primarily designed to generate a Bias frame for bias subtraction
-      It also contains I/O methods for the Master frames of PYPIT
+      It also contains I/O methods for the Master frames of PypeIt
       The build_master() method will return a simple command (str) if that is the specified setting
       in settings['bias']['useframe']
 

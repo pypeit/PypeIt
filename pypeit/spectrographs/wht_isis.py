@@ -42,8 +42,8 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 1,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,

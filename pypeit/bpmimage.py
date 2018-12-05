@@ -19,7 +19,7 @@ class BPMImage(object):
       The master() method will return the image
 
     Should provide both shape and filename to ensure that the
-    spectograph can construct the bpm, if reduce_badpix is False.
+    spectrograph can construct the bpm, if reduce_badpix is False.
 
     There are several ways to build a BPM:
        1. keck_lris_red
@@ -41,12 +41,12 @@ class BPMImage(object):
     det : int, optional
       Detector index
       Required for LRISr and DEIMOS
-    binning : Table (optional)
-        Could remove if we put binning in settings['detector']
+    filename : str, optional
+      Used primarily for binning...
     shape : tuple
       Image shape;  used to construct a dummy BPM if all else fails
 
-        This is the UNTRIMMED size of the raw images.
+        This is the TRIMMED size of the raw images.
 
     msbias : ndarray, optional
       Used to construct the BPM if reduce_badpix=='bias'
@@ -63,8 +63,7 @@ class BPMImage(object):
     frametype = 'bpm'
 
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph=None, shape=None, filename=None, det=None, msbias=None,
-                 trim=True):
+    def __init__(self, spectrograph=None, shape=None, filename=None, det=None, msbias=None):
 
         # This function interprets both strings and spectrograph
         # instances now
@@ -77,7 +76,7 @@ class BPMImage(object):
 
         # Used to construct the BPM from the bias
         self.msbias = msbias
-        self.trim = trim
+        #self.trim = trim -- Killing this option for now
 
         # spectrograph or msbias must be defined
         if self.spectrograph is None and msbias is None:
@@ -96,15 +95,14 @@ class BPMImage(object):
 
         """
         # Will raise an exception if could not construct the BPM
-        if self.msbias is None:
+        if self.shape is not None:
             # WARNING: This assumes shape is the untrimmed size of the
             # image!
-            self.bpm_img = self.spectrograph.bpm(shape=self.shape, filename=self.filename,
-                                                 det=self.det)
-            if self.trim:
-                mask = self.spectrograph.get_datasec_img(filename=self.filename, det=self.det) < 1
-
+            self.bpm_img = self.spectrograph.bpm(shape=self.shape, filename=self.filename, det=self.det)
+            #if self.trim:
+            #    mask = self.spectrograph.get_datasec_img(filename=self.filename, det=self.det) < 1
         else:
+            debugger.set_trace() # TOO EXPERIMENTAL
             _datasec = datasec
             if self.spectrograph is None and _datasec is None:
                 _datasec = [(slice(None),slice(None))]
@@ -130,8 +128,8 @@ class BPMImage(object):
                     mask[d] = False
 
         # Trim
-        if self.trim:
-            self.bpm_img = procimg.trim_frame(self.bpm_img, mask)
+        #if self.trim:
+        #    self.bpm_img = procimg.trim_frame(self.bpm_img, mask)
         return self.bpm_img
 
 

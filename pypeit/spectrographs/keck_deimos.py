@@ -37,8 +37,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 1,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -56,8 +56,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 2
                 pypeitpar.DetectorPar(
                             dataext         = 2,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -75,8 +75,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 3
                 pypeitpar.DetectorPar(
                             dataext         = 3,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -94,8 +94,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 4
                 pypeitpar.DetectorPar(
                             dataext         = 4,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -113,8 +113,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 5
                 pypeitpar.DetectorPar(
                             dataext         = 5,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -132,8 +132,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 6
                 pypeitpar.DetectorPar(
                             dataext         = 6,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -151,8 +151,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 7
                 pypeitpar.DetectorPar(
                             dataext         = 7,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -169,8 +169,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 # Detector 8
                 pypeitpar.DetectorPar(
                             dataext         = 8,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1., 
@@ -473,7 +473,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     # provided it will fail.  Provide a function like in keck_lris.py
     # that forces a file to be provided?
 
-    def bpm(self, filename=None, det=None, **null_kwargs):
+    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
         Override parent bpm function with BPM specific to DEIMOS.
 
@@ -492,7 +492,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
           0 = ok; 1 = Mask
 
         """
-        self.empty_bpm(filename=filename, det=det)
+        self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
             self.bpm_img[:,1052:1054] = 1
         elif det == 2:
@@ -502,6 +502,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             self.bpm_img[:,1333:1335] = 1
             self.bpm_img[:,2047] = 1
         elif det == 3:
+            self.bpm_img[:,0:4] = 1
             self.bpm_img[:,221] = 1
             self.bpm_img[:,260] = 1
             self.bpm_img[:,366] = 1
@@ -512,6 +513,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             self.bpm_img[:,1280] = 1
             self.bpm_img[:,1301:1303] = 1
             self.bpm_img[:,1744:1747] = 1
+            self.bpm_img[:,-4:] = 1
         elif det == 4:
             self.bpm_img[:,0:4] = 1
             self.bpm_img[:,47] = 1

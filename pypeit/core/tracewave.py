@@ -230,7 +230,8 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, satval,
 
     # Restricted to ID lines? [introduced to avoid LRIS ghosts]
     if idsonly:
-        ids_pix = np.round(np.array(wv_calib[str(slitnum)]['xfit'])*(msarc.shape[0]-1))
+        #ids_pix = np.round(np.array(wv_calib[str(slitnum)]['xfit'])*(msarc.shape[0]-1))
+        ids_pix = np.round(np.array(wv_calib[str(slitnum)]['pixel_fit']))
         idxuse = np.arange(arcdet.size)[aduse]
         for s in idxuse:
             if np.min(np.abs(arcdet[s]-ids_pix)) > 2:

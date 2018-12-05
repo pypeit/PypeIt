@@ -19,7 +19,7 @@ from pypeit.core import trace_slits
 from pypeit import debugger
 
 naming_model = {}
-for key in ['SPAT', 'SLIT', 'DET', 'SCI']:
+for key in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
     naming_model[key.lower()] = key
 
 
@@ -108,7 +108,8 @@ class SpecObj(object):
         # Some things for echelle functionality
         self.ech_order = None
         self.ech_orderindx = None
-        self.ech_group = None
+        self.ech_obj_id = None
+        self.ech_snr = None
         self.ech_fracpos = None
         self.ech_frac_was_fit = None
         self.ech_usepca = False
@@ -138,7 +139,7 @@ class SpecObj(object):
             self.idx = idx
         #
 
-    def set_idx(self):
+    def set_idx(self, echelle=False):
         """
         # Generate a unique index for this exposure
 
@@ -146,20 +147,35 @@ class SpecObj(object):
             idx : str
 
         """
-        # Spat
-        self.idx = naming_model['spat']
-        if self.spat_pixpos is None:
-            self.idx += '----'
-        else:
-            self.idx += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
-        # Slit
-        self.idx += '-'+naming_model['slit']
-        if self.slitid is None:
-            self.idx += '----'
-        else:
-            self.idx += '{:04d}'.format(self.slitid)
         # Detector string
         sdet = parse.get_dnum(self.det, prefix=False)
+
+        if echelle:
+            # ObjID
+            self.idx = naming_model['obj']
+            if self.ech_obj_id is None:
+                self.idx += '----'
+            else:
+                self.idx += '{:04d}'.format(self.ech_obj_id)
+            self.idx += '-'+naming_model['order']
+            if self.ech_orderindx is None:
+                self.idx += '----'
+            else:
+                self.idx += '{:04d}'.format(self.ech_orderindx)
+        else:
+            # Spat
+            self.idx = naming_model['spat']
+            if self.spat_pixpos is None:
+                self.idx += '----'
+            else:
+                self.idx += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
+            # Slit
+            self.idx += '-'+naming_model['slit']
+            if self.slitid is None:
+                self.idx += '----'
+            else:
+                self.idx += '{:04d}'.format(self.slitid)
+
         self.idx += '-{:s}{:s}'.format(naming_model['det'], sdet)
         # SCI
         self.idx += '-{:s}{:03d}'.format(naming_model['sci'], self.scidx)
@@ -331,9 +347,9 @@ class SpecObjs(object):
         sobj_copy.build_summary()
         return sobj_copy
 
-    def set_idx(self):
+    def set_idx(self, echelle=False):
         for sobj in self.specobjs:
-            sobj.set_idx()
+            sobj.set_idx(echelle=echelle)
         self.build_summary()
 
     def __getitem__(self, item):
