@@ -36,7 +36,7 @@ class PypeItSetup(object):
             A dictionary that associates the name of the file (just the
             fits file name without the full path) to a specific frame
             type (e.g., arc, bias, etc.).  If None, this is determined
-            by the :func:`type_data` method.
+            by the :func:`get_frame_types` method.
         usrdata (:obj:`astropy.table.Table`, optional):
             A user provided set of data used to supplement or overwrite
             metadata read from the file headers.  The table must have a

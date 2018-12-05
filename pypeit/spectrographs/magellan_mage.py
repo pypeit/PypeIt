@@ -164,7 +164,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         return hdr_keys
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime']
+        return ['filename', 'date', 'frametype', 'target', 'exptime', 'configuration', 'calib' ]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

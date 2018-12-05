@@ -17,6 +17,7 @@ from pypeit import msgs
 from pypeit.core import framematch
 from pypeit.core import flux
 from pypeit.par import PypeItPar
+from pypeit.bitmask import BitMask
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import debugger
 
@@ -83,8 +84,10 @@ class PypeItMetaData:
             PypeIt parameters used to set the code behavior.  If not
             provided, the default parameters specific to the provided
             spectrograph are used.
-        bitmask (:class:`pypeit.core.framematch.FrameTypeBitMask`):
+        type_bitmask (:class:`pypeit.core.framematch.FrameTypeBitMask`):
             The bitmask used to set the frame type of each fits file.
+        calib_bitmask (:class:`BitMask`):
+            The bitmask used to keep track of the calibration group bits.
         table (:class:`astropy.table.Table`):
             The table with the relevant metadata for each fits file to
             use in the data reduction.
@@ -95,7 +98,7 @@ class PypeItMetaData:
         self.par = self.spectrograph.default_pypeit_par() if par is None else par
         if not isinstance(self.par, PypeItPar):
             raise TypeError('Input parameter set must be of type PypeItPar.')
-        self.bitmask = framematch.FrameTypeBitMask()
+        self.type_bitmask = framematch.FrameTypeBitMask()
         self.table = table.Table(data if file_list is None 
                                  else self._build(file_list, strict=strict))
         if usrdata is not None:
@@ -103,6 +106,8 @@ class PypeItMetaData:
         # Instrument-specific validation of the header metadata. This
         # alters self.table in place!
         self.spectrograph.validate_metadata(self.table)
+
+        self.calib_bitmask = None
     
     def _build(self, file_list, strict=True):
         """
@@ -215,6 +220,9 @@ class PypeItMetaData:
             msgs.error("The headers could not be read from the input data files."
                        + msgs.newline() + "Please check that the settings file matches the data.")
         
+        # Add the index column
+        data['index'] = np.arange(numfiles).tolist()
+
         return data
 
     # TODO:  In this implementation, slicing the PypeItMetaData object
@@ -242,7 +250,7 @@ class PypeItMetaData:
 
     @staticmethod
     def default_keys():
-        return [ 'directory', 'filename', 'instrume' ]
+        return [ 'index', 'directory', 'filename', 'instrume' ]
 
     def keys(self):
         return self.table.keys()
@@ -414,8 +422,8 @@ class PypeItMetaData:
             uniq, indx = np.unique(self.table['configuration'], return_index=True)
             ignore = uniq == 'None'
             if np.sum(ignore) > 0:
-                msgs.warning('Ignoring {0} frames with configuration set to None.'.format(
-                             np.sum(ignore)))
+                msgs.warn('Ignoring {0} frames with configuration set to None.'.format(
+                            np.sum(ignore)))
             configs = {}
             for i in range(len(uniq)):
                 if ignore[i]:
@@ -482,12 +490,14 @@ class PypeItMetaData:
         msgs.info('Found {0} unique configurations.'.format(len(configs)))
         return configs
 
-    def set_configurations(self, configs=None):
+    def set_configurations(self, configs=None, force=False):
         """
         Assign each frame to a configuration and include it in the
         metadata table.
 
-        The internal table is edited *in place*.
+        The internal table is edited *in place*.  If the configurations
+        column already exists, the configurations are **not** reset
+        unless you call the function with `force=True`.
 
         Args:
             configs (:obj:`dict`, optional):
@@ -499,12 +509,18 @@ class PypeItMetaData:
                 same as returned by the spectrograph
                 `configuration_keys` method.  The latter is not checked.
                 If None, this is set by :func:`unique_configurations`. 
+            force (:obj:`bool`, optional):
+                Force the configurations to be reset.
 
         Raises:
             PypeItError:
                 Raised if none of the keywords in the provided
                 configuration match with the metadata keywords.
         """
+        # Configurations have already been set
+        if 'configuration' in self.keys() and not force:
+            return
+
         _configs = self.unique_configurations() if configs is None else configs
         for k, cfg in _configs.items():
             if len(set(cfg.keys()) - set(self.keys())) > 0:
@@ -517,18 +533,66 @@ class PypeItMetaData:
                 if np.all([cfg[d] == self.table[d][i] for d in cfg.keys()]):
                     self.table['configuration'][i] = d
 
-    def set_calibration_groups(self, global_frames=None):
+    def _set_calib_group_bits(self):
+        grp = np.empty(len(self), dtype=object)
+        ngroups = 0
+        for i in range(len(self)):
+            if self['calib'][i] == 'None':
+                continue
+            grp[i] = eval('['+self['calib'][i]+']') if self['calib'][i].find(',') > -1 \
+                        else [int(self['calib'][i])]
+            ngroups = np.amax(np.append(np.array(grp[i])+1,ngroups))
+        
+        self.calib_bitmask = BitMask(np.arange(ngroups))
+        self['calibbit'] = 0
+        for i in range(len(self)):
+            if self['calib'][i] == 'None':
+                continue
+            self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], grp[i])
+
+    def _check_calib_groups(self):
+        """
+        Check that the calibration groups are valid.
+
+        This currently only checks that the science frames are
+        associated with one calibration group.
+
+        TODO: Is this appropriate for NIR data?
+
+        """
+        is_science = self.find_frames('science')
+        for i in range(len(self)):
+            if not is_science[i]:
+                continue
+            if len(self.calib_bitmask.flagged_bits(self['calibbit'][i])) > 1:
+                msgs.error('Science frames can only be assigned to a single calibration group.')
+
+    @property
+    def n_calib_groups(self):
+        return None if self.calib_bitmask is None else self.calib_bitmask.nbits
+                
+    def set_calibration_groups(self, global_frames=None, force=False):
         """
         Group calibration frames into sets.
+        
+        Requires 'configuration' column.  For now this is a simple
+        grouping of frames with the same configuration.
 
-        This is very similar to match_to_science().
+        .. todo::
+            - Maintain a detailed description of the logic.
 
-        Requires 'configuration' column
+        The 'calib' column has a string type to make sure that it
+        matches with what can be read from the pypeit file.  The
+        'calibbit' column is actually what is used to determine the
+        calibration group of each frame; see :attr:`calib_bitmask`.
 
         Args:
             global_frames (:obj:`list`, optional):
                 A list of strings with the frame types to use in all
                 calibration groups (e.g., ['bias', 'dark']).
+            force (:obj:`bool`, optional):
+                Force the calibration groups to be reconstructed if
+                the 'calib' column already exists.
 
         Raises:
             PypeItError:
@@ -536,6 +600,22 @@ class PypeItMetaData:
                 `global_frames` is provided but the frame types have not
                 been defined yet.
         """
+        # Groups have already been set
+        if 'calib' in self.keys() and 'calibbit' in self.keys() and not force:
+            return
+
+        # Groups have been set but the bits have not (likely because the
+        # data was read from a pypeit file)
+        if 'calib' in self.keys() and 'calibbit' not in self.keys() and not force:
+            self._set_calib_group_bits()
+            self._check_calib_groups()
+            return
+
+        # TODO: The rest of this just nominally sets the calibration
+        # group based on the configuration.  This will change!
+
+        # The configuration must be present to determine the calibration
+        # group
         if 'configuration' not in self.keys():
             msgs.error('Must have defined \'configuration\' column first; try running'
                        'set_configurations.')
@@ -548,11 +628,11 @@ class PypeItMetaData:
 
         # TODO: Science frames can only have one calibration group
 
-        # Just assign everything from the same configuration to the same
+        # Assign everything from the same configuration to the same
         # calibration group
-        self.table['calib'] = None
+        self.table['calib'] = 'None'
         for i in range(n_cfg):
-            self['calib'][(self['configuration'] == configs[i]) & (self['framebit'] > 0)] = i
+            self['calib'][(self['configuration'] == configs[i]) & (self['framebit'] > 0)] = str(i)
         
         # Allow some frame types to be used in all calibration groups
         # (like biases and darks)
@@ -561,11 +641,16 @@ class PypeItMetaData:
                 msgs.error('To set global frames, types must have been defined; '
                            'run get_frame_types.')
 
-            calibs = 0 if n_cfg == 1 else np.arange(n_cfg).tolist()
+            calibs = '0' if n_cfg == 1 else ','.join(np.arange(n_cfg).astype(str))
             for ftype in global_frames:
                 indx = np.where(self.find_frames(ftype))[0]
                 for i in indx:
                     self['calib'][i] = calibs
+
+        # Set the bits based on the string representation of the groups
+        self._set_calib_group_bits()
+        # Check that the groups are valid
+        self._check_calib_groups()
 
     def find_frames(self, ftype, sci_ID=None, index=False):
         """
@@ -591,7 +676,7 @@ class PypeItMetaData:
             raise ValueError('Frame types are not set.  First run get_frame_types.')
         if ftype is 'None':
             return self['framebit'] == 0
-        indx = self.bitmask.flagged(self['framebit'], ftype)
+        indx = self.type_bitmask.flagged(self['framebit'], ftype)
         if sci_ID is not None:
             indx &= (self['sci_ID'] & sci_ID > 0)
         return np.where(indx)[0] if index else indx
@@ -636,17 +721,22 @@ class PypeItMetaData:
             type name and bits.
         """
         # Making Columns to pad string array
-        ftype_colmA = table.Column(self.bitmask.type_names(type_bits), name='frametype')
+        ftype_colmA = table.Column(self.type_bitmask.type_names(type_bits), name='frametype')
 
         # KLUDGE ME
+        #
         # TODO: It would be good to get around this.  Is it related to
         # this change?
         # http://docs.astropy.org/en/stable/table/access_table.html#bytestring-columns-in-python-3
         #
+        # See also:
+        #
+        # http://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table.convert_bytestring_to_unicode
+        #
         # Or we can force type_names() in bitmask to always return the
         # correct type...
         if int(str(ftype_colmA.dtype)[2:]) < 9:
-            ftype_colm = table.Column(self.bitmask.type_names(type_bits), dtype='U9',
+            ftype_colm = table.Column(self.type_bitmask.type_names(type_bits), dtype='U9',
                                       name='frametype')
         else:
             ftype_colm = ftype_colmA
@@ -674,8 +764,8 @@ class PypeItMetaData:
         """
         if not append:
             self['framebit'][indx] = 0
-        self['framebit'][indx] = self.bitmask.turn_on(self['framebit'][indx], flag=frame_type)
-        self['frametype'][indx] = self.bitmask.type_names(self['framebit'][indx])
+        self['framebit'][indx] = self.type_bitmask.turn_on(self['framebit'][indx], flag=frame_type)
+        self['frametype'][indx] = self.type_bitmask.type_names(self['framebit'][indx])
 
     def get_frame_types(self, flag_unknown=False, user=None, useIDname=False, merge=True):
         """
@@ -721,7 +811,7 @@ class PypeItMetaData:
 
         # Start
         msgs.info("Typing files")
-        type_bits = np.zeros(len(self), dtype=self.bitmask.minimum_dtype())
+        type_bits = np.zeros(len(self), dtype=self.type_bitmask.minimum_dtype())
     
         # Use the user-defined frame types from the input dictionary
         if user is not None:
@@ -730,11 +820,11 @@ class PypeItMetaData:
             msgs.info('Using user-provided frame types.')
             for ifile,ftypes in user.items():
                 indx = self['filename'] == ifile
-                type_bits[indx] = self.bitmask.turn_on(type_bits[indx], flag=ftypes.split(','))
+                type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftypes.split(','))
             return self.set_frame_types(type_bits, merge=merge)
     
         # Loop over the frame types
-        for i, ftype in enumerate(self.bitmask.keys()):
+        for i, ftype in enumerate(self.type_bitmask.keys()):
     
             # Initialize: Flag frames with the correct ID name or start by
             # flagging all as true
@@ -750,30 +840,30 @@ class PypeItMetaData:
             indx &= self.spectrograph.check_frame_type(ftype, self.table, exprng=exprng)
     
             # Turn on the relevant bits
-            type_bits[indx] = self.bitmask.turn_on(type_bits[indx], flag=ftype)
+            type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftype)
     
         # Find the nearest standard star to each science frame
         # TODO: Should this be 'standard' or 'science' or both?
         if 'ra' not in self.keys() or 'dec' not in self.keys():
             msgs.warn('Cannot associate standard with science frames without sky coordinates.')
         else:
-            indx = self.bitmask.flagged(type_bits, flag='standard')
+            indx = self.type_bitmask.flagged(type_bits, flag='standard')
             for b, f, ra, dec in zip(type_bits[indx], self['filename'][indx], self['ra'][indx],
                                      self['dec'][indx]):
                 if ra == 'None' or dec == 'None':
                     msgs.warn('RA and DEC must not be None for file:' + msgs.newline() + f)
                     msgs.warn('The above file could be a twilight flat frame that was'
                               + msgs.newline() + 'missed by the automatic identification.')
-                    b = self.bitmask.turn_off(b, flag='standard')
+                    b = self.type_bitmask.turn_off(b, flag='standard')
                     continue
     
                 # If an object exists within 20 arcmins of a listed standard,
                 # then it is probably a standard star
                 foundstd = flux.find_standard_file(ra, dec, check=True)
-                b = self.bitmask.turn_off(b, flag='science' if foundstd else 'standard')
+                b = self.type_bitmask.turn_off(b, flag='science' if foundstd else 'standard')
     
         # Find the files without any types
-        indx = np.invert(self.bitmask.flagged(type_bits))
+        indx = np.invert(self.type_bitmask.flagged(type_bits))
         if np.any(indx):
             msgs.info("Couldn't identify the following files:")
             for f in self['filename'][indx]:
@@ -784,9 +874,9 @@ class PypeItMetaData:
         # Now identify the dark frames
         # TODO: This should not be here.  Move to instrument specific
         # selection as above
-        indx = self.bitmask.flagged(type_bits, flag='bias') \
+        indx = self.type_bitmask.flagged(type_bits, flag='bias') \
                         & (self['exptime'].data.astype(float) > self.spectrograph.minexp)
-        type_bits[indx] = self.bitmask.turn_on(type_bits[indx], 'dark')
+        type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], 'dark')
     
         # Finish up (note that this is called above if user is not None!)
         msgs.info("Typing completed!")
@@ -847,12 +937,16 @@ class PypeItMetaData:
         # Write the output
         self.table[col_order].write(ofile, format=format, overwrite=overwrite)
 
-    def find_calib_group(self, indx):
-        in_group = np.zeros(len(self), dtype=bool)
-        for i in range(len(self)):
-            in_group[i] = indx in self['calib'][i] if isinstance(self['calib'][i], list) \
-                            else indx == self['calib'][i]
-        return in_group
+    def find_calib_group(self, grp):
+        """
+        Find all the frames associated with the provided calibration group.
+        """
+        return self.calib_bitmask.flagged(self['calibbit'].data, grp)
+#        in_group = np.zeros(len(self), dtype=bool)
+#        for i in range(len(self)):
+#            in_group[i] = indx in self['calib'][i] if isinstance(self['calib'][i], list) \
+#                            else indx == self['calib'][i]
+#        return in_group
 
     def calib_to_science(self):
         """
@@ -870,7 +964,7 @@ class PypeItMetaData:
             if is_not_science[i]:
                 continue
             
-            calibs = self.find_calib_group(self['calib'][i]) & is_not_science
+            calibs = self.find_calib_group(int(self['calib'][i])) & is_not_science
             self['sci_ID'][calibs] |= (1 << sciid[j])
             j += 1
     
@@ -930,7 +1024,7 @@ class PypeItMetaData:
             self['sci_ID'][sci_idx] = 2**ss
 
             # Find matching (and nearby) calibration frames
-            for ftag in self.bitmask.keys():
+            for ftag in self.type_bitmask.keys():
                 # Skip science frames
                 if ftag == 'science':
                     continue
@@ -1104,6 +1198,7 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
 
     """
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
+    fitsdict['index'] = np.arange(nfile)
     fitsdict['utc'] = ['2015-01-23']*nfile
     fitsdict['directory'] = [directory]*nfile
     fitsdict['filename'] = ['b{:03d}.fits.gz'.format(i) for i in range(nfile)]
@@ -1151,17 +1246,17 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
 
     fitstbl = PypeItMetaData(load_spectrograph(spectrograph), data=fitsdict)
     fitstbl['instrume'] = spectrograph
-    type_bits = np.zeros(len(fitstbl), dtype=fitstbl.bitmask.minimum_dtype())
+    type_bits = np.zeros(len(fitstbl), dtype=fitstbl.type_bitmask.minimum_dtype())
 
     # Image typing
     if not notype:
         if spectrograph == 'shane_kast_blue':
             fitstbl['sci_ID'] = 1  # This links all the files to the science object
-            type_bits[0] = fitstbl.bitmask.turn_on(type_bits[0], flag='bias')
-            type_bits[1] = fitstbl.bitmask.turn_on(type_bits[1], flag='arc')
-            type_bits[2:4] = fitstbl.bitmask.turn_on(type_bits[2:4], flag=['pixelflat', 'trace'])
-            type_bits[4] = fitstbl.bitmask.turn_on(type_bits[4], flag='standard')
-            type_bits[5:] = fitstbl.bitmask.turn_on(type_bits[5:], flag='science')
+            type_bits[0] = fitstbl.type_bitmask.turn_on(type_bits[0], flag='bias')
+            type_bits[1] = fitstbl.type_bitmask.turn_on(type_bits[1], flag='arc')
+            type_bits[2:4] = fitstbl.type_bitmask.turn_on(type_bits[2:4], flag=['pixelflat', 'trace'])
+            type_bits[4] = fitstbl.type_bitmask.turn_on(type_bits[4], flag='standard')
+            type_bits[5:] = fitstbl.type_bitmask.turn_on(type_bits[5:], flag='science')
             fitstbl.set_frame_types(type_bits)
 
     return fitstbl

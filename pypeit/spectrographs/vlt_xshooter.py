@@ -86,7 +86,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
     def metadata_keys(self):
         return ['filename', 'date', 'frametype', 'idname', 'target', 'exptime', 'decker',
-                'binning']
+                'binning', 'configuration', 'calib']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

@@ -422,8 +422,9 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
     ftypes = list(group_dict[setups[0]].keys())
     ftypes.sort()
     # Loop on Setup
-    asciiord = np.array(['filename', 'date', 'frameno', 'frametype',
-                         'target', 'exptime', 'dispname', 'decker', 'AB_frame'])
+    asciiord = np.array(fitstbl.spectrograph.metadata_keys())
+#    asciiord = np.array(['filename', 'date', 'frameno', 'frametype',
+#                         'target', 'exptime', 'dispname', 'decker', 'AB_frame'])
     for setup in setups:
         ff.write('##########################################################\n')
         in_setup = []
