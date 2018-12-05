@@ -60,8 +60,6 @@ def add_user_edges(tc_dict, add_slits):
     nspec = tc_dict['left']['traces'].shape[0]
     ycen = nspec//2
 
-    # Grab the edge indexes and xval's
-
     # Loop me
     for new_slit in add_slits:
         msgs.info("Adding a user-defined slit [x0, x1, yrow]:  {}".format(new_slit))
@@ -89,6 +87,25 @@ def add_user_edges(tc_dict, add_slits):
         tc_dict[side]['traces'] = tc_dict[side]['traces'][:,isrt]
     # Done
     return
+
+def rm_user_edges(tc_dict, rm_slits):
+    # Mask me
+    # Loop me
+    for rm_slit in rm_slits:
+        # Deconstruct
+        xcen, yrow = rm_slit
+        # Edges
+        lefts = tc_dict['left']['traces'][yrow,:]
+        rights = tc_dict['right']['traces'][yrow,:]
+        # Match?
+        bad_slit = (lefts < xcen) & (rights > xcen)
+        if np.any(bad_slit):
+            # Double check
+            if np.sum(bad_slit) != 1:
+                msgs.error("Something went horribly wrong in edge tracing")
+            #
+
+
 
 
 def orig_add_user_edges(edgearr, siglev, tc_dict, add_slits):
@@ -1862,7 +1879,7 @@ def find_peak_limits(hist, pks):
     return edges
 
 
-def parse_user_slits(add_slits, this_det):
+def parse_user_slits(add_slits, this_det, rm=False):
     """
     Parse the parset syntax for adding slits
 
@@ -1871,17 +1888,25 @@ def parse_user_slits(add_slits, this_det):
           Taken from the parset
         this_det: int
           current detector
+        rm: bool, optional
+          Remove instead of add?
 
     Returns:
         user_slits: list or None
-          if list,  [[x0,x1,yrow]] with one or more entries
+          if list,  [[x0,x1,yrow]] for add with one or more entries
+          if list,  [[xcen,yrow]] for rm with one or more entries
 
     """
     user_slits = []
     for islit in add_slits:
-        det, x0, x1, yrow = [int(ii) for ii in islit.split(':')]
-        if det == this_det:
-            user_slits.append([x0,x1,yrow])
+        if not rm:
+            det, x0, x1, yrow = [int(ii) for ii in islit.split(':')]
+            if det == this_det:
+                user_slits.append([x0,x1,yrow])
+        else:
+            det, xcen, yrow = [int(ii) for ii in islit.split(':')]
+            if det == this_det:
+                user_slits.append([xcen,yrow])
     # Finish
     if len(user_slits) == 0:
         return None

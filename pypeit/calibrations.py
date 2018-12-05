@@ -469,12 +469,13 @@ class Calibrations(object):
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
             # User-defined slits??
-            user_slits = trace_slits.parse_user_slits(self.par['slits']['add_slits'], self.det)
+            add_user_slits = trace_slits.parse_user_slits(self.par['slits']['add_slits'], self.det)
+            rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det, rm=True)
 
             # Now we go forth
             try:
                 self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale, show=self.show,
-                                                       add_user_slits=user_slits)
+                                                       add_user_slits=add_user_slits, rm_user_slits=rm_user_slits)
             except:
                 self.traceSlits.save_master()
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")

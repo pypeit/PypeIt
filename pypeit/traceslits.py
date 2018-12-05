@@ -1243,7 +1243,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Return
         return loaded
 
-    def run(self, arms=True, add_user_slits=None, plate_scale = None, show=False):
+    def run(self, arms=True, add_user_slits=None, rm_user_slits=None, plate_scale = None, show=False):
         """ Main driver for tracing slits.
 
           Code flow
@@ -1270,6 +1270,9 @@ class TraceSlits(masterframe.MasterFrame):
         add_user_slits : list of lists
           List of 3 element lists, each an [xleft, xright, yrow] specifying a slit edge
           at a given yrow
+        rm_user_slits : list of lists
+          List of 2 element lists, each an [xcen, yrow] specifying a slit center.  Any
+          slit containing it will be removed
 
         Returns
         -------
@@ -1324,6 +1327,9 @@ class TraceSlits(masterframe.MasterFrame):
             # Add user input slits
             if add_user_slits is not None:
                 self.add_user_slits(add_user_slits)
+            # Remove user input slits
+            if rm_user_slits is not None:
+                self.rm_user_slits(rm_user_slits)
 
         # Set lcen and rcen, lmin, lmax
         self.lcen = self.tc_dict['left']['traces']
