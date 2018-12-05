@@ -374,10 +374,10 @@ class PypeItMetaData:
             dict: A dictionary with the metadata values from the
             selected row.
         """
-        _cfg_keys = self.spectrograph.configuration_keys() if cfg_keys in None else cfg_keys
+        _cfg_keys = self.spectrograph.configuration_keys() if cfg_keys is None else cfg_keys
         return {k:self.table[k][indx] for k in _cfg_keys}
 
-    def unique_configurations(self):
+    def unique_configurations(self, ignore_frames=None):
         """
         Return the unique instrument configurations.
 
@@ -390,13 +390,27 @@ class PypeItMetaData:
         simply constructs the configuration dictionary using the unique
         configurations in that column.
 
+        Args:
+            ignore_frames (:obj:`list`, optional):
+                A list of strings with the frame types (e.g., ['bias',
+                'dark']) to ignore when determining the unique
+                configurations.  This is only possible if the frame
+                types have been previously defined and can be selected
+                using :func:`find_frames`.  Default is to use all frame
+                types.
+
         Returns:
             dict: A nested dictionary, one dictionary per configuration
             with the associated values of the metadata associated with
             each configuration.
+
+        Raises:
+            PypeItError:
+                Raised if `ignore_frames` is provided but the frame
+                types have not been defined yet.
         """
         if 'configuration' in self.keys():
-            uniq, indx = numpy.unique(self.table['configuration'], return_index=True)
+            uniq, indx = np.unique(self.table['configuration'], return_index=True)
             ignore = uniq == 'None'
             configs = {}
             for i in range(len(uniq)):
@@ -404,6 +418,19 @@ class PypeItMetaData:
                     continue
                 configs[uniq[i]] = self.get_configuration(indx[i])
             return configs
+
+        # If the frame types have been set, ignore anything listed in
+        # the ignore_frames
+        indx = np.arange(len(self))
+        if ignore_frames is not None:
+            if 'frametype' not in self.keys():
+                msgs.error('To ignore frames, types must have been defined; run get_frame_types.')
+            use = np.ones(len(self), dtype=bool)
+            for ftype in ignore_frames:
+                use &= np.invert(self.find_frames(ftype))
+            indx = indx[use]
+        if len(indx) == 0:
+            msgs.error('No frames to use to define configurations!')
 
         # Get the list of keys to use
         cfg_keys = self.spectrograph.configuration_keys()
@@ -415,20 +442,21 @@ class PypeItMetaData:
 
         # Use the first file to set the first unique configuration
         configs = {}
-        configs[cfg_iter[cfg_indx]] = self.get_configuration(0, cfg_keys=cfg_keys)
+        configs[cfg_iter[cfg_indx]] = self.get_configuration(indx[0], cfg_keys=cfg_keys)
         cfg_indx += 1
 
         # Check if any of the other files show a different
         # configuration.  The check is for *exact* equality, meaning
         # *any* difference in the values for the keywords listed in
         # `cfg_keys` will lead to a new configuration.
-        nrows = len(self)
-        for i in range(1,nrows):
-            unique = False
+        # TODO: Add a tolerance for floating point values?
+        for i in indx[1:]:
+            j = 0
             for c in configs.values():
-                if not numpy.all([c[k] == self.table[k][i] for k in cfg_keys]):
-                    unique = True
+                if np.all([c[k] == self.table[k][i] for k in cfg_keys]):
                     break
+                j += 1
+            unique = j == len(configs)
             if unique:
                 if cfg_indx == len(cfg_iter):
                     msgs.error('Cannot assign more than {0} configurations!'.format(len(cfg_iter)))
@@ -437,7 +465,7 @@ class PypeItMetaData:
 
         return configs
 
-    def set_configurations(self, configs):
+    def set_configurations(self, configs=None):
         """
         Assign each frame to a configuration and include it in the
         metadata table.
@@ -445,7 +473,7 @@ class PypeItMetaData:
         The internal table is edited *in place*.
 
         Args:
-            configs (:obj:`dict`):
+            configs (:obj:`dict`, optional):
                 A nested dictionary, one dictionary per configuration
                 with the associated values of the metadata associated
                 with each configuration.  The metadata keywords in the
@@ -453,22 +481,69 @@ class PypeItMetaData:
                 keywords used to set the configuration should be the
                 same as returned by the spectrograph
                 `configuration_keys` method.  The latter is not checked.
+                If None, this is set by :func:`unique_configurations`. 
 
         Raises:
             PypeItError:
                 Raised if none of the keywords in the provided
                 configuration match with the metadata keywords.
         """
-        for k, cfg in configs.items():
+        _configs = self.unique_configurations() if configs is None else configs
+        for k, cfg in _configs.items():
             if len(set(cfg.keys()) - set(self.keys())) > 0:
                 msgs.error('Configuration {0} defined using unavailable keywords!'.format(k))
 
         self.table['configuration'] = 'None'
         nrows = len(self)
         for i in range(nrows):
-            for d, cfg in configs.items():
-                if numpy.all([cfg[d] == self.table[d][i] for d in cfg.keys()]):
+            for d, cfg in _configs.items():
+                if np.all([cfg[d] == self.table[d][i] for d in cfg.keys()]):
                     self.table['configuration'][i] = d
+
+    def set_calibration_groups(self, global_frames=None):
+        """
+        Group calibration frames into sets.
+
+        This is very similar to match_to_science().
+
+        Requires 'configuration' column
+
+        Args:
+            global_frames (:obj:`list`, optional):
+                A list of strings with the frame types to use in all
+                calibration groups (e.g., ['bias', 'dark']).
+
+        Raises:
+            PypeItError:
+                Raised if 'configuration' column is not defined, or if
+                `global_frames` is provided but the frame types have not
+                been defined yet.
+        """
+        if 'configuration' not in self.keys():
+            msgs.error('Must have defined \'configuration\' column first; try running'
+                       'set_configurations.')
+        configs = np.unique(self['configuration'].data).tolist()
+        try:
+            configs.remove('None')      # Ignore frames with undefined configurations
+        except:
+            pass
+        n = len(configs)
+        # Just assign everything from the same configuration to the same
+        # calibration group
+        self.table['calib'] = None
+        for i in range(n):
+            self['calib'][self['configuration'] == configs[i]] = i
+        
+        # Allow some frame types to be used in all calibration groups
+        # (like biases and darks)
+        if global_frames is not None:
+            if 'frametype' not in self.keys():
+                msgs.error('To set global frames, types must have been defined; '
+                           'run get_frame_types.')
+            calibs = ','.join(np.arange(n).astype(int).astype(str))
+            for ftype in global_frames:
+                indx = self.find_frames(ftype)
+                self['calib'][indx] = calibs
 
     def find_frames(self, ftype, sci_ID=None, index=False):
         """
@@ -540,11 +615,20 @@ class PypeItMetaData:
         """
         # Making Columns to pad string array
         ftype_colmA = table.Column(self.bitmask.type_names(type_bits), name='frametype')
+
         # KLUDGE ME
+        # TODO: It would be good to get around this.  Is it related to
+        # this change?
+        # http://docs.astropy.org/en/stable/table/access_table.html#bytestring-columns-in-python-3
+        #
+        # Or we can force type_names() in bitmask to always return the
+        # correct type...
         if int(str(ftype_colmA.dtype)[2:]) < 9:
-            ftype_colm = table.Column(self.bitmask.type_names(type_bits), dtype='U9', name='frametype')
+            ftype_colm = table.Column(self.bitmask.type_names(type_bits), dtype='U9',
+                                      name='frametype')
         else:
             ftype_colm = ftype_colmA
+
         fbits_colm = table.Column(type_bits, name='framebit')
         t = table.Table([ftype_colm, fbits_colm])
 

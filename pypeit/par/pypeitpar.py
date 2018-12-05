@@ -934,6 +934,7 @@ class ReducePar(ParSet):
                             'None, the default is the root name of the pypeit file.  If off, ' \
                             'no output is produced.'
 
+        # TODO: Allow this to apply to each calibration frame type
         defaults['calwin'] = 0
         dtypes['calwin']   = [int, float]
         descr['calwin'] = 'The window of time in hours to search for calibration frames for a ' \

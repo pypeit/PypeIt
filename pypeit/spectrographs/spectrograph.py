@@ -393,7 +393,7 @@ class Spectrograph(object):
             used to constuct the :class:`pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'dispangle', 'dichroic', 'decker', 'slitwid', 'slitlen' ]
+        return ['dispname', 'dichroic', 'decker' ] #, 'dispangle' ] #,  'slitwid', 'slitlen' ]
 
     def validate_metadata(self, fitstbl):
         pass
