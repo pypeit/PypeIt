@@ -141,6 +141,9 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
         return hdr_keys
 
+    def configuration_keys(self):
+        return ['decker', 'dispname']
+
     def metadata_keys(self):
         return super(KeckNIRSPECSpectrograph, self).metadata_keys() \
                     + ['echellepos', 'crosspos', 'idname']

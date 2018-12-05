@@ -73,6 +73,9 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         # UTC, decker are arm dependent
         return hdr_keys
 
+    def configuration_keys(self):
+        return []
+
     def validate_metadata(self, fitstbl):
         indx = fitstbl['binning_x'] == 'None'
         fitstbl['binning_x'][indx] = 1
@@ -229,7 +232,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'
         hdr_keys[0]['utc'] = 'HIERARCH ESO DET EXP UTC'
         return hdr_keys
-
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """

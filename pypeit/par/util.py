@@ -427,10 +427,6 @@ def _read_data_file_table(lines, file_check=True):
     npaths = len(paths)
     header = [ l.strip() for l in lines[npaths].split('|') ][1:-1]
 
-    print(paths)
-    import pdb
-    pdb.set_trace()
-
     # Minimum columns required
     if 'filename' not in header:
         msgs.error('Table format failure: No \'filename\' column.')
@@ -450,10 +446,6 @@ def _read_data_file_table(lines, file_check=True):
     for i,key in enumerate(header):
         data[key] = tbl[:,i]
     tbl = Table(data)
-
-    import pdb
-    pdb.set_trace()
-
 
     # Build full paths to file and set frame types
     frametype = {}

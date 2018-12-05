@@ -75,7 +75,7 @@ def test_image_type():
     setupc.get_frame_types(flag_unknown=True)
     assert 'framebit' in setupc.fitstbl.keys()
     assert np.sum(setupc.fitstbl.find_frames('arc')) == 1
-    assert np.sum(setupc.fitstbl.find_frames('unknown')) == 0
+    assert np.sum(setupc.fitstbl.find_frames('None')) == 0
 
     assert np.sum(setupc.fitstbl.find_frames('pixelflat')
                     & setupc.fitstbl.find_frames('trace')) == 12

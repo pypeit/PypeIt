@@ -656,6 +656,7 @@ class PypeIt(object):
                          setup_mode=True)
         msgs.info('Wrote template pypeit file: {0}'.format(pypeit_file))
 
+        # TODO: Why is this needed?
         # Parser
         pinp = [pypeit_file, '-p', '-r {0}'.format(root) ]
         if overwrite:

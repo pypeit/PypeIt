@@ -235,7 +235,6 @@ class PypeItSetup(object):
         # Return
         return self.group_dict
 
-
     def build_setup_dict(self, setup_only=False):
         """
         Generate the setup_dict
@@ -454,8 +453,20 @@ class PypeItSetup(object):
         self.get_frame_types(flag_unknown=setup_only or calibration_check,
                              use_header_id=use_header_id)
 
-        # Match calibs to science
-        self.match_to_science(setup_only=setup_only)
+        # Determine the configurations and assign each frame to the
+        # specified configuration
+        cfgs = self.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
+        self.fitstbl.set_configurations(cfgs)
+
+        # Assign frames to calibration groups
+        self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
+
+        # Assign science IDs based on the calibrations groups (to be
+        # deprecated)
+        self.fitstbl.calib_to_science()
+
+#        # Match calibs to science
+#        self.match_to_science(setup_only=setup_only)
 
         if self.par['scienceimage'] is not None and self.par['scienceimage']['nodding']:
             self.match_ABBA()
@@ -464,25 +475,30 @@ class PypeItSetup(object):
         self.write_metadata(sort_dir=sort_dir)
 
         # Setup dict
+        # TODO: I want to simplify this
         self.build_setup_dict(setup_only=setup_only)
 
         if setup_only:
             # Collate all matching files and write .sorted Table (on pypeit_setup only)
+            # TODO: I want to simplify this
             self.build_group_dict(pypeit_file=pypeit_file)
 
             # Write the setup file
             setup_file = self.spectrograph.spectrograph + '.setups' \
                                 if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.setups')
+            # TODO: I want to simplify this
             pypsetup.write_setup(self.setup_dict, setup_file)
         else:
             # Write the calib file
             calib_file = self.spectrograph.spectrograph + '.calib' \
                                 if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.calib')
+            # TODO: I want to simplify or remove this
             pypsetup.write_calib(calib_file, self.setup_dict)
 
         # Finish (depends on PypeIt run mode)
+        # TODO: Do we need this functionality
         if calibration_check:
             msgs.info("Inspect the .calib file: {:s}".format(calib_file))
             msgs.info("*********************************************************")

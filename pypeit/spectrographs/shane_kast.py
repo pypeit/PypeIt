@@ -93,6 +93,10 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
 
     # Uses parent metadata keys
 
+    def configuration_keys(self):
+        #TODO: Placeholder to get tests to clear
+        return ['dispname', 'dichroic' ]
+
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.

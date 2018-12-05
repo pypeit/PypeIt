@@ -414,7 +414,8 @@ class PypeItMetaData:
             uniq, indx = np.unique(self.table['configuration'], return_index=True)
             ignore = uniq == 'None'
             if np.sum(ignore) > 0:
-                msgs.warning('{0} frames with configuration set to None.'.format(np.sum(ignore)))
+                msgs.warning('Ignoring {0} frames with configuration set to None.'.format(
+                             np.sum(ignore)))
             configs = {}
             for i in range(len(uniq)):
                 if ignore[i]:
@@ -446,6 +447,14 @@ class PypeItMetaData:
         # upper-case letters: A, B, C, etc.
         cfg_iter = string.ascii_uppercase
         cfg_indx = 0
+
+        # TODO: Placeholder: Allow an empty set of configuration keys
+        # meaning that the instrument setup has only one configuration.
+        if len(cfg_keys) == 0:
+            configs = {}
+            configs[cfg_iter[cfg_indx]] = {}
+            msgs.info('All files assumed to be from a single configuration.')
+            return configs
 
         # Use the first file to set the first unique configuration
         configs = {}
@@ -849,19 +858,20 @@ class PypeItMetaData:
         """
         Construct the science ID based on the calibration group.
         """
-        self['csid'] = 0
+        self['sci_ID'] = 0
+        self['failures'] = False                    # TODO: placeholder
 
         is_science = self.find_frames('science')
         is_not_science = np.invert(is_science)
         sciid = np.arange(np.sum(is_science))       # Science image IDs
-        self['csid'][is_science] = 1 << sciid
+        self['sci_ID'][is_science] = 1 << sciid
         j = 0
         for i in range(len(self)):
             if is_not_science[i]:
                 continue
             
             calibs = self.find_calib_group(self['calib'][i]) & is_not_science
-            self['csid'][calibs] |= (1 << sciid[j])
+            self['sci_ID'][calibs] |= (1 << sciid[j])
             j += 1
     
     def match_to_science(self, calib_par, calwin, fluxcalib_par, setup=False, verbose=True):
@@ -977,7 +987,7 @@ class PypeItMetaData:
                     code = framematch.match_warnings(calib_par, ftag, nmatch, numfr, target,
                                                      fluxpar=fluxcalib_par)
                     if code == 'break':
-                        self['failure'][sci_idx] = True
+                        self['failures'][sci_idx] = True
                         self['sci_ID'][sci_idx] = -1  # This might break things but who knows..
                         break
                 else:

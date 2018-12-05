@@ -147,6 +147,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         return hdr_keys
 
+    def configuration_keys(self):
+        return ['decker', 'dispname']
+
     def metadata_keys(self):
         return super(GeminiGNIRSSpectrograph, self).metadata_keys() + ['dispangle', 'idname']
 
