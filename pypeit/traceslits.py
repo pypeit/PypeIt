@@ -890,6 +890,8 @@ class TraceSlits(masterframe.MasterFrame):
 
     def remove_slit(self, rm_slits, TOL = 3.):
         """
+        DEPRECATED
+
         Remove a user-specified slit
 
         Wrapper to trace_slits.remove_slit()
@@ -915,6 +917,27 @@ class TraceSlits(masterframe.MasterFrame):
         """
         self.edgearr, self.lcen, self.rcen, self.tc_dict = trace_slits.remove_slit(
             self.edgearr, self.lcen, self.rcen, self.tc_dict, rm_slits, TOL=TOL)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+
+    def rm_user_slits(self, user_slits):
+        """
+        Remove one or more slits (as applicable)
+
+        Wrapper to trace_slits.rm_user_edges()
+
+        Parameters
+        ----------
+        user_slits : list
+
+        Returns
+        -------
+        self.tc_dict is modified in-place
+
+        """
+        # Add user input slits
+        debugger.set_trace()
+        trace_slits.rm_user_edges(self.tc_dict, user_slits)
         # Step
         self.steps.append(inspect.stack()[0][3])
 

@@ -1385,13 +1385,13 @@ class TraceSlitsPar(ParSet):
                           ' None means no user-level slits defined.'
 
         defaults['add_slits'] = []
-        dtypes['add_slits'] = list
+        dtypes['add_slits'] = str, list
         descr['add_slits'] = 'Add one or more user-defined slits.  This is a list of lists, with ' \
                              'each sub-list having syntax (all integers):  det:x0:x1:yrow  ' \
                              'For example,  2:2121:2322:2000,3:1201:1500:2000'
 
         defaults['rm_slits'] = []
-        dtypes['rm_slits'] = list
+        dtypes['rm_slits'] = str, list
         descr['rm_slits'] = 'Remove one or more user-specified slits.  This is a list of lists, with ' \
                              'each sub-list having syntax (all integers):  det:xcen:yrow  ' \
                              'For example,  2:2121:2000,3:1500:2000'

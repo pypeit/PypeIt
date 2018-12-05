@@ -89,7 +89,27 @@ def add_user_edges(tc_dict, add_slits):
     return
 
 def rm_user_edges(tc_dict, rm_slits):
+    """
+    Remove one or more slits, as applicable
+
+    Code compares exisiting slits (which must be sycnhronized)
+    against the input requeest and removes any that match.
+
+    Args:
+        tc_dict: dict
+        rm_slits: list
+          xcen,yrow pairs
+
+    Returns:
+        Modifies tc_dict in place
+
+    """
     # Mask me
+    good_left = np.ones_like(tc_dict['left']['xval'], dtype=bool)
+    good_right = np.ones_like(tc_dict['right']['xval'], dtype=bool)
+    # Check
+    if good_left.size != good_right.size:
+        msgs.error("Slits need to be sync'd to use this method!")
     # Loop me
     for rm_slit in rm_slits:
         # Deconstruct
@@ -104,8 +124,17 @@ def rm_user_edges(tc_dict, rm_slits):
             if np.sum(bad_slit) != 1:
                 msgs.error("Something went horribly wrong in edge tracing")
             #
+            idx = np.where(bad_slit)[0]
+            msgs.info("Removing user-supplied slit at {},{}".format(xcen,yrow))
+            good_right[idx] = False
+            good_left[idx] = False
+    # Finish
+    tc_dict['right']['xval'] = tc_dict['right']['xval'][good_right]
+    tc_dict['right']['traces'] = tc_dict['right']['traces'][:,good_right]
+    tc_dict['left']['xval'] = tc_dict['left']['xval'][good_left]
+    tc_dict['left']['traces'] = tc_dict['left']['traces'][:,good_left]
 
-
+    return
 
 
 def orig_add_user_edges(edgearr, siglev, tc_dict, add_slits):
@@ -1884,7 +1913,7 @@ def parse_user_slits(add_slits, this_det, rm=False):
     Parse the parset syntax for adding slits
 
     Args:
-        add_slits: list
+        add_slits: str, list
           Taken from the parset
         this_det: int
           current detector
@@ -1897,6 +1926,10 @@ def parse_user_slits(add_slits, this_det, rm=False):
           if list,  [[xcen,yrow]] for rm with one or more entries
 
     """
+    # Might not be a list yet (only a str)
+    if not isinstance(add_slits, list):
+        add_slits = [add_slits]
+    #
     user_slits = []
     for islit in add_slits:
         if not rm:
