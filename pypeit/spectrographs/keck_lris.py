@@ -364,6 +364,32 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         hdr_keys[0]['filter1'] = 'BLUFILT'
         return hdr_keys
 
+    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+        """ Generate a BPM
+
+        Parameters
+        ----------
+        shape : tuple, REQUIRED
+        filename : str,
+        det : int, REQUIRED
+        **null_kwargs:
+           Captured and never used
+
+        Returns
+        -------
+        badpix : ndarray
+
+        """
+        # Get the empty bpm: force is always True
+        self.empty_bpm(shape=shape, filename=filename, det=det)
+
+        # Only defined for det=1
+        if det == 1:
+            msgs.info("Using hard-coded BPM for det=1 on LRISb")
+            self.bpm_img[:, 0:2] = 1
+
+        return self.bpm_img
+
 
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
