@@ -410,14 +410,20 @@ class PypeItMetaData:
                 types have not been defined yet.
         """
         if 'configuration' in self.keys():
+            msgs.info('Configuration column already set.  Finding unique configurations.')
             uniq, indx = np.unique(self.table['configuration'], return_index=True)
             ignore = uniq == 'None'
+            if np.sum(ignore) > 0:
+                msgs.warning('{0} frames with configuration set to None.'.format(np.sum(ignore)))
             configs = {}
             for i in range(len(uniq)):
                 if ignore[i]:
                     continue
                 configs[uniq[i]] = self.get_configuration(indx[i])
+            msgs.info('Found {0} unique configurations.'.format(len(configs)))
             return configs
+
+        msgs.info('Using metadata to determine unique configurations.')
 
         # If the frame types have been set, ignore anything listed in
         # the ignore_frames
@@ -425,6 +431,7 @@ class PypeItMetaData:
         if ignore_frames is not None:
             if 'frametype' not in self.keys():
                 msgs.error('To ignore frames, types must have been defined; run get_frame_types.')
+            msgs.info('Unique configurations ignore frames with type: {0}'.format(ignore_frames))
             use = np.ones(len(self), dtype=bool)
             for ftype in ignore_frames:
                 use &= np.invert(self.find_frames(ftype))
@@ -463,6 +470,7 @@ class PypeItMetaData:
                 configs[cfg_iter[cfg_indx]] = self.get_configuration(i, cfg_keys=cfg_keys)
                 cfg_indx += 1
 
+        msgs.info('Found {0} unique configurations.'.format(len(configs)))
         return configs
 
     def set_configurations(self, configs=None):
@@ -527,12 +535,15 @@ class PypeItMetaData:
             configs.remove('None')      # Ignore frames with undefined configurations
         except:
             pass
-        n = len(configs)
+        n_cfg = len(configs)
+
+        # TODO: Science frames can only have one calibration group
+
         # Just assign everything from the same configuration to the same
         # calibration group
         self.table['calib'] = None
-        for i in range(n):
-            self['calib'][self['configuration'] == configs[i]] = i
+        for i in range(n_cfg):
+            self['calib'][(self['configuration'] == configs[i]) & (self['framebit'] > 0)] = i
         
         # Allow some frame types to be used in all calibration groups
         # (like biases and darks)
@@ -540,10 +551,12 @@ class PypeItMetaData:
             if 'frametype' not in self.keys():
                 msgs.error('To set global frames, types must have been defined; '
                            'run get_frame_types.')
-            calibs = ','.join(np.arange(n).astype(int).astype(str))
+
+            calibs = 0 if n_cfg == 1 else np.arange(n_cfg).tolist()
             for ftype in global_frames:
-                indx = self.find_frames(ftype)
-                self['calib'][indx] = calibs
+                indx = np.where(self.find_frames(ftype))[0]
+                for i in indx:
+                    self['calib'][i] = calibs
 
     def find_frames(self, ftype, sci_ID=None, index=False):
         """
@@ -824,6 +837,32 @@ class PypeItMetaData:
     
         # Write the output
         self.table[col_order].write(ofile, format=format, overwrite=overwrite)
+
+    def find_calib_group(self, indx):
+        in_group = np.zeros(len(self), dtype=bool)
+        for i in range(len(self)):
+            in_group[i] = indx in self['calib'][i] if isinstance(self['calib'][i], list) \
+                            else indx == self['calib'][i]
+        return in_group
+
+    def calib_to_science(self):
+        """
+        Construct the science ID based on the calibration group.
+        """
+        self['csid'] = 0
+
+        is_science = self.find_frames('science')
+        is_not_science = np.invert(is_science)
+        sciid = np.arange(np.sum(is_science))       # Science image IDs
+        self['csid'][is_science] = 1 << sciid
+        j = 0
+        for i in range(len(self)):
+            if is_not_science[i]:
+                continue
+            
+            calibs = self.find_calib_group(self['calib'][i]) & is_not_science
+            self['csid'][calibs] |= (1 << sciid[j])
+            j += 1
     
     def match_to_science(self, calib_par, calwin, fluxcalib_par, setup=False, verbose=True):
         """
@@ -865,8 +904,6 @@ class PypeItMetaData:
         match_dict = self.spectrograph.get_match_criteria()
 
         # New columns
-        # TODO: Failures is never set to True!  Iterate through science
-        # frames and make sure they have an associated arc?
         self['failures'] = False
         self['sci_ID'] = 0
 
