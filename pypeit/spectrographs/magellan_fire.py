@@ -31,8 +31,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 1,
-                            dispflip        = True,
+                            specaxis        = 1,
+                            specflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,

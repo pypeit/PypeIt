@@ -189,7 +189,7 @@ class PypeItMetaData:
                 except TypeError:
                     import pdb; pdb.set_trace()
 
-                # Convert the time to hours
+                # Convert the time to days
                 # TODO: Done here or as a method in Spectrograph?
                 if key == 'time' and value != 'None':
                     # HERE IS A KULDGE
@@ -334,8 +334,7 @@ class PypeItMetaData:
 
     def convert_time(self, in_time, date=None):
         """
-        Convert the time read from a file header to hours for all
-        spectrographs.
+        Convert the time read from a file header to MJD for all spectrographs.
     
         Args:
             in_time (str):
@@ -348,20 +347,25 @@ class PypeItMetaData:
         """
         # Convert seconds to hours
         if self.spectrograph.timeunit == 's':
+            msgs.error("SHOULD NOT GET HERE")
             return float(in_time)/3600.0
     
         # Convert minutes to hours
         if self.spectrograph.timeunit == 'm':
+            msgs.error("SHOULD NOT GET HERE")
             return float(in_time)/60.0
 
         # Convert from an astropy.Time format
         if self.spectrograph.timeunit in time.Time.FORMATS.keys():
             if date is not None:
-                in_time = date+'T'+in_time
+                if 'T' not in date:
+                    in_time = date+'T'+in_time
+                else:
+                    in_time = date
             ival = float(in_time) if self.spectrograph.timeunit == 'mjd' else in_time
             tval = time.Time(ival, scale='tt', format=self.spectrograph.timeunit)
             # Put MJD
-            return tval.mjd #* 24.0
+            return tval.mjd
         
         msgs.error('Bad time unit')
 
@@ -656,7 +660,7 @@ class PypeItMetaData:
         """
         Find the rows with the associated frame type.
 
-        If the index is provided, the frames must also be matched the
+        If the index is provided, the frames must also be matched to the
         relevant science frame.
 
         Args:
@@ -678,7 +682,10 @@ class PypeItMetaData:
             return self['framebit'] == 0
         indx = self.type_bitmask.flagged(self['framebit'], ftype)
         if sci_ID is not None:
-            indx &= (self['sci_ID'] & sci_ID > 0)
+            if ftype == 'science':  # THIS IS KEY FOR near-IR where arc=science
+                indx &= (self['sci_ID'] == sci_ID)
+            else:
+                indx &= (self['sci_ID'] & sci_ID > 0)
         return np.where(indx)[0] if index else indx
 
     def find_frame_files(self, ftype, sci_ID=None):

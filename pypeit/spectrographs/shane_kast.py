@@ -23,7 +23,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         super(ShaneKastSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast'
         self.telescope = telescopes.ShaneTelescopePar()
-        self.timeunit = 's'
+        self.timeunit = 'isot'
 
     @staticmethod
     def default_pypeit_par():
@@ -199,8 +199,8 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 1,
-                            dispflip        = False,
+                            specaxis        = 1,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -287,8 +287,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -366,8 +366,8 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 1,
-                            dispflip        = False,
+                            specaxis        = 1,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,

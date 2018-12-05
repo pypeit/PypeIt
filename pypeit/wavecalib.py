@@ -163,6 +163,8 @@ class WaveCalib(masterframe.MasterFrame):
                     wavecal.autoid.basic(self.arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
                                  nonlinear_counts = self.par['nonlinear_counts'])
                 final_fit[str(slit)] = ifinal_fit.copy()
+                if status != 1:
+                    self.maskslits[slit] = 1
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
             arcfitter = wavecal.autoid.HolyGrail(self.arccen, par = self.par, ok_mask=ok_mask)
@@ -177,6 +179,12 @@ class WaveCalib(masterframe.MasterFrame):
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(use_method))
 
         self.wv_calib = final_fit
+
+        # Update mask
+        for slit in ok_mask:
+            if str(slit) not in final_fit.keys():
+                self.maskslits[slit] = 1
+        ok_mask = np.where(self.maskslits == 0)[0]
 
         # QA
         if not skip_QA:
@@ -236,8 +244,10 @@ class WaveCalib(masterframe.MasterFrame):
 
         # QA
         if not skip_QA:
-            outfile = qa.set_qa_filename(self.setup, 'arc_fit2d_qa', out_dir=self.redux_path)
-            arc.fit2darc_qa(fit2d_dict, outfile=outfile)
+            outfile_global = qa.set_qa_filename(self.setup, 'arc_fit2d_global_qa', out_dir=self.redux_path)
+            arc.fit2darc_global_qa(fit2d_dict, outfile=outfile_global)
+            outfile_orders = qa.set_qa_filename(self.setup, 'arc_fit2d_orders_qa', out_dir=self.redux_path)
+            arc.fit2darc_orders_qa(fit2d_dict, outfile=outfile_orders)
 
         return fit2d_dict
 

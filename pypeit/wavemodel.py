@@ -708,7 +708,8 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
                       fwhm=None, sigdetec=3., line_name='OH', file_root_name=None, iraf_frmt=False, 
                       debug=False):
     """Create a syntetic sky spectrum at a given resolution, extract significant lines, and
-    store them in a pypeit compatibile file.
+    store them in a PypeIt compatibile file. The skymodel is built from nearIR_modelsky and
+    includes black body at 250K, OH lines, and H2O lines (but only at lambda>2.3microns).
 
     Parameters
     ----------
@@ -781,7 +782,7 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
                         fwhm=None, sigdetec=3., line_name='ThAr', file_root_name=None, iraf_frmt=False,
                         debug=False):
     """Create a syntetic ThAr spectrum at a given resolution, extract significant lines, and
-    store them in a pypeit compatibile file. This is based on the Murphy et al. ThAr spectrum.
+    store them in a PypeIt compatibile file. This is based on the Murphy et al. ThAr spectrum.
     Detailed information are here: http://astronomy.swin.edu.au/~mmurphy/thar/index.html
 
     Parameters

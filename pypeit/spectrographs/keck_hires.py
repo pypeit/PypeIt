@@ -205,7 +205,7 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         self.detector = [
             # Detector 1 B
             pypeitpar.DetectorPar(dataext         = 1,
-                        dispaxis        = 0,  # Device is fussed with by the image reader
+                        specaxis        = 0,  # Device is fussed with by the image reader
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -220,7 +220,7 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
                         ),
             # Detector 2
             pypeitpar.DetectorPar(dataext         = 2,
-                        dispaxis        = 0,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -235,7 +235,7 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
                         ),
             # Detector 3
             pypeitpar.DetectorPar(dataext         = 3,
-                        dispaxis        = 0,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,

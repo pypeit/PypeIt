@@ -281,8 +281,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 1,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -300,8 +300,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                 #Detector 2
                 pypeitpar.DetectorPar(
                             dataext         = 2,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -364,6 +364,32 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         hdr_keys[0]['filter1'] = 'BLUFILT'
         return hdr_keys
 
+    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+        """ Generate a BPM
+
+        Parameters
+        ----------
+        shape : tuple, REQUIRED
+        filename : str,
+        det : int, REQUIRED
+        **null_kwargs:
+           Captured and never used
+
+        Returns
+        -------
+        badpix : ndarray
+
+        """
+        # Get the empty bpm: force is always True
+        self.empty_bpm(shape=shape, filename=filename, det=det)
+
+        # Only defined for det=1
+        if det == 1:
+            msgs.info("Using hard-coded BPM for det=1 on LRISb")
+            self.bpm_img[:, 0:2] = 1
+
+        return self.bpm_img
+
 
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
@@ -378,8 +404,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         =1,
-                            dispaxis        =0,
-                            dispflip        = False,
+                            specaxis        =0,
+                            specflip        = False,
                             xgap            =0.,
                             ygap            =0.,
                             ysize           =1.,
@@ -397,8 +423,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 #Detector 2
                 pypeitpar.DetectorPar(
                             dataext         =2,
-                            dispaxis        =0,
-                            dispflip        = False,
+                            specaxis        =0,
+                            specflip        = False,
                             xgap            =0.,
                             ygap            =0.,
                             ysize           =1.,
@@ -483,11 +509,13 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         hdr_keys[0]['filter1'] = 'REDFILT'
         return hdr_keys
             
-    def bpm(self, filename=None, det=None, **null_kwargs):
+    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 
         Parameters
         ----------
+        shape : tuple, REQUIRED
+        filename : str, REQUIRED for binning
         det : int, REQUIRED
         **null_kwargs:
            Captured and never used
@@ -498,7 +526,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         """
         # Get the empty bpm: force is always True
-        self.empty_bpm(filename=filename, det=det)
+        self.empty_bpm(shape=shape, filename=filename, det=det)
         
         # Only defined for det=2
         if det == 2:
@@ -531,6 +559,7 @@ def read_lris(raw_file, det=None, TRIM=False):
       Detector number; Default = both
     TRIM : bool, optional
       Trim the image?
+      This doesn't work....
 
     Returns
     -------
@@ -835,30 +864,6 @@ def lris_read_amp(inp, ext):
     '''
 
     return data, predata, postdata, x1, y1
-
-
-'''
-def bpm(slf, camera, fitsdict, det):
-    """  Wrapper for core_bpm
-    Will likely be deprecated
-
-    Parameters
-    ----------
-    slf
-    camera
-    fitsdict
-    det
-
-    Returns
-    -------
-    badpix : ndarray
-
-    """
-    sidx = slf._idx_sci[0]
-    # Binning
-    xbin, ybin = [int(ii) for ii in fitsdict['binning'][sidx].split(',')]
-    return core_bpm(xbin, ybin, camera, det)
-'''
 
 
 

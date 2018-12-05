@@ -64,7 +64,7 @@ def new_wave_grid(waves, wave_method='iref', iref=0, wave_grid_min=None, wave_gr
     """
     # Eventually add/change this to also take in slf, which has
     # slf._argflag['reduce']['pixelsize'] = 2.5?? This won't work
-    # if running coadding outside of PYPIT, which we'd like as an
+    # if running coadding outside of PypeIt, which we'd like as an
     # option!
     if not isinstance(waves, MaskedArray):
         waves = np.ma.array(waves)

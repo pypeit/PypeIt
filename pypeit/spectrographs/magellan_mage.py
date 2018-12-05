@@ -26,8 +26,8 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,

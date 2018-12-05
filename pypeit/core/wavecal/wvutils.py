@@ -31,7 +31,7 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, mas
     """
 
     # Find peaks
-    tampl, tampl_cont, tcent, twid, centerr, w, yprep, nsig = arc.detect_lines(spec, sigdetect = sigdetect, fwhm=fwhm,
+    tampl, tampl_cont, tcent, twid, centerr, w, arc_cont_sub, nsig = arc.detect_lines(spec, sigdetect = sigdetect, fwhm=fwhm,
                                                                                fit_frac_fwhm=fit_frac_fwhm,
                                                                                mask_frac_fwhm=mask_frac_fwhm,
                                                                                max_frac_fwhm=max_frac_fwhm,
@@ -51,9 +51,8 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, mas
     cut_tcent = all_tcent[cut_sig]
     icut = np.where(cut_sig)[0]
 
-    #debugger.set_trace()
     # Return
-    return all_tcent, all_ecent, cut_tcent, icut
+    return all_tcent, all_ecent, cut_tcent, icut, arc_cont_sub
 
 
 def shift_and_stretch(spec, shift, stretch):
@@ -124,14 +123,14 @@ def zerolag_shift_stretch(theta, y1, y2):
     corr_norm = corr_zero/corr_denom
     return -corr_norm
 
-def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False):
+def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False,sigdetect = 10.0, fwhm = 4.0):
     """ Utility routine to smooth and apply a ceiling to spectra """
 
     # ToDO can we improve the logic here. Technically if use_raw_arc = True and perecent_ceil=None
     # we don't need to peak find or continuum subtract, but this makes the code pretty uggly.
 
     # Run line detection to get the continuum subtracted arc
-    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=10.0)
+    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect, fwhm=fwhm)
     if use_raw_arc == True:
         ampl = tampl1
         use_arc = inspec1
@@ -157,7 +156,7 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False):
 
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
-def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=90.0, use_raw_arc=False, debug=False):
+def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=90.0, use_raw_arc=False, sigdetect = 10.0, fwhm = 4.0, debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
     the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
@@ -190,8 +189,8 @@ def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=90.0, use_raw_arc=False,
       the maximum of the cross-correlation coefficient at this shift
     """
 
-    y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
-    y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
+    y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
+    y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
 
     nspec = y1.shape[0]
     lags = np.arange(-nspec + 1, nspec)
@@ -216,7 +215,7 @@ def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=90.0, use_raw_arc=False,
 
 
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ceil=90.0, use_raw_arc=False,
-                        shift_mnmx=(-0.05,0.05), stretch_mnmx=(0.95,1.05), debug=False, seed = None):
+                        shift_mnmx=(-0.05,0.05), stretch_mnmx=(0.95,1.05), sigdetect = 10.0, fwhm = 4.0,debug=False, seed = None):
 
     """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
     guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
@@ -287,34 +286,53 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
 
     nspec = inspec1.size
 
-    y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
-    y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc)
+    y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
+    y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
 
     # Do the cross-correlation first and determine the initial shift
-    shift_cc, cc_val = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, use_raw_arc = True, debug = debug)
+    shift_cc, corr_cc = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, use_raw_arc = True, sigdetect = sigdetect, fwhm=fwhm, debug = debug)
 
-    if cc_val < cc_thresh:
-        return -1, shift_cc, 1.0, cc_val, shift_cc, cc_val
+    if corr_cc < cc_thresh:
+        return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
     else:
         bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
         # TODO Can we make the differential evolution run faster?
         result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol=1e-4,
                                                        bounds=bounds, disp=False, polish=True, seed=seed)
+        corr_de = -result.fun
+        shift_de = result.x[0]
+        stretch_de = result.x[1]
         if not result.success:
             msgs.warn('Fit for shift and stretch did not converge!')
 
+        if(corr_de < corr_cc):
+            # Occasionally the differential evolution crapps out and returns a value worse that the CC value. In these cases just use the cc value
+            msgs.warn('Shift/Stretch optimizer performed worse than simple x-correlation.' +
+                      'Returning simple x-correlation shift and no stretch:' + msgs.newline() +
+                      '   Optimizer: corr={:5.3f}, shift={:5.3f}, stretch={:7.5f}'.format(corr_de, shift_de,stretch_de) + msgs.newline() +
+                      '     X-corr : corr={:5.3f}, shift={:5.3f}'.format(corr_cc,shift_cc))
+            corr_out = corr_cc
+            shift_out = shift_cc
+            stretch_out = 1.0
+            result_out = 1
+        else:
+            corr_out = corr_de
+            shift_out = shift_de
+            stretch_out = stretch_de
+            result_out = int(result.success)
+
         if debug:
             x1 = np.arange(nspec)
-            y2_trans = shift_and_stretch(y2, result.x[0], result.x[1])
+            y2_trans = shift_and_stretch(y2, shift_out, stretch_out)
             plt.figure(figsize=(14, 6))
             plt.plot(x1,y1, 'k-', drawstyle='steps', label ='inspec1')
             plt.plot(x1,y2_trans, 'r-', drawstyle='steps', label = 'inspec2, shift & stretch')
-            plt.title('shift= {:5.3f}'.format(result.x[0]) +
-                      ',  stretch = {:7.5f}'.format(result.x[1]) + ', corr = {:5.3f}'.format(-result.fun))
+            plt.title('shift= {:5.3f}'.format(shift_out) +
+                      ',  stretch = {:7.5f}'.format(stretch_out) + ', corr = {:5.3f}'.format(corr_out))
             plt.legend()
             plt.show()
 
-        return int(result.success), result.x[0], result.x[1], -result.fun, shift_cc, cc_val
+        return result_out, shift_out, stretch_out, corr_out, shift_cc, corr_cc
 
 
 

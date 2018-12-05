@@ -154,8 +154,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 1,
-                            dispflip        = False,
+                            specaxis        = 1,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -182,7 +182,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
 
         # Adjustments to slit and tilts for NIR
-        par['calibrations']['slits']['sigdetect'] = 600.
+        par['calibrations']['slits']['sigdetect'] = 120.
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['pcatype'] = 'order'
@@ -195,12 +195,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir_iraf.json'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
-        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 7
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 7
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Always correct for flexure, starting with default parameters
@@ -261,7 +261,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             except IOError :
                 msgs.warn('BP_MAP_RP_NIR.dat not present in the static database')
                 bpm_fits = fits.open(bpm_dir+'BP_MAP_RP_NIR.fits.gz')
-                # ToDo: this depends on datasec, biassec, dispflip, and dispaxis
+                # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format
                 y_shift = 14
@@ -295,13 +295,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         order: int
         """
 
-        if isinstance(islit,str):
+        if isinstance(islit, str):
             islit = int(islit)
-        elif isinstance(islit,np.ndarray):
+        elif isinstance(islit, np.ndarray):
             islit = islit.astype(int)
-        elif isinstance(islit,float):
+        elif isinstance(islit, float):
             islit = int(islit)
-        elif isinstance(islit, int):
+        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
             pass
         else:
             msgs.error('Unrecognized type for islit')
@@ -400,8 +400,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -418,8 +418,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             )]
         self.numhead = 1
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for VLT XSHOOTER VIS reductions.
         """
@@ -428,7 +427,13 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Adjustments to slit and tilts for VIS
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
+        # Don't use the biases for the arcs or flats since it appears to be a different amplifier readout
+        par['calibrations']['arcframe']['useframe']= 'overscan'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
+        par['calibrations']['traceframe']['useframe']= 'overscan'
+        par['calibrations']['biasframe']['useframe']= 'overscan'
+        # TODO THIS IS STUPID. biasframe currently determines behvior for everyone. See Issue # 554
+
         par['calibrations']['slits']['sigdetect'] = 8.0
         par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['slits']['polyorder'] = 6
@@ -440,9 +445,60 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                                                        100., 500., 500., 500., 500., 500., 500.,
                                                        500.]
 
-#       par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+        # Right now the baises in
+
+
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.50 # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        # Reidentification parameters
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        # ToDo the arxived solution is for 1x1 binning. It needs to be generalized for different binning!
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.json'
+        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        # Echelle parameters
+        par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
+        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+        # TODO FIX THIS TO USE BIASES!!
+        par['scienceframe']['useframe'] ='overscan'
+
 
         return par
+
+    @staticmethod
+    def slit2order(islit):
+
+        """
+        Parameters
+        ----------
+        islit: int, float, or string, slit number
+
+        Returns
+        -------
+        order: int
+        """
+
+        if isinstance(islit, str):
+            islit = int(islit)
+        elif isinstance(islit, np.ndarray):
+            islit = islit.astype(int)
+        elif isinstance(islit, float):
+            islit = int(islit)
+        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
+            pass
+        else:
+            msgs.error('Unrecognized type for islit')
+
+        orders = np.arange(30,15,-1, dtype=int)
+
+        return orders[islit]
+
 
     def check_headers(self, headers):
         """
@@ -508,8 +564,9 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 0,
-                            dispflip        = True,
+                            specaxis        = 0,
+                            specflip        = True,
+                            spatflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -527,6 +584,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             )]
         self.numhead = 1
 
+
     @staticmethod
     def default_pypeit_par():
         """
@@ -536,7 +594,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_uvb'
 
         # Adjustments to slit and tilts for UVB
-        par['calibrations']['slits']['sigdetect'] = 20.
+        par['calibrations']['slits']['sigdetect'] = 8.
         par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
@@ -545,7 +603,57 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
 
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.50 # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        # Reidentification parameters
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        # ToDo the arxived solution is for 1x1 binning. It needs to be generalized for different binning!
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_uvb1x1_iraf.json'
+        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        # Echelle parameters
+        par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
+        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+        # TODO FIX THIS TO USE BIASES!!
+        par['scienceframe']['useframe'] ='overscan'
+
+
+
         return par
+
+
+    @staticmethod
+    def slit2order(islit):
+
+        """
+        Parameters
+        ----------
+        islit: int, float, or string, slit number
+
+        Returns
+        -------
+        order: int
+        """
+
+        if isinstance(islit, str):
+            islit = int(islit)
+        elif isinstance(islit, np.ndarray):
+            islit = islit.astype(int)
+        elif isinstance(islit, float):
+            islit = int(islit)
+        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
+            pass
+        else:
+            msgs.error('Unrecognized type for islit')
+
+        orders = np.arange(24,12,-1, dtype=int)
+        return orders[islit]
+
 
     def check_headers(self, headers):
         """
@@ -593,7 +701,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         if det == 1:
             # TODO: This is for the 1x1 binning it should
             # change for other binning
-            self.bpm_img[:2369,720:722] = 1.
+            self.bpm_img[:2369,1326:1328] = 1.
 
         return self.bpm_img
 

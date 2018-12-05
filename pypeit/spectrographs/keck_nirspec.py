@@ -27,8 +27,8 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
                 # Detector 1
             pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -79,6 +79,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         # Lower the default threshold for tilts
         par['calibrations']['tilts']['tracethresh'] = 10.
         # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps']  = ['OH_R24000']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Good for NIRSPEC-1
         par['calibrations']['wavelengths']['sigdetect'] = 5.      # Good for NIRSPEC-1
 

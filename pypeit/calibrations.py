@@ -26,6 +26,7 @@ from pypeit.metadata import PypeItMetaData
 
 from pypeit.core import procimg
 from pypeit.core import parse
+from pypeit.core import trace_slits
 
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
@@ -124,7 +125,6 @@ class Calibrations(object):
         self.mspixflatnrm = None
         self.msillumflat = None
         self.mswave = None
-        #self.datasec_img = None
 
     def reset(self, setup, det, sci_ID, par=None):
         """
@@ -228,7 +228,6 @@ class Calibrations(object):
 
         # How are we treating biases: 1) No bias, 2) overscan, or 3) use bias subtraction. If use bias is there a master?
         self.msbias = self.biasFrame.determine_bias_mode()
-
         if self.msbias is None:  # Build it and save it
             self.msbias = self.biasFrame.build_image()
             if self.save_masters:
@@ -241,6 +240,8 @@ class Calibrations(object):
     def get_bpm(self):
         """
         Load or generate the bad pixel mask
+
+        This needs to be for the *trimmed* image!
 
         Requirements:
            Instrument dependent
@@ -255,15 +256,24 @@ class Calibrations(object):
         # Generate a bad pixel mask (should not repeat)
         if 'bpm' in self.calib_dict[self.setup].keys():
             self.msbpm = self.calib_dict[self.setup]['bpm']
+            return self.msbpm
 
         # Make sure shape is defined
         self._check_shape()
 
-        # Always use the example file
+        # Always use the shape!
+        #  But some instruments need the filename too, e.g. for binning
         example_file = self.fitstbl.find_frame_files('science', sci_ID=self.sci_ID)[0]
-        bpmImage = bpmimage.BPMImage(self.spectrograph, filename=example_file, det=self.det,
-                                     msbias=self.msbias if self.par['badpix'] == 'bias' else None,
-                                     trim=self.par['trim'])
+        dsec_img = self.spectrograph.get_datasec_img(example_file, det=self.det)
+        shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+        # Check it matches the processed arc;  if not we have issues..
+        if not (self.shape == shape):
+            msgs.error("You have an untrimmed arc!  We aren't prepared for this..")
+
+        # Build it
+        bpmImage = bpmimage.BPMImage(self.spectrograph, filename=example_file,
+                                     det=self.det, shape=self.shape,
+                                     msbias=self.msbias if self.par['badpix'] == 'bias' else None)
         # Build, save, and return
         self.msbpm = bpmImage.build()
         self.calib_dict[self.setup]['bpm'] = self.msbpm
@@ -432,7 +442,8 @@ class Calibrations(object):
             return self.tslits_dict, self.maskslits
                 
         # Instantiate (without mstrace)
-        self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, par=self.par['slits'],
+        self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, self.spectrograph,
+                                                par=self.par['slits'],
                                                 det=self.det, setup=self.setup,
                                                 master_dir=self.master_dir,
                                                 redux_path=self.redux_path,
@@ -447,7 +458,6 @@ class Calibrations(object):
             # Load up and get ready
             self.traceSlits.mstrace = self.traceImage.process(bias_subtract=self.msbias,
                                                          trim=self.par['trim'], apply_gain=True)
-            _ = self.traceSlits.make_binarr()
 
             # Compute the plate scale in arcsec which is needed to trim short slits
             scidx = np.where(self.fitstbl.find_frames('science', sci_ID=self.sci_ID))[0][0]
@@ -458,9 +468,18 @@ class Calibrations(object):
             ## Old code: binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
+            # User-defined slits??
+            add_user_slits = trace_slits.parse_user_slits(self.par['slits']['add_slits'], self.det)
+            rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det, rm=True)
+
             # Now we go forth
-            self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale)
-             # No slits?
+            try:
+                self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale, show=self.show,
+                                                       add_user_slits=add_user_slits, rm_user_slits=rm_user_slits)
+            except:
+                self.traceSlits.save_master()
+                msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
+            # No slits?
             if self.tslits_dict is None:
                 self.maskslits = None
                 return self.tslits_dict, self.maskslits
@@ -513,8 +532,7 @@ class Calibrations(object):
 
         # Instantiate
         # ToDO we are regenerating this mask a lot in this module. Could reduce that
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
-        self.waveImage = waveimage.WaveImage(self.slitmask,self.tilts_dict['tilts'], self.wv_calib,
+        self.waveImage = waveimage.WaveImage(self.tslits_dict, self.tilts_dict['tilts'], self.wv_calib,self.spectrograph,
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'], maskslits=self.maskslits)
         # Attempt to load master

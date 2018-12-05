@@ -86,9 +86,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.40  # Might be grating dependent..
-        # TODO: min_sig and lowest_nsig are no longer parameters
-        #par['calibrations']['wavelengths']['min_nsig'] = 5.  # Doesn't work for reddest chip
-        #par['calibrations']['wavelengths']['lowest_nsig'] = 5.
+        par['calibrations']['wavelengths']['sigdetect'] = 5.  # Doesn't work for reddest chip
+        par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'ArII']
 
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
@@ -238,6 +237,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker',
                 'dispangle', 'configuration', 'calib' ]
 
+    '''
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
         Setup the arc parameters
@@ -274,6 +274,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             arcparam['wv_cen'] = 4000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+    '''
 
 
 class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
@@ -290,7 +291,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         self.detector = [
             # Detector 1
             DetectorPar(dataext         = 1,
-                        dispaxis        = 0,  # Device is fussed with by the image reader
+                        specaxis        = 0,  # Device is fussed with by the image reader
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -305,7 +306,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,
-                        dispaxis        = 0,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -320,7 +321,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,
-                        dispaxis        = 0,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -340,7 +341,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         head_keys = self.gemini_header_keys()
         return head_keys
 
-    def bpm(self, filename=None, det=None, **null_kwargs):
+    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 
         Parameters
@@ -355,7 +356,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
 
         """
         # Get the empty bpm: force is always True
-        self.empty_bpm(filename=filename, det=det)
+        self.empty_bpm(shape=shape, filename=filename, det=det)
 
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on GMOSs")
@@ -433,7 +434,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         self.detector = [  #  Hamamatsu (since 2011)
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        dispaxis        = 1,  # I think this is ignored, even if true
+                        specaxis        = 1,  # I think this is ignored, even if true
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -448,7 +449,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        dispaxis        = 1,
+                        specaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -463,7 +464,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        dispaxis        = 1,
+                        specaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -494,7 +495,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         self.detector = [  #  E2V
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        dispaxis        = 0,  # I think this is ignored
+                        specaxis        = 0,  # I think this is ignored
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -509,7 +510,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        dispaxis        = 0,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -524,7 +525,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        dispaxis        = 0,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,

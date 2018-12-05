@@ -22,7 +22,7 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-@pytest.fixture
+#@pytest.fixture -- Crashes in pytest 4.0.0 as we call this from inside the test, not the call to the test
 def dummy_spectrum(s2n=10., rstate=None, seed=1234, wave=None):
     """
     Parameters
@@ -48,7 +48,7 @@ def dummy_spectrum(s2n=10., rstate=None, seed=1234, wave=None):
     spec = ispec.add_noise(rstate=rstate)
     return spec
 
-@pytest.fixture
+#@pytest.fixture
 def dummy_spectra(s2n=10., seed=1234, wvmnx=None, npix=None):
     """ Generate a set of normalized spectra with varying wavelength
     and noise

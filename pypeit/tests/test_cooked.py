@@ -11,11 +11,6 @@ import os
 import pytest
 import numpy as np
 
-from astropy import units
-from linetools.spectra.utils import collate
-from linetools.spectra.xspectrum1d import XSpectrum1D
-
-from pypeit.core import coadd
 from pypeit import msgs
 from pypeit.tests.tstutils import dev_suite_required
 
@@ -33,5 +28,5 @@ def test_cooked_version():
         tmp = f.readlines()
     value = float(tmp[-1].strip())
     # Test
-    assert value >= 0.91
+    assert value >= 0.92
 
