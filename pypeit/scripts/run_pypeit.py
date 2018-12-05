@@ -89,6 +89,7 @@ def main(args):
     pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(args.pypeit_file)
 
     #
+
     pypeIt = pypeit.instantiate_me(pypeitSetup.spectrograph,
                                    verbosity=args.verbosity,
                                    overwrite=args.overwrite, logname=logname, show=args.show)
@@ -100,12 +101,16 @@ def main(args):
         msgs.info('Done checking calibrations.  Exiting..')
         return 0
 
+    # JFH I don't see why this is an optional argument here. We could allow the user to modify an infinite number of parameters
+    # from the command line? Why do we have the PypeIt file then? This detector can be set in the pypeit file.
     # Detector?
     if args.detector is not None:
         msgs.info("Restricting reductions to detector={}".format(args.detector))
         pypeIt.par['rdx']['detnum'] = int(args.detector)
 
     pypeIt.reduce_all(reuse_masters=args.use_masters)
+
+
 
     msgs.info('Data reduction complete')
     # QA HTML
