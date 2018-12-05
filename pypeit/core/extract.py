@@ -1283,8 +1283,9 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5
 
 specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 'science'}
 
+
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
-            hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit = 10,  bg_smth = 5.0,
+            hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit =None,  bg_smth = 5.0,
             extract_maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (5,5), objmask_nthresh = 2.0,
             specobj_dict=specobj_dict, show_peaks=False, show_fits = False, show_trace = False, qa_title=''):
 

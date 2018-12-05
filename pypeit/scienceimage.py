@@ -289,7 +289,8 @@ class ScienceImage(processimages.ProcessImages):
             sobjs_slit, self.skymask[thismask], self.objmask[thismask] \
                 = extract.objfind(image, thismask, self.tslits_dict['lcen'][:,slit],self.tslits_dict['rcen'][:,slit],
                                   inmask=inmask,hand_extract_dict=self.par['manual'],specobj_dict=specobj_dict, show_peaks=show_peaks,
-                                  show_fits=show_fits, show_trace=show_trace,qa_title=qa_title)
+                                  show_fits=show_fits, show_trace=show_trace,qa_title=qa_title,
+                                  nperslit=self.par['maxnumber'])
             sobjs.add_sobj(sobjs_slit)
 #            self.qa_proc_list += proc_list
 
