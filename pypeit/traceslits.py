@@ -678,7 +678,7 @@ class TraceSlits(masterframe.MasterFrame):
 
     # ToDO JFH The PCA coefficients take on a wide range of values which makes mad rejection less meaingful. I wonder if we should
     # be doing rejection and fitting using relative errors and relative error deviations.
-    def _pca_refine(self, mask_frac_thresh=0.6, coeff_npoly_pca = 2, show=True, debug=False):
+    def _pca_refine(self, mask_frac_thresh=0.6, coeff_npoly_pca = 2, show=False, debug=False):
         """
         Mainly a driver routine to trace_slits.trace_refine() method
 
@@ -936,7 +936,6 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         # Add user input slits
-        debugger.set_trace()
         trace_slits.rm_user_edges(self.tc_dict, user_slits)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -975,6 +974,8 @@ class TraceSlits(masterframe.MasterFrame):
 
     def _synchronize(self):
         """
+        DEPRECATED
+
         Perform final synchronization
 
         Wrapper to trace_slits.synchronize

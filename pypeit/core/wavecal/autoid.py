@@ -1075,10 +1075,15 @@ class HolyGrail:
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _  =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
+            # Were there enough lines?  This mainly deals with junk slits
             if self._all_tcent.size < min_nlines:
                 msgs.warn("Not enough lines to identify in slit {0:d}!".format(slit))
                 self._det_weak[str(slit)] = [None,None]
                 self._det_stro[str(slit)] = [None,None]
+                # Remove from ok mask
+                oklist = self._ok_mask.tolist()
+                oklist.pop(slit)
+                self._ok_mask = np.array(oklist)
                 continue
             # Setup up the line detection dicts
             self._det_weak[str(slit)] = [self._all_tcent_weak[self._icut_weak].copy(),self._all_ecent_weak[self._icut_weak].copy()]
@@ -1275,6 +1280,9 @@ class HolyGrail:
         xrng = np.arange(self._npix)
         cntr = 0
         for slit in range(self._nslit):
+            # Masked?
+            if slit not in self._ok_mask:
+                continue
             if good_fit[slit]:
                 idx_gd[cntr] = slit
                 # TODO JFH We can get rid of this and thus not need patt_dict
