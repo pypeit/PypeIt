@@ -845,8 +845,11 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
     # Scale (modifies rspec in place)
     if echelle:
-        msgs.work('Need add a function to scale Echelle spectra. scale_spectra does not work for echelle')
-        #scales, omethod = scale_spectra(rspec, rmask, sn2, scale_method='median', **kwargs)
+        if scale_method is None:
+            msgs.warn('No scaling betweeen different exposures/orders.')
+        else:
+            msgs.work('Need add a function to scale Echelle spectra.')
+            #scales, omethod = scale_spectra(rspec, rmask, sn2, scale_method='median', **kwargs)
     else:
         scales, omethod = scale_spectra(rspec, rmask, sn2, scale_method=scale_method, **kwargs)
 
@@ -856,8 +859,6 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
     # Initial coadd
     spec1d = one_d_coadd(rspec, rmask, weights)
-    spec1d_old = one_d_coadd(rspec, rmask, weights)
-
 
     # Init standard deviation
     # FW: Not sure why calling this function as you initial the std_dev = 0. in the following.
