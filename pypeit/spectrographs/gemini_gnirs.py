@@ -27,8 +27,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 1,
-                            dispaxis        = 0,
-                            dispflip        = True,
+                            specaxis        = 0,
+                            specflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -47,7 +47,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # self.sky_file = ?
     @property
     def pypeline(self):
-        return 'MultiSlit'
+        return 'Echelle'
 
     def default_pypeit_par(self):
         """

@@ -1286,7 +1286,7 @@ class TraceSlitsPar(ParSet):
     """
     def __init__(self, function=None, polyorder=None, medrep=None, number=None, trim=None,
                  maxgap=None, maxshift=None, pad=None, sigdetect=None, fracignore=None,
-                 min_slit_width = None,
+                 min_slit_width = None, add_slits=None, rm_slits=None,
                  diffpolyorder=None, single=None, sobel_mode=None, pcatype=None, pcapar=None,
                  pcaextrap=None):
 
@@ -1373,6 +1373,7 @@ class TraceSlitsPar(ParSet):
         descr['diffpolyorder'] = 'Order of the 2D function used to fit the 2d solution for the ' \
                                  'spatial size of all orders.'
 
+        # DEPRECATED
         defaults['single'] = []
         dtypes['single'] = list
         descr['single'] = 'Add a single, user-defined slit based on its location on each ' \
@@ -1382,6 +1383,18 @@ class TraceSlitsPar(ParSet):
                           'setting single = -1, -1, 7, 295 means the code will skip the ' \
                           'user-definition for the first detector but adds one for the second. ' \
                           ' None means no user-level slits defined.'
+
+        defaults['add_slits'] = []
+        dtypes['add_slits'] = str, list
+        descr['add_slits'] = 'Add one or more user-defined slits.  This is a list of lists, with ' \
+                             'each sub-list having syntax (all integers):  det:x0:x1:yrow  ' \
+                             'For example,  2:2121:2322:2000,3:1201:1500:2000'
+
+        defaults['rm_slits'] = []
+        dtypes['rm_slits'] = str, list
+        descr['rm_slits'] = 'Remove one or more user-specified slits.  This is a list of lists, with ' \
+                             'each sub-list having syntax (all integers):  det:xcen:yrow  ' \
+                             'For example,  2:2121:2000,3:1500:2000'
 
         defaults['sobel_mode'] = 'nearest'
         options['sobel_mode'] = TraceSlitsPar.valid_sobel_modes()
@@ -1424,7 +1437,7 @@ class TraceSlitsPar(ParSet):
         k = cfg.keys()
         parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
                     'pad', 'sigdetect', 'fracignore', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
-                    'pcatype', 'pcapar', 'pcaextrap' ]
+                    'pcatype', 'pcapar', 'pcaextrap', 'add_slits', 'rm_slits']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2414,7 +2427,7 @@ class DetectorPar(ParSet):
     class, and an explanation of how to define a new instrument, see
     :ref:`instruments`.
     """
-    def __init__(self, dataext=None, dispaxis=None, dispflip=None, xgap=None, ygap=None, ysize=None,
+    def __init__(self, dataext=None, specaxis=None, specflip=None, spatflip = None, xgap=None, ygap=None, ysize=None,
                  platescale=None, darkcurr=None, saturation=None, mincounts = None, nonlinear=None,
                  numamplifiers=None, gain=None, ronoise=None, datasec=None, oscansec=None,
                  suffix=None):
@@ -2438,17 +2451,24 @@ class DetectorPar(ParSet):
         descr['dataext'] = 'Index of fits extension containing data'
 
         # TODO: Should this be detector-specific, or camera-specific?
-        defaults['dispaxis'] = 0
-        options['dispaxis'] = [ 0, 1]
-        dtypes['dispaxis'] = int
-        descr['dispaxis'] = 'Spectra are dispersed along this axis. Allowed values are 0 ' \
+        defaults['specaxis'] = 0
+        options['specaxis'] = [ 0, 1]
+        dtypes['specaxis'] = int
+        descr['specaxis'] = 'Spectra are dispersed along this axis. Allowed values are 0 ' \
                             '(first dimension for a numpy array shape) or 1 (second dimension for numpy array shape)'
 
 
-        defaults['dispflip'] = False
-        dtypes['dispflip'] = bool
-        descr['dispflip'] = 'If this is True then the dispersion dimension (specificed by the dispaxis) will be ' \
+        defaults['specflip'] = False
+        dtypes['specflip'] = bool
+        descr['specflip'] = 'If this is True then the dispersion dimension (specificed by the specaxis) will be ' \
                             'flipped so that wavelengths are always an increasing function of array index'
+
+        defaults['spatflip'] = False
+        dtypes['spatflip'] = bool
+        descr['spatflip'] = 'If this is True then the spatial dimension will be ' \
+                            'flipped so that blue orders for echelle spectra will appear spatially on the ' \
+                            'left and wavelength will increase to the right'
+
 
         defaults['xgap'] = 0.0
         dtypes['xgap'] = [int, float]
@@ -2537,7 +2557,7 @@ class DetectorPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'dataext', 'dispaxis', 'dispflip', 'xgap', 'ygap', 'ysize', 'platescale', 'darkcurr',
+        parkeys = [ 'dataext', 'specaxis', 'specflip', 'spatflip','xgap', 'ygap', 'ysize', 'platescale', 'darkcurr',
                     'saturation', 'mincounts','nonlinear', 'numamplifiers', 'gain', 'ronoise', 'datasec',
                     'oscansec', 'suffix' ]
         kwargs = {}

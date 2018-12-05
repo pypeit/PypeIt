@@ -51,6 +51,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     return viewer
 
 
+
 def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten=0, cuts=None,
                clear=False, wcs_match=False):
     """
@@ -277,20 +278,29 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pste
         canvas.add(str('text'), xt, yt, str('S{:}'.format(slit_ids[slit])), color=str('red'),
                    fontsize=20.)
 
-def show_trace(viewer, ch, trace, trc_name = 'Trace', color='blue', clear=False,
-               rotate=False, pstep=1):
+
+def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
+               rotate=False, pstep=1, yval=None):
     """
+    trace: ndarray
+      x-positions on the detector
     rotate : bool, optional
       Allow for a rotated image
     pstep : int
       Show every pstep point of the edges
+    yval : ndarray, optional
+      If not provided, it is assumed the input x values
+        track y=0,1,2,3,etc.
     """
     # Canvas
     canvas = viewer.canvas(ch._chname)
     if clear:
         canvas.clear()
     # Show
-    y = (np.arange(trace.size)[::pstep]).tolist()
+    if yval is None:
+        y = (np.arange(trace.size)[::pstep]).tolist()
+    else:
+        y = yval[::pstep].tolist()
     xy = [trace[::pstep].tolist(), y]
     if rotate:
         xy[0], xy[1] = xy[1], xy[0]
@@ -301,6 +311,7 @@ def show_trace(viewer, ch, trace, trc_name = 'Trace', color='blue', clear=False,
     xyt = [float(trace[ohf]), float(y[ohf])]
     if rotate:
         xyt[0], xyt[1] = xyt[1], xyt[0]
+    # Do it
     canvas.add(str('text'), xyt[0], xyt[1], trc_name, rot_deg=90., color=str(color), fontsize=17.)
 
 
@@ -309,6 +320,14 @@ def clear_canvas(cname):
     ch = viewer.channel(cname)
     canvas = viewer.canvas(ch._chname)
     canvas.clear()
+
+def clear_all():
+    viewer = connect_to_ginga()
+    shell = viewer.shell()
+    chnames = shell.get_channel_names()
+    for ch in chnames:
+        shell.delete_channel(ch)
+
 
 
 def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0., all_green=False, pstep=10,

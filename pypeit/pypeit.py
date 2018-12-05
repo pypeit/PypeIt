@@ -17,6 +17,7 @@ from pypeit import calibrations
 from pypeit import scienceimage
 from pypeit import specobjs
 from pypeit import fluxspec
+from pypeit import ginga
 from pypeit.core import paths
 from pypeit.core import qa
 from pypeit.core import pypsetup
@@ -192,6 +193,8 @@ class PypeIt(object):
         Returns:
 
         """
+        # TODO THE control flow is opaue here becuase of the lack of arguments and return values! Add arguments and
+        # return values to these functions.
         # Setup
         self.setup, self.setup_dict = pypsetup.instr_setup(sci_ID, det, self.fitstbl,
                                                            setup_dict=self.setup_dict,
@@ -992,24 +995,25 @@ class Echelle(PypeIt):
 
         """
 
+        # Todo add arguments and return values here to make the control flow understandable
         self.tstart = time.time()
 
         # Science IDs are in a binary system: 1,2,4,8, etc.
         all_sci_ID = self.fitstbl['sci_ID'][self.fitstbl.find_frames('science')]
         numsci = len(all_sci_ID)
+        numsci = len(all_sci_ID)
+        basenames = [None]*numsci  # For fluxing at the very end
 
-        # Grab the standards
-        all_std_ID = self.fitstbl['sci_ID'][self.fitstbl.find_frames('standard')]
-        numstd = len(all_std_ID)
+
+        # Grab the set of standards that are linked to science objects, i.e. these will have sci_ID != 0
+        all_std_ID = self.fitstbl['sci_ID'][self.fitstbl.find_frames('standard') & self.fitstbl['sci_ID'] != 0]
 
         # Check par
         required = ['rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib']
         can_be_None = ['flexure', 'fluxcalib']
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
-
-        # Reduce the standards first
-        for kk, std_ID in enumerate(all_std_ID):
+        for std_ID in all_std_ID:
             std_dict = self.reduce_exposure(std_ID, 'standard', reuse_masters=reuse_masters)
             stddx = self.fitstbl.find_frames('standard', sci_ID=std_ID, index=True)[0]
             self.save_exposure(stddx, std_dict, self.basename)
@@ -1019,6 +1023,9 @@ class Echelle(PypeIt):
             sci_dict = self.reduce_exposure(sci_ID, 'science', reuse_masters=reuse_masters)
             scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
             self.save_exposure(scidx, sci_dict, self.basename)
+            # JFH perhaps this key should be added to the fitstbl?
+            basenames[kk] = self.basename
+
 
         # Finish
         self.print_end_time()
@@ -1040,6 +1047,11 @@ class Echelle(PypeIt):
               dict containing the primary outputs of extraction
 
         """
+
+        # if show is set, clear the ginga channels at the start of each new sci_ID
+        if self.show:
+            ginga.clear_all()
+
         self.sci_ID = sci_ID
 
         # Insist on re-using MasterFrames where applicable
@@ -1088,7 +1100,7 @@ class Echelle(PypeIt):
                 pass
                 #std_trace = load.load_std_trace(std_outfile)
 
-            sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr = self._extract_one()
+            sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr = self._extract_one(std=(frametype=='standard'))
 
             # Save for outputing (after all detectors are done)
             sci_dict[det]['sciimg'] = sciimg
@@ -1105,7 +1117,7 @@ class Echelle(PypeIt):
         return sci_dict
 
     # JFH This is the beginning of the echelle class control flow
-    def _extract_one(self):
+    def _extract_one(self,std=False):
         """
         Extract a single exposure/detector pair
 
@@ -1122,6 +1134,7 @@ class Echelle(PypeIt):
             vel_corr
 
         """
+
 
         sciI = self.sciI
 
@@ -1146,7 +1159,7 @@ class Echelle(PypeIt):
         vel_corr = None
         if nobj > 0:
             skymodel, objmodel, ivarmodel, outmask, sobjs \
-                    = sciI.local_skysub_extract(sobjs_ech, self.caliBrate.mswave, maskslits=maskslits,
+                    = sciI.local_skysub_extract(sobjs_ech, self.caliBrate.mswave, maskslits=maskslits, std = std,
                                                 show_profile=self.show, show=self.show)
 
             # Flexure correction?

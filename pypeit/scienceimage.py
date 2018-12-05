@@ -398,7 +398,7 @@ class ScienceImage(processimages.ProcessImages):
 
         return self.global_sky
 
-    def get_ech_objects(self, tslits_dict, std_trace = None, show=False):
+    def get_ech_objects(self, tslits_dict, std_trace = None, show=False, show_peaks=False, show_fits=False):
 
         # Did they run process?
         if not self._chk_objs(['sciimg', 'sciivar', 'global_sky']):
@@ -422,7 +422,7 @@ class ScienceImage(processimages.ProcessImages):
         # ToDO implement parsets here!
         self.sobjs_ech = extract.ech_objfind(self.sciimg-self.global_sky, self.sciivar, self.slitmask, tslits_dict['lcen'], tslits_dict['rcen'],
                                              inmask=(self.mask == 0), plate_scale=plate_scale, std_trace=std_trace,ncoeff=5,
-                                             sig_thresh=5., show_peaks=True, show_fits=False, show_trace=show, debug=True)
+                                             sig_thresh=5., show_peaks=show_peaks, show_fits=show_fits, show_trace=show, debug=True)
 
 
         self.nobj_ech = len(self.sobjs_ech)
@@ -435,7 +435,7 @@ class ScienceImage(processimages.ProcessImages):
 
         return self.sobjs_ech, self.nobj_ech
 
-    def local_skysub_extract(self, sobjs, waveimg, maskslits=None, show_profile=False, show_resids=False,show=False):
+    def local_skysub_extract(self, sobjs, waveimg, maskslits=None, std = False, show_profile=False, show_resids=False,show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -463,7 +463,7 @@ class ScienceImage(processimages.ProcessImages):
         gdslits = np.where(~self.maskslits)[0]
 
         # Build and assign the slitmask and input mask if they do not already exist
-        self.slitmask = self.spectrograph.slitmask(tslits_dict) if self.slitmask is None else self.slitmask
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict) if self.slitmask is None else self.slitmask
         self.mask = self._build_mask() if self.mask is None else self.mask
 
         if not self._chk_objs([ # Did they run process?
@@ -505,7 +505,7 @@ class ScienceImage(processimages.ProcessImages):
                                                       self.waveimg, self.global_sky, self.rn2img,
                                                       thismask, self.tslits_dict['lcen'][:,slit],
                                                       self.tslits_dict['rcen'][:, slit],
-                                                      self.sobjs[thisobj],
+                                                      self.sobjs[thisobj], std = std,
                                                       bsp=self.par['bspline_spacing'],
                                                       inmask=inmask, show_profile=show_profile,
                                                       show_resids=show_resids)
