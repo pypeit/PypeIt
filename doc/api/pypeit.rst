@@ -46,6 +46,7 @@ Submodules
    pypeit.utils
    pypeit.wavecalib
    pypeit.waveimage
+   pypeit.wavemodel
    pypeit.wavetilts
 
 Module contents
