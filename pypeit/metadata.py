@@ -986,7 +986,7 @@ class PypeItMetaData:
             if c not in self.keys():
                 msgs.warn('{0} is not a valid column!  Removing from output.'.format(c))
                 col_order.remove(c)
-    
+
         # Write the output
         self.table[col_order].write(ofile, format=format, overwrite=overwrite)
 
