@@ -73,6 +73,15 @@ class PypeItMetaData:
             Function will fault if :func:`fits.getheader` fails to read
             any of the headers in the provided file list.  Set to False
             to instead report a warning and continue.
+        background_index (:obj:`bool`, :obj:`dict`, optional):
+            Include a column called `index_bg` indicating the index of
+            the file for which each frame should be considered a
+            background measurement (e.g., sky).  If True, the column
+            included and all the values are set to 'None'; if False or
+            None, the column is not included (unless included in `data`
+            or `usrdata`).  If a dictionary, the column is added and the
+            dictionary provides the index of each file; e.g.,
+            `background_index['bg_image.fits']=0`.
 
     Attributes:
         spectrograph
@@ -93,14 +102,15 @@ class PypeItMetaData:
             use in the data reduction.
     """
     def __init__(self, spectrograph, par=None, file_list=None, data=None, usrdata=None,
-                 strict=True):
+                 strict=True, background_index=None):
         self.spectrograph = load_spectrograph(spectrograph)
         self.par = self.spectrograph.default_pypeit_par() if par is None else par
         if not isinstance(self.par, PypeItPar):
             raise TypeError('Input parameter set must be of type PypeItPar.')
         self.type_bitmask = framematch.FrameTypeBitMask()
         self.table = table.Table(data if file_list is None 
-                                 else self._build(file_list, strict=strict))
+                                 else self._build(file_list, strict=strict,
+                                                  background_index=background_index))
         if usrdata is not None:
             self.merge(usrdata)
         # Instrument-specific validation of the header metadata. This
@@ -109,7 +119,39 @@ class PypeItMetaData:
 
         self.calib_bitmask = None
     
-    def _build(self, file_list, strict=True):
+    def _add_background_index(self, data, background_index):
+        """
+        Include a column called `index_bg` that identifies the index of
+        the file that should use the associated frame as a background
+        image (e.g., sky).
+
+        The `data` argument is modified in place.
+        """
+        # Just add an empty column
+        numfiles = len(data['filename'])
+        if isinstance(background_index, bool):
+            if not background_index:
+                return
+            data['index_bg'] = [None]*numfiles
+            return
+
+        # Use the provided dictionary to set the index based on matching
+        # the dictionary keyword and file name
+        if isinstance(background_index, dict):
+            data['index_bg'] = [None]*numfiles
+            for k,v in background_index.items():
+                if v >= numfiles:
+                    msgs.error('There is no file with index {0}!'.format(v))
+                index = data['filename'] == k
+                if np.sum(index) == 0:
+                    msgs.error('File {0} not in file list!'.format(k))
+                data['index_bg'][index] = v
+            return
+
+        # Incorrect data type
+        msgs.error('Provided background_index must be boolean or a dictionary')
+
+    def _build(self, file_list, strict=True, background_index=None):
         """
         Returns a dictionary with the data to be included in the table.
         """
@@ -222,6 +264,10 @@ class PypeItMetaData:
         
         # Add the index column
         data['index'] = np.arange(numfiles).tolist()
+
+        # Add the background_index column
+        if background_index is not None:
+            self._add_background_index(data, background_index)
 
         return data
 

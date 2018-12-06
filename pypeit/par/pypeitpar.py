@@ -1084,6 +1084,8 @@ class WavelengthSolutionPar(ParSet):
         # name of the parameter is counts. Perhaps we should just change this to nonlinear_adu or something to avoid confusion.
 
         # These are the parameters used for arc line detection
+        # TODO: Why is this not always defined by the detectors of the
+        # spectrograph?
         defaults['nonlinear_counts'] = 1e10
         dtypes['nonlinear_counts'] = float
         descr['nonlinear_counts'] = 'Arc lines above this saturation threshold are not used in wavelength solution fits because they cannot' \
@@ -1388,16 +1390,16 @@ class TraceSlitsPar(ParSet):
                           ' None means no user-level slits defined.'
 
         defaults['add_slits'] = []
-        dtypes['add_slits'] = str, list
+        dtypes['add_slits'] = [str, list]
         descr['add_slits'] = 'Add one or more user-defined slits.  This is a list of lists, with ' \
                              'each sub-list having syntax (all integers):  det:x0:x1:yrow  ' \
                              'For example,  2:2121:2322:2000,3:1201:1500:2000'
 
         defaults['rm_slits'] = []
-        dtypes['rm_slits'] = str, list
-        descr['rm_slits'] = 'Remove one or more user-specified slits.  This is a list of lists, with ' \
-                             'each sub-list having syntax (all integers):  det:xcen:yrow  ' \
-                             'For example,  2:2121:2000,3:1500:2000'
+        dtypes['rm_slits'] = [str, list]
+        descr['rm_slits'] = 'Remove one or more user-specified slits.  This is a list of lists, ' \
+                            'with each sub-list having syntax (all integers):  det:xcen:yrow  ' \
+                            'For example,  2:2121:2000,3:1500:2000'
 
         defaults['sobel_mode'] = 'nearest'
         options['sobel_mode'] = TraceSlitsPar.valid_sobel_modes()
@@ -1414,11 +1416,11 @@ class TraceSlitsPar(ParSet):
                            'irregular.  Order is used for echelle spectroscopy or for slits ' \
                            'with separations that are a smooth function of the slit number.'
 
-        defaults['pcapar'] = [ 3, 2, 1, 0]
+        defaults['pcapar'] = [3, 2, 1, 0]
         dtypes['pcapar'] = list
         descr['pcapar'] = 'Order of the polynomials to be used to fit the principle ' \
-                          'components.  The list length must be equal to or less than polyorder+1. ' \
-                          'TODO: Provide more explanation'
+                          'components.  The list length must be equal to or less than ' \
+                          'polyorder+1. TODO: Provide more explanation'
 
         defaults['pcaextrap'] = [0, 0]
         dtypes['pcaextrap'] = list

@@ -172,7 +172,7 @@ class PypeItSetup(object):
     def __repr__(self):
         return '<{:s}: nfiles={:d}>'.format(self.__class__.__name__, self.nfiles)
 
-    def build_fitstbl(self, strict=True):
+    def build_fitstbl(self, strict=True, background_index=None):
         """
         Construct the table with metadata for the frames to reduce.
 
@@ -184,6 +184,15 @@ class PypeItSetup(object):
                 read the headers of any of the files in
                 :attr:`file_list`.  Set to False to only report a
                 warning and continue.
+            background_index (:obj:`bool`, :obj:`dict`, optional):
+                Include a column called `index_bg` indicating the index
+                of the file for which each frame should be considered a
+                background measurement (e.g., sky).  If True, the column
+                included and all the values are set to 'None'; if False
+                or None, the column is not included (unless included in
+                `data` or `usrdata`).  If a dictionary, the column is
+                added and the dictionary provides the index of each
+                file; e.g., `background_index['bg_image.fits']=0`.
     
         Returns:
             :obj:`astropy.table.Table`: Table with the metadata for each
@@ -192,7 +201,8 @@ class PypeItSetup(object):
         """
         # Build and sort the table
         self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, file_list=self.file_list,
-                                      usrdata=self.usrdata, strict=strict)
+                                      usrdata=self.usrdata, strict=strict,
+                                      background_index=background_index)
         # Sort by the time
         if 'time' in self.fitstbl.keys():
             self.fitstbl.sort('time')
@@ -391,7 +401,8 @@ class PypeItSetup(object):
                            columns=None if format is None else self.spectrograph.metadata_keys(),
                            format=format, overwrite=True)
 
-    def run(self, setup_only=False, calibration_check=False, use_header_id=False, sort_dir=None):
+    def run(self, setup_only=False, background_index=None, calibration_check=False,
+            use_header_id=False, sort_dir=None):
         """
         Once instantiated, this is the main method used to construct the
         object.
@@ -420,6 +431,15 @@ class PypeItSetup(object):
                 more output describing the success of the setup and how
                 to proceed, and provides warnings (instead of errors)
                 for issues that may cause the reduction itself to fail.
+            background_index (:obj:`bool`, :obj:`dict`, optional):
+                Include a column called `index_bg` indicating the index
+                of the file for which each frame should be considered a
+                background measurement (e.g., sky).  If True, the column
+                included and all the values are set to 'None'; if False
+                or None, the column is not included (unless included in
+                `data` or `usrdata`).  If a dictionary, the column is
+                added and the dictionary provides the index of each
+                file; e.g., `background_index['bg_image.fits']=0`.
             calibration_check (obj:`bool`, optional):
                 Only check that the calibration frames are appropriately
                 setup and exist on disk.  Pypit is expected to execute
@@ -447,7 +467,7 @@ class PypeItSetup(object):
 
         # Build fitstbl
         if self.fitstbl is None:
-            self.build_fitstbl(strict=not setup_only)
+            self.build_fitstbl(strict=not setup_only, background_index=background_index)
 
         # File typing
         self.get_frame_types(flag_unknown=setup_only or calibration_check,

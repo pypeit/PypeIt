@@ -118,8 +118,8 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         return hdr_keys
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'idname',
-                'configuration', 'calib']
+        return ['index', 'filename', 'date', 'frametype', 'target', 'exptime', 'dispname',
+                'idname', 'configuration', 'calib', 'index_bg']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

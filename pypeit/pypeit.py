@@ -100,7 +100,7 @@ class PypeIt(object):
         self.setup_dict = None
 
 
-    def build_setup_files(self, files_root, extension='.fits'):
+    def build_setup_files(self, files_root, extension='.fits', background_index=None):
         """
         Generate the setup files for PypeIt from a list of input files
 
@@ -118,7 +118,7 @@ class PypeIt(object):
         pargs, sort_dir, self.setup_pypeit_file \
                 = self._make_setup_pypeit_file(files_root, extension=extension)
         self._setup(self.setup_pypeit_file, setup_only=True, calibration_check=False,
-                    sort_dir=sort_dir)
+                    sort_dir=sort_dir, background_index=background_index)
 
         self.print_end_time()
 
@@ -712,7 +712,7 @@ class PypeIt(object):
 
     # TODO: deprecate use_header_id, not propagated anyway
     def _setup(self, pypeit_file, setup_only=False, calibration_check=False, use_header_id=False,
-               sort_dir=None):
+               sort_dir=None, background_index=None):
         """
         Setup PypeIt
            Check files for all calibrations
@@ -728,7 +728,6 @@ class PypeIt(object):
                 more output describing the success of the setup and how
                 to proceed, and provides warnings (instead of errors)
                 for issues that may cause the reduction itself to fail.
-
             calibration_check (bool, optional):
                 Only check that the calibration frames are appropriately
                 setup and exist on disk.  Pypit is expected to execute in a
@@ -739,7 +738,16 @@ class PypeIt(object):
                 headers using the instrument specific keywords.
             sort_dir (:obj:`str`, optional):
                 The directory to put the '.sorted' file.
-
+            background_index (:obj:`bool`, :obj:`dict`, optional):
+                Include a column called `index_bg` indicating the index
+                of the file for which each frame should be considered a
+                background measurement (e.g., sky).  If True, the column
+                included and all the values are set to 'None'; if False
+                or None, the column is not included (unless included in
+                `data` or `usrdata`).  If a dictionary, the column is
+                added and the dictionary provides the index of each
+                file; e.g., `background_index['bg_image.fits']=0`.
+                
         Returns:
 
         """
@@ -750,7 +758,8 @@ class PypeIt(object):
         # Perform the setup
         self.pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(pypeit_file)
         self.par, _, self.fitstbl, self.setup_dict \
-                = self.pypeitSetup.run(setup_only=setup_only, calibration_check=calibration_check,
+                = self.pypeitSetup.run(setup_only=setup_only, background_index=background_index,
+                                       calibration_check=calibration_check,
                                        use_header_id=use_header_id, sort_dir=sort_dir)
         # Write the fits table
         # This is now done in run()

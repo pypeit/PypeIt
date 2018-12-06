@@ -85,8 +85,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
                                 for bx,by in zip(fitstbl['binning_x'], fitstbl['binning_y'])])
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'idname', 'target', 'exptime', 'decker',
-                'binning', 'configuration', 'calib']
+        return ['index', 'filename', 'date', 'frametype', 'idname', 'target', 'exptime', 'decker',
+                'binning', 'configuration', 'calib', 'index_bg']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -585,8 +585,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         self.numhead = 1
 
 
-    @staticmethod
-    def default_pypeit_par():
+#    @staticmethod
+    def default_pypeit_par(self):
         """
         Set default parameters for VLT XSHOOTER UVB reductions.
         """
@@ -605,6 +605,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
+        # TODO: This is a KLUDGE; default_pypeit_par should be a
+        # staticmethod meaning it should not depend on self
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.50 # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
         par['calibrations']['wavelengths']['sigdetect'] = 5.0

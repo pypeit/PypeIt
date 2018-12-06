@@ -22,14 +22,19 @@ def parser(options=None):
                         help="(2) Level of verbosity (0-2)")
     parser.add_argument("--extension", default='.fits',
                         help='File extension; compression indicators (e.g. .gz) not required.')
-    parser.add_argument("--pypeit_file", default=False, action='store_true',
-                        help='Input is the .pypeit file')
+    # TODO: This wasn't being used
+#    parser.add_argument("--pypeit_file", default=False, action='store_true',
+#                        help='Input is the .pypeit file')
     parser.add_argument("--setups_path", default=None,
                         help='Path to top-level folder.  Default is current working directory.')
     parser.add_argument("-c", "--custom", default=False, action='store_true',
                         help='Generate custom folders and pypeit files?')
+    # TODO: I don't think this is used by the PypeIt class when only run
+    # in setup mode
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
+    parser.add_argument('-b', '--background', default=False, action='store_true',
+                        help='Include a background index column for the user to edit')
 #    parser.add_argument("-q", "--quick", default=False, help="Quick reduction",
 #                        action="store_true")
 #    parser.add_argument("-c", "--cpus", default=False,
@@ -64,7 +69,8 @@ def main(args):
     pypeIt = pypeit.instantiate_me(spectrograph, verbosity=args.verbosity,
                                    overwrite=args.overwrite, setups_path=args.setups_path)
 
-    pypeIt.build_setup_files(args.files_root, extension=args.extension)
+    pypeIt.build_setup_files(args.files_root, extension=args.extension,
+                             background_index=args.background)
 
     # Custom?
     if args.custom:

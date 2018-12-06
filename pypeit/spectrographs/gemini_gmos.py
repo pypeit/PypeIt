@@ -234,8 +234,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         return self.gemini_get_match_criteria()
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker',
-                'dispangle', 'configuration', 'calib' ]
+        return ['index', 'filename', 'date', 'frametype', 'target', 'exptime', 'dispname',
+                'decker', 'dispangle', 'configuration', 'calib', 'index_bg' ]
 
     '''
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):

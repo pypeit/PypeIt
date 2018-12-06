@@ -236,6 +236,8 @@ Key                 Type        Options                                      Def
 ``sigdetect``       int, float  ..                                           20.0          Sigma detection threshold for edge detection                                                                                                                                                                                                                                                                                                                                                                                                
 ``fracignore``      float       ..                                           0.01          If a slit spans less than this fraction over the spectral size of the detector, it will be ignored (and reconstructed when/if an 'order' PCA analysis is performed).                                                                                                                                                                                                                                                                        
 ``min_slit_width``  float       ..                                           6.0           If a slit spans less than this number of arcseconds over the spatial direction of the detector, it will be ignored. Use this option to prevent the of alignment (box) slits from multislit reductions, which typically cannot be reduced without a significant struggle                                                                                                                                                                     
+``add_slits``       str, list   ..                                           []            Add one or more user-defined slits.  This is a list of lists, with each sub-list having syntax (all integers):  det:x0:x1:yrow  For example,  2:2121:2322:2000,3:1201:1500:2000                                                                                                                                                                                                                                                             
+``rm_slits``        str, list   ..                                           []            Remove one or more user-specified slits.  This is a list of lists, with each sub-list having syntax (all integers):  det:xcen:yrow  For example,  2:2121:2000,3:1500:2000                                                                                                                                                                                                                                                                   
 ``diffpolyorder``   int         ..                                           2             Order of the 2D function used to fit the 2d solution for the spatial size of all orders.                                                                                                                                                                                                                                                                                                                                                    
 ``single``          list        ..                                           []            Add a single, user-defined slit based on its location on each detector.  Syntax is a list of values, 2 per detector, that define the slit according to column values.  The second value (for the right edge) must be greater than 0 to be applied.  LRISr example: setting single = -1, -1, 7, 295 means the code will skip the user-definition for the first detector but adds one for the second.  None means no user-level slits defined.
 ``sobel_mode``      str         ``nearest``, ``constant``                    ``nearest``   Mode for Sobel filtering.  Default is 'nearest' but the developers find 'constant' works best for DEIMOS.                                                                                                                                                                                                                                                                                                                                   
@@ -323,7 +325,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.ScienceImagePar`
 Key                  Type        Options  Default  Description                                                                     
 ===================  ==========  =======  =======  ================================================================================
 ``bspline_spacing``  int, float  ..       0.6      Break-point spacing for the bspline fit                                         
-``maxnumber``        int         ..       ..       Maximum number of objects to extract in a science frame.  Use None for no limit.
+``maxnumber``        int         ..       10       Maximum number of objects to extract in a science frame.  Use None for no limit.
 ``manual``           list        ..       ..       List of manual extraction parameter sets                                        
 ``nodding``          bool        ..       False    Use the nodded frames to perform the sky subtraction                            
 ===================  ==========  =======  =======  ================================================================================
@@ -557,6 +559,7 @@ Alterations to the default parameters are::
           number = 1
           exprng = None, 5
       [[wavelengths]]
+          lamps = OH_R24000
           rms_threshold = 0.2
       [[tilts]]
           tracethresh = 10.0
@@ -751,9 +754,21 @@ Alterations to the default parameters are::
               overscan = median
       [[standardframe]]
           number = 1
+      [[wavelengths]]
+          method = reidentify
+          echelle = True
+          ech_norder_coeff = 5
+          ech_sigrej = 3.0
+          lamps = ThAr_XSHOOTER_UVB
+          nonlinear_counts = 55900.0
+          reid_arxiv = vlt_xshooter_uvb1x1_iraf.json
+          rms_threshold = 0.5
       [[slits]]
           polyorder = 5
           maxshift = 0.5
+          sigdetect = 8.0
+  [scienceframe]
+      useframe = overscan
 
 VLT XShooter_VIS
 ----------------
@@ -763,8 +778,10 @@ Alterations to the default parameters are::
       spectrograph = vlt_xshooter_vis
   [calibrations]
       [[biasframe]]
+          useframe = overscan
           number = 5
       [[arcframe]]
+          useframe = overscan
           number = 1
           [[[process]]]
               overscan = median
@@ -772,17 +789,29 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
       [[traceframe]]
+          useframe = overscan
           number = 3
           [[[process]]]
               overscan = median
       [[standardframe]]
           number = 1
+      [[wavelengths]]
+          method = reidentify
+          echelle = True
+          ech_norder_coeff = 5
+          ech_sigrej = 3.0
+          lamps = ThAr_XSHOOTER_VIS
+          nonlinear_counts = 56360.1
+          reid_arxiv = vlt_xshooter_vis1x1.json
+          rms_threshold = 0.5
       [[slits]]
           polyorder = 6
           maxshift = 0.5
           sigdetect = 8.0
       [[tilts]]
           tracethresh = 20.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0
+  [scienceframe]
+      useframe = overscan
 
 VLT XShooter_NIR
 ----------------
@@ -806,15 +835,17 @@ Alterations to the default parameters are::
       [[wavelengths]]
           method = reidentify
           echelle = True
+          ech_nspec_coeff = 7
+          ech_norder_coeff = 7
           ech_sigrej = 3.0
           lamps = OH_XSHOOTER
           nonlinear_counts = 56360.1
-          reid_arxiv = vlt_xshooter_nir.json
+          reid_arxiv = vlt_xshooter_nir_iraf.json
           rms_threshold = 0.25
       [[slits]]
           polyorder = 5
           maxshift = 0.5
-          sigdetect = 600.0
+          sigdetect = 120.0
           pcatype = order
       [[tilts]]
           tracethresh = 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 20, 20, 20, 20, 10
@@ -883,6 +914,7 @@ Alterations to the default parameters are::
       [[standardframe]]
           number = 1
       [[wavelengths]]
+          lamps = CuI, ArI, ArII
           rms_threshold = 0.4
       [[slits]]
           fracignore = 0.02
@@ -908,6 +940,7 @@ Alterations to the default parameters are::
       [[standardframe]]
           number = 1
       [[wavelengths]]
+          lamps = CuI, ArI, ArII
           rms_threshold = 0.4
       [[slits]]
           fracignore = 0.02
@@ -933,6 +966,7 @@ Alterations to the default parameters are::
       [[standardframe]]
           number = 1
       [[wavelengths]]
+          lamps = CuI, ArI, ArII
           rms_threshold = 0.4
       [[slits]]
           fracignore = 0.02

@@ -162,7 +162,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         return ['dispname', 'binning']
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'configuration', 'calib']
+        return ['index', 'filename', 'date', 'frametype', 'target', 'exptime', 'configuration',
+                'calib', 'index_bg']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

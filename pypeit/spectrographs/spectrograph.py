@@ -402,8 +402,8 @@ class Spectrograph(object):
         pass
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker',
-                'configuration', 'calib' ]
+        return ['index', 'filename', 'date', 'frametype', 'target', 'exptime', 'dispname',
+                'decker', 'configuration', 'calib', 'index_bg' ]
 
     def get_headarr(self, filename, strict=True):
         """

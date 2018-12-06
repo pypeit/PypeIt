@@ -161,8 +161,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         return hdr_keys
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'idname','target', 'exptime', 'configuration',
-                'calib']
+        return ['index', 'filename', 'date', 'frametype', 'idname','target', 'exptime',
+                'configuration', 'calib', 'index_bg']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
