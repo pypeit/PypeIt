@@ -5,32 +5,42 @@
 - Modify I/O for detnum parameter
 - Modify idx code in SpecObj
 - Fixed a bug on datatype formatting
-- Reworked masteframe and all base classes to be more homogenous so
-  that one only ever overloads the save_master and load_master
-  methods.
+- Reworked masteframe and all base classes to be more homogenous so that
+  one only ever overloads the save_master and load_master methods.
 - Many changes fixes wavecal/autoid.py to make the lines being used
   explicitly clear. This fixed many bugs in the the wavelength fitting
   that were recently introduced.
-- Introduced reidentification algorithm for wavelengths and many associated algorithms. Reidentification
-  is now the default for x-shooter and NIRES. Other changes to the wavelength interface and routines
-  to make them more compatible with echelle. 
-- Tweaked LA cosmics defaults. Add instrument specific parameters in spectrograh classes
-  along with routines that check binning and decide on best params for LRIS-RED
+- Introduced reidentification algorithm for wavelengths and many
+  associated algorithms. Reidentification is now the default for
+  x-shooter and NIRES. Other changes to the wavelength interface and
+  routines to make them more compatible with echelle. 
+- Tweaked LA cosmics defaults. Add instrument specific parameters in
+  spectrograh classes along with routines that check binning and decide
+  on best params for LRIS-RED
 - Now updating cosmic ray masking after each global sky subtraction
-- Major developments for echelle functionality, including object wavelengths, and reduction
-  control flow.
-- Introduced wavemodel.py to simulate/extract/ID sky and ThAr spectral emission lines.
+- Major developments for echelle functionality, including object
+  wavelengths, and reduction control flow.
+- Introduced wavemodel.py to simulate/extract/ID sky and ThAr spectral
+  emission lines.
 - Significant refactor of tracing slit/edge orders and new docs+tests
-- Changed back BPM image to be aligned with datasec *not* the raw image shape (without trimming)
+- Changed back BPM image to be aligned with datasec *not* the raw image
+  shape (without trimming)
 - Renabled ability to add user supplied slits
 - Miscellaneious echelle-related advances
 - PNGs of X-Shooter fits
 - Sped up trace plotting in ginga
-- Fussed again with how time is handled in PypeIt.  Hopefully the last time..
+- Fussed again with how time is handled in PypeIt.  Hopefully the last
+  time..
 - dispaxis renamed specaxis and dispflip to specflip
 - Lots of VLT/X-Shooter development
-- Removed a number of files that had been mistakingly added into the repo
+- Removed a number of files that had been mistakingly added into the
+  repo
 - Now running on cooked v=0.92
+- Allow for multiple paths to be defined in the pypeit file
+- Changed the procedure used to identify instrument configurations and
+  identify which frames to use when calibrating science exposures.
+- Added configurations, calibration groups, and background index to
+  pypeit file
 
 0.9.0
 -----
@@ -99,8 +109,8 @@
 - Got rid of arcparam and added info and docs to wavelengths parset. 
 - Improved and commented autoid.py arclines code. 
 - Added utilities to wavecalib to compute shift,stretch of two spectra. 
-- Completely revamped cross-correlation algorithm in wavecalib to give roburt results.
-
+- Completely revamped cross-correlation algorithm in wavecalib to give
+  roburt results.
 
 0.8.1
 -----
