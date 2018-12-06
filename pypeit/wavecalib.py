@@ -364,7 +364,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.maskslits = mask
         return self.maskslits
 
-    def run(self, lordloc, rordloc, slitpix, nonlinear=None, skip_QA=False, debug=True):
+    def run(self, lordloc, rordloc, slitpix, nonlinear=None, skip_QA=False, debug=False):
         """
         Main driver for wavelength calibration
 

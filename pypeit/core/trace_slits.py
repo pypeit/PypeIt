@@ -3159,6 +3159,8 @@ def slit_trace_qa(frame, ltrace, rtrace, extslit, setup, desc="",
             xtrc = (ltrace[:, ii] + rtrace[:, ii])/2.
             # Extract the flux down this trace
             trc = extract.extract_boxcar(frame,xtrc,1.5)
+            from IPython import embed
+            embed()
 #           JFH this is buggy when there are bad traces.
 #            # Simple 'extraction'
 #            dumi = np.zeros((frame.shape[0], 3))
