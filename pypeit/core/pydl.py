@@ -1444,6 +1444,9 @@ class TraceSet(object):
             #
             xpos = args[0]
             ypos = args[1]
+
+
+
             self.nTrace = xpos.shape[0]
             if 'invvar' in kwargs:
                 invvar = kwargs['invvar']

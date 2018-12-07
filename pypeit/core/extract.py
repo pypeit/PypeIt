@@ -1167,7 +1167,8 @@ def parse_hand_dict(hand_extract_dict):
 
 
 
-def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5.0, maxiter = 25, niter=6,gweight=False,show_fits=False, idx = None, verbose=False):
+def iter_tracefit(image, xinit_in, ncoeff, inmask = None, trc_inmask = None, fwhm = 3.0, maxdev = 5.0, maxiter = 25,
+                  niter=6,gweight=False,show_fits=False, idx = None, verbose=False, xmin= None, xmax = None):
     """ Utility routine for object find to iteratively trace and fit. Used by both objfind and ech_objfind
 
     Parameters
@@ -1184,7 +1185,9 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5
     ------------------
     inmask: ndarray, bool
         Input mask for the image
-
+    trc_inmask: ndarray, bool
+        Input mask for the trace, i.e. places where you know the trace is going to be bad that you always want to mask in the
+        fits. Same size as xinit_in (nspec, nTrace)
     fwhm: float
         fwhm width parameter for the flux or gaussian weighted tracing. For flux weighted trace the code does a third
         of the iterations with window 1.3*fwhm, a third with 1.1*fwhm, and a third with fwhm. For Gaussian weighted tracing
@@ -1197,8 +1200,10 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5
         Will plot the data and the fits.
     idx: ndarray of strings, default = None
         Array of idx IDs for each object. Used only if show_fits is true for the plotting.
-
-
+    xmin: float, default = None
+        Lower reference for robust_polyfit polynomial fitting. Default is to use zero
+    xmax: float, defualt = None
+        Upper refrence for robust_polyfit polynomial fitting.  Default is to use the image size in nspec direction
     Returns
     -------
     xpos: ndarray, float
@@ -1217,14 +1222,28 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5
         inmask = np.ones_like(image,dtype=bool)
 
     # Allow for single vectors as input as well:
-
     nspec = xinit_in.shape[0]
+
+    if xmin is None:
+        xmin = 0.0
+    if xmax is None:
+        xmax = float(nspec-1)
+
+    # Deal with the possibility of vectors as inputs instead of 2d arrays
     if xinit_in.ndim == 1:
         nobj = 1
         xinit = xinit_in.reshape(nspec,1)
+        if trc_inmask is not None:
+            trc_inmask_out = trc_inmask.reshape(nspec,1)
+        else:
+            trc_inmask_out = np.ones_like(xinit,dtype=bool)
     else:
         nobj = xinit_in.shape[1]
         xinit = xinit_in
+        if trc_inmask is not None:
+            trc_inmask_out = trc_inmask
+        else:
+            trc_inmask_out = np.ones_like(xinit,dtype=bool)
 
     spec_vec = np.arange(nspec)
 
@@ -1253,11 +1272,11 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5
         # replaced by the tracing crutch
         # ToDO add maxdev functionality by adding kwargs_reject to xy2traceset
         xinvvar = np.ones_like(xpos1.T) # Do not do weighted fits, i.e. uniform weights but set the errro to 1.0 pixel
-        pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj),spec_vec), xpos1.T, ncoeff=ncoeff, maxdev=maxdev,
-                                    maxiter=maxiter,invvar = xinvvar,xmin = 0.0, xmax =float(nspec-1))
+        pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj),spec_vec), xpos1.T, inmask = trc_inmask_out.T, ncoeff=ncoeff, maxdev=maxdev,
+                                    maxiter=maxiter,invvar = xinvvar,xmin=xmin, xmax =xmax)
         xfit1 = pos_set1.yfit.T
         # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
-        tracemask1 = xerr1 > 990.0 # bad pixels have errors set to 999 and are returned to lie on the input trace
+        tracemask1 = (xerr1 > 990.0)  # bad pixels have errors set to 999 and are returned to lie on the input trace
         # Plot all the points that were not masked initially
         if(show_fits) & (iiter == niter - 1):
             for iobj in range(nobj):
@@ -1267,6 +1286,8 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, maxdev = 5
                 plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
                 if np.any(~nomask):
                     plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=5.0,linestyle='None',zorder= 20, label='masked points, set to init guess')
+                if np.any(~trc_inmask_out):
+                    plt.plot(spec_vec[~trc_inmask_out[:,iobj]],xfit1[~trc_inmask_out[:,iobj],iobj], c='orange',marker='s',markersize=5.0,linestyle='None',zorder= 20, label='input masked points, not fit')
                 try:
                     plt.title(title_text + ' Centroid to object {:s}.'.format(idx[iobj]))
                 except TypeError:

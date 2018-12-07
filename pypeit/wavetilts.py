@@ -348,6 +348,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Loop on all slits
         for slit in gdslits:
+            msgs.info('Computing tilts for slit {:d}/{:d}'.format(slit,self.nslit-1))
             # Identify lines for tracing tilts
             self.lines_spec, self.lines_spat = self._find_lines(self.arccen[:,slit], self.slitcen[:,slit], slit, debug=debug)
 

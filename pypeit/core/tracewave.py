@@ -135,8 +135,8 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, gaus
        Expected FWHM of the arc lines.
     spat_order: int, default = None
        Order of the legendre polynomial that will be fit to the tilts.
-    maxdev_tracefit: float, default = 1.0
-       Maximum absolute deviation for the arc tilt fits during iterative trace fitting (flux weighted, then gaussian weighted)
+    maxdev_tracefit: float, default = 0.2
+       Maximum absolute deviation for the arc tilt fits during iterative trace fitting expressed in units of the fwhm.
     sigrej_trace: float, default =  3.0
        From each line we compute a median absolute deviation of the trace from the polynomial fit. We then
        analyze the distribution of maximxum absolute deviations (MADs) for all the lines, and reject sigrej_trace outliers
@@ -221,6 +221,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, gaus
             tilts_guess_now, err_now = trace_slits.trace_crude_init(
                 sub_img, np.array([lines_spec[iline]]), (sub_img.shape[0] - 1) // 2, invvar=sub_inmask, radius=fwhm,
                 nave=tcrude_nave, maxshift0=tcrude_maxshift0, maxshift=tcrude_maxshift, maxerr=tcrude_maxerr)
+            tilts_guess_now=tilts_guess_now.flatten()
         else:  # A guess was provided, use that as the crutch, but determine if it is a full trace or a sub-trace
             if tilts_guess.shape[0] == nspat:
                 # This is full image size tilt trace, sub-window it
@@ -233,28 +234,30 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, gaus
                     tilts_guess_now = tilts_guess[:-(spat_max[iline] - nspat + 1),iline]
                 else:
                     tilts_guess_now = tilts_guess[:, iline]
-
+        # Boxcar extract the thismask to have a mask indicating whether a tilt is defined along the spatial direction
+        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_guess_now, fwhm/2.0) > 0.99*fwhm)
         # Do iterative flux weighted tracing and polynomial fitting to refine these traces. This must also be done in a loop
         # since the sub image is different for every aperture, i.e. each aperature has its own image
         tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tset_out = extract.iter_tracefit(
-            sub_img, tilts_guess_now, spat_order, inmask=sub_inmask, fwhm=fwhm, maxdev=maxdev, niter=6, idx=str(iline),
-            show_fits=show_tracefits)
+            sub_img, tilts_guess_now, spat_order, inmask=sub_inmask, trc_inmask = tilts_sub_mask_box, fwhm=fwhm,
+            maxdev=maxdev, niter=6, idx=str(iline),show_fits=show_tracefits, xmin=0.0,xmax=float(nsub-1))
+        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
         if gauss: # If gauss is set, do a Gaussian refinement to the flux weighted tracing
             tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_err_gw, tset_gw = extract.iter_tracefit(
-                sub_img, tilts_sub_fit_out, spat_order, inmask=sub_inmask, fwhm=fwhm, maxdev=maxdev, niter=3, idx=str(iline),
-                show_fits=show_tracefits)
+                sub_img, tilts_sub_fit_out, spat_order, inmask=sub_inmask, trc_inmask = tilts_sub_mask_box, fwhm=fwhm,
+                maxdev=maxdev, niter=3, idx=str(iline),show_fits=show_tracefits, xmin=0.0, xmax=float(nsub-1))
             tilts_sub_fit_out = tilts_sub_fit_gw
             tilts_sub_out = tilts_sub_gw
             tilts_sub_err_out = tilts_sub_err_gw
-        # Boxcar extract the thismask to have a mask indicating whether a tilt is defined along the spatial direction
         tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
         # Pack the results into arrays, accounting for possibly falling off the image
         # Deal with possibly falling off the chip
         if spat_min[iline] < 0:
             tilts_sub[      -spat_min[iline]:,iline] = tilts_sub_out.flatten()
-            tilts_sub_fit[  -spat_min[iline]:,iline] = tilts_sub_fit_out.flatten()
+            tilts_sub_fit[  :,iline] = tset_out.xy(tilts_sub_spat[:,iline].reshape(1,nsub))[1]
+#            tilts_sub_fit[  -spat_min[iline]:,iline] = tilts_sub_fit_out.flatten()
             tilts_sub_err[  -spat_min[iline]:,iline] = tilts_sub_err_out.flatten()
-            tilts_sub_mask[ -spat_min[iline]:,iline] = tilts_sub_mask_box
+            tilts_sub_mask[ -spat_min[iline]:,iline] = tilts_sub_mask_box.flatten()
             tilts_sub_dspat[-spat_min[iline]:,iline] = tilts_dspat[min_spat:max_spat,iline]
             tilts[     min_spat:max_spat,iline] = tilts_sub[     -spat_min[iline]:,iline]
             tilts_fit[ min_spat:max_spat,iline] = tilts_sub_fit[ -spat_min[iline]:,iline]
@@ -262,9 +265,10 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, gaus
             tilts_mask[min_spat:max_spat,iline] = tilts_sub_mask[-spat_min[iline]:,iline]
         elif spat_max[iline] > (nspat - 1):
             tilts_sub[      :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_out.flatten()
-            tilts_sub_fit[  :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_fit_out.flatten()
+            tilts_sub_fit[  :,iline] = tset_out.xy(tilts_sub_spat[:,iline].reshape(1,nsub))[1]
+#            tilts_sub_fit[  :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_fit_out.flatten()
             tilts_sub_err[  :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_err_out.flatten()
-            tilts_sub_mask[ :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_mask_box
+            tilts_sub_mask[ :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_mask_box.flatten()
             tilts_sub_dspat[:-(spat_max[iline] - nspat + 1),iline] = tilts_dspat[min_spat:max_spat,iline]
 
             tilts[     min_spat:max_spat,iline] = tilts_sub[     :-(spat_max[iline] - nspat + 1),iline]
@@ -273,9 +277,9 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, gaus
             tilts_mask[min_spat:max_spat,iline] = tilts_sub_mask[:-(spat_max[iline] - nspat + 1),iline]
         else:
             tilts_sub[      :,iline] = tilts_sub_out.flatten()
-            tilts_sub_fit[  :,iline] = tilts_sub_fit_out.flatten()
+            tilts_sub_fit[  :,iline] = tset_out.xy(tilts_sub_spat[:,iline].reshape(1,nsub))[1]
             tilts_sub_err[  :,iline] = tilts_sub_err_out.flatten()
-            tilts_sub_mask[ :,iline] = tilts_sub_mask_box
+            tilts_sub_mask[ :,iline] = tilts_sub_mask_box.flatten()
             tilts_sub_dspat[:,iline] = tilts_dspat[min_spat:max_spat,iline]
             tilts[     min_spat:max_spat,iline] = tilts_sub[     :,iline]
             tilts_fit[ min_spat:max_spat,iline] = tilts_sub_fit[ :,iline]
@@ -351,7 +355,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None, gauss=Fal
     spat_order: int, default = None
        Order of the legendre polynomial that will be fit to the tilts.
     maxdev_tracefit: float, default = 1.0
-       Maximum absolute deviation for the arc tilt fits during iterative trace fitting (flux weighted, then gaussian weighted)
+       Maximum absolute deviation for the arc tilt fits during iterative trace fitting expressed in units of the fwhm.
     sigrej_trace: float, default =  3.0
        From each line we compute a median absolute deviation of the trace from the polynomial fit. We then
        analyze the distribution of maximxum absolute deviations (MADs) for all the lines, and reject sigrej_trace outliers
