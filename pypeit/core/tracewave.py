@@ -254,7 +254,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, gaus
         # Deal with possibly falling off the chip
 
         # We use the tset_out.xy to evaluate the trace across the whole sub-image even for pixels off the slit. This
-        # guarantees that the fits are always evaluated across the whole sub-image which is required for the PCA step. 
+        # guarantees that the fits are always evaluated across the whole sub-image which is required for the PCA step.
         if spat_min[iline] < 0:
             tilts_sub[      -spat_min[iline]:,iline] = tilts_sub_out.flatten()
             tilts_sub_fit[  :,iline] = tset_out.xy(tilts_sub_spat[:,iline].reshape(1,nsub))[1]
