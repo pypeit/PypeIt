@@ -221,6 +221,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         Parameters
         ----------
+
         slit : int
         show_QA : bool, optional
           Show the QA plot (e.g. in a Notebook)

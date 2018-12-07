@@ -514,6 +514,11 @@ def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2
 
     """
 
+    # If the user provided an inmask apply it. The logic below of evaluating the fit only at the non-masked
+    # pixels is preferable to the other approach of simply setting the weights to zero. The reason for that is that
+    # the fits use a least-square optimization approach using matrix algebra, and lots of zero weights are
+    # 1) more costly, and 2) will not produce exactly the same result (due to roundoff error) as actually
+    # removing the locations you want to mask.
     if inmask is not None:
         x_out = x[inmask]
         y_out = y[inmask]

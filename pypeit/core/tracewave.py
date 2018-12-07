@@ -180,13 +180,14 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, gaus
     if inmask is None:
         inmask = thismask
 
-    tilts_sub = np.zeros((nsub, nlines))
-    tilts_sub_fit = np.zeros((nsub, nlines))
-    tilts_sub_err = np.zeros((nsub, nlines))
-    tilts_sub_mask = np.zeros((nsub, nlines), dtype=bool)
-    tilts_sub_spec = np.outer(np.ones(nsub), lines_spec)
-    tilts_sub_spat = np.outer(np.arange(nsub), np.ones(nlines))
-    tilts_sub_dspat = np.zeros_like(tilts_sub_spat)
+    # The sub arrays hold the sub-imaged tilts
+    tilts_sub = np.zeros((nsub, nlines))       # Thee trace_fweight (or gweighed) tilts
+    tilts_sub_fit = np.zeros((nsub, nlines))   # legendre polynomial fits to the tilt traces
+    tilts_sub_err = np.zeros((nsub, nlines))   # errors on the tilts (only used for masking but not weighted fitting)
+    tilts_sub_mask = np.zeros((nsub, nlines), dtype=bool)  # mask indicating where the tilts are actually covered in the sub image, i.e. where thismask != False
+    tilts_sub_spec = np.outer(np.ones(nsub), lines_spec)   # spectral coordinate of each tilt, which is the arc line spectral pixel location
+    tilts_sub_spat = np.outer(np.arange(nsub), np.ones(nlines)) # spatial coordinate along each tilt
+    tilts_sub_dspat = np.zeros_like(tilts_sub_spat) # delta position of the tilt in pixels, i.e. difference between slitcen and the spatial coordinate above
 
 
     tilts = np.zeros((nspat, nlines))
@@ -207,9 +208,11 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, gaus
 
     # 1) Trace the tilts from a guess. If no guess is provided from a previous iteration use trace_crude
     for iline in range(nlines):
-        spat_min[iline] = lines_spat_int[iline] - trace_int
-        spat_max[iline] = lines_spat_int[iline] + trace_int + 1
-        min_spat = np.fmax(spat_min[iline], 0)
+        # We sub-image each tilt using a symmetric window about the (integer) spatial location of each line,
+        # which is the slitcen evaluated at the line spectral position.
+        spat_min[iline] = lines_spat_int[iline] - trace_int  # spat_min is the minium location of the sub-image
+        spat_max[iline] = lines_spat_int[iline] + trace_int + 1  # spat_max is the maximum location of the sub-image
+        min_spat = np.fmax(spat_min[iline], 0)  # These min_spat and max_spat are to prevent leaving the image
         max_spat = np.fmin(spat_max[iline], nspat - 1)
         sub_img = arcimg_trans[min_spat:max_spat, :]
         sub_inmask = inmask_trans[min_spat:max_spat,:]
