@@ -417,16 +417,21 @@ class WaveTilts(masterframe.MasterFrame):
         #
         msgs.info("Saving master {0:s} frame as:".format(self.frametype) + msgs.newline() + _outfile)
         hdu0 = fits.PrimaryHDU(tilts_dict['tilts'])
+        hdu0.name='TILTS'
         hdul = [hdu0]
         hdu_coeff = fits.ImageHDU(tilts_dict['coeffs'])
+        hdu_coeff.name='COEFFS'
         hdu_coeff.header['FUNC2D'] = tilts_dict['func2d']
         hdu_coeff.header['NSLIT'] = tilts_dict['nslit']
         hdul.append(hdu_coeff)
         hdu_slitcen = fits.ImageHDU(tilts_dict['slitcen'])
+        hdu_slitcen.name = 'SLITCEN'
         hdul.append(hdu_slitcen)
         hdu_spat_order = fits.ImageHDU(tilts_dict['spat_order'])
+        hdu_spat_order.name = 'SPAT_ORDER'
         hdul.append(hdu_spat_order)
         hdu_spec_order = fits.ImageHDU(tilts_dict['spec_order'])
+        hdu_spec_order.name = 'SPEC_ORDER'
         hdul.append(hdu_spec_order)
         # Finish
         hdulist = fits.HDUList(hdul)
