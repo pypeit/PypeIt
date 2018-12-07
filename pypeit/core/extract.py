@@ -1849,7 +1849,7 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
     use_order = np.invert(predict)
     ngood = np.sum(use_order)
 
-    if ngood == 0:
+    if ngood < 2:
         msgs.warn('There are no good traces to PCA fit. There is probably a bug somewhere. Exiting and returning input traces.')
         return xinit, {}, None, None
 
