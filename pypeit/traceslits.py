@@ -1279,7 +1279,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Return
         return loaded
 
-    def run(self, arms=True, add_user_slits=None, rm_user_slits=None, plate_scale = None, show=False):
+    def run(self, arms=True, add_user_slits=None, rm_user_slits=None, plate_scale = None, show=False, write_qa=True):
         """ Main driver for tracing slits.
 
           Code flow
@@ -1296,6 +1296,7 @@ class TraceSlits(masterframe.MasterFrame):
            7.  Synchronize
            8.  Extrapolate into blank regions (PCA)
            9.  Perform pixel-level calculations
+           10. Make the QA plot
 
         Parameters
         ----------
@@ -1384,6 +1385,10 @@ class TraceSlits(masterframe.MasterFrame):
         # fill dict for PypeIt
         self.tslits_dict = self._fill_tslits_dict()
 
+        # Make the QA
+        if write_qa:
+            self._qa()
+
         # Return it
         return self.tslits_dict
 
@@ -1396,8 +1401,9 @@ class TraceSlits(masterframe.MasterFrame):
         -------
 
         """
+        slitmask = self.spectrograph.slitmask(self.tslits_dict)
         trace_slits.slit_trace_qa(self.mstrace, self.lcen,
-                                   self.rcen, self.extrapord, self.setup,
+                                   self.rcen, slitmask, self.extrapord, self.setup,
                                    desc="Trace of the slit edges D{:02d}".format(self.det),
                                    use_slitid=use_slitid, out_dir=self.redux_path)
 

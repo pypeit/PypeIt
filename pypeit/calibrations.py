@@ -478,7 +478,8 @@ class Calibrations(object):
             # Now we go forth
             try:
                 self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale, show=self.show,
-                                                       add_user_slits=add_user_slits, rm_user_slits=rm_user_slits)
+                                                       add_user_slits=add_user_slits, rm_user_slits=rm_user_slits,
+                                                       write_qa=self.write_qa)
             except:
                 self.traceSlits.save_master()
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
@@ -486,15 +487,15 @@ class Calibrations(object):
             if self.tslits_dict is None:
                 self.maskslits = None
                 return self.tslits_dict, self.maskslits
-            # QA
-            if self.write_qa:
-                self.traceSlits._qa()
             # Save to disk
             if self.save_masters:
                 # Master
                 self.traceSlits.save_master()
 
         # Construct dictionary
+
+        # JFH TODO I really don't like this line of code. It is a bad idea to load masters in from the class like this. We have
+        # a standard way of loading in masters directly from files and this violates that standard for no compelling reason.
         self.tslits_dict = self.traceSlits._fill_tslits_dict()
 
         # Save, initialize maskslits, and return
