@@ -54,7 +54,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         Set default parameters for TNG Dolores reductions.
         """
         par = pypeitpar.PypeItPar()
-        par['calibrations']['tilts']['params'] = [1,1,1]
+        #par['calibrations']['tilts']['params'] = [1,1,1]
         # Always sky subtract, starting with default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
