@@ -10,10 +10,12 @@ import os
 import string
 
 import numpy as np
+import yaml
 
 from astropy import table, coordinates, time
 
 from pypeit import msgs
+from pypeit import utils
 from pypeit.core import framematch
 from pypeit.core import flux
 from pypeit.par import PypeItPar
@@ -41,10 +43,8 @@ class PypeItMetaData:
     any data.
 
     .. todo::
-        This should get abstracted to be independent of the
-        spectrograph, with all the spectrograph dependent keywords be
-        passed into the function.  The validation of the table would
-        then happen in PypeItSetup.
+        - Implement additional keywords for `bkg_pairs` that provide
+          some nominal pairings that the user can edit.
 
     Args:
         spectrograph (:obj:`str`,
@@ -73,15 +73,15 @@ class PypeItMetaData:
             Function will fault if :func:`fits.getheader` fails to read
             any of the headers in the provided file list.  Set to False
             to instead report a warning and continue.
-        background_index (:obj:`bool`, :obj:`dict`, optional):
-            Include a column called `index_bg` indicating the index of
-            the file for which each frame should be considered a
-            background measurement (e.g., sky).  If True, the column
-            included and all the values are set to 'None'; if False or
-            None, the column is not included (unless included in `data`
-            or `usrdata`).  If a dictionary, the column is added and the
-            dictionary provides the index of each file; e.g.,
-            `background_index['bg_image.fits']=0`.
+        bkg_pairs (:obj:`str`, optional):
+            If constructing a new table (i.e. `data=None` and
+            `file_list` is a list of files to read), include two columns
+            called `obj_id` and `bkg_id` that identify object and
+            background frame pairs.  The string indicates how these
+            these columns should be added::
+                - `empty`: The columns are added but their values are
+                  all originally set to None.  **This is currently the
+                  only option.**
 
     Attributes:
         spectrograph
@@ -93,6 +93,8 @@ class PypeItMetaData:
             PypeIt parameters used to set the code behavior.  If not
             provided, the default parameters specific to the provided
             spectrograph are used.
+        configs (:obj:`dict`):
+            A dictionary of the unique configurations identified.
         type_bitmask (:class:`pypeit.core.framematch.FrameTypeBitMask`):
             The bitmask used to set the frame type of each fits file.
         calib_bitmask (:class:`BitMask`):
@@ -100,58 +102,61 @@ class PypeItMetaData:
         table (:class:`astropy.table.Table`):
             The table with the relevant metadata for each fits file to
             use in the data reduction.
+
     """
     def __init__(self, spectrograph, par=None, file_list=None, data=None, usrdata=None,
-                 strict=True, background_index=None):
+                 strict=True, bkg_pairs=None):
+        if data is None and file_list is None:
+            msgs.warn('Both data and file_list are None in the instantiation of PypeItMetaData.'
+                      '  The table will be empty!')
         self.spectrograph = load_spectrograph(spectrograph)
         self.par = self.spectrograph.default_pypeit_par() if par is None else par
         if not isinstance(self.par, PypeItPar):
             raise TypeError('Input parameter set must be of type PypeItPar.')
         self.type_bitmask = framematch.FrameTypeBitMask()
         self.table = table.Table(data if file_list is None 
-                                 else self._build(file_list, strict=strict,
-                                                  background_index=background_index))
+                                 else self._build(file_list, strict=strict, bkg_pairs=bkg_pairs))
         if usrdata is not None:
             self.merge(usrdata)
         # Instrument-specific validation of the header metadata. This
         # alters self.table in place!
         self.spectrograph.validate_metadata(self.table)
 
+        # Initialize internal attributes
+        self.configs = None
         self.calib_bitmask = None
     
-    def _add_background_index(self, data, background_index):
+    def _add_bkg_pairs(self, data, bkg_pairs):
         """
-        Include a column called `index_bg` that identifies the index of
-        the file that should use the associated frame as a background
-        image (e.g., sky).
+        Add the background-pair columns to the table.
+        
+        This include two columns called `obj_id` and `bkg_id` that
+        identify object and background frame pairs.  The string
+        indicates how these these columns should be added::
 
-        The `data` argument is modified in place.
+            - `empty`: The columns are added but their values are all
+              originally set to None.  **This is currently the only
+              option.**
+
+        Args:
+            data (:obj:`dict`):
+                The current data table.  *This is edited in place.*
+            bkg_pairs (:obj:`str`):
+                The method to use for including these pairs.
+
+        Raises:
+            PypeItError:
+                Raised if the method selected to add the pairs is not
+                defined.
         """
-        # Just add an empty column
         numfiles = len(data['filename'])
-        if isinstance(background_index, bool):
-            if not background_index:
-                return
-            data['index_bg'] = [None]*numfiles
+        if bkg_pairs == 'empty':
+            data['obj_id'] = [None]*numfiles
+            data['bkg_id'] = [None]*numfiles
             return
+        msgs.error('{0} not a defined method for the background pair columns.'.format(bkg_pairs))
 
-        # Use the provided dictionary to set the index based on matching
-        # the dictionary keyword and file name
-        if isinstance(background_index, dict):
-            data['index_bg'] = [None]*numfiles
-            for k,v in background_index.items():
-                if v >= numfiles:
-                    msgs.error('There is no file with index {0}!'.format(v))
-                index = data['filename'] == k
-                if np.sum(index) == 0:
-                    msgs.error('File {0} not in file list!'.format(k))
-                data['index_bg'][index] = v
-            return
-
-        # Incorrect data type
-        msgs.error('Provided background_index must be boolean or a dictionary')
-
-    def _build(self, file_list, strict=True, background_index=None):
+    def _build(self, file_list, strict=True, bkg_pairs=None):
         """
         Returns a dictionary with the data to be included in the table.
         """
@@ -261,13 +266,13 @@ class PypeItMetaData:
         if numfiles == 0:
             msgs.error("The headers could not be read from the input data files."
                        + msgs.newline() + "Please check that the settings file matches the data.")
-        
-        # Add the index column
-        data['index'] = np.arange(numfiles).tolist()
+
+#        # Add the index column
+#        data['index'] = np.arange(numfiles).tolist()
 
         # Add the background_index column
-        if background_index is not None:
-            self._add_background_index(data, background_index)
+        if bkg_pairs is not None:
+            self._add_bkg_pairs(data, bkg_pairs)
 
         return data
 
@@ -296,7 +301,7 @@ class PypeItMetaData:
 
     @staticmethod
     def default_keys():
-        return [ 'index', 'directory', 'filename', 'instrume' ]
+        return [ 'directory', 'filename', 'instrume' ]
 
     def keys(self):
         return self.table.keys()
@@ -419,6 +424,9 @@ class PypeItMetaData:
         """
         Return the configuration dictionary for a given frame.
 
+        This is not the same as the backwards compatible "setup"
+        dictionary.
+
         Args:
             indx (:obj:`int`):
                 The index of the table row to use to construct the
@@ -435,7 +443,310 @@ class PypeItMetaData:
         _cfg_keys = self.spectrograph.configuration_keys() if cfg_keys is None else cfg_keys
         return {k:self.table[k][indx] for k in _cfg_keys}
 
-    def unique_configurations(self, ignore_frames=None):
+    def master_key(self, row, det=1):
+        """
+        Construct the master key for the file in the provided row.
+
+        The master key is the combination of the configuration, the
+        calibration group, and the detector.  The configuration ID is
+        the same as included in the configuration column (A, B, C, etc),
+        the calibration group is the same as the calibration bit number,
+        and the detector number is provided as an argument and converted
+        to a zero-filled string with two digits (the maximum number of
+        detectors is 99).
+
+        Using the calibration bit in the keyword allows MasterFrames to
+        be used with multiple calibration groups.
+
+        Args:
+            row (:obj:`int`):
+                The 0-indexed row used to construct the key.
+            det (:obj:`int`, optional):
+                The 1-indexed detector.  Default is 1.
+
+        Returns:
+            str: Master key with configuration, calibration group(s),
+            and detector.
+
+        Raises:
+            PypeItError:
+                Raised if the 'configuration' or 'calibbit' columns
+                haven't been defined.
+        """
+        if 'configuration' not in self.keys() or 'calibbit' not in self.keys():
+            msgs.error('Cannot provide master key string without configuration and calibbit; '
+                       'run set_configurations and set_calibration_groups.')
+        return '{0}_{1}_{2}'.format(self['configuration'][row], self['calibbit'][row],
+                                    str(det).zfill(2))
+
+    def get_setup(self, row, det=None, config_only=False):
+        """
+        Construct the setup dictionary.
+
+        .. todo::
+            - This is for backwards compatibility, but we should
+              consider reformatting it.  And it may be something to put
+              in the relevant spectrograph class.
+
+        Args:
+            row (:obj:`int`):
+                The 0-indexed row used to construct the setup.
+            det (:obj:`int`, optional):
+                The 1-indexed detector to include.  If None, all
+                detectors are included.
+            config_only (:obj:`bool`, optional):
+                Just return the dictionary with the configuration, don't
+                include the top-level designation of the configuration
+                itself.
+
+        Returns:
+            dict: The pypeit setup dictionary with the default format.
+
+        Raises:
+            PypeItError:
+                Raised if the 'configuration' isn't been defined.
+        """
+        if 'configuration' not in self.keys():
+            msgs.error('Cannot provide instrument setup without configuration; '
+                       'run set_configurations.')
+        dispname = 'none' if 'dispname' not in self.keys() else self['dispname'][row]
+        dispangle = 'none' if 'dispangle' not in self.keys() else self['dispangle'][row]
+        dichroic = 'none' if 'dichroic' not in self.keys() else self['dichroic'][row]
+        decker = 'none' if 'decker' not in self.keys() else self['decker'][row]
+        slitwid = 'none' if 'slitwid' not in self.keys() else self['slitwid'][row]
+        slitlen = 'none' if 'slitlen' not in self.keys() else self['slitlen'][row]
+        binning = '1,1' if 'binning' not in self.keys() else self['binning'][row]
+
+        setup = {self['configuration'][row]:
+                    {'--':
+                        {'disperser': {'name': dispname, 'angle':dispangle},
+                         'dichroic': dichroic,
+                         'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen}}}}
+        _det = np.arange(self.spectrograph.ndet)+1 if det is None else [det]
+        for d in _det:
+            setup[self['configuration'][row]][str(d).zfill(2)] \
+                    = {'binning': binning, 'det': d,
+                       'namp': self.spectrograph.detector[d-1]['numamplifiers']}
+        return setup[self['configuration'][row]] if config_only else setup
+
+    def get_configuration_names(self, ignore=None, return_index=False):
+        """
+        Get the list of the unique configuration names.
+        
+        This provides just the list of configuration identifiers ('A',
+        'B', etc.) and the row index where it first occurs.  This is
+        different from :func:`unique_configurations` because the latter
+        determines and provides the configurations themselves.
+
+        This is mostly a convenience function for the writing routines.
+
+        Args:
+            ignore (:obj:`list`, optional):
+                Ignore configurations in the provided list.
+            return_index (:obj:`bool, optional):
+                Return row indices with the first occurence of these
+                configurations.
+
+        Returns:
+            numpy.array: The list of unique configuration names.  A
+            second returned object provides the indices of the first
+            occurrence of these configurations, if requested.
+
+        Raises:
+            PypeItError:
+                Raised if the 'configuration' isn't been defined.
+        """
+        if 'configuration' not in self.keys():
+            msgs.error('Cannot get configuration names; run set_configurations.')
+
+        # Unique configurations
+        setups, indx = np.unique(self['configuration'], return_index=True)
+
+        if ignore is not None:
+            # Remove the selected configurations to ignore
+            rm = np.invert(np.isin(setups, ignore))
+            setups = setups[rm]
+            indx = indx[rm]
+
+        return setups, indx if return_index else setups
+
+    def get_all_setups(self, ignore=None):
+        """
+        Construct the full dictionary with all the instrument setup
+        detail.
+
+        This is mostly a convenience function for the writing routines.
+
+        .. todo::
+            - This is for backwards compatibility, but we should
+              consider reformatting/removing it.
+
+        Args:
+            ignore (:obj:`list`, optional):
+                Ignore configurations in the provided list.
+        """
+        setups, indx = self.get_configuration_names(ignore=ignore, return_index=True)
+        return {setup: self.get_setup(i, config_only=True) for setup,i in zip(setups,indx)}
+
+    def write_setups(self, ofile, overwrite=True, ignore=None):
+        """
+        Write the *.setups file.
+
+        The *.setups file lists all the unique instrument configurations.
+
+        .. todo::
+            - This is for backwards compatibility, but we should
+              consider reformatting/removing it.
+
+        Args:
+            ofile (:obj:`str`):
+                Name for the output sorted file.
+            overwrite (:obj:`bool`, optional):
+                Overwrite any existing file with the same name.
+            ignore (:obj:`list`, optional):
+                Ignore configurations in the provided list.
+
+        Raises:
+            PypeItError:
+                Raised if the 'configuration' isn't been defined.
+        """
+        if os.path.isfile(ofile) and not overwrite:
+            msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
+        
+        # Construct file
+        cfg = self.get_all_setups(ignore=ignore)
+        ff = open(ofile, 'w')
+        ff.write(yaml.dump(utils.yamlify(cfg)))
+        ff.close()
+
+    def write_sorted(self, ofile, overwrite=True, ignore=None):
+        """
+        Write the *.sorted file.
+
+        The *.sorted file lists all the unique instrument configurations
+        and the frames associated with each configuration.  The output
+        data table is identical to the pypeit file output.
+
+        .. todo::
+            - This is for backwards compatibility, but we should
+              consider reformatting/removing it.
+
+        Args:
+            ofile (:obj:`str`):
+                Name for the output sorted file.
+            overwrite (:obj:`bool`, optional):
+                Overwrite any existing file with the same name.
+            ignore (:obj:`list`, optional):
+                Ignore configurations in the provided list.
+
+        Raises:
+            PypeItError:
+                Raised if the 'configuration' isn't been defined.
+        """
+        if 'configuration' not in self.keys():
+            msgs.error('Cannot write sorted instrument configuration table without configuration; '
+                       'run set_configurations.')
+
+        if os.path.isfile(ofile) and not overwrite:
+            msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
+
+        # Columns for output
+        output_cols = np.array(self.spectrograph.metadata_keys())
+        output_cols = output_cols[np.isin(output_cols, self.keys())].tolist()
+
+        # Unique configurations
+        setups, indx = self.get_configuration_names(ignore=ignore, return_index=True)
+        
+        # Construct file
+        ff = open(ofile, 'w')
+        for setup,i in zip(setups,indx):
+            # Get the configuration dictionary
+            cfg = self.get_setup(i, config_only=True)
+            # Get the subtable of frames taken in this configuration
+            subtbl = self.table[output_cols][self['configuration'] == setup]
+            subtbl.sort(['frametype','filename'])
+            # Write the file
+            ff.write('##########################################################\n')
+            ff.write('Setup {:s}\n'.format(setup))
+            ff.write(yaml.dump(utils.yamlify(cfg)))
+            ff.write('#---------------------------------------------------------\n')
+            subtbl.write(ff, format='ascii.fixed_width')
+        ff.write('##end\n')
+        ff.close()
+
+    def write_calib(self, ofile, overwrite=True, ignore=None):
+        """
+        Write the *.calib file.
+
+        The *.calib file provides the unique instrument configurations
+        and the association of each frame from that configuration with a
+        given calibration group.
+
+        .. todo::
+            - This is for backwards compatibility, but we should
+              consider reformatting/removing it.
+            - This is complicated by allowing some frame types to have
+              no association with an instrument configuration
+
+        Args:
+            ofile (:obj:`str`):
+                Name for the output sorted file.
+            overwrite (:obj:`bool`, optional):
+                Overwrite any existing file with the same name.
+            ignore (:obj:`list`, optional):
+                Ignore calibration groups in the provided list.
+
+        Raises:
+            PypeItError:
+                Raised if the 'configuration' or 'calibbit' columns
+                haven't been defined.
+        """
+        if 'configuration' not in self.keys() or 'calibbit' not in self.keys():
+            msgs.error('Cannot write calibration groups without configuration and calibbit; '
+                       'run set_configurations and set_calibration_groups.')
+
+        if os.path.isfile(ofile) and not overwrite:
+            msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
+
+        # Construct the setups dictionary
+        cfg = self.get_all_setups(ignore=['None'])
+
+        # Iterate through the calibration groups and add frames to the
+        # appropriate configuration
+        for i in range(self.n_calib_groups):
+            # Skip this group
+            if ignore is not None and i in ignore:
+                continue
+
+            # Find the frames in this group
+            in_group = self.find_calib_group(i)
+
+            # Find the unique configurations in this group, ignoring any
+            # undefined ('None') configurations
+            setup = np.unique(self['configuration'][in_group]).tolist()
+            if 'None' in setup:
+                setup.remove('None')
+
+            # Make sure that each calibration group should only contain
+            # frames from a single configuration
+            if len(setup) != 1:
+                msgs.error('Each calibration group must be from one and only one instrument '
+                           'configuration with a valid letter identifier; i.e., the '
+                           'configuration cannot be None.')
+
+            # Find the frames of each type in this group
+            cfg[setup[0]][i] = {}
+            for key in self.type_bitmask.keys():
+                ftype_in_group = self.find_frames(key) & in_group
+                cfg[setup[0]][i][key] = [ os.path.join(d,f) 
+                                                for d,f in zip(self['directory'][ftype_in_group],
+                                                               self['filename'][ftype_in_group])]
+        # Write it
+        ff = open(ofile, 'w')
+        ff.write(yaml.dump(utils.yamlify(cfg)))
+        ff.close()
+
+    def unique_configurations(self, ignore_frames=None, force=False):
         """
         Return the unique instrument configurations.
 
@@ -448,6 +759,8 @@ class PypeItMetaData:
         simply constructs the configuration dictionary using the unique
         configurations in that column.
 
+        This is used to set the internal :attr:`configs`.
+
         Args:
             ignore_frames (:obj:`list`, optional):
                 A list of strings with the frame types (e.g., ['bias',
@@ -456,17 +769,23 @@ class PypeItMetaData:
                 types have been previously defined and can be selected
                 using :func:`find_frames`.  Default is to use all frame
                 types.
+            force (:obj:`bool`, optional):
+                Force the configurations to be redetermined.  Otherwise
+                the configurations are only determined if
+                :attr:`configs` has not yet been define.
 
         Returns:
             dict: A nested dictionary, one dictionary per configuration
-            with the associated values of the metadata associated with
-            each configuration.
+            with the associated metadata for each.
 
         Raises:
             PypeItError:
                 Raised if `ignore_frames` is provided but the frame
                 types have not been defined yet.
         """
+        if self.configs is not None and not force:
+            return self.configs
+
         if 'configuration' in self.keys():
             msgs.info('Configuration column already set.  Finding unique configurations.')
             uniq, indx = np.unique(self.table['configuration'], return_index=True)
@@ -474,13 +793,13 @@ class PypeItMetaData:
             if np.sum(ignore) > 0:
                 msgs.warn('Ignoring {0} frames with configuration set to None.'.format(
                             np.sum(ignore)))
-            configs = {}
+            self.configs = {}
             for i in range(len(uniq)):
                 if ignore[i]:
                     continue
-                configs[uniq[i]] = self.get_configuration(indx[i])
-            msgs.info('Found {0} unique configurations.'.format(len(configs)))
-            return configs
+                self.configs[uniq[i]] = self.get_configuration(indx[i])
+            msgs.info('Found {0} unique configurations.'.format(len(self.configs)))
+            return self.configs
 
         msgs.info('Using metadata to determine unique configurations.')
 
@@ -509,14 +828,14 @@ class PypeItMetaData:
         # TODO: Placeholder: Allow an empty set of configuration keys
         # meaning that the instrument setup has only one configuration.
         if len(cfg_keys) == 0:
-            configs = {}
-            configs[cfg_iter[cfg_indx]] = {}
+            self.configs = {}
+            self.configs[cfg_iter[cfg_indx]] = {}
             msgs.info('All files assumed to be from a single configuration.')
-            return configs
+            return self.configs
 
         # Use the first file to set the first unique configuration
-        configs = {}
-        configs[cfg_iter[cfg_indx]] = self.get_configuration(indx[0], cfg_keys=cfg_keys)
+        self.configs = {}
+        self.configs[cfg_iter[cfg_indx]] = self.get_configuration(indx[0], cfg_keys=cfg_keys)
         cfg_indx += 1
 
         # Check if any of the other files show a different
@@ -526,19 +845,19 @@ class PypeItMetaData:
         # TODO: Add a tolerance for floating point values?
         for i in indx[1:]:
             j = 0
-            for c in configs.values():
+            for c in self.configs.values():
                 if np.all([c[k] == self.table[k][i] for k in cfg_keys]):
                     break
                 j += 1
-            unique = j == len(configs)
+            unique = j == len(self.configs)
             if unique:
                 if cfg_indx == len(cfg_iter):
                     msgs.error('Cannot assign more than {0} configurations!'.format(len(cfg_iter)))
-                configs[cfg_iter[cfg_indx]] = self.get_configuration(i, cfg_keys=cfg_keys)
+                self.configs[cfg_iter[cfg_indx]] = self.get_configuration(i, cfg_keys=cfg_keys)
                 cfg_indx += 1
 
-        msgs.info('Found {0} unique configurations.'.format(len(configs)))
-        return configs
+        msgs.info('Found {0} unique configurations.'.format(len(self.configs)))
+        return self.configs
 
     def set_configurations(self, configs=None, force=False):
         """

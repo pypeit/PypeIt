@@ -23,6 +23,10 @@ class PypeItSetup(object):
     """
     Prepare for a pypeit run.
 
+    .. todo::
+        - This is now mostly a wrapper for PypeItMetaData.  Should we
+          remove this class, or merge PypeItSetup and PypeItMetaData.
+
     The main deliverables are the set of parameters used for pypeit's
     algorithms (:attr:`par`), an :obj:`astropy.table.Table` with the
     details of the files to be reduced (:attr:`fitstbl`), and a
@@ -95,9 +99,6 @@ class PypeItSetup(object):
         fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
             A `Table` that provides the salient metadata for the fits
             files to be reduced.
-        filetypeflags(:class:`astropy.table.Table`):
-            A `Table` that flags the frame types of each fits file.
-            TODO: Is it necessary to keep this?
         setup_dict (dict):
             The dictionary with the list of instrument setups.
         steps (list):
@@ -140,7 +141,6 @@ class PypeItSetup(object):
 
         # Prepare internals for execution
         self.fitstbl = None
-        self.filetypeflags = None
         self.setup_dict = None
         self.steps = []
 
@@ -172,7 +172,7 @@ class PypeItSetup(object):
     def __repr__(self):
         return '<{:s}: nfiles={:d}>'.format(self.__class__.__name__, self.nfiles)
 
-    def build_fitstbl(self, strict=True, background_index=None):
+    def build_fitstbl(self, strict=True, bkg_pairs=None):
         """
         Construct the table with metadata for the frames to reduce.
 
@@ -184,15 +184,15 @@ class PypeItSetup(object):
                 read the headers of any of the files in
                 :attr:`file_list`.  Set to False to only report a
                 warning and continue.
-            background_index (:obj:`bool`, :obj:`dict`, optional):
-                Include a column called `index_bg` indicating the index
-                of the file for which each frame should be considered a
-                background measurement (e.g., sky).  If True, the column
-                included and all the values are set to 'None'; if False
-                or None, the column is not included (unless included in
-                `data` or `usrdata`).  If a dictionary, the column is
-                added and the dictionary provides the index of each
-                file; e.g., `background_index['bg_image.fits']=0`.
+            bkg_pairs (:obj:`str`, optional):
+                When constructing the
+                :class:`pypeit.metadata.PypeItMetaData` object, include
+                two columns called `obj_id` and `bkg_id` that identify
+                object and background frame pairs.  The string indicates
+                how these these columns should be added::
+                    - `empty`: The columns are added but their values
+                      are all originally set to None.  **This is
+                      currently the only option.**
     
         Returns:
             :obj:`astropy.table.Table`: Table with the metadata for each
@@ -201,8 +201,7 @@ class PypeItSetup(object):
         """
         # Build and sort the table
         self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, file_list=self.file_list,
-                                      usrdata=self.usrdata, strict=strict,
-                                      background_index=background_index)
+                                      usrdata=self.usrdata, strict=strict, bkg_pairs=bkg_pairs)
         # Sort by the time
         if 'time' in self.fitstbl.keys():
             self.fitstbl.sort('time')
@@ -212,80 +211,6 @@ class PypeItSetup(object):
 
         # Return the table
         return self.fitstbl.table
-
-    def build_group_dict(self, pypeit_file=None):
-        """
-        Builds a group dict and writes to disk
-          This may be Deprecated (if the .sorted files are deemed too unintersting)
-
-        Returns
-        -------
-        group_dict : dict
-          Dict describing the various setups
-        """
-        #
-        all_sci_idx = np.where(self.fitstbl.find_frames('science'))[0]
-        all_sci_ID = self.fitstbl['sci_ID'][all_sci_idx]
-        self.group_dict = pypsetup.build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx,
-                                                    all_sci_ID)
-
-        # TODO: Move this to a method that writes the sorted file
-        # Write .sorted file
-        if len(self.group_dict) > 0:
-            group_file = self.spectrograph.spectrograph + '.sorted' \
-                                if pypeit_file is None or len(pypeit_file) == 0 \
-                                else pypeit_file.replace('.pypeit', '.sorted')
-            pypsetup.write_sorted(group_file, self.fitstbl, self.group_dict, self.setup_dict)
-            msgs.info("Wrote group dict to {:s}".format(group_file))
-        else:
-            msgs.warn("No group dict entries and therefore no .sorted file")
-
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        # Return
-        return self.group_dict
-
-    def build_setup_dict(self, setup_only=False):
-        """
-        Generate the setup_dict
-          Mainly a Wrapper to new_instr_setup
-
-        Returns
-        -------
-        setup_dict :
-
-        """
-        # Run with masters?
-        if self.par['calibrations']['masters'] == 'force':
-            print('forcing!')
-            # Generate a dummy setup_dict
-            self.setup_dict = pypsetup.dummy_setup_dict(self.fitstbl.find_frame_files('science'),
-                                                        self.par['calibrations']['setup'])
-            # Step
-            self.steps.append(inspect.stack()[0][3])
-            # Return
-            return self.setup_dict
-
-        # Run through the setups to fill setup_dict
-        self.setupIDs = []
-        all_sci_ID = self.fitstbl['sci_ID'][self.fitstbl.find_frames('science')]
-        for sc in all_sci_ID:
-            for kk in range(len(self.spectrograph.detector)):
-                cname = None if self.par['calibrations']['setup'] is None \
-                                    else self.par['calibrations']['setup'][0]
-                # Amplifiers
-                namp = self.spectrograph.detector[kk]['numamplifiers']
-                # Run
-                setupID, self.setup_dict = pypsetup.instr_setup(sc, kk+1, self.fitstbl,
-                                                                setup_dict=self.setup_dict,
-                                                                skip_cset=setup_only,
-                                                                config_name=cname)
-                # Only save the first detector for run setup
-                if kk == 0:
-                    self.setupIDs.append(setupID)
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        return self.setup_dict
 
     def match_ABBA(self):
         """
@@ -334,14 +259,10 @@ class PypeItSetup(object):
                 crashing.  This should be True for initial setup and
                 False otherwise.
 
-        Returns
-        -------
-        self.filetypeflags
         """
         # Use PypeItMetaData methods to get the frame types
-        self.filetypeflags = self.fitstbl.get_frame_types(flag_unknown=flag_unknown,
-                                                          user=self.frametype,
-                                                          useIDname=use_header_id)
+        _ = self.fitstbl.get_frame_types(flag_unknown=flag_unknown, user=self.frametype,
+                                         useIDname=use_header_id)
         # Include finished processing step
         self.steps.append(inspect.stack()[0][3])
 
@@ -401,8 +322,8 @@ class PypeItSetup(object):
                            columns=None if format is None else self.spectrograph.metadata_keys(),
                            format=format, overwrite=True)
 
-    def run(self, setup_only=False, background_index=None, calibration_check=False,
-            use_header_id=False, sort_dir=None):
+    def run(self, setup_only=False, bkg_pairs=None, calibration_check=False, use_header_id=False,
+            sort_dir=None):
         """
         Once instantiated, this is the main method used to construct the
         object.
@@ -431,15 +352,15 @@ class PypeItSetup(object):
                 more output describing the success of the setup and how
                 to proceed, and provides warnings (instead of errors)
                 for issues that may cause the reduction itself to fail.
-            background_index (:obj:`bool`, :obj:`dict`, optional):
-                Include a column called `index_bg` indicating the index
-                of the file for which each frame should be considered a
-                background measurement (e.g., sky).  If True, the column
-                included and all the values are set to 'None'; if False
-                or None, the column is not included (unless included in
-                `data` or `usrdata`).  If a dictionary, the column is
-                added and the dictionary provides the index of each
-                file; e.g., `background_index['bg_image.fits']=0`.
+            bkg_pairs (:obj:`str`, optional):
+                When constructing the
+                :class:`pypeit.metadata.PypeItMetaData` object, include
+                two columns called `obj_id` and `bkg_id` that identify
+                object and background frame pairs.  The string indicates
+                how these these columns should be added::
+                    - `empty`: The columns are added but their values
+                      are all originally set to None.  **This is
+                      currently the only option.**
             calibration_check (obj:`bool`, optional):
                 Only check that the calibration frames are appropriately
                 setup and exist on disk.  Pypit is expected to execute
@@ -467,7 +388,7 @@ class PypeItSetup(object):
 
         # Build fitstbl
         if self.fitstbl is None:
-            self.build_fitstbl(strict=not setup_only, background_index=background_index)
+            self.build_fitstbl(strict=not setup_only, bkg_pairs=bkg_pairs)
 
         # File typing
         self.get_frame_types(flag_unknown=setup_only or calibration_check,
@@ -494,28 +415,26 @@ class PypeItSetup(object):
         # Write metadata
         self.write_metadata(sort_dir=sort_dir)
 
-        # Setup dict
-        # TODO: I want to simplify this
-        self.build_setup_dict(setup_only=setup_only)
-
         if setup_only:
             # Collate all matching files and write .sorted Table (on pypeit_setup only)
-            # TODO: I want to simplify this
-            self.build_group_dict(pypeit_file=pypeit_file)
+            sorted_file = self.spectrograph.spectrograph + '.sorted' \
+                                if pypeit_file is None or len(pypeit_file) == 0 \
+                                else pypeit_file.replace('.pypeit', '.sorted')
+            self.fitstbl.write_sorted(sorted_file)
+            msgs.info("Wrote sorted file data to {:s}".format(sorted_file))
 
             # Write the setup file
             setup_file = self.spectrograph.spectrograph + '.setups' \
                                 if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.setups')
             # TODO: I want to simplify this
-            pypsetup.write_setup(self.setup_dict, setup_file)
+            self.fitstbl.write_setups(setup_file)
         else:
             # Write the calib file
             calib_file = self.spectrograph.spectrograph + '.calib' \
                                 if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.calib')
-            # TODO: I want to simplify or remove this
-            pypsetup.write_calib(calib_file, self.setup_dict)
+            self.fitstbl.write_calib(calib_file)
 
         # Finish (depends on PypeIt run mode)
         # TODO: Do we need this functionality
@@ -533,8 +452,8 @@ class PypeItSetup(object):
                             self.fitstbl['target'][idx],self.fitstbl['filename'][idx]))
             msgs.info("Setup is complete.")
             msgs.info("Inspect the .setups file")
-            return None, None, None, None
+            return None, None, None
 
-        return self.par, self.spectrograph, self.fitstbl, self.setup_dict
+        return self.par, self.spectrograph, self.fitstbl
 
 

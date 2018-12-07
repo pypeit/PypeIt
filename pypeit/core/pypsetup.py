@@ -413,6 +413,8 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
     -------
 
     """
+    # TODO: Not sure we should do this.  Instead just check that
+    # frametype is in the relevant keys
     if 'frametype' not in fitstbl.keys():
         fitstbl.get_frame_types()
     # Output file

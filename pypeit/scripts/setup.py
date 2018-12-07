@@ -34,7 +34,7 @@ def parser(options=None):
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
     parser.add_argument('-b', '--background', default=False, action='store_true',
-                        help='Include a background index column for the user to edit')
+                        help='Include the background-pair columns for the user to edit')
 #    parser.add_argument("-q", "--quick", default=False, help="Quick reduction",
 #                        action="store_true")
 #    parser.add_argument("-c", "--cpus", default=False,
@@ -70,7 +70,7 @@ def main(args):
                                    overwrite=args.overwrite, setups_path=args.setups_path)
 
     pypeIt.build_setup_files(args.files_root, extension=args.extension,
-                             background_index=args.background)
+                             bkg_pairs='empty' if args.background else None)
 
     # Custom?
     if args.custom:
