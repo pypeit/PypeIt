@@ -249,6 +249,10 @@ class PypeIt(object):
         can_be_None = ['flexure', 'fluxcalib']
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
+        # Outer loop ober calibgroup calls reduce_caibgroup
+        # def reduce_calibgroups(self, calibgroup, reuser_masters) goes here.
+        # Now first loop over standards in this calibgroup, run reduce_exposure. Then loop over science
+        # and run reduce_exposure.
         # Loop over the standards and reduce them first.
         for std_ID in all_std_ID:
             std_dict = self.reduce_exposure(std_ID, 'standard', reuse_masters=reuse_masters)
