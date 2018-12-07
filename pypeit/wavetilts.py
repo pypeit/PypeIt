@@ -16,10 +16,8 @@ from pypeit.core import arc
 from pypeit.core import tracewave
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit import spectrographs
 import copy
 
-from pypeit import debugger
 
 
 class WaveTilts(masterframe.MasterFrame):
@@ -180,8 +178,11 @@ class WaveTilts(masterframe.MasterFrame):
 
         Returns
         -------
-        self.arccen
-        self.arc_maskslit
+        (self.arccen, self.arc_maskslit_
+           self.arccen: ndarray, (nspec, nslit)
+              arc spectrum for all slits
+            self.arc_maskslit: ndarray, bool (nsit)
+              boolean array containing a mask indicating which slits are good
 
         """
         # Extract an arc down each slit/order
@@ -219,21 +220,34 @@ class WaveTilts(masterframe.MasterFrame):
     def _fit_tilts(self, trc_tilt_dict, slit_cen, spat_order, spec_order, slit, show_QA=False, doqa=True, debug=False):
         """
 
-        Parameters
-        ----------
+        Args:
+            trc_tilt_dict: dict
+                Contains information from tilt tracing
+            slit_cen: ndarray (nspec,)
+                Central trace for this slit
+            spat_order: int,
+                Order of the 2d polynomial fit for the spatial direction
+            spec_order: int,
+                Order of the 2d polytnomial fit for the spectral direction
+            slit: int,
+                integer index for the slit in question
+        Optional Args:
+            show_QA: bool, default = False
+                show the QA instead of writing it out to the outfile
+            doqa: bool, default = True
+                Construct the QA plot
+            debug: bool, default = False
+                Show additional plots useful for debugging.
 
-        slit : int
-        show_QA : bool, optional
-          Show the QA plot (e.g. in a Notebook)
-        doqa : bool, optional
-          Perform the QA
-
-        Returns
-        -------
-        self.tilts : ndarray
-        coeffs
-
+        Returns:
+           (tilts, coeffs)
+            tilts: ndarray (nspec, nspat)
+               tilts image
+            coeff: ndarray (spat_order + 1, spec_order+1)
+               Array containing the coefficients for the 2d legendre polynomial fit
         """
+
+
 
         # Now perform a fit to the tilts
         tilt_fit_dict = tracewave.fit_tilts(
@@ -252,17 +266,25 @@ class WaveTilts(masterframe.MasterFrame):
     def _trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit):
         """
 
-        Parameters
+        Args
         ----------
+        arcimg: ndarray (nspec, nspat)
+           Arc image
+        lines_spec: ndarray (nlines)
+           Array containing the spectral pixel location of each line found for this slit
+        lines_spat: ndarray (nlines)
+           Array containing the spatial pixel location of each line, which is the slitcen evaluate at the spectral position position
+           of the line stored in lines_spec
+        thismask: ndarray, (nspec, nspat), type=bool
+           Image indicating which pixels lie on the slit in equation. True = on the slit. False = not on slit
         slit : int
-        wv_calib : dict, optional
-          Used only for avoiding ghosts
+           Itegner index indicating the slit in question
 
 
         Returns
         -------
-        trcdict : dict
-          Filled in self.all_trcdict[]
+        trace_dict : dict
+           Dictionary containing informatin on the traced tilts required to fit the filts.
 
         """
 
