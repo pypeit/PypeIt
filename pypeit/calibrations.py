@@ -476,8 +476,9 @@ class Calibrations(object):
             rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det, rm=True)
 
             # Now we go forth
+            # JFH Why do we need this try except statementhere when we don't have it for any other method?
             try:
-                self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale, show=self.show,
+                self.tslits_dict = self.traceSlits.run(plate_scale = plate_scale, show=self.show,
                                                        add_user_slits=add_user_slits, rm_user_slits=rm_user_slits,
                                                        write_qa=self.write_qa)
             except:

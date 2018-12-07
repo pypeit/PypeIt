@@ -53,7 +53,7 @@ def fit_double_poly(all_wv_order, work2d, thismask, nspec_coeff, norder_coeff):
     return coeffs, wv_order_mod
 
 
-def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0, debug=False):
+def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0, func2d='legendre2d', debug=False):
     """Routine to obtain the 2D wavelength solution for an echelle spectrograph. This is calculated from the spec direction
     pixelcentroid and the order number of identified arc lines. The fit is a simple least-squares with rejections.
     This is a port of the XIDL code: x_fit2darc.pro
@@ -81,17 +81,15 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     -------
     """
 
-    # To use the legendre polynomial pixels and orders
-    # need to be normalized in the -1,+1 range
-    # Normalize pixels
-    mnx = 0 #np.min(all_pix)
-    mxx = float(nspec - 1) #np.max(all_pix)
-    norm_pixel = np.array([0.5 * (mnx + mxx), mxx - mnx])
-    pix_nrm = 2. * (all_pix - norm_pixel[0])/norm_pixel[1]
-    # Normalize orders
-    mnx, mxx = np.min(all_orders), np.max(all_orders)
-    norm_order = np.array([0.5 * (mnx + mxx), mxx - mnx])
-    orders_nrm = 2. * (all_orders - norm_order[0])/norm_order[1]
+    from IPython import embed
+    embed()
+
+    # Normalize  for pixels
+    min_spec =0.0
+    max_spec =float(nspec-1)
+    # Normalize for orders
+    min_order = np.min(all_orders)
+    max_order = np.max(all_orders)
 
     if debug:
         # set some plotting parameters
@@ -99,7 +97,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
         plt.figure(figsize=(7,5))
         msgs.info("Plot identified lines")
         cm = plt.cm.get_cmap('RdYlBu_r')
-        sc = plt.scatter(orders_nrm, pix_nrm,c=all_wv/10000., cmap=cm)
+        sc = plt.scatter(all_orders, all_pix,c=all_wv/10000., cmap=cm)
         cbar = plt.colorbar(sc)
         cbar.set_label(r'Wavelength [$\mu$m]', rotation=270,
                        labelpad=20)
@@ -109,8 +107,24 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
         plt.show()
 
 
+
+
     # Setup some things for the fits
     all_wv_order = all_wv * all_orders
+
+
+    # TESTING
+    fitmask, coeff2 = utils.robust_polyfit_djs(all_pix, all_wv_order, (nspec_coeff, norder_coeff),x2=all_orders,
+                                               function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
+                                               minx=0.0, maxx=float(nspec-1), minx2=mnx, maxx2=mxx,
+                                               use_mad=True, sticky=False)
+    wv_order_mod = utils.func_val(coeff2, all_pix, func2d, x2=all_orders,
+                                               minx=0.0, maxx=float(nspec-1), minx2=mnx, maxx2=mxx)
+    resid = (wv_order_mod[fitmask]-all_wv_order[fitmask])
+    fin_rms = np.std(resid)
+    msgs.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
+    # Old code
+
     work2d = np.zeros((nspec_coeff*norder_coeff, len(all_wv)), dtype=np.float64)
     worky = pydl.flegendre(pix_nrm, nspec_coeff)
     workt = pydl.flegendre(orders_nrm, norder_coeff)
@@ -163,7 +177,14 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     msgs.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
 
     orders = np.unique(all_orders)
-    fit_dict = dict(coeffs=coeffs, orders=orders,
+    fit_dict = dict(coeffs=coeff, orders=orders,
+                    nspec_coeff=nspec_coeff, norder_coeff=norder_coeff,
+                    pixel_cen=norm_pixel[0], pixel_norm=norm_pixel[1],
+                    order_cen=norm_order[0], order_norm=norm_order[1],
+                    nspec=nspec, all_pix=all_pix, all_wv=all_wv,
+                    all_orders=all_orders, all_mask=thismask)
+    orders = np.unique(all_orders)
+    fit_dict = dict(coeffs=coeff, orders=orders,
                     nspec_coeff=nspec_coeff, norder_coeff=norder_coeff,
                     pixel_cen=norm_pixel[0], pixel_norm=norm_pixel[1],
                     order_cen=norm_order[0], order_norm=norm_order[1],
@@ -176,6 +197,138 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
 
     return fit_dict
 
+
+def fit2darc_old(all_wv, all_pix, all_orders, nspec, nspec_coeff=4, norder_coeff=4, sigrej=3.0, debug=False):
+    """Routine to obtain the 2D wavelength solution for an echelle spectrograph. This is calculated from the spec direction
+    pixelcentroid and the order number of identified arc lines. The fit is a simple least-squares with rejections.
+    This is a port of the XIDL code: x_fit2darc.pro
+
+    Parameters
+    ----------
+    all_wv: np.array
+     wavelength of the identified lines
+    all_pix: np.array
+      y-centroid position of the identified lines
+    all_orders: np.array
+      order number of the identified lines
+    nspec: int
+      Size of the image in the spectral direction
+    nspec_coeff : np.int
+      order of the fitting along the spectral (pixel) direction for each order
+    norder_coeff : np.int
+      order of the fitting in the order direction
+    sigrej: np.float
+      sigma level for the rejection
+    debug: boolean
+      Extra plots to check the status of the procedure
+
+    Returns:
+    -------
+    """
+
+
+    # To use the legendre polynomial pixels and orders
+    # need to be normalized in the -1,+1 range
+    # Normalize pixels
+    mnx = 0  # np.min(all_pix)
+    mxx = float(nspec - 1)  # np.max(all_pix)
+    norm_pixel = np.array([0.5 * (mnx + mxx), mxx - mnx])
+    pix_nrm = 2. * (all_pix - norm_pixel[0]) / norm_pixel[1]
+    # Normalize orders
+    mnx, mxx = np.min(all_orders), np.max(all_orders)
+    norm_order = np.array([0.5 * (mnx + mxx), mxx - mnx])
+    orders_nrm = 2. * (all_orders - norm_order[0]) / norm_order[1]
+
+    if debug:
+        # set some plotting parameters
+        utils.pyplot_rcparams()
+        plt.figure(figsize=(7, 5))
+        msgs.info("Plot identified lines")
+        cm = plt.cm.get_cmap('RdYlBu_r')
+        sc = plt.scatter(orders_nrm, pix_nrm, c=all_wv / 10000., cmap=cm)
+        cbar = plt.colorbar(sc)
+        cbar.set_label(r'Wavelength [$\mu$m]', rotation=270,
+                       labelpad=20)
+        plt.xlabel(r'Normalized Orders')
+        plt.ylabel(r'Normalized Pixels')
+        plt.title(r'Location of the identified lines')
+        plt.show()
+
+    # Setup some things for the fits
+    all_wv_order = all_wv * all_orders
+    work2d = np.zeros((nspec_coeff * norder_coeff, len(all_wv)), dtype=np.float64)
+    worky = pydl.flegendre(pix_nrm, nspec_coeff)
+    workt = pydl.flegendre(orders_nrm, norder_coeff)
+    for i in range(norder_coeff):
+        for j in range(nspec_coeff):
+            work2d[j * norder_coeff + i, :] = worky[j, :] * workt[i, :]
+
+    # ToDO add upper lower to inputs
+    lower = np.abs(sigrej)
+    upper = np.abs(sigrej)
+    maxiter = 25
+    iIter = 0
+    qdone = False
+    thismask = np.ones_like(all_wv, dtype=bool)
+    while (not qdone) and (iIter < maxiter):
+        coeffs, wv_order_mod = fit_double_poly(all_wv_order, work2d, thismask.astype(float), nspec_coeff, norder_coeff)
+        thismask, qdone = pydl.djs_reject(all_wv_order, wv_order_mod, outmask=thismask,
+                                          lower=np.float64(lower), upper=np.float64(upper), use_mad=True, sticky=True)
+        iIter += 1
+        if debug:
+            utils.pyplot_rcparams()
+            plt.figure(figsize=(7, 5))
+            plt.axhline(y=np.average(wv_order_mod[thismask] / all_orders[thismask] - all_wv[thismask]), color='r',
+                        linestyle='--')
+            plt.axhline(y=+np.std(wv_order_mod[thismask] / all_orders[thismask] - all_wv[thismask]), color='r',
+                        linestyle=':')
+            plt.axhline(y=-np.std(wv_order_mod[thismask] / all_orders[thismask] - all_wv[thismask]), color='r',
+                        linestyle=':')
+            plt.scatter(all_wv[~thismask] / 10000., wv_order_mod[~thismask] / all_orders[~thismask] - all_wv[~thismask],
+                        marker="v", label=r'Rejected values')
+            plt.scatter(all_wv[thismask] / 10000., wv_order_mod[thismask] / all_orders[thismask] - all_wv[thismask],
+                        marker="v", label=r'Good values')
+            plt.text(np.min(all_wv / 10000),
+                     np.average(wv_order_mod[thismask] / all_orders[thismask] - all_wv[thismask]),
+                     r'Average={0:.1f}$\AA$'.format(
+                         np.average(wv_order_mod[thismask] / all_orders[thismask] - all_wv[thismask])),
+                     ha="left", va="bottom",
+                     bbox=dict(boxstyle="square", ec=(1., 0.5, 0.5), fc=(1., 0.8, 0.8), alpha=0.7, ))
+            plt.text(np.max(all_wv / 10000), np.std(wv_order_mod[thismask] / all_orders[thismask] - all_wv[thismask]),
+                     r'Sigma={0:.1f}$\AA$'.format(
+                         np.std(wv_order_mod[thismask] / all_orders[thismask] - all_wv[thismask])), ha="right",
+                     va="bottom", bbox=dict(boxstyle="square", ec=(1., 0.5, 0.5), fc=(1., 0.8, 0.8), alpha=0.7, ))
+            plt.legend()
+            plt.title(r'Residuals after rejection iteration #{:d}'.format(iIter))
+            plt.xlabel(r'Wavelength [$\mu$m]')
+            plt.ylabel(r'Residuals [$\AA$]')
+            plt.show()
+    if iIter == maxiter:
+        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
+
+    # Final fit
+    coeffs, wv_order_mod = fit_double_poly(all_wv_order, work2d,
+                                           thismask.astype(float),
+                                           nspec_coeff, norder_coeff)
+
+    # Check quality
+    resid = (wv_order_mod[thismask] - all_wv_order[thismask])
+    fin_rms = np.sqrt(np.mean(resid ** 2))
+    msgs.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
+
+    orders = np.unique(all_orders)
+    fit_dict = dict(coeffs=coeffs, orders=orders,
+                    nspec_coeff=nspec_coeff, norder_coeff=norder_coeff,
+                    pixel_cen=norm_pixel[0], pixel_norm=norm_pixel[1],
+                    order_cen=norm_order[0], order_norm=norm_order[1],
+                    nspec=nspec, all_pix=all_pix, all_wv=all_wv,
+                    all_orders=all_orders, all_mask=thismask)
+
+    if debug:
+        fit2darc_global_qa(fit_dict)
+        fit2darc_orders_qa(fit_dict)
+
+    return fit_dict
 
 def fit2darc_global_qa(fit_dict, outfile=None):
     """ QA on 2D fit of the wavelength solution.
