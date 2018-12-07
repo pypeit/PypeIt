@@ -236,6 +236,10 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, gaus
                     tilts_guess_now = tilts_guess[:, iline]
         # Boxcar extract the thismask to have a mask indicating whether a tilt is defined along the spatial direction
         tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_guess_now, fwhm/2.0) > 0.99*fwhm)
+        # If more than 80% of the pixels are masked, then don't mask at all. This happens when the traces leave the good
+        # part of the slit. If we proceed with everything masked the iter_tracefit fitting will crash.
+        if (np.sum(tilts_sub_mask_box) < 0.8*nsub):
+            tilts_sub_mask_box = np.ones_like(tilts_sub_mask_box)
         # Do iterative flux weighted tracing and polynomial fitting to refine these traces. This must also be done in a loop
         # since the sub image is different for every aperture, i.e. each aperature has its own image
         tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tset_out = extract.iter_tracefit(
@@ -243,6 +247,8 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, gaus
             maxdev=maxdev, niter=6, idx=str(iline),show_fits=show_tracefits, xmin=0.0,xmax=float(nsub-1))
         tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
         if gauss: # If gauss is set, do a Gaussian refinement to the flux weighted tracing
+            if (np.sum(tilts_sub_mask_box) < 0.8 * nsub):
+                tilts_sub_mask_box = np.ones_like(tilts_sub_mask_box)
             tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_err_gw, tset_gw = extract.iter_tracefit(
                 sub_img, tilts_sub_fit_out, spat_order, inmask=sub_inmask, trc_inmask = tilts_sub_mask_box, fwhm=fwhm,
                 maxdev=maxdev, niter=3, idx=str(iline),show_fits=show_tracefits, xmin=0.0, xmax=float(nsub-1))
@@ -404,6 +410,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, inmask=None, gauss=Fal
         # JFH Note spec_order is hard wired here as we don't pass it in
         tilt_fit_dict0 = fit_tilts(trace_dict0, spat_order=spat_order, spec_order=6, debug=True,
                                    maxdev=0.2, sigrej=3.0,doqa=True, setup='test', slit=0, show_QA=True)
+
 
     # Do a PCA fit, which rejects some outliers
     iuse = trace_dict0['use_tilt']
