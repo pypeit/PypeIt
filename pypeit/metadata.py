@@ -7,6 +7,7 @@ from __future__ import division
 from __future__ import unicode_literals
 
 import os
+import io
 import string
 
 import numpy as np
@@ -19,6 +20,7 @@ from pypeit import utils
 from pypeit.core import framematch
 from pypeit.core import flux
 from pypeit.par import PypeItPar
+from pypeit.par.util import make_pypeit_file
 from pypeit.bitmask import BitMask
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import debugger
@@ -588,164 +590,6 @@ class PypeItMetaData:
         setups, indx = self.get_configuration_names(ignore=ignore, return_index=True)
         return {setup: self.get_setup(i, config_only=True) for setup,i in zip(setups,indx)}
 
-    def write_setups(self, ofile, overwrite=True, ignore=None):
-        """
-        Write the *.setups file.
-
-        The *.setups file lists all the unique instrument configurations.
-
-        .. todo::
-            - This is for backwards compatibility, but we should
-              consider reformatting/removing it.
-
-        Args:
-            ofile (:obj:`str`):
-                Name for the output sorted file.
-            overwrite (:obj:`bool`, optional):
-                Overwrite any existing file with the same name.
-            ignore (:obj:`list`, optional):
-                Ignore configurations in the provided list.
-
-        Raises:
-            PypeItError:
-                Raised if the 'configuration' isn't been defined.
-        """
-        if os.path.isfile(ofile) and not overwrite:
-            msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
-        
-        # Construct file
-        cfg = self.get_all_setups(ignore=ignore)
-        ff = open(ofile, 'w')
-        ff.write(yaml.dump(utils.yamlify(cfg)))
-        ff.close()
-
-    def write_sorted(self, ofile, overwrite=True, ignore=None):
-        """
-        Write the *.sorted file.
-
-        The *.sorted file lists all the unique instrument configurations
-        and the frames associated with each configuration.  The output
-        data table is identical to the pypeit file output.
-
-        .. todo::
-            - This is for backwards compatibility, but we should
-              consider reformatting/removing it.
-
-        Args:
-            ofile (:obj:`str`):
-                Name for the output sorted file.
-            overwrite (:obj:`bool`, optional):
-                Overwrite any existing file with the same name.
-            ignore (:obj:`list`, optional):
-                Ignore configurations in the provided list.
-
-        Raises:
-            PypeItError:
-                Raised if the 'configuration' isn't been defined.
-        """
-        if 'configuration' not in self.keys():
-            msgs.error('Cannot write sorted instrument configuration table without configuration; '
-                       'run set_configurations.')
-
-        if os.path.isfile(ofile) and not overwrite:
-            msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
-
-        # Columns for output
-        output_cols = np.array(self.spectrograph.metadata_keys())
-        output_cols = output_cols[np.isin(output_cols, self.keys())].tolist()
-
-        # Unique configurations
-        setups, indx = self.get_configuration_names(ignore=ignore, return_index=True)
-        
-        # Construct file
-        ff = open(ofile, 'w')
-        for setup,i in zip(setups,indx):
-            # Get the configuration dictionary
-            cfg = self.get_setup(i, config_only=True)
-            # Get the subtable of frames taken in this configuration
-            subtbl = self.table[output_cols][self['configuration'] == setup]
-            subtbl.sort(['frametype','filename'])
-            # Write the file
-            ff.write('##########################################################\n')
-            ff.write('Setup {:s}\n'.format(setup))
-            ff.write(yaml.dump(utils.yamlify(cfg)))
-            ff.write('#---------------------------------------------------------\n')
-            subtbl.write(ff, format='ascii.fixed_width')
-        ff.write('##end\n')
-        ff.close()
-
-    def write_calib(self, ofile, overwrite=True, ignore=None):
-        """
-        Write the *.calib file.
-
-        The *.calib file provides the unique instrument configurations
-        and the association of each frame from that configuration with a
-        given calibration group.
-
-        .. todo::
-            - This is for backwards compatibility, but we should
-              consider reformatting/removing it.
-            - This is complicated by allowing some frame types to have
-              no association with an instrument configuration
-
-        Args:
-            ofile (:obj:`str`):
-                Name for the output sorted file.
-            overwrite (:obj:`bool`, optional):
-                Overwrite any existing file with the same name.
-            ignore (:obj:`list`, optional):
-                Ignore calibration groups in the provided list.
-
-        Raises:
-            PypeItError:
-                Raised if the 'configuration' or 'calibbit' columns
-                haven't been defined.
-        """
-        if 'configuration' not in self.keys() or 'calibbit' not in self.keys():
-            msgs.error('Cannot write calibration groups without configuration and calibbit; '
-                       'run set_configurations and set_calibration_groups.')
-
-        if os.path.isfile(ofile) and not overwrite:
-            msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
-
-        # Construct the setups dictionary
-        cfg = self.get_all_setups(ignore=['None'])
-
-        # Iterate through the calibration groups and add frames to the
-        # appropriate configuration
-        for i in range(self.n_calib_groups):
-            # Skip this group
-            if ignore is not None and i in ignore:
-                continue
-
-            # Find the frames in this group
-            in_group = self.find_calib_group(i)
-
-            # Find the unique configurations in this group, ignoring any
-            # undefined ('None') configurations
-            setup = np.unique(self['configuration'][in_group]).tolist()
-            if 'None' in setup:
-                setup.remove('None')
-
-            # Make sure that each calibration group should only contain
-            # frames from a single configuration
-            if len(setup) != 1:
-                msgs.error('Each calibration group must be from one and only one instrument '
-                           'configuration with a valid letter identifier; i.e., the '
-                           'configuration cannot be None.')
-
-            # Find the frames of each type in this group
-            cfg[setup[0]][i] = {}
-            for key in self.type_bitmask.keys():
-                ftype_in_group = self.find_frames(key) & in_group
-                cfg[setup[0]][i][key] = [ os.path.join(d,f) 
-                                                for d,f in zip(self['directory'][ftype_in_group],
-                                                               self['filename'][ftype_in_group])]
-        # Write it
-        ff = open(ofile, 'w')
-        ff.write(yaml.dump(utils.yamlify(cfg)))
-        ff.close()
-
     def unique_configurations(self, ignore_frames=None, force=False):
         """
         Return the unique instrument configurations.
@@ -1253,6 +1097,265 @@ class PypeItMetaData:
         # Finish up (note that this is called above if user is not None!)
         msgs.info("Typing completed!")
         return self.set_frame_types(type_bits, merge=merge)
+
+    def write_setups(self, ofile, overwrite=True, ignore=None):
+        """
+        Write the *.setups file.
+
+        The *.setups file lists all the unique instrument configurations.
+
+        .. todo::
+            - This is for backwards compatibility, but we should
+              consider reformatting/removing it.
+
+        Args:
+            ofile (:obj:`str`):
+                Name for the output sorted file.
+            overwrite (:obj:`bool`, optional):
+                Overwrite any existing file with the same name.
+            ignore (:obj:`list`, optional):
+                Ignore configurations in the provided list.
+
+        Raises:
+            PypeItError:
+                Raised if the 'configuration' isn't been defined.
+        """
+        if os.path.isfile(ofile) and not overwrite:
+            msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
+        
+        # Construct file
+        cfg = self.get_all_setups(ignore=ignore)
+        ff = open(ofile, 'w')
+        ff.write(yaml.dump(utils.yamlify(cfg)))
+        ff.close()
+
+    def write_sorted(self, ofile, overwrite=True, ignore=None):
+        """
+        Write the *.sorted file.
+
+        The *.sorted file lists all the unique instrument configurations
+        and the frames associated with each configuration.  The output
+        data table is identical to the pypeit file output.
+
+        .. todo::
+            - This is for backwards compatibility, but we should
+              consider reformatting/removing it.
+
+        Args:
+            ofile (:obj:`str`):
+                Name for the output sorted file.
+            overwrite (:obj:`bool`, optional):
+                Overwrite any existing file with the same name.
+            ignore (:obj:`list`, optional):
+                Ignore configurations in the provided list.
+
+        Raises:
+            PypeItError:
+                Raised if the 'configuration' isn't been defined.
+        """
+        if 'configuration' not in self.keys():
+            msgs.error('Cannot write sorted instrument configuration table without configuration; '
+                       'run set_configurations.')
+
+        if os.path.isfile(ofile) and not overwrite:
+            msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
+
+        # Columns for output
+        output_cols = np.array(self.spectrograph.metadata_keys())
+        output_cols = output_cols[np.isin(output_cols, self.keys())].tolist()
+
+        # Unique configurations
+        setups, indx = self.get_configuration_names(ignore=ignore, return_index=True)
+        
+        # Construct file
+        ff = open(ofile, 'w')
+        for setup,i in zip(setups,indx):
+            # Get the configuration dictionary
+            cfg = self.get_setup(i, config_only=True)
+            # Get the subtable of frames taken in this configuration
+            subtbl = self.table[output_cols][self['configuration'] == setup]
+            subtbl.sort(['frametype','filename'])
+            # Write the file
+            ff.write('##########################################################\n')
+            ff.write('Setup {:s}\n'.format(setup))
+            ff.write(yaml.dump(utils.yamlify(cfg)))
+            ff.write('#---------------------------------------------------------\n')
+            subtbl.write(ff, format='ascii.fixed_width')
+        ff.write('##end\n')
+        ff.close()
+
+    def write_calib(self, ofile, overwrite=True, ignore=None):
+        """
+        Write the *.calib file.
+
+        The *.calib file provides the unique instrument configurations
+        and the association of each frame from that configuration with a
+        given calibration group.
+
+        .. todo::
+            - This is for backwards compatibility, but we should
+              consider reformatting/removing it.
+            - This is complicated by allowing some frame types to have
+              no association with an instrument configuration
+
+        Args:
+            ofile (:obj:`str`):
+                Name for the output sorted file.
+            overwrite (:obj:`bool`, optional):
+                Overwrite any existing file with the same name.
+            ignore (:obj:`list`, optional):
+                Ignore calibration groups in the provided list.
+
+        Raises:
+            PypeItError:
+                Raised if the 'configuration' or 'calibbit' columns
+                haven't been defined.
+        """
+        if 'configuration' not in self.keys() or 'calibbit' not in self.keys():
+            msgs.error('Cannot write calibration groups without configuration and calibbit; '
+                       'run set_configurations and set_calibration_groups.')
+
+        if os.path.isfile(ofile) and not overwrite:
+            msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
+
+        # Construct the setups dictionary
+        cfg = self.get_all_setups(ignore=['None'])
+
+        # Iterate through the calibration groups and add frames to the
+        # appropriate configuration
+        for i in range(self.n_calib_groups):
+            # Skip this group
+            if ignore is not None and i in ignore:
+                continue
+
+            # Find the frames in this group
+            in_group = self.find_calib_group(i)
+
+            # Find the unique configurations in this group, ignoring any
+            # undefined ('None') configurations
+            setup = np.unique(self['configuration'][in_group]).tolist()
+            if 'None' in setup:
+                setup.remove('None')
+
+            # Make sure that each calibration group should only contain
+            # frames from a single configuration
+            if len(setup) != 1:
+                msgs.error('Each calibration group must be from one and only one instrument '
+                           'configuration with a valid letter identifier; i.e., the '
+                           'configuration cannot be None.')
+
+            # Find the frames of each type in this group
+            cfg[setup[0]][i] = {}
+            for key in self.type_bitmask.keys():
+                ftype_in_group = self.find_frames(key) & in_group
+                cfg[setup[0]][i][key] = [ os.path.join(d,f) 
+                                                for d,f in zip(self['directory'][ftype_in_group],
+                                                               self['filename'][ftype_in_group])]
+        # Write it
+        ff = open(ofile, 'w')
+        ff.write(yaml.dump(utils.yamlify(cfg)))
+        ff.close()
+
+    def write_pypeit(self, ofile, split=False, overwrite=False, ignore=None, cfg_lines=None):
+        """
+        Write a *.pypeit file in data-table format.
+
+        The *.pypeit file is the main configuration file for PypeIt,
+        configuring the control-flow and algorithmic parameters and
+        listing the data files to read.  This function writes the
+        columns selected by the
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.metadata_keys`,
+        which can be specific to each instrument.
+
+        Users can write the file, edit it, and then re-read it into
+        pypeit to change the designated frame type, configuration,
+        calibration group, or background pairing.
+
+        A pypeit file can contain multiple configurations or be split
+        into one pypeit file per instrument configuration.
+
+        Args:
+            ofile (:obj:`str`):
+                Name for the output pypeit file.
+            split (:obj:`bool`, optional):
+                Split the data by configuration leading to one PypeIt
+                file per configuration.  The name of the output
+                directory is the root of the provided output file name
+                and the the configuration character.  The pypeit file in
+                each directory is based on the same, but with the
+                '.pypeit' extension.  By default, all configurations are
+                kept in the same PypeIt file.
+            overwrite (:obj:`bool`, optional):
+                Overwrite any existing file(s).
+            ignore (:obj:`list`, optional):
+                Ignore configurations in the provided list.
+            cfg_lines (:obj:`list`, optional):
+                The list of configuration lines to include in the file.
+                If None are provided, the vanilla configuration is
+                included.
+
+        Raises:
+            PypeItError:
+                Raised if the 'configuration' isn't defined and split is True.
+        """
+        if 'configuration' not in self.keys() and split:
+            msgs.error('Cannot write pypeit file split by configuration; run set_configurations.')
+
+        # TODO: I don't think sortroot is ever used.
+
+        # Columns for output
+        output_cols = np.array(self.spectrograph.metadata_keys())
+        output_cols = output_cols[np.isin(output_cols, self.keys())].tolist()
+
+        if not split:
+            # Write all configurations to a single file
+
+            # Get the setup lines
+            cfg = self.get_all_setups(ignore=ignore)
+            setup_lines = yaml.dump(utils.yamlify(cfg)).split('\n')[:-1]
+            # Get the paths
+            paths = np.unique(self['directory']).tolist()
+            # Get the data lines
+            subtbl = self.table[output_cols]
+            subtbl.sort(['frametype','filename'])
+            with io.StringIO() as ff:
+                subtbl.write(ff, format='ascii.fixed_width')
+                data_lines = ff.getvalue().split('\n')[:-1]
+            # Write the file
+            make_pypeit_file(ofile, self.spectrograph.spectrograph, [], cfg_lines=cfg_lines,
+                             setup_lines=setup_lines, sorted_files=data_lines, paths=paths)
+            return
+
+        # Write each configuration to its own file
+
+        # Unique configurations
+        setups, indx = self.get_configuration_names(ignore=ignore, return_index=True)
+
+        for setup,i in zip(setups, indx):
+            # Create the output directory
+            root = '{0}_{1}'.format(self.spectrograph.spectrograph, setup)
+            odir = os.path.join(os.path.split(ofile)[0], root)
+            if not os.path.isdir(odir):
+                os.makedirs(odir)
+            # Create the output file name
+            _ofile = os.path.join(odir, '{0}.pypeit'.format(root))
+            # Get the setup lines
+            cfg = self.get_setup(i, config_only=True)
+            setup_lines = ['Setup {0}'.format(setup)]
+            setup_lines += yaml.dump(utils.yamlify(cfg)).split('\n')[:-1]
+            # Get the paths
+            in_cfg = self['configuration'] == setup
+            paths = np.unique(self['directory'][in_cfg]).tolist()
+            # Get the data lines
+            subtbl = self.table[output_cols][self['configuration'] == setup]
+            subtbl.sort(['frametype','filename'])
+            with io.StringIO() as ff:
+                subtbl.write(ff, format='ascii.fixed_width')
+                data_lines = ff.getvalue().split('\n')[:-1]
+            # Write the file
+            make_pypeit_file(_ofile, self.spectrograph.spectrograph, [], cfg_lines=cfg_lines,
+                             setup_lines=setup_lines, sorted_files=data_lines, paths=paths)
+
 
     def write(self, ofile, columns=None, format=None, overwrite=False):
         """

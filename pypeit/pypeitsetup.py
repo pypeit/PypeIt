@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import inspect
+import datetime
 import numpy as np
 
 #from importlib import reload
@@ -14,7 +15,7 @@ from pypeit.core import pypsetup
 from pypeit.metadata import PypeItMetaData
 
 from pypeit.par import PypeItPar
-from pypeit.par.util import parse_pypeit_file
+from pypeit.par.util import parse_pypeit_file, make_pypeit_file
 from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import debugger
@@ -106,8 +107,8 @@ class PypeItSetup(object):
 
     .. _configobj: http://configobj.readthedocs.io/en/latest/
     """
-    def __init__(self, file_list, frametype=None, usrdata=None, setups=None, cfg_lines=None,
-                 spectrograph_name=None, pypeit_file=None):
+    def __init__(self, file_list, path=None, frametype=None, usrdata=None, setups=None,
+                 cfg_lines=None, spectrograph_name=None, pypeit_file=None):
 
         # The provided list of files cannot be None
         if file_list is None or len(file_list) == 0:
@@ -115,6 +116,7 @@ class PypeItSetup(object):
 
         # Save input
         self.file_list = file_list
+        self.path = os.getcwd() if path is None else path
         self.frametype = frametype
         self.usrdata = usrdata
         self.setups = setups
@@ -161,6 +163,69 @@ class PypeItSetup(object):
         cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(filename)
         return cls(data_files, frametype=frametype, usrdata=usrdata, setups=setups,
                    cfg_lines=cfg_lines, pypeit_file=filename)
+
+    @classmethod
+    def from_file_root(cls, root, spectrograph, extension='.fits', output_path=None):
+        """
+        Instantiate the :class:`PypeItSetup` object by providing a file
+        root.
+        
+        This is based on first writing a vanilla PypeIt file for the
+        provided spectrograph and extension to a file in the provided
+        path.
+
+        Args:
+            root (:obj:`str`):
+                The root path to all the files for PypeIt to reduce.
+                This should be everything up to the wild-card before the
+                file extension to use to find the relevant files.  The
+                root itself can have wild cards to read through multiple
+                directories.
+            spectrograph (:obj:`str`):
+                The PypeIt name of the spectrograph used to take the
+                observations.  This should be one of the available
+                options in
+                :func:`pypeit.spectrographs.valid_spectrographs`.
+            extension (:obj:`str`, optional):
+                The extension common to all the fits files to reduce.
+                Default is '.fits', meaning anything with `root*.fits*`
+                will be be included.
+            output_path (:obj:`str`, optional):
+                Path to use for the output.  If None, the default is
+                './setup_files'.  If the path doesn't yet exist, it is
+                created.
+        
+        Returns:
+            :class:`PypitSetup`: The instance of the class.
+        """
+        # Set the output directory
+        outdir = os.path.join(os.getcwd(), 'setup_files') if output_path is None else output_path
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
+        # Set the output file name
+        date = str(datetime.date.today().strftime('%Y-%b-%d'))
+        pypeit_file = os.path.join(outdir, '{0}_{1}.pypeit'.format(spectrograph, date))
+        msgs.info('A vanilla pypeit file will be written to: {0}'.format(pypeit_file))
+        
+        # Generate the pypeit file
+        cls.vanilla_pypeit_file(pypeit_file, root, spectrograph, extension=extension)
+
+        # Now setup PypeIt using that file
+        return cls.from_pypeit_file(pypeit_file)
+
+    @staticmethod
+    def vanilla_pypeit_file(pypeit_file, root, spectrograph, extension='.fits'):
+        """
+        Write a vanilla PypeIt file.
+        """
+        # Generate
+        dfname = os.path.join(root, '*{0}*'.format(extension)) \
+                    if os.path.isdir(root) else '{0}*{1}*'.format(root, extension)
+        # configuration lines
+        cfg_lines = ['[rdx]']
+        cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
+        cfg_lines += ['    sortroot = {0}'.format(root)]
+        make_pypeit_file(pypeit_file, spectrograph, [dfname], cfg_lines=cfg_lines, setup_mode=True)
 
     @property
     def nfiles(self):
@@ -420,6 +485,8 @@ class PypeItSetup(object):
             sorted_file = self.spectrograph.spectrograph + '.sorted' \
                                 if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.sorted')
+            if sort_dir is not None:
+                sorted_file = os.path.join(sort_dir, os.path.split(sorted_file)[1])
             self.fitstbl.write_sorted(sorted_file)
             msgs.info("Wrote sorted file data to {:s}".format(sorted_file))
 
@@ -427,6 +494,8 @@ class PypeItSetup(object):
             setup_file = self.spectrograph.spectrograph + '.setups' \
                                 if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.setups')
+            if sort_dir is not None:
+                setup_file = os.path.join(sort_dir, os.path.split(setup_file)[1])
             # TODO: I want to simplify this
             self.fitstbl.write_setups(setup_file)
         else:
@@ -434,6 +503,8 @@ class PypeItSetup(object):
             calib_file = self.spectrograph.spectrograph + '.calib' \
                                 if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.calib')
+            if sort_dir is not None:
+                calib_file = os.path.join(sort_dir, os.path.split(calib_file)[1])
             self.fitstbl.write_calib(calib_file)
 
         # Finish (depends on PypeIt run mode)
