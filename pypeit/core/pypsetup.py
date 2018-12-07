@@ -80,7 +80,6 @@ def calib_set(isetup_dict, fitstbl, sci_ID):
     cbkeys = ['arc', 'bias', 'trace', 'pixelflat', 'science']
     for cbkey in cbkeys:
         new_cbset[cbkey] = fitstbl.find_frame_files(cbkey, sci_ID=sci_ID)
-
     # Uninitialized?
     if default not in isetup_dict.keys():
         isetup_dict[default] = new_cbset
@@ -91,11 +90,17 @@ def calib_set(isetup_dict, fitstbl, sci_ID):
         def_names = np.array(isetup_dict[default][cbkey])
         if np.array_equal(def_names, new_cbset[cbkey]):
             _ = new_cbset.pop(cbkey)
+
     # Science only or exactly the same?
     if len(new_cbset) == 0:
         return default
     elif len(new_cbset) == 1:
         assert list(new_cbset.keys()) == ['science']
+#        try:
+#            new_cbset['science'][0]
+#        except:
+#            from IPython import embed
+#            embed()
         if new_cbset['science'][0] not in isetup_dict[default]['science']:
             isetup_dict[default]['science'] += new_cbset['science']
         return default

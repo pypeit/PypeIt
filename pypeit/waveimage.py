@@ -105,7 +105,7 @@ class WaveImage(masterframe.MasterFrame):
             else:
                 iwv_calib = self.wv_calib[str(slit)]
                 tmpwv = utils.func_val(iwv_calib['fitc'], piximg[thismask], iwv_calib['function'],
-                                       minv=iwv_calib['fmin'], maxv=iwv_calib['fmax'])
+                                       minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
             self.wave[thismask] = tmpwv
         # Step
         self.steps.append(inspect.stack()[0][3])

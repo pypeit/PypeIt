@@ -599,7 +599,7 @@ def empty_patt_dict(nlines):
        An empty pattern dictionary
 
     """
-    patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., mask=np.zeros(nlines, dtype=np.bool))
+    patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sign=1, mask=np.zeros(nlines, dtype=np.bool))
     return patt_dict
 
 

@@ -40,7 +40,11 @@
 - Changed the procedure used to identify instrument configurations and
   identify which frames to use when calibrating science exposures.
 - Added configurations, calibration groups, and background index to
-  pypeit file
+- Total revamp of Tilts. Arc line tracing significantly improved.
+- Fixes to trace_crude_init, trace_fweight, and trace_gweight.
+- Many other small bug fixes and modifications particulary in the
+  fitting routines.
+- Lots of development related to echelle functionality.
 
 0.9.0
 -----

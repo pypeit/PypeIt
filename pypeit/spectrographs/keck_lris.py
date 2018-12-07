@@ -458,6 +458,20 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
+        par['calibrations']['wavelengths']['fwhm'] = 4.0
+        # Tilts
+        # These are the defaults
+        par['calibrations']['tilts']['tracethresh'] = 25
+        par['calibrations']['tilts']['spat_order'] = 4
+        par['calibrations']['tilts']['spec_order'] = 7
+        par['calibrations']['tilts']['maxdev2d'] = 1.0
+        par['calibrations']['tilts']['maxdev_tracefit'] = 1.0
+        par['calibrations']['tilts']['sigrej2d'] = 5.0
+
+        # Scienceimage
+        par['scienceimage']['bspline_spacing'] = 0.8
+
+
         # reidentification stuff
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400_8500_d560.json'

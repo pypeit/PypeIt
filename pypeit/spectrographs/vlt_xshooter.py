@@ -40,7 +40,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         # Correct for flexure using the default approach
-        par['flexure'] = pypeitpar.FlexurePar()
+#        par['flexure'] = pypeitpar.FlexurePar()
+        # Right now turn off flexure compensation
         return par
 
     def header_keys(self):
@@ -174,6 +175,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             )]
         self.numhead = 1
 
+    @property
+    def norders(self):
+        return 16
+
+
     def default_pypeit_par(self):
         """
         Set default parameters for XSHOOTER NIR reductions.
@@ -282,8 +288,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         return self.bpm_img
 
-    @staticmethod
-    def slit2order(islit):
+    def slit2order(self, islit):
 
         """
         Parameters
@@ -309,12 +314,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         orders = np.arange(26,10,-1, dtype=int)
         return orders[islit]
 
-    @staticmethod
     def order_platescale(self, binning = None):
 
 
         """
-        Returns the plate scale in arcseconds for each order
+        Returns the spatial plate scale in arcseconds for each order
 
         Parameters
         ----------
@@ -335,16 +339,16 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # ToDO Either assume a linear trend or measure this
         # X-shooter manual says, but gives no exact numbers per order.
-        # NIR: 52.4 pixels (0.210Ang/pix) at order 11 to 59.9 pixels (0.184Ang/pix) at order 26.
+        # NIR: 52.4 pixels (0.210"/pix) at order 11 to 59.9 pixels (0.184"/pix) at order 26.
 
-        # Right now I just took the average
-        return np.full(16, 0.197)
+        # Right now I just assume a simple linear trend
+        slit_vec = np.arange(self.norders)
+        order_vec = self.slit2order(slit_vec)
+        plate_scale = 0.184 + (order_vec - 26)*(0.184-0.210)/(26 - 11)
+        return plate_scale
 
 
-
-
-    @staticmethod
-    def slitmask(tslits_dict, pad=None, binning=None):
+    def slitmask(self, tslits_dict, pad=None, binning=None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
          overload this function to implement instrument specific slitmask behavior, for example setting
@@ -376,6 +380,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
 
         nslits = tslits_dict['lcen'].shape[1]
+        if nslits != self.norders:
+            msgs.error('There is a problem with your slit bounadries. You have nslits={:d} orders, whereas NIR has norders={:d}'.format(nslits,self.norders))
         # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
         order_max = [1476,1513,1551, 1592,1687,1741,1801, 1864,1935,2007, 2025, 2025,2025,2025,2025,2025]
         order_min = [418 ,385 , 362,  334, 303, 268, 230,  187, 140,  85,   26,    0,   0,   0,   0,   0]
@@ -418,6 +424,11 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             )]
         self.numhead = 1
 
+
+    @property
+    def norders(self):
+        return 15
+
     def default_pypeit_par(self):
         """
         Set default parameters for VLT XSHOOTER VIS reductions.
@@ -425,7 +436,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par = VLTXShooterSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'vlt_xshooter_vis'
 
-        # Adjustments to slit and tilts for VIS
+        # Adjustments to parameters for VIS
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         # Don't use the biases for the arcs or flats since it appears to be a different amplifier readout
         par['calibrations']['arcframe']['useframe']= 'overscan'
@@ -441,19 +452,17 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['number'] = -1
         par['calibrations']['slits']['fracignore'] = 0.01
 
-        par['calibrations']['tilts']['tracethresh'] = [ 20., 100., 100., 100., 100., 100., 100.,
-                                                       100., 500., 500., 500., 500., 500., 500.,
-                                                       500.]
-
-        # Right now the baises in
-
-
+        # These are the defaults
+        par['calibrations']['tilts']['tracethresh'] = 15
+        par['calibrations']['tilts']['spat_order'] =  3
+        par['calibrations']['tilts']['spec_order'] =  5 # [5, 5, 5] + 12*[7] # + [5]
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.50 # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['fwhm'] = 11.0 # This is for 1x1 binning. Needs to be divided by binning for binned data!!
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         # ToDo the arxived solution is for 1x1 binning. It needs to be generalized for different binning!
@@ -468,11 +477,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # TODO FIX THIS TO USE BIASES!!
         par['scienceframe']['useframe'] ='overscan'
 
-
         return par
 
-    @staticmethod
-    def slit2order(islit):
+    def slit2order(self, islit):
 
         """
         Parameters
@@ -500,7 +507,84 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         return orders[islit]
 
 
-    def check_headers(self, headers):
+
+    def order_platescale(self, binning = None):
+
+
+        """
+        Returns the plate scale in arcseconds for each order
+
+        Parameters
+        ----------
+        None
+
+        Optional Parameters
+        --------------------
+        binning: str
+
+        Returns
+        -------
+        order_platescale: ndarray, float
+
+        """
+
+        # VIS has no binning, but for an instrument with binning we would do this
+        binspatial, binspectral = parse.parse_binning(binning)
+
+        # ToDO Either assume a linear trend or measure this
+        # X-shooter manual says, but gives no exact numbers per order.
+        # VIS: 65.9 pixels (0.167"/pix) at order 17 to 72.0 pixels (0.153"/pix) at order 30.
+
+        # Right now I just assume a simple linear trend
+        slit_vec = np.arange(self.norders)
+        order_vec = self.slit2order(slit_vec)
+        plate_scale = 0.153 + (order_vec - 30)*(0.153-0.167)/(30 - 17)
+        return plate_scale*binspatial
+
+
+    def slitmask(self, tslits_dict, pad=None, binning=None):
+        """
+         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
+         overload this function to implement instrument specific slitmask behavior, for example setting
+         where the orders on an echelle spectrograph end
+
+         Parameters
+         -----------
+         tslits_dict: dict
+            Trace slits dictionary with slit boundary information
+
+         Optional Parameters
+         pad: int or float
+            Padding of the slit boundaries
+         binning: tuple
+            Spectrograph binning in spectral and spatial directions
+
+         Returns
+         -------
+         slitmask: ndarray int
+            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
+            indicating the slit number going from 0 to nslit-1 from left to right.
+
+         """
+
+        # These lines are always the same
+        pad = tslits_dict['pad'] if pad is None else pad
+        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
+
+        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
+
+        binspatial, binspectral = parse.parse_binning(binning)
+        # These are the order boundaries determined by eye by JFH.
+        order_max = np.asarray([4000]*14 + [3000])//binspectral
+        order_min = np.asarray([2000,1000] + [0]*13)//binspectral
+        # TODO add binning adjustments to these
+        for iorder in range(self.norders):
+            orderbad = (slitmask == iorder) & ((spec_img < order_min[iorder]) | (spec_img > order_max[iorder]))
+            slitmask[orderbad] = -1
+        return slitmask
+
+
+    def check_headers(self, headers, expected_values = None):
         """
         Check headers match expectations for a VLT/XSHOOTER exposure.
 
@@ -511,9 +595,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
             headers (list):
                 A list of headers read from a fits file
         """
-        expected_values = { '0.INSTRUME': 'XSHOOTER',
-                            '0.HIERARCH ESO SEQ ARM': 'VIS',
-                            '0.NAXIS': 2 }
+
+        if expected_values is None:
+            expected_values = { '0.INSTRUME': 'XSHOOTER','0.HIERARCH ESO SEQ ARM': 'VIS','0.NAXIS': 2 }
         super(VLTXShooterVISSpectrograph, self).check_headers(headers,
                                                               expected_values=expected_values)
 
@@ -629,8 +713,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         return par
 
 
-    @staticmethod
-    def slit2order(islit):
+    def slit2order(self, islit):
 
         """
         Parameters
@@ -657,7 +740,37 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         return orders[islit]
 
 
-    def check_headers(self, headers):
+
+    def order_platescale(self, binning = None):
+
+
+        """
+        Returns the plate scale in arcseconds for each order
+
+        Parameters
+        ----------
+        None
+
+        Optional Parameters
+        --------------------
+        binning: str
+
+        Returns
+        -------
+        order_platescale: ndarray, float
+
+        """
+
+        binspatial, binspectral = parse.parse_binning(binning)
+
+        # ToDO Either assume a linear trend or measure this
+        # X-shooter manual says, but gives no exact numbers per order.
+        # UVB: 65.9 pixels (0.167“/pix) at order 14 to 70.8 pixels (0.155”/pix) at order 24
+
+        # Right now I just took the average
+        return np.full(self.norders, 0.161)*binspatial
+
+    def check_headers(self, headers, expected_values=None):
         """
         Check headers match expectations for a VLT/XSHOOTER exposure.
 
@@ -668,9 +781,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
             headers (list):
                 A list of headers read from a fits file
         """
-        expected_values = { '0.INSTRUME': 'XSHOOTER',
-                            '0.HIERARCH ESO SEQ ARM': 'UVB',
-                               '0.NAXIS': 2 }
+        if expected_values is None:
+            expected_values = { '0.INSTRUME': 'XSHOOTER','0.HIERARCH ESO SEQ ARM': 'UVB','0.NAXIS': 2 }
         super(VLTXShooterUVBSpectrograph, self).check_headers(headers,
                                                               expected_values=expected_values)
 
