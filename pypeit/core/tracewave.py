@@ -252,10 +252,12 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, gaus
         tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
         # Pack the results into arrays, accounting for possibly falling off the image
         # Deal with possibly falling off the chip
+
+        # We use the tset_out.xy to evaluate the trace across the whole sub-image even for pixels off the slit. This
+        # guarantees that the fits are always evaluated across the whole sub-image which is required for the PCA step. 
         if spat_min[iline] < 0:
             tilts_sub[      -spat_min[iline]:,iline] = tilts_sub_out.flatten()
             tilts_sub_fit[  :,iline] = tset_out.xy(tilts_sub_spat[:,iline].reshape(1,nsub))[1]
-#            tilts_sub_fit[  -spat_min[iline]:,iline] = tilts_sub_fit_out.flatten()
             tilts_sub_err[  -spat_min[iline]:,iline] = tilts_sub_err_out.flatten()
             tilts_sub_mask[ -spat_min[iline]:,iline] = tilts_sub_mask_box.flatten()
             tilts_sub_dspat[-spat_min[iline]:,iline] = tilts_dspat[min_spat:max_spat,iline]
@@ -266,7 +268,6 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, inmask=None, gaus
         elif spat_max[iline] > (nspat - 1):
             tilts_sub[      :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_out.flatten()
             tilts_sub_fit[  :,iline] = tset_out.xy(tilts_sub_spat[:,iline].reshape(1,nsub))[1]
-#            tilts_sub_fit[  :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_fit_out.flatten()
             tilts_sub_err[  :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_err_out.flatten()
             tilts_sub_mask[ :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_mask_box.flatten()
             tilts_sub_dspat[:-(spat_max[iline] - nspat + 1),iline] = tilts_dspat[min_spat:max_spat,iline]
