@@ -394,7 +394,7 @@ class ScienceImage(processimages.ProcessImages):
 
         return self.global_sky
 
-    def get_ech_objects(self, tslits_dict, std_trace = None, show=False, show_peaks=False, show_fits=False, debug=False):
+    def get_ech_objects(self, tslits_dict, std_trace = None, show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False):
 
         # Did they run process?
         if not self._chk_objs(['sciimg', 'sciivar', 'global_sky']):
@@ -418,7 +418,7 @@ class ScienceImage(processimages.ProcessImages):
         # ToDO implement parsets here!
         self.sobjs_ech = extract.ech_objfind(self.sciimg-self.global_sky, self.sciivar, self.slitmask, tslits_dict['lcen'], tslits_dict['rcen'],
                                              inmask=(self.mask == 0), plate_scale=plate_scale, std_trace=std_trace,ncoeff=5,
-                                             sig_thresh=5., show_peaks=show_peaks, show_fits=show_fits, show_trace=show, debug=debug)
+                                             sig_thresh=5., show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace, debug=debug)
 
 
         self.nobj_ech = len(self.sobjs_ech)
@@ -427,7 +427,7 @@ class ScienceImage(processimages.ProcessImages):
         # Steps
         self.steps.append(inspect.stack()[0][3])
         if show:
-            self.show('image', image=(self.sciimg - self.global_sky)*(self.mask == 0), chname = 'ech_objfind',sobjs=self.sobjs_ech, slits=True)
+            self.show('image', image=(self.sciimg - self.global_sky)*(self.mask == 0), chname = 'ech_objfind',sobjs=self.sobjs_ech, slits=False)
 
         return self.sobjs_ech, self.nobj_ech
 

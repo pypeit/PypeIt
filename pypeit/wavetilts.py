@@ -301,7 +301,7 @@ class WaveTilts(masterframe.MasterFrame):
         return trace_dict
 
 
-    def run(self, maskslits=None, doqa=True, debug=True, show=True):
+    def run(self, maskslits=None, doqa=True, debug=False, show=False):
         """ Main driver for tracing arc lines
 
             Code flow:
@@ -346,6 +346,9 @@ class WaveTilts(masterframe.MasterFrame):
         self.spat_order = np.zeros(self.nslit, dtype=int)
         self.spec_order = np.zeros(self.nslit, dtype=int)
 
+        if show:
+            viewer,ch = ginga.show_image(self.msarc*(self.slitmask > -1),chname='tilts')
+
         # Loop on all slits
         for slit in gdslits:
             msgs.info('Computing tilts for slit {:d}/{:d}'.format(slit,self.nslit-1))
@@ -355,11 +358,12 @@ class WaveTilts(masterframe.MasterFrame):
             thismask = self.slitmask == slit
             # Trace
             self.trace_dict = self._trace_tilts(self.msarc, self.lines_spec, self.lines_spat, thismask, slit)
+            if show:
+                ginga.show_tilts(viewer, ch, self.trace_dict)
 
             self.spat_order[slit] = self._parse_param(self.par, 'spat_order', slit)
             self.spec_order[slit] = self._parse_param(self.par, 'spec_order', slit)
             # 2D model of the tilts, includes construction of QA
-
             self.tilts, coeff_out = self._fit_tilts(self.trace_dict, self.slitcen[:,slit], self.spat_order[slit],
                                                     self.spec_order[slit], slit,doqa=doqa, show_QA = show, debug=show)
             self.coeffs[0:self.spat_order[slit]+1, 0:self.spec_order[slit]+1 , slit] = coeff_out

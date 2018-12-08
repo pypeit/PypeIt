@@ -101,7 +101,12 @@ class WaveImage(masterframe.MasterFrame):
             thismask = (self.slitmask == slit)
             if self.par['echelle']:
                 order = self.spectrograph.slit2order(slit)
-                tmpwv = arc.eval2dfit(self.wv_calib['fit2d'],piximg[thismask],order)/order
+                # evaluate solution
+                tmpwv = utils.func_val(self.wv_calib['fit2d']['coeffs'], piximg[thismask], self.wv_calib['fit2d']['func2d'],
+                                       x2=np.ones_like(piximg[thismask])*order,
+                                       minx=self.wv_calib['fit2d']['min_spec'], maxx=self.wv_calib['fit2d']['max_spec'],
+                                       minx2=self.wv_calib['fit2d']['min_order'], maxx2=self.wv_calib['fit2d']['max_order'])/order
+                #tmpwv = arc.eval2dfit(self.wv_calib['fit2d'],piximg[thismask],order)/order
             else:
                 iwv_calib = self.wv_calib[str(slit)]
                 tmpwv = utils.func_val(iwv_calib['fitc'], piximg[thismask], iwv_calib['function'],

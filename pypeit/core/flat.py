@@ -177,6 +177,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask
     3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
+    debug=True
     spectrograph = load_spectrograph(spectrograph)
 
     shape = flat.shape
@@ -261,6 +262,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask
         plt.legend()
         plt.xlabel('Spectral Pixel')
         plt.ylabel('log(flat counts)')
+        plt.title('Spectral Fit for slit={:d}'.format(slit))
         plt.show()
 
     # Evaluate and save
@@ -361,6 +363,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask
         plt.legend()
         plt.xlabel('Normalized Slit Position')
         plt.ylabel('Normflat Spatial Profile')
+        plt.title('Illumination Function Fit for slit={:d}'.format(slit))
         plt.show()
 
     msgs.info('Performing illumination + scattembedered light flat field fit')
@@ -405,6 +408,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask
         plt.legend()
         plt.xlabel('Spectral Pixel')
         plt.ylabel('Residuals from pixelflat 2-d fit')
+        plt.title('Spectral Residuals for slit={:d}'.format(slit))
         plt.show()
 
         plt.clf()
@@ -423,6 +427,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask
         plt.legend()
         plt.xlabel('Normalized Slit Position')
         plt.ylabel('Residuals from pixelflat 2-d fit')
+        plt.title('Spatial Residuals for slit={:d}'.format(slit))
         plt.show()
 
     # Evaluate and save

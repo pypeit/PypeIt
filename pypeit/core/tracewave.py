@@ -666,10 +666,11 @@ def plot_tiltres(setup, mtilt, ytilt, yfit, fitmask, fwhm, slit=None, outfile=No
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     if show_QA:
         plt.show()
-    else:
-        plt.savefig(outfile, dpi=400)
-    plt.close()
 
+    if outfile is not None:
+        plt.savefig(outfile, dpi=400)
+
+    plt.close()
     plt.rcdefaults()
 
     return

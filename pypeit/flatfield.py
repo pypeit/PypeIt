@@ -223,7 +223,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Loop on slits
         for slit in range(self.nslits):
-            msgs.info("Computing flat field image for slit: {:d}".format(slit + 1))
+            msgs.info('Computing flat field image for slit: {:d}/{:d}'.format(slit,self.nslits))
             thismask = (self.slitmask == slit)
             if self.msbpm is not None:
                 inmask = ~self.msbpm
