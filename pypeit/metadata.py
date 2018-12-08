@@ -481,6 +481,50 @@ class PypeItMetaData:
         return '{0}_{1}_{2}'.format(self['configuration'][row], self['calibbit'][row],
                                     str(det).zfill(2))
 
+    def construct_obstime(self, row):
+        """
+        Construct the MJD of when the frame was observed.
+
+        .. todo::
+            - Consolidate with :func:`convert_time` ?
+
+        Args:
+            row (:obj:`int`):
+                The 0-indexed row of the frame.
+        
+        Returns:
+            astropy.time.Time: The MJD of the observation.
+        """
+        try:
+            return time.Time(self['time'][row], format='mjd')
+        except:
+            msgs.warn('There is no time column in the metadata table!' + msgs.newline() +
+                      'The time and heliocentric corrections will be wrong!' + msgs.newline() +
+                      'This is a bad idea. Continuing with a dummy time value')
+            return '2010-01-01'
+
+    def construct_basename(self, row, obstime=None):
+        """
+        Construct the root name primarily for PypeIt file output.
+
+        Args:
+            row (:obj:`int`):
+                The 0-indexed row of the frame.
+            obstime (:class:`astropy.time.Time`, optional):
+                The MJD of the observation.  If None, constructed using
+                :func:`construct_obstime`.
+        
+        Returns:
+            str: The root name for file output.
+        """
+        _obstime = self.construct_obstime(row) if obstime is None else obstime
+        tiso = time.Time(_obstime, format='isot')
+        dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
+        return '{0}_{1}_{2}{3}'.format(self.fitstbl['target'][row].replace(" ", ""),
+                                       self.spectrograph.camera,
+                                       datetime.datetime.strftime(dtime, '%Y%b%dT'),
+                                       tiso.value.split("T")[1].replace(':',''))
+
     def get_setup(self, row, det=None, config_only=False):
         """
         Construct the setup dictionary.
@@ -879,11 +923,14 @@ class PypeItMetaData:
             sci_ID (:obj:`int`, optional):
                 Index of the science frame that it must match.  If None,
                 any row of the specified frame type is included.
+            index (:obj:`bool`, optional):
+                Return an array of 0-indexed indices instead of a
+                boolean array.
 
         Returns:
-            numpy.ndarray: Boolean array with the rows that contain the
-            appropriate frames matched to the science frame, if
-            provided.
+            numpy.ndarray: A boolean array, or an integer array if
+            index=True, with the rows that contain the frames of the
+            requested type.  
         """
         if 'framebit' not in self.keys():
             raise ValueError('Frame types are not set.  First run get_frame_types.')
@@ -918,6 +965,22 @@ class PypeItMetaData:
         """
         indx = self.find_frames(ftype, sci_ID=sci_ID)
         return [os.path.join(d,f) for d,f in zip(self['directory'][indx], self['filename'][indx])]
+
+    def frame_paths(self, indx):
+        """
+        Return the full paths to one or more frames.
+
+        Args:
+            indx (:obj:`int`, array-like):
+                One or more 0-indexed rows in the table with the frames
+                to return.  Can be an array of indices or a boolean
+                array of the correct length.
+        Returns:
+            str, list: The full paths of one or more frames.
+        """
+        if isinstance(indx, int):
+            return os.path.join(self['directory'][indx], self['filename'][indx])
+        return [os.path.join(d,f) for d,f in zip(self['directory'][indx], self['filename'][indx])
 
     def set_frame_types(self, type_bits, merge=True):
         """
@@ -1417,11 +1480,12 @@ class PypeItMetaData:
         Find all the frames associated with the provided calibration group.
         """
         return self.calib_bitmask.flagged(self['calibbit'].data, grp)
-#        in_group = np.zeros(len(self), dtype=bool)
-#        for i in range(len(self)):
-#            in_group[i] = indx in self['calib'][i] if isinstance(self['calib'][i], list) \
-#                            else indx == self['calib'][i]
-#        return in_group
+
+    def find_frame_calib_groups(self, row):
+        """
+        Find the calibration groups associated with a specific frame.
+        """
+        return self.calib_bitmask.flagged_bits(self['calibbit'][row])
 
     def calib_to_science(self):
         """
