@@ -250,13 +250,13 @@ class WaveTilts(masterframe.MasterFrame):
 
 
         # Now perform a fit to the tilts
-        tilt_fit_dict = tracewave.fit_tilts(
+        tilt_fit_dict = tracewave.fit_tilts_joe(
             trc_tilt_dict, spat_order=spat_order, spec_order=spec_order,maxdev=self.par['maxdev2d'],
             sigrej=self.par['sigrej2d'],func2d=self.par['func2d'],doqa=doqa,setup=self.setup,slit=slit, show_QA=show_QA,
             out_dir=self.redux_path, debug=debug)
 
         # Evaluate the fit
-        tilts = tracewave.fit2tilts((tilt_fit_dict['nspec'], tilt_fit_dict['nspat']),slit_cen,tilt_fit_dict['coeff2'], tilt_fit_dict['func'])
+        tilts = tracewave.fit2tilts_burles((tilt_fit_dict['nspec'], tilt_fit_dict['nspat']),slit_cen,tilt_fit_dict['coeff2'], tilt_fit_dict['func'])
 
         # Step
         self.all_fit_dict[slit] = copy.deepcopy(tilt_fit_dict)
@@ -346,8 +346,8 @@ class WaveTilts(masterframe.MasterFrame):
         self.spat_order = np.zeros(self.nslit, dtype=int)
         self.spec_order = np.zeros(self.nslit, dtype=int)
 
-        if show:
-            viewer,ch = ginga.show_image(self.msarc*(self.slitmask > -1),chname='tilts')
+        #if show:
+        #    viewer,ch = ginga.show_image(self.msarc*(self.slitmask > -1),chname='tilts')
 
         # Loop on all slits
         for slit in gdslits:
@@ -358,8 +358,8 @@ class WaveTilts(masterframe.MasterFrame):
             thismask = self.slitmask == slit
             # Trace
             self.trace_dict = self._trace_tilts(self.msarc, self.lines_spec, self.lines_spat, thismask, slit)
-            if show:
-                ginga.show_tilts(viewer, ch, self.trace_dict)
+#            if show:
+#                ginga.show_tilts(viewer, ch, self.trace_dict)
 
             self.spat_order[slit] = self._parse_param(self.par, 'spat_order', slit)
             self.spec_order[slit] = self._parse_param(self.par, 'spec_order', slit)

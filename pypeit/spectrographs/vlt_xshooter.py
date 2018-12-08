@@ -191,9 +191,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['pcatype'] = 'order'
 
         # Tilt parameters
-        par['calibrations']['tilts']['tracethresh'] =  10.0
+        par['calibrations']['tilts']['tracethresh'] =  25.0
         par['calibrations']['tilts']['spat_order'] =  3
-        par['calibrations']['tilts']['spec_order'] =  [3] + 15*[5]
+        par['calibrations']['tilts']['spec_order'] =  3
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
