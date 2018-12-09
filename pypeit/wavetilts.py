@@ -370,6 +370,18 @@ class WaveTilts(masterframe.MasterFrame):
             # Save to final image
             self.final_tilts[thismask] = self.tilts[thismask]
 
+        if show:
+            from IPython import embed
+            embed()
+            viewer, ch = ginga.show_image(self.msarc * (self.slitmask > -1), chname='tilts')
+            for slit in gdslits:
+                trc_dict = self.all_trace_dict[slit]
+                use_tilt = trace_dict['use_tilt']
+                tilt_qa = np.zeros_like(trc_dict['tilts_dspat'][use_tilt])
+                nuse = np.sum(use_tilt)
+                for iline in nuse:
+                    for ispat in range(tilt_qa.shape[0]):
+
         self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen': self.slitcen, 'func2d':self.par['func2d'],
                            'nslit': self.nslit, 'spat_order': self.spat_order, 'spec_order': self.spec_order}
         return self.tilts_dict, maskslits
