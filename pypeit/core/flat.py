@@ -202,7 +202,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask
         npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol/10.)).astype(int)),1)
 
     # Create a tilts image that encompasses the whole image, rather than just the thismask_in slit pixels
-    tilts = tracewave.fit2tilts_burles(shape, tilts_dict['slitcen'], tilts_dict['coeffs'], tilts_dict['func2d'])
+    tilts = tracewave.fit2tilts(shape, tilts_dict['slitcen'], tilts_dict['coeffs'], tilts_dict['func2d'])
     piximg = tilts * (nspec-1)
     pixvec = np.arange(nspec)
 

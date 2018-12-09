@@ -250,16 +250,18 @@ class WaveTilts(masterframe.MasterFrame):
 
 
         # Now perform a fit to the tilts
-        tilt_fit_dict = tracewave.fit_tilts_burles(
-            trc_tilt_dict, spat_order=spat_order, spec_order=spec_order,maxdev=self.par['maxdev2d'],
+        tilts, tilt_fit_dict, trc_tilt_dict_out = tracewave.fit_tilts(
+            trc_tilt_dict, slit_cen, spat_order=spat_order, spec_order=spec_order,maxdev=self.par['maxdev2d'],
             sigrej=self.par['sigrej2d'],func2d=self.par['func2d'],doqa=doqa,setup=self.setup,slit=slit, show_QA=show_QA,
             out_dir=self.redux_path, debug=debug)
 
         # Evaluate the fit
-        tilts = tracewave.fit2tilts_burles((tilt_fit_dict['nspec'], tilt_fit_dict['nspat']),slit_cen,tilt_fit_dict['coeff2'], tilt_fit_dict['func'])
+        #tilts = tracewave.fit2tilts((tilt_fit_dict['nspec'], tilt_fit_dict['nspat']),slit_cen,tilt_fit_dict['coeff2'], tilt_fit_dict['func'])
 
-        # Step
+        # Populate the fit dict, and update the all_trace_dict
         self.all_fit_dict[slit] = copy.deepcopy(tilt_fit_dict)
+        self.all_trace_dict[slit] = copy.deepcopy(trc_tilt_dict_out)
+
         self.steps.append(inspect.stack()[0][3])
         return tilts, tilt_fit_dict['coeff2']
 
@@ -369,18 +371,18 @@ class WaveTilts(masterframe.MasterFrame):
             self.coeffs[0:self.spat_order[slit]+1, 0:self.spec_order[slit]+1 , slit] = coeff_out
             # Save to final image
             self.final_tilts[thismask] = self.tilts[thismask]
-
-        if show:
-            from IPython import embed
-            embed()
-            viewer, ch = ginga.show_image(self.msarc * (self.slitmask > -1), chname='tilts')
-            for slit in gdslits:
-                trc_dict = self.all_trace_dict[slit]
-                use_tilt = trace_dict['use_tilt']
-                tilt_qa = np.zeros_like(trc_dict['tilts_dspat'][use_tilt])
+            if show:
+                nspec =self.msarc.shape[0]
+                spec_vec = np.arange(nspec)
+                xnspecmin1 = float(nspec-1)
+                from IPython import embed
+                embed()
+                use_tilt = self.trace_dict['use_tilt']
+                tilt_qa = np.zeros_like(self.trace_dict['tilts_dspat'][use_tilt])
                 nuse = np.sum(use_tilt)
                 for iline in nuse:
                     for ispat in range(tilt_qa.shape[0]):
+                        tilt_qa[ispat,iline] = np.interp(tilts_spec_fit[0,iline], self.spec_vec, xnspecmin1*self.tilts[:,ispat])
 
         self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen': self.slitcen, 'func2d':self.par['func2d'],
                            'nslit': self.nslit, 'spat_order': self.spat_order, 'spec_order': self.spec_order}
