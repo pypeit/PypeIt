@@ -122,6 +122,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         match_criteria = {}
         for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
+
         #
         match_criteria['standard']['match'] = {}
         match_criteria['standard']['match']['binning'] = ''
@@ -133,7 +134,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         # Traceflat
         match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
         # Arc
-        match_criteria['arc']['match'] = match_criteria['bias']['match'].copy()
+        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
 
         # Return
         return match_criteria
@@ -192,8 +193,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] =  25.0
+        par['calibrations']['tilts']['maxdev_tracefit'] =  0.04
         par['calibrations']['tilts']['spat_order'] =  3
-        par['calibrations']['tilts']['spec_order'] =  3
+        par['calibrations']['tilts']['spec_order'] =  2
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']

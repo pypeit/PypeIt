@@ -223,7 +223,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Loop on slits
         for slit in range(self.nslits):
-            msgs.info('Computing flat field image for slit: {:d}/{:d}'.format(slit,self.nslits))
+            msgs.info('Computing flat field image for slit: {:d}/{:d}'.format(slit,self.nslits-1))
             thismask = (self.slitmask == slit)
             if self.msbpm is not None:
                 inmask = ~self.msbpm
@@ -247,7 +247,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             if self.flatpar['tweak_slits']:
                 self.tslits_dict['lcen'][:, slit] = slit_left_out
                 self.tslits_dict['rcen'][:, slit] = slit_righ_out
-                this_tilts = tracewave.fit2tilts(self.rawflatimg.shape, this_tilts_dict['slitcen'],
+                this_tilts = tracewave.fit2tilts_burles(self.rawflatimg.shape, this_tilts_dict['slitcen'],
                                                  this_tilts_dict['coeffs'], this_tilts_dict['func2d'])
                 final_tilts[thismask_out] = this_tilts[thismask_out]
 

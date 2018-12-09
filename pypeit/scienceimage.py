@@ -309,7 +309,7 @@ class ScienceImage(processimages.ProcessImages):
 
 
     def global_skysub(self, tslits_dict, tilts, use_skymask=True, update_crmask = True, maskslits=None, show_fit=False,
-                      show=False):
+                      show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
 
@@ -377,8 +377,9 @@ class ScienceImage(processimages.ProcessImages):
         self.steps.append(inspect.stack()[0][3])
 
         if show:
+            sobjs_show = None if show_objs else self.sobjs_obj
             # Global skysub is the first step in a new extraction so clear the channels here
-            self.show('global', slits=True, sobjs =self.sobjs_obj, clear=False)
+            self.show('global', slits=True, sobjs =sobjs_show, clear=False)
 
 
         # Return

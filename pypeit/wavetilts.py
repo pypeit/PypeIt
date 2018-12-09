@@ -250,7 +250,7 @@ class WaveTilts(masterframe.MasterFrame):
 
 
         # Now perform a fit to the tilts
-        tilt_fit_dict = tracewave.fit_tilts_joe(
+        tilt_fit_dict = tracewave.fit_tilts_burles(
             trc_tilt_dict, spat_order=spat_order, spec_order=spec_order,maxdev=self.par['maxdev2d'],
             sigrej=self.par['sigrej2d'],func2d=self.par['func2d'],doqa=doqa,setup=self.setup,slit=slit, show_QA=show_QA,
             out_dir=self.redux_path, debug=debug)
@@ -358,8 +358,8 @@ class WaveTilts(masterframe.MasterFrame):
             thismask = self.slitmask == slit
             # Trace
             self.trace_dict = self._trace_tilts(self.msarc, self.lines_spec, self.lines_spat, thismask, slit)
-#            if show:
-#                ginga.show_tilts(viewer, ch, self.trace_dict)
+            #if show:
+            #    ginga.show_tilts(viewer, ch, self.trace_dict)
 
             self.spat_order[slit] = self._parse_param(self.par, 'spat_order', slit)
             self.spec_order[slit] = self._parse_param(self.par, 'spec_order', slit)
