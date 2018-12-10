@@ -504,10 +504,10 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # Burles was fitting the entire tilt and not the offset.
     fitmask, coeff2 = utils.robust_polyfit_djs(tilts_dspat.flatten()/xnspatmin1, (tilts.flatten() - tilts_spec_fit.flatten())/xnspecmin1,
                                                fitxy, x2=tilts_spec_fit.flatten()/xnspecmin1, inmask = tot_mask.flatten(),
-                                               invvar = xnspecmin1**2*tilts_invvar.flatten(),
                                                function=func2d, maxiter=maxiter, lower=sigrej, upper=sigrej,
                                                maxdev=maxdev_pix/xnspecmin1,minx=-1.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
-                                               use_mad=False, sticky=False)
+                                               use_mad=True, sticky=False)
+#                                               invvar = xnspecmin1**2*tilts_invvar.flatten(),
 
     fitmask = fitmask.reshape(tilts_dspat.shape)
 
@@ -555,10 +555,10 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
 
     # Actual 2D Model Tilt Residuals
     res = tilts[fitmask] - tilts_2dfit_piximg[fitmask]
-    rms = np.std(res)
+    rms_real = np.std(res)
     msgs.info("Residuals: Actual 2D Tilt Residuals from piximg")
-    msgs.info("RMS (pixels): {}".format(rms))
-    msgs.info("RMS/FWHM: {}".format(rms/fwhm))
+    msgs.info("RMS (pixels): {}".format(rms_real))
+    msgs.info("RMS/FWHM: {}".format(rms_real/fwhm))
 
     tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
                          npix_rej = np.sum(fitmask == False), coeff2=coeff2, spec_order = spec_order, spat_order = spat_order,
@@ -568,18 +568,18 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
 
     if doqa:
         # We could also be plotting the actual thing we fit below. Right now I'm trying with the 2d tilts themselves
-        plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit_piximg, tot_mask, rej_mask, spat_order, spec_order, rms, fwhm,
+        plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit_piximg, tot_mask, rej_mask, spat_order, spec_order, rms_real, fwhm,
                      slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
         # We could also be plotting the actual thing we fit below. Right now I'm trying with the 2d tilts themselves
-        plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order, rms, fwhm,
+        plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order, rms_fit, fwhm,
                      slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
-        plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit_piximg, tilts_spec_fit, tot_mask, rej_mask, spat_order, spec_order, rms, fwhm,
+        plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit_piximg, tilts_spec_fit, tot_mask, rej_mask, spat_order, spec_order, rms_real, fwhm,
                        slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
-        plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit, tilts_spec_fit, tot_mask, rej_mask, spat_order, spec_order, rms, fwhm,
+        plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit, tilts_spec_fit, tot_mask, rej_mask, spat_order, spec_order, rms_fit, fwhm,
                        slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
-        plot_tilt_spec(tilts_spec_fit, tilts, tilts_2dfit_piximg, tot_mask, rej_mask, rms, fwhm, slit=slit,
+        plot_tilt_spec(tilts_spec_fit, tilts, tilts_2dfit_piximg, tot_mask, rej_mask, rms_real, fwhm, slit=slit,
                        setup = setup, show_QA=show_QA, out_dir=out_dir)
-        plot_tilt_spec(tilts_spec_fit, tilts, tilts_2dfit, tot_mask, rej_mask, rms, fwhm, slit=slit,
+        plot_tilt_spec(tilts_spec_fit, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm, slit=slit,
                        setup = setup, show_QA=show_QA, out_dir=out_dir)
 
 
@@ -843,6 +843,26 @@ def plot_tilt_spat(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, re
     plt.close()
     plt.rcdefaults()
 
+# This is useful when you do fits the other way
+def eval_2d_at_tilts(tilts_spec_fit, tot_mask, shape, thismask, slit_cen, coeff2, func2d):
+
+    # Compute Tilt model
+    nspec = slit_cen.shape[0]
+    nspat = tilts_spec_fit.shape[0]
+    nuse = tilts_spec_fit.shape[1]
+
+    spec_vec = np.arange(nspec)
+    xnspecmin1 = float(nspec-1)
+    tilts_img = np.zeros((nspec,nspat))
+    tilts_img[thismask] = fit2tilts(shape, thismask, slit_cen, coeff2, func2d)
+    piximg = xnspecmin1*tilts_img
+    tilts_2dfit = np.zeros_like(tilts_spec_fit)
+    for iline in range(nuse):
+        indx = np.where(tot_mask[:, iline])[0]
+        for ispat in indx:
+            tilts_2dfit[ispat, iline] = np.interp(tilts_spec_fit[0, iline], spec_vec, piximg[:, ispat])
+
+    return tilts_2dfit
 
 
 def fit_tilts_backup(trc_tilt_dict, slit_cen, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 3.0, func2d='legendre2d', doqa=True, setup = 'test',
@@ -1418,26 +1438,6 @@ def plot_tiltres_joe(setup, mtilt, ytilt, yfit, fitmask, fwhm, slit=None, outfil
 
     return
 
-# This is useful when you do fits the other way
-def eval_2d_at_tilts(tilts_spec_fit, tot_mask, shape, thismask, slit_cen, coeff2, func2d):
-
-    # Compute Tilt model
-    nspec = slit_cen.shape[0]
-    nspat = tilts_spec_fit.shape[0]
-    nuse = tilts_spec_fit.shape[1]
-
-    spec_vec = np.arange(nspec)
-    xnspecmin1 = float(nspec-1)
-    tilts_img = np.zeros((nspec,nspat))
-    tilts_img[thismask] = fit2tilts(shape, thismask, slit_cen, coeff2, func2d)
-    piximg = xnspecmin1*tilts_img
-    tilts_2dfit = np.zeros_like(tilts_spec_fit)
-    for iline in range(nuse):
-        indx = np.where(tot_mask[:, iline])[0]
-        for ispat in indx:
-            tilts_2dfit[ispat, iline] = np.interp(tilts_spec_fit[0, iline], spec_vec, piximg[:, ispat])
-
-    return tilts_2dfit
 
 # This did not work
 def fit_tilts_rej(tilts_dspat, tilts_spec_fit, tilts, tilts_invvar, tot_mask, slit_cen, spat_order, spec_order,
