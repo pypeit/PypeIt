@@ -217,7 +217,7 @@ class WaveTilts(masterframe.MasterFrame):
 
 
 
-    def _fit_tilts(self, trc_tilt_dict, slit_cen, spat_order, spec_order, slit, show_QA=False, doqa=True, debug=False):
+    def _fit_tilts(self, trc_tilt_dict, thismask, slit_cen, spat_order, spec_order, slit, show_QA=False, doqa=True, debug=False):
         """
 
         Args:
@@ -251,7 +251,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Now perform a fit to the tilts
         tilts, tilt_fit_dict, trc_tilt_dict_out = tracewave.fit_tilts(
-            trc_tilt_dict, slit_cen, spat_order=spat_order, spec_order=spec_order,maxdev=self.par['maxdev2d'],
+            trc_tilt_dict, thismask, slit_cen, spat_order=spat_order, spec_order=spec_order,maxdev=self.par['maxdev2d'],
             sigrej=self.par['sigrej2d'],func2d=self.par['func2d'],doqa=doqa,setup=self.setup,slit=slit, show_QA=show_QA,
             out_dir=self.redux_path, debug=debug)
 
@@ -366,7 +366,7 @@ class WaveTilts(masterframe.MasterFrame):
             self.spat_order[slit] = self._parse_param(self.par, 'spat_order', slit)
             self.spec_order[slit] = self._parse_param(self.par, 'spec_order', slit)
             # 2D model of the tilts, includes construction of QA
-            self.tilts, coeff_out = self._fit_tilts(self.trace_dict, self.slitcen[:,slit], self.spat_order[slit],
+            self.tilts, coeff_out = self._fit_tilts(self.trace_dict, thismask, self.slitcen[:,slit], self.spat_order[slit],
                                                     self.spec_order[slit], slit,doqa=doqa, show_QA = show, debug=show)
             self.coeffs[0:self.spat_order[slit]+1, 0:self.spec_order[slit]+1 , slit] = coeff_out
             # Save to final image

@@ -1273,8 +1273,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
     bspline_par : dict
         Passed to bspline_fit()
     maxiter : :class:`int`, optional
-         Maximum number of rejection iterations, default 10.  Set this to
-         zero to disable rejection.
+         Maximum number of rejection iterations, default 10.  Set this to zero to disable rejection and simply do a fit.
     inmask : :class:`numpy.ndarray`, optional
         Input mask.  Bad points are marked with a value that evaluates to ``False``.
         Must have the same number of dimensions as `data`. Points masked as bad "False" in the inmask
@@ -1354,7 +1353,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
                                           groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,
                                           use_mad=use_mad,sticky=sticky)
         iIter += 1
-    if iIter == maxiter:
+    if (iIter == maxiter) & (maxiter != 0):
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
     outmask = np.copy(thismask)
     if np.sum(outmask) == 0:
