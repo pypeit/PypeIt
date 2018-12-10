@@ -560,74 +560,6 @@ def fit_tilts(trc_tilt_dict, slit_cen, spat_order=3, spec_order=4, maxdev = 0.2,
         plot_tilt_spec(tilts_spec_fit, tilts, tilts_2dfit, tot_mask, rej_mask, rms, fwhm, slit=slit,
                        setup = setup, show_QA=show_QA, out_dir=out_dir)
 
-
-    # TODO: Make these plots a part of the standard QA and write to a file
-    """
-    if debug:
-        
-        # QA1
-        xmin = 1.1*tilts_dspat[tot_mask].min()
-        xmax = 1.1*tilts_dspat[tot_mask].max()
-
-        # Show the fit
-        fig, ax = plt.subplots(figsize=(12, 18))
-        # dummy mappable shows the spectral pixel
-        #dummie_cax = ax.scatter(lines_spec, lines_spec, c=lines_spec, cmap=cmap)
-        ax.cla()
-        ax.plot(tilts_dspat[tot_mask], tilts_spec_fit[tot_mask], color='black', linestyle=' ', mfc ='None', marker='o',
-                markersize = 9.0, markeredgewidth=1.0,zorder=4, label='Good Tilt')
-        ax.plot(tilts_dspat[rej_mask], spec_fit2d[rej_mask], color ='red',linestyle=' ', mfc = 'None', marker='o',
-                markersize=9.0, markeredgewidth=2.0, zorder=5, label='Rejected')
-        ax.plot(tilts_dspat[tot_mask], spec_fit2d[tot_mask], color='black', linestyle=' ', marker='o',
-                markersize = 2.0,markeredgewidth=1.0,zorder=1)
-
-        ax.set_xlim((xmin,xmax))
-        ax.set_xlabel('Spatial Offset from Central Trace (pixels)', fontsize=15)
-        ax.set_ylabel('Spectral Pixel',fontsize=15)
-        ax.legend()
-        ax.set_title('Tilts vs Fit (spat_order, spec_order)=({:d},{:d}) for slit={:d}: RMS = {:5.3f}, '
-                     'RMS/FWHM={:5.3f}'.format(spat_order,spec_order,slit,rms, rms/fwhm),fontsize=15)
-        plt.show()
-
-        # QA2
-        # Show the fit residuals as a function of spatial position
-        line_indx = np.outer(np.ones(nspat), np.arange(nuse))
-        lines_spec = tilts_spec_fit[0,:]
-        cmap = mpl.cm.get_cmap('coolwarm', nuse)
-
-        fig, ax = plt.subplots(figsize=(14, 12))
-        # dummy mappable shows the spectral pixel
-        dummie_cax = ax.scatter(lines_spec, lines_spec, c=lines_spec, cmap=cmap)
-        ax.cla()
-
-        for iline in range(nuse):
-            iall = (line_indx == iline) & tot_mask
-            irej = (line_indx == iline) & tot_mask & rej_mask
-            this_color = cmap(iline)
-            # plot the residuals
-            ax.plot(tilts_dspat[iall], tilts_spec_fit[iall] - spec_fit2d[iall], color=this_color,
-                    linestyle='-', linewidth=3.0, marker='None', alpha=0.5)
-            ax.plot(tilts_dspat[irej],tilts_spec_fit[irej] - spec_fit2d[irej],linestyle=' ',
-                    marker='o', color = 'limegreen', mfc='limegreen', markersize=5.0)
-
-        ax.hlines(0.0, xmin, xmax, linestyle='--', linewidth=2.0, color='k', zorder=10)
-
-        legend_elements = [Line2D([0], [0], color='cornflowerblue', linestyle='-', linewidth=3.0, label='residual'),
-                           Line2D([0], [0], color='limegreen', linestyle=' ', marker='o', mfc='limegreen', markersize=7.0, label='rejected')]
-
-        ax.set_xlim((xmin,xmax))
-        ax.set_xlabel('Spatial Offset from Central Trace (pixels)')
-        ax.set_ylabel('Arc Line Tilt Residual (pixels)')
-        ax.legend(handles=legend_elements)
-        cb = fig.colorbar(dummie_cax, ticks=lines_spec)
-        cb.set_label('Spectral Pixel')
-        plt.show()
-"""
-    # TODO Add QA where we overlay the final model of the tilts on the image using ginga!
-
-    # QA
-
-
     return tilts, tilt_fit_dict, trc_tilt_dict_out
 
 
@@ -671,7 +603,7 @@ def plot_tilt_2d(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_order
     plt.rcdefaults()
     plt.rcParams['font.family']= 'times new roman'
 
-    # Outfil
+    # Outfile
     method = inspect.stack()[0][3]
     if (outfile is None):
         outfile = qa.set_qa_filename(setup, method, slit=slit, out_dir=out_dir)
@@ -707,10 +639,10 @@ def plot_tilt_2d(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_order
     plt.close()
     plt.rcdefaults()
 
-    return
 
 
-def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, fwhm, slit=0, setup = 'A', outfile=None, show_QA=False, out_dir=None):
+def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, fwhm,
+                   slit=0, setup = 'A', outfile=None, show_QA=False, out_dir=None):
     """ Generate a QA plot of the residuals for the fit to the tilts in the spectral direction one slit at a time
 
     Parameters
@@ -737,8 +669,9 @@ def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, 
     # Show the fit residuals as a function of spatial position
     line_indx = np.outer(np.ones(nspat), np.arange(nuse))
 
-    xmin = 0.95*np.asarray([tilts_spec_fit]).min()
-    xmax = 1.05*np.asarray([tilts_spec_fit]).max()
+    xmin = 0.90*(tilts_spec_fit.min())
+    xmax = 1.10*(tilts_spec_fit).max())
+
     ax.hlines(0.0, xmin, xmax,linestyle='--', color='green')
 
     for iline in range(nuse):
@@ -749,8 +682,10 @@ def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, 
         ax.plot(tilts_spec_fit[igd], (res[igd]), 'ko', mfc='k', markersize=4.0)
         ax.plot(tilts_spec_fit[irej],(res[irej]), 'ro', mfc='r', markersize=4.0)
         # Compute the RMS for this line
-        this_rms = np.std(res[iall])
-        ax.plot(tilts_spec_fit[igd][0], this_rms, 'gs', mfc='g', markersize=7.0)
+        all_rms = np.std(res[iall])
+        good_rms = np.std(res[igd])
+        ax.plot(tilts_spec_fit[igd][0], all_rms, 'gs', mfc='g', markersize=7.0)
+        ax.plot(tilts_spec_fit[igd][0], good_rms, 'o^', mfc='o', markersize=7.0)
         #ax.scatter(mtilt, res)
 
     ax.text(0.90, 0.90, 'Slit {:d}:  Residual (pixels) = {:0.5f}'.format(slit, rms),
@@ -762,10 +697,12 @@ def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, 
     ax.set_ylabel('RMS (pixels)')
     ax.set_title('RMS of Each Arc Line Traced')
     ax.set_xlim((xmin,xmax))
+    ax.set_ylim((-2.0*rms,2.0*rms))
     # Legend
     legend_elements = [Line2D([0], [0],linestyle=' ', color='k', marker='o', mfc='k', markersize=4.0, label='good'),
                        Line2D([0], [0], linestyle=' ', color='r', marker='o', mfc='r', markersize=4.0, label='rejected'),
-                       Line2D([0], [0], linestyle=' ', color='g', marker='s', mfc='g', markersize=7.0, label='RMS')]
+                       Line2D([0], [0], linestyle=' ', color='g', marker='s', mfc='g', markersize=7.0, label='all RMS'),
+                       Line2D([0], [0], linestyle=' ', color='o', marker='^', mfc='o', markersize=7.0, label='good RMS')]
     ax.legend(handles=legend_elements)
 
     # Finish
@@ -779,7 +716,7 @@ def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, 
     plt.close()
     plt.rcdefaults()
 
-    return
+
 
 def plot_tilt_spat(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, rej_mask,spat_order, spec_order, rms, fwhm,
                    setup='A', slit=0, outfile=None, show_QA=False, out_dir=None):
