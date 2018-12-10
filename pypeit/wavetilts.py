@@ -296,7 +296,7 @@ class WaveTilts(masterframe.MasterFrame):
             sigrej_trace=self.par['sigrej_trace'])
 
         # Load up
-        self.all_trace_dict[slit] = copy.deepcopy(trace_dict)
+        #self.all_trace_dict[slit] = copy.deepcopy(trace_dict)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -371,18 +371,6 @@ class WaveTilts(masterframe.MasterFrame):
             self.coeffs[0:self.spat_order[slit]+1, 0:self.spec_order[slit]+1 , slit] = coeff_out
             # Save to final image
             self.final_tilts[thismask] = self.tilts[thismask]
-            if show:
-                nspec =self.msarc.shape[0]
-                spec_vec = np.arange(nspec)
-                xnspecmin1 = float(nspec-1)
-                from IPython import embed
-                embed()
-                use_tilt = self.trace_dict['use_tilt']
-                tilt_qa = np.zeros_like(self.trace_dict['tilts_dspat'][use_tilt])
-                nuse = np.sum(use_tilt)
-                for iline in nuse:
-                    for ispat in range(tilt_qa.shape[0]):
-                        tilt_qa[ispat,iline] = np.interp(tilts_spec_fit[0,iline], self.spec_vec, xnspecmin1*self.tilts[:,ispat])
 
         self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen': self.slitcen, 'func2d':self.par['func2d'],
                            'nslit': self.nslit, 'spat_order': self.spat_order, 'spec_order': self.spec_order}

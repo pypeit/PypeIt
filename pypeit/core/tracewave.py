@@ -670,7 +670,7 @@ def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, 
     line_indx = np.outer(np.ones(nspat), np.arange(nuse))
 
     xmin = 0.90*(tilts_spec_fit.min())
-    xmax = 1.10*(tilts_spec_fit).max())
+    xmax = 1.10*(tilts_spec_fit.max())
 
     ax.hlines(0.0, xmin, xmax,linestyle='--', color='green')
 
