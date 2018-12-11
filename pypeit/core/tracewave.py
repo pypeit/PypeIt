@@ -303,7 +303,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         # a trick of interpolating the slit_cen onto the arc pixels. If we find it fails, then replace with something
         # simpler that simply iterates to zero on where the two cross.
 
-        # ToDO Fix this later with an iterative thing!!
+        # ToDO Fix this later with an iterative thing that also updates spatial reference position of the tilt
         #imask = tilts_mask[:, iline]
         #slit_cen_spat_ontilt = np.interp(tilts_fit[imask,iline],spec_vec, slit_cen)
         #delta_spat = slit_cen_spat_ontilt - tilts_spat[imask,iline]
@@ -316,8 +316,11 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         #tilts_spec[:, iline] = np.full(nspat, spec_fit_now)
 
         tilts_dspat[:, iline] = (spat_vec - lines_spat[iline])
-        imask = tilts_mask[:, iline]
-        spec_fit_now = np.interp(0.0, tilts_dspat[imask, iline], tilts_fit[imask, iline])
+        imask = tilts_mask[:,iline]
+        try:
+            spec_fit_now = np.interp(0.0, tilts_dspat[imask, iline], tilts_fit[imask, iline])
+        except ValueError:
+            spec_fit_now = lines_spec[iline]
         tilts_spec[:,iline] = np.full(nspat, spec_fit_now)
 
 
@@ -800,7 +803,7 @@ def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, 
         outfile = qa.set_qa_filename(setup, method, slit=slit, out_dir=out_dir)
 
     # Setup
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(14, 6))
     plt.clf()
     ax = plt.gca()
 
@@ -826,6 +829,7 @@ def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, 
         # Compute the RMS for this line
         all_rms = np.std(res[iall])
         good_rms = np.std(res[igd])
+        # ToDo show the mean here as well 
         if np.any(igd):
             ax.plot(tilts_spec_fit[igd][0], all_rms, marker='s',linestyle=' ', color='g', mfc='g', markersize=7.0)
             ax.plot(tilts_spec_fit[igd][0], good_rms, marker='^', linestyle=' ', color='orange', mfc='orange', markersize=7.0)
