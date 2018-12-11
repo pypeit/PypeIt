@@ -27,7 +27,7 @@ from pypeit import debugger
     # Scale by poly
     # Better rejection
     # Grow mask in final_rej?
-
+    # QA
 
 def new_wave_grid(waves, wave_method='iref', iref=0, wave_grid_min=None, wave_grid_max=None,
                   A_pix=None, v_pix=None, **kwargs):
@@ -590,9 +590,6 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             srt = np.argsort(waves[gd])
             idx = gd[srt]
             # The following may eliminate bright, narrow emission lines
-            # FW: ToDo: everyn is nolonger supported by robust_polyfit. Change to robust_polyfit_djs in the future.
-            #mask, spl = utils.robust_polyfit(waves[idx], flux[idx], 3, function='bspline',
-            #        weights=1./sig[gd][srt], sigma=cr_bsigma, maxone=False)#, everyn=cr_everyn)
             good, spl = utils.robust_polyfit_djs(waves[idx], flux[idx], 3, function='bspline',
                     sigma=sig[gd][srt], lower=cr_bsigma, upper=cr_bsigma, use_mad=False)
             mask = ~good
@@ -976,7 +973,6 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
         msgs.info("Desired variance correction: {:g}".format(var_corr))
         msgs.info("New standard deviation: {:g}".format(std_dev))
 
-        # FW: I didn't quite get why scaling individual exposures on sigma
         if do_var_corr:
             msgs.info("Correcting variance")
             for ispec in range(rspec.nspec):
