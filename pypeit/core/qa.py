@@ -225,7 +225,7 @@ def html_mf_pngs(setup, cbset, det):
                               href='blaze', label='Blaze', slit=False)
     html_dict['arc_fit'] = dict(fname='arc_fit_qa', ext='',
                                 href='arc_fit', label='Arc 1D Fit', slit=True)
-    html_dict['arc_tilt'] = dict(fname='plot_tiltres_spec', ext='*.png',
+    html_dict['arc_tilt'] = dict(fname='plot_tilt_spec', ext='*.png',
                                  href='arc_tilts', label='Arc Tilts', slit=True)
     html_dict['arc_pca'] = dict(fname='pca_arctilt', ext='*.png',
                                 href='arc_pca', label='Arc Tilt PCA', slit=False)
