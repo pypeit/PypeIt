@@ -980,7 +980,7 @@ class PypeItMetaData:
         """
         if isinstance(indx, int):
             return os.path.join(self['directory'][indx], self['filename'][indx])
-        return [os.path.join(d,f) for d,f in zip(self['directory'][indx], self['filename'][indx])
+        return [os.path.join(d,f) for d,f in zip(self['directory'][indx], self['filename'][indx])]
 
     def set_frame_types(self, type_bits, merge=True):
         """
