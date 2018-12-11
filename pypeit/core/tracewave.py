@@ -829,7 +829,7 @@ def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, 
         # Compute the RMS for this line
         all_rms = np.std(res[iall])
         good_rms = np.std(res[igd])
-        # ToDo show the mean here as well 
+        # ToDo show the mean here as well
         if np.any(igd):
             ax.plot(tilts_spec_fit[igd][0], all_rms, marker='s',linestyle=' ', color='g', mfc='g', markersize=7.0)
             ax.plot(tilts_spec_fit[igd][0], good_rms, marker='^', linestyle=' ', color='orange', mfc='orange', markersize=7.0)
