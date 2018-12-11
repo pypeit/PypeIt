@@ -18,6 +18,7 @@ from astropy.stats import sigma_clipped_stats
 import matplotlib as mpl
 from matplotlib.lines import Line2D
 import scipy
+from pypeit.core import pydl
 
 try:
     from pypeit import ginga
@@ -601,7 +602,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     return tilts_img, tilt_fit_dict, trc_tilt_dict_out
 
 
-def fit2tilts(shape, thismask, slit_cen, coeff2, func, pad=20, method='interp'):
+def fit2tilts(shape, thismask, slit_cen, coeff2, func, pad_spec=30, pad_spat = 10, method='interp'):
     """
 
     Parameters
@@ -626,12 +627,12 @@ def fit2tilts(shape, thismask, slit_cen, coeff2, func, pad=20, method='interp'):
         oversamp_spec=5
         oversamp_spat=3
         spec_ind, spat_ind = np.where(thismask)
-        min_spec = spec_ind.min() - pad
-        max_spec = spec_ind.max() + pad
+        min_spec = spec_ind.min() - pad_spec
+        max_spec = spec_ind.max() + pad_spec
         num_spec = max_spec - min_spec + 1
 
-        min_spat = spat_ind.min() - pad
-        max_spat = spat_ind.max() + pad
+        min_spat = spat_ind.min() - pad_spat
+        max_spat = spat_ind.max() + pad_spat
         num_spat = max_spat - min_spat + 1
 
         spec_lin = np.linspace(min_spec,max_spec,num = int(np.round(num_spec*oversamp_spec)))
@@ -652,38 +653,43 @@ def fit2tilts(shape, thismask, slit_cen, coeff2, func, pad=20, method='interp'):
                                                            bins=[np.arange(nspec+1), np.arange(nspat+1)],
                                                            weights = spec_img.flatten(),density=False)
         piximg =(norm_img > 0.0)*weigh_img/(norm_img + (norm_img == 0.0))
-        iholes = (norm_img == 0) & thismask
-        if np.any(iholes):
-            msgs.warn('There are missed spots in your tilts image. Need to increase '
-                      '(oversamp_spec, oversamp_spat)=({:d},{:d})'.format(oversamp_spec, oversamp_spat) +
-                      ' to a larger value.')
+        holes = (norm_img == 0) & thismask
+        if np.any(holes):
+            msgs.warn('There are {:d} missed pixels in your tilts image.'.format(np.sum(holes)) + msgs.newline() +
+                      ' Need to increase (oversamp_spec, oversamp_spat)=({:d},{:d})'.format(oversamp_spec, oversamp_spat) +
+                      ' to a larger value.' + msgs.newline() +
+                      'Interpolating over them')
+            piximg = pydl.djs_maskinterp(piximg,holes,axis=0)
 
     elif 'interp' in method:
-        spec_vec_pad = np.arange(-pad,nspec+pad)
-        spat_vec_pad = np.arange(-pad,nspat+pad)
+        spec_vec_pad = np.arange(-pad_spec,nspec+pad_spec)
+        spat_vec_pad = np.arange(-pad_spat,nspat+pad_spat)
         spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
-        spat_img_pad, spec_img_pad = np.meshgrid(np.arange(-pad,nspat+pad),np.arange(-pad,nspec+pad))
+        spat_img_pad, spec_img_pad = np.meshgrid(np.arange(-pad_spat,nspat+pad_spat),np.arange(-pad_spec,nspec+pad_spec))
         slit_cen_pad = (scipy.interpolate.interp1d(spec_vec,slit_cen,bounds_error=False,fill_value='extrapolate'))(spec_vec_pad)
         thismask_pad = np.zeros_like(spec_img_pad,dtype=bool)
         ind_spec, ind_spat = np.where(thismask)
-        slit_cen_img_pad= np.outer(slit_cen_pad, np.ones(nspat + 2*pad))  # center of the slit replicated spatially
+        slit_cen_img_pad= np.outer(slit_cen_pad, np.ones(nspat + 2*pad_spat))  # center of the slit replicated spatially
         # Normalized spatial offset image (from central trace)
         dspat_img_nrm = (spat_img_pad - slit_cen_img_pad)/xnspatmin1
         # normalized spec image
         spec_img_nrm = spec_img_pad/xnspecmin1
         # Embed the old thismask in the new larger padded thismask
-        thismask_pad[ind_spec + pad,ind_spat + pad] = thismask[ind_spec,ind_spat]
+        thismask_pad[ind_spec + pad_spec,ind_spat + pad_spat] = thismask[ind_spec,ind_spat]
         # Now grow the thismask_pad
-        kernel = np.ones((2*pad, 2*pad))/float(4*pad*pad)
+        kernel = np.ones((2*pad_spec, 2*pad_spat))/float(4*pad_spec*pad_spat)
         thismask_grow = scipy.ndimage.convolve(thismask_pad.astype(float), kernel, mode='nearest') > 0.0
         # normalized spec image
         tracepix = spec_img_pad[thismask_grow] + xnspecmin1*utils.func_val(coeff2, dspat_img_nrm[thismask_grow], func, x2=spec_img_nrm[thismask_grow],
                                                               minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
         points = np.stack((tracepix, spat_img_pad[thismask_grow]),axis=1)
         piximg = scipy.interpolate.griddata(points, spec_img_pad[thismask_grow], (spec_img, spat_img), method='cubic')
-        iholes = np.isnan(piximg) & thismask
-        if np.any(iholes):
-            msgs.warn('There are missed spots in your tilts image.')
+        holes = np.isnan(piximg) & thismask
+        if np.any(holes):
+            msgs.warn('There are {:d} missed pixels in your tilts image.'.format(np.sum(holes)) + msgs.newline() +
+                      'Interpolating over them.')
+            piximg = pydl.djs_maskinterp(piximg,holes,axis=0)
+
 
     tilts = np.fmax(np.fmin(piximg/xnspecmin1, 1.2),-0.2)
     # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
