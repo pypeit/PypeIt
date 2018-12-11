@@ -832,7 +832,7 @@ def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, 
     ax.set_ylabel('RMS (pixels)')
     ax.set_title('RMS of Each Arc Line Traced')
     ax.set_xlim((xmin,xmax))
-    ax.set_ylim((-3.0*rms,3.0*rms))
+    ax.set_ylim((-5.0*rms,5.0*rms))
     # Legend
     legend_elements = [Line2D([0], [0],linestyle=' ', color='k', marker='o', mfc='k', markersize=4.0, label='good'),
                        Line2D([0], [0], linestyle=' ', color='r', marker='o', mfc='r', markersize=4.0, label='rejected'),
