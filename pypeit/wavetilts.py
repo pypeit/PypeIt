@@ -399,8 +399,6 @@ class WaveTilts(masterframe.MasterFrame):
                           'spat_order':spat_order, 'spec_order':spec_order}
             return tilts_dict
 
-    # JFH THis routine does not follow the current master protocol of taking a data argument. There is no reason to
-    # save all this other information here
     def save_master(self, tilts_dict, outfile=None, steps=None, overwrite=True):
         """
 

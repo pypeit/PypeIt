@@ -659,7 +659,9 @@ def fit2tilts(shape, thismask, slit_cen, coeff2, func, pad_spec=30, pad_spat = 1
                       ' Need to increase (oversamp_spec, oversamp_spat)=({:d},{:d})'.format(oversamp_spec, oversamp_spat) +
                       ' to a larger value.' + msgs.newline() +
                       'Interpolating over them')
-            piximg = pydl.djs_maskinterp(piximg,holes,axis=0)
+            spec_img_orig = np.outer(np.arange(nspec),np.ones(nspat))
+            piximg[holes]=spec_img[holes]=spec_img_orig[holes]
+            #piximg = pydl.djs_maskinterp(piximg,holes,axis=0)
 
     elif 'interp' in method:
         spec_vec_pad = np.arange(-pad_spec,nspec+pad_spec)
@@ -682,14 +684,19 @@ def fit2tilts(shape, thismask, slit_cen, coeff2, func, pad_spec=30, pad_spat = 1
         # normalized spec image
         tracepix = spec_img_pad[thismask_grow] + xnspecmin1*utils.func_val(coeff2, dspat_img_nrm[thismask_grow], func, x2=spec_img_nrm[thismask_grow],
                                                               minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
-        points = np.stack((tracepix, spat_img_pad[thismask_grow]),axis=1)
-        piximg = scipy.interpolate.griddata(points, spec_img_pad[thismask_grow], (spec_img, spat_img), method='cubic')
-        holes = np.isnan(piximg) & thismask
+        # JFH I'm not super happy with these kludges, but when the tilts go crazy you can get some garbage.
+        delta_tilt = tracepix - spec_img_pad[thismask_grow]
+        rms_tilt = np.std(delta_tilt)
+        ikeep = np.isfinite(delta_tilt) & (np.abs(delta_tilt) < 10.0*rms_tilt)
+        points = np.stack((tracepix[ikeep], spat_img_pad[thismask_grow][ikeep]),axis=1)
+        values =spec_img_pad[thismask_grow][ikeep]
+        piximg = scipy.interpolate.griddata(points, values, (spec_img, spat_img), method='cubic')
+        holes = (np.isnan(piximg) | (piximg < 0.002*nspec) | (np.abs(piximg-spec_img) > 10.0*rms_tilt)) & thismask
         if np.any(holes):
             msgs.warn('There are {:d} missed pixels in your tilts image.'.format(np.sum(holes)) + msgs.newline() +
                       'Interpolating over them.')
-            piximg = pydl.djs_maskinterp(piximg,holes,axis=0)
-
+            piximg[holes]=spec_img[holes]
+            #piximg = pydl.djs_maskinterp(piximg,holes,axis=0)
 
     tilts = np.fmax(np.fmin(piximg/xnspecmin1, 1.2),-0.2)
     # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
