@@ -84,7 +84,7 @@ def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_
 
 
 def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
-             spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0),
+             spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0), pad =5.0,
              tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.10, nonlinear_counts =1e10, debug = False):
 
 
@@ -132,6 +132,10 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask
     trim_edg: tuple of floats  (left_edge, right_edge), default (3,3)
       indicates how many pixels to trim from left and right slit edges for creating the edgemask, which is used to mask
       the edges from the initial (fine) spectroscopic fit to the blaze function.
+
+    pad: int, default = 5
+      Padding window used to create expanded slitmask images used for determining slit boundaries. Tilts are also computed using
+      this expanded slitmask in cases the slit boundaries need to be moved outward.
 
     npoly: int, default = None
       Order of polynomial for 2-d bspline-polynomial fit to flat field image residuals. The code determines the order of
@@ -201,10 +205,6 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask
         npoly_in = 7
         npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol/10.)).astype(int)),1)
 
-    # Create a tilts image that encompasses the whole image, rather than just the thismask_in slit pixels
-    tilts = tracewave.fit2tilts(shape, tilts_dict['slitcen'], tilts_dict['coeffs'], tilts_dict['func2d'])
-    piximg = tilts * (nspec-1)
-    pixvec = np.arange(nspec)
 
     ximg_in, edgmask_in = pixels.ximg_and_edgemask(slit_left_in, slit_righ_in, thismask_in, trim_edg=trim_edg)
     # Create a fractional position image ximg that encompasses the whole image, rather than just the thismask_in slit pixels
@@ -217,6 +217,12 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask
     pad = 5.0
     slitmask_pad = spectrograph.slitmask(tslits_dict_in, pad = pad)
     thismask = (slitmask_pad == slit) # mask enclosing the wider slit bounadries
+    # Create a tilts image using this padded thismask, rather than using the original thismask_in slit pixels
+    tilts = np.zeros_like(flat)
+    tilts[thismask] = tracewave.fit2tilts(shape, thismask, tilts_dict['slitcen'], tilts_dict['coeffs'], tilts_dict['func2d'])
+    piximg = tilts * (nspec-1)
+    pixvec = np.arange(nspec)
+
 
     if inmask is None:
         inmask = np.copy(thismask)
@@ -446,7 +452,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask
     # Set the pixelflat to 1.0 wherever the flat was nonlinear
     pixelflat[flat >= nonlinear_counts] = 1.0
 
-    return pixelflat, illumflat, flat_model, thismask_out, slit_left_out, slit_righ_out
+    return pixelflat, illumflat, flat_model, tilts, thismask_out, slit_left_out, slit_righ_out
 
 
 

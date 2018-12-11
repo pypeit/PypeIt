@@ -314,9 +314,9 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         #spat_fit_now = np.interp(spec_fit_now,spec_vec, slit_cen)
         #tilts_spec[:, iline] = np.full(nspat, spec_fit_now)
 
+        tilts_dspat[:, iline] = (spat_vec - lines_spat[iline])
         imask = tilts_mask[:, iline]
         spec_fit_now = np.interp(0.0, tilts_dspat[imask, iline], tilts_fit[imask, iline])
-        tilts_dspat[:, iline] = (spat_vec - lines_spat[iline])
         tilts_spec[:,iline] = np.full(nspat, spec_fit_now)
 
 
@@ -495,17 +495,17 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     nspat = trc_tilt_dict['nspat']
     use_tilt = trc_tilt_dict['use_tilt']                 # mask for good/bad tilts, based on aggregate fit, frac good pixels
     nuse = np.sum(use_tilt)
-    tilts = trc_tilt_dict['tilts'][:,use_tilt]   # legendre polynomial fit
+    tilts = trc_tilt_dict['tilts']   # legendre polynomial fit
     #JFH Before we were fitting the fits. Now we fit the actual flux weighted centroided tilts.
-    #tilts_fit = trc_tilt_dict['tilts_fit'][:,use_tilt]   # legendre polynomial fit
-    tilts_err = trc_tilt_dict['tilts_err'][:,use_tilt]   # flux weighted centroidding error
-    tilts_dspat = trc_tilt_dict['tilts_dspat'][:,use_tilt] # spatial offset from the central trace
+    tilts_err = trc_tilt_dict['tilts_err']   # flux weighted centroidding error
+    tilts_dspat = trc_tilt_dict['tilts_dspat'] # spatial offset from the central trace
     #tilts_spat = trc_tilt_dict['tilts_dspat'][:,use_tilt] # spatial offset from the central trace
-    tilts_spec = trc_tilt_dict['tilts_spec'][:,use_tilt] # line spectral pixel position from legendre fit evaluated at slit center
-    tilts_mask = trc_tilt_dict['tilts_mask'][:,use_tilt] # Reflects if trace is on the slit
-    tilts_mad = trc_tilt_dict['tilts_mad'][:,use_tilt] # Reflects if trace is on the slit
+    tilts_spec = trc_tilt_dict['tilts_spec'] # line spectral pixel position from legendre fit evaluated at slit center
+    tilts_mask = trc_tilt_dict['tilts_mask'] # Reflects if trace is on the slit
+    tilts_mad = trc_tilt_dict['tilts_mad']   # quantitfies aggregate error of this tilt
 
-    tot_mask = tilts_mask & (tilts_err < 900)
+    use_mask = np.outer(np.ones(nspat,dtype=bool),use_tilt)
+    tot_mask = tilts_mask & (tilts_err < 900) & use_mask
     fitxy = [spat_order, spec_order]
 
     # Fit the inverted model with a 2D polynomial
@@ -514,8 +514,6 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     adderr = 0.03
     tilts_invvar = ((tilts_mad < 100.0) & (tilts_mad > 0.0))/(np.abs(tilts_mad) + adderr)**2
 
-    # Previously we were using tilts_spec.flatten/xnspecmin1 in place of tilts_spec_fit
-    # Burles was fitting the entire tilt and not the offset.
     fitmask, coeff2 = utils.robust_polyfit_djs(tilts_dspat.flatten()/xnspatmin1, (tilts.flatten() - tilts_spec.flatten())/xnspecmin1,
                                                fitxy, x2=tilts_spec.flatten()/xnspecmin1, inmask = tot_mask.flatten(),
                                                invvar=xnspecmin1**2*tilts_invvar.flatten(),
@@ -523,14 +521,14 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                                                maxdev=maxdev_pix/xnspecmin1,minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0,
                                                use_mad=False, sticky=False)
     fitmask = fitmask.reshape(tilts_dspat.shape)
-    delta_tilt_1 = xnspecmin1*utils.func_val(coeff2, tilts_dspat[tot_mask]/xnspatmin1, func2d, x2=tilts_spec[tot_mask]/xnspecmin1,
+    delta_tilt_1 = xnspecmin1*utils.func_val(coeff2, tilts_dspat[tilts_mask]/xnspatmin1, func2d, x2=tilts_spec[tilts_mask]/xnspecmin1,
                                             minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
     delta_tilt = np.zeros_like(tilts_dspat)
     tilts_2dfit = np.zeros_like(tilts_dspat)
-    delta_tilt[tot_mask] = delta_tilt_1
-    tilts_2dfit[tot_mask] = tilts_spec[tot_mask] + delta_tilt[tot_mask]
+    delta_tilt[tilts_mask] = delta_tilt_1
+    tilts_2dfit[tilts_mask] = tilts_spec[tilts_mask] + delta_tilt[tilts_mask]
     # Residuals in pixels
-    res_fit = delta_tilt[fitmask]
+    res_fit = tilts[fitmask] - tilts_2dfit[fitmask]
     rms_fit = np.std(res_fit)
     msgs.info("Residuals: 2D Legendre Fit")
     msgs.info("RMS (pixels): {}".format(rms_fit))
@@ -539,9 +537,18 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # These are locations that were fit but were rejected
     rej_mask = tot_mask & np.invert(fitmask)
 
+    # Add the
+    trc_tilt_dict_out = copy.deepcopy(trc_tilt_dict)
+    trc_tilt_dict_out['tilt_2dfit'] = tilts_2dfit
+
     # Evaluate the tilts image
+    msgs.info('Evaluating tilts image')
     tilts_img = np.zeros((nspec, nspat))
     tilts_img[thismask] = fit2tilts((nspec, nspat), thismask, slit_cen, coeff2, func2d)
+
+    tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
+                         npix_rej = np.sum(fitmask == False), coeff2=coeff2, spec_order = spec_order, spat_order = spat_order,
+                         minx = -1.0, maxx = 1.0, minx2 = 0.0, maxx2 = 1.0, func=func2d)
 
     #fitmask, coeff2 = fit_tilts_rej(
     #    tilts_dspat, tilts_spec_fit, tilts, tilts_invvar, tot_mask, slit_cen, spat_order, spec_order,
@@ -560,37 +567,33 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # This is a second way of computing the 2d fit at the tilts. Do this just for now as a consistency check that our tilts_img is okay
 
     # Testing. For the moment do this on exactly the same set of lines
-    tilt_2dfit_piximg_all = eval_2d_at_tilts(trc_tilt_dict['tilts_spec'], trc_tilt_dict['tilts_mask'], (nspec, nspat), thismask, slit_cen, coeff2, func2d)
-    trc_tilt_dict_out = copy.deepcopy(trc_tilt_dict)
-    trc_tilt_dict_out['tilt_2dfit'] = tilt_2dfit_piximg_all
-    tilts_2dfit_piximg = tilt_2dfit_piximg_all[:, use_tilt]
+    #tilt_2dfit_piximg_all = eval_2d_at_tilts(trc_tilt_dict['tilts_spec'], trc_tilt_dict['tilts_mask'], trc_tilt_dict['tilts'] (nspec, nspat), thismask, slit_cen, coeff2, func2d)
+    #tilts_2dfit_piximg = tilt_2dfit_piximg_all[:, use_tilt]
     #tilts_2dfit_piximg = eval_2d_at_tilts(tilts_spec, tilts_mask, (nspec, nspat), thismask, slit_cen, coeff2, func2d)
 
     # Actual 2D Model Tilt Residuals
-    res_real = tilts[fitmask] - tilts_2dfit_piximg[fitmask]
-    rms_real = np.std(res_real)
-    msgs.info("Residuals: Actual 2D Tilt Residuals from piximg")
-    msgs.info("RMS (pixels): {}".format(rms_real))
-    msgs.info("RMS/FWHM: {}".format(rms_real/fwhm))
-    tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
-                         npix_rej = np.sum(fitmask == False), coeff2=coeff2, spec_order = spec_order, spat_order = spat_order,
-                         minx = -1.0, maxx = 1.0, minx2 = 0.0, maxx2 = 1.0, func=func2d)
+    #res_real = tilts[fitmask] - tilts_2dfit_piximg[fitmask]
+    #rms_real = np.std(res_real)
+    #msgs.info("Residuals: Actual 2D Tilt Residuals from piximg")
+    #msgs.info("RMS (pixels): {}".format(rms_real))
+    #msgs.info("RMS/FWHM: {}".format(rms_real/fwhm))
+
 
     # Now do some QA
 
     if doqa:
         # We could also be plotting the actual thing we fit below. Right now I'm trying with the 2d tilts themselves
-        plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit_piximg, tot_mask, rej_mask, spat_order, spec_order, rms_real, fwhm,
-                     slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
+        #plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit_piximg, tot_mask, rej_mask, spat_order, spec_order, rms_real, fwhm,
+        #             slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
         # We could also be plotting the actual thing we fit below. Right now I'm trying with the 2d tilts themselves
         plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order, rms_fit, fwhm,
                      slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
-        plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit_piximg, tilts_spec, tot_mask, rej_mask, spat_order, spec_order, rms_real, fwhm,
-                       slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
+        #plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit_piximg, tilts_spec, tot_mask, rej_mask, spat_order, spec_order, rms_real, fwhm,
+        #               slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
         plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order, spec_order, rms_fit, fwhm,
                        slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
-        plot_tilt_spec(tilts_spec, tilts, tilts_2dfit_piximg, tot_mask, rej_mask, rms_real, fwhm, slit=slit,
-                       setup = setup, show_QA=show_QA, out_dir=out_dir)
+        #plot_tilt_spec(tilts_spec, tilts, tilts_2dfit_piximg, tot_mask, rej_mask, rms_real, fwhm, slit=slit,
+        #               setup = setup, show_QA=show_QA, out_dir=out_dir)
         plot_tilt_spec(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm, slit=slit,
                        setup = setup, show_QA=show_QA, out_dir=out_dir)
 
@@ -598,7 +601,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     return tilts_img, tilt_fit_dict, trc_tilt_dict_out
 
 
-def fit2tilts(shape, thismask, slit_cen, coeff2, func):
+def fit2tilts(shape, thismask, slit_cen, coeff2, func, pad=20, method='interp'):
     """
 
     Parameters
@@ -616,24 +619,75 @@ def fit2tilts(shape, thismask, slit_cen, coeff2, func):
     nspec, nspat = shape
     xnspecmin1 = float(nspec-1)
     xnspatmin1 = float(nspat-1)
-
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
-    spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
 
-    slit_cen_img = np.outer(slit_cen, np.ones(nspat))   # center of the slit replicated spatially
-    # Normalized spatial offset image (from central trace)
-    dspat_img_nrm = (spat_img - slit_cen_img)/xnspatmin1
+    if 'hist2d' in method:
+        oversamp_spec=5
+        oversamp_spat=3
+        spec_ind, spat_ind = np.where(thismask)
+        min_spec = spec_ind.min() - pad
+        max_spec = spec_ind.max() + pad
+        num_spec = max_spec - min_spec + 1
 
-    # normalized spec image
-    spec_img_nrm = spec_img/xnspecmin1
-    tracepix = spec_img[thismask] - xnspecmin1*utils.func_val(coeff2, dspat_img_nrm[thismask], func, x2=spec_img_nrm[thismask],
+        min_spat = spat_ind.min() - pad
+        max_spat = spat_ind.max() + pad
+        num_spat = max_spat - min_spat + 1
+
+        spec_lin = np.linspace(min_spec,max_spec,num = int(np.round(num_spec*oversamp_spec)))
+        spat_lin = np.linspace(min_spat,max_spat,num = int(np.round(num_spat*oversamp_spat)))
+        spat_img, spec_img = np.meshgrid(spat_lin, spec_lin)
+        # Normalized spatial offset image (from central trace)
+        slit_cen_lin = (scipy.interpolate.interp1d(np.arange(nspec),slit_cen,bounds_error=False,fill_value='extrapolate'))(spec_lin)
+        slit_cen_img = np.outer(slit_cen_lin, np.ones(spat_img.shape[1]))  # center of the slit replicated spatially
+        dspat_img_nrm = (spat_img - slit_cen_img)/xnspatmin1
+        spec_img_nrm = spec_img/xnspecmin1
+
+        # normalized spec image
+        tracepix = spec_img + xnspecmin1*utils.func_val(coeff2, dspat_img_nrm, func, x2=spec_img_nrm,
                                                               minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
-    points= np.stack((tracepix, spat_img[thismask]),axis=1)
-    piximg = scipy.interpolate.griddata(points, spec_img[thismask], (spec_img, spat_img), method='cubic')
+        norm_img, spec_edges, spat_edges = np.histogram2d(tracepix.flatten(), spat_img.flatten(),
+                                                          bins=[np.arange(nspec+1), np.arange(nspat+1)], density=False)
+        weigh_img, spec_edges, spat_edges = np.histogram2d(tracepix.flatten(), spat_img.flatten(),
+                                                           bins=[np.arange(nspec+1), np.arange(nspat+1)],
+                                                           weights = spec_img.flatten(),density=False)
+        piximg =(norm_img > 0.0)*weigh_img/(norm_img + (norm_img == 0.0))
+        iholes = (norm_img == 0) & thismask
+        if np.any(iholes):
+            msgs.warn('There are missed spots in your tilts image. Need to increase '
+                      '(oversamp_spec, oversamp_spat)=({:d},{:d})'.format(oversamp_spec, oversamp_spat) +
+                      ' to a larger value.')
+
+    elif 'interp' in method:
+        spec_vec_pad = np.arange(-pad,nspec+pad)
+        spat_vec_pad = np.arange(-pad,nspat+pad)
+        spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
+        spat_img_pad, spec_img_pad = np.meshgrid(np.arange(-pad,nspat+pad),np.arange(-pad,nspec+pad))
+        slit_cen_pad = (scipy.interpolate.interp1d(spec_vec,slit_cen,bounds_error=False,fill_value='extrapolate'))(spec_vec_pad)
+        thismask_pad = np.zeros_like(spec_img_pad,dtype=bool)
+        ind_spec, ind_spat = np.where(thismask)
+        slit_cen_img_pad= np.outer(slit_cen_pad, np.ones(nspat + 2*pad))  # center of the slit replicated spatially
+        # Normalized spatial offset image (from central trace)
+        dspat_img_nrm = (spat_img_pad - slit_cen_img_pad)/xnspatmin1
+        # normalized spec image
+        spec_img_nrm = spec_img_pad/xnspecmin1
+        # Embed the old thismask in the new larger padded thismask
+        thismask_pad[ind_spec + pad,ind_spat + pad] = thismask[ind_spec,ind_spat]
+        # Now grow the thismask_pad
+        kernel = np.ones((2*pad, 2*pad))/float(4*pad*pad)
+        thismask_grow = scipy.ndimage.convolve(thismask_pad.astype(float), kernel, mode='nearest') > 0.0
+        # normalized spec image
+        tracepix = spec_img_pad[thismask_grow] + xnspecmin1*utils.func_val(coeff2, dspat_img_nrm[thismask_grow], func, x2=spec_img_nrm[thismask_grow],
+                                                              minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+        points = np.stack((tracepix, spat_img_pad[thismask_grow]),axis=1)
+        piximg = scipy.interpolate.griddata(points, spec_img_pad[thismask_grow], (spec_img, spat_img), method='cubic')
+        iholes = np.isnan(piximg) & thismask
+        if np.any(iholes):
+            msgs.warn('There are missed spots in your tilts image.')
+
+    tilts = np.fmax(np.fmin(piximg/xnspecmin1, 1.2),-0.2)
     # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
     # wavelength solution fitting
-    tilts = np.fmax(np.fmin(piximg/xnspecmin1, 1.2),-0.2)
 
     return tilts[thismask]
 
@@ -857,7 +911,7 @@ def plot_tilt_spat(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, re
     plt.close()
     plt.rcdefaults()
 
-# This is useful when you do fits the other way
+# This is useful when you do fits the other way. If you are fitting the tilts, this gives a flipped result
 def eval_2d_at_tilts(tilts_spec, tilts_mask, shape, thismask, slit_cen, coeff2, func2d):
 
     # Compute Tilt model
