@@ -265,7 +265,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return tilts, tilt_fit_dict['coeff2']
 
-    def _trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit):
+    def _trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen):
         """
 
         Args
@@ -291,7 +291,7 @@ class WaveTilts(masterframe.MasterFrame):
         """
 
         trace_dict = tracewave.trace_tilts(
-            arcimg, lines_spec, lines_spat, thismask, inmask=self.inmask, fwhm=self.wavepar['fwhm'],
+            arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=self.inmask, fwhm=self.wavepar['fwhm'],
             spat_order=self.par['spat_order'], maxdev_tracefit=self.par['maxdev_tracefit'],
             sigrej_trace=self.par['sigrej_trace'])
 
@@ -359,7 +359,7 @@ class WaveTilts(masterframe.MasterFrame):
 
             thismask = self.slitmask == slit
             # Trace
-            self.trace_dict = self._trace_tilts(self.msarc, self.lines_spec, self.lines_spat, thismask, slit)
+            self.trace_dict = self._trace_tilts(self.msarc, self.lines_spec, self.lines_spat, thismask, self.slitcen[:,slit])
             #if show:
             #    ginga.show_tilts(viewer, ch, self.trace_dict)
 
