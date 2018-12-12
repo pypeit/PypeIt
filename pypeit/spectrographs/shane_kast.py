@@ -38,8 +38,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['number'] = 5
         par['calibrations']['arcframe']['number'] = 1
 
-        # Set wave tilts order
-        par['calibrations']['tilts']['spat_order'] = 3
 
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
@@ -235,6 +233,13 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['CdI','HgI','HeI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
+
+        # Set wave tilts order
+        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spec_order'] = 5
+        par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
+        par['calibrations']['tilts']['maxdev2d'] = 0.02
+
         # reidentification stuff
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600_4310_d55.json'

@@ -3119,7 +3119,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     return trace_dict
 
 
-def slit_trace_qa(frame, ltrace, rtrace, extslit, setup, desc="",
+def slit_trace_qa(frame, ltrace, rtrace, slitmask, extslit, setup, desc="",
                   normalize=True, use_slitid=None, out_dir=None):
     """ Generate a QA plot for the slit traces
 
@@ -3148,30 +3148,22 @@ def slit_trace_qa(frame, ltrace, rtrace, extslit, setup, desc="",
                                              weight='normal', stretch='normal')
 
     # Outfile
+    nspec, nspat = frame.shape
     method = inspect.stack()[0][3]
     outfile = qa.set_qa_filename(setup, method, out_dir=out_dir)
-    ntrc = ltrace.shape[1]
-    ycen = np.arange(frame.shape[0])
+    nslits = ltrace.shape[1]
+    spec_vec = np.arange(nspec)
+    slitcen = (ltrace + rtrace)/2.0
     # Normalize flux in the traces
     if normalize:
-        nrm_frame = np.zeros_like(frame)
-        for ii in range(ntrc):
-            xtrc = (ltrace[:, ii] + rtrace[:, ii])/2.
-            # Extract the flux down this trace
-            trc = extract.extract_boxcar(frame,xtrc,1.5)
-#           JFH this is buggy when there are bad traces.
-#            # Simple 'extraction'
-#            dumi = np.zeros((frame.shape[0], 3))
-#            for jj in range(3):
-#                dumi[:, jj] = frame[ycen, ixtrc-1+jj]
-#            trc = np.median(dumi, axis=1)
-            # Find portion of the image and normalize
-            for yy in ycen:
-                xi = max(0, int(ltrace[yy, ii])-3)
-                xe = min(frame.shape[1], int(rtrace[yy, ii])+3)
-                # Fill + normalize
-                nrm_frame[yy, xi:xe] = frame[yy, xi:xe] / trc[yy]
         sclmin, sclmax = 0.4, 1.1
+        nrm_frame = np.zeros_like(frame)
+        for islit in range(nslits):
+            # Extract the flux down this trace
+            flat_counts = extract.extract_boxcar(frame,slitcen[:,islit],1.5)/3.0
+            trc_norm = np.outer(flat_counts,np.ones(nspat))
+            slitind = slitmask == islit
+            nrm_frame[slitind] = frame[slitind]/(trc_norm[slitind] + (trc_norm[slitind] <= 0.0))
     else:
         nrm_frame = frame.copy()
         nrm_frame[frame > 0.0] = np.sqrt(nrm_frame[frame > 0.0])
@@ -3199,22 +3191,22 @@ def slit_trace_qa(frame, ltrace, rtrace, extslit, setup, desc="",
 
     # Traces
     iy = int(frame.shape[0]/2.)
-    for ii in range(ntrc):
-        if extslit[ii] is True:
+    for islit in range(nslits):
+        if extslit[islit] is True:
             ptyp = ':'
         else:
             ptyp = '--'
         # Left
-        plt.plot(ltrace[:, ii]+0.5, ycen, 'r'+ptyp, linewidth=0.3, alpha=0.7)
+        plt.plot(ltrace[:, islit]+0.5, spec_vec, 'r'+ptyp, linewidth=0.3, alpha=0.7)
         # Right
-        plt.plot(rtrace[:, ii]+0.5, ycen, 'c'+ptyp, linewidth=0.3, alpha=0.7)
+        plt.plot(rtrace[:, islit]+0.5, spec_vec, 'c'+ptyp, linewidth=0.3, alpha=0.7)
         # Label
         if use_slitid is not None:
-            slitid, _, _ = get_slitid(frame.shape, ltrace, rtrace, ii, ypos=0.5)
+            slitid, _, _ = get_slitid(frame.shape, ltrace, rtrace, islit, ypos=0.5)
             lbl = 'S{:04d}'.format(slitid)
         else:
-            lbl = '{0:d}'.format(ii+1)
-        plt.text(0.5*(ltrace[iy, ii]+rtrace[iy, ii]), ycen[iy], lbl, color='green', ha='center', size='small')
+            lbl = '{0:d}'.format(islit+1)
+        plt.text(0.5*(ltrace[iy, islit]+rtrace[iy, islit]), spec_vec[iy], lbl, color='green', ha='center', size='small')
     # Title
     tstamp = qa.gen_timestamp()
     if desc == "":

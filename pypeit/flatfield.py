@@ -223,7 +223,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Loop on slits
         for slit in range(self.nslits):
-            msgs.info("Computing flat field image for slit: {:d}".format(slit + 1))
+            msgs.info('Computing flat field image for slit: {:d}/{:d}'.format(slit,self.nslits-1))
             thismask = (self.slitmask == slit)
             if self.msbpm is not None:
                 inmask = ~self.msbpm
@@ -236,7 +236,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                                'func2d':self.tilts_dict['func2d']}
             nonlinear_counts = self.spectrograph.detector[self.det - 1]['nonlinear']*\
                                self.spectrograph.detector[self.det - 1]['saturation']
-            pixelflat, illumflat, flat_model, thismask_out, slit_left_out, slit_righ_out = \
+            pixelflat, illumflat, flat_model, tilts_out, thismask_out, slit_left_out, slit_righ_out = \
                 flat.fit_flat(self.rawflatimg, this_tilts_dict, self.tslits_dict, slit,
                               spectrograph = self.spectrograph, inmask=inmask,tweak_slits = self.flatpar['tweak_slits'],
                               nonlinear_counts=nonlinear_counts, debug=debug)
@@ -247,9 +247,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             if self.flatpar['tweak_slits']:
                 self.tslits_dict['lcen'][:, slit] = slit_left_out
                 self.tslits_dict['rcen'][:, slit] = slit_righ_out
-                this_tilts = tracewave.fit2tilts(self.rawflatimg.shape, this_tilts_dict['slitcen'],
-                                                 this_tilts_dict['coeffs'], this_tilts_dict['func2d'])
-                final_tilts[thismask_out] = this_tilts[thismask_out]
+                final_tilts[thismask_out] = tilts_out[thismask_out]
 
         # If we tweaked the slits update the tilts_dict
         if self.flatpar['tweak_slits']:

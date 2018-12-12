@@ -338,7 +338,7 @@ def clear_all():
         shell.delete_channel(ch)
 
 
-def show_tilts(viewer, ch, trc_tilt_dict, crutch=False, plot_bad = True, sedges=None, yoff=0., xoff=0., pstep=1, points=False, clear_canvas = False):
+def show_tilts(viewer, ch, trc_tilt_dict, sedges=None, yoff=0., xoff=0., pstep=1, points=True, clear_canvas = False):
     """  Display arc image and overlay the arcline tilt measurements
     Parameters
     ----------
@@ -365,10 +365,7 @@ def show_tilts(viewer, ch, trc_tilt_dict, crutch=False, plot_bad = True, sedges=
 
     tilts = trc_tilt_dict['tilts']
     # Crutch is set plot the crutch instead of the tilt itself
-    if crutch:
-        tilts_fit = trc_tilt_dict['tilts_crutch']
-    else:
-        tilts_fit = trc_tilt_dict['tilts_fit']
+    tilts_fit = trc_tilt_dict['tilts_fit']
 
     tilts_spat = trc_tilt_dict['tilts_spat']
     tilts_mask = trc_tilt_dict['tilts_mask']
@@ -386,7 +383,7 @@ def show_tilts(viewer, ch, trc_tilt_dict, crutch=False, plot_bad = True, sedges=
         if np.sum(this_mask) > 0:
             if points: # Plot the gaussian weighted tilt centers
                 y = tilts[:, iline] + yoff
-                # Plot the actual Gaussian weighted centroids of the arc lines that were traced
+                # Plot the actual flux weighted centroids of the arc lines that were traced
                 goodpix = (this_mask == True) & (this_err == False)
                 ngood = np.sum(goodpix)
                 if ngood > 0:
@@ -421,7 +418,7 @@ def show_tilts(viewer, ch, trc_tilt_dict, crutch=False, plot_bad = True, sedges=
     canvas.add(str('text'), nspat//2 - 40, nspec//2,      'good tilt fit', color=str('blue'),fontsize=20.)
     canvas.add(str('text'), nspat//2 - 40, nspec//2 - 30, 'bad  tilt fit', color=str('yellow'),fontsize=20.)
     canvas.add(str('text'), nspat//2 - 40, nspec//2 - 60, 'trace good', color=str('cyan'),fontsize=20.)
-    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 60, 'trace masked', color=str('red'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 90, 'trace masked', color=str('red'),fontsize=20.)
 
 
 # Old method

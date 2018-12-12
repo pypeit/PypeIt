@@ -125,6 +125,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         match_criteria = {}
         for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
+
         #
         match_criteria['standard']['match'] = {}
         match_criteria['standard']['match']['binning'] = ''
@@ -136,7 +137,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         # Traceflat
         match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
         # Arc
-        match_criteria['arc']['match'] = match_criteria['bias']['match'].copy()
+        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
 
         # Return
         return match_criteria
@@ -162,7 +163,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             ysize           = 1.,
                             platescale      = 0.197, # average between order 11 & 30, see manual
                             darkcurr        = 0.0,
-                            saturation      = 65535.,
+                            saturation      = 2.0e5, # I think saturation may never be a problem here since there are many DITs
                             nonlinear       = 0.86,
                             numamplifiers   = 1,
                             gain            = 2.12,
@@ -192,21 +193,29 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['pcatype'] = 'order'
-        par['calibrations']['tilts']['tracethresh'] = [10,10,10,10,10,10,10,10,10, 10, 10, 20, 20, 20,20,10]
+
+        # Tilt parameters
+        par['calibrations']['tilts']['tracethresh'] =  25.0
+        par['calibrations']['tilts']['maxdev_tracefit'] =  0.04
+        par['calibrations']['tilts']['maxdev2d'] =  0.04
+        par['calibrations']['tilts']['spat_order'] =  3
+        par['calibrations']['tilts']['spec_order'] =  4
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.25
-        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['sigdetect'] = 10.0
+        par['calibrations']['wavelengths']['fwhm'] = 5.0
+        par['calibrations']['wavelengths']['n_final'] = 4
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir_iraf.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.json'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
-        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 7
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = 7
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 5
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Always correct for flexure, starting with default parameters
@@ -383,8 +392,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         if nslits != self.norders:
             msgs.error('There is a problem with your slit bounadries. You have nslits={:d} orders, whereas NIR has norders={:d}'.format(nslits,self.norders))
         # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
-        order_max = [1476,1513,1551, 1592,1687,1741,1801, 1864,1935,2007, 2025, 2025,2025,2025,2025,2025]
-        order_min = [418 ,385 , 362,  334, 303, 268, 230,  187, 140,  85,   26,    0,   0,   0,   0,   0]
+        order_max = [1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000]
+        order_min = [420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0]
         # TODO add binning adjustments to these
         for islit in range(nslits):
             orderbad = (slitmask == islit) & ((spec_img < order_min[islit]) | (spec_img > order_max[islit]))
@@ -471,7 +480,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # TODO FIX THIS TO USE BIASES!!

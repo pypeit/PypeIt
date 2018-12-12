@@ -1033,7 +1033,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _trim_slits(self, trim_short_slits=True, plate_scale = None):
+    def _trim_slits(self, trim_slits=True, plate_scale = None, ech_slit_tol = 0.3):
         """
         Trim slits
           Mainly those that fell off the detector
@@ -1050,27 +1050,47 @@ class TraceSlits(masterframe.MasterFrame):
         self.rcen  : ndarray (internal)
 
         """
+
+        # JFH ToDo In principle we could make this trim_slits function a method in the generic spectrograph function, which could then be
+        # overloaded by the echelle spectrographs
         nslit = self.lcen.shape[1]
-        mask = np.zeros(nslit)
-        #fracpix = int(self.par['fracignore']*self.mstrace.shape[1])
-        for o in range(nslit):
-            if np.min(self.lcen[:, o]) > self.mstrace.shape[1]:
-                mask[o] = 1
-                msgs.info("Slit {0:d} is off the detector - ignoring this slit".format(o+1))
-            elif np.max(self.rcen[:, o]) < 0:
-                mask[o] = 1
-                msgs.info("Slit {0:d} is off the detector - ignoring this slit".format(o + 1))
-            if trim_short_slits:
-                this_width = np.median(self.rcen[:,o]-self.lcen[:,o])*plate_scale
-                if this_width < self.par['min_slit_width']:
-                    mask[o] = 1
-                    msgs.info("Slit {0:d}".format(o + 1) +
-                              " has width = {:}".format(this_width) + " < less than min_slit_width = {:} arcseconds".format(self.par['min_slit_width']) +
-                              " - ignoring this slit")
+        nspat = self.mstrace.shape[1]
+        mask = np.ones(nslit,dtype=bool)
+
+        min_val = np.min(self.lcen,axis=0)
+        max_val = np.max(self.rcen,axis=0)
+
+        off_detector = (min_val > nspat) | (max_val < 0)
+        mask[off_detector] = False
+        slit_width = np.median((self.rcen-self.lcen)*plate_scale,axis=0)
+        # Print out a status message
+        ioff = np.where(off_detector)[0]
+        for islit in ioff:
+            msgs.info('Slit {0:d} is off the detector - ignoring this slit'.format(islit))
+
+        if trim_slits:
+            if self.spectrograph.pypeline == 'MultiSlit':
+                too_short = slit_width < self.par['min_slit_width']
+                ishort = np.where(too_short)[0]
+                mask[ishort] = False
+                for islit in ishort:
+                    msgs.info('Slit {0:d}'.format(islit) +
+                    ' has width = {:6.3f}'.format(slit_width[islit]) + ' arcseconds < less than min_slit_width = {:} arcseconds'.format(self.par['min_slit_width']) +
+                    ' - ignoring this slit')
+            elif self.spectrograph.pypeline == 'Echelle':
+                # JFH Once we have orders that shrink because of overlap ech_slit_tol will need to be adjusted
+                med_width = np.median(slit_width[mask])
+                wrong_size = (slit_width > (1.0 + ech_slit_tol)*med_width) | (slit_width < (1.0 - ech_slit_tol)*med_width)
+                iwrong = np.where(wrong_size)[0]
+                mask[iwrong] = False
+                for islit in iwrong:
+                    msgs.info('Order {0:d}'.format(islit) +
+                    ' has width = {:6.3f}'.format(
+                    slit_width[islit]) + ' arcseconds, which is not within ech_slit_tol = {:}%'.format(100.0*ech_slit_tol) +
+                    ' of the median order width of {:5.3f}'.format(med_width) + ' arcseconds - ignoring this order')
         # Trim
-        wok = np.where(mask == 0)[0]
-        self.lcen = self.lcen[:, wok]
-        self.rcen = self.rcen[:, wok]
+        self.lcen = self.lcen[:, mask]
+        self.rcen = self.rcen[:, mask]
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -1279,7 +1299,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Return
         return loaded
 
-    def run(self, arms=True, add_user_slits=None, rm_user_slits=None, plate_scale = None, show=False):
+    def run(self, add_user_slits=None, rm_user_slits=None, trim_slits = True, plate_scale = None, show=False, write_qa=True):
         """ Main driver for tracing slits.
 
           Code flow
@@ -1296,11 +1316,10 @@ class TraceSlits(masterframe.MasterFrame):
            7.  Synchronize
            8.  Extrapolate into blank regions (PCA)
            9.  Perform pixel-level calculations
+           10. Make the QA plot
 
         Parameters
         ----------
-        arms : bool (optional)
-          Running longslit or multi-slit?
         ignore_orders : bool (optional)
           Perform ignore_orders algorithm (recommended only for echelle data)
         add_user_slits : list of lists
@@ -1375,14 +1394,18 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Remove any slits that are completely off the detector
         #   Also remove short slits here for multi-slit and long-slit (alignment stars)
-        if self.nslit > 1:
-            self._trim_slits(trim_short_slits=arms, plate_scale = plate_scale)
+        #if self.nslit > 1:
+        self._trim_slits(trim_slits = trim_slits, plate_scale = plate_scale)
 
         # Generate pixel arrays
         self._make_pixel_arrays()
 
         # fill dict for PypeIt
         self.tslits_dict = self._fill_tslits_dict()
+
+        # Make the QA
+        if write_qa:
+            self._qa()
 
         # Return it
         return self.tslits_dict
@@ -1396,8 +1419,9 @@ class TraceSlits(masterframe.MasterFrame):
         -------
 
         """
+        slitmask = self.spectrograph.slitmask(self.tslits_dict)
         trace_slits.slit_trace_qa(self.mstrace, self.lcen,
-                                   self.rcen, self.extrapord, self.setup,
+                                   self.rcen, slitmask, self.extrapord, self.setup,
                                    desc="Trace of the slit edges D{:02d}".format(self.det),
                                    use_slitid=use_slitid, out_dir=self.redux_path)
 

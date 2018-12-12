@@ -45,6 +45,7 @@
 - Many other small bug fixes and modifications particulary in the
   fitting routines.
 - Lots of development related to echelle functionality.
+- Major enhancements to fitting routines (in utils)
 
 0.9.0
 -----

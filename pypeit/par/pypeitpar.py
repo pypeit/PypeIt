@@ -1559,7 +1559,7 @@ class WaveTiltsPar(ParSet):
                               '2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the' \
                               'slit/order. This can be a single number or a list/array providing the value for each slit'
 
-        defaults['spec_order'] = 5
+        defaults['spec_order'] = 4
         dtypes['spec_order'] = [int, float, list, numpy.ndarray]
         descr['spec_order'] = 'Order of the spectral direction of the 2d legendre polynomial (spatial, spectral) that is ' \
                               'fit to obtain a global solution for the tilts across the slit/order. ' \
