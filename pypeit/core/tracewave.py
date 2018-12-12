@@ -595,7 +595,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
 
 
 
-def gridtilts(shape, thismask, slit_cen, coeff2, func2d, spec_order, spat_order, pad_spec=30, pad_spat = 10, method='interp'):
+def gridtilts(shape, thismask, slit_cen, coeff2, func2d, spec_order, spat_order, pad_spec=30, pad_spat = 5, method='interp'):
     """
 
     Parameters
@@ -678,12 +678,16 @@ def gridtilts(shape, thismask, slit_cen, coeff2, func2d, spec_order, spat_order,
         piximg = scipy.interpolate.griddata(points, values, (spec_img, spat_img), method='cubic')
         inmask = thismask & np.isfinite(piximg) & (piximg/xnspecmin1 > -0.2) & (piximg/xnspecmin1 < 1.2)
 
-    # Now simply do a 2d polynomial fit with no rejection to this 2d image
+    # Now simply do a 2d polynomial fit with just rejection of crazy behavior, i.e. 10 pixels
     fitxy = [spec_order, spat_order]
+    sigma = np.full_like(spec_img,10.0)/xnspecmin1
     fitmask, coeff2_tilts = utils.robust_polyfit_djs(spec_img.flatten()/xnspecmin1, piximg.flatten()/xnspecmin1,
-                                                      fitxy, x2=spat_img.flatten()/xnspatmin1,
-                                                      inmask=inmask.flatten(), function=func2d, maxiter=0,
-                                                      minx=0.0, maxx=1.0, minx2=0.0,maxx2=1.0,use_mad=False)
+                                                     fitxy, x2=spat_img.flatten()/xnspatmin1, sigma = sigma.flatten(),
+                                                     upper=5.0, lower=5.0, maxdev = 10.0/xnspecmin1,
+                                                     inmask=inmask.flatten(), function=func2d, maxiter=20,
+                                                     minx=0.0, maxx=1.0, minx2=0.0,maxx2=1.0,use_mad=False)
+    irej = np.invert(fitmask) & inmask.flatten()
+    msgs.info('Rejected {:d}/{:d} pixels in final tilts image after gridding'.format(np.sum(irej),np.sum(inmask)))
     # normalized tilts image
     tilts = utils.func_val(coeff2_tilts, spec_img/xnspecmin1, func2d, x2=spat_img/xnspatmin1,minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
     tilts = np.fmax(np.fmin(tilts, 1.2),-0.2)
