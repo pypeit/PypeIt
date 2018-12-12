@@ -92,7 +92,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['satpix'] ='nothing'
 
         # Set slits and tilts parameters
-        par['calibrations']['tilts']['order'] = 2
+#        par['calibrations']['tilts']['order'] = 2
         par['calibrations']['tilts']['tracethresh'] = [10, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 10]
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['sigdetect'] = 50

@@ -9,6 +9,7 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import os
+import time
 import glob
 import warnings
 import textwrap
@@ -644,7 +645,8 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
 
     # Here we go
     with open(pypeit_file, 'w') as f:
-        f.write("# This is a comment line\n")
+        f.write('# Auto-generated PypeIt file\n')
+        f.write('# {0}\n'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())))
         f.write("\n")
         f.write("# User-defined execution parameters\n")
         f.write('\n'.join(_cfg_lines))
@@ -654,7 +656,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
             f.write("# Setup\n")
             f.write("setup read\n")
             for sline in setup_lines:
-                f.write(' '+sline)
+                f.write(' '+sline+'\n')
             f.write("setup end\n")
             f.write("\n")
         # Data
@@ -668,8 +670,8 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
             for path in paths:
                 f.write(' path '+path+'\n')
         if sorted_files is not None:
-            for sfile in sorted_files:
-                f.write(sfile)
+            f.write('\n'.join(sorted_files))
+            f.write('\n')
         f.write("data end\n")
         f.write("\n")
 

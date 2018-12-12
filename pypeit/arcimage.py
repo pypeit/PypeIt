@@ -16,6 +16,9 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     """
     Generate an Arc Image from one or more arc frames.
 
+    .. todo::
+        - Update doc!
+
     Args:
         spectrograph (:obj:`str`,
             :class:`pypeit.spectrographs.spectrograph.Spectrograph`):

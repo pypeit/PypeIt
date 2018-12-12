@@ -36,32 +36,56 @@ from pypeit import debugger
 
 class Calibrations(object):
     """
-    This class is primarily designed to guide the generation of calibration images
-    and objects in PypeIt
-
-    Must be able to instantiate spectrograph.
+    This class is primarily designed to guide the generation of
+    calibration images and objects in PypeIt.
 
     .. todo::
         Improve docstring...
 
-    Parameters
-    ----------
-    redux_path : str, optional
-      Path to location of PypeIt file (and reductions)
-      Defaults to pwd
+    Args:
+        fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
+            The class holding the metadata for all the frames in this
+            PypeIt run.
+        spectrograph (:obj:`str`, optional):
+            The name of the spectrograph to reduce.  TODO: Not needed.
+        par (:class:`pypeit.par.pypeitpar.PypeItPar`, optional):
+            Parameter set defining optional parameters of PypeIt's
+            low-level algorithms.  If None, defined using
+            :func:`pypeit.spectrograph.spectrographs.Spectrograph.default_pypeit_par`.
+        redux_path (:obj:`str`, optional):
+            Top-level directory for PypeIt output.  If None, the current
+            working directory is used.
+        save_masters (:obj:`bool`, optional):
+            Save Master files as they are generated for later use.
+        write_qa (:obj:`bool`, optional):
+            Create QA plots.
+        show (:obj:`bool`, optional):
+            Show plots of PypeIt's results as the code progesses.
+            Requires interaction from the users.
 
-    Attributes
-    ----------
+    Attributes:
+        fitstbl
+        save_masters
+        write_qa
+        show
+        spectrograph
+        par
+        redux_path
+        master_dir
+        calib_dict
+        det
+        frame (:obj:`int`):
+            0-indexed row of the frame being calibrated in
+            :attr:`fitstbl`.
+        setup
 
-    Inherited Attributes
-    --------------------
+
+        
     """
     __metaclass__ = ABCMeta
 
-    # TODO: master_root is a bit of a kludge.  It could be defined
-    # earlier and/or in par.
-    def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None,
-                 save_masters=True, write_qa=True, show = False):
+    def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None, save_masters=True,
+                 write_qa=True, show=False):
 
         # Check the type of the provided fits table
         if not isinstance(fitstbl, PypeItMetaData):
@@ -74,6 +98,7 @@ class Calibrations(object):
         self.show = show
 
         # Spectrometer class
+        # TODO: the spectrograph is already defined in fitstbl
         _spectrograph = spectrograph
         if spectrograph is None:
             # Set spectrograph from FITS table instrument header
@@ -97,7 +122,7 @@ class Calibrations(object):
         # Attributes
         self.calib_dict = {}
         self.det = None
-        self.sci_ID = None
+        self.frame = None
         self.setup = None
 
         # Steps
@@ -709,6 +734,7 @@ class Calibrations(object):
         """
         for step in self.steps:
             getattr(self, 'get_{:s}'.format(step))()
+        msgs.info("Calibration complete!")
 
     # This is general to any attribute
     def _chk_set(self, items):
