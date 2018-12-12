@@ -1083,8 +1083,11 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.):
     for idx in range(rspec.nspec):
         rspec.select = idx
         color = cmap(float(idx) / rspec.nspec)
-        ax1.plot(rspec.wavelength, rspec.flux, color=color)
-        ax1.scatter(rspec.wavelength[rmask[idx, :]], rspec.flux[rmask[idx, :]],marker='s',facecolor='None',edgecolor='k')
+        ind_good =  rspec.sig>0
+        ind_mask = (rspec.sig>0) & (rmask[idx, :]>0)
+        ax1.plot(rspec.wavelength[ind_good], rspec.flux[ind_good], color=color)
+        ax1.scatter(rspec.wavelength[ind_mask], rspec.flux[ind_mask],
+                    marker='s',facecolor='None',edgecolor='k')
 
     ax2.plot(spec1d.wavelength, spec1d.sig, ls='steps-',color='0.7')
     ax2.plot(spec1d.wavelength, spec1d.flux, ls='steps-',color='b')
