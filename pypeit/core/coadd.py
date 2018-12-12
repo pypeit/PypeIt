@@ -1008,8 +1008,6 @@ def write_to_disk(spec1d, outfile):
         spec1d.write_to_fits(outfile)
     return
 
-
-
 def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.):
     """  QA plot for 1D coadd of spectra
 
