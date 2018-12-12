@@ -667,7 +667,7 @@ class ArchiveReid:
     """
 
 
-    def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True, debug_all = False,
+    def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True, debug_all = True,
                  debug_peaks = False, debug_xcorr = False, debug_reid = False, debug_fits= False):
 
         if debug_all:
@@ -853,7 +853,6 @@ class ArchiveReid:
                 signtxt = 'anitcorrelate'
             # Report
             cen_wave = self.wv_calib[st]['cen_wave']
-
             cen_disp = self.wv_calib[st]['cen_disp']
             msgs.info(msgs.newline() +
                       '---------------------------------------------------' + msgs.newline() +
