@@ -799,7 +799,7 @@ def get_std_dev(irspec, rmask, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
 def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
                   scale_method='auto', do_offset=False, sigrej_final=3.,
                   do_var_corr=True, qafile=None, outfile=None,
-                  do_cr=True, **kwargs):
+                  do_cr=True, debug=False,**kwargs):
     """
     Parameters
     ----------
@@ -990,7 +990,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     # QA
     if qafile is not None:
         msgs.info("Writing QA file: {:s}".format(qafile))
-        coaddspec_qa(spectra, rspec, rmask, spec1d, qafile=qafile)
+        coaddspec_qa(spectra, rspec, rmask, spec1d, qafile=qafile,debug=debug)
 
     # Write to disk?
     if outfile is not None:
@@ -1008,7 +1008,7 @@ def write_to_disk(spec1d, outfile):
         spec1d.write_to_fits(outfile)
     return
 
-def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.):
+def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.,debug=False):
     """  QA plot for 1D coadd of spectra
 
     Parameters
@@ -1040,9 +1040,9 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.):
         pp = PdfPages(qafile+'.png')
 
     plt.figure(figsize=(12,6))
-    ax1 = plt.axes([0.07, 0.15, 0.6, 0.4])
+    ax1 = plt.axes([0.07, 0.13, 0.6, 0.4])
     ax2 = plt.axes([0.07, 0.55,0.6, 0.4])
-    ax3 = plt.axes([0.75,0.15,0.2,0.8])
+    ax3 = plt.axes([0.72,0.13,0.25,0.8])
     plt.setp(ax2.get_xticklabels(), visible=False)
 
     # Deviate
@@ -1052,9 +1052,9 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.):
     if dev_sig is not None:
         flat_dev_sig = dev_sig.flatten()
 
-    xmin = -10
-    xmax = 10
-    n_bins = 100
+    xmin = -5
+    xmax = 5
+    n_bins = 50
 
     # Deviation
     if dev_sig is not None:
@@ -1064,7 +1064,7 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.):
         ax3.plot(xppf, area*scipy.stats.norm.pdf(xppf), color='black', linewidth=2.0)
         ax3.bar(edges[:-1], hist, width=((xmax-xmin)/float(n_bins)), alpha=0.5)
     ax3.set_xlabel('Residual Distribution')
-    ax3.set_title('New sigma = %s'%str(round(std_dev,2)))
+    ax3.set_title('New sigma = %s'%str(round(std_dev,2)),fontsize=17)
 
     # Coadd on individual
     # yrange
@@ -1103,7 +1103,8 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.):
         pp.savefig(bbox_inches='tight',dpi=600)
         pp.close()
         msgs.info("Wrote coadd QA: {:s}".format(qafile))
-    plt.show()
+    if debug:
+        plt.show()
     plt.close()
 
     return
