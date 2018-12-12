@@ -951,7 +951,9 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             sigrej_eff = sigrej_final*one_sigma
             chi2_cap = (flux-newflux_now - offset)**2*ivar_cap
             # Grow??
-            chi_mask = (chi2_cap > sigrej_eff**2) & (~rmask[qq,:])
+            #Is this correct? This is not growing mask
+            #chi_mask = (chi2_cap > sigrej_eff**2) & (~rmask[qq,:])
+            chi_mask = (chi2_cap > sigrej_eff**2) | (rmask[qq,:])
             nrej = np.sum(chi_mask)
             # Apply
             if nrej > 0:
@@ -1008,7 +1010,98 @@ def write_to_disk(spec1d, outfile):
 
 
 
-def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=10.):
+def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.):
+    """  QA plot for 1D coadd of spectra
+
+    Parameters
+    ----------
+    ispectra : XSpectrum1D
+      Multi-spectra object
+    rspec : XSpectrum1D
+      Rebinned spectra with updated variance
+    spec1d : XSpectrum1D
+      Final coadd
+    yscale : float, optional
+      Scale median flux by this parameter for the spectral plot
+
+    """
+
+    plt.rcdefaults()
+    plt.rcParams['font.family']= 'times new roman'
+    plt.rcParams["xtick.top"] = True
+    plt.rcParams["ytick.right"] = True
+    plt.rcParams["xtick.minor.visible"] = True
+    plt.rcParams["ytick.minor.visible"] = True
+    plt.rcParams["ytick.direction"] = 'in'
+    plt.rcParams["xtick.direction"] = 'in'
+    plt.rcParams["xtick.labelsize"] = 17
+    plt.rcParams["ytick.labelsize"] = 17
+    plt.rcParams["axes.labelsize"] = 17
+
+    if qafile is not None:
+        pp = PdfPages(qafile+'.png')
+
+    plt.figure(figsize=(12,6))
+    ax1 = plt.axes([0.07, 0.15, 0.6, 0.4])
+    ax2 = plt.axes([0.07, 0.55,0.6, 0.4])
+    ax3 = plt.axes([0.75,0.15,0.2,0.8])
+    plt.setp(ax2.get_xticklabels(), visible=False)
+
+    # Deviate
+    std_dev, dev_sig = get_std_dev(rspec, rmask, spec1d)
+    #dev_sig = (rspec.data['flux'] - spec1d.flux) / (rspec.data['sig']**2 + spec1d.sig**2)
+    #std_dev = np.std(sigma_clip(dev_sig, sigma=5, iters=2))
+    if dev_sig is not None:
+        flat_dev_sig = dev_sig.flatten()
+
+    xmin = -10
+    xmax = 10
+    n_bins = 100
+
+    # Deviation
+    if dev_sig is not None:
+        hist, edges = np.histogram(flat_dev_sig, range=(xmin, xmax), bins=n_bins)
+        area = len(flat_dev_sig)*((xmax-xmin)/float(n_bins))
+        xppf = np.linspace(scipy.stats.norm.ppf(0.0001), scipy.stats.norm.ppf(0.9999), 100)
+        ax3.plot(xppf, area*scipy.stats.norm.pdf(xppf), color='black', linewidth=2.0)
+        ax3.bar(edges[:-1], hist, width=((xmax-xmin)/float(n_bins)), alpha=0.5)
+    ax3.set_xlabel('Residual Distribution')
+    ax3.set_title('New sigma = %s'%str(round(std_dev,2)))
+
+    # Coadd on individual
+    # yrange
+    medf = np.median(spec1d.flux)
+    #ylim = (medf/10., yscale*medf)
+    ylim = (np.sort([0.-2*medf, yscale*medf]))
+    # Plot
+    cmap = plt.get_cmap('RdYlBu_r')
+    for idx in range(ispectra.nspec):
+        ispectra.select = idx
+        color = cmap(float(idx) / ispectra.nspec)
+        ax1.plot(ispectra.wavelength, ispectra.flux, color=color)
+
+    ax2.plot(spec1d.wavelength, spec1d.sig, ls='steps-',color='0.7')
+    ax2.plot(spec1d.wavelength, spec1d.flux, ls='steps-',color='b')
+
+    ax1.set_xlim([np.min(spec1d.wavelength.value),np.max(spec1d.wavelength.value)])
+    ax1.set_ylim(ylim)
+    ax2.set_xlim([np.min(spec1d.wavelength.value),np.max(spec1d.wavelength.value)])
+    ax2.set_ylim(ylim)
+    ax1.set_xlabel('Wavelength (Angstrom)')
+    ax1.set_ylabel('Flux')
+    ax2.set_ylabel('Flux')
+
+    plt.tight_layout(pad=0.2,h_pad=0.,w_pad=0.2)
+    if qafile is not None:
+        pp.savefig(bbox_inches='tight',dpi=600)
+        pp.close()
+        msgs.info("Wrote coadd QA: {:s}".format(qafile))
+    plt.show()
+    plt.close()
+
+    return
+
+def coaddspec_qa_old(ispectra, rspec, rmask, spec1d, qafile=None, yscale=10.):
     """  QA plot for 1D coadd of spectra
 
     Parameters
@@ -1084,6 +1177,7 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=10.):
     plt.rcdefaults()
 
     return
+
 
 
 
