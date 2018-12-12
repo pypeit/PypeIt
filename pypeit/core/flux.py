@@ -336,7 +336,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
                               kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject,debug=debug)
 
     ## ToDo: currently I'm fitting the sensfunc in the masked region with a polynomial, should we change to algorithm to
-    ##   fitting polynomial first and then bsline the poly-subtracted flux ???
+    ##   fit polynomial first and then bsline the poly-subtracted flux ???
     ## keep tell free region for poly fit.
     tell2 = np.any([((wave_star >= 7580.00 * units.AA) & (wave_star <= 7750.00 * units.AA)),
                    ((wave_star >= 7160.00 * units.AA) & (wave_star <= 7340.00 * units.AA)),
@@ -367,6 +367,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     sensfunc_poly = 10**(utils.func_val(poly_coeff, wave_star.value, 'polynomial'))
     sensfunc[~msk_star] =  sensfunc_poly[~msk_star]
     if debug:
+    #if True:
         plt.plot(wave_star.value[msk_all], sensfunc[msk_all], 'b-o')
         plt.plot(wave_star.value, sensfunc_poly, 'r-')
         plt.plot(wave_star.value, sensfunc, 'k-')
