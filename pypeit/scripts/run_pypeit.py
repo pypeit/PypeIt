@@ -94,6 +94,7 @@ def main(args):
                                    overwrite=args.overwrite, logname=logname, show=args.show)
 
     # Init Setup
+    ## JFH TODO This will move to the pypeit class init!
     pypeIt.init_setup(args.pypeit_file)
 #    if args.calcheck:
 #        msgs.info('Done checking calibrations.  Exiting..')
