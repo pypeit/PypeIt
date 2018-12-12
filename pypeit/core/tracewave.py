@@ -573,6 +573,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # Now do one last fit to invert the function above to obtain the final tilts model in normalized image coordinates
     inmask = np.isfinite(tiltpix)
     sigma = np.full_like(spec_img_pad, 10.0)
+    # JFH What I find confusing is that this last fit was actually what Burles was doing on the raw tilts, so why was that failing?
     fitmask_tilts, coeff2_tilts = utils.robust_polyfit_djs(tiltpix/xnspecmin1, spec_img_pad[thismask_grow]/xnspecmin1,
                                                            fitxy, x2=spat_img_pad[thismask_grow]/xnspatmin1,
                                                            sigma=sigma[thismask_grow]/xnspecmin1,
