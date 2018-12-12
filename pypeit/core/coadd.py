@@ -21,6 +21,8 @@ from pypeit import msgs
 from pypeit.core import load
 from pypeit import utils
 from pypeit import debugger
+from pkg_resources import resource_filename
+
 
 # TODO
     # Shift spectra
@@ -1071,7 +1073,7 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.,debug=Fa
     # yrange
     medf = np.median(spec1d.flux)
     #ylim = (medf/10., yscale*medf)
-    ylim = (np.sort([0.-2*medf, yscale*medf]))
+    ylim = (np.sort([0.-1.5*medf, yscale*medf]))
     # Plot
     cmap = plt.get_cmap('RdYlBu_r')
     # change to plotting the scaled spectra
@@ -1084,9 +1086,15 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.,debug=Fa
         color = cmap(float(idx) / rspec.nspec)
         ind_good =  rspec.sig>0
         ind_mask = (rspec.sig>0) & (rmask[idx, :]>0)
-        ax1.plot(rspec.wavelength[ind_good], rspec.flux[ind_good], color=color)
+        ax1.plot(rspec.wavelength[ind_good], rspec.flux[ind_good], color=color,alpha=0.5)
         ax1.scatter(rspec.wavelength[ind_mask], rspec.flux[ind_mask],
                     marker='s',facecolor='None',edgecolor='k')
+
+    if (np.max(spec1d.wavelength)>(9000.0*units.AA)):
+        skytrans_file = resource_filename('pypeit', '/data/skisim/atm_transmission_secz1.5_1.6mm.dat')
+        skycat = np.genfromtxt(skytrans_file,dtype='float')
+        scale = 0.8*ylim[1]
+        ax2.plot(skycat[:,0]*1e4,skycat[:,1]*scale,'m-',alpha=0.5)
 
     ax2.plot(spec1d.wavelength, spec1d.sig, ls='steps-',color='0.7')
     ax2.plot(spec1d.wavelength, spec1d.flux, ls='steps-',color='b')
