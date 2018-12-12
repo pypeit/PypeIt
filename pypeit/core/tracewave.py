@@ -510,7 +510,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
 
     use_mask = np.outer(np.ones(nspat,dtype=bool),use_tilt)
     tot_mask = tilts_mask & (tilts_err < 900) & use_mask
-    fitxy = [spat_order, spec_order]
+    fitxy = [spec_order, spat_order]
 
     # Fit the inverted model with a 2D polynomial
     msgs.info("Fitting tilts with a low order, 2D {:s}".format(func2d))
@@ -518,41 +518,51 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     adderr = 0.03
     tilts_invvar = ((tilts_mad < 100.0) & (tilts_mad > 0.0))/(np.abs(tilts_mad) + adderr)**2
 
-    fitmask, coeff2 = utils.robust_polyfit_djs(tilts_dspat.flatten()/xnspatmin1, (tilts.flatten() - tilts_spec.flatten())/xnspecmin1,
-                                               fitxy, x2=tilts_spec.flatten()/xnspecmin1, inmask = tot_mask.flatten(),
+    fitmask, coeff2 = utils.robust_polyfit_djs(tilts_spec.flatten()/xnspecmin1, (tilts.flatten() - tilts_spec.flatten())/xnspecmin1,
+                                               fitxy, x2=tilts_dspat.flatten()/xnspatmin1, inmask = tot_mask.flatten(),
                                                invvar=xnspecmin1**2*tilts_invvar.flatten(),
                                                function=func2d, maxiter=maxiter, lower=sigrej, upper=sigrej,
-                                               maxdev=maxdev_pix/xnspecmin1,minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0,
+                                               maxdev=maxdev_pix/xnspecmin1,minx=-0.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
                                                use_mad=False, sticky=False)
     fitmask = fitmask.reshape(tilts_dspat.shape)
-    delta_tilt_1 = xnspecmin1*utils.func_val(coeff2, tilts_dspat[tilts_mask]/xnspatmin1, func2d, x2=tilts_spec[tilts_mask]/xnspecmin1,
-                                            minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    # Compute a rejection  mask that we will use later. These are locations that were fit but were rejected
+    rej_mask = tot_mask & np.invert(fitmask)
+    # Compute and store the 2d tilts fit
+    delta_tilt_1 = xnspecmin1*utils.func_val(coeff2, tilts_spec[tilts_mask]/xnspecmin1, func2d, x2=tilts_dspat[tilts_mask]/xnspatmin1,
+                                            minx=0.0, maxx=1.0, minx2=-1.0, maxx2=1.0)
     delta_tilt = np.zeros_like(tilts_dspat)
     tilts_2dfit = np.zeros_like(tilts_dspat)
     delta_tilt[tilts_mask] = delta_tilt_1
     tilts_2dfit[tilts_mask] = tilts_spec[tilts_mask] + delta_tilt[tilts_mask]
-    # Residuals in pixels
+    # Add the 2d fit to the tracetilt dictionary
+    trc_tilt_dict_out = copy.deepcopy(trc_tilt_dict)
+    trc_tilt_dict_out['tilt_2dfit'] = tilts_2dfit
+
+    # Report the residuals in pixels
     res_fit = tilts[fitmask] - tilts_2dfit[fitmask]
     rms_fit = np.std(res_fit)
     msgs.info("Residuals: 2D Legendre Fit")
     msgs.info("RMS (pixels): {}".format(rms_fit))
     msgs.info("RMS/FWHM: {}".format(rms_fit/fwhm))
 
-    # These are locations that were fit but were rejected
-    rej_mask = tot_mask & np.invert(fitmask)
-
-    # Add the
-    trc_tilt_dict_out = copy.deepcopy(trc_tilt_dict)
-    trc_tilt_dict_out['tilt_2dfit'] = tilts_2dfit
-
-    # Evaluate the tilts image
-    msgs.info('Evaluating tilts image')
-    tilts_img = np.zeros((nspec, nspat))
-    tilts_img[thismask] = fit2tilts((nspec, nspat), thismask, slit_cen, coeff2, func2d)
+    msgs.info('Gridding up tilts and computing tilts image')
+    # Grid up the tilts and then fit them returning the final tilt image coefficients, and the tilts_img
+    coeff2_tilts, tilts_img = gridtilts((nspec, nspat), thismask, slit_cen, coeff2, func2d, spec_order, spat_order)
 
     tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
-                         npix_rej = np.sum(fitmask == False), coeff2=coeff2, spec_order = spec_order, spat_order = spat_order,
-                         minx = -1.0, maxx = 1.0, minx2 = 0.0, maxx2 = 1.0, func=func2d)
+                         npix_rej = np.sum(fitmask == False), coeff2=coeff2_tilts, spec_order = spec_order, spat_order = spat_order,
+                         minx = 0.0, maxx = 1.0, minx2 = 0.0, maxx2 = 1.0, func=func2d)
+
+    # Now do some QA
+    if doqa:
+        plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order, rms_fit, fwhm,
+                     slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
+        plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order, spec_order, rms_fit, fwhm,
+                       slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
+        plot_tilt_spec(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm, slit=slit,
+                       setup = setup, show_QA=show_QA, out_dir=out_dir)
+
+    return tilts_img, tilt_fit_dict, trc_tilt_dict_out
 
     #fitmask, coeff2 = fit_tilts_rej(
     #    tilts_dspat, tilts_spec_fit, tilts, tilts_invvar, tot_mask, slit_cen, spat_order, spec_order,
@@ -583,29 +593,9 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     #msgs.info("RMS/FWHM: {}".format(rms_real/fwhm))
 
 
-    # Now do some QA
-
-    if doqa:
-        # We could also be plotting the actual thing we fit below. Right now I'm trying with the 2d tilts themselves
-        #plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit_piximg, tot_mask, rej_mask, spat_order, spec_order, rms_real, fwhm,
-        #             slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
-        # We could also be plotting the actual thing we fit below. Right now I'm trying with the 2d tilts themselves
-        plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order, rms_fit, fwhm,
-                     slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
-        #plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit_piximg, tilts_spec, tot_mask, rej_mask, spat_order, spec_order, rms_real, fwhm,
-        #               slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
-        plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order, spec_order, rms_fit, fwhm,
-                       slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
-        #plot_tilt_spec(tilts_spec, tilts, tilts_2dfit_piximg, tot_mask, rej_mask, rms_real, fwhm, slit=slit,
-        #               setup = setup, show_QA=show_QA, out_dir=out_dir)
-        plot_tilt_spec(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm, slit=slit,
-                       setup = setup, show_QA=show_QA, out_dir=out_dir)
 
 
-    return tilts_img, tilt_fit_dict, trc_tilt_dict_out
-
-
-def fit2tilts(shape, thismask, slit_cen, coeff2, func, pad_spec=30, pad_spat = 10, method='interp'):
+def gridtilts(shape, thismask, slit_cen, coeff2, func2d, spec_order, spat_order, pad_spec=30, pad_spat = 10, method='interp'):
     """
 
     Parameters
@@ -626,6 +616,8 @@ def fit2tilts(shape, thismask, slit_cen, coeff2, func, pad_spec=30, pad_spat = 1
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
 
+    # JFH This histogram method is not preferred, since it basically does NGP. It is however super fast, so for big images
+    # it is useful to have it
     if 'hist2d' in method:
         oversamp_spec=5
         oversamp_spat=3
@@ -648,24 +640,16 @@ def fit2tilts(shape, thismask, slit_cen, coeff2, func, pad_spec=30, pad_spat = 1
         spec_img_nrm = spec_img/xnspecmin1
 
         # normalized spec image
-        tracepix = spec_img + xnspecmin1*utils.func_val(coeff2, dspat_img_nrm, func, x2=spec_img_nrm,
-                                                              minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+        tracepix = spec_img + xnspecmin1*utils.func_val(coeff2, spec_img_nrm, func2d, x2=dspat_img_nrm,
+                                                              minx=0.0, maxx=1.0, minx2=-1.0, maxx2=1.0)
         norm_img, spec_edges, spat_edges = np.histogram2d(tracepix.flatten(), spat_img.flatten(),
                                                           bins=[np.arange(nspec+1), np.arange(nspat+1)], density=False)
         weigh_img, spec_edges, spat_edges = np.histogram2d(tracepix.flatten(), spat_img.flatten(),
                                                            bins=[np.arange(nspec+1), np.arange(nspat+1)],
                                                            weights = spec_img.flatten(),density=False)
         piximg =(norm_img > 0.0)*weigh_img/(norm_img + (norm_img == 0.0))
-        holes = (norm_img == 0) & thismask
-        if np.any(holes):
-            msgs.warn('There are {:d} missed pixels in your tilts image.'.format(np.sum(holes)) + msgs.newline() +
-                      ' Need to increase (oversamp_spec, oversamp_spat)=({:d},{:d})'.format(oversamp_spec, oversamp_spat) +
-                      ' to a larger value.' + msgs.newline() +
-                      'Interpolating over them')
-            spec_img_orig = np.outer(np.arange(nspec),np.ones(nspat))
-            piximg[holes]=spec_img[holes]=spec_img_orig[holes]
-            #piximg = pydl.djs_maskinterp(piximg,holes,axis=0)
-
+        inmask = thismask & (norm_img > 0) & (piximg/xnspecmin1 > -0.2) & (piximg/xnspecmin1 < 1.2)
+    # This is the defulat method although scipy.interpolate.griddata is a bit slow
     elif 'interp' in method:
         spec_vec_pad = np.arange(-pad_spec,nspec+pad_spec)
         spat_vec_pad = np.arange(-pad_spat,nspat+pad_spat)
@@ -685,27 +669,61 @@ def fit2tilts(shape, thismask, slit_cen, coeff2, func, pad_spec=30, pad_spat = 1
         kernel = np.ones((2*pad_spec, 2*pad_spat))/float(4*pad_spec*pad_spat)
         thismask_grow = scipy.ndimage.convolve(thismask_pad.astype(float), kernel, mode='nearest') > 0.0
         # normalized spec image
-        tracepix = spec_img_pad[thismask_grow] + xnspecmin1*utils.func_val(coeff2, dspat_img_nrm[thismask_grow], func, x2=spec_img_nrm[thismask_grow],
-                                                              minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
-        # JFH I'm not super happy with these kludges, but when the tilts go crazy you can get some garbage.
-        delta_tilt = tracepix - spec_img_pad[thismask_grow]
-        rms_tilt = np.std(delta_tilt)
-        ikeep = np.isfinite(delta_tilt) & (np.abs(delta_tilt) < 10.0*rms_tilt)
+        tracepix = spec_img_pad[thismask_grow] + xnspecmin1*utils.func_val(coeff2, spec_img_nrm[thismask_grow], func2d, x2=dspat_img_nrm[thismask_grow],
+                                                              minx=0.0, maxx=1.0, minx2=-1.0, maxx2=1.0)
+        #rms_tilt = np.std(delta_tilt)
+        ikeep = np.isfinite(tracepix) #& (np.abs(delta_tilt) < 10.0*rms_tilt)
         points = np.stack((tracepix[ikeep], spat_img_pad[thismask_grow][ikeep]),axis=1)
         values =spec_img_pad[thismask_grow][ikeep]
         piximg = scipy.interpolate.griddata(points, values, (spec_img, spat_img), method='cubic')
-        holes = (np.isnan(piximg) | (piximg < 0.002*nspec) | (np.abs(piximg-spec_img) > 10.0*rms_tilt)) & thismask
-        if np.any(holes):
-            msgs.warn('There are {:d} missed pixels in your tilts image.'.format(np.sum(holes)) + msgs.newline() +
-                      'Interpolating over them.')
-            piximg[holes]=spec_img[holes]
-            #piximg = pydl.djs_maskinterp(piximg,holes,axis=0)
+        inmask = thismask & np.isfinite(piximg) & (piximg/xnspecmin1 > -0.2) & (piximg/xnspecmin1 < 1.2)
 
-    tilts = np.fmax(np.fmin(piximg/xnspecmin1, 1.2),-0.2)
+    # Now simply do a 2d polynomial fit with no rejection to this 2d image
+    fitxy = [spec_order, spat_order]
+    fitmask, coeff2_tilts = utils.robust_polyfit_djs(spec_img.flatten()/xnspecmin1, piximg.flatten()/xnspecmin1,
+                                                      fitxy, x2=spat_img.flatten()/xnspatmin1,
+                                                      inmask=inmask.flatten(), function=func2d, maxiter=0,
+                                                      minx=0.0, maxx=1.0, minx2=0.0,maxx2=1.0,use_mad=False)
+    # normalized tilts image
+    tilts = utils.func_val(coeff2_tilts, spec_img/xnspecmin1, func2d, x2=spat_img/xnspatmin1,minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    tilts = np.fmax(np.fmin(tilts, 1.2),-0.2)
     # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
     # wavelength solution fitting
 
-    return tilts[thismask]
+    return coeff2_tilts, tilts
+
+
+
+def fit2tilts(shape, coeff2, func2d):
+    """
+
+    Parameters
+    ----------
+    shape: tuple of ints,
+        shape of image
+    coeff2: ndarray, float
+        result of griddata tilt fit
+    func2d: str
+        the 2d function used to fit the tilts
+    Returns
+    -------
+    tilts: ndarray, float
+       Image indicating how spectral pixel locations move across the image. This output is used in the pipeline.
+    """
+
+    # Compute the tilts image
+    nspec, nspat = shape
+    xnspecmin1 = float(nspec-1)
+    xnspatmin1 = float(nspat-1)
+    spec_vec = np.arange(nspec)
+    spat_vec = np.arange(nspat)
+    spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
+    tilts = utils.func_val(coeff2, spec_img/xnspecmin1, func2d, x2=spat_img/xnspatmin1, minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
+    # wavelength solution fitting
+    tilts = np.fmax(np.fmin(tilts, 1.2),-0.2)
+    return tilts
+
 
 
 def fit2tilts_backup(shape, slit_cen, coeff2, func):

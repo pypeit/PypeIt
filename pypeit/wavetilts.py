@@ -344,7 +344,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.final_tilts = np.zeros_like(self.msarc)
         max_spat_dim = (np.asarray(self.par['spat_order']) + 1).max()
         max_spec_dim = (np.asarray(self.par['spec_order']) + 1).max()
-        self.coeffs = np.zeros((max_spat_dim, max_spec_dim,self.nslit))
+        self.coeffs = np.zeros((max_spec_dim, max_spat_dim,self.nslit))
         self.spat_order = np.zeros(self.nslit, dtype=int)
         self.spec_order = np.zeros(self.nslit, dtype=int)
 
@@ -368,7 +368,7 @@ class WaveTilts(masterframe.MasterFrame):
             # 2D model of the tilts, includes construction of QA
             self.tilts, coeff_out = self._fit_tilts(self.trace_dict, thismask, self.slitcen[:,slit], self.spat_order[slit],
                                                     self.spec_order[slit], slit,doqa=doqa, show_QA = show, debug=show)
-            self.coeffs[0:self.spat_order[slit]+1, 0:self.spec_order[slit]+1 , slit] = coeff_out
+            self.coeffs[0:self.spec_order[slit]+1, 0:self.spat_order[slit]+1 , slit] = coeff_out
             # Save to final image
             self.final_tilts[thismask] = self.tilts[thismask]
 
