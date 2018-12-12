@@ -228,7 +228,7 @@ def sn_weight(spectra, smask, debug=False):
 
     rms_sn = np.sqrt(np.mean(sn2)) # Root Mean S/N**2 value for all spectra
 
-    if rms_sn <= 4.0:
+    if rms_sn <= 3.0:
         msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn))
         weights = np.ma.outer(np.asarray(sn2), np.ones(fluxes.shape[1]))
     else:
