@@ -367,11 +367,13 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     sensfunc_poly = 10**(utils.func_val(poly_coeff, wave_star.value, 'polynomial'))
     sensfunc[~msk_star] =  sensfunc_poly[~msk_star]
     if debug:
-    #if True:
         plt.plot(wave_star.value[msk_all], sensfunc[msk_all], 'b-o')
-        plt.plot(wave_star.value, sensfunc_poly, 'r-')
-        plt.plot(wave_star.value, sensfunc, 'k-')
+        plt.plot(wave_star.value, sensfunc_poly, 'r-',label='Polyfit')
+        plt.plot(wave_star.value, sensfunc, 'k-',label='bspline fitting')
         plt.ylim(0.0, 100.0)
+        plt.legend()
+        plt.xlabel('Wavelength [ang]')
+        plt.ylabel('Sensfunc')
         plt.show()
         plt.close()
 
