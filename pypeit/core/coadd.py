@@ -1075,10 +1075,16 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.):
     ylim = (np.sort([0.-2*medf, yscale*medf]))
     # Plot
     cmap = plt.get_cmap('RdYlBu_r')
-    for idx in range(ispectra.nspec):
-        ispectra.select = idx
-        color = cmap(float(idx) / ispectra.nspec)
-        ax1.plot(ispectra.wavelength, ispectra.flux, color=color)
+    # change to plotting the scaled spectra
+    #for idx in range(ispectra.nspec):
+    #    ispectra.select = idx
+    #    color = cmap(float(idx) / ispectra.nspec)
+    #    ax1.plot(ispectra.wavelength, ispectra.flux, color=color)
+    for idx in range(rspec.nspec):
+        rspec.select = idx
+        color = cmap(float(idx) / rspec.nspec)
+        ax1.plot(rspec.wavelength, rspec.flux, color=color)
+        ax1.scatter(rspec.wavelength[rmask[idx, :]], rspec.flux[rmask[idx, :]],marker='s',facecolor='None',edgecolor='k')
 
     ax2.plot(spec1d.wavelength, spec1d.sig, ls='steps-',color='0.7')
     ax2.plot(spec1d.wavelength, spec1d.flux, ls='steps-',color='b')
