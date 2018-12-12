@@ -105,18 +105,18 @@ class PypeIt(object):
         qa.gen_mf_html(self.pypeit_file)
         qa.gen_exp_html()
 
-    def calibrate_one(self, frame, det=1):
-        """
-        Calibrate a science exposure / detector pair
-
-        Args:
-            frame (:obj:`int`):
-                0-indexed index of the row in :attr:`fitstbl` to calibrate
-            det (:obj:`int`, optional):
-                1-indexed detector on this frame to calibrate
-        """
-        self.caliBrate.reset(frame, det, par=self.par['calibrations'])
-        self.caliBrate.run_the_steps()
+#    def calibrate_one(self, frame, det=1):
+#        """
+#        Calibrate a science exposure / detector pair
+#
+#        Args:
+#            frame (:obj:`int`):
+#                0-indexed index of the row in :attr:`fitstbl` to calibrate
+#            det (:obj:`int`, optional):
+#                1-indexed detector on this frame to calibrate
+#        """
+#        self.caliBrate.reset(frame, det, par=self.par['calibrations'])
+#        self.caliBrate.run_the_steps()
 
 #    def _chk_for_std(self):
 #        # Can only reduce these frames if the mask is the same
@@ -174,6 +174,7 @@ class PypeIt(object):
             # Reduce all the standard frames
             for frame in grp_standards:
                 # This sets: frame, sciI, obstime, basename
+                # reduce_exposure(filename, group, std=False,
                 std_dict = self.reduce_exposure(frame, reuse_masters=reuse_masters)
                 self.save_exposure(frame, std_dict, self.basename)
 
@@ -307,6 +308,7 @@ class PypeIt(object):
         return [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'], int) \
                     else self.par['rdx']['detnum']
 
+    # JFH ToDO this operates on a file, and takes bgframe as an input, stdframe, is_std = False
     def reduce_exposure(self, frame, reuse_masters=False):
         """
         Reduce a single exposure
@@ -338,6 +340,7 @@ class PypeIt(object):
         msgs.info("Reducing file {0:s}, target {1:s}".format(self.fitstbl['filename'][self.frame],
                                                              self.fitstbl['target'][self.frame]))
 
+        # JFH TODO move all this
         # If this is a science frame, check for an associated standard
         standard = None         # Initialize to None
         is_science = self.frame in self.fitstbl.find_frames('science', index=True)
@@ -367,7 +370,7 @@ class PypeIt(object):
             sci_dict[self.det] = {}
             setup = self.fitstbl.master_key(self.frame, det=self.det)
 
-            # Calibrate (instead of calibrate_one)
+            # Calibrate
             self.caliBrate.reset(self.frame, self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
 
@@ -384,9 +387,12 @@ class PypeIt(object):
                                            'spec1d_{:s}.fits'.format(std_basename))
 
             # Extract
+            # JFH ToDO pass back the background frame, pass in background files as an argument. extrace one
+            # takes a file list as an argument and instantiates science within
             sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr \
-                    = self._extract_one(std=is_standard)
+                    = self._extract_one(scifiles, bgframes, std=is_standard, std_outfile = std_outfile)
 
+            # JFH TODO write out the background frame
             # Save for outputing (after all detectors are done)
             sci_dict[det]['sciimg'] = sciimg
             sci_dict[det]['sciivar'] = sciivar
@@ -760,6 +766,7 @@ class PypeIt(object):
                         overwrite=self.overwrite, redux_path=self.par['rdx']['redux_path'])
 
         # Instantiate Calibration class
+        # JFH TODO Make this operate on a set of files.
         self.caliBrate \
                 = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
                                                      par=self.par['calibrations'],
@@ -1087,6 +1094,7 @@ class Echelle(PypeIt):
     def __init__(self, spectrograph, **kwargs):
         super(Echelle, self).__init__(spectrograph, **kwargs)
 
+    # JFH Take background files as an argument
     def _extract_one(self,std=False):
         """
         Extract a single exposure/detector pair
@@ -1105,15 +1113,22 @@ class Echelle(PypeIt):
 
         """
 
+        # TODO Move the init_one_science functinon lines here. No three line functions!
 
         sciI = self.sciI
 
-        # Process images (includes inverse variance image, rn2 image,
-        # and CR mask)
+        # Process images (includes inverse variance image, rn2 image, and CR mask)
+        # JFH ToDO this should take a file list!
         sciimg, sciivar, rn2img, crmask \
                 = sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
                             self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
                             apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
+
+        # if bgfiles is not None:
+        # sciimg, sciivar, rn2img, crmask = sciI.proc(bgfiles, self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+        #                             self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
+        #                             apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
+
 
         # Object finding, first pass on frame without sky subtraction
         maskslits = self.caliBrate.maskslits.copy()

@@ -550,7 +550,8 @@ class ScienceImage(processimages.ProcessImages):
             pass
         return self.maskslits
 
-
+    # JFH TODO I think science image should not be a child of Processimages. Then this could be running on a file list
+    # I think this would be simpler. Implement this!
     def proc(self, bias_subtract, pixel_flat, bpm, illum_flat=None, apply_gain=True, trim=True,show=False):
         """ Process the image
 
