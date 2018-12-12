@@ -464,7 +464,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
 
 
 def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev = 0.2, maxrej = None,
-              maxiter = 100, sigrej = 3.0, func2d='legendre2d', doqa=True, setup = 'test',
+              maxiter = 100, sigrej = 3.0, pad_spec = 30, pad_spat =5, func2d='legendre2d', doqa=True, setup = 'test',
               slit = 0, show_QA=False, out_dir=None, debug=False):
     """
 
@@ -516,11 +516,11 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     msgs.info("Fitting tilts with a low order, 2D {:s}".format(func2d))
 
     adderr = 0.03
-    tilts_invvar = ((tilts_mad < 100.0) & (tilts_mad > 0.0))/(np.abs(tilts_mad) + adderr)**2
+    tilts_sigma = ((tilts_mad < 100.0) & (tilts_mad > 0.0))*np.sqrt(np.abs(tilts_mad)**2 + adderr**2)
 
     fitmask, coeff2 = utils.robust_polyfit_djs(tilts_spec.flatten()/xnspecmin1, (tilts.flatten() - tilts_spec.flatten())/xnspecmin1,
                                                fitxy, x2=tilts_dspat.flatten()/xnspatmin1, inmask = tot_mask.flatten(),
-                                               invvar=xnspecmin1**2*tilts_invvar.flatten(),
+                                               sigma=tilts_sigma.flatten()/xnspecmin1,
                                                function=func2d, maxiter=maxiter, lower=sigrej, upper=sigrej,
                                                maxdev=maxdev_pix/xnspecmin1,minx=-0.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
                                                use_mad=False, sticky=False)
@@ -545,9 +545,45 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     msgs.info("RMS (pixels): {}".format(rms_fit))
     msgs.info("RMS/FWHM: {}".format(rms_fit/fwhm))
 
-    msgs.info('Gridding up tilts and computing tilts image')
-    # Grid up the tilts and then fit them returning the final tilt image coefficients, and the tilts_img
-    coeff2_tilts, tilts_img = gridtilts((nspec, nspat), thismask, slit_cen, coeff2, func2d, spec_order, spat_order)
+    msgs.info('Inverting the fit to generate the tilts image')
+    spec_vec = np.arange(nspec)
+    spat_vec = np.arange(nspat)
+    spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
+    # We do some padding here to guarantee that the tilts arc lines falling off the image get tilted onto the image
+    spec_vec_pad = np.arange(-pad_spec, nspec + pad_spec)
+    spat_vec_pad = np.arange(-pad_spat, nspat + pad_spat)
+    spat_img_pad, spec_img_pad = np.meshgrid(np.arange(-pad_spat, nspat + pad_spat),np.arange(-pad_spec, nspec + pad_spec))
+    slit_cen_pad = (scipy.interpolate.interp1d(spec_vec, slit_cen, bounds_error=False, fill_value='extrapolate'))(spec_vec_pad)
+    thismask_pad = np.zeros_like(spec_img_pad, dtype=bool)
+    ind_spec, ind_spat = np.where(thismask)
+    slit_cen_img_pad = np.outer(slit_cen_pad, np.ones(nspat + 2 * pad_spat))  # center of the slit replicated spatially
+    # Normalized spatial offset image (from central trace)
+    dspat_img_nrm = (spat_img_pad - slit_cen_img_pad) / xnspatmin1
+    # normalized spec image
+    spec_img_nrm = spec_img_pad / xnspecmin1
+    # Embed the old thismask in the new larger padded thismask
+    thismask_pad[ind_spec + pad_spec, ind_spat + pad_spat] = thismask[ind_spec, ind_spat]
+    # Now grow the thismask_pad
+    kernel = np.ones((2*pad_spec, 2*pad_spat)) / float(4 * pad_spec * pad_spat)
+    thismask_grow = scipy.ndimage.convolve(thismask_pad.astype(float), kernel, mode='nearest') > 0.0
+    # Evaluate the tilts on the padded image grid
+    tiltpix = spec_img_pad[thismask_grow] + xnspecmin1 * utils.func_val(coeff2, spec_img_nrm[thismask_grow], func2d,
+                                                                         x2=dspat_img_nrm[thismask_grow],
+                                                                         minx=0.0, maxx=1.0, minx2=-1.0, maxx2=1.0)
+    # Now do one last fit to invert the function above to obtain the final tilts model in normalized image coordinates
+    inmask = np.isfinite(tiltpix)
+    sigma = np.full_like(spec_img_pad, 10.0)
+    fitmask_tilts, coeff2_tilts = utils.robust_polyfit_djs(tiltpix/xnspecmin1, spec_img_pad[thismask_grow]/xnspecmin1,
+                                                           fitxy, x2=spat_img_pad[thismask_grow]/xnspatmin1,
+                                                           sigma=sigma[thismask_grow]/xnspecmin1,
+                                                           upper=5.0, lower=5.0, maxdev=10.0/xnspecmin1,
+                                                           inmask=inmask, function=func2d, maxiter=20,
+                                                           minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0, use_mad=False)
+    irej = np.invert(fitmask_tilts) & inmask
+    msgs.info('Rejected {:d}/{:d} pixels in final inversion tilts image fit'.format(np.sum(irej),np.sum(inmask)))
+    # normalized tilts image
+    tilts_img = utils.func_val(coeff2_tilts, spec_img/xnspecmin1, func2d, x2=spat_img/xnspatmin1,minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    tilts_img = np.fmax(np.fmin(tilts_img, 1.2),-0.2)
 
     tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
                          npix_rej = np.sum(fitmask == False), coeff2=coeff2_tilts, spec_order = spec_order, spat_order = spat_order,
@@ -563,6 +599,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                        setup = setup, show_QA=show_QA, out_dir=out_dir)
 
     return tilts_img, tilt_fit_dict, trc_tilt_dict_out
+
 
     #fitmask, coeff2 = fit_tilts_rej(
     #    tilts_dspat, tilts_spec_fit, tilts, tilts_invvar, tot_mask, slit_cen, spat_order, spec_order,
@@ -594,7 +631,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
 
 
 
-
+# JFH This is now defunct
 def gridtilts(shape, thismask, slit_cen, coeff2, func2d, spec_order, spat_order, pad_spec=30, pad_spat = 5, method='interp'):
     """
 
@@ -668,12 +705,25 @@ def gridtilts(shape, thismask, slit_cen, coeff2, func2d, spec_order, spat_order,
         # Now grow the thismask_pad
         kernel = np.ones((2*pad_spec, 2*pad_spat))/float(4*pad_spec*pad_spat)
         thismask_grow = scipy.ndimage.convolve(thismask_pad.astype(float), kernel, mode='nearest') > 0.0
-        # normalized spec image
+        # Evaluate the tilts on the padded image grid
         tracepix = spec_img_pad[thismask_grow] + xnspecmin1*utils.func_val(coeff2, spec_img_nrm[thismask_grow], func2d, x2=dspat_img_nrm[thismask_grow],
                                                               minx=0.0, maxx=1.0, minx2=-1.0, maxx2=1.0)
-        #rms_tilt = np.std(delta_tilt)
-        ikeep = np.isfinite(tracepix) #& (np.abs(delta_tilt) < 10.0*rms_tilt)
-        points = np.stack((tracepix[ikeep], spat_img_pad[thismask_grow][ikeep]),axis=1)
+        ## TESTING STARTS
+        """
+        ikeep = np.isfinite(tracepix)
+        sigma = np.full_like(spec_img_pad[thismask_grow], 10.0)/xnspecmin1
+        fitxy = [spec_order, spat_order]
+        fitmask, coeff2_tilts = utils.robust_polyfit_djs(tracepix/xnspecmin1, spec_img_pad[thismask_grow]/xnspecmin1,
+                                                         fitxy, x2=spat_img_pad[thismask_grow]/xnspatmin1,
+                                                         sigma=sigma,
+                                                         upper=5.0, lower=5.0, maxdev=10.0/xnspecmin1,
+                                                         inmask=ikeep, function=func2d, maxiter=20,
+                                                         minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0, use_mad=False)
+        ## TESTING ENDS
+        # values(points) \equiv spec_pos(tilt,spat_pos) which is the piximg that we want to create via griddata interpolation
+        """
+        ikeep = np.isfinite(tracepix) 
+        points = np.stack((tracepix[ikeep], spat_img_pad[thismask_grow][ikeep]), axis=1)
         values =spec_img_pad[thismask_grow][ikeep]
         piximg = scipy.interpolate.griddata(points, values, (spec_img, spat_img), method='cubic')
         inmask = thismask & np.isfinite(piximg) & (piximg/xnspecmin1 > -0.2) & (piximg/xnspecmin1 < 1.2)
@@ -689,6 +739,7 @@ def gridtilts(shape, thismask, slit_cen, coeff2, func2d, spec_order, spat_order,
     irej = np.invert(fitmask) & inmask.flatten()
     msgs.info('Rejected {:d}/{:d} pixels in final tilts image after gridding'.format(np.sum(irej),np.sum(inmask)))
     # normalized tilts image
+
     tilts = utils.func_val(coeff2_tilts, spec_img/xnspecmin1, func2d, x2=spat_img/xnspatmin1,minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
     tilts = np.fmax(np.fmin(tilts, 1.2),-0.2)
     # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
