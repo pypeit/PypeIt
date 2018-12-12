@@ -391,7 +391,9 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
 
     # Determine the seed for scipy.optimize.differential_evolution optimizer. Just take the sum of all the elements
     # and round that to an integer
-    seed = np.fmin(int(np.abs(np.sum(spec))),2**32-1)
+    from IPython import embed
+
+    seed = np.fmin(int(np.abs(np.sum(spec[np.isfinite(spec)]))),2**32-1)
     random_state = np.random.RandomState(seed = seed)
 
     nlocal_cc_odd = nlocal_cc + 1 if nlocal_cc % 2 == 0 else nlocal_cc
