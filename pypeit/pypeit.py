@@ -346,7 +346,7 @@ class PypeIt(object):
             calib_groups = self.fitstbl.find_frame_calib_groups(self.frame)
             if len(calib_groups) != 1:
                 msgs.error('Code error: science frames should only be associated with a single'
-                           'calibnration group.')
+                           'calibration group.')
             in_grp = self.fitstbl.find_calib_group(calib_groups)
             standard = np.arange(len(self.fitstbl))[in_grp & is_standard][0] \
                             if np.any(in_grp & is_standard) else None
