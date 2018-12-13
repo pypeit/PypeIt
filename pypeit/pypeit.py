@@ -354,15 +354,6 @@ class PypeIt(object):
 #        # Finish
 #        self.print_end_time()
 
-    def select_detectors(self):
-        """
-        Return the 1-indexed list of detectors to reduce.
-        """
-        if self.par['rdx']['detnum'] is None:
-            return np.arange(self.spectrograph.ndet)+1
-        return [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'], int) \
-                    else self.par['rdx']['detnum']
-
     def reduce_exposure(self, frame, bgframe=None, std_frame=None, reuse_masters=False):
         """
         Reduce a single exposure
@@ -417,7 +408,10 @@ class PypeIt(object):
         is_standard = self.frame in self.fitstbl.find_frames('standard', index=True)
 
         # Find the detectors to reduce
-        detectors = self.select_detectors()
+        if self.par['rdx']['detnum'] is None:
+            detectors = np.arange(self.spectrograph.ndet)+1
+        else:
+            detectors  = [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'], int) else self.par['rdx']['detnum']
         if len(detectors) != self.spectrograph.ndet:
             msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
                                 set(np.arange(self.spectrograph.ndet))-set(detectors)])))
@@ -431,8 +425,12 @@ class PypeIt(object):
             self.caliBrate.set_config(self.frame, self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
 
+            # Grab the science frame that we are reducing
+            sci_image_files = [self.fitstbl.frame_paths(self.frame)]
             # Initialize the time and output file root
             #   - This sets frame, det, sciI, obstime, basename
+
+
             self.init_one_science(self.frame, det=self.det)
 
             # Extract
