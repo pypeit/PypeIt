@@ -117,7 +117,7 @@ class ScienceImage(processimages.ProcessImages):
     frametype = 'science'
 
     # TODO: Merge into a single parset, one for procing, and one for scienceimage
-    def __init__(self, spectrograph, file_list, det=None, binning = None, objtype='science', scidx=0, setup=None,
+    def __init__(self, spectrograph, file_list, det=None, binning = None, objtype='science', setup=None,
                  par=None, frame_par=None):
 
         # Instantiation attributes for this object
@@ -126,7 +126,7 @@ class ScienceImage(processimages.ProcessImages):
         self.det = det
         self.binning = binning
         self.objtype = objtype
-        self.scidx = scidx
+        self.frame = frame
         self.setup = setup
 
         # Setup the parameters sets for this object
@@ -280,7 +280,7 @@ class ScienceImage(processimages.ProcessImages):
             thismask = (self.slitmask == slit)
             inmask = (self.mask == 0) & thismask
             # Find objects
-            specobj_dict = {'setup': self.setup, 'slitid': slit, 'scidx': self.scidx,
+            specobj_dict = {'setup': self.setup, 'slitid': slit, 'frame': self.frame,
                             'det': self.det, 'objtype': self.objtype}
 
             # TODO we need to add QA paths and QA hooks. QA should be

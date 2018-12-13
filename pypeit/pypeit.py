@@ -353,7 +353,25 @@ class PypeIt(object):
 #        # Finish
 #        self.print_end_time()
 
-    def reduce_exposure(self, frame, bgframe=None, std_frame=None, reuse_masters=False):
+
+    def select_detectors(self):
+        """
+        Return the 1-indexed list of detectors to reduce.
+        """
+        if self.par['rdx']['detnum'] is None:
+            return np.arange(self.spectrograph.ndet)+1
+        return [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'], int) \
+                    else self.par['rdx']['detnum']
+
+    def get_binning(self):
+        # Get the binning out of the fitstable
+        try:
+            binning = self.fitstbl['binning'][self.frame]
+        except:
+            binning = None
+        return binning
+
+    def reduce_exposure(self, frame, bg_frame=None, std_frame=None, reuse_masters=False):
         """
         Reduce a single exposure
 
@@ -407,10 +425,7 @@ class PypeIt(object):
         is_standard = self.frame in self.fitstbl.find_frames('standard', index=True)
 
         # Find the detectors to reduce
-        if self.par['rdx']['detnum'] is None:
-            detectors = np.arange(self.spectrograph.ndet)+1
-        else:
-            detectors  = [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'], int) else self.par['rdx']['detnum']
+        detectors = self.select_detectors()
         if len(detectors) != self.spectrograph.ndet:
             msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
                                 set(np.arange(self.spectrograph.ndet))-set(detectors)])))
@@ -424,13 +439,9 @@ class PypeIt(object):
             self.caliBrate.set_config(self.frame, self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
 
-            # Grab the science frame that we are reducing
-            sci_image_files = [self.fitstbl.frame_paths(self.frame)]
             # Initialize the time and output file root
             #   - This sets frame, det, sciI, obstime, basename
-
-
-            self.init_one_science(self.frame, det=self.det)
+            #self.init_one_science(self.frame, det=self.det)
 
             # Extract
             # TODO: pass back the background frame, pass in background
@@ -439,7 +450,7 @@ class PypeIt(object):
             sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], sci_dict[self.det]['skymodel'], \
                 sci_dict[self.det]['objmodel'], sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
                 sci_dict[self.det]['specobjs'], vel_corr \
-                    = self._extract_one(std=is_standard, std_outfile=std_outfile)
+                    = self._extract_one(self.frame, bg_frame = bg_frame, std_frame = std_frame)
             if vel_corr is not None:
                 sci_dict['meta']['vel_corr'] = vel_corr
 
@@ -448,79 +459,6 @@ class PypeIt(object):
         # Return
         return sci_dict
 
-
-#    def reduce_exposure_old(self, frame, reuse_masters=False):
-#        """
-#        Reduce a single science exposure
-#
-#        Args:
-#            sci_ID: int
-#              binary flag indicating the science frame
-#            reuse_masters: bool, optional
-#              Reuse MasterFrame files (where available)
-#
-#
-#        Returns:
-#            sci_dict: dict
-#              dict containing the primary outputs of extraction
-#
-#        """
-#        self.sci_ID = sci_ID
-#
-#        # Insist on re-using MasterFrames where applicable
-#        if reuse_masters:
-#            self.par['calibrations']['masters'] = 'reuse'
-#
-#        sci_dict = OrderedDict()  # This needs to be ordered
-#        sci_dict['meta'] = {}
-#        sci_dict['meta']['vel_corr'] = 0.
-#        #
-#        scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
-#        msgs.info("Reducing file {0:s}, target {1:s}".format(self.fitstbl['filename'][scidx],
-#                                                             self.fitstbl['target'][scidx]))
-#
-#        # Loop on Detectors
-#        for kk in range(self.spectrograph.ndet):
-#            det = kk + 1  # Detectors indexed from 1
-#            self.det = det
-#            if self.par['rdx']['detnum'] is not None:
-#                detnum = [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'],int) else self.par['rdx']['detnum']
-#                if det not in map(int, detnum):
-#                    msgs.warn("Skipping detector {:d}".format(det))
-#                    continue
-#                else:
-#                    msgs.warn("Restricting the reduction to detector {:d}".format(det))
-#            # Setup
-#            msgs.info("Working on detector {0}".format(det))
-#            sci_dict[det] = {}
-#
-#            # Calibrate
-#            self.calibrate_one(frame, det)
-#
-#            # Init ScienceImage class
-#            self.init_one_science(sci_ID, det)
-#            # Extract
-#            sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr = self._extract_one()
-#
-#            # Save for outputing (after all detectors are done)
-#            sci_dict[det]['sciimg'] = sciimg
-#            sci_dict[det]['sciivar'] = sciivar
-#            sci_dict[det]['skymodel'] = skymodel
-#            sci_dict[det]['objmodel'] = objmodel
-#            sci_dict[det]['ivarmodel'] = ivarmodel
-#            sci_dict[det]['outmask'] = outmask
-#            sci_dict[det]['specobjs'] = sobjs   #utils.unravel_specobjs([specobjs])
-#            if vel_corr is not None:
-#                sci_dict['meta']['vel_corr'] = vel_corr
-#
-#            # Standard star
-#            # TODO -- Make this more modular
-#            self.std_idx = self._chk_for_std()
-#            if self.std_idx is not -1:
-#                self._extract_std()
-#
-#        # Return
-#        return sci_dict
 
     # TODO: Why not use self.frame?
     def save_exposure(self, frame, sci_dict, basename, only_1d=False):
@@ -738,7 +676,7 @@ class MultiSlit(PypeIt):
         self.std_basename = None
         self.stdI = None
 
-    def _extract_one(self, std=False, std_outfile=None):
+    def _extract_one(self, frame, det, bg_frame = None, std_frame = None)
         """
         Extract a single exposure/detector pair
 
@@ -755,40 +693,59 @@ class MultiSlit(PypeIt):
             vel_corr
 
         """
+
+        # Set binning, obstime, basename, and objtype
+        self.binning = self.get_binning()
+        self.obstime = self.fitstbl.construct_obstime(frame)
+        self.basename = self.fitstbl.construct_basename(frame, obstime=self.obstime)
+        self.objtype = self.fitstbl['frametype'][frame]
+        self.setup = self.fitstbl.master_key(frame, det=det)
+        # Grab the science frame that we are reducing
+        sci_image_files = [self.fitstbl.frame_paths(frame)]
+        self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files,
+                                              par=self.par['scienceimage'],
+                                              frame_par=self.par['scienceframe'],
+                                              objtype=self.objtype,
+                                              det=det,
+                                              binning=self.binning,
+                                              setup=self.setup)
+        # For QA on crash
+        msgs.sciexp = self.sciI
+
         # Standard star specific
-        if std:
-            # Dict
-            msgs.info("Processing standard star")
-            # TODO: Where is self.std_idx defined
-            if self.std_idx in self.std_dict.keys():
-                if self.det in self.std_dict[self.std_idx].keys():
-                    return
-            else:
-                self.std_dict[self.std_idx] = {}
-
-            # Files
-            # TODO: (KBW) I don't understand why you're selecting all
-            # standards here, but this is the new way to do it.
-            is_standard = self.fitstbl.find_frames('standard')
-            std_image_files = self.fitstbl.frame_paths(is_standard)
-            if self.par['calibrations']['standardframe'] is None:
-                msgs.warn('No standard frame parameters provided.  Using default parameters.')
-
-            # Instantiate for the Standard
-            # TODO: Uses the same trace and extraction parameter sets used for the science
-            # frames.  Should these be different for the standards?
-            setup = self.fitstbl.master_key(self.frame, det=self.det)
-            self.stdI = scienceimage.ScienceImage(self.spectrograph, file_list=std_image_files,
-                                          frame_par=self.par['calibrations']['standardframe'],
-                                          det=self.det,
-                                          binning=self.fitstbl['binning'][self.std_idx],
-                                          setup=setup, scidx=self.std_idx, objtype='standard',
-                                          par=self.par['scienceimage'])
-            # Names and time
-            self.std_basename = self.fitstbl.construct_basename(self.std_idx)
-            sciI = self.stdI
-        else:
-            sciI = self.sciI
+#        if std:
+#            # Dict
+#            msgs.info("Processing standard star")
+#            # TODO: Where is self.std_idx defined
+#            if self.std_idx in self.std_dict.keys():
+#                if self.det in self.std_dict[self.std_idx].keys():
+#                    return
+#            else:
+#                self.std_dict[self.std_idx] = {}
+#
+#            # Files
+#            # TODO: (KBW) I don't understand why you're selecting all
+#            # standards here, but this is the new way to do it.
+#            is_standard = self.fitstbl.find_frames('standard')
+#            std_image_files = self.fitstbl.frame_paths(is_standard)
+#            if self.par['calibrations']['standardframe'] is None:
+#                msgs.warn('No standard frame parameters provided.  Using default parameters.')
+#
+#            # Instantiate for the Standard
+#            # TODO: Uses the same trace and extraction parameter sets used for the science
+#            # frames.  Should these be different for the standards?
+#            setup = self.fitstbl.master_key(self.frame, det=self.det)
+#            self.stdI = scienceimage.ScienceImage(self.spectrograph, file_list=std_image_files,
+#                                          frame_par=self.par['calibrations']['standardframe'],
+#                                          det=self.det,
+#                                          binning=self.fitstbl['binning'][self.std_idx],
+#                                          setup=setup, scidx=self.std_idx, objtype='standard',
+#                                          par=self.par['scienceimage'])
+#            # Names and time
+#            self.std_basename = self.fitstbl.construct_basename(self.std_idx)
+#            sciI = self.stdI
+#        else:
+#            sciI = self.sciI
 
         # Process images (includes inverse variance image, rn2 image,
         # and CR mask)
