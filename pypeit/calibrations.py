@@ -212,7 +212,7 @@ class Calibrations(object):
         ## JFH This check is wrong, if the user does not want to bias subtract, then it causes a crash
 #        if not self._chk_objs(['msbias']):
 #            self.msarc = None
-#            return self.msarc
+#            return self.msarc        self.arc_file_list, arc_rows = self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID)
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])

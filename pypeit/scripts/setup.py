@@ -83,12 +83,12 @@ def main(args):
         raise IOError('Something wrong in pypeit_setup command-line arguments.')
         
     # Run the setup
-    ps.run(setup_only=True, bkg_pairs='empty' if args.background else None, sort_dir=sort_dir)
+    #ps.run(setup_only=True, bkg_pairs='empty' if args.background else None, sort_dir=sort_dir)
+    ps.run(setup_only=True, sort_dir=sort_dir)
 
     # Use PypeItMetaData to write the complete PypeIt file
     pypeit_file = os.path.join(output_path, '{0}.pypeit'.format(args.spectrograph))
     ps.fitstbl.write_pypeit(pypeit_file, split=args.cfg_split, overwrite=args.overwrite,
-                            cfg_lines=ps.user_cfg)
-
+                            cfg_lines=ps.user_cfg, write_bkg_pairs=args.background)
     return 0
 
