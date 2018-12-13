@@ -1426,10 +1426,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     flux_spec = extract_asymbox2(thisimg, left_asym, righ_asym)
     flux_mean, flux_median, flux_sig = sigma_clipped_stats(flux_spec,axis=0, sigma = 4.0)
     if (nsamp < 9.0*fwhm):
-        fluxsub = flux_mean.data - np.median(flux_mean.data)
+        fluxsub = flux_mean - np.median(flux_mean)
     else:
         kernel_size= int(np.ceil(bg_smth*fwhm) // 2 * 2 + 1) # This ensure kernel_size is odd
-        fluxsub = flux_mean.data - scipy.signal.medfilt(flux_mean.data, kernel_size=kernel_size)
+        fluxsub = flux_mean - scipy.signal.medfilt(flux_mean, kernel_size=kernel_size)
         # This little bit below deals with degenerate cases for which the slit gets brighter toward the edge, i.e. when
         # alignment stars saturate and bleed over into other slits. In this case the median smoothed profile is the nearly
         # everywhere the same as the profile itself, and fluxsub is full of zeros (bad!). If 90% or more of fluxsub is zero,
@@ -1437,7 +1437,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         isub_bad = (fluxsub == 0.0)
         frac_bad = np.sum(isub_bad)/nsamp
         if frac_bad > 0.9:
-            fluxsub = flux_mean.data - np.median(flux_mean.data)
+            fluxsub = flux_mean - np.median(flux_mean)
 
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548,mode='nearest')
 

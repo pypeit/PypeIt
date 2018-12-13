@@ -333,7 +333,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     dev_mean, dev_median, dev_sig = sigma_clipped_stats(np.abs(tilts - tilts_fit), mask=bad_mask, sigma=4.0,axis=0)
     good_line = np.any(bad_mask == False,axis=0) # Is it masked everywhere?
     # Median absolute deviation for each line quantifies the goodnes of tracing
-    dev_mad = 1.4826*dev_median.data
+    dev_mad = 1.4826*dev_median
     # Now reject outliers from this distribution
     dev_mad_dist_median = np.median(dev_mad[good_line])
     dev_mad_dist_mad = 1.4826*np.median(np.abs(dev_mad[good_line] - dev_mad_dist_median)) # i.e. this is like the sigma
