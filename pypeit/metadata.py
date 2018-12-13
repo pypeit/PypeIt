@@ -1368,6 +1368,7 @@ class PypeItMetaData:
 
         # Columns for output
         columns = self.spectrograph.metadata_keys()
+
         # comb, bkg columns
         if write_bkg_pairs:
             for key in ['comb_id', 'bkg_id']:

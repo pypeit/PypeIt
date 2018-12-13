@@ -227,23 +227,22 @@ class PypeIt(object):
             # science frames for use in flux calibration
             science_basename = [None]*len(grp_science)
 
-            for j,frame in enumerate(grp_science):
-                # TODO -- Make this more elegant, maybe as a method in metadata
-                bgframe = None
-                if 'obj_id' in self.fitstbl.keys():
-                    if self.fitstbl['obj_id'][frame] >= 0:
-                        obj_id = self.fitstbl['obj_id'][frame]
-                        if np.sum(self.fitstbl['obj_id'] == obj_id) > 1:
-                            print("NOT READY TO DEAL WITH THIS")
-                            debugger.set_trace()
-                        # bgframe row in fitstbl
-                        bgframe = np.where(self.fitstbl['bkg_id'] == obj_id)[0][0]
+            # Loop on unique comb_id
+            u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
+
+            for j, comb_id in enumerate(u_combid):
+                frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
+                if len(frames)>1:
+                    debugger.set_trace()  # NOT DEVELOPED YET
+                # Bg frame(s)?
+                bgframes = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
+
                 # This sets: frame, sciI, obstime, basename
-                sci_dict = self.reduce_exposure(frame, std_frame=std_frame,
-                                                bgframe=bgframe,
-                                                reuse_masters=reuse_masters)
+                sci_dict = self.reduce_exposure(frames[0], std_frame=std_frame,
+                                                reuse_masters=reuse_masters) #bgframe=bgframes,
                 science_basename[j] = self.basename
-                self.save_exposure(frame, sci_dict, self.basename)
+                # Save using the first frame as the guide
+                self.save_exposure(frames[0], sci_dict, self.basename)
 
             # Apply the flux calibration for this calibration group
             # TODO: I don't think this function is written yet...
