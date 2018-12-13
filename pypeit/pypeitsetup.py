@@ -253,7 +253,7 @@ class PypeItSetup(object):
             bkg_pairs (:obj:`str`, optional):
                 When constructing the
                 :class:`pypeit.metadata.PypeItMetaData` object, include
-                two columns called `obj_id` and `bkg_id` that identify
+                two columns called `comb_id` and `bkg_id` that identify
                 object and background frame pairs.  The string indicates
                 how these these columns should be added::
                     - `empty`: The columns are added but their values
@@ -426,7 +426,7 @@ class PypeItSetup(object):
             bkg_pairs (:obj:`str`, optional):
                 When constructing the
                 :class:`pypeit.metadata.PypeItMetaData` object, include
-                two columns called `obj_id` and `bkg_id` that identify
+                two columns called `comb_id` and `bkg_id` that identify
                 object and background frame pairs.  The string indicates
                 how these these columns should be added::
                     - `empty`: The columns are added but their values
@@ -473,6 +473,11 @@ class PypeItSetup(object):
 
         # Assign frames to calibration groups
         self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
+
+        # Set comb_id
+        sci_std_idx = np.where(np.any([self.fitstbl.find_frames('science'),
+                          self.fitstbl.find_frames('standard')], axis=0))[0]
+        self.fitstbl['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
 
         # Assign science IDs based on the calibrations groups (to be
         # deprecated)

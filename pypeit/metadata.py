@@ -77,15 +77,6 @@ class PypeItMetaData:
             Function will fault if :func:`fits.getheader` fails to read
             any of the headers in the provided file list.  Set to False
             to instead report a warning and continue.
-        bkg_pairs (:obj:`str`, optional):
-            If constructing a new table (i.e. `data=None` and
-            `file_list` is a list of files to read), include two columns
-            called `obj_id` and `bkg_id` that identify object and
-            background frame pairs.  The string indicates how these
-            these columns should be added::
-                - `empty`: The columns are added but their values are
-                  all originally set to -1.  **This is currently the
-                  only option.**
 
     Attributes:
         spectrograph
@@ -108,8 +99,7 @@ class PypeItMetaData:
             use in the data reduction.
 
     """
-    def __init__(self, spectrograph, par=None, file_list=None, data=None, usrdata=None,
-                 strict=True, bkg_pairs=None):
+    def __init__(self, spectrograph, par=None, file_list=None, data=None, usrdata=None, strict=True):
         if data is None and file_list is None:
             msgs.warn('Both data and file_list are None in the instantiation of PypeItMetaData.'
                       '  The table will be empty!')
@@ -119,7 +109,7 @@ class PypeItMetaData:
             raise TypeError('Input parameter set must be of type PypeItPar.')
         self.type_bitmask = framematch.FrameTypeBitMask()
         self.table = table.Table(data if file_list is None 
-                                 else self._build(file_list, strict=strict, bkg_pairs=bkg_pairs))
+                                 else self._build(file_list, strict=strict))
         if usrdata is not None:
             self.merge(usrdata)
         # Instrument-specific validation of the header metadata. This
@@ -134,7 +124,7 @@ class PypeItMetaData:
         """
         Add the background-pair columns to the table.
         
-        This include two columns called `obj_id` and `bkg_id` that
+        This include two columns called `comb_id` and `bkg_id` that
         identify object and background frame pairs.  The string
         indicates how these these columns should be added::
 
@@ -155,12 +145,12 @@ class PypeItMetaData:
         """
         numfiles = len(data['filename'])
         if bkg_pairs == 'empty':
-            data['obj_id'] = [-1]*numfiles
+            data['comb_id'] = [-1]*numfiles
             data['bkg_id'] = [-1]*numfiles
             return
         msgs.error('{0} not a defined method for the background pair columns.'.format(bkg_pairs))
 
-    def _build(self, file_list, strict=True, bkg_pairs=None):
+    def _build(self, file_list, strict=True, bkg_pairs='empty'):
         """
         Returns a dictionary with the data to be included in the table.
         """
@@ -274,8 +264,8 @@ class PypeItMetaData:
 #        data['index'] = np.arange(numfiles).tolist()
 
         # Add the background_index column
-        if bkg_pairs is not None:
-            self._add_bkg_pairs(data, bkg_pairs)
+        #if bkg_pairs is not None:
+        self._add_bkg_pairs(data, bkg_pairs)
 
         return data
 
