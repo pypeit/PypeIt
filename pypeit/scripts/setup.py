@@ -81,7 +81,7 @@ def main(args):
         ps = PypeItSetup.from_pypeit_file(args.pypeit_file)
     else:
         # Should never reach here
-        raise IOError('Something wrong in pypeit_setup command-line setup.')
+        raise IOError('Something wrong in pypeit_setup command-line arguments.')
         
     # Run the setup
     ps.run(setup_only=True, bkg_pairs='empty' if args.background else None, sort_dir=sort_dir)
