@@ -55,7 +55,6 @@ def test_chk_lris_blue_slits():
         # Test
         assert traceSlits.nslit == norig
 
-'''
 @dev_suite_required
 def test_chk_lris_red_slits():
     spectrograph = util.load_spectrograph('keck_lris_red')
@@ -96,7 +95,6 @@ def test_chk_deimos_slits():
         traceSlits.run(show=False, plate_scale=plate_scale, write_qa=False)
         # Test
         assert traceSlits.nslit == norig
-'''
 
 
 #@dev_suite_required

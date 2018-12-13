@@ -72,6 +72,7 @@ class MasterFrame(object):
 
     def _masters_load_chk(self):
         # Logic on whether to load the masters frame
+        # TODO -- These two modes are now effecitvely the same.  Remove one
         return self.mode == 'reuse' or self.mode == 'force'
 
     def master(self, force=False):
@@ -80,21 +81,25 @@ class MasterFrame(object):
         then calls the load_master method. This method should not be overloaded by children of this class. Instead
         one should overload the load_master method below.
 
-        Returns
-        -------
-        msframe : ndarray or None
-         master image
+        Args:
+            force: bool, optional
+              Force the attempt of loading the master frame
+              Key for when looping on multiple exposures to avoid remaking the file
+
+        Returns:
+            msframe : ndarray or None
+             master image
 
         """
         # Are we loading master files from disk?
         if self._masters_load_chk() or force:
-            self.msframe = self.load_master(self.ms_name, force=force)
+            self.msframe = self.load_master(self.ms_name)
             return self.msframe
         else:
             return None
 
 
-    def load_master(self, filename, force = False, exten = 0):
+    def load_master(self, filename, exten = 0):
         """
         Generic master file reader. This function should mostly be replaced by specific load_master methods in the children
         of this class.
@@ -109,8 +114,8 @@ class MasterFrame(object):
         # Does the master file exist?
         if not os.path.isfile(filename):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            if force:
-                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
+            #if force:
+            #    msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
             return None
         else:
             msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))

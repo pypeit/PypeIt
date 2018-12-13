@@ -642,6 +642,10 @@ class PypeIt(object):
         self.det = det
 
         sci_image_files = [self.fitstbl.frame_paths(self.frame)]
+        try:
+            binning = self.fitstbl['binning'][self.frame]
+        except:
+            binning = None
         self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=self.det,
                                                binning=self.fitstbl['binning'][self.frame],
                                                objtype=self.fitstbl['frametype'][self.frame],

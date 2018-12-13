@@ -103,7 +103,16 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         #
         return self.stack
 
-    def determine_bias_mode(self):
+    def determine_bias_mode(self, force=False):
+        """
+
+        Args:
+            force: bool, optional
+
+        Returns:
+            self.msbias str, ndarray or None
+
+        """
         # How are we treating biases?
         # 1) No bias subtraction
         if self.par['useframe'].lower() == 'none':
@@ -115,6 +124,6 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # 3) User wants bias subtractions, use a Master biasframe?
         elif self.par['useframe'] in ['bias', 'dark']:
             # Load the MasterFrame if it exists and user requested one to load it
-            self.msbias = self.master()
+            self.msbias = self.master(force=force)
 
         return self.msbias

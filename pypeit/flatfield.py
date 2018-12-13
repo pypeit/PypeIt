@@ -167,7 +167,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     # technically two master files for the flats, i.e. a pixelflat and illumination flat. Perhaps the better way to deal with this
     # would be to package them into one output file and just change the load_master and save_master methods to deal with the
     # possible existence of an illumination flat
-    def load_master_illumflat(self):
+    def load_master_illumflat(self, force=False):
         """
         Load the slit illumination profile from a saved Master file
 

@@ -415,7 +415,7 @@ class ScienceImage(processimages.ProcessImages):
         self.slitmask = self.spectrograph.slitmask(tslits_dict) if self.slitmask is None else self.slitmask
         self.mask = self._build_mask() if self.mask is None else self.mask
 
-        plate_scale = self.spectrograph.order_platescale(binning = self.binning)
+        plate_scale = self.spectrograph.order_platescale(binning=self.binning)
         # ToDO implement parsets here!
         self.sobjs_ech = extract.ech_objfind(self.sciimg-self.global_sky, self.sciivar, self.slitmask, tslits_dict['lcen'], tslits_dict['rcen'],
                                              inmask=(self.mask == 0), plate_scale=plate_scale, std_trace=std_trace,ncoeff=5,
