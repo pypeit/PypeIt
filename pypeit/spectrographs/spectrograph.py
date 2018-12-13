@@ -399,6 +399,9 @@ class Spectrograph(object):
         """
         return ['dispname', 'dichroic', 'decker' ] #, 'dispangle' ] #,  'slitwid', 'slitlen' ]
 
+    def get_meta(self, ifile, meta, headarr=None):
+        pass
+
     def validate_metadata(self, fitstbl):
         pass
 

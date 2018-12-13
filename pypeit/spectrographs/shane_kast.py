@@ -89,7 +89,35 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
 
         return hdr_keys
 
-    # Uses parent metadata keys
+    def init_meta(self):
+        meta = {}
+        meta['binning'] = dict(ext=0, card='BINNING')
+        meta['decker'] = dict(ext=0, card='SPLIT_N')
+        meta['dichroic'] = dict(ext=0, card='BSPLIT_N')
+        meta['target'] = dict(ext=0, card='OBJECT')
+        meta['time'] = dict(ext=0, card='TSEC')
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        # Ingest
+        self.meta = meta
+
+    def get_meta(self, ifile, meta_key, headarr=None, required=False):
+        if headarr is None:
+            headarr = self.get_headarr(ifile)
+        # Are we prepared to provide this meta data?
+        if meta_key not in self.meta.keys():
+            if required:
+                msgs.error("Need to allow for meta_key={} in your meta data".format(meta_key))
+            else:
+                msgs.warn("Requested meta data does not exist...")
+                return None
+        # Is this not derivable?  If so, use the default
+        if self.meta[meta_key]['card'] is None:
+            return self.meta[meta_key]['default']
+        else:
+            return headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
+
 
     def configuration_keys(self):
         #TODO: Placeholder to get tests to clear
@@ -275,6 +303,17 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         hdr_keys[0]['dispname'] = 'GRISM_N'
         return hdr_keys
 
+    def init_meta(self):
+        """
+        Header keys specific to shane_kast_blue
+
+        Returns:
+
+        """
+        super(ShaneKastBlueSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        # dispangle and filter1 are not defined for Shane Kast Blue
+        self.meta['dispname'] = dict(ext=0, card='GRISM_N')
 
 class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
     """

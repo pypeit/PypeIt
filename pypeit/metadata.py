@@ -150,6 +150,31 @@ class PypeItMetaData:
             return
         msgs.error('{0} not a defined method for the background pair columns.'.format(bkg_pairs))
 
+    def _new_build(self, file_list, strict=True, bkg_pairs='empty'):
+        meta_keys = define_mandatory_meta().keys()
+        # Now spectrograph specific
+
+        # Build
+        data = {k:[] for k in meta_keys}
+        debugger.set_trace()
+
+        for ifile in file_list:
+            # Read the fits headers
+            headarr = self.spectrograph.get_headarr(ifile, strict=strict)
+            # Grab Meta
+            for meta_key in data.keys():
+                # Grab it
+                value = self.spectrograph.get_meta(ifile, meta_key, headarr=headarr)
+                # Set the value
+                vtype = type(value)
+                if np.issubdtype(vtype, np.str_):
+                    value = value.strip()
+                if np.issubdtype(vtype, np.integer) or np.issubdtype(vtype, np.floating) \
+                        or np.issubdtype(vtype, np.str_) or np.issubdtype(vtype, np.bool_):
+                    data[key].append(value)
+                else:
+                    msgs.bug('Unexpected type, {1}, for key {0}'.format(key,
+
     def _build(self, file_list, strict=True, bkg_pairs='empty'):
         """
         Returns a dictionary with the data to be included in the table.
@@ -218,7 +243,7 @@ class PypeItMetaData:
             for key in data.keys():
                 if key in PypeItMetaData.default_keys():
                     continue
-    
+
                 # Try to read the header item
                 try:
                     value = headarr[ext[key]][head_keys[ext[key]][key]]
@@ -238,7 +263,7 @@ class PypeItMetaData:
                     else:
                         idate = None
                     value = self.convert_time(value, date=idate)
-    
+
                 # Set the value
                 vtype = type(value)
                 if np.issubdtype(vtype, np.str_):
@@ -249,7 +274,7 @@ class PypeItMetaData:
                 else:
                     msgs.bug('Unexpected type, {1}, for key {0}'.format(key,
                              vtype).replace('<type ','').replace('>',''))
-    
+
             msgs.info('Successfully loaded headers for file:' + msgs.newline() + ifile)
 
         # Report
@@ -1818,3 +1843,27 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
     return fitstbl
 
 
+def define_mandatory_meta():
+    mandatory_meta = {}
+    # Filename
+    mandatory_meta['directory'] = dict(dtype=str, comment='Path to raw data file')
+    mandatory_meta['filename'] = dict(dtype=str, comment='Basename of raw data file')
+
+    # Instrument related
+    mandatory_meta['dispname'] = dict(dtype=str, comment='Disperser name')
+    mandatory_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
+    #mandatory_meta ['instrume'] = dict(dtype=str, comment='Basename of raw data file')
+    mandatory_meta['binning'] = dict(dtype=tuple, comment='(spatial,spectral) binning')
+
+    # Target
+    mandatory_meta['target'] = dict(dtype=str, comment='Name of the target')
+    mandatory_meta['ra'] = dict(dtype=str, comment='Colon separated (J2000) RA')
+    mandatory_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
+
+    # Obs
+    mandatory_meta['time'] = dict(dtype=str, comment='Date+time readable by astropy.time.Time')
+    mandatory_meta['airmass'] = dict(dtype=float, comment='Airmass')
+    mandatory_meta['exptime'] = dict(dtype=float, comment='Exposure time')
+
+    # Return
+    return mandatory_meta
