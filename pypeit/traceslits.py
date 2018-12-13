@@ -1258,6 +1258,7 @@ class TraceSlits(masterframe.MasterFrame):
             force: bool, optional
 
         Returns:
+            answer: bool
 
         """
         # Load from filename extension. There is a fits and json file, and this routine also does file checking
@@ -1299,7 +1300,8 @@ class TraceSlits(masterframe.MasterFrame):
         # Return
         return loaded
 
-    def run(self, add_user_slits=None, rm_user_slits=None, trim_slits = True, plate_scale = None, show=False, write_qa=True):
+    def run(self, add_user_slits=None, rm_user_slits=None, trim_slits=True,
+            plate_scale=None, show=False, write_qa=True):
         """ Main driver for tracing slits.
 
           Code flow

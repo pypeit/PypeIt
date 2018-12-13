@@ -74,7 +74,7 @@ class MasterFrame(object):
         # Logic on whether to load the masters frame
         return self.mode == 'reuse' or self.mode == 'force'
 
-    def master(self, force = False):
+    def master(self, force=False):
         """
         Load the master frame from disk, as settings allows. This routine checks the the mode of master usage
         then calls the load_master method. This method should not be overloaded by children of this class. Instead
@@ -88,7 +88,7 @@ class MasterFrame(object):
         """
         # Are we loading master files from disk?
         if self._masters_load_chk() or force:
-            self.msframe = self.load_master(self.ms_name, force = force)
+            self.msframe = self.load_master(self.ms_name, force=force)
             return self.msframe
         else:
             return None

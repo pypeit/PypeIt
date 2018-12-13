@@ -207,10 +207,12 @@ class Calibrations(object):
             self.msarc = self.calib_dict[self.master_key]['arc']
             return self.msarc
 
-        self.arc_file_list = self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID)
+        self.arc_file_list, arc_rows = self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID)
+        self.arc_master_key = self.fitstbl.master_key(arc_rows[0], det=self.det)
+
         # Instantiate with everything needed to generate the image (in case we do)
         self.arcImage = arcimage.ArcImage(self.spectrograph, file_list = self.arc_file_list, det=self.det,msbias=self.msbias,
-                                          par=self.par['arcframe'], master_key=self.master_key,
+                                          par=self.par['arcframe'], master_key=self.arc_master_key,
                                           master_dir=self.master_dir, mode=self.par['masters'])
         
         # Load the MasterFrame (if it exists and is desired)?
@@ -239,7 +241,7 @@ class Calibrations(object):
 
         """
         # Check internals
-        self._chk_set(['master_key', 'det', 'calib_ID', 'par'])
+        self._chk_set(['det', 'calib_ID', 'par'])
 
         # Grab from internal dict?
         if 'bias' in self.calib_dict[self.master_key].keys():
@@ -247,10 +249,12 @@ class Calibrations(object):
             msgs.info("Reloading the bias from the internal dict")
             return self.msbias
 
-        self.bias_file_list = self.fitstbl.find_frame_files('bias', calib_ID=self.calib_ID)
+        self.bias_file_list, bias_rows = self.fitstbl.find_frame_files('bias', calib_ID=self.calib_ID)
+        self.bias_master_key = self.fitstbl.master_key(bias_rows[0], det=self.det)
+
         # Instantiate
         self.biasFrame = biasframe.BiasFrame(self.spectrograph, file_list = self.bias_file_list, det=self.det,
-                                             par=self.par['biasframe'], master_key=self.master_key,
+                                             par=self.par['biasframe'], master_key=self.bias_master_key,
                                              master_dir=self.master_dir, mode=self.par['masters'])
 
         # How are we treating biases: 1) No bias, 2) overscan, or 3) use bias subtraction. If use bias is there a master?
@@ -315,7 +319,7 @@ class Calibrations(object):
         Requirements:
            tslits_dict
            tilts_dict
-           det, sci_ID, par, master_key
+           det, sci_ID, par
 
         Returns:
             self.mspixflatnrm: ndarray
@@ -341,7 +345,7 @@ class Calibrations(object):
             return self.mspixflatnrm, self.msillumflat
 
         # Check internals
-        self._chk_set(['master_key', 'det', 'calib_ID', 'par'])
+        self._chk_set(['det', 'calib_ID', 'par'])
 
         # Return already generated data
         if np.all([k in self.calib_dict[self.master_key].keys()
@@ -351,10 +355,12 @@ class Calibrations(object):
             return self.mspixflatnrm, self.msillumflat
 
         # Instantiate
-        pixflat_image_files = self.fitstbl.find_frame_files('pixelflat', calib_ID=self.calib_ID)
+        pixflat_image_files, pixflat_rows = self.fitstbl.find_frame_files('pixelflat', calib_ID=self.calib_ID)
+        self.pixflat_master_key = self.fitstbl.master_key(pixflat_rows[0], det=self.det)
+
         self.flatField = flatfield.FlatField(self.spectrograph, file_list=pixflat_image_files,
                                              det=self.det, par=self.par['pixelflatframe'],
-                                             master_key=self.master_key, master_dir=self.master_dir,
+                                             master_key=self.pixflat_master_key, master_dir=self.master_dir,
                                              mode=self.par['masters'],
                                              flatpar=self.par['flatfield'], msbias=self.msbias,
                                              tslits_dict=self.tslits_dict,
@@ -362,7 +368,7 @@ class Calibrations(object):
 
         # --- Pixel flats
 
-        # 1)  Try to load a master frile from disk (MasterFrame)?
+        # 1)  Try to load a master file from disk (MasterFrame)?
         self.mspixflatnrm = self.flatField.master()
 
         # 2) Did the user specify a flat? If so load it in  (e.g. LRISb with pixel flat)?
@@ -399,7 +405,8 @@ class Calibrations(object):
                                            steps=self.flatField.steps)
                 self.flatField.save_master(self.msillumflat, raw_files=pixflat_image_files,
                                            steps=self.flatField.steps,
-                                           outfile=masterframe.master_name('illumflat', self.master_key,self.master_dir))
+                                           outfile=masterframe.master_name('illumflat', self.pixflat_master_key,
+                                                                           self.master_dir))
                 # If we tweaked the slits update the master files for tilts and slits
                 if self.par['flatfield']['tweak_slits']:
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
@@ -462,7 +469,7 @@ class Calibrations(object):
             return self.tslits_dict, self.maskslits
 
         # Check internals
-        self._chk_set(['master_key', 'det', 'calib_ID', 'par'])
+        self._chk_set(['det', 'calib_ID', 'par'])
 
         # Return already generated data
         if ('trace' in self.calib_dict[self.master_key].keys()) and (not redo):
@@ -471,9 +478,12 @@ class Calibrations(object):
             return self.tslits_dict, self.maskslits
                 
         # Instantiate (without mstrace)
+        self.trace_image_files, trace_rows = self.fitstbl.find_frame_files('trace', calib_ID=self.calib_ID)
+        self.trace_master_key = self.fitstbl.master_key(trace_rows[0], det=self.det)
+
         self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, self.spectrograph,
                                                 par=self.par['slits'],
-                                                det=self.det, master_key=self.master_key,
+                                                det=self.det, master_key=self.trace_master_key,
                                                 master_dir=self.master_dir,
                                                 redux_path=self.redux_path,
                                                 mode=self.par['masters'], binbpx=self.msbpm)
@@ -481,7 +491,6 @@ class Calibrations(object):
         # Load via master, as desired
         if not self.traceSlits.master():
             # Build the trace image first
-            self.trace_image_files = self.fitstbl.find_frame_files('trace', calib_ID=self.calib_ID)
             self.traceImage = traceimage.TraceImage(self.spectrograph,self.trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
             # Load up and get ready
@@ -504,8 +513,7 @@ class Calibrations(object):
             # JFH Why do we need this try except statementhere when we don't have it for any other method?
             try:
                 self.tslits_dict = self.traceSlits.run(plate_scale = plate_scale, show=self.show,
-                                                       add_user_slits=add_user_slits, rm_user_slits=rm_user_slits,
-                                                       write_qa=self.write_qa)
+                                                       add_user_slits=add_user_slits, rm_user_slits=rm_user_slits)
             except:
                 self.traceSlits.save_master()
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
@@ -517,12 +525,10 @@ class Calibrations(object):
             if self.save_masters:
                 # Master
                 self.traceSlits.save_master()
-
-        # Construct dictionary
-
-        # JFH TODO I really don't like this line of code. It is a bad idea to load masters in from the class like this. We have
-        # a standard way of loading in masters directly from files and this violates that standard for no compelling reason.
-        self.tslits_dict = self.traceSlits._fill_tslits_dict()
+        else:
+            msgs.info("TraceSlits master files loaded..")
+            # Construct dictionary
+            self.tslits_dict = self.traceSlits._fill_tslits_dict()
 
         # Save, initialize maskslits, and return
         self.calib_dict[self.master_key]['trace'] = self.tslits_dict
@@ -547,7 +553,7 @@ class Calibrations(object):
             return self.mswave
 
         # Check internals
-        self._chk_set(['master_key', 'det', 'par'])
+        self._chk_set(['arc_master_key', 'det', 'par'])
 
         # Return existing data
         if 'wave' in self.calib_dict[self.master_key].keys():
@@ -563,7 +569,7 @@ class Calibrations(object):
         # Instantiate
         # ToDO we are regenerating this mask a lot in this module. Could reduce that
         self.waveImage = waveimage.WaveImage(self.tslits_dict, self.tilts_dict['tilts'], self.wv_calib,self.spectrograph,
-                                             master_key=self.master_key, master_dir=self.master_dir,
+                                             master_key=self.arc_master_key, master_dir=self.master_dir,
                                              mode=self.par['masters'], maskslits=self.maskslits)
         # Attempt to load master
         self.mswave = self.waveImage.master()
@@ -583,7 +589,7 @@ class Calibrations(object):
 
         Requirements:
           msarc, msbpm, tslits_dict
-          det, par, master_key, sci_ID
+          det, par, sci_ID
 
         Returns:
             self.wv_calib: dict
@@ -598,7 +604,7 @@ class Calibrations(object):
             return self.wv_calib, self.maskslits
 
         # Check internals
-        self._chk_set(['master_key', 'det', 'calib_ID', 'par'])
+        self._chk_set(['arc_master_key', 'det', 'calib_ID', 'par'])
 
         # Return existing data
         if 'wavecalib' in self.calib_dict[self.master_key].keys():
@@ -621,7 +627,7 @@ class Calibrations(object):
 
         # Instantiate
         self.waveCalib = wavecalib.WaveCalib(self.msarc, spectrograph=self.spectrograph,det=self.det,
-                                             par=self.par['wavelengths'], master_key=self.master_key, master_dir=self.master_dir,
+                                             par=self.par['wavelengths'], master_key=self.arc_master_key, master_dir=self.master_dir,
                                              mode=self.par['masters'],redux_path=self.redux_path, bpm=self.msbpm)
         # Load from disk (MasterFrame)?
         self.wv_calib = self.waveCalib.master()
@@ -677,7 +683,7 @@ class Calibrations(object):
 
         Requirements:
            msarc, tslits_dict, pixlocn, wv_calib, maskslits
-           det, par, master_key, sci_ID, spectrograph
+           det, par, arc_master_key, sci_ID, spectrograph
 
         Returns:
             self.tilts_dict: dictionary with tilts information (2D)
@@ -693,7 +699,7 @@ class Calibrations(object):
             return self.tilts_dict, self.maskslits
 
         # Check internals
-        self._chk_set(['master_key', 'det', 'calib_ID', 'par'])
+        self._chk_set(['arc_master_key', 'det', 'calib_ID', 'par'])
 
         # Return existing data
         if 'tilts_dict' in self.calib_dict[self.master_key].keys():
@@ -705,7 +711,7 @@ class Calibrations(object):
         # Instantiate
         self.waveTilts = wavetilts.WaveTilts(self.msarc, self.tslits_dict, spectrograph=self.spectrograph,
                                              par=self.par['tilts'], wavepar = self.par['wavelengths'], det=self.det,
-                                             master_key=self.master_key, master_dir=self.master_dir,
+                                             master_key=self.arc_master_key, master_dir=self.master_dir,
                                              mode=self.par['masters'],
                                              redux_path=self.redux_path, bpm=self.msbpm)
         # Master

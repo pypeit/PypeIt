@@ -967,9 +967,10 @@ class PypeItMetaData:
         Returns:
             list: List of file paths that match the frame type and
             science frame ID, if the latter is provided.
+            indx: ndarray of rows in fitstbl
         """
-        indx = self.find_frames(ftype, calib_ID=calib_ID)
-        return [os.path.join(d,f) for d,f in zip(self['directory'][indx], self['filename'][indx])]
+        indx = self.find_frames(ftype, calib_ID=calib_ID, index=True)
+        return [os.path.join(d,f) for d,f in zip(self['directory'][indx], self['filename'][indx])], indx
 
     def frame_paths(self, indx):
         """
