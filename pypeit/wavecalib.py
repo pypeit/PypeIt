@@ -184,7 +184,7 @@ class WaveCalib(masterframe.MasterFrame):
         for slit in ok_mask:
             if str(slit) not in final_fit.keys():
                 self.maskslits[slit] = 1
-            elif final_fit[slit] is None:
+            elif final_fit[str(slit)] is None:
                 self.maskslits[slit] = 1
         ok_mask = np.where(self.maskslits == 0)[0]
 
