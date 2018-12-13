@@ -1463,10 +1463,14 @@ class PypeItMetaData:
         col_order += list(set(_columns) - set(col_order))
 
         # Remove any columns that don't exist
-        for c in col_order:
+        popme = []
+        for kk,c in enumerate(col_order):
             if c not in self.keys():
                 msgs.warn('{0} is not a valid column!  Removing from output.'.format(c))
-                col_order.remove(c)
+                popme.append(kk)
+        popme.reverse()
+        for index in popme:
+            col_order.pop(index)
 
         # Write the output
         self.table[col_order].write(ofile, format=format, overwrite=overwrite)

@@ -85,17 +85,18 @@ def main(args):
         msgs.error("Bad extension for PypeIt reduction file."+msgs.newline()+".pypeit is required")
     logname = splitnm[0] + ".log"
 
-    # Load PypeIt file (might happen twice but that is ok)
+    # Load PypeIt file to get the spectrograph (might happen twice but that is ok)
     pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(args.pypeit_file)
 
     #
 
-    pypeIt = pypeit.instantiate_me(pypeitSetup.spectrograph, verbosity=args.verbosity,
+    pypeIt = pypeit.instantiate_me(pypeitSetup.spectrograph, args.pypeit_file,
+                                   verbosity=args.verbosity,
                                    overwrite=args.overwrite, logname=logname, show=args.show)
 
     # Init Setup
     ## JFH TODO This will move to the pypeit class init!
-    pypeIt.init_setup(args.pypeit_file)
+    #pypeIt.init_setup(args.pypeit_file)
 #    if args.calcheck:
 #        msgs.info('Done checking calibrations.  Exiting..')
 #        return 0

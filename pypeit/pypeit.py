@@ -37,11 +37,8 @@ class PypeIt(object):
         Improve docstring...
 
     Args:
-        spectrograph (:obj:`str`,
-            :class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            The string or `Spectrograph` instance that sets the
-            instrument used to take the observations.  Used to set
-            :attr:`spectrograph`.
+        pypeit_file (:obj:`str`,
+            Filename
         verbosity (:obj:`int`, optional):
             Verbosity level of system output.  Can be::
                 - 0: No output
@@ -52,6 +49,8 @@ class PypeIt(object):
         logname (:obj:`str`, optional):
             The name of an ascii log file with the details of the
             reduction.
+        redux_path (:obj:`str`, optional):
+            Over-ride reduction path in PypeIt file (e.g. Notebook usage)
         show: (:obj:`bool`, optional):
             Show reduction steps via plots (which will block further
             execution until clicked on) and outputs to ginga. Requires
@@ -59,40 +58,73 @@ class PypeIt(object):
 
     Attributes:
         pypeit_file (:obj:`str`):
-            Name of the pypeit file to read.  Pypit files have a specific
+            Name of the pypeit file to read.  PypeIt files have a specific
             set of valid formats. A description can be found `here`_
             (include doc link).
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, spectrograph, verbosity=2, overwrite=True, logname=None, show=False):
+    def __init__(self, pypeit_file, verbosity=2, overwrite=True, logname=None, show=False,
+                 redux_path=None):
+
+        # Setup
+        self.pypeit_file = pypeit_file
+        ps = pypeitsetup.PypeItSetup.from_pypeit_file(self.pypeit_file)
+        ps.run(setup_only=False)
+        '''
+        ps.build_fitstbl(strict=True)
+        ps.get_frame_types()
+
+        # Determine the configurations and assign each frame to the
+        # specified configuration
+        cfgs = self.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
+        self.fitstbl.set_configurations(cfgs)
+
+        # Assign frames to calibration groups
+        self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
+        '''
+        # Only need the parameters, spectrograph, and metadata for the remainder
+        self.par = ps.par
+        # self.spectrograph = ps.spectrograph
+        self.fitstbl = ps.fitstbl
+
+        self.pypeitSetup = ps
+
+        # Other Internals
+        self.logname = logname
+        self.overwrite = overwrite
+        self.show = show
+
 
         # Spectrometer class
-        self.spectrograph = load_spectrograph(spectrograph)
+        self.spectrograph = load_spectrograph(ps.spectrograph)
 
+        # Make the output directories
+        self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
+        msgs.info("Setting reduction path to {:s}".format(self.par['rdx']['redux_path']))
+        paths.make_dirs(self.spectrograph.spectrograph, self.par['calibrations']['caldir'],
+                        self.par['rdx']['scidir'], self.par['rdx']['qadir'],
+                        overwrite=self.overwrite, redux_path=self.par['rdx']['redux_path'])
+
+        # Instantiate Calibrations class
+        self.caliBrate \
+            = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
+                                                 par=self.par['calibrations'],
+                                                 redux_path=self.par['rdx']['redux_path'],
+                                                 save_masters=True, write_qa=True,
+                                                 show=self.show)
         # Init
         self.verbosity = verbosity
         # TODO: I don't think this ever used
-        self.overwrite = overwrite
 
-        # Internals
-        self.pypeit_file = None
-        self.logname = logname
-        # TODO: Now defined in ReducePar?
-#        self.redux_path = None
-        self.show = show
 
         self.frame = None
         self.det = None
 
         self.tstart = None
-        self.fitstbl = None
-        self.par = None
-        self.caliBrate = None
         self.basename = None
         self.sciI = None
         self.obstime = None
-        self.pypeitSetup = None
 
     def build_qa(self):
         """
@@ -171,12 +203,15 @@ class PypeIt(object):
             # calibration group:
             grp_standards = frame_indx[is_standard & in_grp]
 
+            # TODO -- Turn standards back on!
+            '''
             # Reduce all the standard frames
             for frame in grp_standards:
                 # This sets: frame, sciI, obstime, basename
                 # reduce_exposure(filename, group, std=False,
                 std_dict = self.reduce_exposure(frame, reuse_masters=reuse_masters)
                 self.save_exposure(frame, std_dict, self.basename)
+            '''
 
             # Find the indices of the science frames in this calibration
             # group:
@@ -200,7 +235,7 @@ class PypeIt(object):
 
             # Apply the flux calibration for this calibration group
             # TODO: I don't think this function is written yet...
-            self.flux_calibrate(reuse_masters=False)
+            #self.flux_calibrate(reuse_masters=False)
 
             msgs.info('Finished calibration group {0}'.format(i))
 
@@ -336,13 +371,14 @@ class PypeIt(object):
             dict: The dictionary containing the primary outputs of
             extraction
         """
-        # Check the input
-        std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
-                                   'spec1d_{:s}.fits'.format(
-                                        self.fitstbl.construct_basename(std_frame))) \
-                            if isinstance(std_frame, int) else std_frame
-        if std_outfile is not None and not os.path.isfile(std_outfile):
-            msgs.error('Could not open standard file: {0}'.format(std_outfile))
+        # Prepare to load up standard?
+        if std_frame is not None:
+            std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
+                                       'spec1d_{:s}.fits'.format(
+                                            self.fitstbl.construct_basename(std_frame))) \
+                                if isinstance(std_frame, int) else std_frame
+            if std_outfile is not None and not os.path.isfile(std_outfile):
+                msgs.error('Could not open standard file: {0}'.format(std_outfile))
 
         # if show is set, clear the ginga channels at the start of each new sci_ID
         if self.show:
@@ -378,7 +414,7 @@ class PypeIt(object):
             setup = self.fitstbl.master_key(self.frame, det=self.det)
 
             # Calibrate
-            self.caliBrate.reset(self.frame, self.det, self.par['calibrations'])
+            self.caliBrate.set_config(self.frame, self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
 
             # Initialize the time and output file root
@@ -716,60 +752,6 @@ class PypeIt(object):
 #        # Return
 #        return self.time, self.basename
 
-
-    # TODO: All of this should get moved into __init__, and the single
-    # required argument of PypeIt should be the pypeit file (the
-    # spectrograph is defined in the pypeit file)
-    def init_setup(self, pypeit_file, redux_path=None):
-        """
-        Prepare to run redux on a setup
-
-        Args:
-            pypeit_file: str
-            redux_path: str, optional
-
-        Returns:
-
-        """
-        # Check the input
-        if not os.path.isfile(pypeit_file):
-            msgs.error('Cannot open pypeit file: {0}'.format(pypeit_file))
-
-        # Initialize PypeIt using PypeItSetup.
-        self.pypeit_file = pypeit_file
-        ps = pypeitsetup.PypeItSetup.from_pypeit_file(self.pypeit_file)
-
-        # We don't need to run the full setup; all we need is to read
-        # the configuration from the pypeit file, build the full
-        # fitstbl, and include any user-defined frame typing
-        # TODO: Need to check this, but I think these two calls are 
-        # everything needed in fitstbl, including any user edits, as
-        # long as the user has run pypeit_setup first
-        ps.build_fitstbl(strict=True)
-        ps.get_frame_types()
-        debugger.set_trace()
-
-        # Only need the parameters, spectrograph, and metadata for the remainder
-        self.par = ps.par
-        # self.spectrograph = ps.spectrograph
-        self.fitstbl = ps.fitstbl
-
-        # Make the output directories
-        self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
-        msgs.info("Setting reduction path to {:s}".format(self.par['rdx']['redux_path']))
-        paths.make_dirs(self.spectrograph.spectrograph, self.par['calibrations']['caldir'],
-                        self.par['rdx']['scidir'], self.par['rdx']['qadir'],
-                        overwrite=self.overwrite, redux_path=self.par['rdx']['redux_path'])
-
-        # Instantiate Calibration class
-        # JFH TODO Make this operate on a set of files.
-        self.caliBrate \
-                = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
-                                                     par=self.par['calibrations'],
-                                                     redux_path=self.par['rdx']['redux_path'],
-                                                     save_masters=True, write_qa=True,
-                                                     show=self.show)
-        #self._init_calibrations()
 
     def msgs_reset(self):
         """
@@ -1204,7 +1186,7 @@ class Echelle(PypeIt):
         return ['process', 'global_skysub', 'find_objects']
 
 
-def instantiate_me(spectrograph, **kwargs):
+def instantiate_me(spectrograph, pypeit_file, **kwargs):
     """
     Instantiate the PypeIt subclass appropriate for the provided
     spectrograph.
@@ -1224,5 +1206,5 @@ def instantiate_me(spectrograph, **kwargs):
     indx = [ c.__name__ == spectrograph.pypeline for c in PypeIt.__subclasses__() ]
     if not np.any(indx):
         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
-    return PypeIt.__subclasses__()[np.where(indx)[0][0]](spectrograph, **kwargs)
+    return PypeIt.__subclasses__()[np.where(indx)[0][0]](pypeit_file, **kwargs)
 
