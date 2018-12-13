@@ -79,7 +79,7 @@ def calib_set(isetup_dict, fitstbl, sci_ID):
     new_cbset = {}
     cbkeys = ['arc', 'bias', 'trace', 'pixelflat', 'science']
     for cbkey in cbkeys:
-        new_cbset[cbkey] = fitstbl.find_frame_files(cbkey, sci_ID=sci_ID)
+        new_cbset[cbkey], _ = fitstbl.find_frame_files(cbkey, sci_ID=sci_ID)
     # Uninitialized?
     if default not in isetup_dict.keys():
         isetup_dict[default] = new_cbset
@@ -168,6 +168,8 @@ def is_equal(val1, val2, tol=1e-3):
 def instr_setup(sci_ID, det, fitstbl, setup_dict=None, must_exist=False, skip_cset=False,
                 config_name=None, copy=False):
     """
+    DEPRECATED
+
     Define the instrument configuration.
 
     .. todo::
@@ -211,6 +213,8 @@ def instr_setup(sci_ID, det, fitstbl, setup_dict=None, must_exist=False, skip_cs
         dictionary, or the input dictionary after it has been modified
         in place.
     """
+    debugger.set_trace()
+
     # Labels
     cfig_str = string.ascii_uppercase
     cstr = '--'

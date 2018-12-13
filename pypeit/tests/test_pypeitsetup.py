@@ -134,11 +134,11 @@ def test_run():
     # Init
     setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
     # Run
-    par, spectrograph, fitstbl, setup_dict = setupc.run()
+    par, spectrograph, fitstbl = setupc.run()
     # Test
     assert isinstance(par, pypeitpar.PypeItPar)
     assert isinstance(fitstbl, PypeItMetaData)
-    assert isinstance(setup_dict, dict)
+    #assert isinstance(setup_dict, dict)
 
 @dev_suite_required
 def test_run_calcheck():
@@ -147,7 +147,7 @@ def test_run_calcheck():
     # Init
     setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
     # Run
-    par, spectrograph, fitstbl, setup_dict = setupc.run(calibration_check=True)
+    par, spectrograph, fitstbl = setupc.run(calibration_check=True)
     # Test
     assert isinstance(par, pypeitpar.PypeItPar)
 
@@ -157,7 +157,7 @@ def test_run_setup():
     # Init
     setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
     # Run
-    par, spectrograph, fitstbl, setup_dict = setupc.run(setup_only=True)
+    par, spectrograph, fitstbl = setupc.run(setup_only=True)
     # Test
-    assert par == None
+    assert par is None
 

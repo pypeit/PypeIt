@@ -50,7 +50,7 @@ def test_run_from_spec1d(kast_blue_files, master_dir):
     # Instantiate
     std_file, sci_file = kast_blue_files
     FxSpec = fluxspec.FluxSpec(std_spec1d_file=std_file, sci_spec1d_file=sci_file,
-                             spectrograph='shane_kast_blue', setup='A_01_aa',
+                             spectrograph='shane_kast_blue', master_key='A_01_aa',
                                master_dir=master_dir)
     assert FxSpec.frametype == 'sensfunc'
     # Find the standard

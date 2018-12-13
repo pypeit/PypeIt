@@ -936,17 +936,12 @@ class PypeItMetaData:
         if ftype is 'None':
             return self['framebit'] == 0
         indx = self.type_bitmask.flagged(self['framebit'], ftype)
+        # Calib ID?
         if calib_ID is not None:
             in_grp = self.find_calib_group(calib_ID)
             #
             indx &= in_grp
-        '''
-        if sci_ID is not None:
-            if ftype == 'science':  # THIS IS KEY FOR near-IR where arc=science
-                indx &= (self['sci_ID'] == sci_ID)
-            else:
-                indx &= (self['sci_ID'] & sci_ID > 0)
-        '''
+        # Return
         return np.where(indx)[0] if index else indx
 
     def find_frame_files(self, ftype, calib_ID=None):
@@ -1799,13 +1794,17 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
     # Image typing
     if not notype:
         if spectrograph == 'shane_kast_blue':
-            fitstbl['sci_ID'] = 1  # This links all the files to the science object
+            #fitstbl['sci_ID'] = 1  # This links all the files to the science object
             type_bits[0] = fitstbl.type_bitmask.turn_on(type_bits[0], flag='bias')
             type_bits[1] = fitstbl.type_bitmask.turn_on(type_bits[1], flag='arc')
             type_bits[2:4] = fitstbl.type_bitmask.turn_on(type_bits[2:4], flag=['pixelflat', 'trace'])
             type_bits[4] = fitstbl.type_bitmask.turn_on(type_bits[4], flag='standard')
             type_bits[5:] = fitstbl.type_bitmask.turn_on(type_bits[5:], flag='science')
             fitstbl.set_frame_types(type_bits)
+            # Calibration groups
+            cfgs = fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
+            fitstbl.set_configurations(cfgs)
+            fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
     return fitstbl
 
