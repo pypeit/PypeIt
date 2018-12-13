@@ -76,3 +76,10 @@ class GeminiSTelescopePar(TelescopePar):
                                               longitude=70.8062,              # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
                                               latitude=-30.1691,              # Latitude of the telescope
                                               elevation=2200.0)               # Elevation of the telescope (in m)
+
+class LBTTelescopePar(TelescopePar):
+    def __init__(self):
+        super(LBTTelescopePar, self).__init__(name='LBT',
+                                               longitude=109.889064,
+                                               latitude=32.701308,
+                                               elevation=3221.0)
