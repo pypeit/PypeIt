@@ -420,7 +420,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSSpectrograph):
         self.detector = [  #  Hamamatsu (since 201?)
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        specaxis        = 0,  # I think this is ignored, even if true
+                        specaxis        = 0,  # FW: this should be 0 for gmos_ham
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -497,7 +497,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         self.detector = [  #  Hamamatsu (since 2011)
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        specaxis        = 1,  # I think this is ignored, even if true
+                        specaxis        = 0,  # FW: this should be 0 for gmos_ham
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -512,7 +512,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        specaxis        = 1,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -527,7 +527,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        specaxis        = 1,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
