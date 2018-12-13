@@ -13,6 +13,7 @@ import string
 import numpy as np
 import yaml
 
+import datetime
 from astropy import table, coordinates, time
 
 from pypeit import msgs
@@ -23,6 +24,7 @@ from pypeit.par import PypeItPar
 from pypeit.par.util import make_pypeit_file
 from pypeit.bitmask import BitMask
 from pypeit.spectrographs.util import load_spectrograph
+
 from pypeit import debugger
 
 # Initially tried to subclass this from astropy.table.Table, but that
@@ -518,7 +520,7 @@ class PypeItMetaData:
         _obstime = self.construct_obstime(row) if obstime is None else obstime
         tiso = time.Time(_obstime, format='isot')
         dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
-        return '{0}_{1}_{2}{3}'.format(self.fitstbl['target'][row].replace(" ", ""),
+        return '{0}_{1}_{2}{3}'.format(self['target'][row].replace(" ", ""),
                                        self.spectrograph.camera,
                                        datetime.datetime.strftime(dtime, '%Y%b%dT'),
                                        tiso.value.split("T")[1].replace(':',''))
@@ -906,7 +908,7 @@ class PypeItMetaData:
         # Check that the groups are valid
         self._check_calib_groups()
 
-    def find_frames(self, ftype, sci_ID=None, index=False):
+    def find_frames(self, ftype, calib_ID=None, index=False):
         """
         Find the rows with the associated frame type.
 
@@ -934,14 +936,20 @@ class PypeItMetaData:
         if ftype is 'None':
             return self['framebit'] == 0
         indx = self.type_bitmask.flagged(self['framebit'], ftype)
+        if calib_ID is not None:
+            in_grp = self.find_calib_group(calib_ID)
+            #
+            indx &= in_grp
+        '''
         if sci_ID is not None:
             if ftype == 'science':  # THIS IS KEY FOR near-IR where arc=science
                 indx &= (self['sci_ID'] == sci_ID)
             else:
                 indx &= (self['sci_ID'] & sci_ID > 0)
+        '''
         return np.where(indx)[0] if index else indx
 
-    def find_frame_files(self, ftype, sci_ID=None):
+    def find_frame_files(self, ftype, calib_ID=None):
         """
         Return the list of files with a given frame type.
 
@@ -960,7 +968,7 @@ class PypeItMetaData:
             list: List of file paths that match the frame type and
             science frame ID, if the latter is provided.
         """
-        indx = self.find_frames(ftype, sci_ID=sci_ID)
+        indx = self.find_frames(ftype, calib_ID=calib_ID)
         return [os.path.join(d,f) for d,f in zip(self['directory'][indx], self['filename'][indx])]
 
     def frame_paths(self, indx):
@@ -975,7 +983,7 @@ class PypeItMetaData:
         Returns:
             str, list: The full paths of one or more frames.
         """
-        if isinstance(indx, int):
+        if isinstance(indx, (int,np.integer)):
             return os.path.join(self['directory'][indx], self['filename'][indx])
         return [os.path.join(d,f) for d,f in zip(self['directory'][indx], self['filename'][indx])]
 

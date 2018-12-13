@@ -38,7 +38,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
        Attempt to set with settings['run']['spectrograph'] if not input
     settings : dict (optional)
       Settings for trace slits
-    setup : str (optional)
+    master_key : str (optional)
       Setup tag
     det : int, optional
       Detector index, starts at 1
@@ -67,7 +67,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'bias'
 
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph, file_list = [], det=1, par=None, setup=None, master_dir=None,
+    def __init__(self, spectrograph, file_list = [], det=1, par=None, master_key=None, master_dir=None,
                  mode=None):
 
         # Parameters
@@ -79,7 +79,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.frametype, setup, mode=mode,
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key, mode=mode,
                                          master_dir=master_dir)
 
     def build_image(self, overwrite=False, trim=True):

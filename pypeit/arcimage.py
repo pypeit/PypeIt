@@ -31,7 +31,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
             The 1-indexed detector number to process.
         par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
             The parameters used to type and process the arc frames.
-        setup (:obj:`str`, optional):
+        master_key (:obj:`str`, optional):
             The string identifier for the instrument configuration.  See
             :class:`pypeit.masterframe.MasterFrame`.
 
@@ -61,7 +61,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'arc'
 
-    def __init__(self, spectrograph, file_list =[], det=1, par=None, setup=None,
+    def __init__(self, spectrograph, file_list =[], det=1, par=None, master_key=None,
                  master_dir=None, mode=None, msbias=None):
     
         # Parameters unique to this Object
@@ -76,7 +76,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key,
                                          mode=mode, master_dir=master_dir)
 
 

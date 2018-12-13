@@ -40,7 +40,7 @@ class WaveCalib(masterframe.MasterFrame):
       Settings for trace slits
     det : int, optional
       Detector number
-    setup : str, optional
+    master_key : str, optional
 
     Attributes
     ----------
@@ -67,14 +67,14 @@ class WaveCalib(masterframe.MasterFrame):
 
     # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
     # parameters since instantiating without them does nothing. Make them required
-    def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
+    def __init__(self, msarc, spectrograph=None, par=None, det=None, master_key=None, master_dir=None,
                  mode=None, redux_path=None, bpm = None):
 
         # Instantiate the spectograph
         self.spectrograph = load_spectrograph(spectrograph)
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key,
                                          master_dir=master_dir, mode=mode)
 
         # Required parameters (but can be None)
@@ -86,7 +86,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Optional parameters
         self.redux_path = redux_path
         self.det = det
-        self.setup = setup
+        self.master_key = master_key
         #self.arcparam = arcparam
 
         # Attributes
@@ -189,7 +189,7 @@ class WaveCalib(masterframe.MasterFrame):
         # QA
         if not skip_QA:
             for slit in ok_mask:
-                outfile = qa.set_qa_filename(self.setup, 'arc_fit_qa', slit=slit, out_dir=self.redux_path)
+                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=slit, out_dir=self.redux_path)
                 wavecal.qa.arc_fit_qa(self.wv_calib[str(slit)], outfile = outfile)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -244,9 +244,9 @@ class WaveCalib(masterframe.MasterFrame):
 
         # QA
         if not skip_QA:
-            outfile_global = qa.set_qa_filename(self.setup, 'arc_fit2d_global_qa', out_dir=self.redux_path)
+            outfile_global = qa.set_qa_filename(self.master_key, 'arc_fit2d_global_qa', out_dir=self.redux_path)
             arc.fit2darc_global_qa(fit2d_dict, outfile=outfile_global)
-            outfile_orders = qa.set_qa_filename(self.setup, 'arc_fit2d_orders_qa', out_dir=self.redux_path)
+            outfile_orders = qa.set_qa_filename(self.master_key, 'arc_fit2d_orders_qa', out_dir=self.redux_path)
             arc.fit2darc_orders_qa(fit2d_dict, outfile=outfile_orders)
 
         return fit2d_dict

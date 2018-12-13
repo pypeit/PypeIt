@@ -29,9 +29,9 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
     Parameters
     ----------
+    spectrograph : str or Spectrograph
     file_list : list
       List of raw files to produce the flat field
-    spectrograph : str
     settings : dict-like
     msbias : ndarray or str or None
     tslits_dict : dict
@@ -39,7 +39,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     tilts : ndarray
       tilts from WaveTilts class
     det : int
-    setup : str
+    master_key : str
 
     Attributes
     ----------
@@ -65,7 +65,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     # Frame type is a class attribute
     frametype = 'pixelflat'
 
-    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, master_dir=None,
+    def __init__(self, spectrograph, file_list=[], det=1, par=None, master_key=None, master_dir=None,
                  mode=None, flatpar=None, msbias=None, msbpm = None, tslits_dict=None, tilts_dict=None):
 
         # Image processing parameters
@@ -77,7 +77,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key,
                                          master_dir=master_dir, mode=mode)
 
         # Parameters unique to this Object
@@ -176,7 +176,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.slit_profiles
 
         """
-        ms_name = masterframe.master_name('illumflat', self.setup, self.mdir)
+        ms_name = masterframe.master_name('illumflat', self.master_key, self.mdir)
         msframe = self.load_master(ms_name)
         if msframe is None:
             msgs.warn("No Master frame found of type {:s}: {:s}".format('illumflat', ms_name))

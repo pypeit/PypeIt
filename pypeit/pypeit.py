@@ -222,6 +222,7 @@ class PypeIt(object):
             # standard associated with a given science frame.  Below, I
             # just use the first standard
             std_frame = None if len(grp_standards) == 0 else grp_standards[0]
+            std_frame = None  # REMOVE THIS!
 
             # Reduce all the science frames; keep the basenames of the
             # science frames for use in flux calibration
@@ -231,7 +232,7 @@ class PypeIt(object):
                 sci_dict = self.reduce_exposure(frame, std_frame=std_frame,
                                                 reuse_masters=reuse_masters)
                 science_basename[j] = self.basename
-                self.save_exposure(frame, sci_dict, science_basename)
+                self.save_exposure(frame, sci_dict, self.basename)
 
             # Apply the flux calibration for this calibration group
             # TODO: I don't think this function is written yet...
@@ -379,6 +380,8 @@ class PypeIt(object):
                                 if isinstance(std_frame, int) else std_frame
             if std_outfile is not None and not os.path.isfile(std_outfile):
                 msgs.error('Could not open standard file: {0}'.format(std_outfile))
+        else:
+            std_outfile = None
 
         # if show is set, clear the ginga channels at the start of each new sci_ID
         if self.show:
@@ -411,7 +414,7 @@ class PypeIt(object):
         for self.det in detectors:
             msgs.info("Working on detector {0}".format(self.det))
             sci_dict[self.det] = {}
-            setup = self.fitstbl.master_key(self.frame, det=self.det)
+            master_key = self.fitstbl.master_key(self.frame, det=self.det)
 
             # Calibrate
             self.caliBrate.set_config(self.frame, self.det, self.par['calibrations'])
@@ -425,11 +428,10 @@ class PypeIt(object):
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
-            sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
-                sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
-                sci_dict[det]['specobjs'], vel_corr \
-                    = self._extract_one(scifiles, bgframes, std=is_standard,
-                                        std_outfile=std_outfile)
+            sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], sci_dict[self.det]['skymodel'], \
+                sci_dict[self.det]['objmodel'], sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
+                sci_dict[self.det]['specobjs'], vel_corr \
+                    = self._extract_one(std=is_standard, std_outfile=std_outfile)
             if vel_corr is not None:
                 sci_dict['meta']['vel_corr'] = vel_corr
 
@@ -560,8 +562,8 @@ class PypeIt(object):
             outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
                                    'spec1d_{:s}.fits'.format(basename))
             helio_dict = dict(refframe='pixel'
-            if self.caliBrate.par['wavelengths']['reference'] == 'pixel'
-            else self.caliBrate.par['wavelengths']['frame'],
+                if self.caliBrate.par['wavelengths']['reference'] == 'pixel'
+                else self.caliBrate.par['wavelengths']['frame'],
                               vel_correction=vel_corr)
             # Did the user re-run a single detector?
             save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], outfile,
@@ -639,7 +641,7 @@ class PypeIt(object):
         self.frame = frame
         self.det = det
 
-        sci_image_files = self.fitstbl.frame_paths(self.frame)
+        sci_image_files = [self.fitstbl.frame_paths(self.frame)]
         self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=self.det,
                                                binning=self.fitstbl['binning'][self.frame],
                                                objtype=self.fitstbl['frametype'][self.frame],
@@ -651,106 +653,6 @@ class PypeIt(object):
         msgs.sciexp = self.sciI
         self.obstime = self.fitstbl.construct_obstime(self.frame)
         self.basename = self.fitstbl.construct_basename(self.frame, obstime=self.obstime)
-
-#    def init_one_science_old(self, sci_ID, det):
-#        """
-#        Instantiate ScienceImage class and run the first step with it
-#
-#        Args:
-#            sci_ID: int
-#              binary flag indicating the science frame
-#            det: int
-#              detector index
-#
-#        Returns:
-#            self.obstime : Time
-#            self.basename : str
-#        """
-#        self.sci_ID = sci_ID
-#        self.det = det
-#
-#        sci_image_files = self.fitstbl.find_frame_files('science', sci_ID=sci_ID)
-#        scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
-#        try:
-#            binning = self.fitstbl['binning'][scidx]
-#        except:
-#            binning = (1,1)
-#
-#        self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
-#                                              binning = binning,
-#                                              objtype='science', scidx=scidx, setup=self.setup,
-#                                              par=self.par['scienceimage'],
-#                                              frame_par=self.par['scienceframe'])
-#        msgs.sciexp = self.sciI  # For QA on crash
-#
-#        # Names and time
-#        self.obstime, self.basename = self.init_time_names(self.fitstbl, scidx)
-#        # Return
-#        return self.obstime, self.basename  # For fluxing
-
-    # Move out of the scienceimage class to here. It is more appropriate here where fitstable exists
-    # Moved to fitstbl
-#    def _init_time_names(self):
-#        """
-#        Setup the basename (for file output mainly)
-#        and time objects (for heliocentric)
-#
-#        Parameters
-#        ----------
-#        camera : str
-#          Taken from settings['mosaic']['camera']
-#        timeunit : str
-#          mjd
-#
-#        Returns
-#        -------
-#        self.time : Time
-#        self.basename : str
-#
-#        """
-#
-#        timeunit = self.spectrograph.timeunit
-#        camera = self.spectrograph.camera
-#
-#        self.fitstbl = fitstbl
-#
-#        # TODO: Given that we just read the file header to get the
-#        # datasec_img in the init function above, I don't see why I need
-#        # to access the fits table for exptime and binning. This
-#        # information is also in the headers. By simply pulling the
-#        # stuff from the header, we would remove the fitstbl entirely.
-#        # Another option would be to put the datasec_img stuff in the
-#        # fitstbl for each detector
-#
-#        self.exptime = self.fitstbl['exptime'][scidx]
-#        try:
-#            self.binning = self.fitstbl['binning'][scidx]
-#        except:
-#            self.binning = (1,1)
-#
-#        # This should have been set when we construct the fitstbl.
-#        #
-#        # JFH These time routines need to exit cleanly with warnings rather than crashing the code
-#        # until we get the fitstbl working in as stable way.
-#        try:
-#            tval = Time(fitstbl['time'][scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
-#        except:
-#            msgs.warn('There is no time in the fitstbl.' + msgs.newline() +
-#            'The time and heliocentric corrections will be off!!' + msgs.newline() +
-#            'This is a bad idea. Continuing with a dummy time value')
-#            tval = '2010-01-01'
-#        # Time
-#        tiso = Time(tval, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
-#        dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
-#        self.time = tval
-#        # Basename
-#        self.inst_name = camera
-#        self.target_name = self.fitstbl['target'][scidx].replace(" ", "")
-#        self.basename = self.target_name+'_'+self.inst_name+'_'+ \
-#                         datetime.datetime.strftime(dtime, '%Y%b%dT') + \
-#                         tiso.value.split("T")[1].replace(':','')
-#        # Return
-#        return self.time, self.basename
 
 
     def msgs_reset(self):
@@ -824,7 +726,7 @@ class MultiSlit(PypeIt):
         self.std_basename = None
         self.stdI = None
 
-    def _extract_one(self, std=False):
+    def _extract_one(self, std=False, std_outfile=None):
         """
         Extract a single exposure/detector pair
 

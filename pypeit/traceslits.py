@@ -107,12 +107,12 @@ class TraceSlits(masterframe.MasterFrame):
     frametype = 'trace'
 
     def __init__(self, mstrace, pixlocn, spectrograph,
-                 par=None, det=None, setup=None, master_dir=None,
+                 par=None, det=None, master_key=None, master_dir=None,
                  redux_path=None,
                  mode=None, binbpx=None, ednum=100000):
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, setup, master_dir=master_dir, mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key, master_dir=master_dir, mode=mode)
 
         # TODO -- Remove pixlocn as a required item
 
@@ -1421,7 +1421,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         slitmask = self.spectrograph.slitmask(self.tslits_dict)
         trace_slits.slit_trace_qa(self.mstrace, self.lcen,
-                                   self.rcen, slitmask, self.extrapord, self.setup,
+                                   self.rcen, slitmask, self.extrapord, self.master_key,
                                    desc="Trace of the slit edges D{:02d}".format(self.det),
                                    use_slitid=use_slitid, out_dir=self.redux_path)
 
