@@ -262,7 +262,10 @@ class Calibrations(object):
 
         # Prep
         self.bias_file_list, bias_rows = self.fitstbl.find_frame_files('bias', calib_ID=self.calib_ID)
-        self.bias_master_key = self.fitstbl.master_key(bias_rows[0], det=self.det)
+        if len(bias_rows) > 0:
+            self.bias_master_key = self.fitstbl.master_key(bias_rows[0], det=self.det)
+        else:  # Allow for user-supplied file (e.g. LRISb)
+            self.bias_master_key = self.fitstbl.master_key(self.frame, det=self.det)
 
         # Grab from internal dict?
         prev_build = self.check_for_previous('bias', self.bias_master_key)
