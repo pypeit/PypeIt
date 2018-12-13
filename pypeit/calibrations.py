@@ -185,7 +185,7 @@ class Calibrations(object):
 
         Requirements:
           self.msbias
-          master_key, det, sci_ID, par
+          master_key, det, par
 
         Args:
 
@@ -234,7 +234,7 @@ class Calibrations(object):
         Load or generate the bias frame/command
 
         Requirements:
-           master_key, det, sci_ID, par
+           master_key, det, par
 
         Returns:
             self.msbias: ndarray or str
@@ -319,7 +319,7 @@ class Calibrations(object):
         Requirements:
            tslits_dict
            tilts_dict
-           det, sci_ID, par
+           det, par
 
         Returns:
             self.mspixflatnrm: ndarray
@@ -444,18 +444,14 @@ class Calibrations(object):
 
         return self.mspixflatnrm, self.msillumflat
 
-    def get_slits(self, arms=True, redo=False):
+    def get_slits(self, redo=False):
         """
         Load or generate the slits.
         First, a trace flat image is generated
 
-        .. todo::
-            - arms is a parameter passed to traceSlits.  This may need
-              to change if/when arms.py is replaced.
-
         Requirements:
            pixlocn
-           det par master_key sci_ID
+           det par master_key
 
         Returns:
             self.tslits_dict
@@ -510,7 +506,6 @@ class Calibrations(object):
             rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det, rm=True)
 
             # Now we go forth
-            # JFH Why do we need this try except statementhere when we don't have it for any other method?
             try:
                 self.tslits_dict = self.traceSlits.run(plate_scale = plate_scale, show=self.show,
                                                        add_user_slits=add_user_slits, rm_user_slits=rm_user_slits)
@@ -589,7 +584,7 @@ class Calibrations(object):
 
         Requirements:
           msarc, msbpm, tslits_dict
-          det, par, sci_ID
+          det, par
 
         Returns:
             self.wv_calib: dict
@@ -683,7 +678,7 @@ class Calibrations(object):
 
         Requirements:
            msarc, tslits_dict, pixlocn, wv_calib, maskslits
-           det, par, arc_master_key, sci_ID, spectrograph
+           det, par, arc_master_key, spectrograph
 
         Returns:
             self.tilts_dict: dictionary with tilts information (2D)
@@ -789,10 +784,10 @@ class Calibrations(object):
 
     def __repr__(self):
         # Generate sets string
-        txt = '<{:s}: master_key={}, det={}, sci_ID={}'.format(self.__class__.__name__,
+        txt = '<{:s}: master_key={}, det={}, calib_ID={}'.format(self.__class__.__name__,
                                                           self.master_key,
                                                           self.det,
-                                                          self.sci_ID)
+                                                          self.calib_ID)
         txt += '>'
         return txt
 
