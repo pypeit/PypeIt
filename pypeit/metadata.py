@@ -1307,7 +1307,8 @@ class PypeItMetaData:
         ff.write(yaml.dump(utils.yamlify(cfg)))
         ff.close()
 
-    def write_pypeit(self, ofile, split=False, overwrite=False, ignore=None, cfg_lines=None):
+    def write_pypeit(self, ofile, split=False, overwrite=False, ignore=None, cfg_lines=None,
+                     write_bkg_pairs=False):
         """
         Write a *.pypeit file in data-table format.
 
@@ -1346,6 +1347,15 @@ class PypeItMetaData:
                 The list of configuration lines to include in the file.
                 If None are provided, the vanilla configuration is
                 included.
+            write_bkg_pairs (:obj:`bool`, optional):
+                When constructing the
+                :class:`pypeit.metadata.PypeItMetaData` object, include
+                two columns called `comb_id` and `bkg_id` that identify
+                object and background frame pairs.  The string indicates
+                how these these columns should be added::
+                    - `empty`: The columns are added but their values
+                      are all originally set to -1.  **This is
+                      currently the only option.**
 
         Raises:
             PypeItError:
@@ -1357,7 +1367,15 @@ class PypeItMetaData:
         # TODO: I don't think sortroot is ever used.
 
         # Columns for output
-        output_cols = np.array(self.spectrograph.metadata_keys())
+        columns = self.spectrograph.metadata_keys()
+        # comb, bkg columns
+        if write_bkg_pairs:
+            for key in ['comb_id', 'bkg_id']:
+                if key not in columns:
+                    columns += [key]
+
+        # Take only those present
+        output_cols = np.array(columns)
         output_cols = output_cols[np.isin(output_cols, self.keys())].tolist()
 
         if not split:
