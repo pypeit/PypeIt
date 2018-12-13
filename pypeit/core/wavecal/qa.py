@@ -12,8 +12,7 @@ from matplotlib.patches import Patch
 from pypeit import utils
 
 
-
-def arc_fit_qa(fit, outfile = None, ids_only=False, title=None):
+def arc_fit_qa(fit, outfile=None, ids_only=False, title=None):
     """
     QA for Arc spectrum
 

@@ -9,6 +9,7 @@ import glob
 import numpy as np
 
 import yaml
+from pypeit import debugger
 
 # CANNOT INCLUDE msgs IN THIS MODULE AS
 #  THE HTML GENERATION OCCURS FROM msgs
@@ -213,7 +214,8 @@ def html_mf_pngs(setup, cbset, det):
     body = ''
     # QA root
     # Search for PNGs
-    idval = '{:s}_{:02d}_{:s}'.format(setup, det, cbset)
+    #idval = '{:s}_{:02d}_{:s}'.format(setup, det, cbset)  # OLD
+    idval = '{:s}_{:d}_{:02d}'.format(setup, cbset, det)
 
     # Organize the outputs
     html_dict = {}
@@ -333,9 +335,9 @@ def gen_mf_html(pypeit_file):
     for key in calib_dict[setup].keys():
         if key == '--':
             continue
-        try:
+        if isinstance(key,str):
             dets.append(int(key))
-        except ValueError:
+        else:
             cbsets.append(key)
     # Generate MF file
     MF_filename = 'QA/MF_{:s}.html'.format(setup)

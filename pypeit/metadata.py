@@ -1248,6 +1248,7 @@ class PypeItMetaData:
               consider reformatting/removing it.
             - This is complicated by allowing some frame types to have
               no association with an instrument configuration
+            - This is primarily used for QA now;  but could probably use the pypeit file instead
 
         Args:
             ofile (:obj:`str`):
@@ -1272,19 +1273,22 @@ class PypeItMetaData:
         # Construct the setups dictionary
         cfg = self.get_all_setups(ignore=['None'])
 
-        # Iterate through the calibration groups and add frames to the
-        # appropriate configuration
-        for i in range(self.n_calib_groups):
+        # Iterate through the calibration bit names as these are the root of the
+        #   MasterFrames and QA
+        for icbit in np.unique(self['calibbit'].data):
+            cbit = int(icbit) # for yaml
             # Skip this group
-            if ignore is not None and i in ignore:
+            if ignore is not None and cbit in ignore:
                 continue
 
             # Find the frames in this group
-            in_group = self.find_calib_group(i)
+            #in_group = self.find_calib_group(i)
+            in_cbit = self['calibbit'] == cbit
 
             # Find the unique configurations in this group, ignoring any
             # undefined ('None') configurations
-            setup = np.unique(self['setup'][in_group]).tolist()
+            #setup = np.unique(self['setup'][in_group]).tolist()
+            setup = np.unique(self['setup'][in_cbit]).tolist()
             if 'None' in setup:
                 setup.remove('None')
 
@@ -1296,10 +1300,11 @@ class PypeItMetaData:
                            'configuration cannot be None.')
 
             # Find the frames of each type in this group
-            cfg[setup[0]][i] = {}
+            cfg[setup[0]][cbit] = {}
             for key in self.type_bitmask.keys():
-                ftype_in_group = self.find_frames(key) & in_group
-                cfg[setup[0]][i][key] = [ os.path.join(d,f) 
+                #ftype_in_group = self.find_frames(key) & in_group
+                ftype_in_group = self.find_frames(key) & in_cbit
+                cfg[setup[0]][cbit][key] = [ os.path.join(d,f)
                                                 for d,f in zip(self['directory'][ftype_in_group],
                                                                self['filename'][ftype_in_group])]
         # Write it
