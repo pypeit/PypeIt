@@ -90,7 +90,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'ArII']
 
         # Overscan subtract the images
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
+        #par['calibrations']['biasframe']['useframe'] = 'overscan'
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
