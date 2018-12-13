@@ -1098,8 +1098,7 @@ class HolyGrail:
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _  =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
-            from IPython import embed
-            embed()
+
             # Were there enough lines?  This mainly deals with junk slits
             if self._all_tcent.size < min_nlines:
                 msgs.warn("Not enough lines to identify in slit {0:d}!".format(slit))
