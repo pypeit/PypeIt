@@ -257,7 +257,7 @@ class PypeItSetup(object):
                 object and background frame pairs.  The string indicates
                 how these these columns should be added::
                     - `empty`: The columns are added but their values
-                      are all originally set to None.  **This is
+                      are all originally set to -1.  **This is
                       currently the only option.**
     
         Returns:
@@ -265,6 +265,10 @@ class PypeItSetup(object):
             fits file to reduce.  Note this is different from
             :attr:`fitstbl`.
         """
+        # Check for bkg_pairs in usrdata
+        if self.usrdata is not None:
+            if 'bkg_id' in self.usrdata.keys():
+                bkg_pairs = 'empty'  # This will enforce bkg_id are propery initialized
         # Build and sort the table
         self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, file_list=self.file_list,
                                       usrdata=self.usrdata, strict=strict, bkg_pairs=bkg_pairs)
@@ -426,7 +430,7 @@ class PypeItSetup(object):
                 object and background frame pairs.  The string indicates
                 how these these columns should be added::
                     - `empty`: The columns are added but their values
-                      are all originally set to None.  **This is
+                      are all originally set to -1.  **This is
                       currently the only option.**
             calibration_check (obj:`bool`, optional):
                 Only check that the calibration frames are appropriately
@@ -456,6 +460,7 @@ class PypeItSetup(object):
         # Build fitstbl
         if self.fitstbl is None:
             self.build_fitstbl(strict=not setup_only, bkg_pairs=bkg_pairs)
+        #debugger.set_trace()
 
         # File typing
         self.get_frame_types(flag_unknown=setup_only or calibration_check,
@@ -471,7 +476,8 @@ class PypeItSetup(object):
 
         # Assign science IDs based on the calibrations groups (to be
         # deprecated)
-        self.fitstbl.calib_to_science()
+        #self.fitstbl.calib_to_science()
+        self.fitstbl['failures'] = False                    # TODO: placeholder
 
 #        # Match calibs to science
 #        self.match_to_science(setup_only=setup_only)

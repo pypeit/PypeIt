@@ -177,8 +177,6 @@ class PypeIt(object):
         can_be_None = ['flexure', 'fluxcalib']
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
-        # TODO: add arguments and return values here to make the control
-        # flow understandable
         self.tstart = time.time()
 
         # Find the standard frames
@@ -228,9 +226,20 @@ class PypeIt(object):
             # Reduce all the science frames; keep the basenames of the
             # science frames for use in flux calibration
             science_basename = [None]*len(grp_science)
+
             for j,frame in enumerate(grp_science):
+                # TODO -- Make this more elegant
+                if 'obj_id' in self.fitstbl.keys():
+                    if self.fitstbl['obj_id'][frame] >= 0:
+                        obj_id = self.fitstbl['obj_id'][frame]
+                        if np.sum(self.fitstbl['obj_id'] == obj_id) > 1:
+                            print("NOT READY TO DEAL WITH THIS")
+                            debugger.set_trace()
+                        # bgframe
+                        bgframe = np.where(self.fitstbl['bkg_id'] == obj_id)[0][0]
                 # This sets: frame, sciI, obstime, basename
                 sci_dict = self.reduce_exposure(frame, std_frame=std_frame,
+                                                bgframe=bgframe,
                                                 reuse_masters=reuse_masters)
                 science_basename[j] = self.basename
                 self.save_exposure(frame, sci_dict, self.basename)
@@ -353,8 +362,7 @@ class PypeIt(object):
         return [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'], int) \
                     else self.par['rdx']['detnum']
 
-    # JFH ToDO -- take bgframe as an input, stdframe, is_std = False
-    def reduce_exposure(self, frame, std_frame=None, reuse_masters=False):
+    def reduce_exposure(self, frame, bgframe=None, std_frame=None, reuse_masters=False):
         """
         Reduce a single exposure
 
@@ -362,6 +370,8 @@ class PypeIt(object):
             frame (:obj:`int`):
                 0-indexed row in :attr:`fitstbl` with the frame to
                 reduce
+            bgframe (:obj:`int`, optional):
+                0-indexed row in :attr:`fitstbl` with the matching background frame
             std_frame (:obj:`int`, :obj:`str`, optional):
                 0-indexed row in :attr:`fitstbl` with a standard frame
                 associated with the frame to reduce, or the name of a

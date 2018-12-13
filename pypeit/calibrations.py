@@ -224,17 +224,14 @@ class Calibrations(object):
         prev_build = self.check_for_previous('arc', self.arc_master_key)
         if prev_build:
             # Previously calculated
-            #self.msarc = self.calib_dict[self.arc_master_key]['arc']
-            #return self.msarc
-            pass
+            self.msarc = self.calib_dict[self.arc_master_key]['arc']
+            return self.msarc
 
         # Instantiate with everything needed to generate the image (in case we do)
         self.arcImage = arcimage.ArcImage(self.spectrograph, file_list = self.arc_file_list, det=self.det,msbias=self.msbias,
                                           par=self.par['arcframe'], master_key=self.arc_master_key,
                                           master_dir=self.master_dir, mode=self.par['masters'])
 
-        if prev_build:
-            debugger.set_trace()
         # Load the MasterFrame (if it exists and is desired)?
         self.msarc = self.arcImage.master(force=prev_build)
         if self.msarc is None:  # Otherwise build it

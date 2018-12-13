@@ -84,7 +84,7 @@ class PypeItMetaData:
             background frame pairs.  The string indicates how these
             these columns should be added::
                 - `empty`: The columns are added but their values are
-                  all originally set to None.  **This is currently the
+                  all originally set to -1.  **This is currently the
                   only option.**
 
     Attributes:
@@ -139,7 +139,7 @@ class PypeItMetaData:
         indicates how these these columns should be added::
 
             - `empty`: The columns are added but their values are all
-              originally set to None.  **This is currently the only
+              originally set to -1.  **This is currently the only
               option.**
 
         Args:
@@ -155,8 +155,8 @@ class PypeItMetaData:
         """
         numfiles = len(data['filename'])
         if bkg_pairs == 'empty':
-            data['obj_id'] = [None]*numfiles
-            data['bkg_id'] = [None]*numfiles
+            data['obj_id'] = [-1]*numfiles
+            data['bkg_id'] = [-1]*numfiles
             return
         msgs.error('{0} not a defined method for the background pair columns.'.format(bkg_pairs))
 
@@ -919,8 +919,8 @@ class PypeItMetaData:
             ftype (str):
                 The frame type identifier.  See the keys for
                 :class:`pypeit.core.framematch.FrameTypeBitMask`.
-            sci_ID (:obj:`int`, optional):
-                Index of the science frame that it must match.  If None,
+            calib_ID (:obj:`int`, optional):
+                Index of the calibration group that it must match.  If None,
                 any row of the specified frame type is included.
             index (:obj:`bool`, optional):
                 Return an array of 0-indexed indices instead of a
@@ -955,8 +955,8 @@ class PypeItMetaData:
             ftype (str):
                 The frame type identifier.  See the keys for
                 :class:`pypeit.core.framematch.FrameTypeBitMask`.
-            sci_ID (:obj:`int`, optional):
-                Index of the science frame that it must match.  If None,
+            calib_ID (:obj:`int`, optional):
+                Index of the calibration group that it must match.  If None,
                 any row of the specified frame type is included.
 
         Returns:
