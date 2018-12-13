@@ -462,9 +462,11 @@ class PypeItSetup(object):
         self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
         # Set comb_id
-        sci_std_idx = np.where(np.any([self.fitstbl.find_frames('science'),
-                          self.fitstbl.find_frames('standard')], axis=0))[0]
-        self.fitstbl['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
+        # TODO-- a bit kludgy to do it here;  consider another place but it must be after usrdata is ingested
+        if not np.any(self.fitstbl['comb_id'] >= 0):
+            sci_std_idx = np.where(np.any([self.fitstbl.find_frames('science'),
+                              self.fitstbl.find_frames('standard')], axis=0))[0]
+            self.fitstbl['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
 
         # Assign science IDs based on the calibrations groups (to be
         # deprecated)
