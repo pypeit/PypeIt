@@ -121,6 +121,7 @@ class PypeItSetup(object):
         self.usrdata = usrdata
         self.setups = setups
         self.pypeit_file = pypeit_file
+        self.user_cfg = cfg_lines
 
         # Determine the spectrograph name
         _spectrograph_name = spectrograph_name if cfg_lines is None \
@@ -224,7 +225,7 @@ class PypeItSetup(object):
         # configuration lines
         cfg_lines = ['[rdx]']
         cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
-        cfg_lines += ['    sortroot = {0}'.format(root)]
+#        cfg_lines += ['    sortroot = {0}'.format(root)]
         make_pypeit_file(pypeit_file, spectrograph, [dfname], cfg_lines=cfg_lines, setup_mode=True)
 
     @property

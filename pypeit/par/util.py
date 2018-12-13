@@ -621,6 +621,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
         _cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
     else:
         _cfg_lines = list(cfg_lines)
+
     if setup_mode:
         _cfg_lines += ['[calibrations]']
         _cfg_lines += ['    [[biasframe]]']
@@ -635,10 +636,12 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
         _cfg_lines += ['        number = 0']
         _cfg_lines += ['    [[standardframe]]']
         _cfg_lines += ['        number = 0']
-    else:
-        _cfg_lines += ['[calibrations]']
-        _cfg_lines += ['    [[arcframe]]']
-        _cfg_lines += ['        number = 1']
+    # TODO: Got rid of this, but need to check this doesn't break
+    # anything
+#    else:
+#        _cfg_lines += ['[calibrations]']
+#        _cfg_lines += ['    [[arcframe]]']
+#        _cfg_lines += ['        number = 1']
 
     # TODO: Clean up and check validity of _cfg_lines by reading it into
     # a ConfigObj?

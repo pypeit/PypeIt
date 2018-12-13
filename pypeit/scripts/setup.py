@@ -55,7 +55,6 @@ def main(args):
     from pypeit import msgs
     from pypeit.spectrographs.util import load_spectrograph
     from pypeit.pypeitsetup import PypeItSetup
-    from pypeit import pypeit
 
     # Check that the spectrograph is provided if using a file root
     if args.root is not None:
@@ -88,7 +87,8 @@ def main(args):
 
     # Use PypeItMetaData to write the complete PypeIt file
     pypeit_file = os.path.join(output_path, '{0}.pypeit'.format(args.spectrograph))
-    ps.fitstbl.write_pypeit(pypeit_file, split=args.cfg_split, overwrite=args.overwrite)
+    ps.fitstbl.write_pypeit(pypeit_file, split=args.cfg_split, overwrite=args.overwrite,
+                            cfg_lines=ps.user_cfg)
 
     return 0
 

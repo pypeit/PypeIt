@@ -76,7 +76,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
     def metadata_keys(self):
         return ['filename', 'date', 'frametype', 'idname', 'target', 'exptime', 'decker',
-                'binning', 'echangl', 'xdangl', 'configuration', 'calib', 'obj_id', 'bkg_id']
+                'binning', 'echangl', 'xdangl', 'setup', 'calib', 'obj_id', 'bkg_id']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

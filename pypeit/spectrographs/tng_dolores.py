@@ -119,7 +119,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
 
     def metadata_keys(self):
         return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'idname',
-                'configuration', 'calib', 'obj_id', 'bkg_id']
+                'setup', 'calib', 'obj_id', 'bkg_id']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

@@ -26,7 +26,6 @@ from pypeit.core import save
 from pypeit.core import load
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts import run_pypeit
-from pypeit.par.util import make_pypeit_file, parse_pypeit_file
 
 from pypeit import debugger
 
@@ -391,7 +390,7 @@ class PypeIt(object):
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
             sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
-                sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'],
+                sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
                 sci_dict[det]['specobjs'], vel_corr \
                     = self._extract_one(scifiles, bgframes, std=is_standard,
                                         std_outfile=std_outfile)
