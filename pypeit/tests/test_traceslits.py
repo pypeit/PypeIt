@@ -22,21 +22,15 @@ def chk_for_files(root):
     return len(files) != 0
 
 @dev_suite_required
-def test_chk_deimos_slits():
-    spectrograph = util.load_spectrograph('keck_deimos')
-    for nslit, binning, det, root in zip([27],
-                                         [(1,1)],
-                                         [3],
-                                         ['MasterTrace_KeckDEIMOS_830G_8600_det3',
-                                          ]):
+def test_chk_kast_slits():
+    # Red, blue
+    for root in ['MasterTrace_ShaneKastred_600_7500_d55', 'MasterTrace_ShaneKastblue_600_4310_d55']:
         mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)
         assert chk_for_files(mstrace_root)
         traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
         norig = traceSlits.nslit
-        assert norig == nslit
         # Run me
-        plate_scale = binning[0]*spectrograph.detector[det-1]['platescale']
-        traceSlits.run(show=False, plate_scale=plate_scale)
+        traceSlits.run(write_qa=False)  # Don't need plate_scale for longslit
         # Test
         assert traceSlits.nslit == norig
 
@@ -57,10 +51,11 @@ def test_chk_lris_blue_slits():
         assert norig == nslit
         # Run me
         plate_scale = binning[0]*spectrograph.detector[det-1]['platescale']
-        traceSlits.run(show=False, plate_scale=plate_scale)
+        traceSlits.run(show=False, plate_scale=plate_scale, write_qa=False)
         # Test
         assert traceSlits.nslit == norig
 
+'''
 @dev_suite_required
 def test_chk_lris_red_slits():
     spectrograph = util.load_spectrograph('keck_lris_red')
@@ -78,22 +73,30 @@ def test_chk_lris_red_slits():
         assert norig == nslit
         # Run me
         plate_scale = binning[0]*spectrograph.detector[det-1]['platescale']
-        traceSlits.run(show=False, plate_scale=plate_scale)
+        traceSlits.run(show=False, plate_scale=plate_scale, write_qa=False)
         # Test
         assert traceSlits.nslit == norig
 
+
 @dev_suite_required
-def test_chk_kast_slits():
-    # Red, blue
-    for root in ['MasterTrace_ShaneKastred_600_7500_d55', 'MasterTrace_ShaneKastblue_600_4310_d55']:
+def test_chk_deimos_slits():
+    spectrograph = util.load_spectrograph('keck_deimos')
+    for nslit, binning, det, root in zip([27],
+                                         [(1,1)],
+                                         [3],
+                                         ['MasterTrace_KeckDEIMOS_830G_8600_det3',
+                                          ]):
         mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)
         assert chk_for_files(mstrace_root)
         traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
         norig = traceSlits.nslit
+        assert norig == nslit
         # Run me
-        traceSlits.run()  # Don't need plate_scale for longslit
+        plate_scale = binning[0]*spectrograph.detector[det-1]['platescale']
+        traceSlits.run(show=False, plate_scale=plate_scale, write_qa=False)
         # Test
         assert traceSlits.nslit == norig
+'''
 
 
 #@dev_suite_required

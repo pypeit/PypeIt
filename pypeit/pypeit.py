@@ -222,7 +222,8 @@ class PypeIt(object):
             # standard associated with a given science frame.  Below, I
             # just use the first standard
             std_frame = None if len(grp_standards) == 0 else grp_standards[0]
-            std_frame = None  # REMOVE THIS!
+            # TODO - REMOVE THIS
+            std_frame = None
 
             # Reduce all the science frames; keep the basenames of the
             # science frames for use in flux calibration
@@ -352,7 +353,7 @@ class PypeIt(object):
         return [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'], int) \
                     else self.par['rdx']['detnum']
 
-    # JFH ToDO this operates on a file, and takes bgframe as an input, stdframe, is_std = False
+    # JFH ToDO -- take bgframe as an input, stdframe, is_std = False
     def reduce_exposure(self, frame, std_frame=None, reuse_masters=False):
         """
         Reduce a single exposure
@@ -414,7 +415,6 @@ class PypeIt(object):
         for self.det in detectors:
             msgs.info("Working on detector {0}".format(self.det))
             sci_dict[self.det] = {}
-            master_key = self.fitstbl.master_key(self.frame, det=self.det)
 
             # Calibrate
             self.caliBrate.set_config(self.frame, self.det, self.par['calibrations'])

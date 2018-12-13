@@ -1396,8 +1396,8 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Remove any slits that are completely off the detector
         #   Also remove short slits here for multi-slit and long-slit (alignment stars)
-        #if self.nslit > 1:
-        self._trim_slits(trim_slits = trim_slits, plate_scale = plate_scale)
+        if self.nslit > 1:  # Do not trim if long slit
+            self._trim_slits(trim_slits=trim_slits, plate_scale=plate_scale)
 
         # Generate pixel arrays
         self._make_pixel_arrays()
