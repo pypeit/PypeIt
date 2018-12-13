@@ -309,7 +309,7 @@ class Calibrations(object):
 
 
         # Generate a bad pixel mask (should not repeat)
-        self.bpm_master_key = self.fitstbl.master_key(self.frame)
+        self.bpm_master_key = self.fitstbl.master_key(self.frame, det=self.det)
         prev_build = self.check_for_previous('bpm', self.bpm_master_key)
         if prev_build:
             self.msbpm = self.calib_dict[self.bpm_master_key]['bpm']
@@ -369,12 +369,14 @@ class Calibrations(object):
             self.msillumflat = None
             return self.mspixflatnrm, self.msillumflat
 
-        # Prep
-        pixflat_image_files, pixflat_rows = self.fitstbl.find_frame_files('pixelflat', calib_ID=self.calib_ID)
-        self.pixflat_master_key = self.fitstbl.master_key(pixflat_rows[0], det=self.det)
-
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
+
+        pixflat_image_files, pixflat_rows = self.fitstbl.find_frame_files('pixelflat', calib_ID=self.calib_ID)
+        if len(pixflat_rows) > 0:
+            self.pixflat_master_key = self.fitstbl.master_key(pixflat_rows[0], det=self.det)
+        else:  # Allow for user-supplied file (e.g. LRISb)
+            self.pixflat_master_key = self.fitstbl.master_key(self.frame, det=self.det)
 
         # Return already generated data
         prev_build1 = self.check_for_previous('normpixelflat', self.pixflat_master_key)
