@@ -162,7 +162,8 @@ class PypeIt(object):
         # Iterate through each calibration group
         for i in range(self.fitstbl.n_calib_groups):
 
-            # TODO: Can put this in a new function: reduce_calibgroup(i)
+            # TODO: Could put everything in this loop into a new
+            # function: reduce_calibgroup(i)
             
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
@@ -182,16 +183,24 @@ class PypeIt(object):
             # group:
             grp_science = frame_indx[is_science & in_grp]
 
+            # TODO: Need to decide how to associate standards with
+            # science frames in the case where there is more than one
+            # standard associated with a given science frame.  Below, I
+            # just use the first standard
+            std_frame = None if len(grp_standards) == 0 else grp_standards[0]
+
             # Reduce all the science frames; keep the basenames of the
             # science frames for use in flux calibration
             science_basename = [None]*len(grp_science)
             for j,frame in enumerate(grp_science):
                 # This sets: frame, sciI, obstime, basename
-                sci_dict = self.reduce_exposure(frame, reuse_masters=reuse_masters)
+                sci_dict = self.reduce_exposure(frame, std_frame=std_frame,
+                                                reuse_masters=reuse_masters)
                 science_basename[j] = self.basename
                 self.save_exposure(frame, sci_dict, science_basename)
 
             # Apply the flux calibration for this calibration group
+            # TODO: I don't think this function is written yet...
             self.flux_calibrate(reuse_masters=False)
 
             msgs.info('Finished calibration group {0}'.format(i))
@@ -309,13 +318,18 @@ class PypeIt(object):
                     else self.par['rdx']['detnum']
 
     # JFH ToDO this operates on a file, and takes bgframe as an input, stdframe, is_std = False
-    def reduce_exposure(self, frame, reuse_masters=False):
+    def reduce_exposure(self, frame, std_frame=None, reuse_masters=False):
         """
         Reduce a single exposure
 
         Args:
             frame (:obj:`int`):
-                0-indexed index of the row in :attr:`fitstbl` to calibrate
+                0-indexed row in :attr:`fitstbl` with the frame to
+                reduce
+            std_frame (:obj:`int`, :obj:`str`, optional):
+                0-indexed row in :attr:`fitstbl` with a standard frame
+                associated with the frame to reduce, or the name of a
+                file with a previously PypeIt-reduced standard spectrum.
             reuse_masters (:obj:`bool`, optional):
                 Re-use MasterFrame files when available
 
@@ -323,10 +337,19 @@ class PypeIt(object):
             dict: The dictionary containing the primary outputs of
             extraction
         """
+        # Check the input
+        std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
+                                   'spec1d_{:s}.fits'.format(
+                                        self.fitstbl.construct_basename(std_frame))) \
+                            if isinstance(std_frame, int) else std_frame
+        if std_outfile is not None and not os.path.isfile(std_outfile):
+            msgs.error('Could not open standard file: {0}'.format(std_outfile))
+
         # if show is set, clear the ginga channels at the start of each new sci_ID
         if self.show:
             ginga.clear_all()
 
+        # Save the frame
         self.frame = frame
 
         # Insist on re-using MasterFrames where applicable
@@ -340,22 +363,7 @@ class PypeIt(object):
         msgs.info("Reducing file {0:s}, target {1:s}".format(self.fitstbl['filename'][self.frame],
                                                              self.fitstbl['target'][self.frame]))
 
-        # JFH TODO move all this
-        # If this is a science frame, check for an associated standard
-        standard = None         # Initialize to None
-        is_science = self.frame in self.fitstbl.find_frames('science', index=True)
-        is_standard = self.fitstbl.find_frames('standard')
-        if is_science and np.any(is_standard):
-            calib_groups = self.fitstbl.find_frame_calib_groups(self.frame)
-            if len(calib_groups) != 1:
-                msgs.error('Code error: science frames should only be associated with a single'
-                           'calibration group.')
-            in_grp = self.fitstbl.find_calib_group(calib_groups)
-            standard = np.arange(len(self.fitstbl))[in_grp & is_standard][0] \
-                            if np.any(in_grp & is_standard) else None
-
-        # Check if the frame is a standard (overwrites is_standard from
-        # above)
+        # Check if the frame is a standard
         is_standard = self.frame in self.fitstbl.find_frames('standard', index=True)
 
         # Find the detectors to reduce
@@ -378,31 +386,19 @@ class PypeIt(object):
             #   - This sets frame, det, sciI, obstime, basename
             self.init_one_science(self.frame, det=self.det)
 
-            # If this frame has an associated standard frame, use it
-            # TODO: make this a method load_std_trace(). Not yet implemented
-            if standard is not None:
-                std_basename = self.fitstbl.construct_basename(standard)
-                std_outfile = os.path.join(self.par['rdx']['redux_path'],
-                                           self.par['rdx']['scidir'],
-                                           'spec1d_{:s}.fits'.format(std_basename))
-
             # Extract
-            # JFH ToDO pass back the background frame, pass in background files as an argument. extrace one
-            # takes a file list as an argument and instantiates science within
-            sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr \
-                    = self._extract_one(scifiles, bgframes, std=is_standard, std_outfile = std_outfile)
-
-            # JFH TODO write out the background frame
-            # Save for outputing (after all detectors are done)
-            sci_dict[det]['sciimg'] = sciimg
-            sci_dict[det]['sciivar'] = sciivar
-            sci_dict[det]['skymodel'] = skymodel
-            sci_dict[det]['objmodel'] = objmodel
-            sci_dict[det]['ivarmodel'] = ivarmodel
-            sci_dict[det]['outmask'] = outmask
-            sci_dict[det]['specobjs'] = sobjs   #utils.unravel_specobjs([specobjs])
+            # TODO: pass back the background frame, pass in background
+            # files as an argument. extract one takes a file list as an
+            # argument and instantiates science within
+            sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
+                sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'],
+                sci_dict[det]['specobjs'], vel_corr \
+                    = self._extract_one(scifiles, bgframes, std=is_standard,
+                                        std_outfile=std_outfile)
             if vel_corr is not None:
                 sci_dict['meta']['vel_corr'] = vel_corr
+
+            # JFH TODO write out the background frame
 
         # Return
         return sci_dict
@@ -1002,6 +998,7 @@ class MultiSlit(PypeIt):
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
 
 
+    # TODO: I don't think this function is written yet...
     def flux_calibrate(self):
         """
         Doc it
