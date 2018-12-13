@@ -1,3 +1,4 @@
+# Created by FW on 2018-Jan-09. R~1300@7000A and dv=60km/s
 |               wave | ion | NIST | Instr |            amplitude |       Source |
 |  6172.341224843004 |  OH |    1 |    32 |  0.12826666572030915 | wavemodel.py |
 |  6204.432595184183 |  OH |    1 |    32 |  0.09355974898407504 | wavemodel.py |
