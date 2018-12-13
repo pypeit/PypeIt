@@ -461,7 +461,8 @@ class PypeItSetup(object):
         # Assign frames to calibration groups
         self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
-        # Set comb_id -- a bit kludgy
+        # Set comb_id
+        # TODO-- a bit kludgy to do it here;  consider another place but it must be after usrdata is ingested
         if not np.any(self.fitstbl['comb_id'] >= 0):
             sci_std_idx = np.where(np.any([self.fitstbl.find_frames('science'),
                               self.fitstbl.find_frames('standard')], axis=0))[0]
