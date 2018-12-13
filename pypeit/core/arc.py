@@ -826,9 +826,9 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
         righ = np.fmin(spat_img[arcmask].max() + 5,nspat)
         this_mean, this_med, this_sig = sigma_clipped_stats(arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ])
                                                             , sigma=3.0, axis=1)
+        imask = np.isnan(this_med)
+        this_med[imask]=0.0
         arc_spec[:,islit] = this_med
-        from IPython import embed
-        embed()
         if not np.any(arc_spec[:,islit]):
             maskslit[islit] = 1
 
