@@ -13,4 +13,4 @@ from pypeit.spectrographs import shane_kast
 from pypeit.spectrographs import tng_dolores
 from pypeit.spectrographs import vlt_xshooter
 from pypeit.spectrographs import wht_isis
-
+from pypeit.spectrographs import lbt_mods
