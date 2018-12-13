@@ -186,7 +186,6 @@ class PypeItMetaData:
         # the code.  Need to decide how to handle these.
         required_columns = ['time', 'date', 'target']
         required_for_ABBA = ['ra', 'dec'] # and for standards?
-        added_by_fsort = ['frametype', 'framebit']
         if any([ c not in data.keys() for c in required_columns]):
             msgs.warn('Columns are missing.')
 
@@ -472,14 +471,13 @@ class PypeItMetaData:
 
         Raises:
             PypeItError:
-                Raised if the 'configuration' or 'calibbit' columns
+                Raised if the 'setup' or 'calibbit' columns
                 haven't been defined.
         """
-        if 'configuration' not in self.keys() or 'calibbit' not in self.keys():
-            msgs.error('Cannot provide master key string without configuration and calibbit; '
+        if 'setup' not in self.keys() or 'calibbit' not in self.keys():
+            msgs.error('Cannot provide master key string without setup and calibbit; '
                        'run set_configurations and set_calibration_groups.')
-        return '{0}_{1}_{2}'.format(self['configuration'][row], self['calibbit'][row],
-                                    str(det).zfill(2))
+        return '{0}_{1}_{2}'.format(self['setup'][row], self['calibbit'][row], str(det).zfill(2))
 
     def construct_obstime(self, row):
         """
@@ -550,10 +548,10 @@ class PypeItMetaData:
 
         Raises:
             PypeItError:
-                Raised if the 'configuration' isn't been defined.
+                Raised if the 'setup' isn't been defined.
         """
-        if 'configuration' not in self.keys():
-            msgs.error('Cannot provide instrument setup without configuration; '
+        if 'setup' not in self.keys():
+            msgs.error('Cannot provide instrument setup without \'setup\' column; '
                        'run set_configurations.')
         dispname = 'none' if 'dispname' not in self.keys() else self['dispname'][row]
         dispangle = 'none' if 'dispangle' not in self.keys() else self['dispangle'][row]
@@ -563,24 +561,24 @@ class PypeItMetaData:
         slitlen = 'none' if 'slitlen' not in self.keys() else self['slitlen'][row]
         binning = '1,1' if 'binning' not in self.keys() else self['binning'][row]
 
-        setup = {self['configuration'][row]:
+        setup = {self['setup'][row]:
                     {'--':
                         {'disperser': {'name': dispname, 'angle':dispangle},
                          'dichroic': dichroic,
                          'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen}}}}
         _det = np.arange(self.spectrograph.ndet)+1 if det is None else [det]
         for d in _det:
-            setup[self['configuration'][row]][str(d).zfill(2)] \
+            setup[self['setup'][row]][str(d).zfill(2)] \
                     = {'binning': binning, 'det': d,
                        'namp': self.spectrograph.detector[d-1]['numamplifiers']}
-        return setup[self['configuration'][row]] if config_only else setup
+        return setup[self['setup'][row]] if config_only else setup
 
     def get_configuration_names(self, ignore=None, return_index=False):
         """
         Get the list of the unique configuration names.
         
-        This provides just the list of configuration identifiers ('A',
-        'B', etc.) and the row index where it first occurs.  This is
+        This provides just the list of setup identifiers ('A', 'B',
+        etc.) and the row index where it first occurs.  This is
         different from :func:`unique_configurations` because the latter
         determines and provides the configurations themselves.
 
@@ -594,19 +592,19 @@ class PypeItMetaData:
                 configurations.
 
         Returns:
-            numpy.array: The list of unique configuration names.  A
-            second returned object provides the indices of the first
-            occurrence of these configurations, if requested.
+            numpy.array: The list of unique setup names.  A second
+            returned object provides the indices of the first occurrence
+            of these setups, if requested.
 
         Raises:
             PypeItError:
-                Raised if the 'configuration' isn't been defined.
+                Raised if the 'setup' isn't been defined.
         """
-        if 'configuration' not in self.keys():
-            msgs.error('Cannot get configuration names; run set_configurations.')
+        if 'setup' not in self.keys():
+            msgs.error('Cannot get setup names; run set_configurations.')
 
         # Unique configurations
-        setups, indx = np.unique(self['configuration'], return_index=True)
+        setups, indx = np.unique(self['setup'], return_index=True)
 
         if ignore is not None:
             # Remove the selected configurations to ignore
@@ -638,13 +636,13 @@ class PypeItMetaData:
         """
         Return the unique instrument configurations.
 
-        If run before the 'configuration' column is initialized, this
-        function determines the unique instrument configurations by
-        finding unique combinations of the items in the metadata table
-        listed by the spectrograph `configuration_keys` method.
+        If run before the 'setup' column is initialized, this function
+        determines the unique instrument configurations by finding
+        unique combinations of the items in the metadata table listed by
+        the spectrograph `configuration_keys` method.
 
-        If run after the 'configuration' column has been set, this
-        simply constructs the configuration dictionary using the unique
+        If run after the 'setup' column has been set, this simply
+        constructs the configuration dictionary using the unique
         configurations in that column.
 
         This is used to set the internal :attr:`configs`.
@@ -674,9 +672,9 @@ class PypeItMetaData:
         if self.configs is not None and not force:
             return self.configs
 
-        if 'configuration' in self.keys():
-            msgs.info('Configuration column already set.  Finding unique configurations.')
-            uniq, indx = np.unique(self.table['configuration'], return_index=True)
+        if 'setup' in self.keys():
+            msgs.info('Setup column already set.  Finding unique configurations.')
+            uniq, indx = np.unique(self['setup'], return_index=True)
             ignore = uniq == 'None'
             if np.sum(ignore) > 0:
                 msgs.warn('Ignoring {0} frames with configuration set to None.'.format(
@@ -749,12 +747,12 @@ class PypeItMetaData:
 
     def set_configurations(self, configs=None, force=False):
         """
-        Assign each frame to a configuration and include it in the
-        metadata table.
+        Assign each frame to a configuration (setup) and include it in
+        the metadata table.
 
-        The internal table is edited *in place*.  If the configurations
-        column already exists, the configurations are **not** reset
-        unless you call the function with `force=True`.
+        The internal table is edited *in place*.  If the 'setup' column
+        already exists, the configurations are **not** reset unless you
+        call the function with `force=True`.
 
         Args:
             configs (:obj:`dict`, optional):
@@ -775,7 +773,7 @@ class PypeItMetaData:
                 configuration match with the metadata keywords.
         """
         # Configurations have already been set
-        if 'configuration' in self.keys() and not force:
+        if 'setup' in self.keys() and not force:
             return
 
         _configs = self.unique_configurations() if configs is None else configs
@@ -783,12 +781,12 @@ class PypeItMetaData:
             if len(set(cfg.keys()) - set(self.keys())) > 0:
                 msgs.error('Configuration {0} defined using unavailable keywords!'.format(k))
 
-        self.table['configuration'] = 'None'
+        self.table['setup'] = 'None'
         nrows = len(self)
         for i in range(nrows):
             for d, cfg in _configs.items():
                 if np.all([cfg[d] == self.table[d][i] for d in cfg.keys()]):
-                    self.table['configuration'][i] = d
+                    self.table['setup'][i] = d
 
     def _set_calib_group_bits(self):
         grp = np.empty(len(self), dtype=object)
@@ -832,8 +830,8 @@ class PypeItMetaData:
         """
         Group calibration frames into sets.
         
-        Requires 'configuration' column.  For now this is a simple
-        grouping of frames with the same configuration.
+        Requires the 'setup' column to have been defined.  For now this
+        is a simple grouping of frames with the same configuration.
 
         .. todo::
             - Maintain a detailed description of the logic.
@@ -853,7 +851,7 @@ class PypeItMetaData:
 
         Raises:
             PypeItError:
-                Raised if 'configuration' column is not defined, or if
+                Raised if 'setup' column is not defined, or if
                 `global_frames` is provided but the frame types have not
                 been defined yet.
         """
@@ -873,10 +871,9 @@ class PypeItMetaData:
 
         # The configuration must be present to determine the calibration
         # group
-        if 'configuration' not in self.keys():
-            msgs.error('Must have defined \'configuration\' column first; try running'
-                       'set_configurations.')
-        configs = np.unique(self['configuration'].data).tolist()
+        if 'setup' not in self.keys():
+            msgs.error('Must have defined \'setup\' column first; try running set_configurations.')
+        configs = np.unique(self['setup'].data).tolist()
         try:
             configs.remove('None')      # Ignore frames with undefined configurations
         except:
@@ -889,7 +886,7 @@ class PypeItMetaData:
         # calibration group
         self.table['calib'] = 'None'
         for i in range(n_cfg):
-            self['calib'][(self['configuration'] == configs[i]) & (self['framebit'] > 0)] = str(i)
+            self['calib'][(self['setup'] == configs[i]) & (self['framebit'] > 0)] = str(i)
         
         # Allow some frame types to be used in all calibration groups
         # (like biases and darks)
@@ -1165,7 +1162,8 @@ class PypeItMetaData:
         """
         Write the *.setups file.
 
-        The *.setups file lists all the unique instrument configurations.
+        The *.setups file lists all the unique instrument configurations
+        (setups).
 
         .. todo::
             - This is for backwards compatibility, but we should
@@ -1178,10 +1176,6 @@ class PypeItMetaData:
                 Overwrite any existing file with the same name.
             ignore (:obj:`list`, optional):
                 Ignore configurations in the provided list.
-
-        Raises:
-            PypeItError:
-                Raised if the 'configuration' isn't been defined.
         """
         if os.path.isfile(ofile) and not overwrite:
             msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
@@ -1197,8 +1191,8 @@ class PypeItMetaData:
         Write the *.sorted file.
 
         The *.sorted file lists all the unique instrument configurations
-        and the frames associated with each configuration.  The output
-        data table is identical to the pypeit file output.
+        (setups) and the frames associated with each configuration.  The
+        output data table is identical to the pypeit file output.
 
         .. todo::
             - This is for backwards compatibility, but we should
@@ -1214,11 +1208,11 @@ class PypeItMetaData:
 
         Raises:
             PypeItError:
-                Raised if the 'configuration' isn't been defined.
+                Raised if the 'setup' isn't been defined.
         """
-        if 'configuration' not in self.keys():
-            msgs.error('Cannot write sorted instrument configuration table without configuration; '
-                       'run set_configurations.')
+        if 'setup' not in self.keys():
+            msgs.error('Cannot write sorted instrument configuration table without \'setup\' '
+                       'column; run set_configurations.')
 
         if os.path.isfile(ofile) and not overwrite:
             msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
@@ -1236,8 +1230,8 @@ class PypeItMetaData:
             # Get the configuration dictionary
             cfg = self.get_setup(i, config_only=True)
             # Get the subtable of frames taken in this configuration
-            subtbl = self.table[output_cols][self['configuration'] == setup]
-            subtbl.sort(['frametype','filename'])
+            subtbl = self.table[output_cols][self['setup'] == setup]
+#            subtbl.sort(['frametype','filename'])
             # Write the file
             ff.write('##########################################################\n')
             ff.write('Setup {:s}\n'.format(setup))
@@ -1252,8 +1246,8 @@ class PypeItMetaData:
         Write the *.calib file.
 
         The *.calib file provides the unique instrument configurations
-        and the association of each frame from that configuration with a
-        given calibration group.
+        (setups) and the association of each frame from that
+        configuration with a given calibration group.
 
         .. todo::
             - This is for backwards compatibility, but we should
@@ -1271,12 +1265,12 @@ class PypeItMetaData:
 
         Raises:
             PypeItError:
-                Raised if the 'configuration' or 'calibbit' columns
-                haven't been defined.
+                Raised if the 'setup' or 'calibbit' columns haven't been
+                defined.
         """
-        if 'configuration' not in self.keys() or 'calibbit' not in self.keys():
-            msgs.error('Cannot write calibration groups without configuration and calibbit; '
-                       'run set_configurations and set_calibration_groups.')
+        if 'setup' not in self.keys() or 'calibbit' not in self.keys():
+            msgs.error('Cannot write calibration groups without \'setup\' and \'calibbit\' '
+                       'columns; run set_configurations and set_calibration_groups.')
 
         if os.path.isfile(ofile) and not overwrite:
             msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
@@ -1296,7 +1290,7 @@ class PypeItMetaData:
 
             # Find the unique configurations in this group, ignoring any
             # undefined ('None') configurations
-            setup = np.unique(self['configuration'][in_group]).tolist()
+            setup = np.unique(self['setup'][in_group]).tolist()
             if 'None' in setup:
                 setup.remove('None')
 
@@ -1331,8 +1325,8 @@ class PypeItMetaData:
         which can be specific to each instrument.
 
         Users can write the file, edit it, and then re-read it into
-        pypeit to change the designated frame type, configuration,
-        calibration group, or background pairing.
+        PypeIt to change the designated frame type, instrument setup,
+        calibration group, or source/background groupings.
 
         A pypeit file can contain multiple configurations or be split
         into one pypeit file per instrument configuration.
@@ -1341,13 +1335,15 @@ class PypeItMetaData:
             ofile (:obj:`str`):
                 Name for the output pypeit file.
             split (:obj:`bool`, optional):
-                Split the data by configuration leading to one PypeIt
-                file per configuration.  The name of the output
+
+                Split the data by instrument configuration leading to
+                one PypeIt file per setup.  The name of the output
                 directory is the root of the provided output file name
-                and the the configuration character.  The pypeit file in
-                each directory is based on the same, but with the
-                '.pypeit' extension.  By default, all configurations are
-                kept in the same PypeIt file.
+                and the setup character.  The pypeit file in each
+                directory is based on the same, but with the '.pypeit'
+                extension.  By default, all instrument setups are kept
+                in the same PypeIt file.
+
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file(s).
             ignore (:obj:`list`, optional):
@@ -1359,10 +1355,10 @@ class PypeItMetaData:
 
         Raises:
             PypeItError:
-                Raised if the 'configuration' isn't defined and split is True.
+                Raised if the 'setup' isn't defined and split is True.
         """
-        if 'configuration' not in self.keys() and split:
-            msgs.error('Cannot write pypeit file split by configuration; run set_configurations.')
+        if 'setup' not in self.keys() and split:
+            msgs.error('Cannot write pypeit file split by setup; run set_configurations.')
 
         # TODO: I don't think sortroot is ever used.
 
@@ -1407,10 +1403,10 @@ class PypeItMetaData:
             setup_lines = ['Setup {0}'.format(setup)]
             setup_lines += yaml.dump(utils.yamlify(cfg)).split('\n')[:-1]
             # Get the paths
-            in_cfg = self['configuration'] == setup
+            in_cfg = self['setup'] == setup
             paths = np.unique(self['directory'][in_cfg]).tolist()
             # Get the data lines
-            subtbl = self.table[output_cols][self['configuration'] == setup]
+            subtbl = self.table[output_cols][self['setup'] == setup]
             subtbl.sort(['frametype','filename'])
             with io.StringIO() as ff:
                 subtbl.write(ff, format='ascii.fixed_width')
