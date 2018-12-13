@@ -747,6 +747,7 @@ class PypeIt(object):
         # long as the user has run pypeit_setup first
         ps.build_fitstbl(strict=True)
         ps.get_frame_types()
+        debugger.set_trace()
 
         # Only need the parameters, spectrograph, and metadata for the remainder
         self.par = ps.par

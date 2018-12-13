@@ -384,6 +384,7 @@ class PypeItSetup(object):
                 ofile = os.path.join(sort_dir, os.path.split(ofile)[1])
 
         format = None if '.fits' in ofile else 'ascii.fixed_width'
+        debugger.set_trace()
         self.fitstbl.write(ofile,
                            columns=None if format is None else self.spectrograph.metadata_keys(),
                            format=format, overwrite=True)
