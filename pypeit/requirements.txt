@@ -9,7 +9,7 @@ scipy>=1.1
 matplotlib>=2.1
 astropy>=3.0
 PyYAML>=3.11
-future>=0.16.0
+#future>=0.16.0
 configobj>=5.0.6
 scikit-learn>=0.20
 

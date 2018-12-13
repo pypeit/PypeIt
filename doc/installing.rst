@@ -33,7 +33,6 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)
 * `h5py <https://www.h5py.org/>`_ version 2.7 (for data I/O)
 *  yaml -- On Python 3 (at least), you may need to install pyyaml
-* `future <https://pypi.python.org/pypi/future/0.6.0>`_ version 0.16 or later
 *  configobj -- version 5.0.6 or later
 
 These packages need to be installed by cloning from GitHub:
@@ -90,7 +89,7 @@ or::
 	cd PypeIt
 	python setup.py install
 
-This should compile all the necessary Cython files, etc.
+This should compile all the necessary files, etc.
 
 If your python installation requires root access, you'll need to use sudo with the "-E" option to pass environment variables.
 
@@ -108,7 +107,7 @@ Go to a directory outside of the PypeIt directory (e.g. your home directory),
 then type run_pypeit.::
 
 	cd
-	run_pypeit
+	run_pypeit -h
 
 
 2. Run the PypeIt unit tests
@@ -119,8 +118,11 @@ Enter the PypeIt directory and do::
     python setup.py test
 
 
-3. Try the test suite
----------------------
+3. Try the test suite -- ONLY FOR DEVELOPERS
+--------------------------------------------
+
+Ask for help if you really want to do this.
+
 We have provided a suite of tests that you can download and run via this Repo:
 `TestSuite <https://github.com/pypeit/PypeIt-development-suite>`_
 
@@ -141,18 +143,3 @@ To run the test::
 
 The test takes a while to run but should run without issue if all the packages have been properly installed. 
 
-
-**If you installed GSL with anaconda, a common error from running ./pypeit_test all is:**
-
-|[BUG]     :: There appears to be a bug on Line 7 of arproc.py with error:
-
-| dlopen(/Users/USERNAME/software/PypeIt/pypeit/arcyextract.so, 2): Library not loaded: @rpath/./libgsl.0.dylib
-
-| Referenced from: /Users/USERNAME/software/PypeIt/pypeit/arcyextract.so
-
-
-**To fix this bug:**
-
-a) Make sure GSL_PATH and LD_LIBRARY_PATH are defined in your .bashrc or .tcshrc file and that the appropriate rc file has been sourced
-
-b) If that does not work, check out :ref:`GSLELCAPITAN`.
