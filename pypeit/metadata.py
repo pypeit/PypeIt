@@ -109,7 +109,8 @@ class PypeItMetaData:
             raise TypeError('Input parameter set must be of type PypeItPar.')
         self.type_bitmask = framematch.FrameTypeBitMask()
         self.table = table.Table(data if file_list is None 
-                                 else self._build(file_list, strict=strict))
+                                 else self._new_build(file_list, strict=strict))
+                        #else self._build(file_list, strict=strict))
         if usrdata is not None:
             self.merge(usrdata)
         # Instrument-specific validation of the header metadata. This
@@ -150,30 +151,55 @@ class PypeItMetaData:
             return
         msgs.error('{0} not a defined method for the background pair columns.'.format(bkg_pairs))
 
-    def _new_build(self, file_list, strict=True, bkg_pairs='empty'):
-        meta_keys = define_mandatory_meta().keys()
-        # Now spectrograph specific
+    def _new_build(self, file_list, strict=True):
+        mandatory_meta = define_mandatory_meta()
+        meta_keys = list(mandatory_meta.keys())
+
+        # Now additional spectrograph specific items
+        all_meta = mandatory_meta.copy()
+        other_meta = define_other_meta()
+        config_keys = self.spectrograph.configuration_keys()
+        for key in config_keys:
+            if key not in meta_keys:
+                meta_keys += [key]
+                all_meta[key] = other_meta[key]
 
         # Build
         data = {k:[] for k in meta_keys}
-        debugger.set_trace()
 
         for ifile in file_list:
             # Read the fits headers
             headarr = self.spectrograph.get_headarr(ifile, strict=strict)
+            # Add the directory, file name, and instrument to the table
+            d,f = os.path.split(ifile)
+            data['directory'].append(d)
+            data['filename'].append(f)
+            data['instrume'].append(self.spectrograph.spectrograph)
             # Grab Meta
             for meta_key in data.keys():
+                # Skip external ones
+                if meta_key in ['filename', 'directory', 'instrume']:
+                    continue
                 # Grab it
-                value = self.spectrograph.get_meta(ifile, meta_key, headarr=headarr)
-                # Set the value
-                vtype = type(value)
-                if np.issubdtype(vtype, np.str_):
-                    value = value.strip()
-                if np.issubdtype(vtype, np.integer) or np.issubdtype(vtype, np.floating) \
-                        or np.issubdtype(vtype, np.str_) or np.issubdtype(vtype, np.bool_):
-                    data[key].append(value)
+                value = self.spectrograph.get_meta(ifile, meta_key, headarr=headarr, required=True)
+                if all_meta[meta_key]['dtype'] == str:
+                    data[meta_key].append(str(value).strip())
+                elif all_meta[meta_key]['dtype'] == int:
+                    data[meta_key].append(int(value))
+                elif all_meta[meta_key]['dtype'] == float:
+                    try:
+                        data[meta_key].append(float(value))
+                    except TypeError:
+                        debugger.set_trace()
+                elif all_meta[meta_key]['dtype'] == tuple:
+                    assert isinstance(value, tuple)
+                    data[meta_key].append(value)
                 else:
-                    msgs.bug('Unexpected type, {1}, for key {0}'.format(key,
+                    debugger.set_trace()
+
+        # Additional bits and pieces
+        self._add_bkg_pairs(data, 'empty')
+        return data
 
     def _build(self, file_list, strict=True, bkg_pairs='empty'):
         """
@@ -1850,9 +1876,9 @@ def define_mandatory_meta():
     mandatory_meta['filename'] = dict(dtype=str, comment='Basename of raw data file')
 
     # Instrument related
+    mandatory_meta['instrume'] = dict(dtype=str, comment='Spectrograph name')
     mandatory_meta['dispname'] = dict(dtype=str, comment='Disperser name')
     mandatory_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
-    #mandatory_meta ['instrume'] = dict(dtype=str, comment='Basename of raw data file')
     mandatory_meta['binning'] = dict(dtype=tuple, comment='(spatial,spectral) binning')
 
     # Target
@@ -1867,3 +1893,10 @@ def define_mandatory_meta():
 
     # Return
     return mandatory_meta
+
+def define_other_meta():
+    other_meta = {}
+
+    other_meta['dichroic'] = dict(dtype=str, comment='Beam splitter')
+
+    return other_meta

@@ -77,6 +77,9 @@ class Spectrograph(object):
         # Init Calibrations Par
 #        self._set_calib_par()
 
+        # Init meta
+        self.init_meta()
+
     @staticmethod
     def default_sky_spectrum():
         """
@@ -399,8 +402,28 @@ class Spectrograph(object):
         """
         return ['dispname', 'dichroic', 'decker' ] #, 'dispangle' ] #,  'slitwid', 'slitlen' ]
 
-    def get_meta(self, ifile, meta, headarr=None):
+    def init_meta(self):
+        self.meta = None
         pass
+
+    def get_meta(self, ifile, meta_key, headarr=None, required=False):
+        if headarr is None:
+            headarr = self.get_headarr(ifile)
+        # Are we prepared to provide this meta data?
+        if meta_key not in self.meta.keys():
+            if required:
+                msgs.error("Need to allow for meta_key={} in your meta data".format(meta_key))
+            else:
+                msgs.warn("Requested meta data does not exist...")
+                return None
+        # Is this not derivable?  If so, use the default
+        if self.meta[meta_key]['card'] is None:
+            return self.meta[meta_key]['default']
+        else:
+            try:
+                return headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
+            except KeyError:
+                import pdb; pdb.set_trace()
 
     def validate_metadata(self, fitstbl):
         pass
