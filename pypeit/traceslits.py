@@ -510,27 +510,6 @@ class TraceSlits(masterframe.MasterFrame):
         # Steps
         self.steps.append(inspect.stack()[0][3]+'_{:s}'.format(side))
 
-    def _ignore_orders(self):
-        """
-        Ignore orders/slits on the edge of the detector when they run off
-          Recommended for Echelle only
-
-        Wrapper to trace_slits.edgearr_ignore_orders()
-
-        Returns
-        -------
-        self.edgearr  : ndarray (internal)
-        self.lmin : int (intenal)
-        self.lmax: int (intenal)
-        self.rmin : int (intenal)
-        self.rmax: int (intenal)
-
-        """
-        self.edgearr, self.lmin, self.lmax, self.rmin, self.rmax \
-                = trace_slits.edgearr_ignore_orders(self.edgearr, self.par['fracignore'])
-        # Steps
-        self.steps.append(inspect.stack()[0][3])
-
     def _make_pixel_arrays(self):
         """
         Generate pixel arrays
@@ -1033,24 +1012,22 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _trim_slits(self, trim_slits=True, plate_scale = None, ech_slit_tol = 0.3):
+    def _trim_slits(self, plate_scale, trim_slits=True, ech_slit_tol=0.3):
         """
         Trim slits
           Mainly those that fell off the detector
           Or have width less than fracignore
 
-        Parameters
-        ----------
-        usefracpix : bool, optional
-          Trime based on fracignore
+        Args:
+            trim_slits: bool, optional
+            plate_scale: float, optional
+            ech_slit_tol: float, optional
 
-        Returns
-        -------
-        self.lcen  : ndarray (internal)
-        self.rcen  : ndarray (internal)
+        Returns:
+            self.lcen  : ndarray (internal)
+            self.rcen  : ndarray (internal)
 
         """
-
         # JFH ToDo In principle we could make this trim_slits function a method in the generic spectrograph function, which could then be
         # overloaded by the echelle spectrographs
         nslit = self.lcen.shape[1]
@@ -1397,7 +1374,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Remove any slits that are completely off the detector
         #   Also remove short slits here for multi-slit and long-slit (alignment stars)
         if self.nslit > 1:  # Do not trim if long slit
-            self._trim_slits(trim_slits=trim_slits, plate_scale=plate_scale)
+            self._trim_slits(plate_scale, trim_slits=trim_slits)
 
         # Generate pixel arrays
         self._make_pixel_arrays()
