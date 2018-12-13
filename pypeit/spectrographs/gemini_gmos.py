@@ -90,7 +90,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'ArII']
 
         # Overscan subtract the images
-        #par['calibrations']['biasframe']['useframe'] = 'overscan'
+        par['calibrations']['biasframe']['useframe'] = 'overscan'
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
@@ -420,7 +420,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSSpectrograph):
         self.detector = [  #  Hamamatsu (since 201?)
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        specaxis        = 1,  # I think this is ignored, even if true
+                        specaxis        = 0,  # I think this is ignored, even if true
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -435,7 +435,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        specaxis        = 1,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -450,7 +450,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        specaxis        = 1,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,

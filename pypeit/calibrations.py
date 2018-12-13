@@ -474,7 +474,6 @@ class Calibrations(object):
             # User-defined slits??
             add_user_slits = trace_slits.parse_user_slits(self.par['slits']['add_slits'], self.det)
             rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det, rm=True)
-
             # Now we go forth
             # JFH Why do we need this try except statementhere when we don't have it for any other method?
             try:
