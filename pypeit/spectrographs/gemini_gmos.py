@@ -405,6 +405,69 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
 
         return self.bpm_img
 
+
+
+class GeminiGMOSSHamSpectrograph(GeminiGMOSSSpectrograph):
+    """
+    Child to handle Gemini/GMOS-N instrument with Hamamatsu detector
+    """
+    def __init__(self):
+
+        # Get it started
+        super(GeminiGMOSSHamSpectrograph, self).__init__()
+        self.spectrograph = 'gemini_gmos_south_ham'
+
+        self.detector = [  #  Hamamatsu (since 201?)
+            # Detector 1
+            DetectorPar(dataext         = 1,  # Not sure this is used
+                        specaxis        = 1,  # I think this is ignored, even if true
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.080,
+                        darkcurr        = 0.0,
+                        saturation      = 129000.,
+                        nonlinear       = 0.95,
+                        numamplifiers   = 4,
+                        gain            = [1.63]*4,
+                        ronoise         = [4.14]*4,
+                        suffix          = '_01'
+                        ),
+            # Detector 2
+            DetectorPar(dataext         = 2,  # Not sure this is used
+                        specaxis        = 1,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.080,
+                        darkcurr        = 0.0,
+                        saturation      = 123000.,
+                        nonlinear       = 0.95,
+                        numamplifiers   = 4,
+                        gain            = [1.63]*4,
+                        ronoise         = [4.14]*4,
+                        suffix          = '_02'
+                        ),
+            # Detector 3
+            DetectorPar(dataext         = 3,  # Not sure this is used
+                        specaxis        = 1,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.080,
+                        darkcurr        = 0.0,
+                        saturation      = 125000.,
+                        nonlinear       = 0.95,
+                        numamplifiers   = 4,
+                        gain            = [1.63]*4,
+                        ronoise         = [4.14]*4,
+                        suffix          = '_03'
+                        ),
+        ]
+        self.numhead = 13
+
+
+
 class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
     """
     Child to handle Gemini/GMOS-N instrument
@@ -660,7 +723,7 @@ def read_gmos(raw_file, det=1):
 
 def gemini_read_amp(inp, ext):
     """
-    Read one amplifier of an LRIS multi-extension FITS image
+    Read one amplifier of an Gemini GMOS multi-extension FITS image
 
     Parameters
     ----------
