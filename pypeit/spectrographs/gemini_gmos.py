@@ -429,8 +429,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSSpectrograph):
                         saturation      = 129000.,
                         nonlinear       = 0.95,
                         numamplifiers   = 4,
-                        gain            = [1.63]*4,
-                        ronoise         = [4.14]*4,
+                        gain            = [1.83]*4,
+                        ronoise         = [3.98]*4,
                         suffix          = '_01'
                         ),
             # Detector 2
@@ -444,8 +444,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSSpectrograph):
                         saturation      = 123000.,
                         nonlinear       = 0.95,
                         numamplifiers   = 4,
-                        gain            = [1.63]*4,
-                        ronoise         = [4.14]*4,
+                        gain            = [1.83]*4,
+                        ronoise         = [3.98]*4,
                         suffix          = '_02'
                         ),
             # Detector 3
@@ -459,8 +459,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSSpectrograph):
                         saturation      = 125000.,
                         nonlinear       = 0.95,
                         numamplifiers   = 4,
-                        gain            = [1.63]*4,
-                        ronoise         = [4.14]*4,
+                        gain            = [1.83]*4,
+                        ronoise         = [3.98]*4,
                         suffix          = '_03'
                         ),
         ]
