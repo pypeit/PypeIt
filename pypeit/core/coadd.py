@@ -1040,7 +1040,7 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.,debug=Fa
     plt.rcParams["axes.labelsize"] = 17
 
     if qafile is not None:
-        pp = PdfPages(qafile+'.png')
+        pp = PdfPages(qafile)
 
     plt.figure(figsize=(12,6))
     ax1 = plt.axes([0.07, 0.13, 0.6, 0.4])
