@@ -998,7 +998,7 @@ def plot_tilt_spat(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, re
 
     if outfile is not None:
         plt.savefig(outfile, dpi=400)
-        
+
     if show_QA:
         plt.show()
 
