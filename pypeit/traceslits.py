@@ -107,7 +107,7 @@ class TraceSlits(masterframe.MasterFrame):
     frametype = 'trace'
 
     def __init__(self, mstrace, pixlocn, spectrograph,
-                 par=None, det=None, setup=None, master_dir=None,
+                 par=None, det=1, setup=None, master_dir=None,
                  redux_path=None,
                  mode=None, binbpx=None, ednum=100000):
 
