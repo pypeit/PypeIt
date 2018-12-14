@@ -928,11 +928,12 @@ def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, 
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    if show_QA:
-        plt.show()
 
     if outfile is not None:
         plt.savefig(outfile, dpi=400)
+
+    if show_QA:
+        plt.show()
 
     plt.close()
     plt.rcdefaults()
@@ -994,11 +995,12 @@ def plot_tilt_spat(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, re
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    if show_QA:
-        plt.show()
 
     if outfile is not None:
         plt.savefig(outfile, dpi=400)
+        
+    if show_QA:
+        plt.show()
 
     plt.close()
     plt.rcdefaults()
