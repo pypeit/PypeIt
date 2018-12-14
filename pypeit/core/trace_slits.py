@@ -3009,7 +3009,7 @@ def tc_indices(tc_dict):
 # ToDo 2) Add an option where the user specifies the number of slits, and so it takes only the highest peaks
 # from detect_lines
 def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 3,
-                 fwhm = 3.0, sigthresh = 100.0, upper = 2.0, lower = 2.0, debug=True, fweight_boost=1.,
+                 fwhm = 3.0, sigthresh = 100.0, upper = 2.0, lower = 2.0, debug=False, fweight_boost=1.,
                  maxrej=1):
     """
     Refines input trace using a PCA analysis
