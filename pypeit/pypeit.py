@@ -578,8 +578,6 @@ class MultiSlit(PypeIt):
         # Process images (includes inverse variance image, rn2 image, and CR mask)
         sciimg, sciivar, rn2img, mask, crmask = self.sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
                                                          self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,show=self.show)
-        from IPython import embed
-        embed()
         # Object finding, first pass on frame without sky subtraction
         maskslits = self.caliBrate.maskslits.copy()
 
