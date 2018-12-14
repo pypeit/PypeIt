@@ -193,7 +193,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['slits']['sigdetect'] = 300
 
         # Set wave tilts order
-        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spat_order'] = 5
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
@@ -339,10 +339,14 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
-        par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
+        par['calibrations']['wavelengths']['fwhm'] = 10.
+        #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
+        par['calibrations']['wavelengths']['lamps'] = ['OH_MODS']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
+        par['calibrations']['wavelengths']['n_final'] = 4
+
 
         # slit
         par['calibrations']['slits']['sigdetect'] = 300
