@@ -13,6 +13,7 @@ from pypeit.spectrographs import spectrograph
 
 from pypeit import debugger
 
+# ToDo: test MODS1B and MODS2B
 
 class LBTMODSSpectrograph(spectrograph.Spectrograph):
     """
@@ -180,8 +181,9 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
-        par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
+        #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
+        par['calibrations']['wavelengths']['lamps'] = ['OH_MODS']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
 
