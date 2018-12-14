@@ -585,7 +585,25 @@ def curved_quadrangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixto
     return dindex[1:, :], lindex[1:, :], wvcen[1:], disps[1:]
 
 
-def solve_xcorr(detlines, linelist, dindex, lindex, line_cc, patt_dict=None, nreid_min = 4, cc_local_thresh = 0.8):
+def empty_patt_dict(nlines):
+    """ Return an empty patt_dict
+
+    Parameters
+    ----------
+    nlines:
+      Number of lines for creating the mask.
+
+    Returns
+    -------
+    patt_dict: dict
+       An empty pattern dictionary
+
+    """
+    patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sign=1, mask=np.zeros(nlines, dtype=np.bool))
+    return patt_dict
+
+
+def solve_xcorr(detlines, linelist, dindex, lindex, line_cc, nreid_min = 4, cc_local_thresh = 0.8):
     """  Given a starting solution, find the best match for all detlines
 
     Parameters
@@ -598,21 +616,36 @@ def solve_xcorr(detlines, linelist, dindex, lindex, line_cc, patt_dict=None, nre
       Index array of all detlines (pixels) used in each triangle
     lindex : ndarray
       Index array of the assigned line (wavelengths)to each index in dindex
-    patt_dict : dict
-      Contains all relevant details of the fit
 
     Returns
     -------
+    patt_dict : dict
+       Contains all relevant details of the IDs.
+       Keys are:
+          acceptable: bool,
+             flag indicating success or failure
+          mask: ndarray, dtype =bool
+              mask indicating which lines are good
+          nmatch: int
+              Number of matching lines
+          scores: ndarray, str
+              Scores of the lines
+          IDs: ndarray, float
+              Wavelength IDs of the lines
+          cc_avg: ndarray, float
+              Average local zero-lag cross-correlation (over all the spectra for which a match was obtained) for the
+              most often occuring wavlength ID
+
+
 
     """
     nlines = detlines.size
-    if patt_dict is None:
-        patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., mask=np.zeros(nlines, dtype=np.bool))
 
     # Find the best ID of each line
     detids = np.zeros(nlines)
     cc_avg = np.zeros(nlines)
-    scores = ['None' for xx in range(nlines)]
+    scores =np.zeros(nlines,dtype='<U50')
+    scores[:] = 'None'
     mask = np.zeros(nlines, dtype=np.bool)
     ngd_match = 0
     for dd in range(nlines):
@@ -639,6 +672,8 @@ def solve_xcorr(detlines, linelist, dindex, lindex, line_cc, patt_dict=None, nre
             mask[dd] = True
             ngd_match += 1
 
+
+    patt_dict = empty_patt_dict(nlines)
     # Iteratively fit this solution, and ID all lines.
     if ngd_match > patt_dict['nmatch']:
         patt_dict['acceptable'] = True
@@ -647,7 +682,8 @@ def solve_xcorr(detlines, linelist, dindex, lindex, line_cc, patt_dict=None, nre
         patt_dict['scores'] = scores
         patt_dict['IDs'] = detids
         patt_dict['cc_avg'] = cc_avg
-    return
+
+    return patt_dict
 
 
 def score_xcorr(counts, cc_avg, nreid_min = 4, cc_local_thresh = -1.0):

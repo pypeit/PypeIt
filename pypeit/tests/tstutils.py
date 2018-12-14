@@ -24,6 +24,20 @@ def data_path(filename):
 
 def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, tilts=False,
                            datasec=False, wvcalib=False):
+    """
+    Load up the set of shane_kast_blue master frames
+
+    Args:
+        get_spectrograph:
+        aimg:
+        tslits:
+        tilts:
+        datasec:
+        wvcalib:
+
+    Returns:
+
+    """
 
     spectrograph = load_spectrograph('shane_kast_blue')
     spectrograph.naxis = (2112,350)     # Image shape with overscan
@@ -47,14 +61,14 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
         ret.append(msarc)
 
     if tslits:
-        TSlits = traceslits.TraceSlits.from_master_files(os.path.join(master_dir,
-                                                                      'MasterTrace_A_01_aa'))
-        TSlits._make_pixel_arrays()
-        _ = TSlits._fill_tslits_dict()
-        ret.append(TSlits)
+        traceSlits = traceslits.TraceSlits(None,None, spectrograph)
+        traceSlits.load_master(os.path.join(master_dir,'MasterTrace_A_01_aa'))
+        # This is a bit of a hack, but I'm adding the mstrace to the dict since we need it in the flat field test
+        traceSlits.tslits_dict['mstrace'] = traceSlits.mstrace
+        ret.append(traceSlits.tslits_dict)
 
     if tilts:
-        wvTilts = wavetilts.WaveTilts(None, spectrograph=spectrograph, setup=setup,
+        wvTilts = wavetilts.WaveTilts(None, None, spectrograph=spectrograph, setup=setup,
                                       master_dir=master_dir, mode=mode)
         tilts_dict = wvTilts.master()
         ret.append(tilts_dict)
@@ -68,6 +82,7 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
                                         master_dir=master_dir, mode=mode)
         wv_calib = Wavecalib.master()
         ret.append(wv_calib)
+
 
     # Return
     return ret

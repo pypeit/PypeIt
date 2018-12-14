@@ -364,6 +364,32 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         hdr_keys[0]['filter1'] = 'BLUFILT'
         return hdr_keys
 
+    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+        """ Generate a BPM
+
+        Parameters
+        ----------
+        shape : tuple, REQUIRED
+        filename : str,
+        det : int, REQUIRED
+        **null_kwargs:
+           Captured and never used
+
+        Returns
+        -------
+        badpix : ndarray
+
+        """
+        # Get the empty bpm: force is always True
+        self.empty_bpm(shape=shape, filename=filename, det=det)
+
+        # Only defined for det=1
+        if det == 1:
+            msgs.info("Using hard-coded BPM for det=1 on LRISb")
+            self.bpm_img[:, 0:2] = 1
+
+        return self.bpm_img
+
 
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
@@ -432,6 +458,20 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
+        par['calibrations']['wavelengths']['fwhm'] = 4.0
+        # Tilts
+        # These are the defaults
+        par['calibrations']['tilts']['tracethresh'] = 25
+        par['calibrations']['tilts']['spat_order'] = 4
+        par['calibrations']['tilts']['spec_order'] = 7
+        par['calibrations']['tilts']['maxdev2d'] = 1.0
+        par['calibrations']['tilts']['maxdev_tracefit'] = 1.0
+        par['calibrations']['tilts']['sigrej2d'] = 5.0
+
+        # Scienceimage
+        par['scienceimage']['bspline_spacing'] = 0.8
+
+
         # reidentification stuff
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400_8500_d560.json'

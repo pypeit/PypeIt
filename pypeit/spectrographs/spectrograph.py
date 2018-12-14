@@ -350,6 +350,7 @@ class Spectrograph(object):
             _shape = self.get_raw_image_shape(filename=filename, det=det)
         else:
             _shape = shape
+        # JFH I think all masks should be boolean aside from the bitmask.
         self.bpm_img = np.zeros(_shape, dtype=np.int8)
         # Return
         return self.bpm_img
@@ -467,9 +468,6 @@ class Spectrograph(object):
                                     card, ext)
                                  + 'Expected {0} but found {1}.'.format(v, headers[ext][card]))
 
-    def setup_arcparam(self, **null_kwargs):
-        return None
-
     @property
     def ndet(self):
         """Return the number of detectors."""
@@ -543,8 +541,7 @@ class Spectrograph(object):
 
         return self.detector[det-1]['platescale']/tel_platescale
 
-    @staticmethod
-    def slitmask(tslits_dict, pad = None, binning = None):
+    def slitmask(self, tslits_dict, pad = None, binning = None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
          overload this function to implement instrument specific slitmask behavior, for example setting
@@ -575,8 +572,11 @@ class Spectrograph(object):
         return slitmask
 
     # This routine is only for echelle spectrographs. It returns the plate scale order by order
-    @staticmethod
     def order_platescale(self, binning=None):
+        pass
+
+    # This routine is only for echelle spectrographs. It returns the plate scale order by order
+    def slit2order(self, slit):
         pass
 
 

@@ -20,6 +20,22 @@
 - Major developments for echelle functionality, including object wavelengths, and reduction
   control flow.
 - Introduced wavemodel.py to simulate/extract/ID sky and ThAr spectral emission lines.
+- Significant refactor of tracing slit/edge orders and new docs+tests
+- Changed back BPM image to be aligned with datasec *not* the raw image shape (without trimming)
+- Renabled ability to add user supplied slits
+- Miscellaneious echelle-related advances
+- PNGs of X-Shooter fits
+- Sped up trace plotting in ginga
+- Fussed again with how time is handled in PypeIt.  Hopefully the last time..
+- dispaxis renamed specaxis and dispflip to specflip
+- Lots of VLT/X-Shooter development
+- Removed a number of files that had been mistakingly added into the repo
+- Now running on cooked v=0.92
+- Total revamp of Tilts. Arc line tracing significantly improved.
+- Fixes to trace_crude_init, trace_fweight, and trace_gweight.
+- Many other small bug fixes and modifications particulary in the fitting routines.
+- Lots of development related to echelle functionality.
+- Major enhancements to fitting routines (in utils)
 
 
 0.9.0

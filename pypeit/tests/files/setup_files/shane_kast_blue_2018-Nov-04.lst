@@ -1,3 +1,0 @@
-|    filename | frametype |                   date |     decker | exptime |     target | dispname |
-|  b1.fits.gz |       arc | 2015-05-20T01:35:58.10 | 0.5 arcsec |      30 |       Arcs | 600/4310 |
-| b27.fits.gz |   science | 2015-05-20T04:57:33.56 | 2.0 arcsec |    1200 | J1217p3905 | 600/4310 |

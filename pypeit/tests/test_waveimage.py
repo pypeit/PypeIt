@@ -25,7 +25,7 @@ def data_path(filename):
 @dev_suite_required
 def test_build_me():
     # Masters
-    spectrograph, TSlits, tilts_dict, wv_calib \
+    spectrograph, tslits_dict, tilts_dict, wv_calib \
             = load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True, wvcalib=True)
     # Instantiate
     setup = 'A_01_aa'
@@ -33,10 +33,12 @@ def test_build_me():
                     else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     master_dir = root_path+'_'+spectrograph.spectrograph
     mode = 'reuse'
-    maskslits = np.zeros(TSlits.nslit, dtype=bool)
-    wvImg = waveimage.WaveImage(TSlits.slitpix, tilts_dict['tilts'], wv_calib, setup=setup,
+    nslits = tslits_dict['lcen'].shape[1]
+    maskslits = np.zeros(nslits, dtype=bool)
+
+    wvImg = waveimage.WaveImage(tslits_dict, tilts_dict['tilts'], wv_calib, spectrograph, setup=setup,
                                 maskslits=maskslits, master_dir=master_dir, mode=mode)
     # Build
     wave = wvImg._build_wave()
-    assert int(np.max(wave)) == 5516
+    assert int(np.max(wave)) > 5510
 

@@ -13,11 +13,13 @@ def valid_spectrographs():
     # TODO: Is there a more clever way to do this?  If we change these
     # names, we could do something like what's done in
     # pypeit.instantiate_me.
-    return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
+    return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec_low',
             'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
             'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir',
             'gemini_gnirs', 'gemini_gmos_south', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
-            'magellan_fire', 'magellan_mage', 'keck_hires_red', 'keck_hires_blue','mmt_binospec']
+            'magellan_fire', 'magellan_mage', 'keck_hires_red' ]
+            # There are no such spectrographs defined
+            #'keck_hires_blue', 'mmt_binospec']
 
 def load_spectrograph(spectrograph):
     """
@@ -41,8 +43,12 @@ def load_spectrograph(spectrograph):
     # TODO: I'm not crazy about the idea that that spectrograph can be
     # undefined, even when one is working with master files.  It means
     # that objects are not fully defined.
+    #if spectrograph is None:
+    #    return None
+    # JFH Changed the above to address this and other issues
+
     if spectrograph is None:
-        return None
+        return spectrographs.spectrograph.Spectrograph()
 
     if isinstance(spectrograph, spectrographs.spectrograph.Spectrograph):
         return spectrograph
@@ -62,14 +68,14 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'keck_hires_red':
         return spectrographs.keck_hires.KECKHIRESRSpectrograph()
 
-    if spectrograph == 'keck_hires_blue':
-        return spectrographs.keck_hires.KECKHIRESBSpectrograph()
+#    if spectrograph == 'keck_hires_blue':
+#        return spectrographs.keck_hires.KECKHIRESBSpectrograph()
 
     if spectrograph == 'keck_nires':
         return spectrographs.keck_nires.KeckNIRESSpectrograph()
 
-    if spectrograph == 'keck_nirspec':
-        return spectrographs.keck_nirspec.KeckNIRSPECSpectrograph()
+    if spectrograph == 'keck_nirspec_low':
+        return spectrographs.keck_nirspec.KeckNIRSPECLowSpectrograph()
 
     if spectrograph == 'magellan_fire':
         return spectrographs.magellan_fire.MagellanFIRESpectrograph()

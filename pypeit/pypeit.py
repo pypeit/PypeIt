@@ -510,8 +510,13 @@ class PypeIt(object):
 
         sci_image_files = self.fitstbl.find_frame_files('science', sci_ID=sci_ID)
         scidx = self.fitstbl.find_frames('science', sci_ID=sci_ID, index=True)[0]
+        try:
+            binning = self.fitstbl['binning'][scidx]
+        except:
+            binning = (1,1)
+
         self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, det=det,
-                                              binning = self.fitstbl['binning'][scidx],
+                                              binning = binning,
                                               objtype='science', scidx=scidx, setup=self.setup,
                                               par=self.par['scienceimage'],
                                               frame_par=self.par['scienceframe'])
@@ -555,14 +560,22 @@ class PypeIt(object):
         # Another option would be to put the datasec_img stuff in the
         # fitstbl for each detector
         self.exptime = self.fitstbl['exptime'][scidx]
-        self.binning = self.fitstbl['binning'][scidx]
+        try:
+            self.binning = self.fitstbl['binning'][scidx]
+        except:
+            self.binning = (1,1)
 
-        # This should have been set when we construct the fitstbl
+        # This should have been set when we construct the fitstbl.
+        #
+        # JFH These time routines need to exit cleanly with warnings rather than crashing the code
+        # until we get the fitstbl working in as stable way.
         try:
             tval = Time(fitstbl['time'][scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
         except:
-            debugger.set_trace()
-
+            msgs.warn('There is no time in the fitstbl.' + msgs.newline() +
+            'The time and heliocentric corrections will be off!!' + msgs.newline() +
+            'This is a bad idea. Continuing with a dummy time value')
+            tval = '2010-01-01'
         # Time
         tiso = Time(tval, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
         dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
@@ -820,7 +833,7 @@ class MultiSlit(PypeIt):
         # Process images (includes inverse variance image, rn2 image,
         # and CR mask)
         sciimg, sciivar, rn2img, crmask \
-                = sciI.process(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+                = sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
                                self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
                                apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
 
@@ -1133,9 +1146,9 @@ class Echelle(PypeIt):
         # Process images (includes inverse variance image, rn2 image,
         # and CR mask)
         sciimg, sciivar, rn2img, crmask \
-                = sciI.process(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
-                               self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
-                               apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
+                = sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+                            self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
+                            apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
 
         # Object finding, first pass on frame without sky subtraction
         maskslits = self.caliBrate.maskslits.copy()

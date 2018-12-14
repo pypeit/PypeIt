@@ -1167,7 +1167,8 @@ def parse_hand_dict(hand_extract_dict):
 
 
 
-def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gweight=False,show_fits=False, idx = None):
+def iter_tracefit(image, xinit_in, ncoeff, inmask = None, trc_inmask = None, fwhm = 3.0, maxdev = 5.0, maxiter = 25,
+                  niter=6,gweight=False,show_fits=False, idx = None, verbose=False, xmin= None, xmax = None):
     """ Utility routine for object find to iteratively trace and fit. Used by both objfind and ech_objfind
 
     Parameters
@@ -1184,7 +1185,9 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
     ------------------
     inmask: ndarray, bool
         Input mask for the image
-
+    trc_inmask: ndarray, bool
+        Input mask for the trace, i.e. places where you know the trace is going to be bad that you always want to mask in the
+        fits. Same size as xinit_in (nspec, nTrace)
     fwhm: float
         fwhm width parameter for the flux or gaussian weighted tracing. For flux weighted trace the code does a third
         of the iterations with window 1.3*fwhm, a third with 1.1*fwhm, and a third with fwhm. For Gaussian weighted tracing
@@ -1197,8 +1200,10 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
         Will plot the data and the fits.
     idx: ndarray of strings, default = None
         Array of idx IDs for each object. Used only if show_fits is true for the plotting.
-
-
+    xmin: float, default = None
+        Lower reference for robust_polyfit polynomial fitting. Default is to use zero
+    xmax: float, defualt = None
+        Upper refrence for robust_polyfit polynomial fitting.  Default is to use the image size in nspec direction
     Returns
     -------
     xpos: ndarray, float
@@ -1216,11 +1221,35 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
     if inmask is None:
         inmask = np.ones_like(image,dtype=bool)
 
+    # Allow for single vectors as input as well:
     nspec = xinit_in.shape[0]
-    nobj = xinit_in.shape[1]
+
+    if xmin is None:
+        xmin = 0.0
+    if xmax is None:
+        xmax = float(nspec-1)
+
+    # Deal with the possibility of vectors as inputs instead of 2d arrays
+    if xinit_in.ndim == 1:
+        nobj = 1
+        xinit = xinit_in.reshape(nspec,1)
+        if trc_inmask is not None:
+            trc_inmask_out = trc_inmask.reshape(nspec,1)
+        else:
+            trc_inmask_out = np.ones_like(xinit,dtype=bool)
+    else:
+        nobj = xinit_in.shape[1]
+        xinit = xinit_in
+        if trc_inmask is not None:
+            trc_inmask_out = trc_inmask
+        else:
+            trc_inmask_out = np.ones_like(xinit,dtype=bool)
+
     spec_vec = np.arange(nspec)
 
-    msgs.info('Fitting the object traces')
+    if verbose:
+        msgs.info('Fitting the object traces')
+
     # Iterate flux weighted centroiding
     fwhm_vec = np.zeros(niter)
     fwhm_vec[0:niter//3] = 1.3*fwhm
@@ -1232,7 +1261,7 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
     else:
         title_text = 'Flux Weighted'
 
-    xfit1 = np.copy(xinit_in)
+    xfit1 = np.copy(xinit)
     for iiter in range(niter):
         if gweight:
             xpos1, xerr1 = trace_slits.trace_gweight(image*inmask,xfit1, invvar=inmask.astype(float),sigma=fwhm/2.3548)
@@ -1243,20 +1272,22 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
         # replaced by the tracing crutch
         # ToDO add maxdev functionality by adding kwargs_reject to xy2traceset
         xinvvar = np.ones_like(xpos1.T) # Do not do weighted fits, i.e. uniform weights but set the errro to 1.0 pixel
-        pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj),spec_vec), xpos1.T, ncoeff = ncoeff, maxdev = 5.0,
-                                    maxiter=25,invvar = xinvvar)
+        pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj),spec_vec), xpos1.T, inmask = trc_inmask_out.T, ncoeff=ncoeff, maxdev=maxdev,
+                                    maxiter=maxiter,invvar = xinvvar,xmin=xmin, xmax =xmax)
         xfit1 = pos_set1.yfit.T
         # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
-        tracemask1 = xerr1 > 990.0 # bad pixels have errors set to 999 and are returned to lie on the input trace
+        tracemask1 = (xerr1 > 990.0)  # bad pixels have errors set to 999 and are returned to lie on the input trace
         # Plot all the points that were not masked initially
         if(show_fits) & (iiter == niter - 1):
             for iobj in range(nobj):
                 nomask = (tracemask1[:,iobj]==0)
                 plt.plot(spec_vec[nomask],xpos1[nomask,iobj],marker='o', c='k', markersize=3.0,linestyle='None',label=title_text + ' Centroid')
-                plt.plot(spec_vec,xinit_in[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
+                plt.plot(spec_vec,xinit[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
                 plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
                 if np.any(~nomask):
                     plt.plot(spec_vec[~nomask],xfit1[~nomask,iobj], c='blue',marker='+',markersize=5.0,linestyle='None',zorder= 20, label='masked points, set to init guess')
+                if np.any(~trc_inmask_out):
+                    plt.plot(spec_vec[~trc_inmask_out[:,iobj]],xfit1[~trc_inmask_out[:,iobj],iobj], c='orange',marker='s',markersize=5.0,linestyle='None',zorder= 20, label='input masked points, not fit')
                 try:
                     plt.title(title_text + ' Centroid to object {:s}.'.format(idx[iobj]))
                 except TypeError:
@@ -1267,13 +1298,15 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, fwhm = 3.0, niter=6,gw
                 plt.legend()
                 plt.show()
 
-    return xfit1
+    # Returns the fit, the actual weighted traces, and the pos_set1 object
+    return xfit1, xpos1, xerr1, pos_set1
 
 
 specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 'science'}
 
+
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
-            hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit = 10,  bg_smth = 5.0,
+            hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit =None,  bg_smth = 5.0,
             extract_maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (5,5), objmask_nthresh = 2.0,
             specobj_dict=specobj_dict, show_peaks=False, show_fits = False, show_trace = False, qa_title=''):
 
@@ -1393,10 +1426,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     flux_spec = extract_asymbox2(thisimg, left_asym, righ_asym)
     flux_mean, flux_median, flux_sig = sigma_clipped_stats(flux_spec,axis=0, sigma = 4.0)
     if (nsamp < 9.0*fwhm):
-        fluxsub = flux_mean.data - np.median(flux_mean.data)
+        fluxsub = flux_mean - np.median(flux_mean)
     else:
         kernel_size= int(np.ceil(bg_smth*fwhm) // 2 * 2 + 1) # This ensure kernel_size is odd
-        fluxsub = flux_mean.data - scipy.signal.medfilt(flux_mean.data, kernel_size=kernel_size)
+        fluxsub = flux_mean - scipy.signal.medfilt(flux_mean, kernel_size=kernel_size)
         # This little bit below deals with degenerate cases for which the slit gets brighter toward the edge, i.e. when
         # alignment stars saturate and bleed over into other slits. In this case the median smoothed profile is the nearly
         # everywhere the same as the profile itself, and fluxsub is full of zeros (bad!). If 90% or more of fluxsub is zero,
@@ -1404,7 +1437,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         isub_bad = (fluxsub == 0.0)
         frac_bad = np.sum(isub_bad)/nsamp
         if frac_bad > 0.9:
-            fluxsub = flux_mean.data - np.median(flux_mean.data)
+            fluxsub = flux_mean - np.median(flux_mean)
 
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548,mode='nearest')
 
@@ -1618,9 +1651,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
     # Note the transpose is here to pass in the trace_spat correctly.
     xinit_fweight = np.copy(sobjs.trace_spat.T)
-    xfit_fweight = iter_tracefit(image, xinit_fweight,ncoeff,inmask = inmask, fwhm=fwhm,idx = sobjs.idx, show_fits=show_fits)
+    xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight,ncoeff,inmask = inmask, fwhm=fwhm,idx = sobjs.idx, show_fits=show_fits)
     xinit_gweight = np.copy(xfit_fweight)
-    xfit_gweight = iter_tracefit(image, xinit_gweight,ncoeff,inmask = inmask, fwhm=fwhm,gweight = True, idx = sobjs.idx, show_fits=show_fits)
+    xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight,ncoeff,inmask = inmask, fwhm=fwhm,gweight = True, idx = sobjs.idx, show_fits=show_fits)
 
     # assign the final trace
     for iobj in range(nobj_reg):
@@ -1778,7 +1811,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
 
 
-def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
+def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
               coeff_npoly = None, debug=True, order_vec = None, lower = 3.0,
               upper = 3.0, minv = None,maxv = None, maxrej=1,
               xinit_mean = None):
@@ -1796,7 +1829,7 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
 
     Optional Parameters
     -------------------
-    usepca: ndarray, bool (norders,), default = None
+    predict: ndarray, bool (norders,), default = None
        Orders which have True are those that will be predicted by extrapolating the fit of the PCA coefficents for those
        orders which have False set in this array. The default is None, which means that the coefficients of all orders
        will be fit simultaneously and no extrapolation will be performed. For object finding, we use the standard star
@@ -1830,12 +1863,16 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
     if order_vec is None:
         order_vec = np.arange(norders,dtype=float)
 
-    if usepca is None:
-        usepca = np.zeros(norders,dtype=bool)
+    if predict is None:
+        predict = np.zeros(norders,dtype=bool)
 
-    # use_order = True orders used to predict the usepca = True bad orders
-    use_order = np.invert(usepca)
+    # use_order = True orders used to predict the predict = True bad orders
+    use_order = np.invert(predict)
     ngood = np.sum(use_order)
+
+    if ngood < 2:
+        msgs.warn('There are no good traces to PCA fit. There is probably a bug somewhere. Exiting and returning input traces.')
+        return xinit, {}, None, None
 
     # Take out the mean position of each input trace
     if xinit_mean is None:
@@ -1843,24 +1880,28 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
 
     xpca = xinit - xinit_mean
     xpca_use = xpca[:, use_order].T
+    pca_full = PCA()
+    pca_full.fit(xpca_use)
+    var = np.cumsum(np.round(pca_full.explained_variance_ratio_, decimals=6) * 100)
+    npca_full = var.size
     if npca is None:
-        pca_full = PCA()
-        pca_full.fit(xpca_use)
-        var = np.cumsum(np.round(pca_full.explained_variance_ratio_, decimals=6) * 100)
         if var[0]>=pca_explained_var:
             npca = 1
             msgs.info('The first PCA component contains more than {:5.3f} of the information'.format(pca_explained_var))
         else:
-            npca = int(np.ceil(np.interp(pca_explained_var, var,np.arange(norders)+1)))
+            npca = int(np.ceil(np.interp(pca_explained_var, var,np.arange(npca_full)+1)))
             msgs.info('Truncated PCA to contain {:5.3f}'.format(pca_explained_var) + '% of the total variance. ' +
                       'Number of components to keep is npca = {:d}'.format(npca))
     else:
         npca = int(npca)
+        var_trunc = np.interp(float(npca),np.arange(npca_full)+1.0, var)
+        msgs.info('Truncated PCA with npca={:d} components contains {:5.3f}'.format(npca, var_trunc) + '% of the total variance.')
 
-    if ngood < npca:
-        msgs.warn('Not enough good traces for a PCA fit: ngood = {:d}'.format(ngood) + ' is < npca = {:d}'.format(npca))
-        msgs.warn('Using the input trace f or now')
-        return xinit
+    if npca_full < npca:
+        msgs.warn('Not enough good traces for a PCA fit of the requested dimensionality. The full (non-compressing) PCA has size: '
+                  'npca_full = {:d}'.format(npca_full) + ' is < npca = {:d}'.format(npca))
+        msgs.warn('Using the input trace for now. But you should lower npca <= npca_full')
+        return xinit, {}, None, None
 
     if coeff_npoly is None:
         coeff_npoly = int(np.fmin(np.fmax(np.floor(3.3*ngood/norders),1.0),3.0))
@@ -1890,7 +1931,7 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
         msk_new, poly_out = utils.robust_polyfit_djs(xfit, yfit, ncoeff, function='polynomial', maxiter=25,
                                                      lower=lower, upper=upper,
                                                      maxrej=maxrej,
-                                                     sticky=False, minv = minv, maxv = maxv)
+                                                     sticky=False, minx = minv, maxx = maxv)
         pca_coeffs_new[:,idim] = utils.func_val(poly_out, order_vec, 'polynomial')
         fit_dict[str(idim)] = {}
         fit_dict[str(idim)]['coeffs'] = poly_out
@@ -1923,7 +1964,7 @@ def pca_trace(xinit, usepca = None, npca = None, pca_explained_var=99.0,
 def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_vec = None, plate_scale=0.2, std_trace=None, ncoeff = 5,
                 npca=None,coeff_npoly=None,min_snr=0.0,nabove_min_snr=0,pca_explained_var=99.0, box_radius=2.0, fwhm = 3.0,
                 hand_extract_dict = None, nperslit = 5, bg_smth = 5.0, extract_maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0,
-                abs_thresh = 0.0, trim_edg = (3,3), show_peaks=False,show_fits=False,show_trace=False,show_single_trace = False, debug=True):
+                abs_thresh = 0.0, trim_edg = (5,5), show_peaks=False,show_fits=False,show_trace=False,show_single_trace = False, debug=False):
     """
     Object finding routine for Echelle spectrographs. This routine:
        1) runs object finding on each order individually
@@ -1967,9 +2008,6 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
        The required number of orders that an object must have with median SNR>min_snr in order to be kept.
     pca_percentile:
        percentile used for determining which order is a bad order
-    snr_pca: SNR used for determining which order is a bad order
-                    if an order with ((SNR_now < np.percentile(SNR_now, pca_percentile)) &
-                    (SNR_now < snr_pca)) | sobjs_trim[indx].ech_usepca, then this order will be PCAed
     box_radius: box_car extraction radius
     sig_thresh: threshord for finding objects
     show_peaks: whether plotting the QA of peak finding of your object in each order
@@ -1978,6 +2016,8 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
     debug:
     :return: all objects found
     """
+
+    # TODO Update FOF algorithm here with the one from scikit-learn.
 
     if inmask is None:
         inmask = (ordermask > -1)
@@ -2109,13 +2149,15 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
             # Fractional slit position averaged across the spectral direction for each order
             frac_mean_good = np.mean(slit_frac_good, 0)
             # Performa  linear fit to fractional slit position
+
             msk_frac, poly_coeff_frac = utils.robust_polyfit_djs(order_vec[goodorder], frac_mean_good, 1,
                                                                  function='polynomial', maxiter=20, lower=2, upper=2,
-                                                                 use_mad= True, sticky=False)
+                                                                 use_mad= True, sticky=False,
+                                                                 minx = order_vec.min(), maxx=order_vec.max())
             frac_mean_new = np.zeros(norders)
-            frac_mean_new[badorder] = utils.func_val(poly_coeff_frac, iord_vec[badorder], 'polynomial')
+            frac_mean_new[badorder] = utils.func_val(poly_coeff_frac, iord_vec[badorder], 'polynomial',
+                                                     minx = order_vec.min(),maxx=order_vec.max())
             frac_mean_new[goodorder] = frac_mean_good
-
             if debug:
                 frac_mean_fit = utils.func_val(poly_coeff_frac, iord_vec, 'polynomial')
                 plt.plot(iord_vec[goodorder][msk_frac], frac_mean_new[goodorder][msk_frac], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
@@ -2228,16 +2270,16 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         # PCA predict the masked orders which were not traced
         msgs.info('Fitting echelle object finding PCA for object {:d}\{:d} with median SNR = {:5.3f}'.format(
             iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
-        pca_fits[:, :, iobj], _, _, _= pca_trace((sobjs_final[indx_obj_id].trace_spat).T,usepca = None,
+        pca_fits[:, :, iobj], _, _, _= pca_trace((sobjs_final[indx_obj_id].trace_spat).T,
                                          npca=npca, pca_explained_var=pca_explained_var, coeff_npoly=coeff_npoly,
                                          debug=debug)
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
         inmask_now = inmask & (ordermask > -1)
-        xfit_fweight = iter_tracefit(image, xinit_fweight, ncoeff, inmask = inmask_now, show_fits=show_fits)
+        xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight, ncoeff, inmask = inmask_now, show_fits=show_fits)
         # Perform iterative Gaussian weighted centroiding
         xinit_gweight = xfit_fweight.copy()
-        xfit_gweight = iter_tracefit(image, xinit_gweight, ncoeff, inmask = inmask_now, gweight=True,show_fits=show_fits)
+        xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight, ncoeff, inmask = inmask_now, gweight=True,show_fits=show_fits)
         # Assign the new traces
         for iord, spec in enumerate(sobjs_final[indx_obj_id]):
             spec.trace_spat = xfit_gweight[:,iord]

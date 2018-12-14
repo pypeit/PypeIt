@@ -86,6 +86,10 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     # Synthesize ximg, and edgmask  from slit boundaries. Doing this outside this
     # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
 
+    # TESTING!!!!
+    #no_poly=True
+    #show_fit=True
+
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
 
 

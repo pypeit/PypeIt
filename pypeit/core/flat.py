@@ -8,14 +8,7 @@ import numpy as np
 import os
 
 from scipy import interpolate
-
-from matplotlib import pyplot as plt
-
-
 from pypeit import msgs
-
-from pypeit import utils
-#from pypeit import arparse as settings
 from pypeit.core import parse
 from pypeit.core import qa
 from pypeit.core import pca
@@ -26,7 +19,7 @@ from pypeit import debugger
 from pypeit import utils
 from pypeit.core import pydl
 from matplotlib import pyplot as plt
-from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit.spectrographs.util import load_spectrograph
 import copy
 
 import scipy
@@ -90,8 +83,8 @@ def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_
     return slit_left_out, slit_righ_out, tweak_dict
 
 
-def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograph.slitmask, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
-             spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0),
+def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
+             spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0), pad =5.0,
              tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.10, nonlinear_counts =1e10, debug = False):
 
 
@@ -113,10 +106,10 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
 
     Optional Parameters
     -------------------
-    slitmask_func: function, default pypeit.spectrographs.spectrograh.Spectrograph.slitmask
-          Function for creating a slitmask image from the tslits_dict. This is spectrograph specific and should be in
-          the spectrorgraphs class file, since for fixed format echelle's we want to mask certain parts of the orders. The default whill just use
-          the generic function which forms the basis of the spectrograph specific ones.
+    spectrograph: object, pypeit.spectrographs.spectrograh.Spectrograph
+          Spectrograph objects for implementing spectrograph specific modifications to the flat. For example,
+          for fixed format echelle's we want to mask certain parts of the orders. The default whill just use
+          the generic spectrograph object which forms the basis of the spectrograph specific ones.
 
     inmask: boolean ndarray, shape (nspec, nspat), default inmask = None
       Input mask for pixels not to be included in sky subtraction fits. True = Good (not masked), False = Bad (masked)
@@ -139,6 +132,10 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
     trim_edg: tuple of floats  (left_edge, right_edge), default (3,3)
       indicates how many pixels to trim from left and right slit edges for creating the edgemask, which is used to mask
       the edges from the initial (fine) spectroscopic fit to the blaze function.
+
+    pad: int, default = 5
+      Padding window used to create expanded slitmask images used for determining slit boundaries. Tilts are also computed using
+      this expanded slitmask in cases the slit boundaries need to be moved outward.
 
     npoly: int, default = None
       Order of polynomial for 2-d bspline-polynomial fit to flat field image residuals. The code determines the order of
@@ -184,6 +181,9 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
     3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
+#    debug=True
+    spectrograph = load_spectrograph(spectrograph)
+
     shape = flat.shape
     if shape != tilts_dict['tilts'].shape:
         msgs.error('Something is very wrong. Tilt image shape does not match flat field image shape')
@@ -194,7 +194,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
     # Get the thismask_in and input slit bounadries from the tslits_dict
     slit_left_in = tslits_dict_in['lcen'][:,slit]
     slit_righ_in = tslits_dict_in['rcen'][:,slit]
-    thismask_in = (slitmask_func(tslits_dict_in) == slit)
+    thismask_in = spectrograph.slitmask(tslits_dict_in) == slit
 
     # Compute some things using the original slit boundaries and thismask_in
 
@@ -205,14 +205,8 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
         npoly_in = 7
         npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol/10.)).astype(int)),1)
 
-    # Generate the edgemask using the original slit boundaries and thismask_in
+
     ximg_in, edgmask_in = pixels.ximg_and_edgemask(slit_left_in, slit_righ_in, thismask_in, trim_edg=trim_edg)
-
-    # Create a tilts image that encompasses the whole image, rather than just the thismask_in slit pixels
-    tilts = tracewave.coeff2tilts(tilts_dict['coeffs'], shape, tilts_dict['func2D'], max_tilt=1.2, min_tilt=-0.2)
-    piximg = tilts * (nspec-1)
-    pixvec = np.arange(nspec)
-
     # Create a fractional position image ximg that encompasses the whole image, rather than just the thismask_in slit pixels
     spat_img = np.outer(np.ones(nspec), np.arange(nspat)) # spatial position everywhere along image
     slit_left_img = np.outer(slit_left_in, np.ones(nspat))   # left slit boundary replicated spatially
@@ -221,8 +215,13 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
 
     # Create a wider slitmask image with shift pixels padded on each side
     pad = 5.0
-    slitmask_pad = slitmask_func(tslits_dict_in, pad = pad)
+    slitmask_pad = spectrograph.slitmask(tslits_dict_in, pad = pad)
     thismask = (slitmask_pad == slit) # mask enclosing the wider slit bounadries
+    # Create a tilts image using this padded thismask, rather than using the original thismask_in slit pixels
+    tilts = tracewave.fit2tilts(shape, tilts_dict['coeffs'], tilts_dict['func2d'])
+    piximg = tilts * (nspec-1)
+    pixvec = np.arange(nspec)
+
 
     if inmask is None:
         inmask = np.copy(thismask)
@@ -268,6 +267,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
         plt.legend()
         plt.xlabel('Spectral Pixel')
         plt.ylabel('log(flat counts)')
+        plt.title('Spectral Fit for slit={:d}'.format(slit))
         plt.show()
 
     # Evaluate and save
@@ -325,11 +325,12 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
         tslits_dict_out = copy.deepcopy(tslits_dict_in)
         tslits_dict_out['lcen'][:,slit] = slit_left_out
         tslits_dict_out['rcen'][:,slit] = slit_righ_out
-        slitmask_out = slitmask_func(tslits_dict_out)
+        slitmask_out = spectrograph.slitmask(tslits_dict_out)
         thismask_out = (slitmask_out == slit)
         ximg_out, edgmask_out = pixels.ximg_and_edgemask(slit_left_out, slit_righ_out, thismask_out, trim_edg=trim_edg)
         # Note that nothing changes with the tilts, since these were already extrapolated across the whole image.
     else:
+        # Generate the edgemask using the original slit boundaries and thismask_in
         slit_left_out = np.copy(slit_left_in)
         slit_righ_out = np.copy(slit_righ_in)
         thismask_out = thismask_in
@@ -367,9 +368,10 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
         plt.legend()
         plt.xlabel('Normalized Slit Position')
         plt.ylabel('Normflat Spatial Profile')
+        plt.title('Illumination Function Fit for slit={:d}'.format(slit))
         plt.show()
 
-    msgs.info('Performing illumination + scattered light flat field fit')
+    msgs.info('Performing illumination + scattembedered light flat field fit')
 
     # Flat field pixels for fitting spectral direction
     isrt_spec = np.argsort(piximg[thismask_out])
@@ -411,6 +413,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
         plt.legend()
         plt.xlabel('Spectral Pixel')
         plt.ylabel('Residuals from pixelflat 2-d fit')
+        plt.title('Spectral Residuals for slit={:d}'.format(slit))
         plt.show()
 
         plt.clf()
@@ -429,6 +432,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
         plt.legend()
         plt.xlabel('Normalized Slit Position')
         plt.ylabel('Residuals from pixelflat 2-d fit')
+        plt.title('Spatial Residuals for slit={:d}'.format(slit))
         plt.show()
 
     # Evaluate and save
@@ -447,7 +451,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, slitmask_func = Spectrograp
     # Set the pixelflat to 1.0 wherever the flat was nonlinear
     pixelflat[flat >= nonlinear_counts] = 1.0
 
-    return pixelflat, illumflat, flat_model, thismask_out, slit_left_out, slit_righ_out
+    return pixelflat, illumflat, flat_model, tilts, thismask_out, slit_left_out, slit_righ_out
 
 
 

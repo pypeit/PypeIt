@@ -11,6 +11,15 @@ import os
 import numpy as np
 import time
 
+# A note from ejeschke on how to use the canvas add command in ginga: https://github.com/ejeschke/ginga/issues/720
+# c
+# The add() command can add any of the shape types that are defined under ginga.canvas.types. The good part is that if you
+# go to that directory in the ginga source tree (ginga/canvas/types) and browse the source, you will find a parameter
+# description table at the beginning of each type definition, describing each parameter in the type and what it is for.
+# Most of the standard geometric types are in basic.py and there are specialized ones in utils.py, astro.py and layer.py. Looking at
+# the classes will also tell you which parameters are positional and which are keyword.
+
+
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
 #from pypeit import ardebug as debugger
 #import pdb as debugger
@@ -329,7 +338,90 @@ def clear_all():
         shell.delete_channel(ch)
 
 
+def show_tilts(viewer, ch, trc_tilt_dict, sedges=None, yoff=0., xoff=0., pstep=1, points=True, clear_canvas = False):
+    """  Display arc image and overlay the arcline tilt measurements
+    Parameters
+    ----------
+    msarc : ndarray
+    trcdict : dict
+      Contains trace info
+    sedges : tuple
+      Arrays of the slit
+    xoff : float, optional
+      In case Ginga has an index offset.  It appears not to
+    yoff : float, optional
 
+
+    Returns
+    -------
+
+    """
+    canvas = viewer.canvas(ch._chname)
+    if clear_canvas:
+        canvas.clear()
+
+    if sedges is not None:
+        show_slits(viewer, ch,sedges[0], sedges[1])
+
+    tilts = trc_tilt_dict['tilts']
+    # Crutch is set plot the crutch instead of the tilt itself
+    tilts_fit = trc_tilt_dict['tilts_fit']
+
+    tilts_spat = trc_tilt_dict['tilts_spat']
+    tilts_mask = trc_tilt_dict['tilts_mask']
+    tilts_err = trc_tilt_dict['tilts_err']
+
+    use_tilt = trc_tilt_dict['use_tilt']
+    # Show a trace
+    nspat = trc_tilt_dict['nspat']
+    nspec = trc_tilt_dict['nspec']
+    nlines = tilts.shape[1]
+    for iline in range(nlines):
+        x = tilts_spat[:,iline] + xoff # FOR IMAGING (Ginga offsets this value by 1 internally)
+        this_mask = tilts_mask[:,iline]
+        this_err = (tilts_err[:,iline] > 900)
+        if np.sum(this_mask) > 0:
+            if points: # Plot the gaussian weighted tilt centers
+                y = tilts[:, iline] + yoff
+                # Plot the actual flux weighted centroids of the arc lines that were traced
+                goodpix = (this_mask == True) & (this_err == False)
+                ngood = np.sum(goodpix)
+                if ngood > 0:
+                    xgood = x[goodpix]
+                    ygood = y[goodpix]
+                    # note: must cast numpy floats to regular python floats to pass the remote interface
+                    points_good = [dict(type='squarebox',
+                                        args=(float(xgood[i]), float(ygood[i]), 0.7),
+                                        kwargs=dict(color='cyan',fill=True, fillalpha=0.5)) for i in range(ngood)]
+                    canvas.add('constructedcanvas', points_good)
+                badpix = (this_mask == True) & (this_err == True)
+                nbad = np.sum(badpix)
+                if nbad > 0:
+                    xbad = x[badpix]
+                    ybad = y[badpix]
+                    # Now show stuff that had larger errors
+                    # note: must cast numpy floats to regular python floats to pass the remote interface
+                    points_bad = [dict(type='squarebox',
+                                       args=(float(xbad[i]), float(ybad[i]), 0.7),
+                                       kwargs=dict(color='red', fill=True,fillalpha=0.5)) for i in range(nbad)]
+                    canvas.add('constructedcanvas', points_bad)
+                # Now plot the polynomial fits to the the Gaussian weighted centroids
+            y = tilts_fit[:, iline] + yoff
+            points = list(zip(x[this_mask][::pstep].tolist(),y[this_mask][::pstep].tolist()))
+            if use_tilt[iline]:
+                clr = 'blue'  # Good line
+            else:
+                clr = 'yellow'  # Bad line
+            canvas.add('path', points, color=clr, linewidth=3)
+
+
+    canvas.add(str('text'), nspat//2 - 40, nspec//2,      'good tilt fit', color=str('blue'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 30, 'bad  tilt fit', color=str('yellow'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 60, 'trace good', color=str('cyan'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 90, 'trace masked', color=str('red'),fontsize=20.)
+
+
+# Old method
 def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0., all_green=False, pstep=10,
                   cname='ArcTilts'):
     """  Display arc image and overlay the arcline tilt measurements

@@ -163,6 +163,8 @@ class WaveCalib(masterframe.MasterFrame):
                     wavecal.autoid.basic(self.arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
                                  nonlinear_counts = self.par['nonlinear_counts'])
                 final_fit[str(slit)] = ifinal_fit.copy()
+                if status != 1:
+                    self.maskslits[slit] = 1
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
             arcfitter = wavecal.autoid.HolyGrail(self.arccen, par = self.par, ok_mask=ok_mask)
@@ -178,10 +180,16 @@ class WaveCalib(masterframe.MasterFrame):
 
         self.wv_calib = final_fit
 
+        # Update mask
+        for slit in ok_mask:
+            if str(slit) not in final_fit.keys():
+                self.maskslits[slit] = 1
+        ok_mask = np.where(self.maskslits == 0)[0]
+
         # QA
         if not skip_QA:
             for slit in ok_mask:
-                outfile = qa.set_qa_filename(self.setup, 'arc_fit_qa', slit=(slit + 1), out_dir=self.redux_path)
+                outfile = qa.set_qa_filename(self.setup, 'arc_fit_qa', slit=slit, out_dir=self.redux_path)
                 wavecal.qa.arc_fit_qa(self.wv_calib[str(slit)], outfile = outfile)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -189,7 +197,7 @@ class WaveCalib(masterframe.MasterFrame):
         return self.wv_calib
 
 
-    def _echelle_2dfit(self, wv_calib,debug=True, skip_QA = False):
+    def _echelle_2dfit(self, wv_calib,debug=False, skip_QA = False):
         """
         Evaluate 2-d wavelength solution for echelle data. Unpacks wv_calib for slits to be input into  arc.fit2darc
 
@@ -348,16 +356,15 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         # Set mask based on wv_calib
-        mask = np.array([True]*nslit)
+        mask = np.array([True]*nslit, bool)
         for key in self.wv_calib.keys():
             if key in ['steps', 'par', 'fit2d']:
                 continue
-            #
             mask[int(key)] = False
         self.maskslits = mask
         return self.maskslits
 
-    def run(self, lordloc, rordloc, slitpix, nonlinear=None, skip_QA=False):
+    def run(self, lordloc, rordloc, slitpix, nonlinear=None, skip_QA=False, debug=False):
         """
         Main driver for wavelength calibration
 
@@ -395,7 +402,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Return
         if self.par['echelle'] is True:
-            fit2d_dict = self._echelle_2dfit(self.wv_calib, skip_QA = skip_QA)
+            fit2d_dict = self._echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
             self.wv_calib['fit2d'] = fit2d_dict
 
         # Build mask
