@@ -365,7 +365,7 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
     msgs.info("Growing cosmic ray mask by 1 pixel")
     crmask = grow_masked(crmask.astype(np.float), grow, 1.0)
 
-    return crmask
+    return crmask.astype(bool)
 
 
 def cr_screen(a, mask_value=0.0, spatial_axis=1):

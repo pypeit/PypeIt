@@ -75,7 +75,7 @@ class SpecObj(object):
 
     # TODO
     def __init__(self, shape, slit_spat_pos, slit_spec_pos, det=1, setup=None, idx = None,
-                 slitid=999, scidx=1, objtype='unknown', spat_pixpos=None, config=None):
+                 slitid=999, objtype='unknown', spat_pixpos=None, config=None):
 
 
         #Assign from init parameters
@@ -84,7 +84,6 @@ class SpecObj(object):
         self.slit_spec_pos = slit_spec_pos
         self.setup = setup
         self.slitid = slitid
-        self.scidx = copy.deepcopy(scidx)
         self.det = det
         self.objtype = objtype
         self.config = config
@@ -178,7 +177,7 @@ class SpecObj(object):
 
         self.idx += '-{:s}{:s}'.format(naming_model['det'], sdet)
         # SCI
-        self.idx += '-{:s}{:03d}'.format(naming_model['sci'], self.scidx)
+        #self.idx += '-{:s}{:03d}'.format(naming_model['sci'], self.scidx)
         #
         return self.idx
 

@@ -180,7 +180,7 @@ class ProcessImages(object):
         """
         return len(self.raw_images)
 
-    def load_images(self):
+    def load_images(self, file_list):
         """ Load raw images from the disk
         Also loads the datasec info
 
@@ -190,30 +190,33 @@ class ProcessImages(object):
         self.headers : list
         """
         # Load the image data and headers
-        self.raw_images = []  # Zeros out any previous load
-        self.headers = []
-        for ifile in self.file_list:
+        raw_images = []  # Zeros out any previous load
+        headers = []
+        for ifile in file_list:
             img, head = self.spectrograph.load_raw_frame(ifile, det=self.det)
             self.raw_images.append(img)
             self.headers.append(head)
         # Get the data sections
-        self.datasec, one_indexed, include_end, transpose \
-                = self.spectrograph.get_image_section(self.file_list[0], self.det,
+        datasec, one_indexed, include_end, transpose \
+                = self.spectrograph.get_image_section(file_list[0], self.det,
                                                       section='datasec')
-        self.datasec = [ parse.sec2slice(sec, one_indexed=one_indexed,
+        datasec = [parse.sec2slice(sec, one_indexed=one_indexed,
                                            include_end=include_end, require_dim=2,
                                            transpose=transpose) for sec in self.datasec ]
         # Get the overscan sections
-        self.oscansec, one_indexed, include_end, transpose \
-                = self.spectrograph.get_image_section(self.file_list[0], self.det,
+        oscansec, one_indexed, include_end, transpose \
+                = self.spectrograph.get_image_section(file_list[0], self.det,
                                                       section='oscansec')
-        self.oscansec = [ parse.sec2slice(sec, one_indexed=one_indexed,
+        oscansec = [ parse.sec2slice(sec, one_indexed=one_indexed,
                                             include_end=include_end, require_dim=2,
                                             transpose=transpose) for sec in self.oscansec ]
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def apply_gain(self, trim=True):
+        # Consider a return statement
+        return raw_images, headers, datasec, oscansec
+
+    def apply_gain(self, stack, trim=True):
         """
         Apply gain (instead of ampsec scale)
 
@@ -231,23 +234,21 @@ class ProcessImages(object):
         datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
         if trim:
             datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)
-        if self.stack.shape != datasec_img.shape:
-            raise ValueError('Shape mismatch: {0} {1}'.format(self.stack.shape, datasec_img.shape))
+        if stack.shape != datasec_img.shape:
+            raise ValueError('Shape mismatch: {0} {1}'.format(stack.shape, datasec_img.shape))
         
         gain = self.spectrograph.detector[self.det-1]['gain']
         if self.spectrograph.detector[self.det-1]['numamplifiers'] == 1 \
                 and not isinstance(gain, list):
             gain = [gain]
-        self.stack *= procimg.gain_frame(datasec_img,
-                                           self.spectrograph.detector[self.det-1]['numamplifiers'],
-                                           gain)
+        stack *= procimg.gain_frame(datasec_img,self.spectrograph.detector[self.det-1]['numamplifiers'],gain)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
         # Return
-        return self.stack
+        return stack
 
-    def bias_subtract(self, msbias, trim=True, force=False, par=None):
+    def bias_subtract(self, raw_images, msbias, trim=True, force=False, par=None):
         """
         Subtract the bias.
 
@@ -281,7 +282,7 @@ class ProcessImages(object):
         msgs.info("Bias subtracting your image(s)")
         # Reset proc_images -- Is there any reason we wouldn't??
         numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
-        for kk,image in enumerate(self.raw_images):
+        for kk,image in enumerate(raw_images):
             # Bias subtract (move here from procimg)
             if isinstance(msbias, np.ndarray):
                 msgs.info("Subtracting bias image from raw frame")
@@ -305,13 +306,14 @@ class ProcessImages(object):
             # Save
             if kk==0:
                 # Instantiate proc_images
-                self.proc_images = np.zeros((temp.shape[0], temp.shape[1], self.nloaded))
-            self.proc_images[:,:,kk] = temp.copy()
+                proc_images = np.zeros((temp.shape[0], temp.shape[1], self.nloaded))
+            proc_images[:,:,kk] = temp.copy()
 
         # Step
         self.steps.append(inspect.stack()[0][3])
+        return proc_images
 
-    def combine(self, par=None):
+    def combine(self, proc_images, par=None):
         """
         Combine the processed images
 
@@ -328,17 +330,16 @@ class ProcessImages(object):
 
         # Now we can combine
         saturation = self.spectrograph.detector[self.det-1]['saturation']
-        self.stack = combine.comb_frames(self.proc_images, frametype=self.frametype,
-                                             saturation=saturation,
-                                             method=self.proc_par['combine'],
-                                             satpix=self.proc_par['satpix'],
-                                             cosmics=self.proc_par['sigrej'],
-                                             n_lohi=self.proc_par['n_lohi'],
-                                             sig_lohi=self.proc_par['sig_lohi'],
-                                             replace=self.proc_par['replace'])
+        stack = combine.comb_frames(proc_images, frametype=self.frametype,saturation=saturation,
+                                    method=self.proc_par['combine'],
+                                    satpix=self.proc_par['satpix'],
+                                    cosmics=self.proc_par['sigrej'],
+                                    n_lohi=self.proc_par['n_lohi'],
+                                    sig_lohi=self.proc_par['sig_lohi'],
+                                    replace=self.proc_par['replace'])
         # Step
         self.steps.append(inspect.stack()[0][3])
-        return self.stack
+        return stack
 
     def build_crmask(self, stack, varframe=None, par=None, binning=None):
         """
@@ -379,7 +380,7 @@ class ProcessImages(object):
         # Return
         return self.crmask
 
-    def flat_field(self, pixel_flat, bpm, illum_flat=None):
+    def flat_field(self, stack, pixel_flat, bpm, illum_flat=None):
         """
         Flat field the stack image
 
@@ -406,8 +407,8 @@ class ProcessImages(object):
         msgs.info("Flat fielding your image")
         # Flat-field the data and return the result
 
-        self.stack = flat.flatfield(self.stack, self.pixel_flat, self.bpm, illum_flat=self.illum_flat)
-        return self.stack
+        stack = flat.flatfield(stack, self.pixel_flat, self.bpm, illum_flat=self.illum_flat)
+        return stack
 
     def process(self, bias_subtract=None, apply_gain=False, trim=True, overwrite=False,
                 pixel_flat=None, bpm=None, illum_flat=None):
@@ -442,11 +443,11 @@ class ProcessImages(object):
 
         # Load images
         if 'load_images' not in self.steps:
-            self.load_images()
+            self.raw_images, self.headers, self.datasec, self.oscansec = self.load_images(self.file_list)
 
         # Bias subtract
         if bias_subtract is not None:
-            self.bias_subtract(bias_subtract, trim=trim)
+            self.proc_images = self.bias_subtract(self.raw_images, bias_subtract, trim=trim)
         elif 'bias_subtract' not in self.steps:
             msgs.warn("Your images have not been bias subtracted!")
 
@@ -464,16 +465,16 @@ class ProcessImages(object):
                                                 if trim else image
 
         # Combine
-        self.stack = self.proc_images[:,:,0] if self.proc_images.shape[2] == 1 else self.combine()
+        self.stack = self.proc_images[:,:,0] if self.proc_images.shape[2] == 1 else self.combine(self.proc_images)
         self.raw_stack = self.stack
 
         # Apply gain?
         if apply_gain:
-            self.apply_gain(trim=trim)
+            self.stack = self.apply_gain(self.stack, trim=trim)
 
         # Flat field?
         if pixel_flat is not None:
-            self.stack = self.flat_field(pixel_flat, bpm, illum_flat=illum_flat)
+            self.stack = self.flat_field(self.stack, pixel_flat, bpm, illum_flat=illum_flat)
 
         # Done
         return self.stack.copy()

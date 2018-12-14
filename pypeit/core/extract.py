@@ -1535,8 +1535,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         for iobj in range(nobj_reg):
             # ToDo Label with objid and objind here?
             thisobj = specobjs.SpecObj(frameshape, slit_spat_pos, slit_spec_pos, det = specobj_dict['det'],
-                              setup = specobj_dict['setup'], slitid = specobj_dict['slitid'],
-                              scidx = specobj_dict['scidx'], objtype=specobj_dict['objtype'])
+                              setup = specobj_dict['setup'], slitid = specobj_dict['slitid']
+                                       , objtype=specobj_dict['objtype'])
             thisobj.spat_fracpos = xcen[iobj]/nsamp
             thisobj.smash_peakflux = ypeak[iobj]
             thisobj.smash_nsig = ypeak[iobj]/sigma

@@ -136,29 +136,6 @@ class PypeIt(object):
         qa.gen_mf_html(self.pypeit_file)
         qa.gen_exp_html()
 
-#    def calibrate_one(self, frame, det=1):
-#        """
-#        Calibrate a science exposure / detector pair
-#
-#        Args:
-#            frame (:obj:`int`):
-#                0-indexed index of the row in :attr:`fitstbl` to calibrate
-#            det (:obj:`int`, optional):
-#                1-indexed detector on this frame to calibrate
-#        """
-#        self.caliBrate.reset(frame, det, par=self.par['calibrations'])
-#        self.caliBrate.run_the_steps()
-
-#    def _chk_for_std(self):
-#        # Can only reduce these frames if the mask is the same
-#        std_idx = self.fitstbl.find_frames('standard', sci_ID=self.sci_ID, index=True)
-#        if len(std_idx) > 0:
-#            std_idx = std_idx[0]
-#            return std_idx
-#        else:
-#            msgs.info("No standard star associated with this science frame")
-#            return -1
-
     def get_std_outfile(self, grp_standards):
         # TODO: Need to decide how to associate standards with
         # science frames in the case where there is more than one
@@ -276,10 +253,6 @@ class PypeIt(object):
 
     def get_binning(self):
         # Grab the binning from the fitstable
-        try:
-            binning = self.fitstbl['binning'][self.frame]
-        except:
-            binning = None
         return binning
 
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None, reuse_masters=False):
@@ -317,15 +290,18 @@ class PypeIt(object):
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
-        #
-        msgs_string = ('Reducing target {:s}'.format(self.fitstbl['target'][self.frames[0]])) + msgs.newline()
+
+        # Print status message
+        msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][self.frames[0]]) + msgs.newline()
         msgs_string += 'Combining frames:' + msgs.newline()
         for iframe in self.frames:
             msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
         msgs.info(msgs_string)
-
-        # Check if the frame is a standard
-        #is_standard = self.frame in self.fitstbl.find_frames('standard', index=True)
+        if bg_frames is not None:
+            bg_msgs_string = 'Using background from frames:' + msgs.newline()
+            for iframe in self.bg_frames:
+                bg_msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
+            msgs.info(bg_msgs_string)
 
         # Find the detectors to reduce
         detectors = self.select_detectors()
@@ -361,24 +337,49 @@ class PypeIt(object):
 
     def flexure_correct(self,sobjs,maskslits):
         """ Correct for flexure """
-        sky_file, sky_spectrum = self.spectrograph.archive_sky_spectrum()
-        flex_list = wave.flexure_obj(sobjs, maskslits, self.par['flexure']['method'],
-                                     sky_spectrum, sky_file=sky_file,
-                                     mxshft=self.par['flexure']['maxshift'])
-        # QA
-        wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list,
-                        out_dir=self.par['rdx']['redux_path'])
+
+        if self.par['flexure']['method'] != 'skip':
+            sky_file, sky_spectrum = self.spectrograph.archive_sky_spectrum()
+            flex_list = wave.flexure_obj(sobjs, maskslits, self.par['flexure']['method'],
+                                         sky_spectrum, sky_file=sky_file,
+                                         mxshft=self.par['flexure']['maxshift'])
+            # QA
+            wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
+        else:
+            msgs.info('Skipping flexure correction.')
+
 
     def helio_correct(self, sobjs, maskslits, frame, obstime):
+        """ Perform a heliocentric correction """
+        # Helio, correct Earth's motion
+        if (self.caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
+                and (self.caliBrate.par['wavelengths']['reference'] != 'pixel'):
+            # TODO change this keyword to refframe instead of frame
+            msgs.info("Performing a {0} correction".format(self.caliBrate.par['wavelengths']['frame']))
+            vel, vel_corr = wave.geomotion_correct(sobjs, maskslits, self.fitstbl, frame, obstime,
+                                                   self.spectrograph.telescope['longitude'],
+                                                   self.spectrograph.telescope['latitude'],
+                                                   self.spectrograph.telescope['elevation'],
+                                                   self.caliBrate.par['wavelengths']['frame'])
+        else:
+            msgs.info('A wavelength reference-frame correction will not be performed.')
+            vel_corr = None
 
-        # TODO change this keyword to refframe instead of frame
-        msgs.info("Performing a {0} correction".format(self.caliBrate.par['wavelengths']['frame']))
+        return vel_corr
 
-        vel, vel_corr = wave.geomotion_correct(sobjs, maskslits, self.fitstbl, frame, obstime,
-                                               self.spectrograph.telescope['longitude'],
-                                               self.spectrograph.telescope['latitude'],
-                                               self.spectrograph.telescope['elevation'],
-                                               self.caliBrate.par['wavelengths']['frame'])
+    def get_sci_metadata(self,frame):
+
+        # Set binning, obstime, basename, and objtype
+        try:
+            binning = self.fitstbl['binning'][frame]
+        except:
+            binning = None
+        obstime  = self.fitstbl.construct_obstime(frame)
+        basename = self.fitstbl.construct_basename(frame, obstime=obstime)
+        objtype  = self.fitstbl['frametype'][frame]
+        setup    = self.fitstbl.master_key(frame, det=det)
+
+        return objtype, setup, obstime, basename, binning
 
     # TODO: Why not use self.frame?
     def save_exposure(self, frame, sci_dict, basename, only_1d=False):
@@ -459,7 +460,7 @@ class PypeIt(object):
                             update_det=self.par['rdx']['detnum'])
         return all_specobjs
 
-    def _extract_one(self, std=False):
+    def extract_one(self, frames, det, bg_frames = None, std_outfile = None):
         """
         Dummy method for object extraction. Overloaded by class specific extraction.
 
@@ -540,7 +541,7 @@ class MultiSlit(PypeIt):
         self.std_basename = None
         self.stdI = None
 
-    def _extract_one(self, frames, det, bg_frames = None, std_outfile = None):
+    def extract_one(self, frames, det, bg_frames = None, std_outfile = None):
         """
         Extract a single exposure/detector pair
 
@@ -557,17 +558,13 @@ class MultiSlit(PypeIt):
             vel_corr
 
         """
-        from IPython import embed
-        embed()
-        # Set binning, obstime, basename, and objtype
-        self.binning = self.get_binning()
-        self.obstime = self.fitstbl.construct_obstime(frames[0])
-        self.basename = self.fitstbl.construct_basename(frames[0], obstime=self.obstime)
-        self.objtype = self.fitstbl['frametype'][frames[0]]
-        self.setup = self.fitstbl.master_key(frames[0], det=det)
-        # Grab the science frame that we are reducing
+
+        # Grab some meta-data needed for the reduction from the fitstbl
+        self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0])
+        # Grab the files that we will reduce
         sci_image_files = self.fitstbl.frame_paths(frames)
-        self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files,
+        bg_frame_files  = self.fitstbl.frame_paths(bg_frames)
+        self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, bg_file_list=bg_frame_files,
                                               par=self.par['scienceimage'],
                                               frame_par=self.par['scienceframe'],
                                               objtype=self.objtype,
@@ -578,69 +575,48 @@ class MultiSlit(PypeIt):
         msgs.sciexp = self.sciI
 
         # Process images (includes inverse variance image, rn2 image, and CR mask)
-        sciimg, sciivar, rn2img, crmask \
-                = self.sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
-                               self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
-                               apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
+        sciimg, sciivar, rn2img, crmask, bgimg = self.sciI.proc(
+            self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+            self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
+            apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
 
         # Object finding, first pass on frame without sky subtraction
         maskslits = self.caliBrate.maskslits.copy()
-        if not std:
-            sobjs_obj0, nobj0 = self.sciI.find_objects(self.caliBrate.tslits_dict, skysub=False,
-                                                   maskslits=maskslits)
 
-        # Global sky subtraction, first pass. Uses skymask from object
-        # finding
-        global_sky0 = self.sciI.global_skysub(self.caliBrate.tslits_dict,
-                                         self.caliBrate.tilts_dict['tilts'],
-                                         use_skymask=True,maskslits=maskslits, show=self.show)
+        # Do one iteration of object finding, and sky subtract to get initial sky model
+        initial_sky = self.sciI.get_init_sky(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'], show = self.show)
 
-        # Object finding, second pass on frame *with* sky subtraction.
-        # Show here if requested
-        sobjs_obj, nobj = self.sciI.find_objects(self.caliBrate.tslits_dict, skysub=True,
-                                            maskslits=maskslits, show_peaks=self.show)
+        # Object finding, second pass on frame *with* sky subtraction. Show here if requested
+        sobjs_obj, nobj = self.sciI.find_objects(self.caliBrate.tslits_dict, skysub=True,maskslits=maskslits, show_peaks=self.show)
 
-        # If there are objects, do 2nd round of global_skysub,
-        # local_skysub_extract, flexure, geo_motion
-        vel_corr = None
+        # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
             global_sky = self.sciI.global_skysub(self.caliBrate.tslits_dict,
                                             self.caliBrate.tilts_dict['tilts'], use_skymask=True,
                                             maskslits=maskslits, show=self.show)
 
-            skymodel, objmodel, ivarmodel, outmask, sobjs \
-                    = self.sciI.local_skysub_extract(sobjs_obj, self.caliBrate.mswave,
-                                                maskslits=maskslits, show_profile=self.show,
-                                                show=self.show)
+            skymodel, objmodel, ivarmodel, outmask, sobjs = self.sciI.local_skysub_extract(sobjs_obj, self.caliBrate.mswave,
+                                                                                           maskslits=maskslits, show_profile=self.show,
+                                                                                           show=self.show)
 
             # Flexure correction?
-            if self.par['flexure']['method'] != 'skip':
-                self.flexure_correct(sobjs,maskslits)
-            else:
-                msgs.info('Skipping flexure correction.')
-
-            # Helio
-            # Correct Earth's motion
-            # vel_corr = -999999.9
-            if (self.caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
-                    and (self.caliBrate.par['wavelengths']['reference'] != 'pixel'):
-                self.helio_correct(sobjs, maskslits, self.frames[0], self.obstime)
-            else:
-                msgs.info('A wavelength reference-frame correction will not be performed.')
+            self.flexure_correct(sobjs,maskslits)
+            vel_corr = self.helio_correct(sobjs, maskslits, frames[0], self.obstime)
 
         else:
             msgs.warn('No objects to extract for science frame' + msgs.newline()
                       + self.fitstbl['filename'][self.sciI.scidx])
             # set to first pass global sky
-            skymodel = global_sky0
+            skymodel = initial_sky
             objmodel = np.zeros_like(sciimg)
             # Set to sciivar. Could create a model but what is the point?
             ivarmodel = np.copy(sciivar)
             # Set to inmask in case on objects were found
-            outmask = sciI.mask
+            outmask = self.sciI.mask
             # empty specobjs object from object finding
             sobjs = sobjs_obj
+            vel_corr = None
 
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
 
@@ -739,7 +715,7 @@ class Echelle(PypeIt):
         super(Echelle, self).__init__(spectrograph, **kwargs)
 
     # JFH Take background files as an argument
-    def _extract_one(self,std=False):
+    def extract_one(self,std=False):
         """
         Extract a single exposure/detector pair
 
