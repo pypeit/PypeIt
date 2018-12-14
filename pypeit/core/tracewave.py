@@ -165,7 +165,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
     slit_widp2 = int(np.ceil((np.sum(thismask,axis=1)).max()) + 2)
-    slit_width_even = slit_widp2 if slit_widp2 % 2 == 0 else slit_widp2 + 1
+    slit_width_even = slit_widp2 if slit_widp2 % 2 == 0 else slit_widp2 - 1 #FW: should this be -1 rather than +1??
     trace_int = slit_width_even//2
 
     maxdev = maxdev_tracefit*fwhm     # maxdev is fraction of fwhm
