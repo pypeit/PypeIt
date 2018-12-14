@@ -849,11 +849,12 @@ def plot_tilt_2d(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_order
 
     # Finish
     #plt.tight_layout(pad=1.0, h_pad=1.0, w_pad=1.0)
-    if show_QA:
-        plt.show()
 
     if outfile is not None:
         plt.savefig(outfile, dpi=400)
+
+    if show_QA:
+        plt.show()
 
     plt.close()
     plt.rcdefaults()
