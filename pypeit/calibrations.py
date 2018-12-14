@@ -185,6 +185,7 @@ class Calibrations(object):
         Returns:
 
         """
+        # TODO is the right behavior to just take the first one
         self.frame = frame
         self.calib_ID = int(self.fitstbl['calib'][frame])
         self.det = det
