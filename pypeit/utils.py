@@ -1107,7 +1107,7 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     # Reshape
     vander = vander.reshape((-1,vander.shape[-1]))
     z = z.reshape((vander.shape[0],))
-    c = np.linalg.lstsq(vander, z)[0]
+    c = np.linalg.lstsq(vander, z, rcond=None)[0]
     return c.reshape(deg+1)
 
 def scale_minmax(x, minx=None, maxx=None):

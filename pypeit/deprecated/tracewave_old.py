@@ -1092,3 +1092,888 @@ def plot_tiltres(setup, mtilt, ytilt, yfit, slit=None, outfile=None, show_QA=Fal
     return
 
 
+
+# This is useful when you do fits the other way. If you are fitting the tilts, this gives a flipped result
+def eval_2d_at_tilts(tilts_spec, tilts_mask, shape, thismask, slit_cen, coeff2, func2d):
+
+    # Compute Tilt model
+    nspec = slit_cen.shape[0]
+    nspat = tilts_spec.shape[0]
+    nuse = tilts_spec.shape[1]
+
+    spec_vec = np.arange(nspec)
+    xnspecmin1 = float(nspec-1)
+    tilts_img = np.zeros((nspec,nspat))
+    tilts_img[thismask] = fit2tilts(shape, thismask, slit_cen, coeff2, func2d)
+    piximg = xnspecmin1*tilts_img
+    tilts_2dfit = np.zeros_like(tilts_spec)
+    for iline in range(nuse):
+        indx = np.where(tilts_mask[:, iline])[0]
+        for ispat in indx:
+            tilts_2dfit[ispat, iline] = np.interp(tilts_spec[0, iline], spec_vec, piximg[:, ispat])
+
+    return tilts_2dfit
+
+
+def fit_tilts_backup(trc_tilt_dict, slit_cen, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 3.0, func2d='legendre2d', doqa=True, setup = 'test',
+              slit = 0, show_QA=False, out_dir=None, debug=False):
+    """
+
+    Parameters
+    ----------
+    trc_tilt_dict: dict
+        Diciontary containing tilt info
+
+    Optional Parameters
+    -------------------
+        slit:
+        all_tilts:
+        order:
+        yorder:
+        func2D:
+        maskval:
+        setup:
+        doqa:
+        show_QA:
+        out_dir:
+
+    Returns:
+
+    """
+
+    nspec = trc_tilt_dict['nspec']
+    nspat = trc_tilt_dict['nspat']
+    fwhm = trc_tilt_dict['fwhm']
+    maxdev_pix = maxdev*fwhm
+    xnspecmin1 = float(nspec-1)
+    xnspatmin1 = float(nspat-1)
+    nspat = trc_tilt_dict['nspat']
+    use_tilt = trc_tilt_dict['use_tilt']                 # mask for good/bad tilts, based on aggregate fit, frac good pixels
+    nuse = np.sum(use_tilt)
+    tilts = trc_tilt_dict['tilts'][:,use_tilt]   # legendre polynomial fit
+#   JFH Before we were fitting the fits. Now we fit the actual flux weighted centroided tilts.
+    tilts_fit = trc_tilt_dict['tilts_fit'][:,use_tilt]   # legendre polynomial fit
+    tilts_err = trc_tilt_dict['tilts_err'][:,use_tilt]   # flux weighted centroidding error
+    tilts_dspat = trc_tilt_dict['tilts_dspat'][:,use_tilt] # spatial offset from the central trace
+    tilts_spec_fit = trc_tilt_dict['tilts_spec_fit'][:,use_tilt] # line spectral pixel position from legendre fit evaluated at slit center
+    tilts_mask = trc_tilt_dict['tilts_mask'][:,use_tilt] # Reflects if trace is on the slit
+    tilts_mad = trc_tilt_dict['tilts_mad'][:,use_tilt] # Reflects if trace is on the slit
+
+    # Do one last round of rejection here at the pixel level, i.e. we already rejected lines before
+    #tot_mask = tilts_mask & (delta_tilt < maxdev) & (tilts_err < 900)
+    tot_mask = tilts_mask & (tilts_err < 900)
+    fitxy = [spat_order, spec_order]
+
+    # Fit the inverted model with a 2D polynomial
+    msgs.info("Fitting tilts with a low order, 2D {:s}".format(func2d))
+
+    adderr = 0.03
+    tilts_invvar = ((tilts_mad < 100.0) & (tilts_mad > 0.0))/(np.abs(tilts_mad) + adderr)**2
+    # Previously we were using tilts_spec.flatten/xnspecmin1 in place of tilts_spec_fit
+    # Burles was fitting the entire tilt and not the offset.
+    fitmask, coeff2 = utils.robust_polyfit_djs(tilts_dspat.flatten()/xnspatmin1, tilts_spec_fit.flatten()/xnspecmin1,
+                                               fitxy, x2=tilts.flatten()/xnspecmin1, inmask = tot_mask.flatten(),
+                                               invvar = xnspecmin1**2*tilts_invvar.flatten(),
+                                               function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
+                                               maxdev=maxdev_pix/xnspecmin1,minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0,
+                                               use_mad=False, sticky=False)
+
+    fitmask = fitmask.reshape(tilts_dspat.shape)
+    spec_fit2d_1 = xnspecmin1*utils.func_val(coeff2, tilts_dspat[tot_mask]/xnspatmin1, func2d, x2=tilts[tot_mask]/xnspecmin1,
+                                               minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    spec_fit2d = np.zeros_like(tilts_dspat)
+    spec_fit2d[tot_mask] = spec_fit2d_1
+    # Residuals in pixels
+    res_fit = tilts_spec_fit[fitmask] - spec_fit2d[fitmask]
+    rms_fit = np.std(res_fit)
+    msgs.info("Residuals: 2D Legendre Fit")
+    msgs.info("RMS (pixels): {}".format(rms_fit))
+    msgs.info("RMS/FWHM: {}".format(rms_fit/fwhm))
+
+    # These are locations that were fit but were rejected
+    rej_mask = tot_mask & np.invert(fitmask)
+
+    # Tilt model
+    tilts_img = fit2tilts((nspec, nspat), slit_cen, coeff2, func2d)
+    piximg = xnspecmin1*tilts_img
+    # Now construct the 2d model of each tilt  (above we modeled the line spectral position at slit center)
+    spec_vec = np.arange(nspec)
+    nlines = trc_tilt_dict['nlines']
+    tilt_2dfit_all = np.zeros((nspat, nlines))
+    for iline in range(nlines):
+        for ispat in range(nspat): # Could make this faster by only looping over the parts on the actual slit
+            tilt_2dfit_all[ispat, iline] = np.interp(trc_tilt_dict['tilts_spec_fit'][0, iline], spec_vec, piximg[:, ispat])
+
+    trc_tilt_dict_out = copy.deepcopy(trc_tilt_dict)
+    trc_tilt_dict_out['tilt_2dfit'] = tilt_2dfit_all
+    tilts_2dfit = tilt_2dfit_all[:, use_tilt]
+
+    # Actual 2D Model Tilt Residuals
+    res = tilts[fitmask] - tilts_2dfit[fitmask]
+    rms = np.std(res)
+    msgs.info("Residuals: Actual 2D Tilt Residuals")
+    msgs.info("RMS (pixels): {}".format(rms))
+    msgs.info("RMS/FWHM: {}".format(rms/fwhm))
+
+    tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
+                         npix_rej = np.sum(fitmask == False), coeff2=coeff2, spec_order = spec_order, spat_order = spat_order,
+                         minx = -1.0, maxx = 1.0, minx2 = 0.0, maxx2 = 1.0, func=func2d)
+
+    # Now do some QA
+
+    if doqa:
+        # We could also be plotting the actual thing we fit below. Right now I'm trying with the 2d tilts themselves
+        plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order, rms, fwhm,
+                     slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
+        plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit, tilts_spec_fit, tot_mask, rej_mask, spat_order, spec_order, rms, fwhm,
+                       slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
+        plot_tilt_spec(tilts_spec_fit, tilts, tilts_2dfit, tot_mask, rej_mask, rms, fwhm, slit=slit,
+                       setup = setup, show_QA=show_QA, out_dir=out_dir)
+
+    return tilts_img, tilt_fit_dict, trc_tilt_dict_out
+
+
+
+def fit_tilts_xavier(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 3.0, func2d='legendre2d', doqa=True, setup = 'test',
+              slit = 0, show_QA=False, out_dir=None, debug=False):
+    """
+
+    Parameters
+    ----------
+    trc_tilt_dict: dict
+        Diciontary containing tilt info
+
+    Optional Parameters
+    -------------------
+        slit:
+        all_tilts:
+        order:
+        yorder:
+        func2D:
+        maskval:
+        setup:
+        doqa:
+        show_QA:
+        out_dir:
+
+    Returns:
+
+    """
+
+    nspec = trc_tilt_dict['nspec']
+    nspat = trc_tilt_dict['nspat']
+    fwhm = trc_tilt_dict['fwhm']
+    maxdev_pix = maxdev*fwhm
+    xnspecmin1 = float(nspec-1)
+    xnspatmin1 = float(nspat-1)
+    nspat = trc_tilt_dict['nspat']
+    use_tilt = trc_tilt_dict['use_tilt']                 # mask for good/bad tilts, based on aggregate fit, frac good pixels
+    nuse = np.sum(use_tilt)
+    tilts = trc_tilt_dict['tilts'][:,use_tilt]   # legendre polynomial fit
+#   JFH Before we were fitting the fits. Now we fit the actual flux weighted centroided tilts.
+#   tilts_fit = trc_tilt_dict['tilts_fit'][:,use_tilt]   # legendre polynomial fit
+    tilts_err = trc_tilt_dict['tilts_err'][:,use_tilt]   # flux weighted centroidding error
+    tilts_dspat = trc_tilt_dict['tilts_dspat'][:,use_tilt] # spatial offset from the central trace
+    tilts_spec = trc_tilt_dict['tilts_spec'][:,use_tilt] # line_spec spectral pixel position
+    tilts_mask = trc_tilt_dict['tilts_mask'][:,use_tilt] # Reflects if trace is on the slit
+
+    # Do one last round of rejection here at the pixel level, i.e. we already rejected lines before
+    #tot_mask = tilts_mask & (delta_tilt < maxdev) & (tilts_err < 900)
+    tot_mask = tilts_mask & (tilts_err < 900)
+    fitxy = [spat_order, spec_order]
+
+    # Fit the inverted model with a 2D polynomial
+    msgs.info("Fitting tilts with a low order, 2D {:s}".format(func2d))
+
+    # This is a 2-d polynomila, i.e. z(x,y), or following how robust_polyfit works y(x,x2)
+    # x = spatial position along image, i.e. np.arange(nspat) for each line
+    # y = spectral pixel where arc line was detected, i.e. line_spec replicated everywhere for each line
+    # z = (spectral_line_trace - spectral_pos on extracted arc), i.e. tilt - y
+
+    # We fit the function in this way i.e. with independent variable y being the actual tilt, becuase we are trying to
+    # determine the mapping which brings the spectral line back to the same spectral_pos on extracted arc for which
+    # we determined the wavelength solution
+
+    # Xavier's way of fitting the offset
+    # Fits are done in dimensionless coordinates to allow for different binnings between i.e. the arc and the science frame
+    fitmask, coeff2 = utils.robust_polyfit_djs(tilts_dspat.flatten()/xnspatmin1,
+                                               (tilts.flatten() - tilts_spec.flatten())/xnspecmin1,
+                                               fitxy,x2=tilts.flatten()/xnspecmin1, inmask = tot_mask.flatten(),
+                                               function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
+                                               maxdev=maxdev_pix/xnspecmin1,minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0,
+                                               use_mad=True, sticky=False)
+    fitmask = fitmask.reshape(tilts_dspat.shape)
+    delta_spec_fit1 = xnspecmin1*utils.func_val(coeff2, tilts_dspat[tot_mask]/xnspatmin1, func2d, x2=tilts[tot_mask]/xnspecmin1,
+                                               minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    delta_spec_fit = np.zeros_like(tilts_dspat)
+    delta_spec_fit[tot_mask] = delta_spec_fit1
+    # Residuals in pixels
+    res = (tilts[fitmask] - tilts_spec[fitmask]) - delta_spec_fit[fitmask]
+    rms = np.std(res)
+    msgs.info("RMS (pixels): {}".format(rms))
+    msgs.info("RMS/FWHM: {}".format(rms/fwhm))
+
+    # These are locations that were fit but were rejected
+    rej_mask = tot_mask & np.invert(fitmask)
+
+    # TODO: Make these plots a part of the standard QA and write to a file
+    if debug:
+
+        # QA1
+        xmin = 1.1*tilts_dspat[tot_mask].min()
+        xmax = 1.1*tilts_dspat[tot_mask].max()
+
+        # Show the fit
+        fig, ax = plt.subplots(figsize=(12, 18))
+        # dummy mappable shows the spectral pixel
+        #dummie_cax = ax.scatter(lines_spec, lines_spec, c=lines_spec, cmap=cmap)
+        ax.cla()
+        ax.plot(tilts_dspat[tot_mask], tilts[tot_mask], color='black', linestyle=' ', mfc ='None', marker='o',
+                markersize = 9.0, markeredgewidth=1.0,zorder=4, label='Good Tilt')
+        ax.plot(tilts_dspat[rej_mask], tilts[rej_mask], color ='red',linestyle=' ', mfc = 'None', marker='o',
+                markersize=9.0, markeredgewidth=2.0, zorder=5, label='Rejected')
+        ax.plot(tilts_dspat[tot_mask], tilts_spec[tot_mask] + delta_spec_fit[tot_mask], color='black', linestyle=' ', marker='o',
+                markersize = 2.0,markeredgewidth=1.0,zorder=1)
+
+        ax.set_xlim((xmin,xmax))
+        ax.set_xlabel('Spatial Offset from Central Trace (pixels)', fontsize=15)
+        ax.set_ylabel('Spectral Pixel',fontsize=15)
+        ax.legend()
+        ax.set_title('Tilts vs Fit (spat_order, spec_order)=({:d},{:d}) for slit={:d}: RMS = {:5.3f}, '
+                     'RMS/FWHM={:5.3f}'.format(spat_order,spec_order,slit,rms, rms/fwhm),fontsize=15)
+        plt.show()
+
+        # QA2
+        # Show the fit residuals as a function of spatial position
+        line_indx = np.outer(np.ones(nspat), np.arange(nuse))
+        lines_spec = tilts_spec[0,:]
+        cmap = mpl.cm.get_cmap('coolwarm', nuse)
+
+        fig, ax = plt.subplots(figsize=(14, 12))
+        # dummy mappable shows the spectral pixel
+        dummie_cax = ax.scatter(lines_spec, lines_spec, c=lines_spec, cmap=cmap)
+        ax.cla()
+
+        for iline in range(nuse):
+            iall = (line_indx == iline) & tot_mask
+            irej = (line_indx == iline) & tot_mask & rej_mask
+            this_color = cmap(iline)
+            # plot the residuals
+            ax.plot(tilts_dspat[iall], (tilts[iall] - tilts_spec[iall]) - delta_spec_fit[iall], color=this_color,
+                    linestyle='-', linewidth=3.0, marker='None', alpha=0.5)
+            ax.plot(tilts_dspat[irej],(tilts[irej] - tilts_spec[irej]) - delta_spec_fit[irej],linestyle=' ',
+                    marker='o', color = 'limegreen', mfc='limegreen', markersize=5.0)
+
+        ax.hlines(0.0, xmin, xmax, linestyle='--', linewidth=2.0, color='k', zorder=10)
+
+        legend_elements = [Line2D([0], [0], color='cornflowerblue', linestyle='-', linewidth=3.0, label='residual'),
+                           Line2D([0], [0], color='limegreen', linestyle=' ', marker='o', mfc='limegreen', markersize=7.0, label='rejected')]
+
+        ax.set_xlim((xmin,xmax))
+        ax.set_xlabel('Spatial Offset from Central Trace (pixels)')
+        ax.set_ylabel('Arc Line Tilt Residual (pixels)')
+        ax.legend(handles=legend_elements)
+        cb = fig.colorbar(dummie_cax, ticks=lines_spec)
+        cb.set_label('Spectral Pixel')
+        plt.show()
+
+    # TODO Add QA where we overlay the final model of the tilts on the image using ginga!
+
+    # QA
+    if doqa:
+        plot_tiltres_xavier(setup, tilts[tot_mask], tilts_spec[tot_mask], delta_spec_fit[tot_mask], fitmask[tot_mask], fwhm, slit=slit, show_QA=show_QA, out_dir=out_dir)
+
+    tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
+                         npix_rej = np.sum(fitmask == False), coeff2=coeff2, spec_order = spec_order, spat_order = spat_order,
+                         minx = -1.0, maxx = 1.0, minx2 = 0.0, maxx2 = 1.0, func=func2d)
+
+    return tilt_fit_dict
+
+
+
+def fit_tilts_joe(trc_tilt_dict, spat_order=3, spec_order=4, maxdev = 0.2, sigrej = 3.0, func2d='legendre2d', doqa=True, setup = 'test',
+              slit = 0, show_QA=False, out_dir=None, debug=False):
+    """
+
+    Parameters
+    ----------
+    trc_tilt_dict: dict
+        Diciontary containing tilt info
+
+    Optional Parameters
+    -------------------
+        slit:
+        all_tilts:
+        order:
+        yorder:
+        func2D:
+        maskval:
+        setup:
+        doqa:
+        show_QA:
+        out_dir:
+
+    Returns:
+
+    """
+
+    import matplotlib as mpl
+    from matplotlib.lines import Line2D
+
+    nspec = trc_tilt_dict['nspec']
+    nspat = trc_tilt_dict['nspat']
+    fwhm = trc_tilt_dict['fwhm']
+    maxdev_pix = maxdev*fwhm
+    xnspecmin1 = float(nspec-1)
+    xnspatmin1 = float(nspat-1)
+    nspat = trc_tilt_dict['nspat']
+    use_tilt = trc_tilt_dict['use_tilt']                 # mask for good/bad tilts, based on aggregate fit, frac good pixels
+    nuse = np.sum(use_tilt)
+    tilts = trc_tilt_dict['tilts'][:,use_tilt]   # legendre polynomial fit
+#   JFH Before we were fitting the fits. Now we fit the actual flux weighted centroided tilts.
+    tilts_fit = trc_tilt_dict['tilts_fit'][:,use_tilt]   # legendre polynomial fit
+    tilts_err = trc_tilt_dict['tilts_err'][:,use_tilt]   # flux weighted centroidding error
+    tilts_spat = trc_tilt_dict['tilts_spat'][:,use_tilt] # spatial position of the tilt on the image
+    tilts_dspat = trc_tilt_dict['tilts_dspat'][:,use_tilt] # spatial offset from the central trace
+    tilts_spec = trc_tilt_dict['tilts_spec'][:,use_tilt] # line_spec spectral pixel position
+    tilts_mask = trc_tilt_dict['tilts_mask'][:,use_tilt] # Reflects if trace is on the slit
+
+    # Do one last round of rejection here at the pixel level, i.e. we already rejected lines before
+    #tot_mask = tilts_mask & (delta_tilt < maxdev) & (tilts_err < 900)
+    tot_mask = tilts_mask & (tilts_err < 900)
+
+    # Fit the inverted model with a 2D polynomial
+    msgs.info("Fitting tilts with polynomial warping")
+    # Burles used the midpoint of the tilt fit instead of tilts_spec below
+    zfit = np.zeros_like(tilts_spec)
+    for iline in range(nuse):
+        imask = tilts_mask[:,iline]
+        zfit[:,iline] = np.full(nspat,np.interp(0.0,tilts_dspat[imask,iline],tilts_fit[imask,iline]))
+
+    tilts_spec=zfit.copy()
+
+    from skimage import transform
+    from skimage.measure import ransac
+
+    from IPython import embed
+    embed()
+    src = np.stack((tilts_spat[tot_mask], tilts_spec[tot_mask]),axis=1)
+    dst = np.stack((tilts_spat[tot_mask], tilts[tot_mask]),axis=1)
+
+    poly_order = 3
+    #poly_trans = transform.PolynomialTransform()
+    #out = poly_trans.estimate(dst,src,order=poly_order)
+    #residuals = poly_trans.residuals(dst, src)
+    #inliers=np.ones_like(residuals,dtype=bool)
+
+
+    from skimage.transform import PolynomialTransform
+
+    class PolyTF3(PolynomialTransform):
+        def estimate(self, src, dst):
+            return super().estimate(src, dst, order=poly_order)
+
+    poly_trans, inliers = ransac((dst, src), PolyTF3, min_samples=20, residual_threshold=0.1,max_trials=1000)
+    residuals = poly_trans.residuals(dst[inliers, :], src[inliers, :])
+    rms = np.std(residuals)
+    msgs.info("RMS (pixels): {}".format(rms))
+    msgs.info("RMS/FWHM: {}".format(rms / fwhm))
+
+    # This will generate the tilts image
+    #piximg_src = np.outer(np.arange(nspec),np.ones(nspat))
+    #piximg_dst = transform.warp(piximg_src, poly_trans, mode='edge',cval=float('nan'))
+    #imask = (piximg_dst  > 1077) & (piximg_dst < 1078)
+    #ginga.show_image(piximg*imask)
+
+
+    tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
+                         npix_rej = np.sum(inliers == False), coeff2=poly_trans.params, poly_order=poly_order,
+                         spec_order = spec_order, spat_order = spat_order,
+                         minx = -1.0, maxx = 1.0, minx2 = 0.0, maxx2 = 1.0, func=func2d)
+
+    return tilt_fit_dict
+
+
+def fit2tilts_joe(shape, slit_cen, coeff2, func):
+    """
+
+    Parameters
+    ----------
+    tilt_fit_dict: dict
+        Tilt fit dictioary produced by fit_tilts
+
+    Returns
+    -------
+    piximg: ndarray, float
+       Image indicating how spectral pixel locations move across the image. This output is used in the pipeline.
+    """
+
+
+    from skimage import transform
+    import scipy
+    # Compute the tilts image
+    nspec, nspat = shape
+    xnspecmin1 = float(nspec-1)
+    xnspatmin1 = float(nspat-1)
+    spec_vec = np.arange(nspec)
+    spat_vec = np.arange(nspat)
+
+    poly_trans = transform.PolynomialTransform(params=coeff2)
+    # This will generate the tilts image centered at the midpoit of the image
+    piximg_src = np.outer(np.arange(nspec),np.ones(nspat))
+    piximg_dst = transform.warp(piximg_src, poly_trans, mode='edge',cval=float('nan'))
+    #imask = (piximg  > 1024) & (piximg < 1026)
+    #ginga.show_image(piximg*imask)
+
+    #spec_img = np.outer(np.arange(nspec),np.ones(nspat))
+    #spat_img = np.outer(np.ones(nspec), np.arange(nspat)) # spatial position everywhere along image
+    #slit_cen_img = np.outer(slit_cen, np.ones(nspat))   # center of the slit replicated spatially
+
+    tilts = np.fmax(np.fmin(piximg_dst/xnspecmin1, 1.2),-0.2)
+
+    # Normalized spatial offset image (from central trace)
+    #dspat_img_nrm = (spat_img - slit_cen_img)
+    # Normalized spatial offset image offset by nspat//2 to the frame of the piximg
+    #dspat_img_nrm_cen = (spat_img - slit_cen_img) + nspat//2
+
+    # For pixels with completely bad profile values, interpolate from trace.
+    #piximg_spline=scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, piximg)
+    #piximg = np.zeros((nspec,nspat))
+    #piximg_test = piximg_spline(spec_img.flatten(), dspat_img_nrm_cen.flatten(), grid=False)
+    #piximg_final = piximg_test.reshape(nspec, nspat)
+    #tilts = piximg_final/xnspecmin1
+    # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
+    # wavelength solution fitting
+
+    return tilts
+
+
+def fit2tilts_xavier(shape, slit_cen, coeff2, func):
+    """
+
+    Parameters
+    ----------
+    tilt_fit_dict: dict
+        Tilt fit dictioary produced by fit_tilts
+
+    Returns
+    -------
+    piximg: ndarray, float
+       Image indicating how spectral pixel locations move across the image. This output is used in the pipeline.
+    """
+
+    # Compute the tilts image
+    nspec, nspat = shape
+    xnspecmin1 = float(nspec-1)
+    xnspatmin1 = float(nspat-1)
+
+    spat_img = np.outer(np.ones(nspec), np.arange(nspat)) # spatial position everywhere along image
+    slit_cen_img = np.outer(slit_cen, np.ones(nspat))   # center of the slit replicated spatially
+    # Normalized spatial offset image (from central trace)
+    dspat_img_nrm = (spat_img - slit_cen_img)/xnspatmin1
+    # normalized spec image
+    spec_img_nrm = np.outer(np.arange(nspec), np.ones(nspat))/xnspecmin1
+
+    delta_spec_fit_nrm = utils.func_val(coeff2, dspat_img_nrm, func, x2=spec_img_nrm, minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    tilts = (spec_img_nrm - delta_spec_fit_nrm)
+    # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
+    # wavelength solution fitting
+    tilts = np.fmax(np.fmin(tilts, 1.2),-0.2)
+
+    return tilts
+
+
+def plot_tiltres_xavier(setup, mtilt, ytilt, yfit, fitmask, fwhm, slit=None, outfile=None, show_QA=False, out_dir=None):
+    """ Generate a QA plot of the residuals for the fit to the tilts
+    One slit at a time
+
+    Parameters
+    ----------
+    """
+
+    plt.rcdefaults()
+    plt.rcParams['font.family']= 'times new roman'
+
+    # Outfil
+    method = inspect.stack()[0][3]
+    if (outfile is None) and (not show_QA):
+        outfile = qa.set_qa_filename(setup, method, slit=slit, out_dir=out_dir)
+
+    # Setup
+    plt.figure(figsize=(8, 4))
+    plt.clf()
+    ax = plt.gca()
+
+    # Scatter plot
+    res = (mtilt - ytilt) - yfit
+    xmin = 0.95*np.asarray([ytilt,mtilt]).min()
+    xmax = 1.05*np.asarray([ytilt,mtilt]).max()
+    ax.hlines(0.0, xmin, xmax,linestyle='--', color='green')
+    ax.plot(ytilt[fitmask], (res[fitmask]), 'ko', mfc='k', markersize=5.0, label='Good Points')
+    ax.plot(ytilt[~fitmask],(res[~fitmask]), 'ro', mfc='r', markersize=5.0, label='Rejected Points')
+    #ax.scatter(mtilt, res)
+    rms = np.std(res[fitmask])
+    ax.text(0.90, 0.90, 'Slit {:d}:  RMS (pixels) = {:0.5f}'.format(slit, rms),
+            transform=ax.transAxes, size='large', ha='right', color='black',fontsize=16)
+    ax.text(0.90, 0.80, ' Slit {:d}:  RMS/FWHM = {:0.5f}'.format(slit, rms/fwhm),
+            transform=ax.transAxes, size='large', ha='right', color='black',fontsize=16)
+    # Label
+    ax.set_xlabel('Spectral Pixel')
+    ax.set_ylabel('RMS (pixels)')
+    ax.set_title('RMS of Each Arc Line Traced')
+    ax.set_xlim((xmin,xmax))
+    # Finish
+    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    if show_QA:
+        plt.show()
+
+    if outfile is not None:
+        plt.savefig(outfile, dpi=400)
+
+    plt.close()
+    plt.rcdefaults()
+
+    return
+
+# Joe version
+def plot_tiltres_joe(setup, mtilt, ytilt, yfit, fitmask, fwhm, slit=None, outfile=None, show_QA=False, out_dir=None):
+    """ Generate a QA plot of the residuals for the fit to the tilts
+    One slit at a time
+
+    Parameters
+    ----------
+    """
+
+    plt.rcdefaults()
+    plt.rcParams['font.family']= 'times new roman'
+
+    # Outfil
+    method = inspect.stack()[0][3]
+    if (outfile is None) and (not show_QA):
+        outfile = qa.set_qa_filename(setup, method, slit=slit, out_dir=out_dir)
+
+    # Setup
+    plt.figure(figsize=(10, 6))
+    plt.clf()
+    ax = plt.gca()
+
+    # Scatter plot
+    res = (mtilt - yfit)
+    xmin = 0.95*np.asarray([ytilt,mtilt]).min()
+    xmax = 1.05*np.asarray([ytilt,mtilt]).max()
+    ax.hlines(0.0, xmin, xmax,linestyle='--', color='green')
+    ax.plot(ytilt[fitmask], (res[fitmask]), 'ko', mfc='k', markersize=5.0, label='Good Points')
+    ax.plot(ytilt[~fitmask],(res[~fitmask]), 'ro', mfc='r', markersize=5.0, label='Rejected Points')
+    #ax.scatter(mtilt, res)
+    rms = np.std(res[fitmask])
+    ax.text(0.90, 0.90, 'Slit {:d}:  RMS (pixels) = {:0.5f}'.format(slit, rms),
+            transform=ax.transAxes, size='large', ha='right', color='black',fontsize=16)
+    ax.text(0.90, 0.80, ' Slit {:d}:  RMS/FWHM = {:0.5f}'.format(slit, rms/fwhm),
+            transform=ax.transAxes, size='large', ha='right', color='black',fontsize=16)
+    # Label
+    ax.set_xlabel('Spectral Pixel')
+    ax.set_ylabel('RMS (pixels)')
+    ax.set_title('RMS of Each Arc Line Traced')
+    ax.set_xlim((xmin,xmax))
+    # Finish
+    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    if show_QA:
+        plt.show()
+
+    if outfile is not None:
+        plt.savefig(outfile, dpi=400)
+
+    plt.close()
+    plt.rcdefaults()
+
+    return
+
+
+# This did not work
+def fit_tilts_rej(tilts_dspat, tilts_spec_fit, tilts, tilts_invvar, tot_mask, slit_cen, spat_order, spec_order,
+                  maxdev = 0.2, maxrej=None, sigrej = 3.0, maxiter = 20, func2d='legendre2d'):
+
+    from pypeit.core import pydl
+
+    nspat = tilts_dspat.shape[0]
+    nuse = tilts_dspat.shape[1]
+    nspec = slit_cen.shape[0]
+    xnspecmin1 = float(nspec-1)
+    xnspatmin1 = float(nspat-1)
+    fitxy = [spat_order, spec_order]
+
+    lower=sigrej
+    upper=sigrej
+
+    msgs.info('                                  Iteratively Fitting Tilts' + msgs.newline() +
+              '                                  -------------------------' + msgs.newline() +
+              '******************************  Iter  # rejected   RMS (pixels)  ******************************' + msgs.newline() +
+              '                                ----  ----------  ------------- ')
+    # Reject bad pixels
+    iIter = 0
+    qdone = False
+    thismask = np.copy(tot_mask.flatten())
+    while (not qdone) and (iIter < maxiter):
+        # Do a fit with no rejection
+        fitmask, coeff2 = utils.robust_polyfit_djs(tilts_dspat.flatten()/xnspatmin1,
+                                                   tilts_spec_fit.flatten()/xnspecmin1,
+                                                   fitxy, x2=tilts.flatten()/xnspecmin1,
+                                                   inmask=(thismask*tot_mask.flatten()),
+                                                   invvar=xnspecmin1**2*tilts_invvar.flatten(),
+                                                   function=func2d, maxiter=0,
+                                                   minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+
+        # Compute Tilt model
+        tilts_2dfit = eval_2d_at_tilts(tilts_spec_fit, tot_mask, (nspec, nspat), slit_cen, coeff2, func2d)
+
+        # Perform rejection
+        thismask, qdone = pydl.djs_reject(tilts.flatten(), tilts_2dfit.flatten(), outmask=thismask,inmask=tot_mask.flatten(),
+                                          lower=lower,upper=upper,maxdev=maxdev,maxrej=maxrej,
+                                          use_mad=True,sticky=False)
+#        invvar = tilts_invvar.flatten(),
+        nrej = np.sum(tot_mask.flatten() & np.invert(thismask))
+        rms = np.std(tilts.flat[thismask] - tilts_2dfit.flat[thismask])
+        msgs.info('                                 {:d}        {:d}  {:6.3f}'.format(iIter, nrej,rms))
+        iIter += 1
+
+    if (iIter == maxiter) & (maxiter != 0):
+        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in fit_tilts_rej')
+    outmask = np.copy(thismask)
+    if np.sum(outmask) == 0:
+        msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
+
+    # Do the final fit
+    fitmask, coeff2 = utils.robust_polyfit_djs(tilts_dspat.flatten()/xnspatmin1,
+                                               tilts_spec_fit.flatten()/xnspecmin1,
+                                               fitxy, x2=tilts.flatten()/xnspecmin1,
+                                               inmask=(outmask*tot_mask.flatten()),
+                                               invvar=xnspecmin1 ** 2 * tilts_invvar.flatten(),
+                                               function=func2d, maxiter=0,
+                                               minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+
+
+
+    outmask = outmask.reshape((nspat,nuse))
+    return outmask, coeff2
+
+
+# This was too slow
+def fit_tilts_func(coeff2, tilts_dspat, tilts_spec_fit, tilts, tilts_invvar, tot_mask, inmask, slit_cen, spat_order, spec_order):
+
+    """
+
+    Parameters
+    ----------
+    trc_tilt_dict: dict
+        Diciontary containing tilt info
+
+    Optional Parameters
+    -------------------
+        slit:
+        all_tilts:
+        order:
+        yorder:
+        func2D:
+        maskval:
+        setup:
+        doqa:
+        show_QA:
+        out_dir:
+
+    Returns:
+
+    """
+
+    #print('Call:', coeff2)
+    coeff2_arr = coeff2.reshape((spat_order + 1, spec_order+1))
+    nspat = tilts_dspat.shape[0]
+    nuse = tilts_dspat.shape[1]
+    nspec = slit_cen.shape[0]
+    spec_vec = np.arange(nspec)
+    xnspecmin1 = float(nspec-1)
+    # Tilt model
+    tilts_img = fit2tilts((nspec, nspat), slit_cen, coeff2_arr, 'legendre2d')
+    piximg = xnspecmin1*tilts_img
+    # Now construct the 2d model of each tilt  (above we modeled the line spectral position at slit center)
+    chi2 = 0.0
+    for iline in range(nuse):
+        indx = np.where(tot_mask[:,iline] & inmask[:,iline])[0]
+        for ispat in indx:
+            tilt_2dfit = np.interp(tilts_spec_fit[0, iline], spec_vec, piximg[:, ispat])
+            chi2 += ((tilts[ispat,iline] - tilt_2dfit)*np.sqrt(tilts_invvar[ispat,iline]))**2
+
+    return chi2
+
+
+
+
+#TODO this should be deleted, but I'm saving some it for now becasue I'm still testing.
+'''
+
+
+        # JFH Code block starts here
+        ########
+        # def get_tilts(npca = 2, fwhm=4.0, ncoeff=5, maxdev_tracefit=0.1,percentile_reject=0.10, max_badpix_frac=0.20, tcrude_maxerr=1.0,
+        # tcrude_maxshift=3.0, tcrude_maxshift0=3.0, tcrude_nave=5,)
+
+        # DEBUGGIN
+        slit = 4
+
+        from pypeit.core import pixels
+        from pypeit.core import extract
+
+
+        nspat = self.msarc.shape[1]
+        nspec = self.msarc.shape[0]
+        arcimg = self.msarc
+        arc_spec = self.arccen[:, slit]
+        slit_left = self.tslits_dict['lcen'][:,slit].copy()
+        slit_righ = self.tslits_dict['rcen'][:,slit].copy()
+        inmask = (self.bpm == False)
+        # Center of the slit
+        slit_cen = (slit_left + slit_righ)/2.0
+
+        slitmask = self.spectrograph.slitmask(self.tslits_dict)
+        thismask = slitmask == slit
+
+        # Tilt specific Optional parameters
+        tracethresh = 10.0 # significance threshold for an arc line to be traced
+        sigdetect = 5.0 # This is the significance threshold for finding neighboring lines. The number of these neighboring lines
+        #  determines how many nsig > tracethresh lines that may be removed because they are too close.
+        nfwhm_neigh = 3.0
+        only_these_lines = None # These are lines from the wavelength solution that are known to be good. If set code only uses these
+        # identified lines to avoid problems with ghosts (is this still necessary with new tracing code?)
+        maxdev_tracefit = 1.0 # maximum deviation for iterative trace fitting (flux weighted, then gaussian weighted)
+        sigrej_trace = 3.0 # From each line we compute a median absolute deviation of the trace from the polynomial fit. We then
+        # analyze the distribution of mads for all the lines, and reject sigrej_trace outliers from that distribution.
+        npca = 1 # Order of PCA for iteration to improve tracing
+        coeff_npoly_pca = 1 # Polynomial order for fit to PCA coefficients to improve tracing
+        sigrej_pca = 2.0 # Outlier rejection significance for PCA fit to arc line coefficients
+        ncoeff = 5 # Order of legendre polynomial fits to the tilts
+
+        max_badpix_frac = 0.20 # Maximum fraction of total pixels masked by the trace_gweight algorithm (because the residuals are too large)
+        # Trace Crude parameters
+        tcrude_maxerr = 1.0 #
+        tcrude_maxshift = 3.0
+        tcrude_maxshift0 = 3.0
+        tcrude_nave = 5
+        show_tracefits = False # show the trace fits
+
+        # These are parameters for 2D fitting
+        spec_order = 4
+        maxdev_2d = 1.0 # Maximum absolute deviation used in rejection for 2d legendre polynomial fit to ensemble of all spectral line tilts
+        sigrej_2d = 3.0 # Outlier significance threshold for rejection for 2d legendre polynomial fit to ensemble of all spectral line tilts
+        show_tilts = True
+        debug = True
+
+        trc_tilt_dict0 = tracewave.trace_tilts_work(
+            arcimg, lines_spec, lines_spat, thismask, inmask=inmask,
+            tilts_guess=None,fwhm=fwhm,ncoeff=ncoeff, maxdev_tracefit=maxdev_tracefit,
+            sigrej_trace=sigrej_trace, max_badpix_frac=max_badpix_frac,
+            tcrude_maxerr=tcrude_maxerr, tcrude_maxshift=tcrude_maxshift,
+            tcrude_maxshift0=tcrude_maxshift0,
+            tcrude_nave=tcrude_nave,show_fits=show_tracefits)
+        # Now evaluate the model of the tilts for all of our lines
+        # Testing!!!!
+        # Now perform a fit to the tilts
+        tilt_fit_dict0 = tracewave.fit_tilts(trc_tilt_dict0, spat_order=ncoeff, spec_order=spec_order,debug=True,
+                                             maxdev=maxdev_2d, sigrej=sigrej_2d,
+                                             doqa=True,setup='test',slit=0, show_QA=False, out_dir='./')
+
+        # Do a PCA fit, which rejects some outliers
+        iuse = trc_tilt_dict0['use_tilt']
+        nuse =np.sum(iuse)
+        msgs.info('PCA modeling {:d} good tilts'.format(nuse))
+        #pca_explained_var = None
+        # TODO Should we truncate this PCA by hand, or just let it explain variance
+        # PCA fit good orders, and predict bad orders
+        pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
+            trc_tilt_dict0['tilts_sub_fit'], predict=np.invert(iuse), npca = npca, coeff_npoly=coeff_npoly_pca,
+            lower=sigrej_pca, upper=sigrej_pca, order_vec=lines_spec,xinit_mean=lines_spec,
+            minv=0.0, maxv=float(trc_tilt_dict0['nsub'] - 1), debug=True)
+
+        # Now trace again with the PCA predictions as the starting crutches
+        trc_tilt_dict1 = tracewave.trace_tilts_work(
+            arcimg, lines_spec, lines_spat, thismask, inmask=inmask,
+            tilts_guess=pca_fit, fwhm=fwhm,ncoeff=ncoeff, maxdev_tracefit=maxdev_tracefit,
+            sigrej_trace=sigrej_trace, max_badpix_frac=max_badpix_frac,
+            show_fits=show_tracefits)
+
+
+        # Now perform a fit to the tilts
+        tilt_fit_dict1 = tracewave.fit_tilts(trc_tilt_dict1, spat_order=ncoeff, spec_order=spec_order, debug=True,
+                                             maxdev=maxdev_2d, sigrej=sigrej_2d,
+                                             doqa=True,setup='test',slit=0, show_QA=False, out_dir='./')
+        # Now evaluate the model of the tilts for all of our lines
+        piximg1 = tracewave.fit2piximg(tilt_fit_dict1)
+
+        # Now trace again with the piximg model as the starting crutches
+
+
+        """
+        # Since the y independent variable is the tilts in the way we do the 2d fit, and soem tilts are spurios, it does
+        # no good to evaluate the global fit at these spurious tilts to get the new tracing crutches. The following is a
+        # hack to determine this from the piximg. Perhaps there is a better way.
+        spec_img = np.outer(np.arange(nspec), np.ones(nspat))
+        spec_vec = np.arange(nspec)
+        nlines=len(lines_spec)
+        interp_flag = np.ones(nlines,dtype=bool)
+        tilts_crutch = np.zeros((nspat, nlines))
+        spat_min = trc_tilt_dict1['spat_min']
+        spat_max = trc_tilt_dict1['spat_max']
+        piximg1[np.invert(thismask)] = 1e10
+        # Is there a faster more clever way to do this?
+        for iline in range(nlines):
+            min_spat = np.fmax(spat_min[iline], 0)
+            max_spat = np.fmin(spat_max[iline], nspat - 1)
+            min_spec = int(np.fmax(np.round(lines_spec[iline]) - np.round(0.01*nspec),0))
+            max_spec = int(np.fmin(np.round(lines_spec[iline]) + np.round(0.01*nspec),nspec-1))
+            piximg_sub = piximg1[min_spec:max_spec,:]
+            for ispat in range(min_spat,max_spat):
+                if np.any(np.diff(piximg_sub[:,ispat] < 0)):
+                    # If we ever encounter an unsorted piximg_sub the logic below makes no sense so just use the
+                    # previous polynomial fit as the crutch and exit this loop
+                    tilts_crutch[ispat,iline] = trc_tilt_dict1['tilts_fit'][:,iline]
+                    msgs.warn('piximg is not monotonic. Your tilts are probably bad')
+                    break
+                else:
+                    tilts_crutch[ispat,iline] = np.interp(lines_spec[iline],piximg_sub[:,ispat],spec_vec[min_spec:max_spec])
+
+
+        trc_tilt_dict1['tilts_crutch'] = tilts_crutch
+        # Now trace again with the PCA predictions as the starting crutches
+        trc_tilt_dict2 = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, slit_width, thismask, inmask=inmask,
+                                               tilts_guess=tilts_crutch, fwhm=fwhm,ncoeff=ncoeff, maxdev_tracefit=maxdev_tracefit,
+                                               sigrej_trace=sigrej_trace, max_badpix_frac=max_badpix_frac,
+                                               show_fits=show_tracefits)
+
+        # Now perform a second fit to the tilts
+        tilt_fit_dict2 = tracewave.fit_tilts(trc_tilt_dict2, spat_order=ncoeff, spec_order=spec_order, debug=True,
+                                             maxdev=maxdev_2d, sigrej=sigrej_2d,
+                                             doqa=True,setup='test',slit=0, show_QA=False, out_dir='./')
+        # Now evaluate the model of the tilts for all of our lines
+        piximg2 = tracewave.fit2piximg(tilt_fit_dict2)
+        """
+
+#        from matplotlib import pyplot as plt
+#        tilt_mask = trc_tilt_dict1['tilts_mask']
+#        plt.plot(trc_tilt_dict1['tilts_spat'][tilt_mask], tilts_crutch[tilt_mask], 'ko', markersize=2.0)
+#        plt.plot(trc_tilt_dict1['tilts_spat'][tilt_mask], trc_tilt_dict1['tilts_fit'][tilt_mask], 'ro', mfc='none', markersize=2.0)
+
+
+        # Now do a fit
+
+
+        """
+        for iline in range(nlines):
+            min_spat = np.fmax(spat_min[iline], 0)
+            max_spat = np.fmin(spat_max[iline], nspat - 1)
+            sub_img = (piximg*thismask)[:, min_spat:max_spat]
+            spec_img_sub = spec_img[  :, min_spat:max_spat]
+            ispec_min = np.argmin(np.abs(sub_img - lines_spec[iline]), axis=0)
+            tilts_crutch[min_spat:max_spat,iline] = spec_img_sub[ispec_min,np.arange(sub_img.shape[1])]
+        """
+
+
+
+'''

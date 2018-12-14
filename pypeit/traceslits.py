@@ -107,7 +107,7 @@ class TraceSlits(masterframe.MasterFrame):
     frametype = 'trace'
 
     def __init__(self, mstrace, pixlocn, spectrograph,
-                 par=None, det=None, master_key=None, master_dir=None,
+                 par=None, det=1, master_key=None, master_dir=None,
                  redux_path=None,
                  mode=None, binbpx=None, ednum=100000):
 
@@ -1012,7 +1012,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _trim_slits(self, plate_scale, trim_slits=True, ech_slit_tol=0.3):
+    def _trim_slits(self, trim_slits=True, plate_scale = None, ech_slit_tol = 0.3):
         """
         Trim slits
           Mainly those that fell off the detector
@@ -1023,11 +1023,13 @@ class TraceSlits(masterframe.MasterFrame):
             plate_scale: float, optional
             ech_slit_tol: float, optional
 
-        Returns:
-            self.lcen  : ndarray (internal)
-            self.rcen  : ndarray (internal)
+        Returns
+        -------
+        self.lcen  : ndarray (internal)
+        self.rcen  : ndarray (internal)
 
         """
+
         # JFH ToDo In principle we could make this trim_slits function a method in the generic spectrograph function, which could then be
         # overloaded by the echelle spectrographs
         nslit = self.lcen.shape[1]
@@ -1039,13 +1041,13 @@ class TraceSlits(masterframe.MasterFrame):
 
         off_detector = (min_val > nspat) | (max_val < 0)
         mask[off_detector] = False
-        slit_width = np.median((self.rcen-self.lcen)*plate_scale,axis=0)
         # Print out a status message
         ioff = np.where(off_detector)[0]
         for islit in ioff:
             msgs.info('Slit {0:d} is off the detector - ignoring this slit'.format(islit))
 
         if trim_slits:
+            slit_width = np.median((self.rcen - self.lcen) * plate_scale, axis=0)
             if self.spectrograph.pypeline == 'MultiSlit':
                 too_short = slit_width < self.par['min_slit_width']
                 ishort = np.where(too_short)[0]
@@ -1277,8 +1279,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Return
         return loaded
 
-    def run(self, add_user_slits=None, rm_user_slits=None, trim_slits=True,
-            plate_scale=None, show=False, write_qa=True):
+    def run(self, add_user_slits=None, rm_user_slits=None, trim_slits = True, plate_scale = None, show=False, write_qa=True):
         """ Main driver for tracing slits.
 
           Code flow
@@ -1373,8 +1374,8 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Remove any slits that are completely off the detector
         #   Also remove short slits here for multi-slit and long-slit (alignment stars)
-        if self.nslit > 1:  # Do not trim if long slit
-            self._trim_slits(plate_scale, trim_slits=trim_slits)
+        #if self.nslit > 1:
+        self._trim_slits(trim_slits = trim_slits, plate_scale = plate_scale)
 
         # Generate pixel arrays
         self._make_pixel_arrays()
