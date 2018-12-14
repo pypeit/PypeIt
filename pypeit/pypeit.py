@@ -222,8 +222,8 @@ class PypeIt(object):
             u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
             for j, comb_id in enumerate(u_combid):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
-                if len(frames)>1:
-                    debugger.set_trace()  # NOT DEVELOPED YET
+                #if len(frames)>1:
+                #    debugger.set_trace()  # NOT DEVELOPED YET
                 # Bg frame(s)?
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile,reuse_masters=reuse_masters)
@@ -282,6 +282,7 @@ class PypeIt(object):
 
         # Save the frame
         self.frames = frames
+        self.bg_frames = bg_frames
 
         # Insist on re-using MasterFrames where applicable
         if reuse_masters:
@@ -298,7 +299,7 @@ class PypeIt(object):
             msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
         msgs.info(msgs_string)
         if bg_frames is not None:
-            bg_msgs_string = 'Using background from frames:' + msgs.newline()
+            bg_msgs_string = msgs.newline() + 'Using background from frames:' + msgs.newline()
             for iframe in self.bg_frames:
                 bg_msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
             msgs.info(bg_msgs_string)
@@ -326,7 +327,7 @@ class PypeIt(object):
             sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], sci_dict[self.det]['skymodel'], \
                 sci_dict[self.det]['objmodel'], sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
                 sci_dict[self.det]['specobjs'], vel_corr \
-                    = self._extract_one(self.frames, self.det, bg_frames = bg_frames, std_outfile = std_outfile)
+                    = self.extract_one(self.frames, self.det, bg_frames = self.bg_frames, std_outfile = std_outfile)
             if vel_corr is not None:
                 sci_dict['meta']['vel_corr'] = vel_corr
 
@@ -367,7 +368,7 @@ class PypeIt(object):
 
         return vel_corr
 
-    def get_sci_metadata(self,frame):
+    def get_sci_metadata(self,frame, det):
 
         # Set binning, obstime, basename, and objtype
         try:
@@ -560,7 +561,7 @@ class MultiSlit(PypeIt):
         """
 
         # Grab some meta-data needed for the reduction from the fitstbl
-        self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0])
+        self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], det)
         # Grab the files that we will reduce
         sci_image_files = self.fitstbl.frame_paths(frames)
         bg_frame_files  = self.fitstbl.frame_paths(bg_frames)
@@ -575,11 +576,10 @@ class MultiSlit(PypeIt):
         msgs.sciexp = self.sciI
 
         # Process images (includes inverse variance image, rn2 image, and CR mask)
-        sciimg, sciivar, rn2img, crmask, bgimg = self.sciI.proc(
-            self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
-            self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
-            apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
-
+        sciimg, sciivar, rn2img, mask, crmask = self.sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+                                                         self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,show=self.show)
+        from IPython import embed
+        embed()
         # Object finding, first pass on frame without sky subtraction
         maskslits = self.caliBrate.maskslits.copy()
 

@@ -194,7 +194,7 @@ class ProcessImages(object):
         headers = []
         for ifile in file_list:
             img, head = self.spectrograph.load_raw_frame(ifile, det=self.det)
-            self.raw_images.append(img)
+            raw_images.append(img)
             self.headers.append(head)
         # Get the data sections
         datasec, one_indexed, include_end, transpose \
@@ -212,7 +212,6 @@ class ProcessImages(object):
                                             transpose=transpose) for sec in self.oscansec ]
         # Step
         self.steps.append(inspect.stack()[0][3])
-
         # Consider a return statement
         return raw_images, headers, datasec, oscansec
 
@@ -263,6 +262,7 @@ class ProcessImages(object):
         -------
 
         """
+        proc_images = None
         # Check if the bias has already been subtracted
         if (inspect.stack()[0][3] in self.steps) & (not force):
             msgs.warn("Images already bias subtracted.  Use force=True to reset proc_images "
@@ -341,44 +341,47 @@ class ProcessImages(object):
         self.steps.append(inspect.stack()[0][3])
         return stack
 
-    def build_crmask(self, stack, varframe=None, par=None, binning=None):
-        """
-        Generate the CR mask frame
-
-        Wrapper to procimg.lacosmic
-
-        Parameters
-        ----------
-        varframe : ndarray, optional
-
-        Returns
-        -------
-        self.crmask : ndarray
-          1. = Masked CR
-
-        """
-        # Set the parameters
-        if par is not None and not isinstance(par, pypeitpar.ProcessImagesPar):
-            raise TypeError('Provided ParSet for must be type ProcessImagesPar.')
-        if par is not None:
-            self.proc_par = par
-
-        # Run LA Cosmic to get the cosmic ray mask
-        saturation = self.spectrograph.detector[self.det-1]['saturation']
-        nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
-        sigclip, objlim = self.spectrograph.get_lacosmics_par(self.proc_par,binning=binning)
-        self.crmask = procimg.lacosmic(self.det, stack, saturation, nonlinear,
-                                         varframe=varframe, maxiter=self.proc_par['lamaxiter'],
-                                         grow=self.proc_par['grow'],
-                                         remove_compact_obj=self.proc_par['rmcompact'],
-                                         sigclip=sigclip,
-                                         sigfrac=self.proc_par['sigfrac'],
-                                         objlim=objlim)
-
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        # Return
-        return self.crmask
+    ## JFH ToDO Scienceimage is the only class currently using this method, and it is not used in this method.
+    # Since I prefer not to make a ScienceImage a child of processimages (since it does not make sense with
+    # Science image working on lists of images) I'm moving this method there.
+#    def build_crmask(self, stack, varframe=None, par=None, binning=None):
+#        """
+#        Generate the CR mask frame
+#
+#        Wrapper to procimg.lacosmic
+#
+#        Parameters
+#        ----------
+#        varframe : ndarray, optional
+#
+#        Returns
+#        -------
+#        self.crmask : ndarray
+#          1. = Masked CR
+#
+#        """
+#        # Set the parameters
+#        if par is not None and not isinstance(par, pypeitpar.ProcessImagesPar):
+#            raise TypeError('Provided ParSet for must be type ProcessImagesPar.')
+#        if par is not None:
+#            self.proc_par = par
+#
+#        # Run LA Cosmic to get the cosmic ray mask
+#        saturation = self.spectrograph.detector[self.det-1]['saturation']
+#        nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
+#        sigclip, objlim = self.spectrograph.get_lacosmics_par(self.proc_par,binning=binning)
+#        self.crmask = procimg.lacosmic(self.det, stack, saturation, nonlinear,
+#                                         varframe=varframe, maxiter=self.proc_par['lamaxiter'],
+#                                         grow=self.proc_par['grow'],
+#                                         remove_compact_obj=self.proc_par['rmcompact'],
+#                                         sigclip=sigclip,
+#                                         sigfrac=self.proc_par['sigfrac'],
+#                                         objlim=objlim)
+#
+#        # Step
+#        self.steps.append(inspect.stack()[0][3])
+#        # Return
+#        return self.crmask
 
     def flat_field(self, stack, pixel_flat, bpm, illum_flat=None):
         """
@@ -444,7 +447,6 @@ class ProcessImages(object):
         # Load images
         if 'load_images' not in self.steps:
             self.raw_images, self.headers, self.datasec, self.oscansec = self.load_images(self.file_list)
-
         # Bias subtract
         if bias_subtract is not None:
             self.proc_images = self.bias_subtract(self.raw_images, bias_subtract, trim=trim)
