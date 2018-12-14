@@ -43,8 +43,12 @@ def load_spectrograph(spectrograph):
     # TODO: I'm not crazy about the idea that that spectrograph can be
     # undefined, even when one is working with master files.  It means
     # that objects are not fully defined.
+    #if spectrograph is None:
+    #    return None
+    # JFH Changed the above to address this and other issues
+
     if spectrograph is None:
-        return None
+        return spectrographs.spectrograph.Spectrograph()
 
     if isinstance(spectrograph, spectrographs.spectrograph.Spectrograph):
         return spectrograph

@@ -35,7 +35,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                             ysize           = 1.,
                             platescale      = 0.15,
                             darkcurr        = 0.01,
-                            saturation      = 65535.,
+                            saturation      = 1e6, # I'm not sure we actually saturate with the DITs???
                             nonlinear       = 0.76,
                             numamplifiers   = 1,
                             gain            = 3.8,
@@ -65,24 +65,27 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['number'] = 5
         par['calibrations']['arcframe']['number'] = 1
         # Bias
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
+        par['calibrations']['biasframe']['useframe'] = 'none'
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-
         # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.json'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 6
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+        # Tilt parameters
+        # Tilt parameters
+        par['calibrations']['tilts']['tracethresh'] =  20.0
+        par['calibrations']['tilts']['spat_order'] =  3
+        par['calibrations']['tilts']['spec_order'] =  3
 
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
@@ -91,11 +94,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
 
         # Set slits and tilts parameters
-        par['calibrations']['tilts']['order'] = 2
-        par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10]
-        par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 3.
-        par['calibrations']['slits']['pcatype'] = 'order'
+        par['calibrations']['tilts']['tracethresh'] = 10.0
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -239,8 +238,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
-    @staticmethod
-    def slitmask(tslits_dict, pad=None, binning=None):
+    def slitmask(self, tslits_dict, pad=None, binning=None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
          overload this function to implement instrument specific slitmask behavior, for example setting
@@ -275,8 +273,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         slitmask[order7bad] = -1
         return slitmask
 
-    @staticmethod
-    def slit2order(islit):
+    def slit2order(self, islit):
 
         """
         Parameters
@@ -302,8 +299,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         orders = np.arange(7, 2, -1, dtype=int)
         return orders[islit]
 
-    @staticmethod
-    def order_platescale(binning = None):
+    def order_platescale(self, binning = None):
 
 
         """

@@ -68,7 +68,7 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
         ret.append(traceSlits.tslits_dict)
 
     if tilts:
-        wvTilts = wavetilts.WaveTilts(None, spectrograph=spectrograph, setup=setup,
+        wvTilts = wavetilts.WaveTilts(None, None, spectrograph=spectrograph, setup=setup,
                                       master_dir=master_dir, mode=mode)
         tilts_dict = wvTilts.master()
         ret.append(tilts_dict)

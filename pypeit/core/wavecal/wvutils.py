@@ -16,7 +16,7 @@ from pypeit import msgs
 from pypeit.core import arc
 from pypeit import debugger
 
-def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, mask_frac_fwhm=1.0,max_frac_fwhm=2.0,
+def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
                         cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
     """
     Parameters
@@ -33,7 +33,7 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, mas
     # Find peaks
     tampl, tampl_cont, tcent, twid, centerr, w, arc_cont_sub, nsig = arc.detect_lines(spec, sigdetect = sigdetect, fwhm=fwhm,
                                                                                fit_frac_fwhm=fit_frac_fwhm,
-                                                                               mask_frac_fwhm=mask_frac_fwhm,
+                                                                               cont_frac_fwhm=cont_frac_fwhm,
                                                                                max_frac_fwhm=max_frac_fwhm,
                                                                                cont_samp=cont_samp,niter_cont = niter_cont,
                                                                                nonlinear_counts = nonlinear_counts, debug=debug)
@@ -199,7 +199,7 @@ def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=90.0, use_raw_arc=False,
     corr_norm = corr/corr_denom
     tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(corr_norm, sigdetect=3.0,
                                                                                      fit_frac_fwhm=1.5, fwhm=5.0,
-                                                                                     mask_frac_fwhm=1.0, cont_samp=30, nfind = 1)
+                                                                                     cont_frac_fwhm=1.0, cont_samp=30, nfind = 1)
     corr_max = np.interp(pix_max, np.arange(lags.shape[0]),corr_norm)
     lag_max  = np.interp(pix_max, np.arange(lags.shape[0]),lags)
     if debug:

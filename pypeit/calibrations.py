@@ -168,9 +168,10 @@ class Calibrations(object):
 
         """
         # Check for existing data
-        if not self._chk_objs(['msbias']):
-            self.msarc = None
-            return self.msarc
+        ## JFH This check is wrong, if the user does not want to bias subtract, then it causes a crash
+#        if not self._chk_objs(['msbias']):
+#            self.msarc = None
+#            return self.msarc
 
         # Check internals
         self._chk_set(['setup', 'det', 'sci_ID', 'par'])
@@ -228,7 +229,8 @@ class Calibrations(object):
 
         # How are we treating biases: 1) No bias, 2) overscan, or 3) use bias subtraction. If use bias is there a master?
         self.msbias = self.biasFrame.determine_bias_mode()
-        if self.msbias is None:  # Build it and save it
+        # This could be made more elegant, like maybe msbias should be set to 'none' analgous to how overscan is treated???
+        if (self.msbias is None) and (self.par['biasframe']['useframe'] != 'none'):  # Build it and save it
             self.msbias = self.biasFrame.build_image()
             if self.save_masters:
                 self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,steps=self.biasFrame.steps)
@@ -381,7 +383,8 @@ class Calibrations(object):
                     self.traceSlits.save_master()
                     # Write the final_tilts using the new slit boundaries to the MasterTilts file
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
-                    self.waveTilts.save_master()
+                    self.waveTilts.tilts_dict = self.flatField.tilts_dict
+                    self.waveTilts.save_master(self.flatField.tilts_dict, steps=self.waveTilts.steps)
 
         # 4) If we still don't have a pixel flat, then just use unity
         # everywhere and print out a warning
@@ -473,9 +476,11 @@ class Calibrations(object):
             rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det, rm=True)
 
             # Now we go forth
+            # JFH Why do we need this try except statementhere when we don't have it for any other method?
             try:
-                self.tslits_dict = self.traceSlits.run(arms=arms, plate_scale = plate_scale, show=self.show,
-                                                       add_user_slits=add_user_slits, rm_user_slits=rm_user_slits)
+                self.tslits_dict = self.traceSlits.run(plate_scale = plate_scale, show=self.show,
+                                                       add_user_slits=add_user_slits, rm_user_slits=rm_user_slits,
+                                                       write_qa=self.write_qa)
             except:
                 self.traceSlits.save_master()
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
@@ -483,15 +488,15 @@ class Calibrations(object):
             if self.tslits_dict is None:
                 self.maskslits = None
                 return self.tslits_dict, self.maskslits
-            # QA
-            if self.write_qa:
-                self.traceSlits._qa()
             # Save to disk
             if self.save_masters:
                 # Master
                 self.traceSlits.save_master()
 
         # Construct dictionary
+
+        # JFH TODO I really don't like this line of code. It is a bad idea to load masters in from the class like this. We have
+        # a standard way of loading in masters directly from files and this violates that standard for no compelling reason.
         self.tslits_dict = self.traceSlits._fill_tslits_dict()
 
         # Save, initialize maskslits, and return
@@ -673,20 +678,19 @@ class Calibrations(object):
             return self.tilts_dict, self.maskslits
 
         # Instantiate
-        self.waveTilts = wavetilts.WaveTilts(self.msarc, spectrograph=self.spectrograph,
-                                             par=self.par['tilts'], det=self.det,
+        self.waveTilts = wavetilts.WaveTilts(self.msarc, self.tslits_dict, spectrograph=self.spectrograph,
+                                             par=self.par['tilts'], wavepar = self.par['wavelengths'], det=self.det,
                                              setup=self.setup, master_dir=self.master_dir,
                                              mode=self.par['masters'],
-                                             tslits_dict=self.tslits_dict,
                                              redux_path=self.redux_path, bpm=self.msbpm)
         # Master
         self.tilts_dict = self.waveTilts.master()
         if self.tilts_dict is None:
+            # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.tilts_dict, self.wt_maskslits \
-                    = self.waveTilts.run(maskslits=self.maskslits, wv_calib=self.wv_calib,
-                                         doqa=self.write_qa)
+                    = self.waveTilts.run(maskslits=self.maskslits,doqa=self.write_qa, show=self.show)
             if self.save_masters:
-                self.waveTilts.save_master()
+                self.waveTilts.save_master(self.tilts_dict, steps=self.waveTilts.steps)
         else:
             self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
 

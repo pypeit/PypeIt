@@ -609,3 +609,4 @@ class ProcessImages(object):
         return txt
 
 
+# TODO Add a function here that just reads in a fits file given a filename. Guess the instrument from the headers.

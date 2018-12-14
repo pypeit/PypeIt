@@ -54,8 +54,12 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
         outfile = 'QA/PNGs/Arc_2dfit_global_{:s}'.format(root)
     elif method == 'arc_fit2d_orders_qa':
         outfile = 'QA/PNGs/Arc_2dfit_orders_{:s}'.format(root)
-    elif method == 'plot_tiltres':
-        outfile = 'QA/PNGs/Arc_tilts_{:s}_S{:04d}.png'.format(root, slit)
+    elif method == 'plot_tilt_spec':
+        outfile = 'QA/PNGs/Arc_tilts_spec_{:s}_S{:04d}.png'.format(root, slit)
+    elif method == 'plot_tilt_spat':
+        outfile = 'QA/PNGs/Arc_tilts_spat_{:s}_S{:04d}.png'.format(root, slit)
+    elif method == 'plot_tilt_2d':
+        outfile = 'QA/PNGs/Arc_tilts_2d_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'pca_plot':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/{:s}_pca_{:s}_'.format(prefix, root)
     elif method == 'pca_arctilt':  # This is root for multiple PNGs
@@ -221,7 +225,7 @@ def html_mf_pngs(setup, cbset, det):
                               href='blaze', label='Blaze', slit=False)
     html_dict['arc_fit'] = dict(fname='arc_fit_qa', ext='',
                                 href='arc_fit', label='Arc 1D Fit', slit=True)
-    html_dict['arc_tilt'] = dict(fname='plot_tiltres', ext='*.png',
+    html_dict['arc_tilt'] = dict(fname='plot_tilt_spec', ext='*.png',
                                  href='arc_tilts', label='Arc Tilts', slit=True)
     html_dict['arc_pca'] = dict(fname='pca_arctilt', ext='*.png',
                                 href='arc_pca', label='Arc Tilt PCA', slit=False)

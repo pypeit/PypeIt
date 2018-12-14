@@ -38,8 +38,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['number'] = 5
         par['calibrations']['arcframe']['number'] = 1
 
-        # Set wave tilts order
-        par['calibrations']['tilts']['order'] = 2
 
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
@@ -227,9 +225,17 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         #par['calibrations']['wavelengths']['min_nsig'] = 5.
         #par['calibrations']['wavelengths']['lowest_nsig'] = 5.
         par['calibrations']['wavelengths']['sigdetect'] = 5.
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['lamps'] = ['CdI','HgI','HeI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
+
+        # Set wave tilts order
+        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spec_order'] = 5
+        par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
+        par['calibrations']['tilts']['maxdev2d'] = 0.02
+
         # reidentification stuff
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600_4310_d55.json'
@@ -369,7 +375,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
                             ysize           = 1.,
                             platescale      = 0.774,
                             darkcurr        = 0.0,
-                            saturation      = 65535.,
+                            saturation      = 120000., # JFH adjusted to this level as the flat are otherwise saturated
                             nonlinear       = 0.76,
                             numamplifiers   = 1,
                             gain            = 3.0,
@@ -396,7 +402,6 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        #par['calibrations']['wavelengths']['lowest_nsig'] = 5.
 
         return par
 

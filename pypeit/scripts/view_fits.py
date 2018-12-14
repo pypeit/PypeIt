@@ -23,7 +23,7 @@ def parser(options=None):
     parser.add_argument('--raw_lris', action="store_true")
     parser.add_argument('--raw_deimos', action="store_true")
     parser.add_argument('--raw_gmos', action="store_true")
-    parser.add_argument('--exten', type=int, help="FITS extension")
+    parser.add_argument('--exten', type=int, default = 0, help="FITS extension")
     parser.add_argument('--det', type=int, default=1, help="Detector number")
 
     if options is None:

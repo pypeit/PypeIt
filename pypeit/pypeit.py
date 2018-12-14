@@ -565,12 +565,17 @@ class PypeIt(object):
         except:
             self.binning = (1,1)
 
-        # This should have been set when we construct the fitstbl
+        # This should have been set when we construct the fitstbl.
+        #
+        # JFH These time routines need to exit cleanly with warnings rather than crashing the code
+        # until we get the fitstbl working in as stable way.
         try:
             tval = Time(fitstbl['time'][scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
         except:
-            debugger.set_trace()
-
+            msgs.warn('There is no time in the fitstbl.' + msgs.newline() +
+            'The time and heliocentric corrections will be off!!' + msgs.newline() +
+            'This is a bad idea. Continuing with a dummy time value')
+            tval = '2010-01-01'
         # Time
         tiso = Time(tval, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
         dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
@@ -828,7 +833,7 @@ class MultiSlit(PypeIt):
         # Process images (includes inverse variance image, rn2 image,
         # and CR mask)
         sciimg, sciivar, rn2img, crmask \
-                = sciI.process(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+                = sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
                                self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
                                apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
 
@@ -1141,9 +1146,9 @@ class Echelle(PypeIt):
         # Process images (includes inverse variance image, rn2 image,
         # and CR mask)
         sciimg, sciivar, rn2img, crmask \
-                = sciI.process(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
-                               self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
-                               apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
+                = sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+                            self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
+                            apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
 
         # Object finding, first pass on frame without sky subtraction
         maskslits = self.caliBrate.maskslits.copy()
