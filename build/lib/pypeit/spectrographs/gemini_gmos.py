@@ -86,8 +86,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.40  # Might be grating dependent..
-        par['calibrations']['wavelengths']['sigdetect'] = 5.  # Doesn't work for reddest chip
-        par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'ArII']
+        par['calibrations']['wavelengths']['min_nsig'] = 30.  # Reddest chip
+        par['calibrations']['wavelengths']['lowest_nsig'] = 10.  # Reddest chip
 
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
@@ -234,10 +234,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         return self.gemini_get_match_criteria()
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker', 'dispangle']
+        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker', 'wavecen']
 
 
-    '''
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
         """
         Setup the arc parameters
@@ -274,7 +273,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             arcparam['wv_cen'] = 4000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    '''
 
 
 class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
@@ -291,7 +289,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         self.detector = [
             # Detector 1
             DetectorPar(dataext         = 1,
-                        specaxis        = 0,  # Device is fussed with by the image reader
+                        dispaxis        = 0,  # Device is fussed with by the image reader
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -306,7 +304,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,
-                        specaxis        = 0,
+                        dispaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -321,7 +319,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,
-                        specaxis        = 0,
+                        dispaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -341,7 +339,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         head_keys = self.gemini_header_keys()
         return head_keys
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 
         Parameters
@@ -356,7 +354,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
 
         """
         # Get the empty bpm: force is always True
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        self.empty_bpm(filename=filename, det=det)
 
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on GMOSs")
@@ -405,69 +403,6 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
 
         return self.bpm_img
 
-
-
-class GeminiGMOSSHamSpectrograph(GeminiGMOSSSpectrograph):
-    """
-    Child to handle Gemini/GMOS-N instrument with Hamamatsu detector
-    """
-    def __init__(self):
-
-        # Get it started
-        super(GeminiGMOSSHamSpectrograph, self).__init__()
-        self.spectrograph = 'gemini_gmos_south_ham'
-
-        self.detector = [  #  Hamamatsu (since 201?)
-            # Detector 1
-            DetectorPar(dataext         = 1,  # Not sure this is used
-                        specaxis        = 0,  # FW: this should be 0 for gmos_ham
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.080,
-                        darkcurr        = 0.0,
-                        saturation      = 129000.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 4,
-                        gain            = [1.83]*4,
-                        ronoise         = [3.98]*4,
-                        suffix          = '_01'
-                        ),
-            # Detector 2
-            DetectorPar(dataext         = 2,  # Not sure this is used
-                        specaxis        = 0,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.080,
-                        darkcurr        = 0.0,
-                        saturation      = 123000.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 4,
-                        gain            = [1.83]*4,
-                        ronoise         = [3.98]*4,
-                        suffix          = '_02'
-                        ),
-            # Detector 3
-            DetectorPar(dataext         = 3,  # Not sure this is used
-                        specaxis        = 0,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.080,
-                        darkcurr        = 0.0,
-                        saturation      = 125000.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 4,
-                        gain            = [1.83]*4,
-                        ronoise         = [3.98]*4,
-                        suffix          = '_03'
-                        ),
-        ]
-        self.numhead = 13
-
-
-
 class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
     """
     Child to handle Gemini/GMOS-N instrument
@@ -497,7 +432,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         self.detector = [  #  Hamamatsu (since 2011)
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        specaxis        = 0,  # FW: this should be 0 for gmos_ham
+                        dispaxis        = 1,  # I think this is ignored, even if true
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -512,7 +447,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        specaxis        = 0,
+                        dispaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -527,7 +462,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        specaxis        = 0,
+                        dispaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -558,7 +493,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         self.detector = [  #  E2V
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        specaxis        = 0,  # I think this is ignored
+                        dispaxis        = 0,  # I think this is ignored
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -573,7 +508,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        specaxis        = 0,
+                        dispaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -588,7 +523,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        specaxis        = 0,
+                        dispaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -723,7 +658,7 @@ def read_gmos(raw_file, det=1):
 
 def gemini_read_amp(inp, ext):
     """
-    Read one amplifier of an Gemini GMOS multi-extension FITS image
+    Read one amplifier of an LRIS multi-extension FITS image
 
     Parameters
     ----------

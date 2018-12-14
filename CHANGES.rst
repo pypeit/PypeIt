@@ -36,7 +36,7 @@
 - Many other small bug fixes and modifications particulary in the fitting routines.
 - Lots of development related to echelle functionality.
 - Major enhancements to fitting routines (in utils)
-
+- Make GMOS south works and update OH line lists, and also add LBT/MODS.
 
 0.9.0
 -----
