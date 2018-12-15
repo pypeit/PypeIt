@@ -577,8 +577,11 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # These lines are always the same
         pad = tslits_dict['pad'] if pad is None else pad
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
+        nslits = tslits_dict['lcen'].shape[1]
+        if nslits != self.norders:
+            msgs.error('Not all the orders were identified!')
 
+        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
         spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
 
         binspatial, binspectral = parse.parse_binning(binning)
@@ -589,6 +592,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         for iorder in range(self.norders):
             orderbad = (slitmask == iorder) & ((spec_img < order_min[iorder]) | (spec_img > order_max[iorder]))
             slitmask[orderbad] = -1
+
         return slitmask
 
 

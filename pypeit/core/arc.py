@@ -7,9 +7,7 @@ from matplotlib import gridspec
 from matplotlib import pyplot as plt
 
 
-
-from scipy.ndimage.filters import gaussian_filter
-
+import scipy
 from astropy.stats import sigma_clipped_stats, sigma_clip
 
 from pypeit import ararclines
@@ -22,7 +20,7 @@ from pypeit.core.wavecal import autoid
 from pypeit import debugger
 from pypeit.core import pydl
 from pypeit.core import qa
-
+from skimage.transform import resize
 
 def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0, func2d='legendre2d', debug=False):
     """Routine to obtain the 2D wavelength solution for an echelle spectrograph. This is calculated from the spec direction
@@ -758,7 +756,7 @@ def eval2dfit_old(fit_dict, pixels, order):
 
     return wv_order_mod
 
-def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5):
+def get_censpec(slit_left_in, slit_righ_in, slitpix_in, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5):
 
     """Extract a spectrum down
 
@@ -807,10 +805,34 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
      """
 
     if inmask is None:
-        inmask = slitpix > -1
+        inmask = slitpix_in > -1
 
-    nslits = slit_left.shape[1]
+
+    nslits = slit_left_in.shape[1]
     (nspec, nspat) = arcimg.shape
+
+    # Is our arc a different size than the other calibs? If yes, slit_left/slit_righ, slitpix, and inmask will
+    # be a different size
+    (nspec_calib,nspat_calib) = slitpix_in.shape
+    if nspec_calib != nspec:
+        if ((nspec_calib > nspec) & (nspec_calib % nspec != 0)) | ((nspec > nspec_calib) & (nspec % nspec_calib != 0)):
+            msgs.error('Problem with images sizes. arcimg size and calibration size need to be integer multiples of each other')
+        else:
+            msgs.info('Calibration images have different binning than the arcimg. Rescaling calibs for arc spectrum extraction.')
+
+        slitpix = (np.round(resize(slitpix_in, (nspec, nspat), preserve_range=True, order=0))).astype(np.integer)
+        inmask_out = ((np.round(resize(inmask.astype(np.integer), (nspec, nspat), preserve_range=True, order=0))).astype(np.integer)).astype(bool)
+        spec_vec_calib = np.arange(nspec_calib)/float(nspec_calib-1)
+        spec_vec = np.arange(nspec)/float(nspec-1)
+        spat_ratio = float(nspat)/float(nspat_calib)
+        slit_left = (scipy.interpolate.interp1d(spec_vec_calib, spat_ratio*slit_left_in,axis=0,bounds_error=False, fill_value='extrapolate'))(spec_vec)
+        slit_righ = (scipy.interpolate.interp1d(spec_vec_calib, spat_ratio*slit_righ_in,axis=0,bounds_error=False,fill_value='extrapolate'))(spec_vec)
+    else:
+        slitpix = slitpix_in
+        slit_left = slit_left_in
+        slit_righ = slit_righ_in
+        inmask_out = inmask
+
     maskslit = np.zeros(nslits, dtype=np.int)
     trace = slit_left + xfrac*(slit_righ - slit_left)
     arc_spec = np.zeros((nspec, nslits))
@@ -820,7 +842,7 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
         msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit))
         # Create a mask for the pixels that will contribue to the arc
         trace_img = np.outer(trace[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
-        arcmask = (slitpix > -1) & inmask & (spat_img > (trace_img - box_rad)) & (spat_img < (trace_img + box_rad))
+        arcmask = (slitpix > -1) & inmask_out & (spat_img > (trace_img - box_rad)) & (spat_img < (trace_img + box_rad))
         # Trimming the image makes this much faster
         left = np.fmax(spat_img[arcmask].min() - 4,0)
         righ = np.fmin(spat_img[arcmask].max() + 5,nspat)

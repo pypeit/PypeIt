@@ -669,7 +669,8 @@ class Calibrations(object):
         self.wv_calib = self.waveCalib.master(force=prev_build)
         # Build?
         if self.wv_calib is None:
-            self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
+            binning = self.fitstbl['binning'][self.frame]
+            self.slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=binning)
             self.wv_calib, _ = self.waveCalib.run(self.tslits_dict['lcen'],
                                                   self.tslits_dict['rcen'],
                                                   self.slitmask,
