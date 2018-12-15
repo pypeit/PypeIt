@@ -67,7 +67,7 @@ class WaveCalib(masterframe.MasterFrame):
 
     # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
     # parameters since instantiating without them does nothing. Make them required
-    def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, det=None, master_key=None, master_dir=None,
+    def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, det=1, master_key=None, master_dir=None,
                  mode=None, redux_path=None, bpm = None):
 
         # Instantiate the spectograph
@@ -84,6 +84,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Optional parameters
         self.bpm = bpm
         self.par = pypeitpar.WavelengthSolutionPar() if par is None else par
+        self.binning = binning
         self.redux_path = redux_path
         self.det = det
         self.master_key = master_key
@@ -100,7 +101,7 @@ class WaveCalib(masterframe.MasterFrame):
         if self.tslits_dict is not None and self.msarc is not None:
             slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
             inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask, dtype=bool)
-            shape_orig = self.slitmask.shape
+            shape_orig = slitmask.shape
             shape_arc = self.msarc.shape
             self.nslits = self.tslits_dict['lcen'].shape[1]
             self.slit_left = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['lcen'])
@@ -373,7 +374,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.maskslits = mask
         return self.maskslits
 
-    def run(self, lordloc, rordloc, slitpix, nonlinear=None, skip_QA=False, debug=False):
+    def run(self, skip_QA=False, debug=False):
         """
         Main driver for wavelength calibration
 
@@ -391,9 +392,6 @@ class WaveCalib(masterframe.MasterFrame):
           From a TraceSlit object
         slitpix : ndarray
           slitmask from tslits_dict
-        nonlinear : float, optional
-          Would be passed to arc.detect_lines but that routine is
-          currently being run in arclines.holy
         skip_QA : bool, optional
 
         Returns
@@ -404,7 +402,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         ###############
         # Extract an arc down each slit
-        self.arccen, self.arc_maskslit = self.extract_arcs(self.slitcen, self.slitmask, self.msarc, self.inmask)
+        self.arccen, self.maskslits = self.extract_arcs(self.slitcen, self.slitmask, self.msarc, self.inmask)
 
         # Fill up the calibrations and generate QA
         self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)
@@ -415,8 +413,7 @@ class WaveCalib(masterframe.MasterFrame):
             self.wv_calib['fit2d'] = fit2d_dict
 
         # Build mask
-        nslits = lordloc.shape[1]
-        self._make_maskslits(nslits)
+        self._make_maskslits(self.nslits)
 
         # Pack up
         self.wv_calib['steps'] = self.steps
@@ -521,7 +518,7 @@ def load_wv_calib(filename):
     """
 
 
-    waveCalib = WaveCalib(None)
+    waveCalib = WaveCalib(None,None)
     wv_calib = waveCalib.load_master(filename)
     return (waveCalib.wv_calib, waveCalib.par)
 

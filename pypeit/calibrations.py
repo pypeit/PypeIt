@@ -665,18 +665,14 @@ class Calibrations(object):
         nonlinear = self.spectrograph.detector[self.det-1]['saturation'] \
                         * self.spectrograph.detector[self.det-1]['nonlinear']
         # Instantiate
-        self.waveCalib = wavecalib.WaveCalib(self.msarc, spectrograph=self.spectrograph,det=self.det,
+        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, binning = self.binning, spectrograph=self.spectrograph,det=self.det,
                                              par=self.par['wavelengths'], master_key=self.arc_master_key, master_dir=self.master_dir,
                                              mode=self.par['masters'],redux_path=self.redux_path, bpm=self.msbpm)
         # Load from disk (MasterFrame)?
         self.wv_calib = self.waveCalib.master(force=prev_build)
         # Build?
         if self.wv_calib is None:
-            self.slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
-            self.wv_calib, _ = self.waveCalib.run(self.tslits_dict['lcen'],
-                                                  self.tslits_dict['rcen'],
-                                                  self.slitmask,
-                                                  nonlinear=nonlinear, skip_QA=(not self.write_qa))
+            self.wv_calib, _ = self.waveCalib.run(skip_QA=(not self.write_qa))
             # Save to Masters
             if self.save_masters:
                 self.waveCalib.save_master(self.waveCalib.wv_calib)

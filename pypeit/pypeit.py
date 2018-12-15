@@ -299,10 +299,12 @@ class PypeIt(object):
             msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
         msgs.info(msgs_string)
         if bg_frames is not None:
-            bg_msgs_string = msgs.newline() + 'Using background from frames:' + msgs.newline()
+            bg_msgs_string = ''
             for iframe in self.bg_frames:
                 bg_msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
-            msgs.info(bg_msgs_string)
+            bg_msgs_string = msgs.newline() + 'Using background from frames:' + msgs.newline() + bg_msgs_string
+            if len(bg_frames) > 0:
+                msgs.info(bg_msgs_string)
 
         # Find the detectors to reduce
         detectors = self.select_detectors()

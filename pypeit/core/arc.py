@@ -861,7 +861,7 @@ def get_censpec(slit_cen, slitmask, arcimg, inmask = None, box_rad = 3.0, xfrac 
         msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit))
         # Create a mask for the pixels that will contribue to the arc
         slit_img = np.outer(slit_cen[:,islit], np.ones(nspat))  # central trace replicated spatially
-        arcmask = (slitpix > -1) & inmask & (spat_img > (slit_img - box_rad)) & (spat_img < (slit_img + box_rad))
+        arcmask = (slitmask > -1) & inmask & (spat_img > (slit_img - box_rad)) & (spat_img < (slit_img + box_rad))
         # Trimming the image makes this much faster
         left = np.fmax(spat_img[arcmask].min() - 4,0)
         righ = np.fmin(spat_img[arcmask].max() + 5,nspat)

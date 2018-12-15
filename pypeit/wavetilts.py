@@ -87,7 +87,7 @@ class WaveTilts(masterframe.MasterFrame):
         if self.tslits_dict is not None and self.msarc is not None:
             slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
             inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask, dtype=bool)
-            shape_orig = self.slitmask.shape
+            shape_orig = slitmask.shape
             shape_arc = self.msarc.shape
             self.nslits = self.tslits_dict['lcen'].shape[1]
             self.slit_left = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['lcen'])
