@@ -63,7 +63,7 @@ class BPMImage(object):
     frametype = 'bpm'
 
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph, shape=None, filename=None, det=None, msbias=None):
+    def __init__(self, spectrograph, shape=None, det=None):
 
         # This function interprets both strings and spectrograph
         # instances now
@@ -71,16 +71,17 @@ class BPMImage(object):
 
         # Used to construct the BPM using the spectrograph class
         self.shape = shape
-        self.filename = filename
+        #self.filename = filename
         self.det = det
 
         # Used to construct the BPM from the bias
-        self.msbias = msbias
+        #self.msbias = msbias JFH This is not yet supported anyway
         #self.trim = trim -- Killing this option for now
 
         # spectrograph or msbias must be defined
-        if self.spectrograph is None and msbias is None:
-            msgs.error('BPMImage instantiation incomplete.  Must provide spectrograph or msbias.')
+        if self.spectrograph is None:
+            msgs.error('BPMImage instantiation incomplete.  Must provide spectrograph.')
+
 
         # Output
         self.bpm_img = None
@@ -98,10 +99,11 @@ class BPMImage(object):
         if self.shape is not None:
             # WARNING: This assumes shape is the untrimmed size of the
             # image!
-            self.bpm_img = self.spectrograph.bpm(shape=self.shape, filename=self.filename, det=self.det)
+            self.bpm_img = self.spectrograph.bpm(shape=self.shape, det=self.det)
             #if self.trim:
             #    mask = self.spectrograph.get_datasec_img(filename=self.filename, det=self.det) < 1
         else:
+            # JFH This is all deprecated here
             debugger.set_trace() # TOO EXPERIMENTAL
             _datasec = datasec
             if self.spectrograph is None and _datasec is None:

@@ -311,7 +311,6 @@ class Calibrations(object):
         # Check internals
         self._chk_set(['par'])
 
-
         # Generate a bad pixel mask (should not repeat)
         self.bpm_master_key = self.fitstbl.master_key(self.frame, det=self.det)
         prev_build = self.check_for_previous('bpm', self.bpm_master_key)
@@ -320,21 +319,24 @@ class Calibrations(object):
             return self.msbpm
 
         # Make sure shape is defined
-        self._check_shape()
+        #self._check_shape()
 
         # Always use the shape!
         #  But some instruments need the filename too, e.g. for binning
         sci_image_files = [self.fitstbl.frame_paths(self.frame)]
+        # TODO JFH These lines below should either go into the spectrograph class or to the BPM image class, they
+        # do not belong here.
         dsec_img = self.spectrograph.get_datasec_img(sci_image_files[0], det=self.det)
-        shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+        # Instantiate the shape here, based on the shape of the science image. This is the shape of most
+        # most calibrations, although we are allowing for arcs of different shape becuase of X-shooter etc.
+        self.shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+
         # Check it matches the processed arc;  if not we have issues..
-        if not (self.shape == shape):
-            msgs.error("You have an untrimmed arc!  We aren't prepared for this..")
+        #if not (self.shape == shape):
+        #    msgs.error("You have an untrimmed arc!  We aren't prepared for this..")
 
         # Build it
-        bpmImage = bpmimage.BPMImage(self.spectrograph, filename=sci_image_files[0],
-                                     det=self.det, shape=self.shape,
-                                     msbias=self.msbias if self.par['badpix'] == 'bias' else None)
+        bpmImage = bpmimage.BPMImage(self.spectrograph,det=self.det, shape=self.shape)
         # Build, save, and return
         self.msbpm = bpmImage.build()
         self.calib_dict[self.bpm_master_key]['bpm'] = self.msbpm
@@ -698,7 +700,7 @@ class Calibrations(object):
             self.pixlocn: ndarray
         """
         # Make sure shape is defined
-        self._check_shape()
+        #self._check_shape()
         # Check internals
         self._chk_set(['shape'])
 
@@ -799,21 +801,21 @@ class Calibrations(object):
                     msgs.warn("Use get_{:s}".format(iobj))
                 return False
         return True
-
-    def _check_shape(self):
-        """
-        Check that the shape attribute is not None.  If it is use,
-        define it using the shape of msarc
-
-        .. warning::
-            - This shape depends on if the images are trimmed or not!
-        """
-        # Check the shape is declared
-        if self.shape is None and self.msarc is None:
-            raise ValueError('Before calling BPM, must run get_arc to get image shape, or '
-                             'provide shape directly.')
-        if self.shape is None:
-            self.shape = self.msarc.shape
+    #
+    # def _check_shape(self):
+    #     """
+    #     Check that the shape attribute is not None.  If it is use,
+    #     define it using the shape of msarc
+    #
+    #     .. warning::
+    #         - This shape depends on if the images are trimmed or not!
+    #     """
+    #     # Check the shape is declared
+    #     if self.shape is None and self.msbpm is None:
+    #         raise ValueError('You must run get_bpm to get image shape, or '
+    #                          'provide shape directly.')
+    #     if self.shape is None:
+    #         self.shape = self.msbpm.shape
 
     def show(self, obj):
         if isinstance(obj, np.ndarray):
@@ -847,7 +849,7 @@ class MultiSlitCalibrations(Calibrations):
 
     @staticmethod
     def default_steps():
-        return ['bias', 'arc', 'bpm', 'pixlocn', 'slits', 'wv_calib', 'tilts',
+        return ['bpm', 'bias', 'arc', 'pixlocn', 'slits', 'wv_calib', 'tilts',
                 'flats', 'wave']
 
 

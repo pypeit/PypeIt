@@ -58,7 +58,7 @@ class Spectrograph(object):
         self.camera = None
         self.detector = None
         self.naxis = None
-        self.raw_naxis = None
+#        self.raw_naxis = None
         self.datasec_img = None
         self.bpm_img = None
 
@@ -262,13 +262,13 @@ class Spectrograph(object):
             # Check the detector is defined
             self._check_detector()
             # Get the image shape
-            self.get_raw_image_shape(filename=filename, det=det)
+            raw_naxis = self.get_raw_image_shape(filename, det=det)
 
             data_sections, one_indexed, include_end, transpose \
                     = self.get_image_section(filename, det, section='datasec')
 
             # Initialize the image (0 means no amplifier)
-            self.datasec_img = np.zeros(self.raw_naxis, dtype=int)
+            self.datasec_img = np.zeros(raw_naxis, dtype=int)
             for i in range(self.detector[det-1]['numamplifiers']):
                 # Convert the data section from a string to a slice
                 datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
@@ -278,7 +278,7 @@ class Spectrograph(object):
                 self.datasec_img[datasec] = i+1
         return self.datasec_img
 
-    def get_raw_image_shape(self, filename=None, det=None, force=True):
+    def get_raw_image_shape(self, filename, det=None, force=True):
         """
         Get the *untrimmed* shape of the image data for a given detector using a
         file.  :attr:`detector` must be defined.
@@ -312,19 +312,59 @@ class Spectrograph(object):
                 Raised if the image shape cannot be determined from the
                 input and available attributes.
         """
-        # Cannot be determined
-        if (self.raw_naxis is None or force) and filename is None:
-            raise ValueError('Cannot determine image shape!  Must have NAXIS predefined or '
-                             'provide a file to read.')
-
-        # Return the predefined value
-        if self.raw_naxis is not None:
-            return self.raw_naxis
 
         # Use a file
         self._check_detector()
-        self.raw_naxis = (self.load_raw_frame(filename, det=det)[0]).shape
-        return self.raw_naxis
+        raw_naxis = (self.load_raw_frame(filename, det=det)[0]).shape
+        return raw_naxis
+
+#    def get_raw_image_shape_deprecated(self, filename=None, det=None, force=True):
+#        """
+#        Get the *untrimmed* shape of the image data for a given detector using a
+#        file.  :attr:`detector` must be defined.
+#
+#        Fails if filename is None and the instance does not have a
+#        predefined :attr:`naxis`.  If the filename is None, always
+#        returns the predefined :attr:`naxis`.  If the filename is
+#        provided, the header of the associated detector is used.  If the
+#        the detector is set to None, the primary header of the file is
+#        used.
+#
+#        Args:
+#            filename (:obj:`str`, optional):
+#                Name of the fits file with the header to use.
+#             det (:obj:`int`, optional):
+#                 1-indexed number of the detector.  Default is None.  If
+#                 None, the primary extension is used.  Otherwise the
+#                 internal detector parameters are used to determine the
+#                 extension to read.
+#             force (:obj:`bool`, optional):
+#                 Force the image shape to be redetermined.
+#             null_kwargs (dict):
+#                 Used to catch any extraneous keyword arguments.
+#
+#         Returns:
+#             tuple: Tuple of two integers with the length of each image
+#             axes.
+#
+#         Raises:
+#             ValueError:
+#                 Raised if the image shape cannot be determined from the
+#                 input and available attributes.
+#         """
+#         # Cannot be determined
+#         if (self.raw_naxis is None or force) and filename is None:
+#             raise ValueError('Cannot determine image shape!  Must have NAXIS predefined or '
+#                              'provide a file to read.')
+#
+#         # Return the predefined value
+#         if self.raw_naxis is not None:
+#             return self.raw_naxis
+#
+#         # Use a file
+#         self._check_detector()
+#         self.raw_naxis = (self.load_raw_frame(filename, det=det)[0]).shape
+#         return self.raw_naxis
 
     def empty_bpm(self, shape=None, filename=None, det=1):
         """
@@ -342,12 +382,15 @@ class Spectrograph(object):
               0=not masked; 1=masked
 
         """
+
+        # TODO The logic heere is botched. shape has to be set for the code not to crash so why is filename even
+        # an argument???
         if shape is None:
             msgs.error("THIS IS NOT GOING TO WORK")
             # Check the detector is defined
             self._check_detector()
             # Get the image shape
-            _shape = self.get_raw_image_shape(filename=filename, det=det)
+            _shape = self.get_raw_image_shape(filename, det=det)
         else:
             _shape = shape
         # JFH I think all masks should be boolean aside from the bitmask.
@@ -370,6 +413,8 @@ class Spectrograph(object):
               0=not masked; 1=masked
 
         """
+        ## JFH TODO Filename should not be an option since it can never be used in empty_bpm since the code crashes
+        # before that.
         return self.empty_bpm(shape=shape, filename=filename, det=det)
 
     # TODO: (KBW) I've removed all the defaults.  Should maybe revisit

@@ -202,14 +202,14 @@ class ProcessImages(object):
                                                       section='datasec')
         datasec = [parse.sec2slice(sec, one_indexed=one_indexed,
                                            include_end=include_end, require_dim=2,
-                                           transpose=transpose) for sec in self.datasec ]
+                                           transpose=transpose) for sec in datasec ]
         # Get the overscan sections
         oscansec, one_indexed, include_end, transpose \
                 = self.spectrograph.get_image_section(file_list[0], self.det,
                                                       section='oscansec')
         oscansec = [ parse.sec2slice(sec, one_indexed=one_indexed,
                                             include_end=include_end, require_dim=2,
-                                            transpose=transpose) for sec in self.oscansec ]
+                                            transpose=transpose) for sec in oscansec ]
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Consider a return statement
@@ -292,7 +292,6 @@ class ProcessImages(object):
                 temp = image-msbias
             elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
-                #debugger.set_trace()
                 temp = procimg.subtract_overscan(image, numamplifiers, self.datasec,
                                                    self.oscansec,
                                                    method=self.proc_par['overscan'],
