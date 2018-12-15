@@ -756,7 +756,47 @@ def eval2dfit_old(fit_dict, pixels, order):
 
     return wv_order_mod
 
-def get_censpec(slit_left_in, slit_righ_in, slitpix_in, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5, nonlinear_counts=1e10):
+def resize_mask2arc(shape_arc, slitmask_orig):
+
+    (nspec, nspat) = shape_arc
+    # Is our arc a different size than the other calibs? If yes, slit_left/slit_righ, slitpix, and inmask will
+    # be a different size
+    (nspec_orig,nspat_orig) = slitmask_orig.shape
+    if nspec_orig != nspec:
+        if ((nspec_orig > nspec) & (nspec_orig % nspec != 0)) | ((nspec > nspec_orig) & (nspec % nspec_orig != 0)):
+            msgs.error('Problem with images sizes. arcimg size and calibration size need to be integer multiples of each other')
+        else:
+            msgs.info('Calibration images have different binning than the arcimg. Resizing calibs for arc spectrum extraction.')
+
+        slitmask = ((np.round(resize(slitmask_orig.astype(np.integer), (nspec, nspat), preserve_range=True, order=0))).astype(np.integer)).astype(slitmask_orig.dtype)
+    else:
+        slitmask = slitmask_orig
+
+    return slitmask
+
+def resize_slits2arc(shape_arc, shape_orig, trace_orig):
+
+    (nspec, nspat) = shape_arc
+    # Is our arc a different size than the other calibs? If yes, slit_left/slit_righ, slitpix, and inmask will
+    # be a different size
+    (nspec_orig,nspat_orig) = shape_orig
+    if nspec_orig != nspec:
+        if ((nspec_orig > nspec) & (nspec_orig % nspec != 0)) | ((nspec > nspec_orig) & (nspec % nspec_orig != 0)):
+            msgs.error('Problem with images sizes. arcimg size and calibration size need to be integer multiples of each other')
+        else:
+            msgs.info('Calibration images have different binning than the arcimg. Resizing calibs for arc spectrum extraction.')
+
+        spec_vec_orig = np.arange(nspec_orig)/float(nspec_orig - 1)
+        spec_vec = np.arange(nspec)/float(nspec - 1)
+        spat_ratio = float(nspat)/float(nspat_orig)
+        trace = (scipy.interpolate.interp1d(spec_vec_orig, spat_ratio*trace_orig, axis=0, bounds_error=False,fill_value='extrapolate'))(spec_vec)
+    else:
+        trace = trace_orig
+
+    return trace
+
+
+def get_censpec(slit_cen, slitmask, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5, nonlinear_counts=1e10):
 
     """Extract a spectrum down
 
@@ -805,46 +845,23 @@ def get_censpec(slit_left_in, slit_righ_in, slitpix_in, arcimg, inmask = None, b
      """
 
     if inmask is None:
-        inmask = slitpix_in > -1
-
-    nslits = slit_left_in.shape[1]
-    (nspec, nspat) = arcimg.shape
-
-    # Is our arc a different size than the other calibs? If yes, slit_left/slit_righ, slitpix, and inmask will
-    # be a different size
-    (nspec_calib,nspat_calib) = slitpix_in.shape
-    if nspec_calib != nspec:
-        if ((nspec_calib > nspec) & (nspec_calib % nspec != 0)) | ((nspec > nspec_calib) & (nspec % nspec_calib != 0)):
-            msgs.error('Problem with images sizes. arcimg size and calibration size need to be integer multiples of each other')
-        else:
-            msgs.info('Calibration images have different binning than the arcimg. Rescaling calibs for arc spectrum extraction.')
-
-        slitpix = (np.round(resize(slitpix_in, (nspec, nspat), preserve_range=True, order=0))).astype(np.integer)
-        inmask_out = ((np.round(resize(inmask.astype(np.integer), (nspec, nspat), preserve_range=True, order=0))).astype(np.integer)).astype(bool)
-        spec_vec_calib = np.arange(nspec_calib)/float(nspec_calib-1)
-        spec_vec = np.arange(nspec)/float(nspec-1)
-        spat_ratio = float(nspat)/float(nspat_calib)
-        slit_left = (scipy.interpolate.interp1d(spec_vec_calib, spat_ratio*slit_left_in,axis=0,bounds_error=False, fill_value='extrapolate'))(spec_vec)
-        slit_righ = (scipy.interpolate.interp1d(spec_vec_calib, spat_ratio*slit_righ_in,axis=0,bounds_error=False,fill_value='extrapolate'))(spec_vec)
-    else:
-        slitpix = slitpix_in
-        slit_left = slit_left_in
-        slit_righ = slit_righ_in
-        inmask_out = inmask
+        inmask = slitmask > -1
 
     # Mask saturated parts of the arc image for the extraction
-    inmask_out = inmask_out & (arcimg < nonlinear_counts)
+    inmask = inmask & (arcimg < nonlinear_counts)
+
+    nslits = slit_cen.shape[1]
+    (nspec, nspat) = arcimg.shape
 
     maskslit = np.zeros(nslits, dtype=np.int)
-    trace = slit_left + xfrac*(slit_righ - slit_left)
     arc_spec = np.zeros((nspec, nslits))
     spat_img = np.outer(np.ones(nspec,dtype=int), np.arange(nspat,dtype=int)) # spatial position everywhere along image
 
     for islit in range(nslits):
         msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit))
         # Create a mask for the pixels that will contribue to the arc
-        trace_img = np.outer(trace[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
-        arcmask = (slitpix > -1) & inmask_out & (spat_img > (trace_img - box_rad)) & (spat_img < (trace_img + box_rad))
+        slit_img = np.outer(slit_cen[:,islit], np.ones(nspat))  # central trace replicated spatially
+        arcmask = (slitpix > -1) & inmask & (spat_img > (slit_img - box_rad)) & (spat_img < (slit_img + box_rad))
         # Trimming the image makes this much faster
         left = np.fmax(spat_img[arcmask].min() - 4,0)
         righ = np.fmin(spat_img[arcmask].max() + 5,nspat)
