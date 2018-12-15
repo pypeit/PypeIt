@@ -543,7 +543,6 @@ class Calibrations(object):
             # User-defined slits??
             add_user_slits = trace_slits.parse_user_slits(self.par['slits']['add_slits'], self.det)
             rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det, rm=True)
-
             # Now we go forth
             try:
                 self.tslits_dict = self.traceSlits.run(plate_scale = plate_scale, show=self.show,

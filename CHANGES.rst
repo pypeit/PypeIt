@@ -13,7 +13,7 @@
 - Introduced reidentification algorithm for wavelengths and many
   associated algorithms. Reidentification is now the default for
   x-shooter and NIRES. Other changes to the wavelength interface and
-  routines to make them more compatible with echelle. 
+  routines to make them more compatible with echelle.
 - Tweaked LA cosmics defaults. Add instrument specific parameters in
   spectrograh classes along with routines that check binning and decide
   on best params for LRIS-RED
@@ -46,6 +46,8 @@
   fitting routines.
 - Lots of development related to echelle functionality.
 - Major enhancements to fitting routines (in utils)
+
+- Make GMOS south works and update OH line lists, and also add LBT/MODS.
 
 0.9.0
 -----
