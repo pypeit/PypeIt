@@ -16,8 +16,9 @@ def valid_spectrographs():
     return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec_low',
             'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
             'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir',
-            'gemini_gnirs', 'gemini_gmos_south', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
-            'magellan_fire', 'magellan_mage', 'keck_hires_red' ]
+            'gemini_gnirs', 'gemini_gmos_south_ham', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
+            'magellan_fire', 'magellan_mage', 'keck_hires_red',
+            'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b']
             # There are no such spectrographs defined
             #'keck_hires_blue', 'mmt_binospec']
 
@@ -107,14 +108,26 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'vlt_xshooter_nir':
         return spectrographs.vlt_xshooter.VLTXShooterNIRSpectrograph()
 
-    if spectrograph == 'gemini_gmos_south':
-        return spectrographs.gemini_gmos.GeminiGMOSSSpectrograph()
+    if spectrograph == 'gemini_gmos_south_ham':
+        return spectrographs.gemini_gmos.GeminiGMOSSHamSpectrograph()
 
     if spectrograph == 'gemini_gmos_north_e2v':
         return spectrographs.gemini_gmos.GeminiGMOSNE2VSpectrograph()
 
     if spectrograph == 'gemini_gmos_north_ham':
         return spectrographs.gemini_gmos.GeminiGMOSNHamSpectrograph()
+
+    if spectrograph == 'lbt_mods1r':
+        return spectrographs.lbt_mods.LBTMODS1RSpectrograph()
+
+    if spectrograph == 'lbt_mods2r':
+        return spectrographs.lbt_mods.LBTMODS2RSpectrograph()
+
+    if spectrograph == 'lbt_mods1b':
+        return spectrographs.lbt_mods.LBTMODS1BSpectrograph()
+
+    if spectrograph == 'lbt_mods2b':
+        return spectrographs.lbt_mods.LBTMODS2BSpectrograph()
 
     msgs.error('{0} is not a supported spectrograph.'.format(spectrograph))
 
