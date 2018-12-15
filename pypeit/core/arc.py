@@ -756,7 +756,7 @@ def eval2dfit_old(fit_dict, pixels, order):
 
     return wv_order_mod
 
-def get_censpec(slit_left_in, slit_righ_in, slitpix_in, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5):
+def get_censpec(slit_left_in, slit_righ_in, slitpix_in, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5, nonlinear_counts=1e10):
 
     """Extract a spectrum down
 
@@ -807,7 +807,6 @@ def get_censpec(slit_left_in, slit_righ_in, slitpix_in, arcimg, inmask = None, b
     if inmask is None:
         inmask = slitpix_in > -1
 
-
     nslits = slit_left_in.shape[1]
     (nspec, nspat) = arcimg.shape
 
@@ -832,6 +831,9 @@ def get_censpec(slit_left_in, slit_righ_in, slitpix_in, arcimg, inmask = None, b
         slit_left = slit_left_in
         slit_righ = slit_righ_in
         inmask_out = inmask
+
+    # Mask saturated parts of the arc image for the extraction
+    inmask_out = inmask_out & (arcimg < nonlinear_counts)
 
     maskslit = np.zeros(nslits, dtype=np.int)
     trace = slit_left + xfrac*(slit_righ - slit_left)

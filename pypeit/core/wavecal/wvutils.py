@@ -156,7 +156,7 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False,sig
 
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
-def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=90.0, use_raw_arc=False, sigdetect = 10.0, fwhm = 4.0, debug=False):
+def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=80.0, use_raw_arc=False, sigdetect = 10.0, fwhm = 4.0, debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
     the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
@@ -214,7 +214,7 @@ def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=90.0, use_raw_arc=False,
     return lag_max[0], corr_max[0]
 
 
-def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ceil=90.0, use_raw_arc=False,
+def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ceil=80.0, use_raw_arc=False,
                         shift_mnmx=(-0.05,0.05), stretch_mnmx=(0.95,1.05), sigdetect = 10.0, fwhm = 4.0,debug=False, seed = None):
 
     """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial

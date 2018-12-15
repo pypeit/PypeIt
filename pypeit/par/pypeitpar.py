@@ -1121,7 +1121,7 @@ class WavelengthSolutionPar(ParSet):
                              'of the archive required to attempt reidentification. Spectra from the archive with a lower ' \
                              'cross-correlation are not used for reidentification. This can be a single number or a list/array providing the value for each slit'
 
-        defaults['cc_local_thresh'] = 0.80
+        defaults['cc_local_thresh'] = 0.70
         dtypes['cc_local_thresh'] = float
         descr['cc_local_thresh'] = 'Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  ' \
                                    'between an input spectrum and the shifted and stretched archive spectrum above which a ' \
