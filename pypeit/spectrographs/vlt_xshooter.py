@@ -126,19 +126,18 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
 
-        #
         match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['binning'] = ''
         # Bias
         match_criteria['bias']['match'] = {}
         match_criteria['bias']['match']['binning'] = ''
         # Pixelflat
-        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
+        match_criteria['pixelflat']['match'] = {}
+        match_criteria['pixelflat']['match']['binning'] = ''
         # Traceflat
-        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
+        match_criteria['trace']['match'] = {}
+        match_criteria['trace']['match']['binning'] = ''
         # Arc
-        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
-
+        match_criteria['arc']['match'] = {}
         # Return
         return match_criteria
 
