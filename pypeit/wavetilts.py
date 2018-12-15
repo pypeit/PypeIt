@@ -81,7 +81,11 @@ class WaveTilts(masterframe.MasterFrame):
         self.det = det
         self.redux_path = redux_path
         # TODO this code is duplicated verbatim in wavetilts. Should it be a function
-        self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
+        # TODO this code is duplicated verbatim in wavetilts. Should it be a function
+        if self.spectrograph.detector is not None:
+            self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
+        else:
+            self.nonlinear_counts=1e10
         # Set the slitmask and slit boundary related attributes that the code needs for execution. This also deals with
         # arcimages that have a different binning then the trace images used to defined the slits
         if self.tslits_dict is not None and self.msarc is not None:
@@ -94,7 +98,7 @@ class WaveTilts(masterframe.MasterFrame):
             self.slit_righ = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['rcen'])
             self.slitcen   = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['slitcen'])
             self.slitmask  = arc.resize_mask2arc(shape_arc,slitmask)
-            self.inmask  = arc.resize_mask2arc(shape_arc,inmask)
+            self.inmask = (arc.resize_mask2arc(shape_arc,inmask)) & (self.msarc < self.nonlinear_counts)
         else:
             self.nslits = 0
             self.slit_left = None

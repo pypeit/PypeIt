@@ -95,7 +95,10 @@ class WaveCalib(masterframe.MasterFrame):
         self.arccen = None # central arc spectrum
 
         # TODO this code is duplicated verbatim in wavetilts. Should it be a function
-        self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
+        if self.spectrograph.detector is not None:
+            self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
+        else:
+            self.nonlinear_counts=1e10
         # Set the slitmask and slit boundary related attributes that the code needs for execution. This also deals with
         # arcimages that have a different binning then the trace images used to defined the slits
         if self.tslits_dict is not None and self.msarc is not None:
@@ -108,7 +111,7 @@ class WaveCalib(masterframe.MasterFrame):
             self.slit_righ = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['rcen'])
             self.slitcen   = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['slitcen'])
             self.slitmask  = arc.resize_mask2arc(shape_arc,slitmask)
-            self.inmask  = arc.resize_mask2arc(shape_arc,inmask)
+            self.inmask = (arc.resize_mask2arc(shape_arc,inmask)) & (self.msarc < self.nonlinear_counts)
         else:
             self.nslits = 0
             self.slit_left = None
@@ -172,14 +175,14 @@ class WaveCalib(masterframe.MasterFrame):
                                                                   n_final=self.par['n_final'],
                                                                   sigrej_final=self.par['sigrej_final'],
                                                                   sigdetect=self.par['sigdetect'],
-                                                                  nonlinear_counts= self.par['nonlinear_counts'])
+                                                                  nonlinear_counts= self.nonlinear_counts)
                 final_fit[str(slit)] = ifinal_fit.copy()
         elif method == 'basic':
             final_fit = {}
             for slit in ok_mask:
                 status, ngd_match, match_idx, scores, ifinal_fit = \
                     wavecal.autoid.basic(arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
-                                 nonlinear_counts = self.par['nonlinear_counts'])
+                                 nonlinear_counts = self.nonlinear_counts)
                 final_fit[str(slit)] = ifinal_fit.copy()
                 if status != 1:
                     self.maskslits[slit] = 1
