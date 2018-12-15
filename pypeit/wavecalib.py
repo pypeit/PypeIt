@@ -67,7 +67,7 @@ class WaveCalib(masterframe.MasterFrame):
 
     # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
     # parameters since instantiating without them does nothing. Make them required
-    def __init__(self, msarc, spectrograph=None, par=None, det=None, master_key=None, master_dir=None,
+    def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, det=None, master_key=None, master_dir=None,
                  mode=None, redux_path=None, bpm = None):
 
         # Instantiate the spectograph
@@ -79,28 +79,45 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Required parameters (but can be None)
         self.msarc = msarc
-        self.bpm = bpm
-
-        self.par = pypeitpar.WavelengthSolutionPar() if par is None else par
+        self.tslits_dict = tslits_dict
 
         # Optional parameters
+        self.bpm = bpm
+        self.par = pypeitpar.WavelengthSolutionPar() if par is None else par
         self.redux_path = redux_path
         self.det = det
         self.master_key = master_key
-        #self.arcparam = arcparam
 
         # Attributes
-        # Done by MasterFrame
-        self.steps = []
+        self.steps = []    # steps executed
+        self.wv_calib = {} # main output
+        self.arccen = None # central arc spectrum
 
-        # Main outputs
-        self.wv_calib = {}
+        # TODO this code is duplicated verbatim in wavetilts. Should it be a function
+        self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
+        # Set the slitmask and slit boundary related attributes that the code needs for execution. This also deals with
+        # arcimages that have a different binning then the trace images used to defined the slits
+        if self.tslits_dict is not None and self.msarc is not None:
+            slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
+            inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask, dtype=bool)
+            shape_orig = self.slitmask.shape
+            shape_arc = self.msarc.shape
+            self.nslits = self.tslits_dict['lcen'].shape[1]
+            self.slit_left = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['lcen'])
+            self.slit_righ = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['rcen'])
+            self.slitcen   = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['slitcen'])
+            self.slitmask  = arc.resize_mask2arc(shape_arc,slitmask)
+            self.inmask  = arc.resize_mask2arc(shape_arc,inmask)
+        else:
+            self.nslits = 0
+            self.slit_left = None
+            self.slit_righ = None
+            self.slitcen = None
+            self.slitmask = None
+            self.inmask = None
 
-        # Key Internals
-        self.arccen = None
 
-
-    def _build_wv_calib(self, method, skip_QA=False):
+    def build_wv_calib(self, arccen, method, skip_QA=False):
         """
         Main routine to generate the wavelength solutions in a loop over slits
         Wrapper to arc.simple_calib or arc.calib_with_arclines
@@ -134,7 +151,7 @@ class WaveCalib(masterframe.MasterFrame):
             llist = vstack([CuI, ArI, ArII])
             self.arcparam['llist'] = llist
 
-            self.wv_calib = arc.simple_calib_driver(self.msarc, self.par, self.arccen, ok_mask,
+            self.wv_calib = arc.simple_calib_driver(self.msarc, self.par, arccen, ok_mask,
                                                     nfitpix=self.par['nfitpix'],
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
@@ -146,7 +163,7 @@ class WaveCalib(masterframe.MasterFrame):
                 self.par['wv_cen'] = 8670.
                 self.par['disp'] = 1.524
                 # ToDO remove these hacks and use the parset in semi_brute
-                best_dict, ifinal_fit = wavecal.autoid.semi_brute(self.arccen[:, slit],
+                best_dict, ifinal_fit = wavecal.autoid.semi_brute(arccen[:, slit],
                                                                   self.par['lamps'], self.par['wv_cen'],
                                                                   (self)['disp'],match_toler=self.par['match_toler'],
                                                                   func=self.par['func'],n_first=self.par['n_first'],
@@ -160,23 +177,23 @@ class WaveCalib(masterframe.MasterFrame):
             final_fit = {}
             for slit in ok_mask:
                 status, ngd_match, match_idx, scores, ifinal_fit = \
-                    wavecal.autoid.basic(self.arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
+                    wavecal.autoid.basic(arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
                                  nonlinear_counts = self.par['nonlinear_counts'])
                 final_fit[str(slit)] = ifinal_fit.copy()
                 if status != 1:
                     self.maskslits[slit] = 1
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
-            arcfitter = wavecal.autoid.HolyGrail(self.arccen, par = self.par, ok_mask=ok_mask)
+            arcfitter = wavecal.autoid.HolyGrail(arccen, par = self.par, ok_mask=ok_mask)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'reidentify':
             # Now preferred
-            arcfitter = wavecal.autoid.ArchiveReid(self.arccen, par=self.par, ok_mask=ok_mask)
+            arcfitter = wavecal.autoid.ArchiveReid(arccen, par=self.par, ok_mask=ok_mask)
             patt_dict, final_fit = arcfitter.get_results()
 
 
         else:
-            msgs.error('Unrecognized wavelength calibration method: {:}'.format(use_method))
+            msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
         self.wv_calib = final_fit
 
@@ -197,7 +214,7 @@ class WaveCalib(masterframe.MasterFrame):
         return self.wv_calib
 
 
-    def _echelle_2dfit(self, wv_calib,debug=False, skip_QA = False):
+    def echelle_2dfit(self, wv_calib,debug=False, skip_QA = False):
         """
         Evaluate 2-d wavelength solution for echelle data. Unpacks wv_calib for slits to be input into  arc.fit2darc
 
@@ -252,34 +269,26 @@ class WaveCalib(masterframe.MasterFrame):
         return fit2d_dict
 
 
-    def _extract_arcs(self, lordloc, rordloc, slitpix):
+    # JFH TODO this method is identical to the code in wavetilts. SHould we make it a separate function?
+    def extract_arcs(self, slitcen, slitmask, msarc, inmask):
         """
-        Extract an arc down the center of each slit/order
+        Extract the arcs down each slit/order
 
-        Wrapper to arc.get_censpec
-
-        Parameters
-        ----------
-        lordloc : ndarray
-          Left edges (from TraceSlit)
-        rordloc : ndarray
-          Right edges (from TraceSlit)
-        slitpix : ndarray
+        Wrapper to arc.get_censpec()
 
         Returns
         -------
-        self.arccen
-          1D arc spectra from each slit
-        self.maskslits
+        (self.arccen, self.arc_maskslit_
+           self.arccen: ndarray, (nspec, nslit)
+              arc spectrum for all slits
+            self.arc_maskslit: ndarray, bool (nsit)
+              boolean array containing a mask indicating which slits are good
 
         """
-        inmask = (self.bpm == 0) if self.bpm is not None else None
-        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,inmask=inmask, nonlinear_counts = self.par['nonlinear_counts'])
-
+        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, inmask = inmask, nonlinear_counts=self.nonlinear_counts)
         # Step
         self.steps.append(inspect.stack()[0][3])
-        # Return
-        return self.arccen, self.maskslits
+        return arccen, arc_maskslit
 
     def load_master(self, filename, force = False):
         """
@@ -395,14 +404,14 @@ class WaveCalib(masterframe.MasterFrame):
         """
         ###############
         # Extract an arc down each slit
-        _, _ = self._extract_arcs(lordloc, rordloc, slitpix)
+        self.arccen, self.arc_maskslit = self.extract_arcs(self.slitcen, self.slitmask, self.msarc, self.inmask)
 
         # Fill up the calibrations and generate QA
-        self.wv_calib = self._build_wv_calib(self.par['method'], skip_QA=skip_QA)
+        self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)
 
         # Return
         if self.par['echelle'] is True:
-            fit2d_dict = self._echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
+            fit2d_dict = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
             self.wv_calib['fit2d'] = fit2d_dict
 
         # Build mask

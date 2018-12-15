@@ -32,6 +32,7 @@ class MasterFrame(object):
       Path for reduction
     spectrograph : Spectrograph, optional
       Only used for directory_path;  should be Deprecated
+    mode: ???
 
     Attributes
     ----------

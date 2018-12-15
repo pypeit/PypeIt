@@ -57,7 +57,7 @@ class WaveTilts(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'tilts'
 
-    def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, wavepar = None, det=None, master_key=None, master_dir=None,
+    def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, wavepar = None, det=1, master_key=None, master_dir=None,
                  mode=None, redux_path=None, bpm=None):
 
         # Instantiate the spectograph
@@ -77,95 +77,48 @@ class WaveTilts(masterframe.MasterFrame):
         self.msarc = msarc
         self.tslits_dict = tslits_dict
         self.bpm = bpm
-        self.inmask = (self.bpm == 0) if self.bpm is not None else None
-
         # Optional parameters
         self.det = det
         self.redux_path = redux_path
-
-        # Attributes
-        if self.tslits_dict is not None:
-            self.nslit = self.tslits_dict['lcen'].shape[1]
-            self.slitcen = self.tslits_dict['slitcen']
+        # TODO this code is duplicated verbatim in wavetilts. Should it be a function
+        self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
+        # Set the slitmask and slit boundary related attributes that the code needs for execution. This also deals with
+        # arcimages that have a different binning then the trace images used to defined the slits
+        if self.tslits_dict is not None and self.msarc is not None:
+            slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
+            inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask, dtype=bool)
+            shape_orig = self.slitmask.shape
+            shape_arc = self.msarc.shape
+            self.nslits = self.tslits_dict['lcen'].shape[1]
+            self.slit_left = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['lcen'])
+            self.slit_righ = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['rcen'])
+            self.slitcen   = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['slitcen'])
+            self.slitmask  = arc.resize_mask2arc(shape_arc,slitmask)
+            self.inmask  = arc.resize_mask2arc(shape_arc,inmask)
         else:
-            self.nslit = 0
+            self.nslits = 0
+            self.slit_left = None
+            self.slit_righ = None
             self.slitcen = None
+            self.slitmask = None
+            self.inmask = None
 
-        self.steps = []
-        self.slitmask = None
+
 
         # Key Internals
         self.mask = None
-        self.all_trace_dict = [None]*self.nslit
+        self.all_trace_dict = [None]*self.nslits
         self.tilts = None
         # 2D fits are stored as a dictionary rather than list because we will jsonify the dict
-        self.all_fit_dict = [None]*self.nslit
-
+        self.all_fit_dict = [None]*self.nslits
+        self.steps = []
         # Main outputs
         self.final_tilts = None
         self.fit_dict = None
         self.trace_dict = None
 
-    # This method does not appear finished
-    @classmethod
-    def from_master_files(cls, master_key, mdir='./'):
-        """
-        Build the class from Master frames
 
-        Parameters
-        ----------
-        master_key : str
-        mdir : str, optional
-
-        Returns
-        -------
-        slf
-
-        """
-
-        # Instantiate
-        slf = cls(None, master_key=master_key)
-        msarc_file = masterframe.master_name('arc', master_key, mdir)
-        # Arc
-        msarc, _, _ = slf.load_master(msarc_file)
-        slf.msarc = msarc
-
-
-        # Tilts
-        mstilts_file = masterframe.master_name('tilts', master_key, mdir)
-        hdul = fits.open(mstilts_file)
-        slf.final_tilts = hdul[0].data
-        slf.tilts = slf.final_tilts
-        slf.coeffs = slf.hdu[1].data
-
-        # Dict
-        slf.all_trcdict = []
-        islit = 0
-        for hdu in hdul[2:]:
-            if hdu.name == 'FWM{:03d}'.format(islit):
-                # Setup
-                fwm_img = hdu.data
-                narc = fwm_img.shape[1]
-                trcdict = dict(xtfit=[], ytfit=[], xmodel=[], ymodel=[], ycen=[], aduse=np.zeros(narc, dtype=bool))
-                # Fill  (the -1 are for ycen which is packed in at the end)
-                for iarc in range(narc):
-                    trcdict['xtfit'].append(fwm_img[:-1,iarc,0])
-                    trcdict['ytfit'].append(fwm_img[:-1,iarc,1])
-                    trcdict['ycen'].append(fwm_img[-1,iarc,1])  # Many of these are junk
-                    if np.any(fwm_img[:-1,iarc,2] > 0):
-                        trcdict['xmodel'].append(fwm_img[:-1,iarc,2])
-                        trcdict['ymodel'].append(fwm_img[:-1,iarc,3])
-                        trcdict['aduse'][iarc] = True
-                #
-                slf.all_trcdict.append(trcdict.copy())
-            else:
-                slf.all_trcdict.append(None)
-            islit += 1
-        # FInish
-        return slf
-
-
-    def _extract_arcs(self):
+    def extract_arcs(self, slitcen, slitmask, msarc, inmask):
         """
         Extract the arcs down each slit/order
 
@@ -180,19 +133,13 @@ class WaveTilts(masterframe.MasterFrame):
               boolean array containing a mask indicating which slits are good
 
         """
-        # Extract an arc down each slit/order
-        slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning) if self.slitmask is None else self.slitmask
-
-        self.arccen, self.arc_maskslit = arc.get_censpec(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
-                                                         slitmask, self.msarc, inmask = self.inmask)
+        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, inmask = inmask, nonlinear_counts=self.nonlinear_counts)
         # Step
         self.steps.append(inspect.stack()[0][3])
-        return self.arccen, self.arc_maskslit
+        return arccen, arc_maskslit
 
-    def _find_lines(self, arcspec, slit_cen, slit, debug=False):
+    def find_lines(self, arcspec, slit_cen, slit, debug=False):
 
-        # Find good lines for the tilts
-        nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
 
         if self.par['idsonly'] is not None:
             # Put in some hook here for getting the lines out of the wave calib for i.e. LRIS ghosts.
@@ -205,14 +152,14 @@ class WaveTilts(masterframe.MasterFrame):
         lines_spec, lines_spat = tracewave.tilts_find_lines(
             arcspec, slit_cen, tracethresh=tracethresh, sig_neigh=self.par['sig_neigh'],
             nfwhm_neigh=self.par['nfwhm_neigh'],only_these_lines=only_these_lines, fwhm=self.wavepar['fwhm'],
-            nonlinear_counts=nonlinear_counts, debug_peaks=False, debug_lines = debug)
+            nonlinear_counts=self.nonlinear_counts, debug_peaks=False, debug_lines = debug)
 
         self.steps.append(inspect.stack()[0][3])
         return lines_spec, lines_spat
 
 
 
-    def _fit_tilts(self, trc_tilt_dict, thismask, slit_cen, spat_order, spec_order, slit, show_QA=False, doqa=True, debug=False):
+    def fit_tilts(self, trc_tilt_dict, thismask, slit_cen, spat_order, spec_order, slit, show_QA=False, doqa=True, debug=False):
         """
 
         Args:
@@ -260,7 +207,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return tilts, tilt_fit_dict['coeff2']
 
-    def _trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen):
+    def trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen):
         """
 
         Args
@@ -324,12 +271,10 @@ class WaveTilts(masterframe.MasterFrame):
             """
 
         if maskslits is None:
-            maskslits = np.zeros(self.nslit, dtype=bool)
-
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
+            maskslits = np.zeros(self.nslits, dtype=bool)
 
         # Extract the arc spectra for all slits
-        self.arccen, self.arc_maskslit = self._extract_arcs()
+        self.arccen, self.arc_maskslit = self.extract_arcs(self.slitcen, self.slitmask, self.msarc, self.inmask)
 
         # maskslit
         self.mask = maskslits & (self.arc_maskslit==1)
@@ -339,39 +284,37 @@ class WaveTilts(masterframe.MasterFrame):
         self.final_tilts = np.zeros_like(self.msarc)
         max_spat_dim = (np.asarray(self.par['spat_order']) + 1).max()
         max_spec_dim = (np.asarray(self.par['spec_order']) + 1).max()
-        self.coeffs = np.zeros((max_spec_dim, max_spat_dim,self.nslit))
-        self.spat_order = np.zeros(self.nslit, dtype=int)
-        self.spec_order = np.zeros(self.nslit, dtype=int)
+        self.coeffs = np.zeros((max_spec_dim, max_spat_dim,self.nslits))
+        self.spat_order = np.zeros(self.nslits, dtype=int)
+        self.spec_order = np.zeros(self.nslits, dtype=int)
 
-        # Check for different spectral binning between arcs and slitcen
-        # TODO Make the reshaping of these things a method
-
+        # TODO sort out show methods for debugging
         #if show:
         #    viewer,ch = ginga.show_image(self.msarc*(self.slitmask > -1),chname='tilts')
 
         # Loop on all slits
         for slit in gdslits:
-            msgs.info('Computing tilts for slit {:d}/{:d}'.format(slit,self.nslit-1))
+            msgs.info('Computing tilts for slit {:d}/{:d}'.format(slit,self.nslits-1))
             # Identify lines for tracing tilts
-            self.lines_spec, self.lines_spat = self._find_lines(self.arccen[:,slit], self.slitcen[:,slit], slit, debug=debug)
+            self.lines_spec, self.lines_spat = self.find_lines(self.arccen[:,slit], self.slitcen[:,slit], slit, debug=debug)
 
             thismask = self.slitmask == slit
             # Trace
-            self.trace_dict = self._trace_tilts(self.msarc, self.lines_spec, self.lines_spat, thismask, self.slitcen[:,slit])
+            self.trace_dict = self.trace_tilts(self.msarc, self.lines_spec, self.lines_spat, thismask, self.slitcen[:,slit])
             #if show:
             #    ginga.show_tilts(viewer, ch, self.trace_dict)
 
             self.spat_order[slit] = self._parse_param(self.par, 'spat_order', slit)
             self.spec_order[slit] = self._parse_param(self.par, 'spec_order', slit)
             # 2D model of the tilts, includes construction of QA
-            self.tilts, coeff_out = self._fit_tilts(self.trace_dict, thismask, self.slitcen[:,slit], self.spat_order[slit],
+            self.tilts, coeff_out = self.fit_tilts(self.trace_dict, thismask, self.slitcen[:,slit], self.spat_order[slit],
                                                     self.spec_order[slit], slit,doqa=doqa, show_QA = show, debug=show)
             self.coeffs[0:self.spec_order[slit]+1, 0:self.spat_order[slit]+1 , slit] = coeff_out
             # Save to final image
             self.final_tilts[thismask] = self.tilts[thismask]
 
         self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen': self.slitcen, 'func2d':self.par['func2d'],
-                           'nslit': self.nslit, 'spat_order': self.spat_order, 'spec_order': self.spec_order}
+                           'nslit': self.nslits, 'spat_order': self.spat_order, 'spec_order': self.spec_order}
         return self.tilts_dict, maskslits
 
     def load_master(self, filename, exten = 0, force = False):
