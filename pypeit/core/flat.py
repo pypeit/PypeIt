@@ -185,9 +185,6 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, inmask
     spectrograph = load_spectrograph(spectrograph)
 
     shape = flat.shape
-    if shape != tilts_dict['tilts'].shape:
-        msgs.error('Something is very wrong. Tilt image shape does not match flat field image shape')
-
     nspec = shape[0]
     nspat = shape[1]
 
