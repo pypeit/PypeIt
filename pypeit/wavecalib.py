@@ -274,7 +274,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         inmask = (self.bpm == 0) if self.bpm is not None else None
-        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,inmask=inmask)
+        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,inmask=inmask, nonlinear_counts = self.par['nonlinear_counts'])
 
         # Step
         self.steps.append(inspect.stack()[0][3])

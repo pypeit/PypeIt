@@ -123,6 +123,7 @@ class Calibrations(object):
         self.calib_dict = {}
         self.det = None
         self.frame = None
+        self.binning = None
 
         # Steps
         self.steps = []
@@ -191,6 +192,8 @@ class Calibrations(object):
         self.det = det
         if par is not None:
             self.par = par
+        # Deal with the binning!
+        self.binning = self.fitstbl['binning'][self.frame]
 
         # Reset internals to None
         self._reset_internals()
@@ -536,7 +539,7 @@ class Calibrations(object):
 
             # Compute the plate scale in arcsec which is needed to trim short slits
             try:
-                binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][self.frame])
+                binspatial, binspectral = parse.parse_binning(self.binning)
             except:
                 binspatial, binspectral = 1,1
             ## Old code: binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
@@ -669,8 +672,7 @@ class Calibrations(object):
         self.wv_calib = self.waveCalib.master(force=prev_build)
         # Build?
         if self.wv_calib is None:
-            binning = self.fitstbl['binning'][self.frame]
-            self.slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=binning)
+            self.slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
             self.wv_calib, _ = self.waveCalib.run(self.tslits_dict['lcen'],
                                                   self.tslits_dict['rcen'],
                                                   self.slitmask,
@@ -748,6 +750,7 @@ class Calibrations(object):
 
         # Instantiate
         self.waveTilts = wavetilts.WaveTilts(self.msarc, self.tslits_dict, spectrograph=self.spectrograph,
+                                             binning = self.binning,
                                              par=self.par['tilts'], wavepar = self.par['wavelengths'], det=self.det,
                                              master_key=self.arc_master_key, master_dir=self.master_dir,
                                              mode=self.par['masters'],

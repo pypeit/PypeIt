@@ -57,7 +57,7 @@ class WaveTilts(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'tilts'
 
-    def __init__(self, msarc, tslits_dict, spectrograph=None, par=None, wavepar = None, det=None, master_key=None, master_dir=None,
+    def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, wavepar = None, det=None, master_key=None, master_dir=None,
                  mode=None, redux_path=None, bpm=None):
 
         # Instantiate the spectograph
@@ -67,7 +67,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.spectrograph = load_spectrograph(spectrograph)
         self.par = pypeitpar.WaveTiltsPar() if par is None else par
         self.wavepar = pypeitpar.WavelengthSolutionPar() if wavepar is None else wavepar
-
+        self.binning = binning
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
                                          master_dir=master_dir, mode=mode)
@@ -181,7 +181,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Extract an arc down each slit/order
-        slitmask = self.spectrograph.slitmask(self.tslits_dict) if self.slitmask is None else self.slitmask
+        slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning) if self.slitmask is None else self.slitmask
 
         self.arccen, self.arc_maskslit = arc.get_censpec(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
                                                          slitmask, self.msarc, inmask = self.inmask)
@@ -326,7 +326,7 @@ class WaveTilts(masterframe.MasterFrame):
         if maskslits is None:
             maskslits = np.zeros(self.nslit, dtype=bool)
 
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
 
         # Extract the arc spectra for all slits
         self.arccen, self.arc_maskslit = self._extract_arcs()
@@ -342,6 +342,9 @@ class WaveTilts(masterframe.MasterFrame):
         self.coeffs = np.zeros((max_spec_dim, max_spat_dim,self.nslit))
         self.spat_order = np.zeros(self.nslit, dtype=int)
         self.spec_order = np.zeros(self.nslit, dtype=int)
+
+        # Check for different spectral binning between arcs and slitcen
+        # TODO Make the reshaping of these things a method
 
         #if show:
         #    viewer,ch = ginga.show_image(self.msarc*(self.slitmask > -1),chname='tilts')
