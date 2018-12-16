@@ -540,11 +540,7 @@ class Calibrations(object):
                                                          trim=self.par['trim'], apply_gain=True)
 
             # Compute the plate scale in arcsec which is needed to trim short slits
-            try:
-                binspatial, binspectral = parse.parse_binning(self.binning)
-            except:
-                binspatial, binspectral = 1,1
-            ## Old code: binspatial, binspectral = parse.parse_binning(self.fitstbl['binning'][scidx])
+            binspatial, binspectral = parse.parse_binning(self.binning)
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
             # User-defined slits??

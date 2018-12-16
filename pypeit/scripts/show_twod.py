@@ -122,8 +122,8 @@ def main(args):
               '/MasterWave_'+'{:s}_{:02d}_{:s}.fits'.format(head0['PYPCNFIG'], args.det, head0['PYPCALIB'])
     # Load Tslits
     mdir = head0['PYPMFDIR']+'/'
-    setup = '{:s}_{:s}_{:s}'.format(head0['PYPCNFIG'], sdet, head0['PYPCALIB'])
-    trc_file = masterframe.master_name('trace', setup, mdir)
+    master_key = '{0}_{1}_{2}'.format(head0['PYPCNFIG'],int(head0['PYPCALIB']), str(args.det).zfill(2))
+    trc_file = masterframe.master_name('trace', master_key, mdir)
     Tslits = traceslits.TraceSlits.from_master_files(trc_file)
     slit_ids = [trace_slits.get_slitid(Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen, ii)[0] for ii in range(Tslits.lcen.shape[1])]
     # Show the bitmask?
