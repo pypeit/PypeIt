@@ -21,6 +21,10 @@ NIRES
 keck_nires.json is based on holy-grail applied to this frame:
 |     filename         |                  date | frametype      |      target | exptime |
 | s180604_0089.fits.gz | 2018-06-0412:56:12.38 |    science,arc |  J1724+1901 |   300.0 |
+| s180604_0090.fits.gz | 2018-06-0413:02:07.85 |    science,arc |  J1724+1901 |   300.0 |
+| s180604_0091.fits.gz | 2018-06-0413:08:00.26 |    science,arc |  J1724+1901 |   300.0 |
+| s180604_0092.fits.gz | 2018-06-0413:13:54.71 |    science,arc |  J1724+1901 |   300.0 |
+| s180604_0089.fits.gz | 2018-06-0412:56:12.38 |    science,arc |  J1724+1901 |   300.0 |
 
 Created with Holy Grail, sigdetect = 5.0, and line list OH_NIRES
 

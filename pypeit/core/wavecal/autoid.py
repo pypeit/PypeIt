@@ -1019,7 +1019,7 @@ class HolyGrail:
     def get_results(self):
         return copy.deepcopy(self._all_patt_dict), copy.deepcopy(self._all_final_fit)
 
-    def set_grids(self, ngridw = 200, ngridd=2000): #ngridw = 200, ngridd=2000):
+    def set_grids(self, ngridw = 300, ngridd=3000): #ngridw = 200, ngridd=2000):
         # Set the wavelength grid
         if self._binw is None:
             # Ideally, you want binw to roughly sample the A/pix of the spectrograph
