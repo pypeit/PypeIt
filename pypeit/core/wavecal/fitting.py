@@ -233,13 +233,14 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     rms_pix = rms_ang/disp
 
     # Pack up fit
-    cen_wave = utils.func_val(fit, float(nspec)/2, func, minx=fmin, maxx=fmax)
-    cen_wave_min1 = utils.func_val(fit, float(nspec)/2 - 1.0, func, minx=fmin, maxx=fmax)
+    spec_vec = np.arange(nspec)
+    wave_soln = utils.func_val(fit,spec_vec, func, minx=fmin, maxx=fmax)
+    cen_wave = wave_soln[float(nspec)/2]
+    cen_wave_min1 = wave_soln[float(nspec)/2-1.0]
     cen_disp = cen_wave - cen_wave_min1
-
     final_fit = dict(fitc=fit, function=func, pixel_fit=xfit, wave_fit=yfit, weights=wfit, ions=ions,
                      fmin=fmin, fmax=fmax, nspec=nspec, cen_wave = cen_wave, cen_disp = cen_disp,
-                     xrej=xrej, yrej=yrej, mask=(mask ==0), spec=spec, nrej=sigrej_final,
+                     xrej=xrej, yrej=yrej, mask=(mask == 0), spec=spec, wave_soln = wave_soln, nrej=sigrej_final,
                      shift=0., tcent=tcent, rms=rms_pix)
 
     # If set to True, this will output a file that can then be included in the tests
