@@ -1302,7 +1302,7 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, trc_inmask = None, fwh
     return xfit1, xpos1, xerr1, pos_set1
 
 
-specobj_dict = {'setup': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype': 'science'}
+specobj_dict = {'setup': None, 'slitid': None, 'det': 1, 'objtype': 'science'}
 
 
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
@@ -1689,7 +1689,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
             thisobj = specobjs.SpecObj(frameshape, slit_spat_pos, slit_spec_pos,
                                        det=specobj_dict['det'],
                                        setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
-                                       scidx=specobj_dict['scidx'], objtype=specobj_dict['objtype'])
+                                       objtype=specobj_dict['objtype'])
             thisobj.hand_extract_spec = hand_extract_spec[iobj]
             thisobj.hand_extract_spat = hand_extract_spat[iobj]
             thisobj.hand_extract_det = hand_extract_det[iobj]
@@ -2064,7 +2064,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
         thismask = ordermask == iord
         inmask_iord = inmask & thismask
-        specobj_dict = {'setup': 'echelle', 'slitid': iord, 'scidx': 0,'det': 1, 'objtype': 'science'}
+        specobj_dict = {'setup': 'echelle', 'slitid': iord, 'det': 1, 'objtype': 'science'}
         try:
             std_in = std_trace[:,iord]
         except TypeError:
@@ -2181,7 +2181,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
                 # Add this to the sobjs_align, and assign required tags
                 thisobj = specobjs.SpecObj(frameshape, slit_spat_pos[iord,:], slit_spec_pos, det = sobjs_align[0].det,
                                            setup = sobjs_align[0].setup, slitid = iord,
-                                           scidx = sobjs_align[0].scidx, objtype=sobjs_align[0].objtype)
+                                           objtype=sobjs_align[0].objtype)
                 thisobj.ech_orderindx = iord
                 thisobj.ech_order = order_vec[iord]
                 thisobj.spat_fracpos = uni_frac[iobj]
