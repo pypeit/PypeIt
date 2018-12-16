@@ -102,17 +102,20 @@ class WaveCalib(masterframe.MasterFrame):
         # Set the slitmask and slit boundary related attributes that the code needs for execution. This also deals with
         # arcimages that have a different binning then the trace images used to defined the slits
         if self.tslits_dict is not None and self.msarc is not None:
-            slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
-            inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(slitmask, dtype=bool)
-            shape_science = slitmask.shape
-            shape_arc = self.msarc.shape
+            self.slitmask_science = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
+            inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask_science, dtype=bool)
+            self.shape_science = self.slitmask_science.shape
+            self.shape_arc = self.msarc.shape
             self.nslits = self.tslits_dict['lcen'].shape[1]
-            self.slit_left = arc.resize_slits2arc(shape_arc, shape_science, self.tslits_dict['lcen'])
-            self.slit_righ = arc.resize_slits2arc(shape_arc, shape_science, self.tslits_dict['rcen'])
-            self.slitcen   = arc.resize_slits2arc(shape_arc, shape_science, self.tslits_dict['slitcen'])
-            self.slitmask  = arc.resize_mask2arc(shape_arc,slitmask)
-            self.inmask = (arc.resize_mask2arc(shape_arc,inmask)) & (self.msarc < self.nonlinear_counts)
+            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['lcen'])
+            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['rcen'])
+            self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slitcen'])
+            self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
+            self.inmask = (arc.resize_mask2arc(self.shape_arc,inmask)) & (self.msarc < self.nonlinear_counts)
         else:
+            self.slitmask_science = None
+            self.shape_science = None
+            self.shape_arc = None
             self.nslits = 0
             self.slit_left = None
             self.slit_righ = None
