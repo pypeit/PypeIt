@@ -45,7 +45,7 @@ class WaveImage(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'wave'
 
-    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, master_key=None, master_dir=None, mode=None,
+    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, binning = None, master_key=None, master_dir=None, mode=None,
                  maskslits=None):
 
         # MasterFrame
@@ -57,7 +57,8 @@ class WaveImage(masterframe.MasterFrame):
         self.tilts = tilts
         self.wv_calib = wv_calib
         self.spectrograph = spectrograph
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
+        self.binning = binning
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
         self.par = wv_calib['par']
 
         # Optional parameters

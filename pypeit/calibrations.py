@@ -397,6 +397,7 @@ class Calibrations(object):
 
         # Instantiate
         self.flatField = flatfield.FlatField(self.spectrograph, file_list=pixflat_image_files,
+                                             binning = self.binning,
                                              det=self.det, par=self.par['pixelflatframe'],
                                              master_key=self.pixflat_master_key, master_dir=self.master_dir,
                                              mode=self.par['masters'],
@@ -522,6 +523,7 @@ class Calibrations(object):
         # Instantiate (without mstrace)
 
         self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, self.spectrograph,
+                                                binning=self.binning,
                                                 par=self.par['slits'],
                                                 det=self.det, master_key=self.trace_master_key,
                                                 master_dir=self.master_dir,
@@ -608,6 +610,7 @@ class Calibrations(object):
         # Instantiate
         # ToDO we are regenerating this mask a lot in this module. Could reduce that
         self.waveImage = waveimage.WaveImage(self.tslits_dict, self.tilts_dict['tilts'], self.wv_calib,self.spectrograph,
+                                             binning = self.binning,
                                              master_key=self.arc_master_key, master_dir=self.master_dir,
                                              mode=self.par['masters'], maskslits=self.maskslits)
         # Attempt to load master

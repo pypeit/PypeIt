@@ -65,7 +65,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     # Frame type is a class attribute
     frametype = 'pixelflat'
 
-    def __init__(self, spectrograph, file_list=[], det=1, par=None, master_key=None, master_dir=None,
+    def __init__(self, spectrograph, file_list=[], binning = None, det=1, par=None, master_key=None, master_dir=None,
                  mode=None, flatpar=None, msbias=None, msbpm = None, tslits_dict=None, tilts_dict=None):
 
         # Image processing parameters
@@ -85,6 +85,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.tslits_dict = tslits_dict
         self.tilts_dict = tilts_dict
         self.msbpm = msbpm
+        self.binning = binning
         if master_dir is None:
             self.master_dir = os.getcwd()
         else:
@@ -216,7 +217,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.mspixelflat = np.ones_like(self.rawflatimg)
         self.msillumflat = np.ones_like(self.rawflatimg)
         self.flat_model = np.zeros_like(self.rawflatimg)
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
 
 
         final_tilts = np.zeros_like(self.rawflatimg)
@@ -238,7 +239,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                                self.spectrograph.detector[self.det - 1]['saturation']
             pixelflat, illumflat, flat_model, tilts_out, thismask_out, slit_left_out, slit_righ_out = \
                 flat.fit_flat(self.rawflatimg, this_tilts_dict, self.tslits_dict, slit,
-                              spectrograph = self.spectrograph, inmask=inmask,tweak_slits = self.flatpar['tweak_slits'],
+                              spectrograph = self.spectrograph, binning = self.binning, inmask=inmask,tweak_slits = self.flatpar['tweak_slits'],
                               nonlinear_counts=nonlinear_counts, debug=debug)
             self.mspixelflat[thismask_out] = pixelflat[thismask_out]
             self.msillumflat[thismask_out] = illumflat[thismask_out]
