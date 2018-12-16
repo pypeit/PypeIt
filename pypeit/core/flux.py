@@ -350,64 +350,73 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     sensfunc = bspline_magfit(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,
                               kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject,debug=debug)
 
-    if False:
-        ## ToDo: currently I'm fitting the sensfunc in the masked region with a polynomial, should we change to algorithm to
-        ##   fit polynomial first and then bsline the poly-subtracted flux ???
-        ## keep tell free region for poly fit.
-        tell2 = np.any([((wave_star >= 7580.00 * units.AA) & (wave_star <= 7750.00 * units.AA)),
-                       ((wave_star >= 7160.00 * units.AA) & (wave_star <= 7340.00 * units.AA)),
-                       ((wave_star >= 6860.00 * units.AA) & (wave_star <= 6930.00 * units.AA)),
-                       ((wave_star >= 9310.00 * units.AA) & (wave_star <= 9665.00 * units.AA)),
-                       ((wave_star >= 11120.0 * units.AA) & (wave_star <= 11545.0 * units.AA)),
-                       ((wave_star >= 12610.0 * units.AA) & (wave_star <= 12720.0 * units.AA)),
-                       ((wave_star >= 13400.0 * units.AA) & (wave_star <= 14830.0 * units.AA)),
-                       ((wave_star >= 15700.0 * units.AA) & (wave_star <= 15770.0 * units.AA)),
-                       ((wave_star >= 16000.0 * units.AA) & (wave_star <= 16100.0 * units.AA)),
-                       ((wave_star >= 16420.0 * units.AA) & (wave_star <= 16580.0 * units.AA)),
-                       ((wave_star >= 17630.0 * units.AA) & (wave_star <= 19690.0 * units.AA)),
-                       ((wave_star >= 19790.0 * units.AA) & (wave_star <= 19810.0 * units.AA)),
-                       ((wave_star >= 19950.0 * units.AA) & (wave_star <= 20310.0 * units.AA)),
-                       ((wave_star >= 20450.0 * units.AA) & (wave_star <= 20920.0 * units.AA)),
-                       ((wave_star >= 24000.0 * units.AA) & (wave_star <= 24280.0 * units.AA)),
-                       ((wave_star >= 24320.0 * units.AA) & (wave_star <= 24375.0 * units.AA)),
-                       (wave_star >= 24450.0 * units.AA)], axis=0)
-        msk_all = msk_star.copy()
-        ivar_all =  ivar_star.copy()
-        msk_all[tell2] = False
-        ivar_all[~msk_all] = 0.0
-        msk_model = flux_true<=0
-        msk_all[msk_model] = False
-        msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_star.value[msk_all],np.log10(sensfunc[msk_all]), 4, function='polynomial',
-                                               invvar=None,guesses = None, maxiter = 50, inmask = None, sigma = None,\
-                                               lower = 3.0, upper = 3.0,maxdev=None,maxrej=3,groupdim=None,groupsize=None,\
-                                               groupbadpix=False, grow=0,sticky=True,use_mad=True)
-        sensfunc_poly = 10**(utils.func_val(poly_coeff, wave_star.value, 'polynomial'))
-        sensfunc[~msk_star] =  sensfunc_poly[~msk_star]
-        if debug:
-            plt.plot(wave_star.value[msk_all], sensfunc[msk_all], 'b-o')
-            plt.plot(wave_star.value, sensfunc_poly, 'r-',label='Polyfit')
-            plt.plot(wave_star.value, sensfunc, 'k-',label='bspline fitting')
-            plt.ylim(0.0, 100.0)
-            plt.legend()
-            plt.xlabel('Wavelength [ang]')
-            plt.ylabel('Sensfunc')
-            plt.show()
-            plt.close()
+    #Cleaning sensfunc
+    ## ToDo: currently I'm fitting the sensfunc in the masked region with a polynomial, should we change to algorithm to
+    ##   fit polynomial first and then bsline the poly-subtracted flux ???
+    ## keep tell free region for poly fit.
+    tell2 = np.any([((wave_star >= 7580.00 * units.AA) & (wave_star <= 7750.00 * units.AA)),
+                   ((wave_star >= 7160.00 * units.AA) & (wave_star <= 7340.00 * units.AA)),
+                   ((wave_star >= 6860.00 * units.AA) & (wave_star <= 6930.00 * units.AA)),
+                   ((wave_star >= 9310.00 * units.AA) & (wave_star <= 9665.00 * units.AA)),
+                   ((wave_star >= 11120.0 * units.AA) & (wave_star <= 11545.0 * units.AA)),
+                   ((wave_star >= 12610.0 * units.AA) & (wave_star <= 12720.0 * units.AA)),
+                   ((wave_star >= 13400.0 * units.AA) & (wave_star <= 14830.0 * units.AA)),
+                   ((wave_star >= 15700.0 * units.AA) & (wave_star <= 15770.0 * units.AA)),
+                   ((wave_star >= 16000.0 * units.AA) & (wave_star <= 16100.0 * units.AA)),
+                   ((wave_star >= 16420.0 * units.AA) & (wave_star <= 16580.0 * units.AA)),
+                   ((wave_star >= 17630.0 * units.AA) & (wave_star <= 19690.0 * units.AA)),
+                   ((wave_star >= 19790.0 * units.AA) & (wave_star <= 19810.0 * units.AA)),
+                   ((wave_star >= 19950.0 * units.AA) & (wave_star <= 20310.0 * units.AA)),
+                   ((wave_star >= 20450.0 * units.AA) & (wave_star <= 20920.0 * units.AA)),
+                   ((wave_star >= 24000.0 * units.AA) & (wave_star <= 24280.0 * units.AA)),
+                   ((wave_star >= 24320.0 * units.AA) & (wave_star <= 24375.0 * units.AA)),
+                   (wave_star >= 24450.0 * units.AA)], axis=0)
+    msk_all = msk_star.copy() # mask for polynomial fitting
+    msk_sens = msk_star.copy() # mask for sensfunc
+    med, mad = utils.robust_meanstd(sensfunc)
+    msk_crazy = (sensfunc<=0) | (sensfunc>1e3*med)
+    msk_all[tell2] = False
+    msk_all[msk_crazy] = False
+    msk_sens[msk_crazy] = False
 
-            plt.rcdefaults()
-            plt.rcParams['font.family']= 'times new roman'
-            plt.figure(figsize=(10, 6))
-            plt.clf()
-            plt.plot(wave_star.value,flux_star*sensfunc, label='Calibrated Spectrum')
-            plt.plot(wave_star.value,flux_true, label='Model')
-            plt.plot(wave_star.value,np.sqrt(1/ivar_star))
-            plt.legend()
-            plt.xlabel('Wavelength [ang]')
-            plt.ylabel('Flux [erg/s/cm2/Ang.]')
-            plt.ylim(0,np.median(flux_true)*2.5)
-            plt.title('Final corrected spectrum')
-            plt.show()
-            plt.close()
+    plt.plot(wave_star, sensfunc, 'k-')
+    plt.plot(wave_star[~msk_all], sensfunc[~msk_all], 'o',mfc='None',mec='b')
+    plt.plot(wave_star[~msk_sens], sensfunc[~msk_sens], 'r+')
+    plt.ylim([0, 100])
+    plt.show()
+
+    msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_star.value[msk_all],np.log10(sensfunc[msk_all]), 4, function='polynomial',
+                                           invvar=None,guesses = None, maxiter = 50, inmask = None, sigma = None,\
+                                           lower = 3.0, upper = 3.0,maxdev=None,maxrej=3,groupdim=None,groupsize=None,\
+                                           groupbadpix=False, grow=0,sticky=True,use_mad=True)
+    sensfunc_poly = 10**(utils.func_val(poly_coeff, wave_star.value, 'polynomial'))
+    if debug:
+        plt.rcdefaults()
+        plt.rcParams['font.family'] = 'times new roman'
+        plt.plot(wave_star.value[~msk_sens], sensfunc[~msk_sens], 'bo')
+        plt.plot(wave_star.value, sensfunc_poly, 'r-',label='Polyfit')
+        plt.plot(wave_star.value, sensfunc, 'k-',label='bspline fitting')
+        plt.ylim(0.0, 100.0)
+        plt.legend()
+        plt.xlabel('Wavelength [ang]')
+        plt.ylabel('Sensfunc')
+        plt.show()
+        plt.close()
+
+        plt.figure(figsize=(10, 6))
+        plt.clf()
+        plt.plot(wave_star.value,flux_star*sensfunc, label='Calibrated Spectrum')
+        plt.plot(wave_star.value,flux_true, label='Model')
+        plt.plot(wave_star.value,np.sqrt(1/ivar_star))
+        plt.legend()
+        plt.xlabel('Wavelength [ang]')
+        plt.ylabel('Flux [erg/s/cm2/Ang.]')
+        plt.ylim(0,np.median(flux_true)*2.5)
+        plt.title('Final corrected spectrum')
+        plt.show()
+        plt.close()
+    sensfunc[~msk_star] =  sensfunc_poly[~msk_star]
+
 
 
     # JFH Left off here.
@@ -504,6 +513,7 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
     magfunc_mask = (magfunc < 0.99 * MAGFUNC_MAX) & (magfunc > 0.99 * MAGFUNC_MIN)
 
     # Mask outliners
+    # masktot=True means good pixel
     if inmask is None:
         masktot = (ivar_obs > 0.0) & np.isfinite(logflux_obs) & np.isfinite(ivar_obs) & \
                   np.isfinite(logflux_std) & magfunc_mask
@@ -620,7 +630,6 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
 
     # Check for residual of the fit
     if debug:
-
         # scale = np.power(10.0, 0.4 * sensfit)
         flux_cal = flux_obs * sensfit
         ivar_cal = ivar_obs / sensfit ** 2.
@@ -639,14 +648,10 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
         plt.show()
         plt.close()
 
-
-
-
     # QA
     msgs.work("Add QA for sensitivity function")
     if show_QA:
         qa_bspline_magfit(wave_obs, bset_log1, magfunc, masktot)
-
 
     return sensfit
 
