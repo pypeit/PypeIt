@@ -85,7 +85,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.6
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_idl2.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.json'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         # JFH This is provisional these IDs should be checked.

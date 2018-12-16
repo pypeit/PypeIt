@@ -70,11 +70,11 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect']=5.0
-        par['calibrations']['wavelengths']['fwhm']=5.0
-        par['calibrations']['wavelengths']['n_final']= 4 #[4,4,4,4,4]
+        par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['wavelengths']['n_final']= [3,4,4,4,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['method'] = 'holy-grail' #'reidentify'
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
         # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.json'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
