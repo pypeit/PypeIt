@@ -1,9 +1,24 @@
 
 
+GNIRS
+-----------
+gemini_gnirs.json
+
+See dev_algorithms/wavelengths/gnirs_wave_calib.py in the dev suite. We created gemini_gnirs_idl.json
+using this file from IDL: 
+
+scifile ='/Users/joe/REDUX/gnirs_redux/1420+0227/Science/1420+0227_1/sci-N20110622S0304-307.fits'
+
+Then ran:
+
+| N20160127S0399.fits | 2016-01-27 |   science,arc   | J1335+3533 |   300.0 | 32/mmSB_G5533 | SCXD_G5531 |
+
+to create gemini_gnirs.json
+
 
 NIRES
 -----------
-keck_nires.json is based on holy-grail applies to this frame:
+keck_nires.json is based on holy-grail applied to this frame:
 |     filename         |                  date | frametype      |      target | exptime |
 | s180604_0089.fits.gz | 2018-06-0412:56:12.38 |    science,arc |  J1724+1901 |   300.0 |
 
