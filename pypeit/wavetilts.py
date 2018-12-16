@@ -89,17 +89,20 @@ class WaveTilts(masterframe.MasterFrame):
         # Set the slitmask and slit boundary related attributes that the code needs for execution. This also deals with
         # arcimages that have a different binning then the trace images used to defined the slits
         if self.tslits_dict is not None and self.msarc is not None:
-            slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
-            inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask, dtype=bool)
-            shape_orig = slitmask.shape
-            shape_arc = self.msarc.shape
+            self.slitmask_science = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
+            inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask_science, dtype=bool)
+            self.shape_science = self.slitmask_science.shape
+            self.shape_arc = self.msarc.shape
             self.nslits = self.tslits_dict['lcen'].shape[1]
-            self.slit_left = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['lcen'])
-            self.slit_righ = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['rcen'])
-            self.slitcen   = arc.resize_slits2arc(shape_arc, shape_orig, self.tslits_dict['slitcen'])
-            self.slitmask  = arc.resize_mask2arc(shape_arc,slitmask)
+            self.slit_left = arc.resize_slits2arc(shape_arc, shape_science, self.tslits_dict['lcen'])
+            self.slit_righ = arc.resize_slits2arc(shape_arc, shape_science, self.tslits_dict['rcen'])
+            self.slitcen   = arc.resize_slits2arc(shape_arc, shape_science, self.tslits_dict['slitcen'])
+            self.slitmask  = arc.resize_mask2arc(shape_arc,self.slitmask_science)
             self.inmask = (arc.resize_mask2arc(shape_arc,inmask)) & (self.msarc < self.nonlinear_counts)
         else:
+            self.slitmask_science = None
+            self.shape_science
+            self.shape_arc
             self.nslits = 0
             self.slit_left = None
             self.slit_righ = None
@@ -196,7 +199,7 @@ class WaveTilts(masterframe.MasterFrame):
 
 
         # Now perform a fit to the tilts
-        tilts, tilt_fit_dict, trc_tilt_dict_out = tracewave.fit_tilts(
+        tilt_fit_dict, trc_tilt_dict_out = tracewave.fit_tilts(
             trc_tilt_dict, thismask, slit_cen, spat_order=spat_order, spec_order=spec_order,maxdev=self.par['maxdev2d'],
             sigrej=self.par['sigrej2d'],func2d=self.par['func2d'],doqa=doqa,master_key=self.master_key,slit=slit, show_QA=show_QA,
             out_dir=self.redux_path, debug=debug)
@@ -311,11 +314,15 @@ class WaveTilts(masterframe.MasterFrame):
             self.spat_order[slit] = self._parse_param(self.par, 'spat_order', slit)
             self.spec_order[slit] = self._parse_param(self.par, 'spec_order', slit)
             # 2D model of the tilts, includes construction of QA
-            self.tilts, coeff_out = self.fit_tilts(self.trace_dict, thismask, self.slitcen[:,slit], self.spat_order[slit],
-                                                    self.spec_order[slit], slit,doqa=doqa, show_QA = show, debug=show)
+            coeff_out = self.fit_tilts(self.trace_dict, thismask, self.slitcen[:,slit], self.spat_order[slit],
+                                       self.spec_order[slit], slit,doqa=doqa, show_QA = show, debug=show)
             self.coeffs[0:self.spec_order[slit]+1, 0:self.spat_order[slit]+1 , slit] = coeff_out
+            # Tilts are created with the size of the original slitmask, which corresonds to the same binning
+            # as the science images, trace images, and pixelflats etc.
+            self.tilts = tracewave.fit2tilts(self.slitmask_science.shape, coeff_out, self.par['func2d'])
             # Save to final image
-            self.final_tilts[thismask] = self.tilts[thismask]
+            thismask_science = self.slitmask_science == slit
+            self.final_tilts[thismask_science] = self.tilts[thismask_science]
 
         self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen': self.slitcen, 'func2d':self.par['func2d'],
                            'nslit': self.nslits, 'spat_order': self.spat_order, 'spec_order': self.spec_order}
