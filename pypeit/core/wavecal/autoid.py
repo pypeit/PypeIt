@@ -20,7 +20,7 @@ from pypeit.core.wavecal import patterns
 from pypeit.core.wavecal import fitting
 from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import qa
-
+from pypeit.core import arc
 
 from pypeit.core import pca
 from pypeit import utils
@@ -311,7 +311,7 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
 # TODO Make det_arxiv an optional input. In the event that the Line IDs don't exist in the arxiv, simply run peak finding and
 # interpolate the wavelength solution onto those line locations to the get initial IDs
 
-def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nreid_min, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
+def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, det_arxiv = None, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
@@ -414,38 +414,53 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
     if spec_arxiv_in.ndim != wave_soln_arxiv_in.ndim:
         msgs.error('spec arxiv and wave_soln_arxiv must have the same dimensions')
 
-    # TODO Implement different binnings between archival and input spectrum
     if spec_arxiv_in.ndim == 1:
-        spec_arxiv = spec_arxiv_in.reshape(spec_arxiv_in.size,1)
-        wave_soln_arxiv = wave_soln_arxiv_in.reshape(wave_soln_arxiv_in.size,1)
+        spec_arxiv1 = spec_arxiv_in.reshape(spec_arxiv_in.size,1)
+        wave_soln_arxiv1 = wave_soln_arxiv_in.reshape(wave_soln_arxiv_in.size,1)
     elif spec_arxiv_in.ndim == 2:
-        spec_arxiv = spec_arxiv_in.copy()
-        wave_soln_arxiv = wave_soln_arxiv_in.copy()
+        spec_arxiv1 = spec_arxiv_in.copy()
+        wave_soln_arxiv1 = wave_soln_arxiv_in.copy()
     else:
         msgs.error('Unrecognized shape for spec_arxiv. It must be either a one dimensional or two dimensional numpy array')
+
+    spec_arxiv = arc.resize_spec(spec_arxiv1, nspec)
+    wave_soln_arxiv = arc.resize_spec(wave_soln_arxiv1, nspec)
 
     nspec_arxiv, narxiv = spec_arxiv.shape
 
     this_soln = wave_soln_arxiv[:,0]
     sign = 1 if (this_soln[this_soln.size // 2] > this_soln[this_soln.size // 2 - 1]) else -1
 
-
-
-    xrng = np.arange(nspec_arxiv)
+    xrng = np.arange(nspec)
     if nspec_arxiv != nspec:
-        msgs.error('Different spectral binning is not supported yet but it will be soon')
+        msgs.error('Spectrum sizes do not match. Something is very wrong!')
 
-    # Search for lines to continuum subtract the spectrum.
-    tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(spec, sigdetect=sigdetect,nonlinear_counts=nonlinear_counts, fwhm = fwhm, debug = debug_peaks)
-    # If the detections were not passed in assing them
+    # Search for lines no matter what to continuum subtract the input arc
+    tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
+        spec, sigdetect=sigdetect,nonlinear_counts=nonlinear_counts, fwhm = fwhm, debug = debug_peaks)
+    # If the detections were not passed in measure them
     if detections is None:
         detections = tcent[icut]
 
-    # For convenience pull out all the spectra from the wv_calib_arxiv archive
+    spec_arxiv_cont_sub = np.zeros_like(spec_arxiv)
+
+    # Search for lines no matter what to continuum subtract the arxiv arc, also determine the central wavelength and
+    # dispersion of wavelength arxiv
+    det_arxiv1 = {}
+    for iarxiv in range(narxiv):
+        tcent_arxiv, ecent_arxiv, cut_tcent_arxiv, icut_arxiv, spec_cont_sub_now = wvutils.arc_lines_from_spec(
+            spec_arxiv[:,iarxiv], sigdetect=sigdetect,nonlinear_counts=nonlinear_counts, fwhm = fwhm, debug = debug_peaks)
+        spec_arxiv_cont_sub[:,iarxiv] = spec_cont_sub_now
+        det_arxiv1[str(iarxiv)] = tcent_arxiv[icut_arxiv]
+
+    if det_arxiv is None:
+        det_arxiv = det_arxiv1
+
     wvc_arxiv = np.zeros(narxiv, dtype=float)
     disp_arxiv = np.zeros(narxiv, dtype=float)
+    # Determine the central wavelength and dispersion of wavelength arxiv
     for iarxiv in range(narxiv):
-        wvc_arxiv[iarxiv] = wave_soln_arxiv[nspec_arxiv//2, iarxiv]
+        wvc_arxiv[iarxiv] = wave_soln_arxiv[nspec//2, iarxiv]
         disp_arxiv[iarxiv] = np.median(wave_soln_arxiv[:,iarxiv] - np.roll(wave_soln_arxiv[:,iarxiv], 1))
 
     marker_tuple = ('o','v','<','>','8','s','p','P','*','X','D','d','x')
@@ -464,7 +479,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
     stretch_vec = np.zeros(narxiv)
     ccorr_vec = np.zeros(narxiv)
     for iarxiv in range(narxiv):
-        msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv + 1))
+        msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv))
         this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
         success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
@@ -753,6 +768,7 @@ class ArchiveReid:
 
         # Array to hold continuum subtracted arcs
         self.spec_cont_sub = np.zeros_like(self.spec)
+
         nspec_arxiv = self.wv_calib_arxiv['0']['spec'].size
         self.spec_arxiv = np.zeros((nspec_arxiv, narxiv))
         self.wave_soln_arxiv = np.zeros((nspec_arxiv, narxiv))
@@ -760,13 +776,7 @@ class ArchiveReid:
         xrng = np.arange(nspec_arxiv)
         for iarxiv in range(narxiv):
             self.spec_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['spec']
-            fitc = self.wv_calib_arxiv[str(iarxiv)]['fitc']
-            fitfunc = self.wv_calib_arxiv[str(iarxiv)]['function']
-            fmin, fmax = self.wv_calib_arxiv[str(iarxiv)]['fmin'], self.wv_calib_arxiv[str(iarxiv)]['fmax']
-            self.wave_soln_arxiv[:, iarxiv] = utils.func_val(fitc, xrng, fitfunc, minx=fmin, maxx=fmax)
-            self.det_arxiv[str(iarxiv)] = self.wv_calib_arxiv[str(iarxiv)]['pixel_fit']
-
-        # Todo should this be a separate reidentify_and_fit method? I think not
+            self.wave_soln_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['wave_soln']
 
         # These are the final outputs
         self.all_patt_dict = {}
@@ -781,21 +791,16 @@ class ArchiveReid:
             msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit,self.nslits-1))
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
-            if self.ech_fix_format:
-                ind_sp = slit
-                det_in = {'0': self.det_arxiv[str(slit)]}
-            else:
-                ind_sp = np.arange(nspec_arxiv,dtype=int)
-                det_in = self.det_arxiv
+            ind_sp = slit if self.ech_fix_format else np.arange(narxiv,dtype=int)
 
             sigdetect = self._parse_param(self.par, 'sigdetect', slit)
             cc_thresh = self._parse_param(self.par, 'cc_thresh', slit)
-            self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = reidentify(
-                self.spec[:,slit], self.spec_arxiv[:,ind_sp],self.wave_soln_arxiv[:,ind_sp], det_in,
-                self.tot_line_list,self.nreid_min,cc_thresh=cc_thresh,match_toler = self.match_toler,
-                cc_local_thresh=self.cc_local_thresh,nlocal_cc=self.nlocal_cc,nonlinear_counts=self.nonlinear_counts,
-                sigdetect=sigdetect,fwhm = self.fwhm,debug_peaks = self.debug_peaks,debug_xcorr=self.debug_xcorr,
-                debug_reid = self.debug_reid)
+            self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
+                reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], self.wave_soln_arxiv[:,ind_sp],
+                           self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
+                           cc_local_thresh=self.cc_local_thresh, nlocal_cc=self.nlocal_cc, nonlinear_counts=self.nonlinear_counts,
+                           sigdetect=sigdetect, fwhm = self.fwhm, debug_peaks = self.debug_peaks, debug_xcorr=self.debug_xcorr,
+                           debug_reid = self.debug_reid)
             # Check if an acceptable reidentification solution was found
             if not self.all_patt_dict[str(slit)]['acceptable']:
                 self.wv_calib[str(slit)] = {}
@@ -804,7 +809,7 @@ class ArchiveReid:
             # Perform the fit
 
             n_final = self._parse_param(self.par, 'n_final', slit)
-            final_fit = fitting.fit_slit(self.spec_cont_sub[:, slit],self.all_patt_dict[str(slit)], self.detections[str(slit)],
+            final_fit = fitting.fit_slit(self.spec_cont_sub[:, slit], self.all_patt_dict[str(slit)], self.detections[str(slit)],
                                          self.tot_line_list, match_toler=self.match_toler,func=self.func, n_first=self.n_first,
                                          sigrej_first=self.sigrej_first, n_final=n_final,sigrej_final=self.sigrej_final)
 

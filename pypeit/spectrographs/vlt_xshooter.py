@@ -470,6 +470,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.50 # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['n_final'] = [3] + 13*[4] + [3]
         par['calibrations']['wavelengths']['fwhm'] = 11.0 # This is for 1x1 binning. Needs to be divided by binning for binned data!!
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
