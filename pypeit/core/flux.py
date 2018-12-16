@@ -104,7 +104,7 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
 
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
-                      star_mag=None, ra=None, dec=None, std_file = None, BALM_MASK_WID=5., nresln=None,debug=False):
+                      star_mag=None, ra=None, dec=None, std_file = None, BALM_MASK_WID=5., norder=4, nresln=None,debug=False):
     """ Function to generate the sensitivity function.
     This can work in different regimes:
     - If telluric=False and RA=None and Dec=None
@@ -155,6 +155,8 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     nresln : float
       Number of resolution elements for break-point placement.
       If assigned, overwrites the settings imposed by the code.
+    norder: int
+      Order number of polynomial fit.
 
     Returns:
     -------
@@ -227,11 +229,10 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
         # ToDo: should we extrapolate it using graybody model?
         mask_model = flux_true<=0
-        msk_poly, poly_coeff = utils.robust_polyfit_djs(std_dict['wave'].value, std_dict['flux'].value, 8,function='polynomial',
+        msk_poly, poly_coeff = utils.robust_polyfit_djs(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
                                                     invvar=None, guesses=None, maxiter=50, inmask=None, sigma=None, \
                                                     lower=3.0, upper=3.0, maxdev=None, maxrej=3, groupdim=None,
-                                                    groupsize=None, \
-                                                    groupbadpix=False, grow=0, sticky=True, use_mad=True)
+                                                    groupsize=None,groupbadpix=False, grow=0, sticky=True, use_mad=True)
         star_poly = utils.func_val(poly_coeff, wave_star.value, 'polynomial')
         #flux_true[mask_model] = star_poly[mask_model]
         flux_true = star_poly.copy()
@@ -379,13 +380,8 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     msk_all[msk_crazy] = False
     msk_sens[msk_crazy] = False
 
-    plt.plot(wave_star, sensfunc, 'k-')
-    plt.plot(wave_star[~msk_all], sensfunc[~msk_all], 'o',mfc='None',mec='b')
-    plt.plot(wave_star[~msk_sens], sensfunc[~msk_sens], 'r+')
-    plt.ylim([0, 100])
-    plt.show()
-
-    msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_star.value[msk_all],np.log10(sensfunc[msk_all]), 4, function='polynomial',
+    #polyfit the sensfunc
+    msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_star.value[msk_all],np.log10(sensfunc[msk_all]), norder, function='polynomial',
                                            invvar=None,guesses = None, maxiter = 50, inmask = None, sigma = None,\
                                            lower = 3.0, upper = 3.0,maxdev=None,maxrej=3,groupdim=None,groupsize=None,\
                                            groupbadpix=False, grow=0,sticky=True,use_mad=True)
