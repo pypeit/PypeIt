@@ -480,7 +480,7 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
 
 # TODO: (KBW) I don't think core algorithms should take class
 # arguments...
-def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
+def save_obj_info(all_specobjs, spectrograph, basename, science_dir, binning=None):
     """
 
     Parameters
@@ -494,19 +494,8 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
     """
 
 
-#    if spectrograph.pypeline =='MultiSlit':
-#    elif spectrograph.pypeline == 'Echelle':
     slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
-
-    # Loop on detectors
-    #for kk in range(settings.spect['mosaic']['ndet']):
-    #    det = kk+1
-    #    if all_specobjs is None:
-    #        continue
-    #    dnum = settings.get_dnum(det)
-    #    # Loop on slits
-    #    for sl in range(len(all_specobjs)):
-    #        # Loop on spectra
+    binspatial, binspectral = parse.parse_binning(binning)
     for specobj in all_specobjs:
         if specobj is None:
             continue
@@ -522,20 +511,12 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
         if 'BOX_RADIUS' in specobj.boxcar.keys():
             slit_pix = 2.0*specobj.boxcar['BOX_RADIUS']
             # Convert to arcsec
-            try:
-                binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
-            except KeyError:
-                binspatial, binspectral = 1,1
+            binspatial, binspectral = parse.parse_binning(binning)
             boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.det-1]['platescale'])
         else:
             boxsize.append(0.)
 
         # Optimal profile (FWHM)
-        try:
-            binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
-        except KeyError:
-            binspatial, binspatial = 1,1
-        ## Old code binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
         opt_fwhm.append(np.median(specobj.fwhmfit)* binspatial
                                 * spectrograph.detector[specobj.det-1]['platescale'])
         # S2N -- default to boxcar

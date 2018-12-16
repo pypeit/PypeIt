@@ -119,7 +119,7 @@ class ScienceImage():
     frametype = 'science'
 
     # TODO: Merge into a single parset, one for procing, and one for scienceimage
-    def __init__(self, spectrograph, file_list, bg_file_list = None, det=1, objtype='science', binning = None, setup=None,
+    def __init__(self, spectrograph, file_list, bg_file_list = [], det=1, objtype='science', binning = None, setup=None,
                  par=None, frame_par=None):
 
         # Instantiation attributes for this object
@@ -127,7 +127,7 @@ class ScienceImage():
         self.file_list = file_list
         self.nsci = len(file_list)
         self.bg_file_list = bg_file_list
-        if self.bg_file_list is not None:
+        if len(self.bg_file_list) > 0:
             self.nbg = len(self.bg_file_list)
             self.ir_redux = True
         else:
@@ -586,7 +586,7 @@ class ScienceImage():
             mask_stack[ifile,:,:] = self._build_mask(sciimg, sciivar_stack[ifile,:,:], crmask_stack[ifile,:,:])
 
 
-        return sciimg_stack, sciivar_stack, rn2img_stack, mask_stack, crmask_stack
+        return sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack
 
     def proc(self, bias, pixel_flat, bpm, illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5, show=False):
         """ Process the image
@@ -657,20 +657,20 @@ class ScienceImage():
             var_stack = utils.calc_ivar(sciivar_stack)
             nused = np.sum(outmask_stack,axis=0)
             weights_stack = np.einsum('i,ijk->ijk',weights,outmask_stack)
-            # JFH TODO This mask should have the bits in it, but those are gone for now
-            # Masked everwhere
-            self.mask = (nused == 0).astype(int)
+            # Masked everwhere nused == 0
+            # JFH ToDO Figure out how to sum the bits
+            self.mask = (nused == 0)*np.sum(mask_stack,axis=0)
             self.crmask = np.sum(crmask_stack,axis=0) == nused # Was everywhere a CR
             self.sciimg = np.sum(sciimg_stack*weights_stack,axis=0)
             varfinal = np.sum(var_stack*weights_stack**2,axis=0)
             self.sciivar = utils.calc_ivar(varfinal)
             self.rn2img = np.sum(rn2img_stack*weights_stack**2,axis=0)
         else:
-            self.mask  = mask_stack[:,:,0]
-            self.crmask = crmask_stack[:, :, 0]
-            self.sciimg = sciimg_stack[:, :, 0]
-            self.sciivar = sciivar_stack[:, :, 0]
-            self.rn2img = rn2img_stack[:, :, 0]
+            self.mask  = mask_stack[0,:,:]
+            self.crmask = crmask_stack[0,:,:]
+            self.sciimg = sciimg_stack[0,:,:]
+            self.sciivar = sciivar_stack[0,:,:]
+            self.rn2img = rn2img_stack[0,:,:]
 
         if self.ir_redux:
             self.crmask = self.build_crmask(self.sciimg, ivar=self.sciivar)
@@ -679,6 +679,7 @@ class ScienceImage():
         if show:
             # Only mask the CRs in this image
             self.show('image', image=self.sciimg*(self.crmask == 0), chname='sciimg')
+
         return self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask
 
     def build_crmask(self, stack, ivar=None):

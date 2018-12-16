@@ -449,7 +449,7 @@ class PypeIt(object):
             return
         # Obj info
         scidir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
-        save.save_obj_info(all_specobjs, self.fitstbl, self.spectrograph, basename, scidir)
+        save.save_obj_info(all_specobjs, self.spectrograph, basename, scidir, binning=self.fitstbl['binning'][frame])
         # Write 2D images for the Science Frame
         # Need raw file header information
         # TODO: Why is the raw file header needed?  Can the data be
@@ -485,7 +485,6 @@ class PypeIt(object):
                                                           self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,show=self.show)
         # Object finding, first pass on frame without sky subtraction
         self.maskslits = self.caliBrate.maskslits.copy()
-
         # Do one iteration of object finding, and sky subtract to get initial sky model
         initial_sky = sciI.get_init_sky(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'], show = self.show)
 
@@ -591,7 +590,7 @@ class MultiSlit(PypeIt):
         """
 
         sciimg, sciivar, rn2img, mask, crmask, initial_sky, self.sciI = \
-            self.init_sci_init_sky(self, frames, det, bg_frames=bg_frames)
+            self.init_sci_init_sky(frames, det, bg_frames=bg_frames)
 
         # Object finding, second pass on frame *with* sky subtraction. Show here if requested
         sobjs_obj, nobj = self.sciI.find_objects(self.caliBrate.tslits_dict, skysub=True,maskslits=self.maskslits, show_peaks=self.show)
