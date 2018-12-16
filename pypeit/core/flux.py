@@ -223,8 +223,23 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
                    'Either the coordinates of the standard or a stellar type and magnitude are needed.')
 
 
-    if np.min(flux_true) == 0.:
-        msgs.warn('Your spectrum extends beyond calibrated standard star.')
+    if np.min(flux_true) <= 0.:
+        msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
+        # ToDo: should we extrapolate it using graybody model?
+        mask_model = flux_true<=0
+        msk_poly, poly_coeff = utils.robust_polyfit_djs(std_dict['wave'].value, std_dict['flux'].value, 8,function='polynomial',
+                                                    invvar=None, guesses=None, maxiter=50, inmask=None, sigma=None, \
+                                                    lower=3.0, upper=3.0, maxdev=None, maxrej=3, groupdim=None,
+                                                    groupsize=None, \
+                                                    groupbadpix=False, grow=0, sticky=True, use_mad=True)
+        star_poly = utils.func_val(poly_coeff, wave_star.value, 'polynomial')
+        #flux_true[mask_model] = star_poly[mask_model]
+        flux_true = star_poly.copy()
+        if debug:
+            plt.plot(std_dict['wave'], std_dict['flux'],'bo',label='Raw Star Model')
+            plt.plot(std_dict['wave'],  utils.func_val(poly_coeff, std_dict['wave'].value, 'polynomial'), 'k-',label='robust_poly_fit')
+            plt.plot(wave_star,flux_true,'r-',label='Your Final Star Model used for sensfunc')
+            plt.show()
 
     # Set nresln
     if nresln is None:
@@ -360,6 +375,8 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         ivar_all =  ivar_star.copy()
         msk_all[tell2] = False
         ivar_all[~msk_all] = 0.0
+        msk_model = flux_true<=0
+        msk_all[msk_model] = False
         msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_star.value[msk_all],np.log10(sensfunc[msk_all]), 4, function='polynomial',
                                                invvar=None,guesses = None, maxiter = 50, inmask = None, sigma = None,\
                                                lower = 3.0, upper = 3.0,maxdev=None,maxrej=3,groupdim=None,groupsize=None,\
@@ -415,10 +432,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     sens_dict['flux_true'] = flux_true
     #sens_dict['std_dict'] = std_dict
     #sens_dict['msk_star'] = msk_star
-
-
-
-#    sens_dict['mag_set'] = mag_set
+    #sens_dict['mag_set'] = mag_set
 
     return sens_dict
 
@@ -754,7 +768,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     std_file_fmt = [1]  # 1=Calspec style FITS binary table
 
     # SkyCoord
-    obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+    obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.deg, units.deg))
     # Loop on standard sets
     closest = dict(sep=999 * units.deg)
     for qq, sset in enumerate(std_sets):
