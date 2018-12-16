@@ -1807,6 +1807,159 @@ def fit_tilts_func(coeff2, tilts_dspat, tilts_spec_fit, tilts, tilts_invvar, tot
 
 
 
+# JFH This is now defunct
+def gridtilts(shape, thismask, slit_cen, coeff2, func2d, spec_order, spat_order, pad_spec=30, pad_spat = 5, method='interp'):
+    """
+
+    Parameters
+    ----------
+    tilt_fit_dict: dict
+        Tilt fit dictioary produced by fit_tilts
+
+    Returns
+    -------
+    piximg: ndarray, float
+       Image indicating how spectral pixel locations move across the image. This output is used in the pipeline.
+    """
+
+    # Compute the tilts image
+    nspec, nspat = shape
+    xnspecmin1 = float(nspec-1)
+    xnspatmin1 = float(nspat-1)
+    spec_vec = np.arange(nspec)
+    spat_vec = np.arange(nspat)
+
+    # JFH This histogram method is not preferred, since it basically does NGP. It is however super fast, so for big images
+    # it is useful to have it
+    if 'hist2d' in method:
+        oversamp_spec=5
+        oversamp_spat=3
+        spec_ind, spat_ind = np.where(thismask)
+        min_spec = spec_ind.min() - pad_spec
+        max_spec = spec_ind.max() + pad_spec
+        num_spec = max_spec - min_spec + 1
+
+        min_spat = spat_ind.min() - pad_spat
+        max_spat = spat_ind.max() + pad_spat
+        num_spat = max_spat - min_spat + 1
+
+        spec_lin = np.linspace(min_spec,max_spec,num = int(np.round(num_spec*oversamp_spec)))
+        spat_lin = np.linspace(min_spat,max_spat,num = int(np.round(num_spat*oversamp_spat)))
+        spat_img, spec_img = np.meshgrid(spat_lin, spec_lin)
+        # Normalized spatial offset image (from central trace)
+        slit_cen_lin = (scipy.interpolate.interp1d(np.arange(nspec),slit_cen,bounds_error=False,fill_value='extrapolate'))(spec_lin)
+        slit_cen_img = np.outer(slit_cen_lin, np.ones(spat_img.shape[1]))  # center of the slit replicated spatially
+        dspat_img_nrm = (spat_img - slit_cen_img)/xnspatmin1
+        spec_img_nrm = spec_img/xnspecmin1
+
+        # normalized spec image
+        tracepix = spec_img + xnspecmin1*utils.func_val(coeff2, spec_img_nrm, func2d, x2=dspat_img_nrm,
+                                                              minx=0.0, maxx=1.0, minx2=-1.0, maxx2=1.0)
+        norm_img, spec_edges, spat_edges = np.histogram2d(tracepix.flatten(), spat_img.flatten(),
+                                                          bins=[np.arange(nspec+1), np.arange(nspat+1)], density=False)
+        weigh_img, spec_edges, spat_edges = np.histogram2d(tracepix.flatten(), spat_img.flatten(),
+                                                           bins=[np.arange(nspec+1), np.arange(nspat+1)],
+                                                           weights = spec_img.flatten(),density=False)
+        piximg =(norm_img > 0.0)*weigh_img/(norm_img + (norm_img == 0.0))
+        inmask = thismask & (norm_img > 0) & (piximg/xnspecmin1 > -0.2) & (piximg/xnspecmin1 < 1.2)
+    # This is the defulat method although scipy.interpolate.griddata is a bit slow
+    elif 'interp' in method:
+        spec_vec_pad = np.arange(-pad_spec,nspec+pad_spec)
+        spat_vec_pad = np.arange(-pad_spat,nspat+pad_spat)
+        spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
+        spat_img_pad, spec_img_pad = np.meshgrid(np.arange(-pad_spat,nspat+pad_spat),np.arange(-pad_spec,nspec+pad_spec))
+        slit_cen_pad = (scipy.interpolate.interp1d(spec_vec,slit_cen,bounds_error=False,fill_value='extrapolate'))(spec_vec_pad)
+        thismask_pad = np.zeros_like(spec_img_pad,dtype=bool)
+        ind_spec, ind_spat = np.where(thismask)
+        slit_cen_img_pad= np.outer(slit_cen_pad, np.ones(nspat + 2*pad_spat))  # center of the slit replicated spatially
+        # Normalized spatial offset image (from central trace)
+        dspat_img_nrm = (spat_img_pad - slit_cen_img_pad)/xnspatmin1
+        # normalized spec image
+        spec_img_nrm = spec_img_pad/xnspecmin1
+        # Embed the old thismask in the new larger padded thismask
+        thismask_pad[ind_spec + pad_spec,ind_spat + pad_spat] = thismask[ind_spec,ind_spat]
+        # Now grow the thismask_pad
+        kernel = np.ones((2*pad_spec, 2*pad_spat))/float(4*pad_spec*pad_spat)
+        thismask_grow = scipy.ndimage.convolve(thismask_pad.astype(float), kernel, mode='nearest') > 0.0
+        # Evaluate the tilts on the padded image grid
+        tracepix = spec_img_pad[thismask_grow] + xnspecmin1*utils.func_val(coeff2, spec_img_nrm[thismask_grow], func2d, x2=dspat_img_nrm[thismask_grow],
+                                                              minx=0.0, maxx=1.0, minx2=-1.0, maxx2=1.0)
+        ## TESTING STARTS
+        """
+        ikeep = np.isfinite(tracepix)
+        sigma = np.full_like(spec_img_pad[thismask_grow], 10.0)/xnspecmin1
+        fitxy = [spec_order, spat_order]
+        fitmask, coeff2_tilts = utils.robust_polyfit_djs(tracepix/xnspecmin1, spec_img_pad[thismask_grow]/xnspecmin1,
+                                                         fitxy, x2=spat_img_pad[thismask_grow]/xnspatmin1,
+                                                         sigma=sigma,
+                                                         upper=5.0, lower=5.0, maxdev=10.0/xnspecmin1,
+                                                         inmask=ikeep, function=func2d, maxiter=20,
+                                                         minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0, use_mad=False)
+        ## TESTING ENDS
+        # values(points) \equiv spec_pos(tilt,spat_pos) which is the piximg that we want to create via griddata interpolation
+        """
+        ikeep = np.isfinite(tracepix)
+        points = np.stack((tracepix[ikeep], spat_img_pad[thismask_grow][ikeep]), axis=1)
+        values =spec_img_pad[thismask_grow][ikeep]
+        piximg = scipy.interpolate.griddata(points, values, (spec_img, spat_img), method='cubic')
+        inmask = thismask & np.isfinite(piximg) & (piximg/xnspecmin1 > -0.2) & (piximg/xnspecmin1 < 1.2)
+
+    # Now simply do a 2d polynomial fit with just rejection of crazy behavior, i.e. 10 pixels
+    fitxy = [spec_order, spat_order]
+    sigma = np.full_like(spec_img,10.0)/xnspecmin1
+    fitmask, coeff2_tilts = utils.robust_polyfit_djs(spec_img.flatten()/xnspecmin1, piximg.flatten()/xnspecmin1,
+                                                     fitxy, x2=spat_img.flatten()/xnspatmin1, sigma = sigma.flatten(),
+                                                     upper=5.0, lower=5.0, maxdev = 10.0/xnspecmin1,
+                                                     inmask=inmask.flatten(), function=func2d, maxiter=20,
+                                                     minx=0.0, maxx=1.0, minx2=0.0,maxx2=1.0,use_mad=False)
+    irej = np.invert(fitmask) & inmask.flatten()
+    msgs.info('Rejected {:d}/{:d} pixels in final tilts image after gridding'.format(np.sum(irej),np.sum(inmask)))
+    # normalized tilts image
+
+    tilts = utils.func_val(coeff2_tilts, spec_img/xnspecmin1, func2d, x2=spat_img/xnspatmin1,minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    tilts = np.fmax(np.fmin(tilts, 1.2),-0.2)
+    # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
+    # wavelength solution fitting
+
+    return coeff2_tilts, tilts
+
+
+
+def fit2tilts_backup(shape, slit_cen, coeff2, func):
+    """
+
+    Parameters
+    ----------
+    tilt_fit_dict: dict
+        Tilt fit dictioary produced by fit_tilts
+
+    Returns
+    -------
+    piximg: ndarray, float
+       Image indicating how spectral pixel locations move across the image. This output is used in the pipeline.
+    """
+
+    # Compute the tilts image
+    nspec, nspat = shape
+    xnspecmin1 = float(nspec-1)
+    xnspatmin1 = float(nspat-1)
+
+    spat_img = np.outer(np.ones(nspec), np.arange(nspat)) # spatial position everywhere along image
+    slit_cen_img = np.outer(slit_cen, np.ones(nspat))   # center of the slit replicated spatially
+    # Normalized spatial offset image (from central trace)
+    dspat_img_nrm = (spat_img - slit_cen_img)/xnspatmin1
+    # normalized spec image
+    spec_img_nrm = np.outer(np.arange(nspec), np.ones(nspat))/xnspecmin1
+
+    tilts = utils.func_val(coeff2, dspat_img_nrm, func, x2=spec_img_nrm, minx=-1.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
+    # wavelength solution fitting
+    tilts = np.fmax(np.fmin(tilts, 1.2),-0.2)
+
+    return tilts
+
+
+
 #TODO this should be deleted, but I'm saving some it for now becasue I'm still testing.
 '''
 
