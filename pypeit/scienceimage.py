@@ -179,7 +179,6 @@ class ScienceImage():
         self.sobjs = None  # Final extracted object list with trace corrections applied
 
         # Other bookeeping internals
-        self.binning = None
         self.crmask = None
         self.mask = None
 
@@ -250,7 +249,7 @@ class ScienceImage():
         gdslits = np.where(~self.maskslits)[0]
 
         # Build and assign the slitmask and input mask if they do not already exist
-        self.slitmask = self.spectrograph.slitmask(tslits_dict) if self.slitmask is None else self.slitmask
+        self.slitmask = self.spectrograph.slitmask(tslits_dict, binning=self.binning) if self.slitmask is None else self.slitmask
         #self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
 
 
@@ -337,7 +336,7 @@ class ScienceImage():
         gdslits = np.where(~self.maskslits)[0]
 
         # Build and assign the slitmask and input mask if they do not already exist
-        self.slitmask = self.spectrograph.slitmask(tslits_dict) if self.slitmask is None else self.slitmask
+        self.slitmask = self.spectrograph.slitmask(tslits_dict, binning=self.binning) if self.slitmask is None else self.slitmask
         #self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
 
         # Prep
@@ -406,7 +405,7 @@ class ScienceImage():
         #gdslits = np.where(~self.maskslits)[0]
 
         # Build and assign the slitmask and input mask if they do not already exist
-        self.slitmask = self.spectrograph.slitmask(tslits_dict) if self.slitmask is None else self.slitmask
+        self.slitmask = self.spectrograph.slitmask(tslits_dict, binning=self.binning) if self.slitmask is None else self.slitmask
         #self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
 
         plate_scale = self.spectrograph.order_platescale(binning=self.binning)
@@ -455,7 +454,7 @@ class ScienceImage():
         gdslits = np.where(~self.maskslits)[0]
 
         # Build and assign the slitmask and input mask if they do not already exist
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict) if self.slitmask is None else self.slitmask
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning) if self.slitmask is None else self.slitmask
         #self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
 
         if not self._chk_objs([ # Did they run process?
