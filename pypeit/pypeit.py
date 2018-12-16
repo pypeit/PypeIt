@@ -463,6 +463,34 @@ class PypeIt(object):
                             update_det=self.par['rdx']['detnum'])
         return all_specobjs
 
+    def init_sci_init_sky(self, frames, det, bg_frames=None):
+
+        # Grab some meta-data needed for the reduction from the fitstbl
+        self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], det)
+        # Grab the files that we will reduce
+        sciI = scienceimage.ScienceImage(self.spectrograph,
+                                         self.fitstbl.frame_paths(frames),
+                                         bg_file_list=self.fitstbl.frame_paths(bg_frames),
+                                         par=self.par['scienceimage'],
+                                         frame_par=self.par['scienceframe'],
+                                         objtype=self.objtype,
+                                         det=det,
+                                         binning=self.binning,
+                                         setup=self.setup)
+        # For QA on crash
+        msgs.sciexp = sciI
+
+        # Process images (includes inverse variance image, rn2 image, and CR mask)
+        sciimg, sciivar, rn2img, mask, crmask = sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+                                                          self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,show=self.show)
+        # Object finding, first pass on frame without sky subtraction
+        self.maskslits = self.caliBrate.maskslits.copy()
+
+        # Do one iteration of object finding, and sky subtract to get initial sky model
+        initial_sky = sciI.get_init_sky(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'], show = self.show)
+
+        return sciimg, sciivar, rn2img, mask, crmask, initial_sky, sciI
+
     def extract_one(self, frames, det, bg_frames = None, std_outfile = None):
         """
         Dummy method for object extraction. Overloaded by class specific extraction.
@@ -562,47 +590,26 @@ class MultiSlit(PypeIt):
 
         """
 
-        # Grab some meta-data needed for the reduction from the fitstbl
-        self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], det)
-        # Grab the files that we will reduce
-        sci_image_files = self.fitstbl.frame_paths(frames)
-        bg_frame_files  = self.fitstbl.frame_paths(bg_frames)
-        self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_image_files, bg_file_list=bg_frame_files,
-                                              par=self.par['scienceimage'],
-                                              frame_par=self.par['scienceframe'],
-                                              objtype=self.objtype,
-                                              det=det,
-                                              binning=self.binning,
-                                              setup=self.setup)
-        # For QA on crash
-        msgs.sciexp = self.sciI
-
-        # Process images (includes inverse variance image, rn2 image, and CR mask)
-        sciimg, sciivar, rn2img, mask, crmask = self.sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
-                                                         self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,show=self.show)
-        # Object finding, first pass on frame without sky subtraction
-        maskslits = self.caliBrate.maskslits.copy()
-
-        # Do one iteration of object finding, and sky subtract to get initial sky model
-        initial_sky = self.sciI.get_init_sky(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'], show = self.show)
+        sciimg, sciivar, rn2img, mask, crmask, initial_sky, self.sciI = \
+            self.init_sci_init_sky(self, frames, det, bg_frames=bg_frames)
 
         # Object finding, second pass on frame *with* sky subtraction. Show here if requested
-        sobjs_obj, nobj = self.sciI.find_objects(self.caliBrate.tslits_dict, skysub=True,maskslits=maskslits, show_peaks=self.show)
+        sobjs_obj, nobj = self.sciI.find_objects(self.caliBrate.tslits_dict, skysub=True,maskslits=self.maskslits, show_peaks=self.show)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
             global_sky = self.sciI.global_skysub(self.caliBrate.tslits_dict,
                                             self.caliBrate.tilts_dict['tilts'], use_skymask=True,
-                                            maskslits=maskslits, show=self.show)
+                                            maskslits=self.maskslits, show=self.show)
 
             skymodel, objmodel, ivarmodel, outmask, sobjs = self.sciI.local_skysub_extract(sobjs_obj, self.caliBrate.mswave,
-                                                                                           maskslits=maskslits, show_profile=self.show,
+                                                                                           maskslits=self.maskslits, show_profile=self.show,
                                                                                            show=self.show)
 
             # Flexure correction?
-            self.flexure_correct(sobjs,maskslits)
-            vel_corr = self.helio_correct(sobjs, maskslits, frames[0], self.obstime)
+            self.flexure_correct(sobjs,self.maskslits)
+            vel_corr = self.helio_correct(sobjs, self.maskslits, frames[0], self.obstime)
 
         else:
             msgs.warn('No objects to extract for science frame' + msgs.newline()
@@ -715,7 +722,7 @@ class Echelle(PypeIt):
         super(Echelle, self).__init__(spectrograph, **kwargs)
 
     # JFH Take background files as an argument
-    def extract_one(self,std=False):
+    def extract_one(self, frames, det, bg_frames = None, std_outfile = None):
         """
         Extract a single exposure/detector pair
 
@@ -733,30 +740,10 @@ class Echelle(PypeIt):
 
         """
 
-        # TODO Move the init_one_science functinon lines here. No three line functions!
+        self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask, initial_sky, self.sciI = \
+            self.init_sci_init_sky(self, frames, det, bg_frames=bg_frames)
 
-        sciI = self.sciI
-
-        # Process images (includes inverse variance image, rn2 image, and CR mask)
-        # JFH ToDO this should take a file list!
-        sciimg, sciivar, rn2img, crmask \
-                = sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
-                            self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
-                            apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
-
-        # if bgfiles is not None:
-        # sciimg, sciivar, rn2img, crmask = sciI.proc(bgfiles, self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
-        #                             self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
-        #                             apply_gain=True, trim=self.caliBrate.par['trim'], show=self.show)
-
-
-        # Object finding, first pass on frame without sky subtraction
-        maskslits = self.caliBrate.maskslits.copy()
-
-        # Do one iteration of object finding, and sky subtract to get initial sky model
-        initial_sky = sciI.get_init_sky(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'], show = self.show)
-
-        sobjs_ech, nobj = sciI.get_ech_objects(self.caliBrate.tslits_dict, show=self.show)
+        sobjs_ech, nobj = self.sciI.get_ech_objects(self.caliBrate.tslits_dict, show=self.show)
 
 
         # If there are objects, do 2nd round of global_skysub,
@@ -764,7 +751,7 @@ class Echelle(PypeIt):
         vel_corr = None
         if nobj > 0:
             skymodel, objmodel, ivarmodel, outmask, sobjs \
-                    = sciI.local_skysub_extract(sobjs_ech, self.caliBrate.mswave, maskslits=maskslits, std = std,
+                    = self.sciI.local_skysub_extract(sobjs_ech, self.caliBrate.mswave, maskslits=maskslits, std = std,
                                                 show_profile=self.show, show=self.show)
 
             # Flexure correction?

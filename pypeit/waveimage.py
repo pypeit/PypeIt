@@ -87,8 +87,8 @@ class WaveImage(masterframe.MasterFrame):
         nspec =self.slitmask.shape[0]
 
         # Error checking on the wv_calib
-        if (nspec-1) != int(self.wv_calib[str(0)]['fmax']):
-            msgs.error('Your wavelength fits used inconsistent normalization. Something is wrong!')
+        #if (nspec-1) != int(self.wv_calib[str(0)]['fmax']):
+        #    msgs.error('Your wavelength fits used inconsistent normalization. Something is wrong!')
 
         # Ff this is echelle print out a status message and do some error checking
         if self.par['echelle']:

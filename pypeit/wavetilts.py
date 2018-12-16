@@ -212,7 +212,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.all_trace_dict[slit] = copy.deepcopy(trc_tilt_dict_out)
 
         self.steps.append(inspect.stack()[0][3])
-        return tilts, tilt_fit_dict['coeff2']
+        return tilt_fit_dict['coeff2']
 
     def trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen):
         """
@@ -288,7 +288,7 @@ class WaveTilts(masterframe.MasterFrame):
         gdslits = np.where(self.mask == 0)[0]
 
         # Final tilts image
-        self.final_tilts = np.zeros_like(self.msarc)
+        self.final_tilts = np.zeros_like(self.slitmask_science)
         max_spat_dim = (np.asarray(self.par['spat_order']) + 1).max()
         max_spec_dim = (np.asarray(self.par['spec_order']) + 1).max()
         self.coeffs = np.zeros((max_spec_dim, max_spat_dim,self.nslits))
