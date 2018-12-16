@@ -235,9 +235,10 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     # Pack up fit
     spec_vec = np.arange(nspec)
     wave_soln = utils.func_val(fit,spec_vec, func, minx=fmin, maxx=fmax)
-    cen_wave = wave_soln[float(nspec)/2]
-    cen_wave_min1 = wave_soln[float(nspec)/2-1.0]
+    cen_wave = utils.func_val(fit, float(nspec)/2, func, minx=fmin, maxx=fmax)
+    cen_wave_min1 = utils.func_val(fit, float(nspec)/2 - 1.0, func, minx=fmin, maxx=fmax)
     cen_disp = cen_wave - cen_wave_min1
+
     final_fit = dict(fitc=fit, function=func, pixel_fit=xfit, wave_fit=yfit, weights=wfit, ions=ions,
                      fmin=fmin, fmax=fmax, nspec=nspec, cen_wave = cen_wave, cen_disp = cen_disp,
                      xrej=xrej, yrej=yrej, mask=(mask == 0), spec=spec, wave_soln = wave_soln, nrej=sigrej_final,

@@ -51,8 +51,9 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     """
 
     # Normalize  for pixels
-    min_spec =0.0
-    max_spec =float(nspec-1)
+    min_spec = 0.0
+    max_spec = 1.0
+    xnspecmin1 = float(nspec-1)
     # Normalize for orders
     min_order = np.min(all_orders)
     max_order = np.max(all_orders)
@@ -75,11 +76,11 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
 
     # Fit the product of wavelength and order number with a 2d legendre polynomial
     all_wv_order = all_wv * all_orders
-    fitmask, coeff2 = utils.robust_polyfit_djs(all_pix, all_wv_order, (nspec_coeff, norder_coeff),x2=all_orders,
+    fitmask, coeff2 = utils.robust_polyfit_djs(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff),x2=all_orders,
                                                function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
                                                minx=min_spec,maxx=max_spec, minx2=min_order, maxx2=max_order,
                                                use_mad=True, sticky=False)
-    wv_order_mod = utils.func_val(coeff2, all_pix, func2d, x2=all_orders,
+    wv_order_mod = utils.func_val(coeff2, all_pix/xnspecmin1, func2d, x2=all_orders,
                                                minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
     resid = (wv_order_mod[fitmask]-all_wv_order[fitmask])
     fin_rms = np.std(resid)
@@ -91,7 +92,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
                     min_spec=min_spec, max_spec=max_spec,
                     min_order=min_order, max_order=max_order,
                     nspec=nspec, all_pix=all_pix, all_wv=all_wv,
-                    func2d=func2d,
+                    func2d=func2d,xnorm=xnspecmin1,
                     all_orders=all_orders, all_mask=fitmask)
 
 
@@ -136,10 +137,11 @@ def fit2darc_global_qa(fit_dict, outfile=None):
     max_spec = fit_dict['max_spec']
     min_order = fit_dict['min_order']
     max_order = fit_dict['max_order']
+    xnorm = fit_dict['xnorm']
     resid_wl_global = []
 
     # Define pixels array
-    spec_vec = np.arange(nspec)
+    spec_vec_norm = np.arange(nspec)/xnorm
 
     # Define figure properties
     plt.figure(figsize=(8, 5))
@@ -157,7 +159,7 @@ def fit2darc_global_qa(fit_dict, outfile=None):
         bb = (ii - np.min(orders)) / (np.max(orders) - np.min(orders))
 
         # evaluate solution
-        wv_order_mod = utils.func_val(coeffs, spec_vec, func2d, x2=np.ones_like(spec_vec)*ii,
+        wv_order_mod = utils.func_val(coeffs, spec_vec_norm, func2d, x2=np.ones_like(spec_vec_norm)*ii,
                                                minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
         # Plot solution
         plt.plot(wv_order_mod / ii, spec_vec, color=(rr, gg, bb),
@@ -169,7 +171,7 @@ def fit2darc_global_qa(fit_dict, outfile=None):
         this_wv = all_wv[on_order]
         this_msk = fitmask[on_order]
         this_order = all_orders[on_order]
-        wv_order_mod_resid = utils.func_val(coeffs, this_pix, func2d, x2=this_order,
+        wv_order_mod_resid = utils.func_val(coeffs, this_pix/xnorm, func2d, x2=this_order,
                                                minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
         resid_wl = (wv_order_mod_resid / ii - this_wv)
         resid_wl_global = np.append(resid_wl_global, resid_wl[this_msk])
@@ -184,7 +186,7 @@ def fit2darc_global_qa(fit_dict, outfile=None):
 
     rms_global = np.sqrt(np.mean((resid_wl_global) ** 2))
 
-    plt.text(mx, np.max(spec_vec), r'residuals $\times$100', \
+    plt.text(mx, np.max(spec_vec_norm), r'residuals $\times$100', \
              ha="right", va="top")
     plt.title(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#'.format(
         norder_coeff, nspec_coeff, rms_global))
@@ -238,10 +240,11 @@ def fit2darc_orders_qa(fit_dict, outfile=None):
     max_spec = fit_dict['max_spec']
     min_order = fit_dict['min_order']
     max_order = fit_dict['max_order']
+    xnorm = fit_dict['xnorm']
     resid_wl_global = []
 
     # Define pixels array
-    spec_vec = np.arange(nspec)
+    spec_vec_norm = np.arange(nspec)/xnorm
 
     # set the size of the plot
     nrow = np.int(2)
@@ -270,10 +273,10 @@ def fit2darc_orders_qa(fit_dict, outfile=None):
 
                 # Evaluate function
                 # evaluate solution
-                wv_order_mod = utils.func_val(coeffs, spec_vec, func2d, x2=ii*np.ones_like(spec_vec),
+                wv_order_mod = utils.func_val(coeffs, spec_vec_norm, func2d, x2=ii*np.ones_like(spec_vec_norm),
                                               minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
                 # Evaluate delta lambda
-                dwl = (wv_order_mod[-1] - wv_order_mod[0]) / ii / (spec_vec[-1] - spec_vec[0])
+                dwl = (wv_order_mod[-1] - wv_order_mod[0])/ii /xnorm/(spec_vec_norm[-1] - spec_vec_norm[0])
 
                 # Estimate the residuals
                 on_order = all_orders == ii
@@ -282,14 +285,14 @@ def fit2darc_orders_qa(fit_dict, outfile=None):
                 this_wv = all_wv[on_order]
                 this_msk = fitmask[on_order]
 
-                wv_order_mod_resid = utils.func_val(coeffs, this_pix, func2d, x2=this_order,
+                wv_order_mod_resid = utils.func_val(coeffs, this_pix/xnorm, func2d, x2=this_order,
                                               minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
                 resid_wl = (wv_order_mod_resid/ii - this_wv)
                 resid_wl_global = np.append(resid_wl_global, resid_wl[this_msk])
 
                 # Plot the fit
                 ax0.set_title('Order = {0:0.0f}'.format(ii))
-                ax0.plot(spec_vec, wv_order_mod / ii / 10000., color=(rr, gg, bb), linestyle='-',
+                ax0.plot(spec_vec_norm*xnorm, wv_order_mod / ii / 10000., color=(rr, gg, bb), linestyle='-',
                          linewidth=2.5)
                 ax0.scatter(this_pix[~this_msk], (wv_order_mod_resid[~this_msk] / ii / 10000.) + \
                             100. * resid_wl[~this_msk] / 10000., marker='x', color='black', \
