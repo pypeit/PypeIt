@@ -667,7 +667,7 @@ class ArchiveReid:
     """
 
 
-    def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True, debug_all = True,
+    def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True, debug_all = False,
                  debug_peaks = False, debug_xcorr = False, debug_reid = False, debug_fits= False):
 
         if debug_all:
@@ -943,7 +943,6 @@ class HolyGrail:
         self._binw = binw
         self._bind = bind
 
-
         # Mask info
         if ok_mask is None:
             self._ok_mask = np.arange(self._nslit)
@@ -1099,6 +1098,7 @@ class HolyGrail:
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _  =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
+
             # Were there enough lines?  This mainly deals with junk slits
             if self._all_tcent.size < min_nlines:
                 msgs.warn("Not enough lines to identify in slit {0:d}!".format(slit))

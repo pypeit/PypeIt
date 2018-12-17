@@ -107,7 +107,7 @@ class TraceSlits(masterframe.MasterFrame):
     frametype = 'trace'
 
     def __init__(self, mstrace, pixlocn, spectrograph,
-                 par=None, det=None, master_key=None, master_dir=None,
+                 par=None, det=1, master_key=None, master_dir=None,
                  redux_path=None,
                  mode=None, binbpx=None, ednum=100000):
 
@@ -1278,7 +1278,7 @@ class TraceSlits(masterframe.MasterFrame):
         return loaded
 
     def run(self, add_user_slits=None, rm_user_slits=None, trim_slits=True,
-            plate_scale=None, show=False, write_qa=True):
+            plate_scale=None, show=False, write_qa=True, debug=False):
         """ Main driver for tracing slits.
 
           Code flow
@@ -1355,7 +1355,7 @@ class TraceSlits(masterframe.MasterFrame):
             pass
         else:  # No, not done yet
             # Refine
-            self._pca_refine(debug=False, show=show)
+            self._pca_refine(debug=debug, show=show)
             # Synchronize and add in edges
             self._mslit_sync()
             # Add user input slits

@@ -57,7 +57,7 @@ def test_step_by_step(master_dir):
     # 2D Fit
     spat_order = waveTilts._parse_param(waveTilts.par, 'spat_order', slit)
     spec_order = waveTilts._parse_param(waveTilts.par, 'spec_order', slit)
-    tilts, coeffs = waveTilts._fit_tilts(trcdict, waveTilts.slitcen[:, slit], spat_order, spec_order,slit, doqa=False)
+    tilts, coeffs = waveTilts._fit_tilts(trcdict, thismask, waveTilts.slitcen[:, slit], spat_order, spec_order,slit, doqa=False)
     assert np.max(tilts) < 1.01
 
 

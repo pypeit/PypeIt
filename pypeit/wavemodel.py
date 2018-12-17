@@ -367,6 +367,8 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         # Zero out below WAVE_WATER microns (reconsider)
         h2ospec[wave<WAVE_WATER] = 0.
         h2ospec[wave>np.max(h2o_wv)] = 0.
+    else:
+        h2ospec = np.zeros(len(wave),dtype='float')
 
     sky_model = y+bb_counts*SCL_BB+ohspec*SCL_OH+h2ospec*SCL_H2O
 
