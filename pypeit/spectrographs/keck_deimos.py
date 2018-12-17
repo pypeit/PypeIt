@@ -204,7 +204,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['polyorder'] = 3
-        par['calibrations']['slits']['fracignore'] = 0.02
+        #par['calibrations']['slits']['fracignore'] = 0.02
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
 
         # Overscan subtract the images

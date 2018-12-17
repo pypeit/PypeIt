@@ -55,7 +55,7 @@ def test_setup_made_pypeit_file():
     """ Test the .pypeit file(s) made by pypeit_setup
     This test depends on the one above
     """
-    pypeit_file = data_path('shane_kast_blue_setup_A/shane_kast_blue_setup_A.pypeit')
+    pypeit_file = data_path('shane_kast_blue_A/shane_kast_blue_A.pypeit')
     cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file)
     # Test
     assert len(data_files) == 2
