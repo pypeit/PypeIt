@@ -636,7 +636,7 @@ class Calibrations(object):
         Load or generate the 1D wavelength calibrations
 
         Requirements:
-          msarc, msbpm, tslits_dict
+          msarc, msbpm, tslits_dict, maskslits
           det, par
 
         Returns:
@@ -644,12 +644,8 @@ class Calibrations(object):
             self.maskslits -- Updated
         """
         # Check for existing data
-        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict']):
+        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict', 'maskslits']):
             msgs.error('dont have all the objects')
-            self.wv_calib = None
-            self.wv_maskslits = np.zeros_like(self.maskslits, dtype=bool)
-            self.maskslits += self.wv_maskslits
-            return self.wv_calib, self.maskslits
 
         # Check internals
         self._chk_set(['arc_master_key', 'det', 'calib_ID', 'par'])
