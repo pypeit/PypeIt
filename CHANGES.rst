@@ -54,6 +54,7 @@
 - Refactor tests to handle new calib groups
 - Pushed pieces of run_pypeit into the PypeIt class
 - Removed future as a dependency
+- Change point step size to 50 pixels in show_slits and show_trace for major speed up
 
 0.9.0
 -----

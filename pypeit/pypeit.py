@@ -587,9 +587,9 @@ class PypeIt(object):
         # information to fitstbl?
         rawfile = self.fitstbl.frame_paths(frame)
         # TODO: Make sure self.det is correct!
-        setup = self.fitstbl.master_key(frame, det=self.det)
+        master_key = self.fitstbl.master_key(frame, det=self.det)
         save.save_2d_images(sci_dict, rawfile, self.spectrograph.primary_hdrext,
-                            setup, self.caliBrate.master_dir, scidir, basename,
+                            master_key, self.caliBrate.master_dir, scidir, basename,
                             update_det=self.par['rdx']['detnum'])
         return all_specobjs
 
