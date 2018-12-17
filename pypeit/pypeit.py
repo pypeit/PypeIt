@@ -71,18 +71,6 @@ class PypeIt(object):
         self.pypeit_file = pypeit_file
         ps = pypeitsetup.PypeItSetup.from_pypeit_file(self.pypeit_file)
         ps.run(setup_only=False)
-        '''
-        ps.build_fitstbl(strict=True)
-        ps.get_frame_types()
-
-        # Determine the configurations and assign each frame to the
-        # specified configuration
-        cfgs = self.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
-        self.fitstbl.set_configurations(cfgs)
-
-        # Assign frames to calibration groups
-        self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
-        '''
         # Only need the parameters, spectrograph, and metadata for the remainder
         self.par = ps.par
         # self.spectrograph = ps.spectrograph
@@ -201,7 +189,7 @@ class PypeIt(object):
             # calibration group:
             grp_standards = frame_indx[is_standard & in_grp]
 
-            # TODO -- Turn standards back on!
+            # TODO -- Turn this back on when we fix standards
             '''
             # Reduce all the standard frames
             for frame in grp_standards:
@@ -220,8 +208,6 @@ class PypeIt(object):
             # standard associated with a given science frame.  Below, I
             # just use the first standard
             std_frame = None if len(grp_standards) == 0 else grp_standards[0]
-            # TODO - REMOVE THIS
-            std_frame = None
 
             # Reduce all the science frames; keep the basenames of the
             # science frames for use in flux calibration
@@ -385,12 +371,16 @@ class PypeIt(object):
         """
         # Prepare to load up standard?
         if std_frame is not None:
+            # TODO -- Turn back on when standards come back
+            std_outfile = None
+            '''
             std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
                                        'spec1d_{:s}.fits'.format(
                                             self.fitstbl.construct_basename(std_frame))) \
                                 if isinstance(std_frame, int) else std_frame
             if std_outfile is not None and not os.path.isfile(std_outfile):
                 msgs.error('Could not open standard file: {0}'.format(std_outfile))
+            '''
         else:
             std_outfile = None
 

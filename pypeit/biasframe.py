@@ -108,6 +108,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         Args:
             force: bool, optional
+              Force the code to attempt to load the MasterFrame
 
         Returns:
             self.msbias str, ndarray or None

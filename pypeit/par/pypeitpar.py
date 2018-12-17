@@ -1297,7 +1297,7 @@ class TraceSlitsPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, function=None, polyorder=None, medrep=None, number=None, trim=None,
-                 maxgap=None, maxshift=None, pad=None, sigdetect=None, fracignore=None,
+                 maxgap=None, maxshift=None, pad=None, sigdetect=None,
                  min_slit_width = None, add_slits=None, rm_slits=None,
                  diffpolyorder=None, single=None, sobel_mode=None, pcatype=None, pcapar=None,
                  pcaextrap=None):
@@ -1366,14 +1366,6 @@ class TraceSlitsPar(ParSet):
         defaults['sigdetect'] = 20.0
         dtypes['sigdetect'] = [int, float]
         descr['sigdetect'] = 'Sigma detection threshold for edge detection'
-
-        '''  DEPRECATED
-        defaults['fracignore'] = 0.01
-        dtypes['fracignore'] = float
-        descr['fracignore'] = 'If a slit spans less than this fraction over the spectral size ' \
-                              'of the detector, it will be ignored (and reconstructed when/if ' \
-                              'an \'order\' PCA analysis is performed).'
-        '''
 
         defaults['min_slit_width'] = 6.0  # arcseconds!
         dtypes['min_slit_width'] = float
@@ -1450,7 +1442,7 @@ class TraceSlitsPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
-                    'pad', 'sigdetect', 'fracignore', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
+                    'pad', 'sigdetect', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
                     'pcatype', 'pcapar', 'pcaextrap', 'add_slits', 'rm_slits']
         kwargs = {}
         for pk in parkeys:

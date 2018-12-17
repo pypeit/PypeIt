@@ -47,6 +47,13 @@
 - Lots of development related to echelle functionality.
 - Major enhancements to fitting routines (in utils)
 - Make GMOS south works and update OH line lists, and also add LBT/MODS.
+- Introduce calib groups
+- Removes setup designation.  Largely replaced with master_key
+- Refactor Calibrations class to handle new calib groups
+- Refactor QA to handle new calib groups
+- Refactor tests to handle new calib groups
+- Pushed pieces of run_pypeit into the PypeIt class
+- Removed future as a dependency
 
 0.9.0
 -----

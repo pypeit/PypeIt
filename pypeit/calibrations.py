@@ -39,6 +39,10 @@ class Calibrations(object):
     This class is primarily designed to guide the generation of
     calibration images and objects in PypeIt.
 
+    To avoid rebuilding MasterFrames that were generated during this execution
+    of PypeIt, the class performs book-keeping of these master frames and
+    holds that info in self.calib_dict
+
     .. todo::
         Improve docstring...
 
@@ -77,7 +81,9 @@ class Calibrations(object):
         frame (:obj:`int`):
             0-indexed row of the frame being calibrated in
             :attr:`fitstbl`.
-        master_key
+        calib_ID (:obj:`int`):
+            calib group ID of the current frame
+        arc_master_key
 
 
         
@@ -123,6 +129,7 @@ class Calibrations(object):
         self.calib_dict = {}
         self.det = None
         self.frame = None
+        self.calib_ID = None
 
         # Steps
         self.steps = []
@@ -149,11 +156,19 @@ class Calibrations(object):
         self.mspixflatnrm = None
         self.msillumflat = None
         self.mswave = None
+        self.cailb_ID = None
 
     def check_for_previous(self, ftype, master_key):
         """
         Check to see whether the master file(s) have been
-        built during this run of PypeIt
+        built during this run of PypeIt.
+        If so, we will likely either load from memory or hard-drive
+
+        calib_dict is nested as:
+           [master_key][ftype]
+
+        If the ftype has not yet been generated, an empty dict is prepared
+           self.calib_dict[master_key][ftype] = {}
 
         Args:
             ftype: str
@@ -178,7 +193,7 @@ class Calibrations(object):
         the internals to None. The internal dict is left unmodified.
 
         Args:
-            master_key (str):
+            frame (int):
             det (int):
             par (CalibrationPar):
 
@@ -208,12 +223,6 @@ class Calibrations(object):
             self.msarc: ndarray
 
         """
-        # Check for existing data
-        ## JFH This check is wrong, if the user does not want to bias subtract, then it causes a crash
-#        if not self._chk_objs(['msbias']):
-#            self.msarc = None
-#            return self.msarc        self.arc_file_list, arc_rows = self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID)
-
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
@@ -264,10 +273,10 @@ class Calibrations(object):
         self.bias_file_list, bias_rows = self.fitstbl.find_frame_files('bias', calib_ID=self.calib_ID)
         if len(bias_rows) > 0:
             self.bias_master_key = self.fitstbl.master_key(bias_rows[0], det=self.det)
-        else:  # Allow for user-supplied file (e.g. LRISb)
+        else:  # Allow for other bias modes
             self.bias_master_key = self.fitstbl.master_key(self.frame, det=self.det)
 
-        # Grab from internal dict?
+        # Grab from internal dict (or hard-drive)?
         prev_build = self.check_for_previous('bias', self.bias_master_key)
         if prev_build:
             self.msbias = self.calib_dict[self.bias_master_key]['bias']
@@ -479,7 +488,7 @@ class Calibrations(object):
 
         return self.mspixflatnrm, self.msillumflat
 
-    def get_slits(self, redo=False):
+    def get_slits(self, redo=False, write_qa=True):
         """
         Load or generate the slits.
         First, a trace flat image is generated
@@ -487,6 +496,11 @@ class Calibrations(object):
         Requirements:
            pixlocn
            det par master_key
+
+        Args:
+            redo:
+            write_qa: bool, optional
+              Generate the QA?  Turn off for testing..
 
         Returns:
             self.tslits_dict
@@ -544,8 +558,9 @@ class Calibrations(object):
             rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det, rm=True)
             # Now we go forth
             try:
-                self.tslits_dict = self.traceSlits.run(plate_scale = plate_scale, show=self.show,
-                                                       add_user_slits=add_user_slits, rm_user_slits=rm_user_slits)
+                self.tslits_dict = self.traceSlits.run(plate_scale=plate_scale, show=self.show,
+                                                       add_user_slits=add_user_slits, rm_user_slits=rm_user_slits,
+                                                       write_qa=write_qa)
             except:
                 self.traceSlits.save_master()
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")

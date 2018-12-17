@@ -14,10 +14,7 @@ from pypeit import debugger
 
 class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     """
-    Generate an Arc Image from one or more arc frames.
-
-    .. todo::
-        - Update doc!
+    Generate an Arc Image by processing and combining one or more arc frames.
 
     Args:
         spectrograph (:obj:`str`,
@@ -36,16 +33,8 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
             :class:`pypeit.masterframe.MasterFrame`.
 
         root_path (:obj:`str`, optional):
-            
-    sci_ID : int (optional)
-      Science ID value
-      used to match bias frames to the current science exposure
-    msbias : ndarray or str
-      Guides bias subtraction
-    fitstbl : PypeItMetaData (optional)
-      FITS info (mainly for filenames)
-    redux_path : str (optional)
-      Path for reduction
+        msbias : ndarray or str
+          Guides bias subtraction
 
     Attributes
     ----------
@@ -80,13 +69,16 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
                                          mode=mode, master_dir=master_dir)
 
 
-    def build_image(self, overwrite=False, trim=True):
-        """
-        Build the arc image from one or more arc files
+    def build_image(self, overwrite=False):
+        """ Build the arc image from one or more arc files
 
-        Returns
-        -------
+        Args:
+            overwrite: (:obj: `bool`, optional):
+                Recreate?
 
+        Returns:
+            self.stack
+               Combined, processed image
         """
         # Get list of arc frames for this science frame
         #  unless one was input already
@@ -94,8 +86,5 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         self.stack = self.process(bias_subtract=self.msbias, overwrite=overwrite, trim=True)
         #
         return self.stack
-
-    # TODO: There is no master() method.  Does this mean useframe is
-    # always 'arc'?
 
 
