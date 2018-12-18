@@ -192,17 +192,21 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         msgs.info("Extinction correction not applied")
 
     # Create star model
-    if (ra is not None) and (dec is not None):
+    if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
         # Pull star spectral model from archive
         msgs.info("Get standard model")
         # Grab closest standard within a tolerance
         std_dict = find_standard_file(ra, dec)
-        # Load standard
-        load_standard_file(std_dict)
-        # Interpolate onto observed wavelengths
-        std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
-        xspec = std_xspec.rebin(wave_star)  # Conserves flambda
-        flux_true = xspec.flux.value
+        if std_dict is not None:
+            # Load standard
+            load_standard_file(std_dict)
+            # Interpolate onto observed wavelengths
+            std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
+            xspec = std_xspec.rebin(wave_star)  # Conserves flambda
+            flux_true = xspec.flux.value
+        else:
+            msgs.error('No spectrum found in our database for your standard star. Please use another standard star \
+                       or consider add it into out database.')
     elif (star_mag is not None) and (star_type is not None):
         # Create star spectral model
         msgs.info("Creating standard model")
