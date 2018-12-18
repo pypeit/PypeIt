@@ -777,7 +777,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     std_file_fmt = [1]  # 1=Calspec style FITS binary table
 
     # SkyCoord
-    obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.deg, units.deg))
+    obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
     # Loop on standard sets
     closest = dict(sep=999 * units.deg)
     for qq, sset in enumerate(std_sets):
