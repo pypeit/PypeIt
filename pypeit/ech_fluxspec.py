@@ -25,7 +25,7 @@ from pypeit.par.pypeitpar import TelescopePar
 
 from pypeit import debugger
 
-class Ech_FluxSpec(masterframe.MasterFrame):
+class EchFluxSpec(masterframe.MasterFrame):
     """Class to guide fluxing
 
     Parameters
