@@ -167,8 +167,6 @@ class EchFluxSpec(masterframe.MasterFrame):
         self.std_idx = None     # Nested indices for the std_specobjs list that corresponds
                                 # to the star!
         # Echelle key
-        self.norder = None
-        # ToDo: Need to parse the following in
         self.star_type = star_type
         self.star_mag = star_mag
         self.BALM_MASK_WID = BALM_MASK_WID
@@ -295,12 +293,11 @@ class EchFluxSpec(masterframe.MasterFrame):
             msgs.warn('First set std_header with a dict-like object holding RA, DEC, '
                       'AIRMASS, EXPTIME.')
             return None
-        if self.norder is None:
-            ext_final = fits.getheader(self.std_spec1d_file, -1)
-            self.norder = ext_final['ORDER'] + 1
+        ext_final = fits.getheader(self.std_spec1d_file, -1)
+        norder = ext_final['ORDER'] + 1
 
         self.sens_dict = {}
-        for iord in range(self.norder):
+        for iord in range(norder):
             std_specobjs, std_header = load.ech_load_specobj(self.std_spec1d_file, order=iord)
             std_idx = flux.find_standard(std_specobjs)
             std = std_specobjs[std_idx]
@@ -314,7 +311,7 @@ class EchFluxSpec(masterframe.MasterFrame):
                                                nresln=self.nresln, std_file=self.std_file, debug=self.debug)
             sens_dict_iord['ech_orderindx'] = iord
             self.sens_dict[str(iord)] = sens_dict_iord
-        self.sens_dict['norder'] = self.norder
+        self.sens_dict['norder'] = norder
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -331,12 +328,12 @@ class EchFluxSpec(masterframe.MasterFrame):
         -------
 
         """
-        norder = self.norder
+        norder = self.sens_dict['norder']
         for iord in range(norder):
-            sens_dict = self.sens_dict[str(iord)]
+            sens_dict_iord = self.sens_dict[str(iord)]
             for sci_obj in self.sci_specobjs:
                 if sci_obj.ech_orderindx == iord:
-                    flux.apply_sensfunc(sci_obj, self.sens_dict, self.sci_header['AIRMASS'],
+                    flux.apply_sensfunc(sci_obj, sens_dict_iord, self.sci_header['AIRMASS'],
                                         self.sci_header['EXPTIME'], self.spectrograph)
         self.steps.append(inspect.stack()[0][3])
 
@@ -347,13 +344,22 @@ class EchFluxSpec(masterframe.MasterFrame):
         if self.sens_dict is None:
             msgs.warn("You need to generate the sensfunc first!")
             return None
-        # Generate from model
+        plt.rcdefaults()
+        plt.rcParams["xtick.top"] = True
+        plt.rcParams["ytick.right"] = True
+        plt.rcParams["xtick.minor.visible"] = True
+        plt.rcParams["ytick.minor.visible"] = True
+        plt.rcParams["ytick.direction"] = 'in'
+        plt.rcParams["xtick.direction"] = 'in'
+        plt.rcParams["xtick.labelsize"] = 13
+        plt.rcParams["ytick.labelsize"] = 13
+        plt.rcParams['font.family'] = 'times new roman'
         norder = self.sens_dict['norder']
         for iord in range(norder):
             sens_dict_iord = self.sens_dict[str(iord)]
             plt.plot(sens_dict_iord['wave'],sens_dict_iord['sensfunc'])
-        plt.xlabel('Wavelength [ang]')
-        plt.ylabel('Sensfunc')
+        plt.xlabel('Wavelength [ang]',fontsize=14)
+        plt.ylabel('Sensfunc',fontsize=14)
         plt.ylim([0.,100.0])
         plt.show()
 
