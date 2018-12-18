@@ -78,7 +78,8 @@ class EchFluxSpec(masterframe.MasterFrame):
 
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
                  std_specobjs=None, std_header=None, spectrograph=None,
-                 telluric=False, setup=None, master_dir=None, mode=None):
+                 telluric=False, setup=None, master_dir=None, mode=None,
+                 star_type=None, star_mag = None, BALM_MASK_WID = 5.0, nresln = None, debug=False):
 
         # Load standard files
         std_spectro = None
@@ -87,7 +88,7 @@ class EchFluxSpec(masterframe.MasterFrame):
         self.std_specobjs = std_specobjs
         self.std_header = std_header
         if self.std_spec1d_file is not None:
-            self.std_specobjs, self.std_header = self.ech_load_specobj(self.std_spec1d_file)
+            self.std_specobjs, self.std_header = load.ech_load_specobj(self.std_spec1d_file)
             msgs.info('Loaded {0} spectra from the spec1d standard star file: {1}'.format(
                                 len(self.std_specobjs), self.std_spec1d_file))
             std_spectro = self.std_header['INSTRUME']
@@ -165,6 +166,15 @@ class EchFluxSpec(masterframe.MasterFrame):
         self.std = None         # Standard star spectrum (SpecObj object)
         self.std_idx = None     # Nested indices for the std_specobjs list that corresponds
                                 # to the star!
+        # Echelle key
+        self.norder = None
+        # ToDo: Need to parse the following in
+        self.star_type = star_type
+        self.star_mag = star_mag
+        self.BALM_MASK_WID = BALM_MASK_WID
+        self.nresln = nresln
+        self.debug = debug
+
 
     def load_master(self, filename, force=False):
 
@@ -216,22 +226,22 @@ class EchFluxSpec(masterframe.MasterFrame):
         # Allow one to over-ride output name
         if outfile is None:
             outfile = self.ms_name
+
         # Add steps
         self.sens_dict['steps'] = self.steps
 
-        norder = sens_dicts['norder']
-        # Add steps
-        # self.sens_dict['steps'] = self.steps
+        norder = self.sens_dict['norder']
+
         # Do it
         prihdu = fits.PrimaryHDU()
         hdus = [prihdu]
 
         for iord in range(norder):
-            sens_dict = sens_dicts[str(iord)]
+            sens_dict_iord = self.sens_dict[str(iord)]
             cols = []
-            cols += [fits.Column(array=sens_dict['wave'], name=str('WAVE'), format=sens_dict['wave'].dtype)]
+            cols += [fits.Column(array=sens_dict_iord['wave'], name=str('WAVE'), format=sens_dict_iord['wave'].dtype)]
             cols += [
-                fits.Column(array=sens_dict['sensfunc'], name=str('SENSFUNC'), format=sens_dict['sensfunc'].dtype)]
+                fits.Column(array=sens_dict_iord['sensfunc'], name=str('SENSFUNC'), format=sens_dict_iord['sensfunc'].dtype)]
             # Finish
             coldefs = fits.ColDefs(cols)
             tbhdu = fits.BinTableHDU.from_columns(coldefs)
@@ -240,9 +250,9 @@ class EchFluxSpec(masterframe.MasterFrame):
             for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra',
                         'std_dec', 'std_name', 'cal_file', 'ech_orderindx']:
                 try:
-                    tbhdu.header[key.upper()] = sens_dict[key].value
+                    tbhdu.header[key.upper()] = sens_dict_iord[key].value
                 except AttributeError:
-                    tbhdu.header[key.upper()] = sens_dict[key]
+                    tbhdu.header[key.upper()] = sens_dict_iord[key]
                 except KeyError:
                     pass  # Will not require all of these
             hdus += [tbhdu]
@@ -251,9 +261,9 @@ class EchFluxSpec(masterframe.MasterFrame):
         for key in ['exptime', 'airmass', 'std_file', 'std_ra',
                     'std_dec', 'std_name', 'cal_file']:
             try:
-                prihdu.header[key.upper()] = sens_dict[key].value
+                prihdu.header[key.upper()] = sens_dict_iord[key].value
             except AttributeError:
-                prihdu.header[key.upper()] = sens_dict[key]
+                prihdu.header[key.upper()] = sens_dict_iord[key]
             except KeyError:
                 pass  # Will not require all of these
         prihdu.header['NORDER'] = norder
@@ -278,9 +288,9 @@ class EchFluxSpec(masterframe.MasterFrame):
 
         """
         # Check internals
-        if self.std is None:
-            msgs.warn('First identify the star first (with find_standard).')
-            return None
+        #if self.std is None:
+        #    msgs.warn('First identify the star first (with find_standard).')
+        #    return None
         if self.std_header is None:
             msgs.warn('First set std_header with a dict-like object holding RA, DEC, '
                       'AIRMASS, EXPTIME.')
@@ -334,16 +344,18 @@ class EchFluxSpec(masterframe.MasterFrame):
         """
         Plot the sensitivity function
         """
-        if self.sensfunc is None:
+        if self.sens_dict is None:
             msgs.warn("You need to generate the sensfunc first!")
             return None
         # Generate from model
-        # ToDo: plot sensfunction order by order
-        wave = np.linspace(self.sensfunc['wave_min'], self.sensfunc['wave_max'], 1000)
-        mag_func = utils.func_val(self.sensfunc['c'], wave, self.sensfunc['func'])
-        sens = 10.0**(0.4*mag_func)
-        # Plot
-        debugger.plot1d(wave, sens, xlbl='Wavelength', ylbl='Sensitivity Function')
+        norder = self.sens_dict['norder']
+        for iord in range(norder):
+            sens_dict_iord = self.sens_dict[str(iord)]
+            plt.plot(sens_dict_iord['wave'],sens_dict_iord['sensfunc'])
+        plt.xlabel('Wavelength [ang]')
+        plt.ylabel('Sensfunc')
+        plt.ylim([0.,100.0])
+        plt.show()
 
     def write_science(self, outfile):
         """
