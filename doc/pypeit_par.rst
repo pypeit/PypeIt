@@ -113,17 +113,17 @@ ReducePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ReducePar`
 
-================  ==========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ============================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key               Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                              Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                 
-================  ==========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ============================================================================================================================================================================================================================================================================================================================================================================================================================================
-``spectrograph``  str         ``gemini_gnirs``, ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_nires``, ``keck_hires_red``, ``keck_hires_blue``, ``mmt_binospec``, ``keck_nirspec_low``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``magellan_fire``, ``magellan_mage``, ``vlt_xshooter_nir``, ``gemini_gmos_south``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``  ..                                            Spectrograph that provided the data to be reduced.  Options are: gemini_gnirs, keck_deimos, keck_lris_blue, keck_lris_red, keck_nires, keck_hires_red, keck_hires_blue, mmt_binospec, keck_nirspec_low, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, vlt_xshooter_uvb, vlt_xshooter_vis, magellan_fire, magellan_mage, vlt_xshooter_nir, gemini_gmos_south, gemini_gmos_north_e2v, gemini_gmos_north_ham
-``detnum``        int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ..                                            Restrict reduction to a list of detector indices                                                                                                                                                                                                                                                                                                                                                                                            
-``sortroot``      str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                      
-``calwin``        int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                   0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                            
-``scidir``        str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                             
-``qadir``         str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                  
-``redux_path``    str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.                                                                                                                                                                                                                                                                                                                                                                                                   
-================  ==========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ============================================================================================================================================================================================================================================================================================================================================================================================================================================
+================  ==========  =======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key               Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+================  ==========  =======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``spectrograph``  str         ``gemini_gnirs``, ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_nires``, ``keck_hires_red``, ``keck_hires_blue``, ``mmt_binospec``, ``keck_nirspec_low``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``magellan_fire``, ``magellan_mage``, ``vlt_xshooter_nir``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``  ..                                            Spectrograph that provided the data to be reduced.  Options are: gemini_gnirs, keck_deimos, keck_lris_blue, keck_lris_red, keck_nires, keck_hires_red, keck_hires_blue, mmt_binospec, keck_nirspec_low, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, vlt_xshooter_uvb, vlt_xshooter_vis, magellan_fire, magellan_mage, vlt_xshooter_nir, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b
+``detnum``        int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ..                                            Restrict reduction to a list of detector indices                                                                                                                                                                                                                                                                                                                                                                                                                                                
+``sortroot``      str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                          
+``calwin``        int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                
+``scidir``        str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                 
+``qadir``         str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                      
+``redux_path``    str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+================  ==========  =======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -235,7 +235,6 @@ Key                 Type        Options                                      Def
 ``maxshift``        int, float  ..                                           0.15          Maximum shift in trace crude                                                                                                                                                                                                                                                                                                                                                                                                                
 ``pad``             int         ..                                           0             Integer number of pixels to consider beyond the slit edges.                                                                                                                                                                                                                                                                                                                                                                                 
 ``sigdetect``       int, float  ..                                           20.0          Sigma detection threshold for edge detection                                                                                                                                                                                                                                                                                                                                                                                                
-``fracignore``      float       ..                                           0.01          If a slit spans less than this fraction over the spectral size of the detector, it will be ignored (and reconstructed when/if an 'order' PCA analysis is performed).                                                                                                                                                                                                                                                                        
 ``min_slit_width``  float       ..                                           6.0           If a slit spans less than this number of arcseconds over the spatial direction of the detector, it will be ignored. Use this option to prevent the of alignment (box) slits from multislit reductions, which typically cannot be reduced without a significant struggle                                                                                                                                                                     
 ``add_slits``       str, list   ..                                           []            Add one or more user-defined slits.  This is a list of lists, with each sub-list having syntax (all integers):  det:x0:x1:yrow  For example,  2:2121:2322:2000,3:1201:1500:2000                                                                                                                                                                                                                                                             
 ``rm_slits``        str, list   ..                                           []            Remove one or more user-specified slits.  This is a list of lists, with each sub-list having syntax (all integers):  det:xcen:yrow  For example,  2:2121:2000,3:1500:2000                                                                                                                                                                                                                                                                   
@@ -265,7 +264,7 @@ Key                  Type                       Options  Default         Descrip
 ``maxdev_tracefit``  int, float                 ..       0.2             Maximum absolute deviation (in units of fwhm) for the legendre polynomial fits to individual arc line tilt fits during iterative trace fitting (flux weighted, then gaussian weighted)                                                                                                                                                                                                                                                                                                                                                                                   
 ``sigrej_trace``     int, float                 ..       3.0             Outlier rejection significance to determine which traced arc lines should be included in the global fit                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
 ``spat_order``       int, float, list, ndarray  ..       3               Order of the legendre polynomial to be fit to the the tilt of an arc line. This parameter determinesboth the orer of the *individual* arc line tilts, as well as the order of the spatial direction of the2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across theslit/order. This can be a single number or a list/array providing the value for each slit                                                                                                                                                           
-``spec_order``       int, float, list, ndarray  ..       5               Order of the spectral direction of the 2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the slit/order. This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                             
+``spec_order``       int, float, list, ndarray  ..       4               Order of the spectral direction of the 2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the slit/order. This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                             
 ``func2d``           str                        ..       ``legendre2d``  Type of function for 2D fit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 ``maxdev2d``         int, float                 ..       0.25            Maximum absolute deviation (in units of fwhm) rejection threshold used to determines which pixels in global 2d fits to arc line tilts are rejected because they deviate from the model by more than this value                                                                                                                                                                                                                                                                                                                                                           
 ``sigrej2d``         int, float                 ..       3.0             Outlier rejection significance determining which pixels on a fit to an arc line tilt are rejected by the global 2D fit                                                                                                                                                                                                                                                                                                                                                                                                                                                   
@@ -411,7 +410,6 @@ Alterations to the default parameters are::
           nonlinear_counts = 56360.1
       [[slits]]
           sigdetect = 50.0
-          fracignore = 0.02
   [scienceframe]
       exprng = 30, None
       [[process]]
@@ -526,14 +524,15 @@ Alterations to the default parameters are::
       [[wavelengths]]
           method = reidentify
           echelle = True
-          ech_norder_coeff = 5
+          ech_norder_coeff = 6
           ech_sigrej = 3.0
           lamps = OH_NIRES
-          nonlinear_counts = 49806.6
+          nonlinear_counts = 760000.0
           reid_arxiv = keck_nires.json
           rms_threshold = 0.2
       [[tilts]]
           tracethresh = 10.0
+          spec_order = 3
   [scienceframe]
       exprng = 20, None
       [[process]]
@@ -606,6 +605,10 @@ Alterations to the default parameters are::
           nonlinear_counts = 49806.6
           rms_threshold = 0.2
           n_first = 1
+      [[tilts]]
+          maxdev_tracefit = 0.02
+          spec_order = 5
+          maxdev2d = 0.02
   [scienceframe]
       exprng = 61, None
 
@@ -802,7 +805,6 @@ Alterations to the default parameters are::
       [[wavelengths]]
           method = reidentify
           echelle = True
-          ech_norder_coeff = 5
           ech_sigrej = 3.0
           lamps = ThAr_XSHOOTER_VIS
           nonlinear_counts = 56360.1
@@ -815,6 +817,7 @@ Alterations to the default parameters are::
           sigdetect = 8.0
       [[tilts]]
           tracethresh = 15
+          spec_order = 5
   [scienceframe]
       useframe = overscan
 
@@ -840,12 +843,14 @@ Alterations to the default parameters are::
       [[wavelengths]]
           method = reidentify
           echelle = True
-          ech_nspec_coeff = 7
-          ech_norder_coeff = 7
+          ech_nspec_coeff = 5
+          ech_norder_coeff = 5
           ech_sigrej = 3.0
           lamps = OH_XSHOOTER
-          nonlinear_counts = 56360.1
-          reid_arxiv = vlt_xshooter_nir_iraf.json
+          nonlinear_counts = 172000.0
+          sigdetect = 10.0
+          fwhm = 5.0
+          reid_arxiv = vlt_xshooter_nir.json
           rms_threshold = 0.25
       [[slits]]
           polyorder = 5
@@ -853,7 +858,9 @@ Alterations to the default parameters are::
           sigdetect = 120.0
           pcatype = order
       [[tilts]]
-          tracethresh = 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 20, 20, 20, 20, 10
+          tracethresh = 25.0
+          maxdev_tracefit = 0.04
+          maxdev2d = 0.04
   [scienceframe]
       [[process]]
           satpix = nothing
@@ -927,8 +934,6 @@ Alterations to the default parameters are::
       [[wavelengths]]
           lamps = CuI, ArI, ArII
           rms_threshold = 0.4
-      [[slits]]
-          fracignore = 0.02
 
 GEMINI-N GMOS-N
 ---------------
@@ -953,8 +958,6 @@ Alterations to the default parameters are::
       [[wavelengths]]
           lamps = CuI, ArI, ArII
           rms_threshold = 0.4
-      [[slits]]
-          fracignore = 0.02
 
 GEMINI-N GMOS-N
 ---------------
@@ -979,8 +982,6 @@ Alterations to the default parameters are::
       [[wavelengths]]
           lamps = CuI, ArI, ArII
           rms_threshold = 0.4
-      [[slits]]
-          fracignore = 0.02
 
 MAGELLAN FIRE
 -------------
@@ -1099,4 +1100,175 @@ Alterations to the default parameters are::
       [[process]]
           satpix = nothing
           sigclip = 20.0
+
+LBT MODS1R
+----------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = lbt_mods1r
+  [calibrations]
+      [[biasframe]]
+          number = 5
+          exprng = None, 1
+      [[darkframe]]
+          exprng = 999999, None
+      [[arcframe]]
+          number = 1
+          exprng = None, 60
+          [[[process]]]
+              sigrej = -1
+      [[pixelflatframe]]
+          number = 5
+          exprng = 0, None
+      [[pinholeframe]]
+          exprng = 999999, None
+      [[traceframe]]
+          number = 5
+          exprng = 0, None
+      [[standardframe]]
+          number = 1
+          exprng = 1, 200
+      [[wavelengths]]
+          lamps = OH_MODS
+          nonlinear_counts = 64879.65
+          fwhm = 10.0
+          rms_threshold = 1.0
+          n_first = 1
+      [[slits]]
+          sigdetect = 300
+      [[tilts]]
+          maxdev_tracefit = 0.02
+          spat_order = 5
+          spec_order = 5
+          maxdev2d = 0.02
+  [scienceframe]
+      exprng = 200, None
+
+LBT MODS1B
+----------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = lbt_mods1b
+  [calibrations]
+      [[biasframe]]
+          number = 5
+          exprng = None, 1
+      [[darkframe]]
+          exprng = 999999, None
+      [[arcframe]]
+          number = 1
+          exprng = None, 60
+          [[[process]]]
+              sigrej = -1
+      [[pixelflatframe]]
+          number = 5
+          exprng = 0, None
+      [[pinholeframe]]
+          exprng = 999999, None
+      [[traceframe]]
+          number = 5
+          exprng = 0, None
+      [[standardframe]]
+          number = 1
+          exprng = 1, 200
+      [[wavelengths]]
+          lamps = XeI, ArII, ArI, NeI, KrI
+          nonlinear_counts = 64879.65
+          rms_threshold = 0.2
+          n_first = 1
+      [[slits]]
+          sigdetect = 300
+      [[tilts]]
+          maxdev_tracefit = 0.02
+          spec_order = 5
+          maxdev2d = 0.02
+  [scienceframe]
+      exprng = 200, None
+
+LBT MODS2R
+----------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = lbt_mods2r
+  [calibrations]
+      [[biasframe]]
+          number = 5
+          exprng = None, 1
+      [[darkframe]]
+          exprng = 999999, None
+      [[arcframe]]
+          number = 1
+          exprng = None, 60
+          [[[process]]]
+              sigrej = -1
+      [[pixelflatframe]]
+          number = 5
+          exprng = 0, None
+      [[pinholeframe]]
+          exprng = 999999, None
+      [[traceframe]]
+          number = 5
+          exprng = 0, None
+      [[standardframe]]
+          number = 1
+          exprng = 1, 200
+      [[wavelengths]]
+          lamps = OH_MODS
+          nonlinear_counts = 64879.65
+          fwhm = 10.0
+          rms_threshold = 1.0
+          n_first = 1
+      [[slits]]
+          sigdetect = 300
+      [[tilts]]
+          maxdev_tracefit = 0.02
+          spec_order = 5
+          maxdev2d = 0.02
+  [scienceframe]
+      exprng = 200, None
+
+LBT MODS2B
+----------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = lbt_mods2b
+  [calibrations]
+      [[biasframe]]
+          number = 5
+          exprng = None, 1
+      [[darkframe]]
+          exprng = 999999, None
+      [[arcframe]]
+          number = 1
+          exprng = None, 60
+          [[[process]]]
+              sigrej = -1
+      [[pixelflatframe]]
+          number = 5
+          exprng = 0, None
+      [[pinholeframe]]
+          exprng = 999999, None
+      [[traceframe]]
+          number = 5
+          exprng = 0, None
+      [[standardframe]]
+          number = 1
+          exprng = 1, 200
+      [[wavelengths]]
+          lamps = XeI, ArII, ArI, NeI, KrI
+          nonlinear_counts = 64879.65
+          rms_threshold = 0.2
+          n_first = 1
+      [[slits]]
+          sigdetect = 300
+      [[tilts]]
+          maxdev_tracefit = 0.02
+          spec_order = 5
+          maxdev2d = 0.02
+  [scienceframe]
+      exprng = 200, None
 
