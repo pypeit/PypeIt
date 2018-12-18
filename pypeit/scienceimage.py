@@ -127,6 +127,7 @@ class ScienceImage():
         self.file_list = file_list
         self.nsci = len(file_list)
         self.bg_file_list = bg_file_list
+        # Are we subtracing the sky using background frames? If yes, set ir_redux=True
         if len(self.bg_file_list) > 0:
             self.nbg = len(self.bg_file_list)
             self.ir_redux = True
@@ -291,6 +292,7 @@ class ScienceImage():
             sobjs.add_sobj(sobjs_slit)
 #            self.qa_proc_list += proc_list
 
+        # TODO Add a hook on ir_redux here to find and mask negative objects if we are difference imaging
         # Finish
         self.sobjs_obj = sobjs
         self.nobj = len(sobjs)
@@ -359,6 +361,7 @@ class ScienceImage():
                                                               self.tslits_dict['rcen'][:,slit],
                                                               inmask=inmask,
                                                               bsp=self.par['bspline_spacing'],
+                                                              pos_mask = ~self.ir_redux,
                                                               show_fit=show_fit)
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
