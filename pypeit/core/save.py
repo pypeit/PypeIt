@@ -517,8 +517,7 @@ def save_obj_info(all_specobjs, spectrograph, basename, science_dir, binning=Non
             boxsize.append(0.)
 
         # Optimal profile (FWHM)
-        opt_fwhm.append(np.median(specobj.fwhmfit)* binspatial
-                                * spectrograph.detector[specobj.det-1]['platescale'])
+        opt_fwhm.append(np.median(specobj.fwhmfit)* binspatial*spectrograph.detector[specobj.det-1]['platescale'])
         # S2N -- default to boxcar
         #sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
         ivar = specobj.optimal['COUNTS_IVAR']

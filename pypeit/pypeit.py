@@ -745,7 +745,8 @@ class Echelle(PypeIt):
             skymodel, objmodel, ivarmodel, outmask, sobjs = self.sciI.local_skysub_extract(sobjs_obj, self.caliBrate.mswave,
                                                                                            maskslits=self.maskslits, show_profile=self.show,
                                                                                            show=self.show)
-
+            from IPython import embed
+            embed()
             # Flexure correction?
             self.flexure_correct(sobjs,self.maskslits)
             vel_corr = self.helio_correct(sobjs, self.maskslits, frames[0], self.obstime)
