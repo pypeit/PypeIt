@@ -432,6 +432,8 @@ def geomotion_calculate(fitstbl, idx, time, longitude, latitude, altitude, reffr
     # Grab coord
     radec = ltu.radec_to_coord((fitstbl["ra"][idx], fitstbl["dec"][idx]))
     # Time
+    from IPython import embed
+    embed()
     obstime = Time(time.value, format=time.format, scale='utc', location=loc)
     return geomotion_velocity(obstime, radec, frame=refframe)
 

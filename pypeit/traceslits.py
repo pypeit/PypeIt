@@ -35,8 +35,6 @@ class TraceSlits(masterframe.MasterFrame):
     ----------
     mstrace : ndarray
       Trace image
-    pixlocn : ndarray
-      Pixel location array
     spectrograph : Spectrograph
     binbpx : ndarray, optional
       Bad pixel mask
@@ -106,7 +104,7 @@ class TraceSlits(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'trace'
 
-    def __init__(self, mstrace, pixlocn, spectrograph,
+    def __init__(self, mstrace, spectrograph,
                  binning=None,
                  par=None, det=1, master_key=None, master_dir=None,
                  redux_path=None,
@@ -124,7 +122,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Required parameters (but can be None)
         self.mstrace = mstrace
-        self.pixlocn = pixlocn
+#        self.pixlocn = pixlocn
         self.spectrograph = spectrograph
         self.binning = binning
 
@@ -212,7 +210,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Instantiate from file
         spectrograph = util.load_spectrograph(ts_dict['spectrograph'])
-        slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], spectrograph, binbpx=binbpx, par=par)
+        slf = cls(fits_dict['MSTRACE'], spectrograph, binbpx=binbpx, par=par)
 
         # Fill in a bit more (Attributes)
         slf.steps = ts_dict['steps']
@@ -469,48 +467,49 @@ class TraceSlits(masterframe.MasterFrame):
         # Steps
         self.steps.append(inspect.stack()[0][3])
 
-    def _fit_edges(self, side):
-        """
-        Fit the edges with (left or right)
-
-        Wrapper to trace_slits.fit_edges()
-
-        Parameters
-        ----------
-        side : str
-          'left' or 'right'
-
-        Returns
-        -------
-        self.lcoeff
-        self.lnmbrarr
-        self.ldiffarr
-        self.lwghtarr
-        or
-        self.rcoeff
-        self.rnmbrarr
-        self.rdiffarr
-        self.rwghtarr
-
-        """
-        # Setup for fitting
-        plxbin = self.pixlocn[:, :, 0].copy()
-        plybin = self.pixlocn[:, :, 1].copy()
-
-        # Fit
-        if side == 'left':
-            self.lcoeff, self.lnmbrarr, self.ldiffarr, self.lwghtarr \
-                    = trace_slits.fit_edges(self.edgearr, self.lmin, self.lmax, plxbin, plybin,
-                                             left=True, polyorder=self.par['polyorder'],
-                                             function=self.par['function'])
-        else:
-            self.rcoeff, self.rnmbrarr, self.rdiffarr, self.rwghtarr \
-                    = trace_slits.fit_edges(self.edgearr, self.rmin, self.rmax, plxbin, plybin,
-                                             left=False, polyorder=self.par['polyorder'],
-                                             function=self.par['function'])
-
-        # Steps
-        self.steps.append(inspect.stack()[0][3]+'_{:s}'.format(side))
+    # JFH This routine is deprecated
+    # def _fit_edges(self, side):
+    #     """
+    #     Fit the edges with (left or right)
+    #
+    #     Wrapper to trace_slits.fit_edges()
+    #
+    #     Parameters
+    #     ----------
+    #     side : str
+    #       'left' or 'right'
+    #
+    #     Returns
+    #     -------
+    #     self.lcoeff
+    #     self.lnmbrarr
+    #     self.ldiffarr
+    #     self.lwghtarr
+    #     or
+    #     self.rcoeff
+    #     self.rnmbrarr
+    #     self.rdiffarr
+    #     self.rwghtarr
+    #
+    #     """
+    #     # Setup for fitting
+    #     plxbin = self.pixlocn[:, :, 0].copy()
+    #     plybin = self.pixlocn[:, :, 1].copy()
+    #
+    #     # Fit
+    #     if side == 'left':
+    #         self.lcoeff, self.lnmbrarr, self.ldiffarr, self.lwghtarr \
+    #                 = trace_slits.fit_edges(self.edgearr, self.lmin, self.lmax, plxbin, plybin,
+    #                                          left=True, polyorder=self.par['polyorder'],
+    #                                          function=self.par['function'])
+    #     else:
+    #         self.rcoeff, self.rnmbrarr, self.rdiffarr, self.rwghtarr \
+    #                 = trace_slits.fit_edges(self.edgearr, self.rmin, self.rmax, plxbin, plybin,
+    #                                          left=False, polyorder=self.par['polyorder'],
+    #                                          function=self.par['function'])
+    #
+    #     # Steps
+    #     self.steps.append(inspect.stack()[0][3]+'_{:s}'.format(side))
 
     def _make_pixel_arrays(self):
         """
@@ -796,85 +795,86 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _pca(self):
-        """
-        Perform PCA analysis and extrapolation, if requested
-          Otherwise move along
-
-        Returns
-        -------
-        self.lcen  : ndarray (internal)
-        self.rcen  : ndarray (internal)
-        self.extrapord  : ndarray (internal)
-
-        """
-        if self.par['pcatype'] == 'order':
-            self._pca_order_slit_edges()
-        elif self.par['pcatype'] == 'pixel':
-            self._pca_pixel_slit_edges()
-        else: # No PCA
-            allord = np.arange(self.lcent.shape[0])
-            maskord = np.where((np.all(self.lcent, axis=1) == False)
-                                | (np.all(self.rcent, axis=1) == False))[0]
-            ww = np.where(np.in1d(allord, maskord) == False)[0]
-            self.lcen = self.lcent[ww, :].T.copy()
-            self.rcen = self.rcent[ww, :].T.copy()
-            self.extrapord = np.zeros(self.lcen.shape[1], dtype=np.bool)
-
-
-    def _pca_order_slit_edges(self):
-        """
-        Run the order slit edges PCA
-          Recommended for ARMED
-
-        Wrapper to trace_slits.pca_order_slit_edges()
-
-        Returns
-        -------
-        self.lcen  : ndarray (internal)
-        self.rcen  : ndarray (internal)
-        self.extrapord  : ndarray (internal)
-
-        """
-        plxbin = self.pixlocn[:, :, 0].copy()
-        self.lcen, self.rcen, self.extrapord \
-                = trace_slits.pca_order_slit_edges(self.binarr, self.edgearr, self.lcent,
-                                                    self.rcent, self.gord, self.lcoeff,
-                                                    self.rcoeff, plxbin, self.slitcen,
-                                                    self.pixlocn,
-                                                    function=self.par['function'],
-                                                    polyorder=self.par['polyorder'],
-                                                    diffpolyorder=self.par['diffpolyorder'],
-                                                    ofit=self.par['pcapar'],
-                                                    extrapolate=self.par['pcaextrap'])
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-
-    def _pca_pixel_slit_edges(self):
-        """
-        Run the pixel slit edges PCA
-          Recommended for ARMLSD
-
-        Wrapper to trace_slits.pca_pixel_slit_edges()
-
-        Returns
-        -------
-        self.lcen  : ndarray (internal)
-        self.rcen  : ndarray (internal)
-        self.extrapord  : ndarray (internal)
-
-        """
-        plxbin = self.pixlocn[:, :, 0].copy()
-        self.lcen, self.rcen, self.extrapord \
-                = trace_slits.pca_pixel_slit_edges(self.binarr, self.edgearr, self.lcoeff,
-                                                    self.rcoeff, self.ldiffarr, self.rdiffarr,
-                                                    self.lnmbrarr, self.rnmbrarr, self.lwghtarr,
-                                                    self.rwghtarr, self.lcent, self.rcent, plxbin,
-                                                    function=self.par['function'],
-                                                    polyorder=self.par['polyorder'],
-                                                    ofit=self.par['pcapar'])
-        # Step
-        self.steps.append(inspect.stack()[0][3])
+    # # JFH This routine is deprecated
+    # def _pca(self):
+    #     """
+    #     Perform PCA analysis and extrapolation, if requested
+    #       Otherwise move along
+    #
+    #     Returns
+    #     -------
+    #     self.lcen  : ndarray (internal)
+    #     self.rcen  : ndarray (internal)
+    #     self.extrapord  : ndarray (internal)
+    #
+    #     """
+    #     if self.par['pcatype'] == 'order':
+    #         self._pca_order_slit_edges()
+    #     elif self.par['pcatype'] == 'pixel':
+    #         self._pca_pixel_slit_edges()
+    #     else: # No PCA
+    #         allord = np.arange(self.lcent.shape[0])
+    #         maskord = np.where((np.all(self.lcent, axis=1) == False)
+    #                             | (np.all(self.rcent, axis=1) == False))[0]
+    #         ww = np.where(np.in1d(allord, maskord) == False)[0]
+    #         self.lcen = self.lcent[ww, :].T.copy()
+    #         self.rcen = self.rcent[ww, :].T.copy()
+    #         self.extrapord = np.zeros(self.lcen.shape[1], dtype=np.bool)
+    #
+    # # JFH This routine is deprecated
+    # def _pca_order_slit_edges(self):
+    #     """
+    #     Run the order slit edges PCA
+    #       Recommended for ARMED
+    #
+    #     Wrapper to trace_slits.pca_order_slit_edges()
+    #
+    #     Returns
+    #     -------
+    #     self.lcen  : ndarray (internal)
+    #     self.rcen  : ndarray (internal)
+    #     self.extrapord  : ndarray (internal)
+    #
+    #     """
+    #     plxbin = self.pixlocn[:, :, 0].copy()
+    #     self.lcen, self.rcen, self.extrapord \
+    #             = trace_slits.pca_order_slit_edges(self.binarr, self.edgearr, self.lcent,
+    #                                                 self.rcent, self.gord, self.lcoeff,
+    #                                                 self.rcoeff, plxbin, self.slitcen,
+    #                                                 self.pixlocn,
+    #                                                 function=self.par['function'],
+    #                                                 polyorder=self.par['polyorder'],
+    #                                                 diffpolyorder=self.par['diffpolyorder'],
+    #                                                 ofit=self.par['pcapar'],
+    #                                                 extrapolate=self.par['pcaextrap'])
+    #     # Step
+    #     self.steps.append(inspect.stack()[0][3])
+    #
+    # def _pca_pixel_slit_edges(self):
+    #     """
+    #     Run the pixel slit edges PCA
+    #       Recommended for ARMLSD
+    #
+    #     Wrapper to trace_slits.pca_pixel_slit_edges()
+    #
+    #     Returns
+    #     -------
+    #     self.lcen  : ndarray (internal)
+    #     self.rcen  : ndarray (internal)
+    #     self.extrapord  : ndarray (internal)
+    #
+    #     """
+    #     plxbin = self.pixlocn[:, :, 0].copy()
+    #     self.lcen, self.rcen, self.extrapord \
+    #             = trace_slits.pca_pixel_slit_edges(self.binarr, self.edgearr, self.lcoeff,
+    #                                                 self.rcoeff, self.ldiffarr, self.rdiffarr,
+    #                                                 self.lnmbrarr, self.rnmbrarr, self.lwghtarr,
+    #                                                 self.rwghtarr, self.lcent, self.rcent, plxbin,
+    #                                                 function=self.par['function'],
+    #                                                 polyorder=self.par['polyorder'],
+    #                                                 ofit=self.par['pcapar'])
+    #     # Step
+    #     self.steps.append(inspect.stack()[0][3])
 
     def remove_slit(self, rm_slits, TOL = 3.):
         """
@@ -959,60 +959,60 @@ class TraceSlits(masterframe.MasterFrame):
         """
         self.lmin, self.lmax = 0, self.lcen.shape[1]
         self.rmin, self.rmax = 0, self.rcen.shape[1]
-
-    def _synchronize(self):
-        """
-        DEPRECATED
-
-        Perform final synchronization
-
-        Wrapper to trace_slits.synchronize
-
-        Returns
-        -------
-        Tons and tons..
-
-        """
-        plxbin = self.pixlocn[:, :, 0].copy()
-        msgs.info("Synchronizing left and right slit traces")
-        print('ldiff', self.ldiffarr)
-        print('lwght', self.lwghtarr)
-        print('lnmbr', self.lnmbrarr)
-        print('rnmbr', self.rnmbrarr)
-        print('lcoeff', self.lcoeff)
-        new = True
-        if new:
-            minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
-            xv = plxbin[:, 0]
-            #
-            self.lcent = utils.func_val(self.lcoeff, xv, self.par['function'], minv=minvf, maxv=maxvf)
-            self.rcent = utils.func_val(self.rcoeff, xv, self.par['function'], minv=minvf, maxv=maxvf)
-            # Reset Indexing
-            self.lnmbrarr += 99999
-            self.rnmbrarr -= 99999
-            wl = np.where(self.edgearr < 0)
-            wr = np.where(self.edgearr > 0)
-            self.edgearr[wl] += 99999
-            self.edgearr[wr] -= 99999
-        else:
-            self.lcent, self.rcent, self.gord, \
-                self.lcoeff, self.ldiffarr, self.lnmbrarr, self.lwghtarr, \
-                self.rcoeff, self.rdiffarr, self.rnmbrarr, self.rwghtarr \
-                    = trace_slits.synchronize_edges(self.binarr, self.edgearr, plxbin, self.lmin,
-                                                 self.lmax, self.lcoeff, self.rmin, self.rcoeff,
-                                                 self.lnmbrarr, self.ldiffarr, self.lwghtarr,
-                                                 self.rnmbrarr, self.rdiffarr, self.rwghtarr,
-                                                 function=self.par['function'],
-                                                 polyorder=self.par['polyorder'],
-                                                 extrapolate=self.par['pcaextrap'])
-        print('ldiff', self.ldiffarr)
-        print('lwght', self.lwghtarr)
-        print('lnmbr', self.lnmbrarr)
-        print('rnmbr', self.rnmbrarr)
-        print('lcoeff', self.lcoeff)
-        self.slitcen = 0.5*(self.lcent+self.rcent).T
-        # Step
-        self.steps.append(inspect.stack()[0][3])
+    #
+    # def _synchronize(self):
+    #     """
+    #     DEPRECATED
+    #
+    #     Perform final synchronization
+    #
+    #     Wrapper to trace_slits.synchronize
+    #
+    #     Returns
+    #     -------
+    #     Tons and tons..
+    #
+    #     """
+    #     plxbin = self.pixlocn[:, :, 0].copy()
+    #     msgs.info("Synchronizing left and right slit traces")
+    #     print('ldiff', self.ldiffarr)
+    #     print('lwght', self.lwghtarr)
+    #     print('lnmbr', self.lnmbrarr)
+    #     print('rnmbr', self.rnmbrarr)
+    #     print('lcoeff', self.lcoeff)
+    #     new = True
+    #     if new:
+    #         minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
+    #         xv = plxbin[:, 0]
+    #         #
+    #         self.lcent = utils.func_val(self.lcoeff, xv, self.par['function'], minv=minvf, maxv=maxvf)
+    #         self.rcent = utils.func_val(self.rcoeff, xv, self.par['function'], minv=minvf, maxv=maxvf)
+    #         # Reset Indexing
+    #         self.lnmbrarr += 99999
+    #         self.rnmbrarr -= 99999
+    #         wl = np.where(self.edgearr < 0)
+    #         wr = np.where(self.edgearr > 0)
+    #         self.edgearr[wl] += 99999
+    #         self.edgearr[wr] -= 99999
+    #     else:
+    #         self.lcent, self.rcent, self.gord, \
+    #             self.lcoeff, self.ldiffarr, self.lnmbrarr, self.lwghtarr, \
+    #             self.rcoeff, self.rdiffarr, self.rnmbrarr, self.rwghtarr \
+    #                 = trace_slits.synchronize_edges(self.binarr, self.edgearr, plxbin, self.lmin,
+    #                                              self.lmax, self.lcoeff, self.rmin, self.rcoeff,
+    #                                              self.lnmbrarr, self.ldiffarr, self.lwghtarr,
+    #                                              self.rnmbrarr, self.rdiffarr, self.rwghtarr,
+    #                                              function=self.par['function'],
+    #                                              polyorder=self.par['polyorder'],
+    #                                              extrapolate=self.par['pcaextrap'])
+    #     print('ldiff', self.ldiffarr)
+    #     print('lwght', self.lwghtarr)
+    #     print('lnmbr', self.lnmbrarr)
+    #     print('rnmbr', self.rnmbrarr)
+    #     print('lcoeff', self.lcoeff)
+    #     self.slitcen = 0.5*(self.lcent+self.rcent).T
+    #     # Step
+    #     self.steps.append(inspect.stack()[0][3])
 
     def _trim_slits(self, trim_slits=True, plate_scale = None, ech_slit_tol = 0.3):
         """
@@ -1182,9 +1182,9 @@ class TraceSlits(masterframe.MasterFrame):
             hdus.name = 'SIGLEV'
             hdulist.append(hdus)
         # PIXLOCN -- may be Deprecated.
-        hdup = fits.ImageHDU(self.pixlocn.astype(np.float32))
-        hdup.name = 'PIXLOCN'
-        hdulist.append(hdup)
+        #hdup = fits.ImageHDU(self.pixlocn.astype(np.float32))
+        #hdup.name = 'PIXLOCN'
+        #hdulist.append(hdup)
         if self.input_binbpx:  # User inputted
             hdub = fits.ImageHDU(self.binbpx.astype(np.int))
             hdub.name = 'BINBPX'

@@ -666,7 +666,7 @@ class ScienceImage():
             # we simply create it using the stacked images and the stacked mask
             #nused = np.sum(outmask_stack,axis=0)
             #self.mask = (nused == 0) * np.sum(mask_stack, axis=0)
-            self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask)
+            self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, mincounts=~self.ir_redux)
         else:
             self.mask  = mask_stack[0,:,:]
             self.crmask = crmask_stack[0,:,:]
@@ -717,7 +717,7 @@ class ScienceImage():
         # Return
         return crmask
 
-    def _build_mask(self, sciimg, sciivar, crmask, slitmask = None):
+    def _build_mask(self, sciimg, sciivar, crmask, mincounts=True, slitmask = None):
         """
         Return the bit value mask used during extraction.
         
@@ -751,8 +751,9 @@ class ScienceImage():
         mask[indx] = self.bitmask.turn_on(mask[indx], 'SATURATION')
 
         # Minimum counts
-        indx = sciimg <= self.spectrograph.detector[self.det - 1]['mincounts']
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'MINCOUNTS')
+        if mincounts:
+            indx = sciimg <= self.spectrograph.detector[self.det - 1]['mincounts']
+            mask[indx] = self.bitmask.turn_on(mask[indx], 'MINCOUNTS')
 
         # Pixels excluded from any slit.  Use a try/except block so that
         # the mask can still be created even if tslits_dict has not

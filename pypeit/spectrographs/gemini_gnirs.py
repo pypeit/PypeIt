@@ -148,11 +148,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         hdr_keys = {}
         hdr_keys[0] = {}
         hdr_keys[0]['idname'] = 'OBSTYPE'
-#        hdr_keys[0]['time'] = 'MJD_OBS'
-        hdr_keys[0]['date'] = 'DATE'
+#        hdr_keys[0]['date'] = 'DATE'
         hdr_keys[0]['ut'] = 'UT'
         hdr_keys[0]['ra'] = 'RA'
         hdr_keys[0]['dec'] = 'DEC'
+        hdr_keys[0]['time'] = 'MJD_OBS'
         hdr_keys[0]['airmass'] = 'AIRMASS'
         hdr_keys[0]['slit'] = 'SLIT'
         hdr_keys[0]['decker'] = 'DECKER'
@@ -193,6 +193,33 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
+
+
+
+    def order_platescale(self, binning=None):
+
+
+        """
+        Returns the plate scale in arcseconds for each order
+
+        Parameters
+        ----------
+        None
+
+        Optional Parameters
+        --------------------
+        binning: str
+
+        Returns
+        -------
+        order_platescale: ndarray, float
+
+        """
+
+        # Right now I just assume a simple linear trend
+        return np.full(self.norders, 0.15)
+
 
 
     def slit2order(self, islit):

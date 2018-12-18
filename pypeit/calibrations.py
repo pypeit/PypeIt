@@ -149,7 +149,6 @@ class Calibrations(object):
         self.msarc = None
         self.msbias = None
         self.msbpm = None
-        self.pixlocn = None
         self.tslits_dict = None
         self.maskslits = None
         self.wavecalib = None
@@ -510,7 +509,6 @@ class Calibrations(object):
         First, a trace flat image is generated
 
         Requirements:
-           pixlocn
            det par master_key
 
         Args:
@@ -524,7 +522,7 @@ class Calibrations(object):
 
         """
         # Check for existing data
-        if not self._chk_objs(['pixlocn', 'msbpm']):
+        if not self._chk_objs(['msbpm']):
             self.tslits_dict = None
             self.maskslits = None
             return self.tslits_dict, self.maskslits
@@ -547,7 +545,7 @@ class Calibrations(object):
                 
         # Instantiate (without mstrace)
 
-        self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, self.spectrograph,
+        self.traceSlits = traceslits.TraceSlits(None, self.spectrograph,
                                                 binning=self.binning,
                                                 par=self.par['slits'],
                                                 det=self.det, master_key=self.trace_master_key,
@@ -710,36 +708,36 @@ class Calibrations(object):
         # Return
         return self.wv_calib, self.maskslits
 
-    def get_pixlocn(self):
-        """
-        Generate the pixlocn image
-
-        Requirements:
-          spectrograph, shape
-
-        Returns:
-            self.pixlocn: ndarray
-        """
-        # Make sure shape is defined
-        #self._check_shape()
-        # Check internals
-        self._chk_set(['shape'])
-
-        # Get the pixel locations
-        xgap=self.spectrograph.detector[self.det-1]['xgap']
-        ygap=self.spectrograph.detector[self.det-1]['ygap']
-        ysize=self.spectrograph.detector[self.det-1]['ysize']
-        self.pixlocn = pixels.gen_pixloc(self.shape, xgap=xgap, ygap=ygap, ysize=ysize)
-
-        # Return
-        return self.pixlocn
+    # def get_pixlocn(self):
+    #     """
+    #     Generate the pixlocn image
+    #
+    #     Requirements:
+    #       spectrograph, shape
+    #
+    #     Returns:
+    #         self.pixlocn: ndarray
+    #     """
+    #     # Make sure shape is defined
+    #     #self._check_shape()
+    #     # Check internals
+    #     self._chk_set(['shape'])
+    #
+    #     # Get the pixel locations
+    #     xgap=self.spectrograph.detector[self.det-1]['xgap']
+    #     ygap=self.spectrograph.detector[self.det-1]['ygap']
+    #     ysize=self.spectrograph.detector[self.det-1]['ysize']
+    #     self.pixlocn = pixels.gen_pixloc(self.shape, xgap=xgap, ygap=ygap, ysize=ysize)
+    #
+    #     # Return
+    #     return self.pixlocn
 
     def get_tilts(self):
         """
         Load or generate the tilts image
 
         Requirements:
-           msarc, tslits_dict, pixlocn, wv_calib, maskslits
+           msarc, tslits_dict, wv_calib, maskslits
            det, par, arc_master_key, spectrograph
 
         Returns:
@@ -871,7 +869,7 @@ class MultiSlitCalibrations(Calibrations):
 
     @staticmethod
     def default_steps():
-        return ['bpm', 'bias', 'arc', 'pixlocn', 'slits', 'wv_calib', 'tilts',
+        return ['bpm', 'bias', 'arc', 'slits', 'wv_calib', 'tilts',
                 'flats', 'wave']
 
 

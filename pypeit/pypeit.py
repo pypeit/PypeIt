@@ -346,6 +346,8 @@ class PypeIt(object):
         if (self.caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
                 and (self.caliBrate.par['wavelengths']['reference'] != 'pixel'):
             # TODO change this keyword to refframe instead of frame
+            from IPython import embed
+            embed()
             msgs.info("Performing a {0} correction".format(self.caliBrate.par['wavelengths']['frame']))
             vel, vel_corr = wave.geomotion_correct(sobjs, maskslits, self.fitstbl, frame, obstime,
                                                    self.spectrograph.telescope['longitude'],
