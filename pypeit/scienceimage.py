@@ -41,7 +41,7 @@ class ScienceImageBitMask(BitMask):
                     'IS_NAN': 'Pixel value is undefined',
                      'IVAR0': 'Inverse variance is undefined',
                   'IVAR_NAN': 'Inverse variance is NaN',
-                   'EXTRACT': 'Pixel included in spectral extraction'
+                   'EXTRACT': 'Pixel masked during local skysub and extraction'
                }
         super(ScienceImageBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
@@ -250,7 +250,7 @@ class ScienceImage():
 
         # Build and assign the slitmask and input mask if they do not already exist
         self.slitmask = self.spectrograph.slitmask(tslits_dict, binning=self.binning) if self.slitmask is None else self.slitmask
-        #self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
+        self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
 
 
         # create the ouptut images skymask and objmask
@@ -337,7 +337,7 @@ class ScienceImage():
 
         # Build and assign the slitmask and input mask if they do not already exist
         self.slitmask = self.spectrograph.slitmask(tslits_dict, binning=self.binning) if self.slitmask is None else self.slitmask
-        #self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
+        self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
 
         # Prep
         self.global_sky = np.zeros_like(self.sciimg)
@@ -368,7 +368,7 @@ class ScienceImage():
             # Update the crmask by running LA cosmics again
             self.crmask = self.build_crmask(self.sciimg - self.global_sky, ivar = self.sciivar)
             # Rebuild the mask with this new crmask
-            #self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask)
+            self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -406,7 +406,7 @@ class ScienceImage():
 
         # Build and assign the slitmask and input mask if they do not already exist
         self.slitmask = self.spectrograph.slitmask(tslits_dict, binning=self.binning) if self.slitmask is None else self.slitmask
-        #self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
+        self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
 
         plate_scale = self.spectrograph.order_platescale(binning=self.binning)
         # ToDO implement parsets here!
@@ -654,16 +654,17 @@ class ScienceImage():
                 outmask_stack = (mask_stack == 0)  # outmask = True are good values
 
             var_stack = utils.calc_ivar(sciivar_stack)
-            nused = np.sum(outmask_stack,axis=0)
             weights_stack = np.einsum('i,ijk->ijk',weights,outmask_stack)
+            weights_sum = np.sum(weights_stack, axis=0)
             # Masked everwhere nused == 0
             self.crmask = np.sum(crmask_stack,axis=0) == nfiles # Was everywhere a CR
-            self.sciimg = np.sum(sciimg_stack*weights_stack,axis=0)
-            varfinal = np.sum(var_stack*weights_stack**2,axis=0)
+            self.sciimg = np.sum(sciimg_stack*weights_stack,axis=0)/(weights_sum + (weights_sum == 0.0))
+            varfinal = np.sum(var_stack*weights_stack**2,axis=0)/(weights_sum + (weights_sum == 0.0))**2
             self.sciivar = utils.calc_ivar(varfinal)
-            self.rn2img = np.sum(rn2img_stack*weights_stack**2,axis=0)
+            self.rn2img = np.sum(rn2img_stack*weights_stack**2,axis=0)/(weights_sum + (weights_sum == 0.0))**2
             # ToDO If I new how to add the bits, this is what I would do do create the mask. For now
             # we simply create it using the stacked images and the stacked mask
+            #nused = np.sum(outmask_stack,axis=0)
             #self.mask = (nused == 0) * np.sum(mask_stack, axis=0)
             self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask)
         else:
