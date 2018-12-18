@@ -56,7 +56,7 @@ class WaveCalib(masterframe.MasterFrame):
         steps
     arccen : ndarray (nwave, nslit)
       Extracted arc(s) down the center of the slit(s)
-    maskslit : ndarray (nslit)
+    maskslits : ndarray (nslit); bool
       Slits to ignore because they were not extacted
     arcparam : dict
       Arc parameter (instrument/disperser specific)
@@ -115,7 +115,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.wv_calib : dict
         """
         # Obtain a list of good slits
-        ok_mask = np.where(self.maskslits == 0)[0]
+        ok_mask = np.where(~self.maskslits)[0]
 
         # Obtain calibration for all slits
         if method == 'simple':
@@ -164,7 +164,7 @@ class WaveCalib(masterframe.MasterFrame):
                                  nonlinear_counts = self.par['nonlinear_counts'])
                 final_fit[str(slit)] = ifinal_fit.copy()
                 if status != 1:
-                    self.maskslits[slit] = 1
+                    self.maskslits[slit] = True
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
             arcfitter = wavecal.autoid.HolyGrail(self.arccen, par = self.par, ok_mask=ok_mask)
@@ -183,10 +183,10 @@ class WaveCalib(masterframe.MasterFrame):
         # Update mask
         for slit in ok_mask:
             if str(slit) not in final_fit.keys():
-                self.maskslits[slit] = 1
+                self.maskslits[slit] = True
             elif final_fit[str(slit)] is None:
-                self.maskslits[slit] = 1
-        ok_mask = np.where(self.maskslits == 0)[0]
+                self.maskslits[slit] = True
+        ok_mask = np.where(~self.maskslits)[0]
 
         # QA
         if not skip_QA:
@@ -227,7 +227,7 @@ class WaveCalib(masterframe.MasterFrame):
         all_order = np.array([],dtype=float)
 
         # Obtain a list of good slits
-        ok_mask = np.where(self.maskslits == 0)[0]
+        ok_mask = np.where(~self.maskslits)[0]
         nspec = self.msarc.shape[0]
         for islit in wv_calib.keys():
             if int(islit) not in ok_mask:
@@ -273,10 +273,12 @@ class WaveCalib(masterframe.MasterFrame):
         self.arccen
           1D arc spectra from each slit
         self.maskslits
+          bool array
 
         """
         inmask = (self.bpm == 0) if self.bpm is not None else None
-        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,inmask=inmask)
+        self.arccen, tmp_mask = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,inmask=inmask)
+        self.maskslits = tmp_mask == 1
 
         # Step
         self.steps.append(inspect.stack()[0][3])
