@@ -96,11 +96,6 @@ def calib_set(isetup_dict, fitstbl, sci_ID):
         return default
     elif len(new_cbset) == 1:
         assert list(new_cbset.keys()) == ['science']
-#        try:
-#            new_cbset['science'][0]
-#        except:
-#            from IPython import embed
-#            embed()
         if new_cbset['science'][0] not in isetup_dict[default]['science']:
             isetup_dict[default]['science'] += new_cbset['science']
         return default
@@ -435,8 +430,6 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
     ftypes.sort()
     # Loop on Setup
     asciiord = np.array(fitstbl.spectrograph.metadata_keys())
-#    asciiord = np.array(['filename', 'date', 'frameno', 'frametype',
-#                         'target', 'exptime', 'dispname', 'decker', 'AB_frame'])
     for setup in setups:
         ff.write('##########################################################\n')
         in_setup = []

@@ -20,7 +20,7 @@ from pypeit import fluxspec
 from pypeit import ginga
 from pypeit.core import paths
 from pypeit.core import qa
-from pypeit.core import pypsetup
+#from pypeit.core import pypsetup
 from pypeit.core import wave
 from pypeit.core import save
 from pypeit.core import load
@@ -71,18 +71,6 @@ class PypeIt(object):
         self.pypeit_file = pypeit_file
         ps = pypeitsetup.PypeItSetup.from_pypeit_file(self.pypeit_file)
         ps.run(setup_only=False)
-        '''
-        ps.build_fitstbl(strict=True)
-        ps.get_frame_types()
-
-        # Determine the configurations and assign each frame to the
-        # specified configuration
-        cfgs = self.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
-        self.fitstbl.set_configurations(cfgs)
-
-        # Assign frames to calibration groups
-        self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
-        '''
         # Only need the parameters, spectrograph, and metadata for the remainder
         self.par = ps.par
         # self.spectrograph = ps.spectrograph
@@ -494,9 +482,9 @@ class PypeIt(object):
         # information to fitstbl?
         rawfile = self.fitstbl.frame_paths(frame)
         # TODO: Make sure self.det is correct!
-        setup = self.fitstbl.master_key(frame, det=self.det)
+        master_key = self.fitstbl.master_key(frame, det=self.det)
         save.save_2d_images(sci_dict, rawfile, self.spectrograph.primary_hdrext,
-                            setup, self.caliBrate.master_dir, scidir, basename,
+                            master_key, self.caliBrate.master_dir, scidir, basename,
                             update_det=self.par['rdx']['detnum'])
         return all_specobjs
 

@@ -1442,8 +1442,7 @@ def load_traceslit_files(root):
     # Open FITS
     fits_file = root+'.fits.gz'
     if not os.path.isfile(fits_file):
-        msgs.warn("No TraceSlits FITS file found.  Returning None, None")
-        return None, None
+        msgs.error("No TraceSlits FITS file found!")
 
     msgs.info("Loading a pre-existing master calibration frame of type: trace from filename: {:}".format(fits_file))
     hdul = fits.open(fits_file)

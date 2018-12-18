@@ -56,8 +56,10 @@ class WaveCalib(masterframe.MasterFrame):
         steps
     arccen : ndarray (nwave, nslit)
       Extracted arc(s) down the center of the slit(s)
-    maskslit : ndarray (nslit)
-      Slits to ignore because they were not extacted
+    maskslits : ndarray (nslit); bool
+      Slits to ignore because they were not extracted
+      WARNING: Outside of this Class, it is best to regenerate
+      the mask using  _make_maskslits()
     arcparam : dict
       Arc parameter (instrument/disperser specific)
     """
@@ -139,7 +141,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.wv_calib : dict
         """
         # Obtain a list of good slits
-        ok_mask = np.where(self.maskslits == 0)[0]
+        ok_mask = np.where(~self.maskslits)[0]
 
         # Obtain calibration for all slits
         if method == 'simple':
@@ -188,7 +190,7 @@ class WaveCalib(masterframe.MasterFrame):
                                  nonlinear_counts = self.nonlinear_counts)
                 final_fit[str(slit)] = ifinal_fit.copy()
                 if status != 1:
-                    self.maskslits[slit] = 1
+                    self.maskslits[slit] = True
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
             arcfitter = wavecal.autoid.HolyGrail(arccen, par = self.par, ok_mask=ok_mask)
@@ -204,11 +206,9 @@ class WaveCalib(masterframe.MasterFrame):
 
         self.wv_calib = final_fit
 
-        # Update mask
-        for slit in ok_mask:
-            if str(slit) not in final_fit.keys():
-                self.maskslits[slit] = 1
-        ok_mask = np.where(self.maskslits == 0)[0]
+        # Remake mask (*mainly for the QA that follows*)
+        self.maskslits = self._make_maskslits(len(self.maskslits))
+        ok_mask = np.where(~self.maskslits)[0]
 
         # QA
         if not skip_QA:
@@ -249,7 +249,7 @@ class WaveCalib(masterframe.MasterFrame):
         all_order = np.array([],dtype=float)
 
         # Obtain a list of good slits
-        ok_mask = np.where(self.maskslits == 0)[0]
+        ok_mask = np.where(~self.maskslits)[0]
         nspec = self.msarc.shape[0]
         for islit in wv_calib.keys():
             if int(islit) not in ok_mask:
@@ -360,6 +360,8 @@ class WaveCalib(masterframe.MasterFrame):
 
     def _make_maskslits(self, nslit):
         """
+        (re)Generate the mask for wv_calib based on its contents
+        This is the safest way to go...
 
         Parameters
         ----------
@@ -372,11 +374,12 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         # Set mask based on wv_calib
-        mask = np.array([True]*nslit, bool)
+        mask = np.array([True]*nslit)
         for key in self.wv_calib.keys():
             if key in ['steps', 'par', 'fit2d']:
                 continue
-            mask[int(key)] = False
+            if self.wv_calib[key] is not None:
+                mask[int(key)] = False
         self.maskslits = mask
         return self.maskslits
 

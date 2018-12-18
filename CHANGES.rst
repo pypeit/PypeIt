@@ -46,8 +46,15 @@
   fitting routines.
 - Lots of development related to echelle functionality.
 - Major enhancements to fitting routines (in utils)
-
 - Make GMOS south works and update OH line lists, and also add LBT/MODS.
+- Introduce calib groups
+- Removes setup designation.  Largely replaced with master_key
+- Refactor Calibrations class to handle new calib groups
+- Refactor QA to handle new calib groups
+- Refactor tests to handle new calib groups
+- Pushed pieces of run_pypeit into the PypeIt class
+- Removed future as a dependency
+- Change point step size to 50 pixels in show_slits and show_trace for major speed up
 
 0.9.0
 -----

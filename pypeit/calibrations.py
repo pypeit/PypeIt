@@ -39,6 +39,10 @@ class Calibrations(object):
     This class is primarily designed to guide the generation of
     calibration images and objects in PypeIt.
 
+    To avoid rebuilding MasterFrames that were generated during this execution
+    of PypeIt, the class performs book-keeping of these master frames and
+    holds that info in self.calib_dict
+
     .. todo::
         Improve docstring...
 
@@ -77,7 +81,9 @@ class Calibrations(object):
         frame (:obj:`int`):
             0-indexed row of the frame being calibrated in
             :attr:`fitstbl`.
-        master_key
+        calib_ID (:obj:`int`):
+            calib group ID of the current frame
+        arc_master_key
 
 
         
@@ -124,6 +130,7 @@ class Calibrations(object):
         self.det = None
         self.frame = None
         self.binning = None
+        self.calib_ID = None
 
         # Steps
         self.steps = []
@@ -150,11 +157,19 @@ class Calibrations(object):
         self.mspixflatnrm = None
         self.msillumflat = None
         self.mswave = None
+        self.cailb_ID = None
 
     def check_for_previous(self, ftype, master_key):
         """
         Check to see whether the master file(s) have been
-        built during this run of PypeIt
+        built during this run of PypeIt.
+        If so, we will likely either load from memory or hard-drive
+
+        calib_dict is nested as:
+           [master_key][ftype]
+
+        If the ftype has not yet been generated, an empty dict is prepared
+           self.calib_dict[master_key][ftype] = {}
 
         Args:
             ftype: str
@@ -179,14 +194,13 @@ class Calibrations(object):
         the internals to None. The internal dict is left unmodified.
 
         Args:
-            master_key (str):
+            frame (int):
             det (int):
             par (CalibrationPar):
 
         Returns:
 
         """
-        # TODO is the right behavior to just take the first one
         self.frame = frame
         self.calib_ID = int(self.fitstbl['calib'][frame])
         self.det = det
@@ -212,17 +226,12 @@ class Calibrations(object):
             self.msarc: ndarray
 
         """
-        # Check for existing data
-        ## JFH This check is wrong, if the user does not want to bias subtract, then it causes a crash
-#        if not self._chk_objs(['msbias']):
-#            self.msarc = None
-#            return self.msarc        self.arc_file_list, arc_rows = self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID)
-
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        self.arc_file_list, arc_rows = self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID)
+        arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
+        self.arc_file_list = self.fitstbl.frame_paths(arc_rows)
         self.arc_master_key = self.fitstbl.master_key(arc_rows[0], det=self.det)
 
         prev_build = self.check_for_previous('arc', self.arc_master_key)
@@ -232,7 +241,8 @@ class Calibrations(object):
             return self.msarc
 
         # Instantiate with everything needed to generate the image (in case we do)
-        self.arcImage = arcimage.ArcImage(self.spectrograph, file_list = self.arc_file_list, det=self.det,msbias=self.msbias,
+        self.arcImage = arcimage.ArcImage(self.spectrograph, file_list=self.arc_file_list,
+                                          det=self.det, msbias=self.msbias,
                                           par=self.par['arcframe'], master_key=self.arc_master_key,
                                           master_dir=self.master_dir, mode=self.par['masters'])
 
@@ -265,13 +275,14 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        self.bias_file_list, bias_rows = self.fitstbl.find_frame_files('bias', calib_ID=self.calib_ID)
+        bias_rows = self.fitstbl.find_frames('bias', calib_ID=self.calib_ID, index=True)
+        self.bias_file_list = self.fitstbl.frame_paths(bias_rows)
         if len(bias_rows) > 0:
             self.bias_master_key = self.fitstbl.master_key(bias_rows[0], det=self.det)
-        else:  # Allow for user-supplied file (e.g. LRISb)
+        else:  # Allow for other bias modes
             self.bias_master_key = self.fitstbl.master_key(self.frame, det=self.det)
 
-        # Grab from internal dict?
+        # Grab from internal dict (or hard-drive)?
         prev_build = self.check_for_previous('bias', self.bias_master_key)
         if prev_build:
             self.msbias = self.calib_dict[self.bias_master_key]['bias']
@@ -279,17 +290,22 @@ class Calibrations(object):
             return self.msbias
 
         # Instantiate
-        self.biasFrame = biasframe.BiasFrame(self.spectrograph, file_list = self.bias_file_list, det=self.det,
-                                             par=self.par['biasframe'], master_key=self.bias_master_key,
+        self.biasFrame = biasframe.BiasFrame(self.spectrograph, file_list=self.bias_file_list,
+                                             det=self.det, par=self.par['biasframe'],
+                                             master_key=self.bias_master_key,
                                              master_dir=self.master_dir, mode=self.par['masters'])
 
-        # How are we treating biases: 1) No bias, 2) overscan, or 3) use bias subtraction. If use bias is there a master?
+        # How are we treating biases: 1) No bias, 2) overscan, or 3) use
+        # bias subtraction. If use bias is there a master?
         self.msbias = self.biasFrame.determine_bias_mode(force=prev_build)
-        # This could be made more elegant, like maybe msbias should be set to 'none' analgous to how overscan is treated???
-        if (self.msbias is None) and (self.par['biasframe']['useframe'] != 'none'):  # Build it and save it
+        # This could be made more elegant, like maybe msbias should be
+        # set to 'none' analgous to how overscan is treated???
+        if (self.msbias is None) and (self.par['biasframe']['useframe'] != 'none'):
+            # Build it and save it
             self.msbias = self.biasFrame.build_image()
             if self.save_masters:
-                self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,steps=self.biasFrame.steps)
+                self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,
+                                           steps=self.biasFrame.steps)
 
         # Save & return
         self.calib_dict[self.bias_master_key]['bias'] = self.msbias
@@ -381,7 +397,9 @@ class Calibrations(object):
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        pixflat_image_files, pixflat_rows = self.fitstbl.find_frame_files('pixelflat', calib_ID=self.calib_ID)
+        pixflat_rows = self.fitstbl.find_frames('pixelflat', calib_ID=self.calib_ID, index=True)
+        # TODO: Why aren't these set to self
+        pixflat_image_files = self.fitstbl.frame_paths(pixflat_rows)
         if len(pixflat_rows) > 0:
             self.pixflat_master_key = self.fitstbl.master_key(pixflat_rows[0], det=self.det)
         else:  # Allow for user-supplied file (e.g. LRISb)
@@ -486,7 +504,7 @@ class Calibrations(object):
 
         return self.mspixflatnrm, self.msillumflat
 
-    def get_slits(self, redo=False):
+    def get_slits(self, redo=False, write_qa=True):
         """
         Load or generate the slits.
         First, a trace flat image is generated
@@ -494,6 +512,11 @@ class Calibrations(object):
         Requirements:
            pixlocn
            det par master_key
+
+        Args:
+            redo:
+            write_qa: bool, optional
+              Generate the QA?  Turn off for testing..
 
         Returns:
             self.tslits_dict
@@ -510,7 +533,9 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        self.trace_image_files, trace_rows = self.fitstbl.find_frame_files('trace', calib_ID=self.calib_ID)
+        trace_rows = self.fitstbl.find_frames('trace', calib_ID=self.calib_ID, index=True)
+        self.trace_image_files = self.fitstbl.frame_paths(trace_rows)
+
         self.trace_master_key = self.fitstbl.master_key(trace_rows[0], det=self.det)
 
         # Return already generated data
@@ -548,8 +573,9 @@ class Calibrations(object):
             rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det, rm=True)
             # Now we go forth
             try:
-                self.tslits_dict = self.traceSlits.run(plate_scale = plate_scale, show=self.show,
-                                                       add_user_slits=add_user_slits, rm_user_slits=rm_user_slits)
+                self.tslits_dict = self.traceSlits.run(plate_scale=plate_scale, show=self.show,
+                                                       add_user_slits=add_user_slits, rm_user_slits=rm_user_slits,
+                                                       write_qa=write_qa)
             except:
                 self.traceSlits.save_master()
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
@@ -626,7 +652,7 @@ class Calibrations(object):
         Load or generate the 1D wavelength calibrations
 
         Requirements:
-          msarc, msbpm, tslits_dict
+          msarc, msbpm, tslits_dict, maskslits
           det, par
 
         Returns:
@@ -634,12 +660,8 @@ class Calibrations(object):
             self.maskslits -- Updated
         """
         # Check for existing data
-        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict']):
+        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict', 'maskslits']):
             msgs.error('dont have all the objects')
-            self.wv_calib = None
-            self.wv_maskslits = np.zeros_like(self.maskslits, dtype=bool)
-            self.maskslits += self.wv_maskslits
-            return self.wv_calib, self.maskslits
 
         # Check internals
         self._chk_set(['arc_master_key', 'det', 'calib_ID', 'par'])
@@ -678,13 +700,14 @@ class Calibrations(object):
         else:
             self.waveCalib.wv_calib = self.wv_calib
 
-        # Create the mask
+        # Create the mask (needs to be done here in case wv_calib was loaded from Masters)
         self.wv_maskslits = self.waveCalib._make_maskslits(self.tslits_dict['lcen'].shape[1])
+        self.maskslits += self.wv_maskslits
 
         # Save & return
         self.calib_dict[self.arc_master_key]['wavecalib'] = self.wv_calib
         self.calib_dict[self.arc_master_key]['wvmask'] = self.wv_maskslits
-        self.maskslits += self.wv_maskslits
+        # Return
         return self.wv_calib, self.maskslits
 
     def get_pixlocn(self):

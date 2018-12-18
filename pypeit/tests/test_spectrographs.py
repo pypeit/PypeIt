@@ -11,6 +11,7 @@ import glob
 
 from pypeit.par.util import pypeit_root_directory
 from pypeit import spectrographs
+from pypeit.core import procimg
 
 from pypeit.tests.tstutils import dev_suite_required
 
@@ -23,8 +24,12 @@ def test_keckdeimos():
                                 '830G_L_8400', 'd0914_0002.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck DEIMOS read.'
     data, _ = s.load_raw_frame(example_file)
-    bpm = s.bpm(filename=example_file)
-    assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
+    #
+    dsec_img = s.get_datasec_img(example_file, det=1)
+    shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+    bpm = s.bpm(shape=shape) # filename=example_file)
+    assert data.shape == (4096,2128)
+    assert bpm.shape == (4096,2048)
 
 
 @dev_suite_required
@@ -34,8 +39,12 @@ def test_kecklrisblue():
                                 'long_400_3400_d560', 'LB.20160109.14149.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck LRIS blue read.'
     data, _ = s.load_raw_frame(example_file)
-    bpm = s.bpm(filename=example_file)
-    assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
+    #
+    dsec_img = s.get_datasec_img(example_file, det=1)
+    shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+    bpm = s.bpm(shape=shape)
+    assert data.shape == (2048,1154)
+    assert bpm.shape == (2048,1024)
 
 
 @dev_suite_required
@@ -45,8 +54,12 @@ def test_kecklrisred():
                                 'long_600_7500_d560', 'LR.20160216.05529.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck LRIS red read.'
     data, _ = s.load_raw_frame(example_file)
-    bpm = s.bpm(filename=example_file)
-    assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
+    #
+    dsec_img = s.get_datasec_img(example_file, det=1)
+    shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+    bpm = s.bpm(shape=shape)
+    assert data.shape == (2068,1110)
+    assert bpm.shape == (2048,1024)
 
 
 @dev_suite_required

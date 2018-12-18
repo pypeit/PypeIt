@@ -76,7 +76,6 @@ def test_chk_lris_red_slits():
         # Test
         assert traceSlits.nslit == norig
 
-
 @dev_suite_required
 def test_chk_deimos_slits():
     spectrograph = util.load_spectrograph('keck_deimos')

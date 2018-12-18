@@ -11,7 +11,7 @@ import numpy as np
 from astropy.table import hstack, Table
 
 from pypeit import msgs
-from pypeit.core import pypsetup
+#from pypeit.core import pypsetup
 from pypeit.metadata import PypeItMetaData
 
 from pypeit.par import PypeItPar
@@ -292,20 +292,20 @@ class PypeItSetup(object):
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
 
-    def match_to_science(self, setup_only=False):
-        """
-          Matches calibration frames to the Science
-          Mainly a wrapper to arsort.match_to_science()
-
-        Returns
-        -------
-        self.fitstbl -- Updated with 'sci_ID' and 'failures' columns
-
-        """
-        self.fitstbl.match_to_science(self.par['calibrations'], self.par['rdx']['calwin'],
-                                      self.par['fluxcalib'], setup=setup_only)
-        self.steps.append(inspect.stack()[0][3])
-        return self.fitstbl
+#    def match_to_science(self, setup_only=False):
+#        """
+#          Matches calibration frames to the Science
+#          Mainly a wrapper to arsort.match_to_science()
+#
+#        Returns
+#        -------
+#        self.fitstbl -- Updated with 'sci_ID' and 'failures' columns
+#
+#        """
+#        self.fitstbl.match_to_science(self.par['calibrations'], self.par['rdx']['calwin'],
+#                                      self.par['fluxcalib'], setup=setup_only)
+#        self.steps.append(inspect.stack()[0][3])
+#        return self.fitstbl
 
     def get_frame_types(self, flag_unknown=False, use_header_id=False):
         """
@@ -476,8 +476,8 @@ class PypeItSetup(object):
 #        # Match calibs to science
 #        self.match_to_science(setup_only=setup_only)
 
-        if self.par['scienceimage'] is not None and self.par['scienceimage']['nodding']:
-            self.match_ABBA()
+#        if self.par['scienceimage'] is not None and self.par['scienceimage']['nodding']:
+#            self.match_ABBA()
 
         # Write metadata
         self.write_metadata(sort_dir=sort_dir)

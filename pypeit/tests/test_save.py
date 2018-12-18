@@ -44,7 +44,7 @@ def test_save2d_fits():
     fitstbl['filename'] = 'b1.fits.gz'
     # Settings
     #settings.argflag['run']['directory']['science'] = data_path('')
-    setup = 'A_01_aa'
+    mastery_key = 'A_1_01'
     spectrograph = 'shane_kast_blue'
     # Fill with dummy images
     dum = np.ones((100,100))
@@ -58,12 +58,12 @@ def test_save2d_fits():
     path = fitstbl['directory'][scidx]
     ifile = fitstbl['filename'][scidx]
     rawfile = os.path.join(path, ifile)
-    save.save_2d_images(sci_dict, rawfile, 0, setup, data_path('MF')+'_'+spectrograph,
+    save.save_2d_images(sci_dict, rawfile, 0, mastery_key, data_path('MF')+'_'+spectrograph,
                         data_path(''), basename)
     # Read and test
     head0 = fits.getheader(data_path('spec2d_test.fits'))
     assert head0['PYPCNFIG'] == 'A'
-    assert head0['PYPCALIB'] == 'aa'
+    assert head0['PYPCALIB'] == '1'
     assert 'PYPEIT' in head0['PIPELINE']
 
 

@@ -40,7 +40,8 @@ class FluxSpec(masterframe.MasterFrame):
       Filename of a spec1d file to be fluxed
     spectrograph : str
       Name of the spectrograph, e.g. shane_kast_blue
-      Used only to set settings for calls to the Class outside of PyepIt
+      Used only to set settings for calls to the Class outside of PypeIt
+      This includes extinction data..
     sens_file : str
       Filename of a sensitivity function file to be input
     master_key : str
@@ -143,14 +144,13 @@ class FluxSpec(masterframe.MasterFrame):
         # Get the extinction data
         self.extinction_data = None
         if self.spectrograph is not None:
-            self.extinction_data \
-                    = flux.load_extinction_data(self.spectrograph.telescope['longitude'],
-                                                self.spectrograph.telescope['latitude'])
+            self.extinction_data = flux.load_extinction_data(
+                self.spectrograph.telescope['longitude'], self.spectrograph.telescope['latitude'])
         elif self.sci_header is not None and 'LON-OBS' in self.sci_header.keys():
             self.extinction_data \
                     = flux.load_extinction_data(self.sci_header['LON-OBS'],
                                                 self.sci_header['LAT-OBS'])
-       
+
         # Once the spectrograph is instantiated, can also set the
         # extinction data
         # Parameters

@@ -28,7 +28,6 @@ Submodules
    pypeit.core.plot
    pypeit.core.procimg
    pypeit.core.pydl
-   pypeit.core.pypsetup
    pypeit.core.qa
    pypeit.core.save
    pypeit.core.skysub

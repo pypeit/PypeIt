@@ -42,16 +42,11 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
       Setup tag
     det : int, optional
       Detector index, starts at 1
-    fitstbl : PypeItMetaData (optional)
-      FITS info (mainly for filenames)
-    sci_ID : int (optional)
-      Science ID value
-      used to match bias frames to the current science exposure
     par : ParSet
       PypitPar['calibrations']['biasframe']
-    redux_path : str (optional)
-      Path for reduction
-
+    master_key
+    master_dir
+    mode
 
     Attributes
     ----------
@@ -67,8 +62,8 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'bias'
 
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph, file_list = [], det=1, par=None, master_key=None, master_dir=None,
-                 mode=None):
+    def __init__(self, spectrograph, file_list=[], det=1, par=None, master_key=None,
+                 master_dir=None, mode=None):
 
         # Parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
@@ -108,6 +103,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         Args:
             force: bool, optional
+              Force the code to attempt to load the MasterFrame
 
         Returns:
             self.msbias str, ndarray or None

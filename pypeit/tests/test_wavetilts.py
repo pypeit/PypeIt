@@ -37,10 +37,10 @@ def test_step_by_step(master_dir):
     # Masters
     spectrograph, msarc, tslits_dict = load_kast_blue_masters(get_spectrograph=True, aimg=True,tslits=True)
     # Instantiate
-    setup = 'A_01_aa'
+    master_key = 'A_1_01'
     parset = spectrograph.default_pypeit_par()
     par = parset['calibrations']['tilts']
-    waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
+    waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, master_key=master_key,
                                     master_dir=master_dir,mode='reuse',
                                     tslits_dict=tslits_dict)
     # Extract arcs
@@ -67,11 +67,11 @@ def test_run(master_dir):
     spectrograph, msarc, tslits_dict = load_kast_blue_masters(get_spectrograph=True, aimg=True,
                                                          tslits=True)
     # Instantiate
-    setup = 'A_01_aa'
+    master_key = 'A_1_01'
     spectrograph.detector[0]['saturation'] = 60000.
     spectrograph.detector[0]['nonlinear'] = 0.9
     par = pypeitpar.WaveTiltsPar()
-    waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
+    waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, master_key=master_key,
                                     master_dir=master_dir, mode='reuse',
                                     tslits_dict=tslits_dict)
     # Run

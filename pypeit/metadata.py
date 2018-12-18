@@ -227,6 +227,7 @@ class PypeItMetaData:
                     msgs.warn("{0} keyword not in header. Setting to None".format(key))
                     value = 'None'
                 except TypeError:
+                    # TODO: This should throw an error
                     import pdb; pdb.set_trace()
 
                 # Convert the time to days
@@ -469,6 +470,9 @@ class PypeItMetaData:
         if 'setup' not in self.keys() or 'calibbit' not in self.keys():
             msgs.error('Cannot provide master key string without setup and calibbit; '
                        'run set_configurations and set_calibration_groups.')
+        if det <= 0 or det > self.spectrograph.ndet:
+            raise IndexError('{0} is not a valid detector for {1}!'.format(det,
+                             self.spectrograph.spectrograph))
         return '{0}_{1}_{2}'.format(self['setup'][row], self['calibbit'][row], str(det).zfill(2))
 
     def construct_obstime(self, row):
@@ -908,7 +912,9 @@ class PypeItMetaData:
         Args:
             ftype (str):
                 The frame type identifier.  See the keys for
-                :class:`pypeit.core.framematch.FrameTypeBitMask`.
+                :class:`pypeit.core.framematch.FrameTypeBitMask`.  If
+                set to the string 'None', this returns all frames
+                without a known type.
             calib_ID (:obj:`int`, optional):
                 Index of the calibration group that it must match.  If None,
                 any row of the specified frame type is included.
@@ -920,17 +926,22 @@ class PypeItMetaData:
             numpy.ndarray: A boolean array, or an integer array if
             index=True, with the rows that contain the frames of the
             requested type.  
+
+        Raises:
+            PypeItError:
+                Raised if the `framebit` column is not set in the table.
         """
         if 'framebit' not in self.keys():
-            raise ValueError('Frame types are not set.  First run get_frame_types.')
+            msgs.error('Frame types are not set.  First run get_frame_types.')
         if ftype is 'None':
             return self['framebit'] == 0
+        # Select frames
         indx = self.type_bitmask.flagged(self['framebit'], ftype)
-        # Calib ID?
+
         if calib_ID is not None:
-            in_grp = self.find_calib_group(calib_ID)
-            #
-            indx &= in_grp
+            # Select frames in the same calibration group
+            indx &= self.find_calib_group(calib_ID)
+
         # Return
         return np.where(indx)[0] if index else indx
 
@@ -952,10 +963,8 @@ class PypeItMetaData:
         Returns:
             list: List of file paths that match the frame type and
             science frame ID, if the latter is provided.
-            indx: ndarray of rows in fitstbl
         """
-        indx = self.find_frames(ftype, calib_ID=calib_ID, index=True)
-        return [os.path.join(d,f) for d,f in zip(self['directory'][indx], self['filename'][indx])], indx
+        return self.frame_paths(self.find_frames(ftype, calib_ID=calib_ID))
 
     def frame_paths(self, indx):
         """
@@ -1248,6 +1257,7 @@ class PypeItMetaData:
               consider reformatting/removing it.
             - This is complicated by allowing some frame types to have
               no association with an instrument configuration
+            - This is primarily used for QA now;  but could probably use the pypeit file instead
 
         Args:
             ofile (:obj:`str`):
@@ -1272,19 +1282,22 @@ class PypeItMetaData:
         # Construct the setups dictionary
         cfg = self.get_all_setups(ignore=['None'])
 
-        # Iterate through the calibration groups and add frames to the
-        # appropriate configuration
-        for i in range(self.n_calib_groups):
+        # Iterate through the calibration bit names as these are the root of the
+        #   MasterFrames and QA
+        for icbit in np.unique(self['calibbit'].data):
+            cbit = int(icbit) # for yaml
             # Skip this group
-            if ignore is not None and i in ignore:
+            if ignore is not None and cbit in ignore:
                 continue
 
             # Find the frames in this group
-            in_group = self.find_calib_group(i)
+            #in_group = self.find_calib_group(i)
+            in_cbit = self['calibbit'] == cbit
 
             # Find the unique configurations in this group, ignoring any
             # undefined ('None') configurations
-            setup = np.unique(self['setup'][in_group]).tolist()
+            #setup = np.unique(self['setup'][in_group]).tolist()
+            setup = np.unique(self['setup'][in_cbit]).tolist()
             if 'None' in setup:
                 setup.remove('None')
 
@@ -1296,10 +1309,11 @@ class PypeItMetaData:
                            'configuration cannot be None.')
 
             # Find the frames of each type in this group
-            cfg[setup[0]][i] = {}
+            cfg[setup[0]][cbit] = {}
             for key in self.type_bitmask.keys():
-                ftype_in_group = self.find_frames(key) & in_group
-                cfg[setup[0]][i][key] = [ os.path.join(d,f) 
+                #ftype_in_group = self.find_frames(key) & in_group
+                ftype_in_group = self.find_frames(key) & in_cbit
+                cfg[setup[0]][cbit][key] = [ os.path.join(d,f)
                                                 for d,f in zip(self['directory'][ftype_in_group],
                                                                self['filename'][ftype_in_group])]
         # Write it
@@ -1491,7 +1505,21 @@ class PypeItMetaData:
     def find_calib_group(self, grp):
         """
         Find all the frames associated with the provided calibration group.
+        
+        Args:
+            grp (:obj:`int`):
+                The calibration group integer.
+
+        Returns:
+            numpy.ndarray: Boolean array selecting those frames in the
+            table included in the selected calibration group.
+
+        Raises:
+            PypeItError:
+                Raised if the 'calibbit' column is not defined.
         """
+        if 'calibbit' not in self.keys():
+            msgs.error('Calibration groups are not set.  First run set_calibration_groups.')
         return self.calib_bitmask.flagged(self['calibbit'].data, grp)
 
     def find_frame_calib_groups(self, row):
@@ -1500,236 +1528,236 @@ class PypeItMetaData:
         """
         return self.calib_bitmask.flagged_bits(self['calibbit'][row])
 
-    def calib_to_science(self):
-        """
-        Construct the science ID based on the calibration group.
-        """
-        self['sci_ID'] = 0
-        self['failures'] = False                    # TODO: placeholder
-
-        is_science = self.find_frames('science')
-        is_not_science = np.invert(is_science)
-        sciid = np.arange(np.sum(is_science))       # Science image IDs
-        self['sci_ID'][is_science] = 1 << sciid
-        j = 0
-        for i in range(len(self)):
-            if is_not_science[i]:
-                continue
-            
-            calibs = self.find_calib_group(int(self['calib'][i])) & is_not_science
-            self['sci_ID'][calibs] |= (1 << sciid[j])
-            j += 1
-    
-    def match_to_science(self, calib_par, calwin, fluxcalib_par, setup=False, verbose=True):
-        """
-
-        For a given set of identified data, match calibration frames to
-        science frames.
-        
-        The matching is performed using criteria provided by
-        `self.spectrograph.get_match_criteria()`; see `these functions`.
-
-        For calwin to work, must have time column.
-
-        Args:
-            calib_par (:class:`pypeit.par.pypitpar.CalibrationsPar`):
-                The calibration parameter set, which houses all the
-                :class:`pypeit.par.pypeitpar.FrameGroupPar` instances
-                that list how many of each calibration frame are needed.
-            calwin (:obj:`float`):
-                The minimum time difference between a calibration and
-                science exposure allowed.
-            fluxcalib_par (:class:`pypeit.par.pypitpar.FluxCalibPar`):
-                Needed for worrying about standard stars
-            setup (:obj:`bool`, optional):
-                The operation is being executed only for an initial
-                setup.  **Need a good description of the behavior this
-                causes.**
-            verbose (:obj:`bool`, optional):
-                Provide verbose output.
-
-        """
-        if verbose:
-            msgs.info("Matching calibrations to Science frames")
-            if 'time' not in self.keys():
-                end = ', and cannot match calibrations based on time difference.' \
-                        if calwin > 0.0 else '.'
-                msgs.warn('Table does not include time column!  Cannot sort calibration frames '
-                          'by observation time with respect to each science frame{0}'.format(end))
-        
-        match_dict = self.spectrograph.get_match_criteria()
-
-        # New columns
-        self['failures'] = False
-        self['sci_ID'] = 0
-
-        # Loop on science frames
-        indx = np.arange(len(self))[self.find_frames('science')]
-        for ss, sci_idx in enumerate(np.where(self.find_frames('science'))[0]):
-            target = self['target'][sci_idx] if 'target' in self.keys() \
-                            else self['filename'][sci_idx]
-            if verbose:
-                msgs.info('='*50)
-                msgs.info('Matching calibrations to frame: {0}'.format(target))
-
-            # Science ID (trivial but key to the bit-wise that follows)
-            self['sci_ID'][sci_idx] = 2**ss
-
-            # Find matching (and nearby) calibration frames
-            for ftag in self.type_bitmask.keys():
-                # Skip science frames
-                if ftag == 'science':
-                    continue
-
-                # bias/dark check to make sure we need to find matching frames
-                if ftag == 'dark' and calib_par['biasframe']['useframe'] != 'dark':
-                    if verbose:
-                        msgs.info('  Dark frames not required.  Not matching...')
-                    continue
-                if ftag == 'bias' and calib_par['biasframe']['useframe'] != 'bias' \
-                            and not calib_par['badpix']:
-                    if verbose:
-                        msgs.info('  Bias frames not required.  Not matching...')
-                    continue
-
-                # Find the files of this type
-                gd_match = self.find_frames(ftag)
-
-
-                # How many matching frames are required?  This is instrument specific
-                numfr = (1 if ftag == 'arc' else 0) if setup \
-                            else calib_par['{0}frame'.format(ftag)]['number']
-
-                # If not required and not doing setup, continue
-                if numfr == 0 and not setup:
-                    if verbose:
-                        msgs.info('   No {0} frames are required.  Not matching...'.format(ftag))
-                    continue
-
-                # Now go ahead and match the frames
-                if 'match' not in match_dict[ftag].keys() and (not setup):
-                    msgs.error('Match criteria needed for {0}!'.format(ftag))
-                elif 'match' not in match_dict[ftag].keys() and verbose:
-                    msgs.info('No matching criteria for {0} frames'.format(ftag))
-                else:
-                    chkk = match_dict[ftag]['match'].keys()
-                    for ch in chkk:
-                        tmtch = match_dict[ftag]['match'][ch]
-                        gd_match &= framematch.match_logic(ch, tmtch, self.table, sci_idx)
-
-                # Find the time difference between the calibrations and science frames
-                if calwin > 0.0 and 'time' in self.keys():
-                    tdiff = np.abs(self['time']-self['time'][sci_idx])
-                    gd_match &= tdiff <= calwin
-
-                # Now find which of the remaining n are the appropriate calibration frames
-                nmatch = np.sum(gd_match)
-                if verbose:
-                    msgs.info('  Found {0} {1} frame for {2} ({3} required)'.format(nmatch, ftag,
-                                                                                    target, numfr))
-
-                # Have we identified enough of these calibration frames to continue?
-                if nmatch < np.abs(numfr):
-                    code = framematch.match_warnings(calib_par, ftag, nmatch, numfr, target,
-                                                     fluxpar=fluxcalib_par)
-                    if code == 'break':
-                        self['failures'][sci_idx] = True
-                        self['sci_ID'][sci_idx] = -1  # This might break things but who knows..
-                        break
-                else:
-                    # Select the closest calibration frames to the science frame
-                    wa = np.where(gd_match)[0]
-                    if 'time' in self.keys():
-                        tdiff = np.abs(self['time'][wa]-self['time'][sci_idx])
-                        wa = wa[np.argsort(tdiff)]
-                    # Identify the relevant calibration frames with this
-                    # science frame
-                    if setup or (numfr < 0):
-                        self['sci_ID'][wa] |= 2**ss
-                    else:
-                        self['sci_ID'][wa[:numfr]] |= 2**ss
-        if verbose:
-            msgs.info('Science frames successfully matched to calibration frames.')
-
-    def match_ABBA(self, max_targ_sep=30, max_nod_sep=2, merge=True):
-        """
-        Find ABBA exposure series based on the target and nodding
-        separation.
-
-        The :attr:`table` must have `ra` and `dec` columns to execute
-        this function.
-
-        Args:
-            max_targ_sep (:obj:`int`, optional):
-                The maximum separation (arcsec) between frame sky
-                coordinates allowed for identifying frames taken of the
-                same object.  Note that the default (30 arcsec, 1e-2
-                deg) is arbitrary.
-            max_nod_sep (:obj:`int`, optional):
-                The maximum separation (arcsec) between the 1st and 4th
-                frame sky coordinates in the ABBA sequence that is
-                allowed when identifying the sequence.  Note that the
-                default (2 arcsec) is arbitrary.
-            merge (:obj:`bool`, optional):
-                Merge the frame typing into the exiting table in a
-                `AB_frame` column.  Otherwise, a single column table is
-                returned with this column.
-
-        Returns:
-            :class:`astropy.table.Table`: A single column Table is
-            returned if `merge` is False.  Otherwise, nothing is
-            returned.
-
-        Raises:
-            KeyError:
-                Raised if the internal table does not have `ra` and
-                `dec` columns.
-        """
-
-        if 'ra' not in self.keys() or 'dec' not in self.keys():
-            raise KeyError('Table must have ra and dec columns to find ABBA sequences.')
-
-        # Make coords for all observations, including calibration frames
-        coords = coordinates.SkyCoord(ra=self['ra'], dec=self['dec'], unit='deg')
-
-        # Indices of science frames
-        sci = self.find_frames('science')
-
-        # Create empty dictionary of targets
-        targets = {}
-
-        # The identifying key for each target; allows for target to be
-        # undefined
-        tkey = 'target' if 'target' in self.keys() else 'filename'
-
-        # Use a boolean array to identify each frame as matched to a
-        # specific target.  All calibration frames are ignored, and the
-        # science frames are all initialized as not being matched.
-        free = np.zeros(len(self), dtype=bool)
-        free[sci] = True
-
-        while np.any(free):
-            # Find the first science frame that hasn't been matched
-            indx = np.where(free)[0][0]
-            # Find other science frames that match the coordinates of
-            # this science frame within the specified tolerance
-            match = sci & (coords[indx].separation(coords).arcsec < max_targ_sep)
-            # Add this target or filename to the dictionary and identify
-            # the list of table rows matched to it.
-            targets[self[tkey][indx]] = np.where(match)[0]
-            # Set the relevant frames as no longer free to be matched
-            free[match] = False
-
-        # Group the frames
-        t = table.Table({'AB_frame': framematch.group_AB_frames(self['filename'], targets, coords,
-                                                                max_nod_sep=max_nod_sep)})
-
-        if merge:
-            # Merge the column into the existing table
-            self['AB_frame'] = t['AB_frame']
-            return
-        # Return a new Table with the single column
-        return t
+#    def calib_to_science(self):
+#        """
+#        Construct the science ID based on the calibration group.
+#        """
+#        self['sci_ID'] = 0
+#        self['failures'] = False                    # TODO: placeholder
+#
+#        is_science = self.find_frames('science')
+#        is_not_science = np.invert(is_science)
+#        sciid = np.arange(np.sum(is_science))       # Science image IDs
+#        self['sci_ID'][is_science] = 1 << sciid
+#        j = 0
+#        for i in range(len(self)):
+#            if is_not_science[i]:
+#                continue
+#            
+#            calibs = self.find_calib_group(int(self['calib'][i])) & is_not_science
+#            self['sci_ID'][calibs] |= (1 << sciid[j])
+#            j += 1
+#    
+#    def match_to_science(self, calib_par, calwin, fluxcalib_par, setup=False, verbose=True):
+#        """
+#
+#        For a given set of identified data, match calibration frames to
+#        science frames.
+#        
+#        The matching is performed using criteria provided by
+#        `self.spectrograph.get_match_criteria()`; see `these functions`.
+#
+#        For calwin to work, must have time column.
+#
+#        Args:
+#            calib_par (:class:`pypeit.par.pypitpar.CalibrationsPar`):
+#                The calibration parameter set, which houses all the
+#                :class:`pypeit.par.pypeitpar.FrameGroupPar` instances
+#                that list how many of each calibration frame are needed.
+#            calwin (:obj:`float`):
+#                The minimum time difference between a calibration and
+#                science exposure allowed.
+#            fluxcalib_par (:class:`pypeit.par.pypitpar.FluxCalibPar`):
+#                Needed for worrying about standard stars
+#            setup (:obj:`bool`, optional):
+#                The operation is being executed only for an initial
+#                setup.  **Need a good description of the behavior this
+#                causes.**
+#            verbose (:obj:`bool`, optional):
+#                Provide verbose output.
+#
+#        """
+#        if verbose:
+#            msgs.info("Matching calibrations to Science frames")
+#            if 'time' not in self.keys():
+#                end = ', and cannot match calibrations based on time difference.' \
+#                        if calwin > 0.0 else '.'
+#                msgs.warn('Table does not include time column!  Cannot sort calibration frames '
+#                          'by observation time with respect to each science frame{0}'.format(end))
+#        
+#        match_dict = self.spectrograph.get_match_criteria()
+#
+#        # New columns
+#        self['failures'] = False
+#        self['sci_ID'] = 0
+#
+#        # Loop on science frames
+#        indx = np.arange(len(self))[self.find_frames('science')]
+#        for ss, sci_idx in enumerate(np.where(self.find_frames('science'))[0]):
+#            target = self['target'][sci_idx] if 'target' in self.keys() \
+#                            else self['filename'][sci_idx]
+#            if verbose:
+#                msgs.info('='*50)
+#                msgs.info('Matching calibrations to frame: {0}'.format(target))
+#
+#            # Science ID (trivial but key to the bit-wise that follows)
+#            self['sci_ID'][sci_idx] = 2**ss
+#
+#            # Find matching (and nearby) calibration frames
+#            for ftag in self.type_bitmask.keys():
+#                # Skip science frames
+#                if ftag == 'science':
+#                    continue
+#
+#                # bias/dark check to make sure we need to find matching frames
+#                if ftag == 'dark' and calib_par['biasframe']['useframe'] != 'dark':
+#                    if verbose:
+#                        msgs.info('  Dark frames not required.  Not matching...')
+#                    continue
+#                if ftag == 'bias' and calib_par['biasframe']['useframe'] != 'bias' \
+#                            and not calib_par['badpix']:
+#                    if verbose:
+#                        msgs.info('  Bias frames not required.  Not matching...')
+#                    continue
+#
+#                # Find the files of this type
+#                gd_match = self.find_frames(ftag)
+#
+#
+#                # How many matching frames are required?  This is instrument specific
+#                numfr = (1 if ftag == 'arc' else 0) if setup \
+#                            else calib_par['{0}frame'.format(ftag)]['number']
+#
+#                # If not required and not doing setup, continue
+#                if numfr == 0 and not setup:
+#                    if verbose:
+#                        msgs.info('   No {0} frames are required.  Not matching...'.format(ftag))
+#                    continue
+#
+#                # Now go ahead and match the frames
+#                if 'match' not in match_dict[ftag].keys() and (not setup):
+#                    msgs.error('Match criteria needed for {0}!'.format(ftag))
+#                elif 'match' not in match_dict[ftag].keys() and verbose:
+#                    msgs.info('No matching criteria for {0} frames'.format(ftag))
+#                else:
+#                    chkk = match_dict[ftag]['match'].keys()
+#                    for ch in chkk:
+#                        tmtch = match_dict[ftag]['match'][ch]
+#                        gd_match &= framematch.match_logic(ch, tmtch, self.table, sci_idx)
+#
+#                # Find the time difference between the calibrations and science frames
+#                if calwin > 0.0 and 'time' in self.keys():
+#                    tdiff = np.abs(self['time']-self['time'][sci_idx])
+#                    gd_match &= tdiff <= calwin
+#
+#                # Now find which of the remaining n are the appropriate calibration frames
+#                nmatch = np.sum(gd_match)
+#                if verbose:
+#                    msgs.info('  Found {0} {1} frame for {2} ({3} required)'.format(nmatch, ftag,
+#                                                                                    target, numfr))
+#
+#                # Have we identified enough of these calibration frames to continue?
+#                if nmatch < np.abs(numfr):
+#                    code = framematch.match_warnings(calib_par, ftag, nmatch, numfr, target,
+#                                                     fluxpar=fluxcalib_par)
+#                    if code == 'break':
+#                        self['failures'][sci_idx] = True
+#                        self['sci_ID'][sci_idx] = -1  # This might break things but who knows..
+#                        break
+#                else:
+#                    # Select the closest calibration frames to the science frame
+#                    wa = np.where(gd_match)[0]
+#                    if 'time' in self.keys():
+#                        tdiff = np.abs(self['time'][wa]-self['time'][sci_idx])
+#                        wa = wa[np.argsort(tdiff)]
+#                    # Identify the relevant calibration frames with this
+#                    # science frame
+#                    if setup or (numfr < 0):
+#                        self['sci_ID'][wa] |= 2**ss
+#                    else:
+#                        self['sci_ID'][wa[:numfr]] |= 2**ss
+#        if verbose:
+#            msgs.info('Science frames successfully matched to calibration frames.')
+#
+#    def match_ABBA(self, max_targ_sep=30, max_nod_sep=2, merge=True):
+#        """
+#        Find ABBA exposure series based on the target and nodding
+#        separation.
+#
+#        The :attr:`table` must have `ra` and `dec` columns to execute
+#        this function.
+#
+#        Args:
+#            max_targ_sep (:obj:`int`, optional):
+#                The maximum separation (arcsec) between frame sky
+#                coordinates allowed for identifying frames taken of the
+#                same object.  Note that the default (30 arcsec, 1e-2
+#                deg) is arbitrary.
+#            max_nod_sep (:obj:`int`, optional):
+#                The maximum separation (arcsec) between the 1st and 4th
+#                frame sky coordinates in the ABBA sequence that is
+#                allowed when identifying the sequence.  Note that the
+#                default (2 arcsec) is arbitrary.
+#            merge (:obj:`bool`, optional):
+#                Merge the frame typing into the exiting table in a
+#                `AB_frame` column.  Otherwise, a single column table is
+#                returned with this column.
+#
+#        Returns:
+#            :class:`astropy.table.Table`: A single column Table is
+#            returned if `merge` is False.  Otherwise, nothing is
+#            returned.
+#
+#        Raises:
+#            KeyError:
+#                Raised if the internal table does not have `ra` and
+#                `dec` columns.
+#        """
+#
+#        if 'ra' not in self.keys() or 'dec' not in self.keys():
+#            raise KeyError('Table must have ra and dec columns to find ABBA sequences.')
+#
+#        # Make coords for all observations, including calibration frames
+#        coords = coordinates.SkyCoord(ra=self['ra'], dec=self['dec'], unit='deg')
+#
+#        # Indices of science frames
+#        sci = self.find_frames('science')
+#
+#        # Create empty dictionary of targets
+#        targets = {}
+#
+#        # The identifying key for each target; allows for target to be
+#        # undefined
+#        tkey = 'target' if 'target' in self.keys() else 'filename'
+#
+#        # Use a boolean array to identify each frame as matched to a
+#        # specific target.  All calibration frames are ignored, and the
+#        # science frames are all initialized as not being matched.
+#        free = np.zeros(len(self), dtype=bool)
+#        free[sci] = True
+#
+#        while np.any(free):
+#            # Find the first science frame that hasn't been matched
+#            indx = np.where(free)[0][0]
+#            # Find other science frames that match the coordinates of
+#            # this science frame within the specified tolerance
+#            match = sci & (coords[indx].separation(coords).arcsec < max_targ_sep)
+#            # Add this target or filename to the dictionary and identify
+#            # the list of table rows matched to it.
+#            targets[self[tkey][indx]] = np.where(match)[0]
+#            # Set the relevant frames as no longer free to be matched
+#            free[match] = False
+#
+#        # Group the frames
+#        t = table.Table({'AB_frame': framematch.group_AB_frames(self['filename'], targets, coords,
+#                                                                max_nod_sep=max_nod_sep)})
+#
+#        if merge:
+#            # Merge the column into the existing table
+#            self['AB_frame'] = t['AB_frame']
+#            return
+#        # Return a new Table with the single column
+#        return t
 
 def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype=False):
     """

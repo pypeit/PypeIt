@@ -458,7 +458,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['polyorder'] = 6
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['number'] = -1
-        par['calibrations']['slits']['fracignore'] = 0.01
+        #par['calibrations']['slits']['fracignore'] = 0.01
 
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 15

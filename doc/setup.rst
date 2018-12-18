@@ -99,19 +99,22 @@ root name, the provided path *must* have a trailing `/` character.  As
 always, to get help with a PypeIt script, use the `-h` option.  Here is
 an example::
 
-    pypeit_setup /Users/xavier/Keck/LRIS/data/2016apr06/Raw/LB keck_lris_blue
+    pypeit_setup -r /Users/xavier/Keck/LRIS/data/2016apr06/Raw/LB -s keck_lris_blue
 
 The code will search for all `*.fits` and `*.fits.gz` files with the
 provided root.  Generally, the provided path should **not** contain a
 wild-card; however, you can search through multiple directories as
 follows::
 
-    pypeit_setup "/Users/xavier/Keck/LRIS/data/2016apr06/Raw/*/LB" keck_lris_blue
+    pypeit_setup -r "/Users/xavier/Keck/LRIS/data/2016apr06/Raw/*/LB" -s keck_lris_blue
+
+If you wish to specify pairs (or groups) of files to use for background
+subtraction (e.g. A-B), then include the `-b` option.
 
 Output without --custom
 =======================
 
-When `pypeit_setup` is run without `--custom` (Step 2 of the
+When `pypeit_setup` is run without `--cfg_split` (Step 2 of the
 :doc:`cookbook`), the script generates several outputs in a folder named
 *setup_files*.  Here is a brief description of these.
 
@@ -201,10 +204,10 @@ Here is some sample output::
 
 
 
-Output with --custom
-====================
+Output with --cfg_split
+=======================
 
-When pypeit_setup is run with --custom (Step 4 of the :doc:`cookbook`),
+When pypeit_setup is run with `--cfg_split` (Step 4 of the :doc:`cookbook`),
 the script generates one PypeIt file per
 setup.  Each of these is placed in its own folder, one per setup.
 See :doc:`pypeit_file` for a greater description of editing

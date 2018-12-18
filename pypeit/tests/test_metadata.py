@@ -27,7 +27,9 @@ def test_lris_red_multi_400():
     ps = PypeItSetup(file_list, cfg_lines=cfg_lines)
     ps.build_fitstbl()
     ps.get_frame_types(flag_unknown=True)
-    ps.match_to_science(setup_only=True)
+    cfgs = ps.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
+    ps.fitstbl.set_configurations(cfgs)
+    ps.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
 
 @dev_suite_required
@@ -44,7 +46,9 @@ def test_lris_red_multi():
     ps = PypeItSetup(file_list, cfg_lines=cfg_lines)
     ps.build_fitstbl()
     ps.get_frame_types(flag_unknown=True)
-    ps.match_to_science(setup_only=True)
+    cfgs = ps.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
+    ps.fitstbl.set_configurations(cfgs)
+    ps.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
 
 @dev_suite_required
