@@ -144,6 +144,87 @@ def load_specobj(fname):
     return specObjs, head0
 
 
+    def ech_load_specobj(fname, order=None):
+
+        """ Load a spec1d file into a list of SpecObjExp objects
+        Parameters
+        ----------
+        fname : str
+
+        Returns
+        -------
+        specObjs : list of SpecObjExp
+        head0
+        """
+        speckeys = ['WAVE', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG', 'COUNTS_IVAR', 'COUNTS']
+        #
+        specObjs = []
+        hdulist = fits.open(fname)
+        head0 = hdulist[0].header
+        for hdu in hdulist:
+            if hdu.name == 'PRIMARY':
+                continue
+            # elif hdu.name[8:17] != 'ORDER'+'{0:04}'.format(order):
+            #    continue
+            # Parse name
+            idx = hdu.name
+            objp = idx.split('-')
+            if objp[-2][0:3] == 'DET':
+                det = int(objp[-2][3:])
+            else:
+                det = int(objp[-2][1:])
+            if objp[-3][:5] == 'ORDER':
+                iord = int(objp[-3][5:])
+            else:
+                msgs.warn('Loading longslit data ?')
+                iord = int(-1)
+            # if order is not None and iord !=order then do not return this extenction
+            # if order is None return all extensions
+            # if order is not None and iord ==order then only return the specific order you want.
+            if (order is not None) and (iord != order):
+                continue
+            # Load data
+            spec = Table(hdu.data)
+            shape = (len(spec), 1024)  # 2nd number is dummy
+            # New and wrong
+            try:
+                specobj = specobjs.SpecObj(shape, None, None, idx=idx)
+            except:
+                debugger.set_trace()
+                msgs.error("BUG ME")
+            # Add order number
+            specobj.ech_orderindx = iord
+            # ToDo: need to changed to the real order number?
+            specobj.ech_order = iord
+            # Add trace
+            try:
+                specobj.trace_spat = spec['TRACE']
+            except:
+                # KLUDGE!
+                specobj.trace_spat = np.arange(len(spec['BOX_WAVE']))
+            # Add spectrum
+            if 'BOX_COUNTS' in spec.keys():
+                for skey in speckeys:
+                    try:
+                        specobj.boxcar[skey] = spec['BOX_{:s}'.format(skey)].data
+                    except KeyError:
+                        pass
+                # Add units on wave
+                specobj.boxcar['WAVE'] = specobj.boxcar['WAVE'] * units.AA
+
+            if 'OPT_COUNTS' in spec.keys():
+                for skey in speckeys:
+                    try:
+                        specobj.optimal[skey] = spec['OPT_{:s}'.format(skey)].data
+                    except KeyError:
+                        pass
+                # Add units on wave
+                specobj.optimal['WAVE'] = specobj.optimal['WAVE'] * units.AA
+            # Append
+            specObjs.append(specobj)
+        # Return
+        return specObjs, head0
+
 def load_tilts(fname):
     # Load the files
     msarc_bname, msarc_bext = os.path.splitext(fname)
