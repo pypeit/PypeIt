@@ -703,11 +703,12 @@ class Calibrations(object):
 
         # Create the mask (needs to be done here in case wv_calib was loaded from Masters)
         self.wv_maskslits = self.waveCalib._make_maskslits(self.tslits_dict['lcen'].shape[1])
+        self.maskslits += self.wv_maskslits
 
         # Save & return
         self.calib_dict[self.arc_master_key]['wavecalib'] = self.wv_calib
         self.calib_dict[self.arc_master_key]['wvmask'] = self.wv_maskslits
-        self.maskslits += self.wv_maskslits
+        # Return
         return self.wv_calib, self.maskslits
 
     def get_pixlocn(self):

@@ -57,7 +57,9 @@ class WaveCalib(masterframe.MasterFrame):
     arccen : ndarray (nwave, nslit)
       Extracted arc(s) down the center of the slit(s)
     maskslits : ndarray (nslit); bool
-      Slits to ignore because they were not extacted
+      Slits to ignore because they were not extracted
+      WARNING: Outside of this Class, it is best to regenerate
+      the mask using  _make_maskslits()
     arcparam : dict
       Arc parameter (instrument/disperser specific)
     """
@@ -180,12 +182,8 @@ class WaveCalib(masterframe.MasterFrame):
 
         self.wv_calib = final_fit
 
-        # Update mask (*mainly for the QA that follows*)
-        for slit in ok_mask:
-            if str(slit) not in final_fit.keys():
-                self.maskslits[slit] = True
-            elif final_fit[str(slit)] is None:
-                self.maskslits[slit] = True
+        # Remake mask (*mainly for the QA that follows*)
+        self.maskslits = self._make_maskslits(len(self.maskslits))
         ok_mask = np.where(~self.maskslits)[0]
 
         # QA
