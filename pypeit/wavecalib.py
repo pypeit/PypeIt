@@ -180,7 +180,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         self.wv_calib = final_fit
 
-        # Update mask
+        # Update mask (*mainly for the QA that follows*)
         for slit in ok_mask:
             if str(slit) not in final_fit.keys():
                 self.maskslits[slit] = True
@@ -348,6 +348,8 @@ class WaveCalib(masterframe.MasterFrame):
 
     def _make_maskslits(self, nslit):
         """
+        (re)Generate the mask for wv_calib based on its contents
+        This is the safest way to go...
 
         Parameters
         ----------
@@ -360,11 +362,12 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         # Set mask based on wv_calib
-        mask = np.array([True]*nslit, bool)
+        mask = np.array([True]*nslit)
         for key in self.wv_calib.keys():
             if key in ['steps', 'par', 'fit2d']:
                 continue
-            mask[int(key)] = False
+            if self.wv_calib[key] is not None:
+                mask[int(key)] = False
         self.maskslits = mask
         return self.maskslits
 

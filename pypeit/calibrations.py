@@ -634,6 +634,7 @@ class Calibrations(object):
         # Attempt to load master
         self.mswave = self.waveImage.master(force=prev_build)
         if self.mswave is None:
+            debugger.set_trace()
             self.mswave = self.waveImage._build_wave()
         # Save to hard-drive
         if self.save_masters:
@@ -700,7 +701,7 @@ class Calibrations(object):
         else:
             self.waveCalib.wv_calib = self.wv_calib
 
-        # Create the mask
+        # Create the mask (needs to be done here in case wv_calib was loaded from Masters)
         self.wv_maskslits = self.waveCalib._make_maskslits(self.tslits_dict['lcen'].shape[1])
 
         # Save & return
