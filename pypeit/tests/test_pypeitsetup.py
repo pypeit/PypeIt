@@ -81,7 +81,7 @@ def test_image_type():
                     & setupc.fitstbl.find_frames('trace')) == 12
 
 @dev_suite_required
-def test_match():
+def test_type():
     # Check for files
     files = get_files()
     # Init
@@ -96,10 +96,7 @@ def test_match():
                                      cfg_lines=cfg_lines)
     setupc.build_fitstbl(files)
     setupc.get_frame_types(flag_unknown=True)
-    # Match to science
-    fitstbl = setupc.match_to_science()
-    indx = fitstbl.find_frames('science')
-    assert setupc.fitstbl['sci_ID'][indx].tolist() == [1,2]
+    assert np.sum(setupc.fitstbl.find_frames('science')) == 2
 
 #def test_match_ABBA():
 #    if skip_test:

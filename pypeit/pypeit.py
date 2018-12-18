@@ -20,7 +20,7 @@ from pypeit import fluxspec
 from pypeit import ginga
 from pypeit.core import paths
 from pypeit.core import qa
-from pypeit.core import pypsetup
+#from pypeit.core import pypsetup
 from pypeit.core import wave
 from pypeit.core import save
 from pypeit.core import load

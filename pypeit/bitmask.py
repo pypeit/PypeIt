@@ -110,7 +110,7 @@ class BitMask:
         # Allow for multiple NULL keys; but check the rest for
         # uniqueness
         diff = set(_keys) - set(['NULL'])
-        if len(diff) != numpy.unique(_keys[_keys != 'NULL']).size:
+        if len(diff) != numpy.unique(_keys[[k != 'NULL' for k in _keys]]).size:
             raise ValueError('All input keys must be unique.')
 
         # Initialize the attributes
@@ -124,7 +124,7 @@ class BitMask:
         # Flags must be a numpy array
         _flag = numpy.array(self.keys()) if flag is None else numpy.atleast_1d(flag).ravel()
         # NULL flags not allowed
-        if numpy.any(_flag == 'NULL'):
+        if numpy.any([f == 'NULL' for f in _flag]):
             raise ValueError('Flag name NULL is not allowed.')
         # Flags should be among the bitmask keys
         if numpy.any([f not in self.keys() for f in _flag]):

@@ -227,7 +227,8 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        self.arc_file_list, arc_rows = self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID)
+        arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
+        self.arc_file_list = self.fitstbl.frame_paths(arc_rows)
         self.arc_master_key = self.fitstbl.master_key(arc_rows[0], det=self.det)
 
         prev_build = self.check_for_previous('arc', self.arc_master_key)
@@ -237,7 +238,8 @@ class Calibrations(object):
             return self.msarc
 
         # Instantiate with everything needed to generate the image (in case we do)
-        self.arcImage = arcimage.ArcImage(self.spectrograph, file_list = self.arc_file_list, det=self.det,msbias=self.msbias,
+        self.arcImage = arcimage.ArcImage(self.spectrograph, file_list=self.arc_file_list,
+                                          det=self.det, msbias=self.msbias,
                                           par=self.par['arcframe'], master_key=self.arc_master_key,
                                           master_dir=self.master_dir, mode=self.par['masters'])
 
@@ -270,7 +272,8 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        self.bias_file_list, bias_rows = self.fitstbl.find_frame_files('bias', calib_ID=self.calib_ID)
+        bias_rows = self.fitstbl.find_frames('bias', calib_ID=self.calib_ID, index=True)
+        self.bias_file_list = self.fitstbl.frame_paths(bias_rows)
         if len(bias_rows) > 0:
             self.bias_master_key = self.fitstbl.master_key(bias_rows[0], det=self.det)
         else:  # Allow for other bias modes
@@ -284,17 +287,22 @@ class Calibrations(object):
             return self.msbias
 
         # Instantiate
-        self.biasFrame = biasframe.BiasFrame(self.spectrograph, file_list = self.bias_file_list, det=self.det,
-                                             par=self.par['biasframe'], master_key=self.bias_master_key,
+        self.biasFrame = biasframe.BiasFrame(self.spectrograph, file_list=self.bias_file_list,
+                                             det=self.det, par=self.par['biasframe'],
+                                             master_key=self.bias_master_key,
                                              master_dir=self.master_dir, mode=self.par['masters'])
 
-        # How are we treating biases: 1) No bias, 2) overscan, or 3) use bias subtraction. If use bias is there a master?
+        # How are we treating biases: 1) No bias, 2) overscan, or 3) use
+        # bias subtraction. If use bias is there a master?
         self.msbias = self.biasFrame.determine_bias_mode(force=prev_build)
-        # This could be made more elegant, like maybe msbias should be set to 'none' analgous to how overscan is treated???
-        if (self.msbias is None) and (self.par['biasframe']['useframe'] != 'none'):  # Build it and save it
+        # This could be made more elegant, like maybe msbias should be
+        # set to 'none' analgous to how overscan is treated???
+        if (self.msbias is None) and (self.par['biasframe']['useframe'] != 'none'):
+            # Build it and save it
             self.msbias = self.biasFrame.build_image()
             if self.save_masters:
-                self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,steps=self.biasFrame.steps)
+                self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,
+                                           steps=self.biasFrame.steps)
 
         # Save & return
         self.calib_dict[self.bias_master_key]['bias'] = self.msbias
@@ -384,7 +392,9 @@ class Calibrations(object):
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        pixflat_image_files, pixflat_rows = self.fitstbl.find_frame_files('pixelflat', calib_ID=self.calib_ID)
+        pixflat_rows = self.fitstbl.find_frames('pixelflat', calib_ID=self.calib_ID, index=True)
+        # TODO: Why aren't these set to self
+        pixflat_image_files = self.fitstbl.frame_paths(pixflat_rows)
         if len(pixflat_rows) > 0:
             self.pixflat_master_key = self.fitstbl.master_key(pixflat_rows[0], det=self.det)
         else:  # Allow for user-supplied file (e.g. LRISb)
@@ -517,7 +527,9 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        self.trace_image_files, trace_rows = self.fitstbl.find_frame_files('trace', calib_ID=self.calib_ID)
+        trace_rows = self.fitstbl.find_frames('trace', calib_ID=self.calib_ID, index=True)
+        self.trace_image_files = self.fitstbl.frame_paths(trace_rows)
+
         self.trace_master_key = self.fitstbl.master_key(trace_rows[0], det=self.det)
 
         # Return already generated data
