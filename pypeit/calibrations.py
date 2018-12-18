@@ -634,7 +634,6 @@ class Calibrations(object):
         # Attempt to load master
         self.mswave = self.waveImage.master(force=prev_build)
         if self.mswave is None:
-            debugger.set_trace()
             self.mswave = self.waveImage._build_wave()
         # Save to hard-drive
         if self.save_masters:

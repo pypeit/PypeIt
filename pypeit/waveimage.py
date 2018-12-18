@@ -109,11 +109,8 @@ class WaveImage(masterframe.MasterFrame):
                 #tmpwv = arc.eval2dfit(self.wv_calib['fit2d'],piximg[thismask],order)/order
             else:
                 iwv_calib = self.wv_calib[str(slit)]
-                try:
-                    tmpwv = utils.func_val(iwv_calib['fitc'], piximg[thismask], iwv_calib['function'],
-                                       minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
-                except:
-                    debugger.set_trace()
+                tmpwv = utils.func_val(iwv_calib['fitc'], piximg[thismask], iwv_calib['function'],
+                                   minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
             self.wave[thismask] = tmpwv
         # Step
         self.steps.append(inspect.stack()[0][3])
