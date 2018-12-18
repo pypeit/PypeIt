@@ -3,9 +3,7 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
-import linetools
 import os
-import json
 import matplotlib.pyplot as plt
 
 from astropy import units
@@ -208,7 +206,6 @@ class EchFluxSpec(masterframe.MasterFrame):
 
     def save_master(self, sens_dicts, outfile=None):
         """
-        Over-load the save_master() method in MasterFrame to write a JSON file
 
         Parameters
         ----------
