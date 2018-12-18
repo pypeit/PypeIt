@@ -622,7 +622,7 @@ class ScienceImage():
 
         sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack = \
             self.read_stack(all_files, bias, pixel_flat, bpm, illum_flat, cosmics=cosmics)
-
+        nfiles = len(all_files)
         if sigma_clip and (sigrej is None):
             if self.nsci <= 2:
                 sigrej = 100.0 # Irrelevant for only 1 or 2 files, we don't sigma clip below
@@ -657,13 +657,15 @@ class ScienceImage():
             nused = np.sum(outmask_stack,axis=0)
             weights_stack = np.einsum('i,ijk->ijk',weights,outmask_stack)
             # Masked everwhere nused == 0
-            # JFH ToDO Figure out how to sum the bits
-            self.mask = (nused == 0)*np.sum(mask_stack,axis=0)
-            self.crmask = np.sum(crmask_stack,axis=0) == nused # Was everywhere a CR
+            self.crmask = np.sum(crmask_stack,axis=0) == nfiles # Was everywhere a CR
             self.sciimg = np.sum(sciimg_stack*weights_stack,axis=0)
             varfinal = np.sum(var_stack*weights_stack**2,axis=0)
             self.sciivar = utils.calc_ivar(varfinal)
             self.rn2img = np.sum(rn2img_stack*weights_stack**2,axis=0)
+            # ToDO If I new how to add the bits, this is what I would do do create the mask. For now
+            # we simply create it using the stacked images and the stacked mask
+            #self.mask = (nused == 0) * np.sum(mask_stack, axis=0)
+            self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask)
         else:
             self.mask  = mask_stack[0,:,:]
             self.crmask = crmask_stack[0,:,:]

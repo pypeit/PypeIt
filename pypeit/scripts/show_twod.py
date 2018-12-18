@@ -123,7 +123,7 @@ def main(args):
     # Load Tslits
     mdir = head0['PYPMFDIR']+'/'
     # THIS WILL BREAK WHEN PYPCALIB varies from calib type to calib type
-    master_key = '{:s}_{:s}_{:S}'.format(head0['PYPCNFIG'],int(head0['PYPCALIB']), str(args.det).zfill(2))
+    master_key = '{:s}_{:s}_{:s}'.format(head0['PYPCNFIG'],head0['PYPCALIB'], str(args.det).zfill(2))
     trc_file = masterframe.master_name('trace', master_key, mdir)
     Tslits = traceslits.TraceSlits.from_master_files(trc_file)
     slit_ids = [trace_slits.get_slitid(Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen, ii)[0] for ii in range(Tslits.lcen.shape[1])]
