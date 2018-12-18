@@ -354,7 +354,8 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     #Cleaning sensfunc
     ## ToDo: currently I'm fitting the sensfunc in the masked region with a polynomial, should we change to algorithm to
     ##   fit polynomial first and then bsline the poly-subtracted flux ???
-    ## keep tell free region for poly fit.
+    ## keep tell free region for poly fit. tell2 is different tell since tell2 include more small trunk of telluric free
+    ## regions. tell2 might not suitable for the bspline fitting. We need to select the telluric free
     tell2 = np.any([((wave_star >= 7580.00 * units.AA) & (wave_star <= 7750.00 * units.AA)),
                    ((wave_star >= 7160.00 * units.AA) & (wave_star <= 7340.00 * units.AA)),
                    ((wave_star >= 6860.00 * units.AA) & (wave_star <= 6930.00 * units.AA)),
@@ -380,38 +381,41 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     msk_all[msk_crazy] = False
     msk_sens[msk_crazy] = False
 
-    #polyfit the sensfunc
-    msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_star.value[msk_all],np.log10(sensfunc[msk_all]), norder, function='polynomial',
-                                           invvar=None,guesses = None, maxiter = 50, inmask = None, sigma = None,\
-                                           lower = 3.0, upper = 3.0,maxdev=None,maxrej=3,groupdim=None,groupsize=None,\
-                                           groupbadpix=False, grow=0,sticky=True,use_mad=True)
-    sensfunc_poly = 10**(utils.func_val(poly_coeff, wave_star.value, 'polynomial'))
-    if debug:
-        plt.rcdefaults()
-        plt.rcParams['font.family'] = 'times new roman'
-        plt.plot(wave_star.value[~msk_sens], sensfunc[~msk_sens], 'bo')
-        plt.plot(wave_star.value, sensfunc_poly, 'r-',label='Polyfit')
-        plt.plot(wave_star.value, sensfunc, 'k-',label='bspline fitting')
-        plt.ylim(0.0, 100.0)
-        plt.legend()
-        plt.xlabel('Wavelength [ang]')
-        plt.ylabel('Sensfunc')
-        plt.show()
-        plt.close()
+    if (len(wave_star.value[msk_all]) < norder+1) or (len(wave_star.value[msk_all]) < 0.1*len(wave_star.value)):
+        msgs.warn('It seems this order/spectrum well within the telluric region. No polynomial fit will be performed.')
+    else:
+        #polyfit the sensfunc
+        msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_star.value[msk_all],np.log10(sensfunc[msk_all]), norder, function='polynomial',
+                                               invvar=None,guesses = None, maxiter = 50, inmask = None, sigma = None,\
+                                               lower = 3.0, upper = 3.0,maxdev=None,maxrej=3,groupdim=None,groupsize=None,\
+                                               groupbadpix=False, grow=0,sticky=True,use_mad=True)
+        sensfunc_poly = 10**(utils.func_val(poly_coeff, wave_star.value, 'polynomial'))
+        if debug:
+            plt.rcdefaults()
+            plt.rcParams['font.family'] = 'times new roman'
+            plt.plot(wave_star.value[~msk_sens], sensfunc[~msk_sens], 'bo')
+            plt.plot(wave_star.value, sensfunc_poly, 'r-',label='Polyfit')
+            plt.plot(wave_star.value, sensfunc, 'k-',label='bspline fitting')
+            plt.ylim(0.0, 100.0)
+            plt.legend()
+            plt.xlabel('Wavelength [ang]')
+            plt.ylabel('Sensfunc')
+            plt.show()
+            plt.close()
 
-        plt.figure(figsize=(10, 6))
-        plt.clf()
-        plt.plot(wave_star.value,flux_star*sensfunc, label='Calibrated Spectrum')
-        plt.plot(wave_star.value,flux_true, label='Model')
-        plt.plot(wave_star.value,np.sqrt(1/ivar_star))
-        plt.legend()
-        plt.xlabel('Wavelength [ang]')
-        plt.ylabel('Flux [erg/s/cm2/Ang.]')
-        plt.ylim(0,np.median(flux_true)*2.5)
-        plt.title('Final corrected spectrum')
-        plt.show()
-        plt.close()
-    sensfunc[~msk_star] =  sensfunc_poly[~msk_star]
+            plt.figure(figsize=(10, 6))
+            plt.clf()
+            plt.plot(wave_star.value,flux_star*sensfunc, label='Calibrated Spectrum')
+            plt.plot(wave_star.value,flux_true, label='Model')
+            plt.plot(wave_star.value,np.sqrt(1/ivar_star))
+            plt.legend()
+            plt.xlabel('Wavelength [ang]')
+            plt.ylabel('Flux [erg/s/cm2/Ang.]')
+            plt.ylim(0,np.median(flux_true)*2.5)
+            plt.title('Final corrected spectrum')
+            plt.show()
+            plt.close()
+        sensfunc[~msk_star] =  sensfunc_poly[~msk_star]
 
 
 
