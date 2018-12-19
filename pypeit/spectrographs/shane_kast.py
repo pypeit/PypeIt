@@ -89,7 +89,18 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
 
         return hdr_keys
 
-    # Uses parent metadata keys
+    def init_meta(self):
+        meta = {}
+        meta['decker'] = dict(ext=0, card='SLIT_N')
+        meta['dichroic'] = dict(ext=0, card='BSPLIT_N')
+        meta['target'] = dict(ext=0, card='OBJECT')
+        meta['time'] = dict(ext=0, card='TSEC')
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Ingest
+        self.meta = meta
 
     def configuration_keys(self):
         #TODO: Placeholder to get tests to clear
@@ -275,6 +286,18 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         hdr_keys[0]['dispname'] = 'GRISM_N'
         return hdr_keys
 
+    def init_meta(self):
+        """
+        Header keys specific to shane_kast_blue
+
+        Returns:
+
+        """
+        super(ShaneKastBlueSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        # dispangle and filter1 are not defined for Shane Kast Blue
+        self.meta['dispname'] = dict(ext=0, card='GRISM_N')
+        self.meta['binning'] = dict(ext=0, card=None, default=(1,1))
 
 class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
     """
