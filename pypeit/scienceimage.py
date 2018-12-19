@@ -344,11 +344,11 @@ class ScienceImage():
         # Prep
         self.global_sky = np.zeros_like(self.sciimg)
 
+        show_fit = True # TESTING
         # Mask objects using the skymask? If skymask has been set by
         # objfinding, and masking is requested, then do so
         skymask = self.skymask if ((self.skymask is not None) & use_skymask) \
                         else np.ones_like(self.sciimg, dtype=bool)
-
         # Loop on slits
         for slit in gdslits:
             msgs.info("Global sky subtraction for slit: {:d}".format(slit))
@@ -894,7 +894,7 @@ class ScienceImage():
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,
-                                        self.nfiles)
+                                        self.nsci)
         if len(self.steps) > 0:
             txt+= ' steps: ['
             for step in self.steps:
