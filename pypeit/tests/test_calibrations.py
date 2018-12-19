@@ -66,8 +66,7 @@ def multi_caliBrate(fitstbl):
                                                         par=calib_par, redux_path=redux_path,
                                                         save_masters=False, write_qa=False)
     # Find the first science row
-    is_science = fitstbl.find_frames('science')
-    frame = np.where(is_science)[0][0]
+    frame = fitstbl.find_frames('science', index=True)[0]
     # Set
     multi_caliBrate.set_config(frame, det, par=calib_par)
     return multi_caliBrate

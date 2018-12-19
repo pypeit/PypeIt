@@ -20,7 +20,7 @@ import argparse
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse')
     parser.add_argument("steps", type=str, help="Steps to perform [sensfunc,flux]")
-    parser.add_argument("instr", type=str, help="Instrument name (Required)")
+    parser.add_argument("spectrograph", type=str, help="Spectrograph")
     parser.add_argument("--std_file", type=str, help="File containing the standard 1d spectrum")
     parser.add_argument("--std_obj", type=str, help="Standard star identifier, e.g. O479-S5009-D01-I0023")
     parser.add_argument("--sci_file", type=str, help="File containing the science 1d spectra")

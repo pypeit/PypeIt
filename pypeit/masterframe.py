@@ -191,6 +191,7 @@ class MasterFrame(object):
 
 # ToDo Remove this master name function and instead have a master name function in each class.
 # These utility functions are occaisonally needed by other functions which is why they are outside the class.
+# Or make it a staticmethod in the Classes
 def master_name(ftype, master_key, mdir):
     """ Default filenames for MasterFrames
 
