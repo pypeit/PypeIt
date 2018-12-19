@@ -100,7 +100,8 @@ def main(args, unit_test=False):
                                    spectrograph=args.instr,
                                    telluric=args.telluric,
                                    sens_file=sfile,
-                                   multi_det=multi_det)
+                                   multi_det=multi_det,
+                                   debug = args.debug)
     # Step through
     if 'sensfunc' in steps:
         # For echelle, the code will deal with the standard star in the ech_fluxspec.py

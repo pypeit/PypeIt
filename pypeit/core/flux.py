@@ -380,6 +380,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     msk_all = msk_star.copy() # mask for polynomial fitting
     msk_sens = msk_star.copy() # mask for sensfunc
     med, mad = utils.robust_meanstd(sensfunc)
+
     msk_crazy = (sensfunc<=0) | (sensfunc>1e3*med)
     msk_all[tell2] = False
     msk_all[msk_crazy] = False
@@ -394,6 +395,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
                                                lower = 3.0, upper = 3.0,maxdev=None,maxrej=3,groupdim=None,groupsize=None,\
                                                groupbadpix=False, grow=0,sticky=True,use_mad=True)
         sensfunc_poly = 10**(utils.func_val(poly_coeff, wave_star.value, 'polynomial'))
+        sensfunc[~msk_sens] =  sensfunc_poly[~msk_sens]
         if debug:
             plt.rcdefaults()
             plt.rcParams['font.family'] = 'times new roman'
@@ -419,8 +421,6 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
             plt.title('Final corrected spectrum')
             plt.show()
             plt.close()
-        sensfunc[~msk_star] =  sensfunc_poly[~msk_star]
-
 
 
     # JFH Left off here.

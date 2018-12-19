@@ -83,7 +83,7 @@ class FluxSpec(masterframe.MasterFrame):
 
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
                  std_specobjs=None, std_header=None, spectrograph=None, multi_det=None,
-                 telluric=False, setup=None, master_dir=None, mode=None):
+                 telluric=False, setup=None, master_dir=None, mode=None, debug=False):
 
         # Load standard files
         std_spectro = None
@@ -171,6 +171,7 @@ class FluxSpec(masterframe.MasterFrame):
         self.std = None         # Standard star spectrum (SpecObj object)
         self.std_idx = None     # Nested indices for the std_specobjs list that corresponds
                                 # to the star!
+        self.debug = debug
 
 
     def find_standard(self):
@@ -256,7 +257,8 @@ class FluxSpec(masterframe.MasterFrame):
                                                telluric=self.telluric,
                                                ra=self.std_ra,
                                                dec=self.std_dec,
-                                               std_file = self.std_file)
+                                               std_file = self.std_file,
+                                               debug=self.debug)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
