@@ -115,7 +115,7 @@ class PypeItMetaData:
             self.merge(usrdata)
         # Instrument-specific validation of the header metadata. This
         # alters self.table in place!
-        self.spectrograph.validate_metadata(self.table)
+        #self.spectrograph.validate_metadata(self.table)
 
         # Initialize internal attributes
         self.configs = None
@@ -154,57 +154,42 @@ class PypeItMetaData:
     def _new_build(self, file_list, strict=True):
 
         # Required meta for reduction
-        redux_meta = define_redux_meta()
-        meta_keys = list(redux_meta.keys())
+        #required_meta = define_core_meta()
 
-        # Now additional spectrograph specific items for configuration parsing
-        required_meta = redux_meta.copy()  # All of the meta required for this instrument
+        # Spectrograph specific
+        #additional_meta = define_additional_meta()
+        #additional_keys = self.spectrograph.additional_meta()
+        #for key in additional_keys:
+        #    required_meta[key] = additional_meta[key]
+        required_meta = self.spectrograph.meta
 
-        config_meta = define_config_meta()
-        config_keys = self.spectrograph.configuration_keys()
-        for key in config_keys:
-            if key not in meta_keys:
-                meta_keys += [key]
-                required_meta[key] = config_meta[key]
+        # Build lists to fill
+        data = {k:[] for k in required_meta.keys()}
 
-        # Add in more meta as desired
-        all_meta = required_meta.copy()
-
-        # Build
-        data = {k:[] for k in meta_keys}
-
+        ds, fs = [], []
         for ifile in file_list:
             # Read the fits headers
             headarr = self.spectrograph.get_headarr(ifile, strict=strict)
-            # Add the directory, file name, and instrument to the table
+            # Add the directory and file name to the table
             d,f = os.path.split(ifile)
-            data['directory'].append(d)
-            data['filename'].append(f)
-            data['instrume'].append(self.spectrograph.spectrograph)
+            ds.append(d)
+            fs.append(f)
             # Grab Meta
             for meta_key in data.keys():
                 # Skip external ones
-                if meta_key in ['filename', 'directory', 'instrume']:
-                    continue
+                #if meta_key in ['filename', 'directory']:
+                #    continue
                 # Grab it
                 value = self.spectrograph.get_meta(ifile, meta_key, headarr=headarr, required=True)
-                if all_meta[meta_key]['dtype'] == str:
-                    data[meta_key].append(str(value).strip())
-                elif all_meta[meta_key]['dtype'] == int:
-                    data[meta_key].append(int(value))
-                elif all_meta[meta_key]['dtype'] == float:
-                    try:
-                        data[meta_key].append(float(value))
-                    except TypeError:
-                        debugger.set_trace()
-                elif all_meta[meta_key]['dtype'] == tuple:
-                    assert isinstance(value, tuple)
-                    data[meta_key].append(value)
-                else:
-                    debugger.set_trace()
-
+                data[meta_key].append(value)
+        # File info
+        data['directory'] = ds
+        data['filename'] = fs
         # Additional bits and pieces
         self._add_bkg_pairs(data, 'empty')
+        # Validate
+        _ = time.Time(data['mjd'], format='mjd')
+        # Return
         return data
 
     def _build(self, file_list, strict=True, bkg_pairs='empty'):
@@ -546,13 +531,7 @@ class PypeItMetaData:
         Returns:
             astropy.time.Time: The MJD of the observation.
         """
-        try:
-            return time.Time(self['time'][row], format='mjd')
-        except:
-            msgs.warn('There is no time column in the metadata table!' + msgs.newline() +
-                      'The time and heliocentric corrections will be wrong!' + msgs.newline() +
-                      'This is a bad idea. Continuing with a dummy time value')
-            return '2010-01-01'
+        return time.Time(self['mjd'][row], format='mjd')
 
     def construct_basename(self, row, obstime=None):
         """
@@ -1917,8 +1896,8 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
 def define_core_meta():
     core_meta = {}
     # Filename
-    core_meta['directory'] = dict(dtype=str, comment='Path to raw data file')
-    core_meta['filename'] = dict(dtype=str, comment='Basename of raw data file')
+    #core_meta['directory'] = dict(dtype=str, comment='Path to raw data file')
+    #core_meta['filename'] = dict(dtype=str, comment='Basename of raw data file')
 
     # Instrument related
     #core_meta['instrume'] = dict(dtype=str, comment='Spectrograph name')
@@ -1932,7 +1911,7 @@ def define_core_meta():
     core_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
 
     # Obs
-    core_meta['time'] = dict(dtype=str, comment='Date+time readable by astropy.time.Time')
+    core_meta['mjd'] = dict(dtype=float, comment='Observation MJD; must be readable by astropy.time.Time format=mjd')
     core_meta['airmass'] = dict(dtype=float, comment='Airmass')
     core_meta['exptime'] = dict(dtype=float, comment='Exposure time')
 
@@ -1940,7 +1919,7 @@ def define_core_meta():
     return core_meta
 
 
-def define_config_meta():
+def define_additional_meta():
     """
     Defines meta that tends to be instrument-specific and not used as widely in the code
 
@@ -1948,8 +1927,32 @@ def define_config_meta():
     Returns:
 
     """
-    config_meta = {}
+    additional_meta = {}
 
-    config_meta['dichroic'] = dict(dtype=str, comment='Beam splitter')
+    # Instrument
+    additional_meta['dichroic'] = dict(dtype=str, comment='Beam splitter')
+    additional_meta['filter1'] = dict(dtype=str, comment='First filter in optical path')
+    additional_meta['dispangle'] = dict(dtype=float, comment='Angle of the disperser')
 
-    return config_meta
+    # Time
+    additional_meta['iso-date'] = dict(dtype=str, comment='Observation date; must be readable by astropy.time.Time format=isot')
+
+    return additional_meta
+
+
+def get_meta_data_model():
+    meta_data_model = {}
+
+    # Core
+    core_meta = define_core_meta()
+    for key in core_meta.keys():
+        meta_data_model[key] = core_meta[key].copy()
+
+    # Additional
+    additional_meta = define_additional_meta()
+    for key in additional_meta.keys():
+        meta_data_model[key] = additional_meta[key].copy()
+
+    # Return
+    return meta_data_model
+

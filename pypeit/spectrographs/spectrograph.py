@@ -17,6 +17,7 @@ from pypeit import msgs
 from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.core import pixels
+from pypeit import metadata
 
 # TODO: Consider changing the name of this to Instrument
 class Spectrograph(object):
@@ -78,7 +79,9 @@ class Spectrograph(object):
 #        self._set_calib_par()
 
         # Init meta
+        self.meta_data_model = metadata.get_meta_data_model()
         self.init_meta()
+        self.validate_metadata()
 
     @staticmethod
     def default_sky_spectrum():
@@ -447,9 +450,11 @@ class Spectrograph(object):
         """
         return ['dispname', 'dichroic', 'decker']
 
-    def init_meta(self):
-        self.meta = None
+    def compound_meta(self, ifile, meta_key, headarr=None):
         pass
+
+    def init_meta(self):
+        self.meta = {}
 
     def get_meta(self, ifile, meta_key, headarr=None, required=False):
         """
@@ -473,8 +478,8 @@ class Spectrograph(object):
         # Loop?
         if isinstance(meta_key, list):
             meta = []
-            for mkey in meta_key:
-                meta.append(self.get_meta(mkey, headarr=headarr, required=required))
+            for mdict in meta_key:
+                meta.append(self.get_meta(mdict, headarr=headarr, required=required))
             #
             return meta
 
@@ -487,19 +492,43 @@ class Spectrograph(object):
                 return None
         # Is this not derivable?  If so, use the default
         if self.meta[meta_key]['card'] is None:
-            return self.meta[meta_key]['default']
+            if 'default' in self.meta[meta_key].keys():
+                value = self.meta[meta_key]['default']
+            elif 'compound' in self.meta[meta_key].keys():
+                value = self.compound_meta(None, meta_key, headarr=headarr)
         else:
-            try:
-                return headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
+            try:  # REMOVE THIS WHEN SUBMITTING THE PR
+                value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
             except KeyError:
                 import pdb; pdb.set_trace()
 
-    def validate_metadata(self, fitstbl):
-        pass
+        # Deal with dtype (DO THIS HERE OR IN METADATA?  I'M TORN)
+        if self.meta_data_model[meta_key]['dtype'] == str:
+            value = str(value).strip()
+        elif self.meta_data_model[meta_key]['dtype'] == int:
+            value = int(value)
+        elif self.meta_data_model[meta_key]['dtype'] == float:
+            value = float(value)
+        elif self.meta_data_model[meta_key]['dtype'] == tuple:
+            assert isinstance(value, tuple)
+        else:
+            debugger.set_trace()
+        # Return
+        return value
 
-    def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker']
-                #'setup', 'calib']#, 'comb_id', 'bkg_id']
+    def validate_metadata(self):
+        # Confirm all core meta is found
+        core_meta = metadata.define_core_meta()
+        for key in core_meta:
+            assert key in self.meta.keys()
+        # Now confirm all meta are in the data model
+        for key in self.meta.keys():
+            if key not in self.meta_data_model.keys():
+                msgs.error("Meta data {:s} not in meta_data_model".format(key))
+
+    #def metadata_keys(self):
+    #    return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker']
+    #            #'setup', 'calib']#, 'comb_id', 'bkg_id']
 
     def get_headarr(self, filename, strict=True):
         """

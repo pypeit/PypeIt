@@ -538,7 +538,8 @@ class FluxSpec(masterframe.MasterFrame):
             specObjs = self.sci_specobjs
         else:
             msgs.error("BAD INPUT")
-        save.save_1d_spectra_fits(specObjs, self.sci_header, outfile,
+        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph.camera,
+                                  outfile,
                                   helio_dict=helio_dict,
                                   telescope=telescope, overwrite=True)
         # Step

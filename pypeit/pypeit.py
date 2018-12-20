@@ -478,7 +478,8 @@ class PypeIt(object):
                 else self.caliBrate.par['wavelengths']['frame'],
                               vel_correction=vel_corr)
             # Did the user re-run a single detector?
-            save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], outfile,
+            save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], self.spectrograph.camera,
+                                      outfile,
                                       helio_dict=helio_dict, telescope=self.spectrograph.telescope,
                                       update_det=self.par['rdx']['detnum'])
         #        elif save_format == 'hdf5':

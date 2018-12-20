@@ -4,6 +4,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
+from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -23,7 +24,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         super(ShaneKastSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast'
         self.telescope = telescopes.ShaneTelescopePar()
-        self.timeunit = 'isot'
+        #self.timeunit = 'isot'
 
     @staticmethod
     def default_pypeit_par():
@@ -56,6 +57,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [61, None]
         return par
 
+    '''
     def header_keys(self):
         """
         Provide the relevant header keywords
@@ -88,13 +90,30 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
             hdr_keys[0]['lampstat{:02d}'.format(kk+1)] = 'LAMPSTA{0}'.format(lamp_name)
 
         return hdr_keys
+    '''
+
+    def compound_meta(self, ifile, meta_key, headarr=None):
+        if meta_key == 'mjd':
+            time = self.get_meta(ifile, 'iso-date', headarr=headarr)
+            ttime = Time(time, format='isot')
+            return ttime.mjd
+        else:
+            msgs.error("Not ready for this compound meta")
 
     def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
+
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
         meta = {}
         # Required
         meta['decker'] = dict(ext=0, card='SLIT_N')
         meta['target'] = dict(ext=0, card='OBJECT')
-        meta['time'] = dict(ext=0, card='TSEC')
+        meta['mjd'] = dict(ext=0, card=None, compound=True)
         meta['ra'] = dict(ext=0, card='RA')
         meta['dec'] = dict(ext=0, card='DEC')
         meta['exptime'] = dict(ext=0, card='EXPTIME')
@@ -102,6 +121,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         meta['binning'] = dict(ext=0, card=None, default=(1,1))
         # Additional ones, generally for configuration determination
         meta['dichroic'] = dict(ext=0, card='BSPLIT_N')
+        meta['iso-date'] = dict(ext=0, card='DATE') # ISOT time
         # Ingest
         self.meta = meta
 

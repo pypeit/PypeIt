@@ -351,7 +351,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 '''
 
-def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=None, overwrite=True,
+def save_1d_spectra_fits(specObjs, header, instrume, outfile, helio_dict=None, telescope=None, overwrite=True,
                          update_det=None):
     """ Write 1D spectra to a multi-extension FITS file
 
@@ -359,6 +359,8 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
     ----------
     specobjs : SpecObjs object
     header : dict or Row (dict-like)
+    instrume : str
+      Name of instrument
     outfile : str
     overwrite : bool, optional
     update_det : int or list, optional
@@ -375,7 +377,7 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         prihdu = fits.PrimaryHDU()
         hdus = [prihdu]
         # Add critical data to header
-        for key in ['ra', 'dec', 'exptime', 'target', 'airmass', 'instrume','filename']:
+        for key in ['ra', 'dec', 'exptime', 'target', 'airmass', 'filename']:
             # Allow for fitstbl vs. header
             try:
                 prihdu.header[key.upper()] = header[key.upper()]
@@ -384,7 +386,8 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         try:
             prihdu.header['MJD-OBS'] = header['MJD-OBS']
         except KeyError:
-            prihdu.header['MJD-OBS'] = header['time']  # recorded as 'time' in fitstbl
+            prihdu.header['MJD-OBS'] = header['mjd']  # recorded as 'mjd' in fitstbl
+        prihdu.header['INSTRUME'] = instrume
 
         # Observatory
         if telescope is not None:
