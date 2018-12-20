@@ -344,7 +344,6 @@ class ScienceImage():
         # Prep
         self.global_sky = np.zeros_like(self.sciimg)
 
-        show_fit = True # TESTING
         # Mask objects using the skymask? If skymask has been set by
         # objfinding, and masking is requested, then do so
         skymask = self.skymask if ((self.skymask is not None) & use_skymask) \
