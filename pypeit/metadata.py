@@ -1914,36 +1914,36 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
     return fitstbl
 
 
-def define_redux_meta():
-    redux_meta = {}
+def define_core_meta():
+    core_meta = {}
     # Filename
-    redux_meta['directory'] = dict(dtype=str, comment='Path to raw data file')
-    redux_meta['filename'] = dict(dtype=str, comment='Basename of raw data file')
+    core_meta['directory'] = dict(dtype=str, comment='Path to raw data file')
+    core_meta['filename'] = dict(dtype=str, comment='Basename of raw data file')
 
     # Instrument related
-    redux_meta['instrume'] = dict(dtype=str, comment='Spectrograph name')
-    redux_meta['dispname'] = dict(dtype=str, comment='Disperser name')
-    redux_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
-    redux_meta['binning'] = dict(dtype=tuple, comment='(spatial,spectral) binning')
+    #core_meta['instrume'] = dict(dtype=str, comment='Spectrograph name')
+    core_meta['dispname'] = dict(dtype=str, comment='Disperser name')
+    core_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
+    core_meta['binning'] = dict(dtype=tuple, comment='(spatial,spectral) binning')
 
     # Target
-    redux_meta['target'] = dict(dtype=str, comment='Name of the target')
-    redux_meta['ra'] = dict(dtype=str, comment='Colon separated (J2000) RA')
-    redux_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
+    core_meta['target'] = dict(dtype=str, comment='Name of the target')
+    core_meta['ra'] = dict(dtype=str, comment='Colon separated (J2000) RA')
+    core_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
 
     # Obs
-    redux_meta['time'] = dict(dtype=str, comment='Date+time readable by astropy.time.Time')
-    redux_meta['airmass'] = dict(dtype=float, comment='Airmass')
-    redux_meta['exptime'] = dict(dtype=float, comment='Exposure time')
+    core_meta['time'] = dict(dtype=str, comment='Date+time readable by astropy.time.Time')
+    core_meta['airmass'] = dict(dtype=float, comment='Airmass')
+    core_meta['exptime'] = dict(dtype=float, comment='Exposure time')
 
     # Return
-    return redux_meta
+    return core_meta
 
 
 def define_config_meta():
     """
-    Defines meta used to define the configuration of an instrument
-      This meta is *not* required to reduce the data only to set the configuration
+    Defines meta that tends to be instrument-specific and not used as widely in the code
+
 
     Returns:
 
