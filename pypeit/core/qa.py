@@ -196,26 +196,24 @@ def html_init(f, title):
     return links
 
 
-def html_mf_pngs(setup, cbset, det):
-    """ Geneate HTML for MasterFrame PNGs
-    Parameters
-    ----------
-    setup : str
-    cbset : str
-    det : int
+def html_mf_pngs(idval):
+    """ Generate HTML for MasterFrame PNGs
 
-    Returns
-    -------
-    links : str
-    body : str
+    Args:
+        idval: str
+          Master key of the calibration set
+
+    Returns:
+        links: str
+          HTML links to the PNGs
+        body: str
+          HTML edits for the main body
 
     """
     links = ''
     body = ''
     # QA root
     # Search for PNGs
-    #idval = '{:s}_{:02d}_{:s}'.format(setup, det, cbset)  # OLD
-    idval = '{:s}_{:d}_{:02d}'.format(setup, cbset, det)
 
     # Organize the outputs
     html_dict = {}
@@ -359,7 +357,8 @@ def gen_mf_html(pypeit_file):
         for cbset in cbsets:
             for det in dets:
                 # Run
-                new_links, new_body = html_mf_pngs(setup, cbset, det)
+                idval = '{:s}_{:d}_{:02d}'.format(setup, cbset, det)
+                new_links, new_body = html_mf_pngs(idval)
                 # Save
                 links += new_links
                 body += new_body

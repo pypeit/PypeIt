@@ -309,6 +309,8 @@ class PypeIt(object):
             #TODO Is the right behavior to just use the first frame?
             self.caliBrate.set_config(self.frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
+            from IPython import embed
+            embed()
 
             # Extract
             # TODO: pass back the background frame, pass in background
@@ -321,7 +323,7 @@ class PypeIt(object):
             if vel_corr is not None:
                 sci_dict['meta']['vel_corr'] = vel_corr
 
-            # JFH TODO write out the background frame
+            # JFH TODO write out the background frame?
 
         # Return
         return sci_dict

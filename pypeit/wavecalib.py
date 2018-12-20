@@ -59,7 +59,7 @@ class WaveCalib(masterframe.MasterFrame):
     maskslits : ndarray (nslit); bool
       Slits to ignore because they were not extracted
       WARNING: Outside of this Class, it is best to regenerate
-      the mask using  _make_maskslits()
+      the mask using  make_maskslits()
     arcparam : dict
       Arc parameter (instrument/disperser specific)
     """
@@ -207,7 +207,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.wv_calib = final_fit
 
         # Remake mask (*mainly for the QA that follows*)
-        self.maskslits = self._make_maskslits(len(self.maskslits))
+        self.maskslits = self.make_maskslits(len(self.maskslits))
         ok_mask = np.where(~self.maskslits)[0]
 
         # QA
@@ -358,7 +358,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         return
 
-    def _make_maskslits(self, nslit):
+    def make_maskslits(self, nslit):
         """
         (re)Generate the mask for wv_calib based on its contents
         This is the safest way to go...
@@ -422,7 +422,7 @@ class WaveCalib(masterframe.MasterFrame):
             self.wv_calib['fit2d'] = fit2d_dict
 
         # Build mask
-        self._make_maskslits(self.nslits)
+        self.make_maskslits(self.nslits)
 
         # Pack up
         self.wv_calib['steps'] = self.steps

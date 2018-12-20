@@ -382,6 +382,13 @@ def _determine_data_format(lines):
             The list of lines read from the data block of the pypeit
             file.
     
+    Returns:
+        str: The syntax of the data files to read::
+
+            'raw': A (list of) file roots to be read or found using
+            `glob`.
+
+            'table': ASCII output of an astropy.table.Table
 
     """
     for l in lines:
