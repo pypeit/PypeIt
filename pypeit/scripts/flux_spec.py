@@ -17,8 +17,8 @@ import argparse
 # pypeit_flux_spec flux     --sci_file=spec1d_J0025-0312_KASTr_2015gen23T025323.85.fits --sensfunc_file=tmp.yaml --flux_file=tmp.fits
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Echelle examples:
-#  pypeit_flux_spec sensfunc --std_file=spec1d_HIP13917_V8p6_NIRES_2018Oct01T094225.598.fits --instr=keck_nires --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml --telluric --echelle --star_type A0 --star_mag 8.6 --plot
-#  pypeit_flux_spec flux --sci_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698.fits  --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml --flux_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698_flux.fits --echelle
+# pypeit_flux_spec sensfunc keck_nires --std_file=spec1d_HIP13917_V8p6_NIRES_2018Oct01T094225.598.fits  --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml --telluric --echelle --star_type A0 --star_mag 8.6 --plot
+# pypeit_flux_spec flux keck_nires --sci_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698.fits  --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml --flux_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698_flux.fits --echelle
 
 
 def parser(options=None):
@@ -64,8 +64,8 @@ def main(args, unit_test=False):
 
     # Checks
     if 'sensfunc' in steps:
-        if args.instr is None:
-            raise IOError("You must set the instrument to generate the sensfunc")
+        #if args.instr is None:
+        #    raise IOError("You must set the instrument to generate the sensfunc")
         if args.std_file is None:
             raise IOError("You must input a spec1d file of the standard to generate the sensfunc")
         if args.sensfunc_file is None:
@@ -88,7 +88,7 @@ def main(args, unit_test=False):
     if args.echelle:
         FxSpec = ech_fluxspec.EchFluxSpec(std_spec1d_file=args.std_file,
                                    sci_spec1d_file=args.sci_file,
-                                   spectrograph=args.instr,
+                                   spectrograph=args.spectrograph,
                                    telluric=args.telluric,
                                    sens_file=sfile,
                                    star_type=args.star_type,
@@ -97,7 +97,7 @@ def main(args, unit_test=False):
     else:
         FxSpec = fluxspec.FluxSpec(std_spec1d_file=args.std_file,
                                    sci_spec1d_file=args.sci_file,
-                                   spectrograph=args.instr,
+                                   spectrograph=args.spectrograph,
                                    telluric=args.telluric,
                                    sens_file=sfile,
                                    multi_det=multi_det,
