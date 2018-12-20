@@ -19,11 +19,11 @@ import argparse
 # Echelle examples:
 ## Generate sensfunc
 # pypeit_flux_spec sensfunc keck_nires --std_file=spec1d_HIP13917_V8p6_NIRES_2018Oct01T094225.598.fits
-#         --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml --telluric --echelle --star_type A0 --star_mag 8.6 --plot
+#         --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml --telluric --echelle --star_type A0 --star_mag 8.6 --debug
 ## flux calibrate your science.
 # pypeit_flux_spec flux keck_nires --sci_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698.fits
 #         --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml
-#         --flux_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698_flux.fits --echelle --debug
+#         --flux_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698_flux.fits --echelle
 
 
 def parser(options=None):
@@ -56,7 +56,7 @@ def main(args, unit_test=False):
     import pdb
 
     from pypeit import fluxspec
-    from pypeit import ech_fluxspec
+    #from pypeit import ech_fluxspec
 
     # Parse the steps
     steps = args.steps.split(',')
@@ -91,7 +91,7 @@ def main(args, unit_test=False):
         sfile = args.sensfunc_file
 
     if args.echelle:
-        FxSpec = ech_fluxspec.EchFluxSpec(std_spec1d_file=args.std_file,
+        FxSpec = fluxspec.EchFluxSpec(std_spec1d_file=args.std_file,
                                    sci_spec1d_file=args.sci_file,
                                    spectrograph=args.spectrograph,
                                    telluric=args.telluric,
