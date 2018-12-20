@@ -152,17 +152,23 @@ class PypeItMetaData:
         msgs.error('{0} not a defined method for the background pair columns.'.format(bkg_pairs))
 
     def _new_build(self, file_list, strict=True):
-        mandatory_meta = define_mandatory_meta()
-        meta_keys = list(mandatory_meta.keys())
 
-        # Now additional spectrograph specific items
-        all_meta = mandatory_meta.copy()
-        other_meta = define_other_meta()
+        # Required meta for reduction
+        redux_meta = define_redux_meta()
+        meta_keys = list(redux_meta.keys())
+
+        # Now additional spectrograph specific items for configuration parsing
+        required_meta = redux_meta.copy()  # All of the meta required for this instrument
+
+        config_meta = define_config_meta()
         config_keys = self.spectrograph.configuration_keys()
         for key in config_keys:
             if key not in meta_keys:
                 meta_keys += [key]
-                all_meta[key] = other_meta[key]
+                required_meta[key] = config_meta[key]
+
+        # Add in more meta as desired
+        all_meta = required_meta.copy()
 
         # Build
         data = {k:[] for k in meta_keys}
@@ -1212,6 +1218,17 @@ class PypeItMetaData:
         msgs.info("Typing completed!")
         return self.set_frame_types(type_bits, merge=merge)
 
+    def set_defaults(self):
+        # Set comb_id
+        # TODO-- a bit kludgy to do it here;  consider another place but it must be after usrdata is ingested
+        if not np.any(self['comb_id'] >= 0):
+            sci_std_idx = np.where(np.any([self.find_frames('science'),
+                                           self.find_frames('standard')], axis=0))[0]
+            self['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
+        # calib
+        if 'calib' not in self.keys():
+            self['calib'] = str(0)
+
     def write_setups(self, ofile, overwrite=True, ignore=None):
         """
         Write the *.setups file.
@@ -1435,8 +1452,8 @@ class PypeItMetaData:
         columns = self.spectrograph.metadata_keys()
 
         # comb, bkg columns
-        if write_bkg_pairs:
-            for key in ['comb_id', 'bkg_id']:
+        if write_bkg_pairs:  # SHOULD BE RENAMED TO write_extras
+            for key in ['calib', 'comb_id', 'bkg_id']:
                 if key not in columns:
                     columns += [key]
 
@@ -1897,34 +1914,42 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
     return fitstbl
 
 
-def define_mandatory_meta():
-    mandatory_meta = {}
+def define_redux_meta():
+    redux_meta = {}
     # Filename
-    mandatory_meta['directory'] = dict(dtype=str, comment='Path to raw data file')
-    mandatory_meta['filename'] = dict(dtype=str, comment='Basename of raw data file')
+    redux_meta['directory'] = dict(dtype=str, comment='Path to raw data file')
+    redux_meta['filename'] = dict(dtype=str, comment='Basename of raw data file')
 
     # Instrument related
-    mandatory_meta['instrume'] = dict(dtype=str, comment='Spectrograph name')
-    mandatory_meta['dispname'] = dict(dtype=str, comment='Disperser name')
-    mandatory_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
-    mandatory_meta['binning'] = dict(dtype=tuple, comment='(spatial,spectral) binning')
+    redux_meta['instrume'] = dict(dtype=str, comment='Spectrograph name')
+    redux_meta['dispname'] = dict(dtype=str, comment='Disperser name')
+    redux_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
+    redux_meta['binning'] = dict(dtype=tuple, comment='(spatial,spectral) binning')
 
     # Target
-    mandatory_meta['target'] = dict(dtype=str, comment='Name of the target')
-    mandatory_meta['ra'] = dict(dtype=str, comment='Colon separated (J2000) RA')
-    mandatory_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
+    redux_meta['target'] = dict(dtype=str, comment='Name of the target')
+    redux_meta['ra'] = dict(dtype=str, comment='Colon separated (J2000) RA')
+    redux_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
 
     # Obs
-    mandatory_meta['time'] = dict(dtype=str, comment='Date+time readable by astropy.time.Time')
-    mandatory_meta['airmass'] = dict(dtype=float, comment='Airmass')
-    mandatory_meta['exptime'] = dict(dtype=float, comment='Exposure time')
+    redux_meta['time'] = dict(dtype=str, comment='Date+time readable by astropy.time.Time')
+    redux_meta['airmass'] = dict(dtype=float, comment='Airmass')
+    redux_meta['exptime'] = dict(dtype=float, comment='Exposure time')
 
     # Return
-    return mandatory_meta
+    return redux_meta
 
-def define_other_meta():
-    other_meta = {}
 
-    other_meta['dichroic'] = dict(dtype=str, comment='Beam splitter')
+def define_config_meta():
+    """
+    Defines meta used to define the configuration of an instrument
+      This meta is *not* required to reduce the data only to set the configuration
 
-    return other_meta
+    Returns:
+
+    """
+    config_meta = {}
+
+    config_meta['dichroic'] = dict(dtype=str, comment='Beam splitter')
+
+    return config_meta

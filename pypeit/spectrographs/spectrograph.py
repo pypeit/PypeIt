@@ -445,15 +445,39 @@ class Spectrograph(object):
             used to constuct the :class:`pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'dichroic', 'decker' ] #, 'dispangle' ] #,  'slitwid', 'slitlen' ]
+        return ['dispname', 'dichroic', 'decker']
 
     def init_meta(self):
         self.meta = None
         pass
 
     def get_meta(self, ifile, meta_key, headarr=None, required=False):
+        """
+        Return meta data from a given file (or its array of headers)
+
+        Args:
+            ifile: str or None
+            meta_key: str or list of str
+            headarr: list
+              List of headers
+            required: bool, optional
+              Require the meta key to be returnable
+
+        Returns:
+            meta: value or list of values
+
+        """
         if headarr is None:
             headarr = self.get_headarr(ifile)
+
+        # Loop?
+        if isinstance(meta_key, list):
+            meta = []
+            for mkey in meta_key:
+                meta.append(self.get_meta(mkey, headarr=headarr, required=required))
+            #
+            return meta
+
         # Are we prepared to provide this meta data?
         if meta_key not in self.meta.keys():
             if required:
@@ -474,8 +498,8 @@ class Spectrograph(object):
         pass
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker',
-                'setup', 'calib']#, 'comb_id', 'bkg_id']
+        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker']
+                #'setup', 'calib']#, 'comb_id', 'bkg_id']
 
     def get_headarr(self, filename, strict=True):
         """

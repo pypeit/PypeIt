@@ -25,9 +25,15 @@ from pypeit.core import wave
 from pypeit.core import save
 from pypeit.core import load
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.scripts import run_pypeit
+
 
 from pypeit import debugger
+
+from configobj import ConfigObj
+from pypeit.par.util import parse_pypeit_file
+from pypeit.par import PypeItPar
+from pypeit.metadata import PypeItMetaData
+
 
 class PypeIt(object):
     """
@@ -67,25 +73,36 @@ class PypeIt(object):
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, logname=None, show=False,
                  redux_path=None):
 
-        # Setup
+        # Load
+        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file, runtime=True)
         self.pypeit_file = pypeit_file
-        ps = pypeitsetup.PypeItSetup.from_pypeit_file(self.pypeit_file)
-        ps.run(setup_only=False)
-        # Only need the parameters, spectrograph, and metadata for the remainder
-        self.par = ps.par
-        # self.spectrograph = ps.spectrograph
-        self.fitstbl = ps.fitstbl
 
-        self.pypeitSetup = ps
+        # Spectrograph
+        cfg = ConfigObj(cfg_lines)
+        spectrograph_name = cfg['rdx']['spectrograph']
+        self.spectrograph = load_spectrograph(spectrograph_name)
+
+        # Par
+        spectrograph_cfg_lines = self.spectrograph.default_pypeit_par().to_config()
+        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+
+        # Fitstbl
+        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, file_list=data_files,
+                                      usrdata=usrdata, strict=True)
+        # The following could be put in a prepare_to_run() method in PypeItMetaData
+        if 'setup' not in self.fitstbl.keys():  # CONSIDER MAKING SETUP AN ATTRIBUTE OF FITSTBL
+            self.fitstbl['setup'] = setups[0]
+        self.fitstbl.get_frame_types(user=frametype)  # This sets them using the user inputs
+        self.fitstbl.set_defaults()  # Only does something if not set in PypeIt file
+        self.fitstbl._set_calib_group_bits()
+        self.fitstbl._check_calib_groups()
+
+        # Using the instrument config to set specific parameters will go here
 
         # Other Internals
         self.logname = logname
         self.overwrite = overwrite
         self.show = show
-
-
-        # Spectrometer class
-        self.spectrograph = load_spectrograph(ps.spectrograph)
 
         # Make the output directories
         self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
@@ -368,9 +385,9 @@ class PypeIt(object):
         obstime  = self.fitstbl.construct_obstime(frame)
         basename = self.fitstbl.construct_basename(frame, obstime=obstime)
         objtype  = self.fitstbl['frametype'][frame]
-        setup    = self.fitstbl.master_key(frame, det=det)
+        master_key    = self.fitstbl.master_key(frame, det=det)
 
-        return objtype, setup, obstime, basename, binning
+        return objtype, master_key, obstime, basename, binning
 
     def init_sci_init_sky(self, frames, det, bg_frames=None):
 
