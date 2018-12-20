@@ -74,6 +74,9 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         # UTC, decker are arm dependent
         return hdr_keys
 
+    def configuration_keys(self):
+        return []
+
     def validate_metadata(self, fitstbl):
         indx = fitstbl['binning_x'] == 'None'
         fitstbl['binning_x'][indx] = 1
@@ -84,7 +87,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
     def metadata_keys(self):
         return ['filename', 'date', 'frametype', 'idname', 'target', 'exptime', 'decker',
-                'binning']
+                'binning', 'setup', 'calib', 'obj_id', 'bkg_id']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -244,7 +247,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'
         hdr_keys[0]['utc'] = 'HIERARCH ESO DET EXP UTC'
         return hdr_keys
-
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
@@ -457,7 +459,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['polyorder'] = 6
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['number'] = -1
-        par['calibrations']['slits']['fracignore'] = 0.01
+        #par['calibrations']['slits']['fracignore'] = 0.01
 
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 15
@@ -676,6 +678,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         self.numhead = 1
 
 
+#    @staticmethod
     def default_pypeit_par(self):
         """
         Set default parameters for VLT XSHOOTER UVB reductions.
@@ -695,6 +698,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
+        # TODO: This is a KLUDGE; default_pypeit_par should be a
+        # staticmethod meaning it should not depend on self
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.50 # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
         par['calibrations']['wavelengths']['sigdetect'] = 5.0

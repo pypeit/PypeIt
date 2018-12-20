@@ -934,6 +934,7 @@ class ReducePar(ParSet):
                             'None, the default is the root name of the pypeit file.  If off, ' \
                             'no output is produced.'
 
+        # TODO: Allow this to apply to each calibration frame type
         defaults['calwin'] = 0
         dtypes['calwin']   = [int, float]
         descr['calwin'] = 'The window of time in hours to search for calibration frames for a ' \
@@ -1084,6 +1085,8 @@ class WavelengthSolutionPar(ParSet):
         # name of the parameter is counts. Perhaps we should just change this to nonlinear_adu or something to avoid confusion.
 
         # These are the parameters used for arc line detection
+        # TODO: Why is this not always defined by the detectors of the
+        # spectrograph?
         defaults['nonlinear_counts'] = 1e10
         dtypes['nonlinear_counts'] = float
         descr['nonlinear_counts'] = 'Arc lines above this saturation threshold are not used in wavelength solution fits because they cannot' \
@@ -1294,7 +1297,7 @@ class TraceSlitsPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, function=None, polyorder=None, medrep=None, number=None, trim=None,
-                 maxgap=None, maxshift=None, pad=None, sigdetect=None, fracignore=None,
+                 maxgap=None, maxshift=None, pad=None, sigdetect=None,
                  min_slit_width = None, add_slits=None, rm_slits=None,
                  diffpolyorder=None, single=None, sobel_mode=None, pcatype=None, pcapar=None,
                  pcaextrap=None):
@@ -1363,12 +1366,6 @@ class TraceSlitsPar(ParSet):
         defaults['sigdetect'] = 20.0
         dtypes['sigdetect'] = [int, float]
         descr['sigdetect'] = 'Sigma detection threshold for edge detection'
-    
-        defaults['fracignore'] = 0.01
-        dtypes['fracignore'] = float
-        descr['fracignore'] = 'If a slit spans less than this fraction over the spectral size ' \
-                              'of the detector, it will be ignored (and reconstructed when/if ' \
-                              'an \'order\' PCA analysis is performed).'
 
         defaults['min_slit_width'] = 6.0  # arcseconds!
         dtypes['min_slit_width'] = float
@@ -1394,16 +1391,16 @@ class TraceSlitsPar(ParSet):
                           ' None means no user-level slits defined.'
 
         defaults['add_slits'] = []
-        dtypes['add_slits'] = str, list
+        dtypes['add_slits'] = [str, list]
         descr['add_slits'] = 'Add one or more user-defined slits.  This is a list of lists, with ' \
                              'each sub-list having syntax (all integers):  det:x0:x1:yrow  ' \
                              'For example,  2:2121:2322:2000,3:1201:1500:2000'
 
         defaults['rm_slits'] = []
-        dtypes['rm_slits'] = str, list
-        descr['rm_slits'] = 'Remove one or more user-specified slits.  This is a list of lists, with ' \
-                             'each sub-list having syntax (all integers):  det:xcen:yrow  ' \
-                             'For example,  2:2121:2000,3:1500:2000'
+        dtypes['rm_slits'] = [str, list]
+        descr['rm_slits'] = 'Remove one or more user-specified slits.  This is a list of lists, ' \
+                            'with each sub-list having syntax (all integers):  det:xcen:yrow  ' \
+                            'For example,  2:2121:2000,3:1500:2000'
 
         defaults['sobel_mode'] = 'nearest'
         options['sobel_mode'] = TraceSlitsPar.valid_sobel_modes()
@@ -1420,11 +1417,11 @@ class TraceSlitsPar(ParSet):
                            'irregular.  Order is used for echelle spectroscopy or for slits ' \
                            'with separations that are a smooth function of the slit number.'
 
-        defaults['pcapar'] = [ 3, 2, 1, 0]
+        defaults['pcapar'] = [3, 2, 1, 0]
         dtypes['pcapar'] = list
         descr['pcapar'] = 'Order of the polynomials to be used to fit the principle ' \
-                          'components.  The list length must be equal to or less than polyorder+1. ' \
-                          'TODO: Provide more explanation'
+                          'components.  The list length must be equal to or less than ' \
+                          'polyorder+1. TODO: Provide more explanation'
 
         defaults['pcaextrap'] = [0, 0]
         dtypes['pcaextrap'] = list
@@ -1445,7 +1442,7 @@ class TraceSlitsPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
-                    'pad', 'sigdetect', 'fracignore', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
+                    'pad', 'sigdetect', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
                     'pcatype', 'pcapar', 'pcaextrap', 'add_slits', 'rm_slits']
         kwargs = {}
         for pk in parkeys:

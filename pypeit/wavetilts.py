@@ -57,13 +57,8 @@ class WaveTilts(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'tilts'
 
-    def __init__(self, msarc, tslits_dict, spectrograph=None, par=None, wavepar = None, det=None, setup=None, master_dir=None,
+    def __init__(self, msarc, tslits_dict, spectrograph=None, par=None, wavepar = None, det=None, master_key=None, master_dir=None,
                  mode=None, redux_path=None, bpm=None):
-
-        # TODO: (KBW) Why was setup='' in this argument list and
-        # setup=None in all the others?  Is it because of the
-        # from_master_files() classmethod below?  Changed it to match
-        # the rest of the MasterFrame children.
 
         # Instantiate the spectograph
         # TODO: (KBW) Do we need this?  It's only used to get the
@@ -74,7 +69,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.wavepar = pypeitpar.WavelengthSolutionPar() if wavepar is None else wavepar
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key,
                                          master_dir=master_dir, mode=mode)
 
 
@@ -113,13 +108,13 @@ class WaveTilts(masterframe.MasterFrame):
 
     # This method does not appear finished
     @classmethod
-    def from_master_files(cls, setup, mdir='./'):
+    def from_master_files(cls, master_key, mdir='./'):
         """
         Build the class from Master frames
 
         Parameters
         ----------
-        setup : str
+        master_key : str
         mdir : str, optional
 
         Returns
@@ -129,15 +124,15 @@ class WaveTilts(masterframe.MasterFrame):
         """
 
         # Instantiate
-        slf = cls(None, setup=setup)
-        msarc_file = masterframe.master_name('arc', setup, mdir)
+        slf = cls(None, master_key=master_key)
+        msarc_file = masterframe.master_name('arc', master_key, mdir)
         # Arc
         msarc, _, _ = slf.load_master(msarc_file)
         slf.msarc = msarc
 
 
         # Tilts
-        mstilts_file = masterframe.master_name('tilts', setup, mdir)
+        mstilts_file = masterframe.master_name('tilts', master_key, mdir)
         hdul = fits.open(mstilts_file)
         slf.final_tilts = hdul[0].data
         slf.tilts = slf.final_tilts
@@ -252,7 +247,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Now perform a fit to the tilts
         tilts, tilt_fit_dict, trc_tilt_dict_out = tracewave.fit_tilts(
             trc_tilt_dict, thismask, slit_cen, spat_order=spat_order, spec_order=spec_order,maxdev=self.par['maxdev2d'],
-            sigrej=self.par['sigrej2d'],func2d=self.par['func2d'],doqa=doqa,setup=self.setup,slit=slit, show_QA=show_QA,
+            sigrej=self.par['sigrej2d'],func2d=self.par['func2d'],doqa=doqa,master_key=self.master_key,slit=slit, show_QA=show_QA,
             out_dir=self.redux_path, debug=debug)
 
         # Evaluate the fit

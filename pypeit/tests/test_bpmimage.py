@@ -29,9 +29,9 @@ def data_path(filename):
 def test_instantiate():
     # Empty
     # Can no longer be empty!
-    with pytest.raises(PypeItError):
+    with pytest.raises(TypeError):
         _ = bpmimage.BPMImage()
-    bpm = bpmimage.BPMImage(spectrograph='keck_lris_red')
+    bpm = bpmimage.BPMImage('keck_lris_red')
     assert bpm.spectrograph.spectrograph == 'keck_lris_red'
 
     # These will no longer error!
@@ -54,7 +54,7 @@ def test_instantiate():
 def test_dummy_image():
     # Simple
     shape=(2048,2048)
-    bpmImage = bpmimage.BPMImage(spectrograph='shane_kast_blue', shape=shape)#, trim=False)
+    bpmImage = bpmimage.BPMImage('shane_kast_blue', shape=shape)#, trim=False)
     bpm = bpmImage.build()
     assert isinstance(bpm, np.ndarray)
     assert bpm.shape == shape
@@ -72,7 +72,7 @@ def test_keck_lris_red():
     dsec_img = spectrograph.get_datasec_img(example_file, det=2)
     shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
     # Simple
-    bpmImage = bpmimage.BPMImage(spectrograph='keck_lris_red', shape=shape, filename=example_file, det=2)
+    bpmImage = bpmimage.BPMImage('keck_lris_red', shape=shape, filename=example_file, det=2)
     bpm = bpmImage.build()
     assert np.sum(bpm) > 0
 
@@ -86,7 +86,7 @@ def test_keck_deimos():
     dsec_img = spectrograph.get_datasec_img(example_file, det=2)
     shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
     # Simple
-    bpmImage = bpmimage.BPMImage(spectrograph='keck_deimos', shape=shape, filename=example_file, det=4)
+    bpmImage = bpmimage.BPMImage('keck_deimos', shape=shape, filename=example_file, det=4)
     bpm = bpmImage.build()
     assert bpm[0,0] == 1
 

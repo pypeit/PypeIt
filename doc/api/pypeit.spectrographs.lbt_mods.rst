@@ -1,7 +1,7 @@
-pypeit.scripts.lowrdx\_skyspec module
+pypeit.spectrographs.lbt\_mods module
 =====================================
 
-.. automodule:: pypeit.scripts.lowrdx_skyspec
+.. automodule:: pypeit.spectrographs.lbt_mods
     :members:
     :undoc-members:
     :show-inheritance:

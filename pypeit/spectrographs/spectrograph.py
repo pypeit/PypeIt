@@ -382,11 +382,29 @@ class Spectrograph(object):
     def header_keys(self):
         return self.default_header_keys()
 
+    def configuration_keys(self):
+        """
+        Return the metadata keys that defines a unique instrument
+        configuration.
+
+        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+
+            list: List of keywords of data pulled from file headers and
+            used to constuct the :class:`pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['dispname', 'dichroic', 'decker' ] #, 'dispangle' ] #,  'slitwid', 'slitlen' ]
+
     def validate_metadata(self, fitstbl):
         pass
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker']
+        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker',
+                'setup', 'calib']#, 'comb_id', 'bkg_id']
 
     def get_headarr(self, filename, strict=True):
         """

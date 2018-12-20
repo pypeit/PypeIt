@@ -54,7 +54,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         Set default parameters for TNG Dolores reductions.
         """
         par = pypeitpar.PypeItPar()
-        par['calibrations']['tilts']['params'] = [1,1,1]
+        #par['calibrations']['tilts']['params'] = [1,1,1]
         # Always sky subtract, starting with default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -118,7 +118,8 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         return hdr_keys
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'idname']
+        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'idname',
+                'setup', 'calib', 'obj_id', 'bkg_id']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

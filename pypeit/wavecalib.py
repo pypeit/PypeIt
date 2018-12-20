@@ -40,7 +40,7 @@ class WaveCalib(masterframe.MasterFrame):
       Settings for trace slits
     det : int, optional
       Detector number
-    setup : str, optional
+    master_key : str, optional
 
     Attributes
     ----------
@@ -56,8 +56,10 @@ class WaveCalib(masterframe.MasterFrame):
         steps
     arccen : ndarray (nwave, nslit)
       Extracted arc(s) down the center of the slit(s)
-    maskslit : ndarray (nslit)
-      Slits to ignore because they were not extacted
+    maskslits : ndarray (nslit); bool
+      Slits to ignore because they were not extracted
+      WARNING: Outside of this Class, it is best to regenerate
+      the mask using  make_maskslits()
     arcparam : dict
       Arc parameter (instrument/disperser specific)
     """
@@ -67,14 +69,14 @@ class WaveCalib(masterframe.MasterFrame):
 
     # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
     # parameters since instantiating without them does nothing. Make them required
-    def __init__(self, msarc, spectrograph=None, par=None, det=None, setup=None, master_dir=None,
+    def __init__(self, msarc, spectrograph=None, par=None, det=None, master_key=None, master_dir=None,
                  mode=None, redux_path=None, bpm = None):
 
         # Instantiate the spectograph
         self.spectrograph = load_spectrograph(spectrograph)
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key,
                                          master_dir=master_dir, mode=mode)
 
         # Required parameters (but can be None)
@@ -86,7 +88,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Optional parameters
         self.redux_path = redux_path
         self.det = det
-        self.setup = setup
+        self.master_key = master_key
         #self.arcparam = arcparam
 
         # Attributes
@@ -115,7 +117,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.wv_calib : dict
         """
         # Obtain a list of good slits
-        ok_mask = np.where(self.maskslits == 0)[0]
+        ok_mask = np.where(~self.maskslits)[0]
 
         # Obtain calibration for all slits
         if method == 'simple':
@@ -164,7 +166,7 @@ class WaveCalib(masterframe.MasterFrame):
                                  nonlinear_counts = self.par['nonlinear_counts'])
                 final_fit[str(slit)] = ifinal_fit.copy()
                 if status != 1:
-                    self.maskslits[slit] = 1
+                    self.maskslits[slit] = True
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
             arcfitter = wavecal.autoid.HolyGrail(self.arccen, par = self.par, ok_mask=ok_mask)
@@ -180,16 +182,14 @@ class WaveCalib(masterframe.MasterFrame):
 
         self.wv_calib = final_fit
 
-        # Update mask
-        for slit in ok_mask:
-            if str(slit) not in final_fit.keys():
-                self.maskslits[slit] = 1
-        ok_mask = np.where(self.maskslits == 0)[0]
+        # Remake mask (*mainly for the QA that follows*)
+        self.maskslits = self.make_maskslits(len(self.maskslits))
+        ok_mask = np.where(~self.maskslits)[0]
 
         # QA
         if not skip_QA:
             for slit in ok_mask:
-                outfile = qa.set_qa_filename(self.setup, 'arc_fit_qa', slit=slit, out_dir=self.redux_path)
+                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=slit, out_dir=self.redux_path)
                 wavecal.qa.arc_fit_qa(self.wv_calib[str(slit)], outfile = outfile)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -225,7 +225,7 @@ class WaveCalib(masterframe.MasterFrame):
         all_order = np.array([],dtype=float)
 
         # Obtain a list of good slits
-        ok_mask = np.where(self.maskslits == 0)[0]
+        ok_mask = np.where(~self.maskslits)[0]
         nspec = self.msarc.shape[0]
         for islit in wv_calib.keys():
             if int(islit) not in ok_mask:
@@ -244,9 +244,9 @@ class WaveCalib(masterframe.MasterFrame):
 
         # QA
         if not skip_QA:
-            outfile_global = qa.set_qa_filename(self.setup, 'arc_fit2d_global_qa', out_dir=self.redux_path)
+            outfile_global = qa.set_qa_filename(self.master_key, 'arc_fit2d_global_qa', out_dir=self.redux_path)
             arc.fit2darc_global_qa(fit2d_dict, outfile=outfile_global)
-            outfile_orders = qa.set_qa_filename(self.setup, 'arc_fit2d_orders_qa', out_dir=self.redux_path)
+            outfile_orders = qa.set_qa_filename(self.master_key, 'arc_fit2d_orders_qa', out_dir=self.redux_path)
             arc.fit2darc_orders_qa(fit2d_dict, outfile=outfile_orders)
 
         return fit2d_dict
@@ -271,10 +271,12 @@ class WaveCalib(masterframe.MasterFrame):
         self.arccen
           1D arc spectra from each slit
         self.maskslits
+          bool array
 
         """
         inmask = (self.bpm == 0) if self.bpm is not None else None
-        self.arccen, self.maskslits = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,inmask=inmask)
+        self.arccen, tmp_mask = arc.get_censpec(lordloc, rordloc, slitpix, self.msarc,inmask=inmask)
+        self.maskslits = tmp_mask == 1
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -342,8 +344,10 @@ class WaveCalib(masterframe.MasterFrame):
 
         return
 
-    def _make_maskslits(self, nslit):
+    def make_maskslits(self, nslit):
         """
+        (re)Generate the mask for wv_calib based on its contents
+        This is the safest way to go...
 
         Parameters
         ----------
@@ -356,11 +360,12 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         # Set mask based on wv_calib
-        mask = np.array([True]*nslit, bool)
+        mask = np.array([True]*nslit)
         for key in self.wv_calib.keys():
             if key in ['steps', 'par', 'fit2d']:
                 continue
-            mask[int(key)] = False
+            if self.wv_calib[key] is not None:
+                mask[int(key)] = False
         self.maskslits = mask
         return self.maskslits
 
@@ -407,7 +412,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Build mask
         nslits = lordloc.shape[1]
-        self._make_maskslits(nslits)
+        self.make_maskslits(nslits)
 
         # Pack up
         self.wv_calib['steps'] = self.steps

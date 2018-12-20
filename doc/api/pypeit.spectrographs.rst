@@ -13,6 +13,7 @@ Submodules
    pypeit.spectrographs.keck_lris
    pypeit.spectrographs.keck_nires
    pypeit.spectrographs.keck_nirspec
+   pypeit.spectrographs.lbt_mods
    pypeit.spectrographs.magellan_fire
    pypeit.spectrographs.magellan_mage
    pypeit.spectrographs.mmt_binospec

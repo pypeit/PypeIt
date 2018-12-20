@@ -19,7 +19,6 @@ Submodules
 
    pypeit.ararclines
    pypeit.arcimage
-   pypeit.armed
    pypeit.artrace
    pypeit.biasframe
    pypeit.bitmask

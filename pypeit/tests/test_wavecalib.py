@@ -63,7 +63,7 @@ def test_user_redo():
     # Setup
     waveCalib.par['sigdetect'] = 5.
     nslit = 1
-    _ = waveCalib._make_maskslits(nslit)
+    _ = waveCalib.make_maskslits(nslit)
     npix = len(waveCalib.wv_calib['0']['spec'])
     waveCalib.arccen = np.zeros((npix,nslit))
     waveCalib.arccen[:,0] = waveCalib.wv_calib['0']['spec']

@@ -28,5 +28,5 @@ def test_cooked_version():
         tmp = f.readlines()
     value = float(tmp[-1].strip())
     # Test
-    assert value >= 0.92
+    assert value >= 0.93
 

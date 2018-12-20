@@ -25,7 +25,8 @@ class MasterFrame(object):
     Parameters
     ----------
     frametype : str
-    setup : str
+    master_key : str
+      e.g. 'A_1_01'
     master_dir : str, optional
     redux_path : str, optional
       Path for reduction
@@ -37,7 +38,7 @@ class MasterFrame(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, frametype, setup, spectrograph=None,
+    def __init__(self, frametype, master_key, spectrograph=None,
                  master_dir=None, mode=None, par=None, redux_path=None):
 
         # Output path
@@ -48,7 +49,7 @@ class MasterFrame(object):
 
         # Other parameters
         self.frametype = frametype
-        self.setup = setup
+        self.master_key = master_key
         self.mode = mode
         self.msframe = None
 
@@ -63,7 +64,7 @@ class MasterFrame(object):
         -------
         msname : str
         """
-        return master_name(self.frametype, self.setup, self.master_dir)
+        return master_name(self.frametype, self.master_key, self.master_dir)
 
     @property
     def mdir(self):
@@ -71,29 +72,34 @@ class MasterFrame(object):
 
     def _masters_load_chk(self):
         # Logic on whether to load the masters frame
+        # TODO -- These two modes are now effecitvely the same.  Remove one
         return self.mode == 'reuse' or self.mode == 'force'
 
-    def master(self, force = False):
+    def master(self, force=False):
         """
         Load the master frame from disk, as settings allows. This routine checks the the mode of master usage
         then calls the load_master method. This method should not be overloaded by children of this class. Instead
         one should overload the load_master method below.
 
-        Returns
-        -------
-        msframe : ndarray or None
-         master image
+        Args:
+            force: bool, optional
+              Force the attempt of loading the master frame
+              Key for when looping on multiple exposures to avoid remaking the file
+
+        Returns:
+            msframe : ndarray or None
+             master image
 
         """
         # Are we loading master files from disk?
         if self._masters_load_chk() or force:
-            self.msframe = self.load_master(self.ms_name, force = force)
+            self.msframe = self.load_master(self.ms_name)
             return self.msframe
         else:
             return None
 
 
-    def load_master(self, filename, force = False, exten = 0):
+    def load_master(self, filename, exten = 0):
         """
         Generic master file reader. This function should mostly be replaced by specific load_master methods in the children
         of this class.
@@ -108,8 +114,6 @@ class MasterFrame(object):
         # Does the master file exist?
         if not os.path.isfile(filename):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            if force:
-                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
             return None
         else:
             msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
@@ -187,14 +191,15 @@ class MasterFrame(object):
 
 # ToDo Remove this master name function and instead have a master name function in each class.
 # These utility functions are occaisonally needed by other functions which is why they are outside the class.
-def master_name(ftype, setup, mdir):
+# Or make it a staticmethod in the Classes
+def master_name(ftype, master_key, mdir):
     """ Default filenames for MasterFrames
 
     Parameters
     ----------
     ftype : str
       Frame type
-    setup : str
+    master_key : str
       Setup name
     mdir : str, optional
       Master directory
@@ -203,18 +208,18 @@ def master_name(ftype, setup, mdir):
     -------
     msname : str
     """
-    name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, setup),
-                     badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, setup),
-                     trace='{:s}/MasterTrace_{:s}'.format(mdir, setup),   # Just a root as FITS+JSON are generated
-                     pinhole='{:s}/MasterPinhole_{:s}.fits'.format(mdir, setup),
-                     pixelflat='{:s}/MasterPixelFlat_{:s}.fits'.format(mdir, setup),
-                     illumflat='{:s}/MasterIllumFlat_{:s}.fits'.format(mdir, setup),
-                     arc='{:s}/MasterArc_{:s}.fits'.format(mdir, setup),
-                     wave='{:s}/MasterWave_{:s}.fits'.format(mdir, setup),
-                     wv_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, setup),
-                     tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir, setup),
-                     # sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.yaml'.format(mdir, setup[0], setup[-2:]),
-                     sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.fits'.format(mdir, setup[0], setup[-2:]),
+    name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, master_key),
+                     badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, master_key),
+                     trace='{:s}/MasterTrace_{:s}'.format(mdir, master_key),   # Just a root as FITS+JSON are generated
+                     pinhole='{:s}/MasterPinhole_{:s}.fits'.format(mdir, master_key),
+                     pixelflat='{:s}/MasterPixelFlat_{:s}.fits'.format(mdir, master_key),
+                     illumflat='{:s}/MasterIllumFlat_{:s}.fits'.format(mdir, master_key),
+                     arc='{:s}/MasterArc_{:s}.fits'.format(mdir, master_key),
+                     wave='{:s}/MasterWave_{:s}.fits'.format(mdir, master_key),
+                     wv_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, master_key),
+                     tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir, master_key),
+                     # sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.yaml'.format(mdir, master_key[0], master_key[-2:]),
+                     sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.fits'.format(mdir, master_key[0], master_key[-2:]),
                      )
     return name_dict[ftype]
 

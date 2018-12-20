@@ -9,6 +9,7 @@ import glob
 import numpy as np
 
 import yaml
+from pypeit import debugger
 
 # CANNOT INCLUDE msgs IN THIS MODULE AS
 #  THE HTML GENERATION OCCURS FROM msgs
@@ -195,25 +196,24 @@ def html_init(f, title):
     return links
 
 
-def html_mf_pngs(setup, cbset, det):
-    """ Geneate HTML for MasterFrame PNGs
-    Parameters
-    ----------
-    setup : str
-    cbset : str
-    det : int
+def html_mf_pngs(idval):
+    """ Generate HTML for MasterFrame PNGs
 
-    Returns
-    -------
-    links : str
-    body : str
+    Args:
+        idval: str
+          Master key of the calibration set
+
+    Returns:
+        links: str
+          HTML links to the PNGs
+        body: str
+          HTML edits for the main body
 
     """
     links = ''
     body = ''
     # QA root
     # Search for PNGs
-    idval = '{:s}_{:02d}_{:s}'.format(setup, det, cbset)
 
     # Organize the outputs
     html_dict = {}
@@ -240,10 +240,12 @@ def html_mf_pngs(setup, cbset, det):
         if html_dict[key]['slit']:  # Kludge to handle multiple slits
             png_root = png_root.replace('S9999', 'S*')
         pngs = glob.glob(png_root+html_dict[key]['ext'])
+        pngs.sort()
         if len(pngs) > 0:
             href="{:s}_{:s}".format(html_dict[key]['href'], idval)
             # Link
-            links += '<li><a class="reference internal" href="#{:s}">{:s} {:s}</a></li>\n'.format(href, html_dict[key]['label'], idval)
+            links += '<li><a class="reference internal" href="#{:s}">{:s} {:s}</a></li>\n'.format(
+                href, html_dict[key]['label'], idval)
             # Body
             body += '<hr>\n'
             body += '<div class="section" id="{:s}">\n'.format(href)
@@ -253,7 +255,15 @@ def html_mf_pngs(setup, cbset, det):
                 ifnd = png.find('QA/')
                 if ifnd < 0:
                     raise ValueError("QA is expected to be in the path!")
-                body += '<img class ="research" src="{:s}" width="100%" height="auto"/>\n'.format(png[ifnd+3:])
+                if html_dict[key]['slit']:  # Kludge to handle multiple slits
+                    i0 = png.find('{:s}_S'.format(idval))
+                    href="{:s}_{:s}".format(html_dict[key]['href'], png[i0:])
+                    body += '<img class ="research" src="{:s}" width="100%" id={:s} height="auto"/>\n'.format(
+                        png[ifnd+3:], href)
+                    links += '<li><a class="reference internal" href="#{:s}">{:s} {:s}</a></li>\n'.format(
+                        href, html_dict[key]['label'], png[i0:-4])
+                else:
+                    body += '<img class ="research" src="{:s}" width="100%" height="auto"/>\n'.format(png[ifnd+3:])
             body += '</div>\n'
 
     # Return
@@ -333,9 +343,9 @@ def gen_mf_html(pypeit_file):
     for key in calib_dict[setup].keys():
         if key == '--':
             continue
-        try:
+        if isinstance(key,str):
             dets.append(int(key))
-        except ValueError:
+        else:
             cbsets.append(key)
     # Generate MF file
     MF_filename = 'QA/MF_{:s}.html'.format(setup)
@@ -347,7 +357,8 @@ def gen_mf_html(pypeit_file):
         for cbset in cbsets:
             for det in dets:
                 # Run
-                new_links, new_body = html_mf_pngs(setup, cbset, det)
+                idval = '{:s}_{:d}_{:02d}'.format(setup, cbset, det)
+                new_links, new_body = html_mf_pngs(idval)
                 # Save
                 links += new_links
                 body += new_body

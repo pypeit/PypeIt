@@ -81,7 +81,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 20.
         par['calibrations']['slits']['polyorder'] = 3
-        par['calibrations']['slits']['fracignore'] = 0.02
+        # TODO: No longer a parameter
+#        par['calibrations']['slits']['fracignore'] = 0.02
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
 
         # 1D wavelength solution
@@ -234,8 +235,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         return self.gemini_get_match_criteria()
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker', 'dispangle']
-
+        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker',
+                'dispangle', 'setup', 'calib', 'obj_id', 'bkg_id' ]
 
     '''
     def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):

@@ -618,7 +618,7 @@ def save_2d_images(sci_output, rawfile, ext0, setup, mfdir,
         prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
         ssetup = setup.split('_') #settings.argflag['reduce']['masters']['setup'].split('_')
         prihdu.header['PYPCNFIG'] = str(ssetup[0])
-        prihdu.header['PYPCALIB'] = str(ssetup[2])
+        prihdu.header['PYPCALIB'] = str(ssetup[1])
         prihdu.header['PYPMFDIR'] = str(mfdir)
 
     # Fill in the images

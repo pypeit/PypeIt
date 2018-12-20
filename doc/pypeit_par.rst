@@ -113,17 +113,17 @@ ReducePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ReducePar`
 
-================  ==========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ============================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key               Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                              Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                 
-================  ==========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ============================================================================================================================================================================================================================================================================================================================================================================================================================================
-``spectrograph``  str         ``gemini_gnirs``, ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_nires``, ``keck_hires_red``, ``keck_hires_blue``, ``mmt_binospec``, ``keck_nirspec_low``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``magellan_fire``, ``magellan_mage``, ``vlt_xshooter_nir``, ``gemini_gmos_south``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``  ..                                            Spectrograph that provided the data to be reduced.  Options are: gemini_gnirs, keck_deimos, keck_lris_blue, keck_lris_red, keck_nires, keck_hires_red, keck_hires_blue, mmt_binospec, keck_nirspec_low, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, vlt_xshooter_uvb, vlt_xshooter_vis, magellan_fire, magellan_mage, vlt_xshooter_nir, gemini_gmos_south, gemini_gmos_north_e2v, gemini_gmos_north_ham
-``detnum``        int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ..                                            Restrict reduction to a list of detector indices                                                                                                                                                                                                                                                                                                                                                                                            
-``sortroot``      str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                      
-``calwin``        int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                   0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                            
-``scidir``        str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                             
-``qadir``         str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                  
-``redux_path``    str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.                                                                                                                                                                                                                                                                                                                                                                                                   
-================  ==========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ============================================================================================================================================================================================================================================================================================================================================================================================================================================
+================  ==========  =======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key               Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+================  ==========  =======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``spectrograph``  str         ``gemini_gnirs``, ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_nires``, ``keck_hires_red``, ``keck_hires_blue``, ``mmt_binospec``, ``keck_nirspec_low``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``magellan_fire``, ``magellan_mage``, ``vlt_xshooter_nir``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``  ..                                            Spectrograph that provided the data to be reduced.  Options are: gemini_gnirs, keck_deimos, keck_lris_blue, keck_lris_red, keck_nires, keck_hires_red, keck_hires_blue, mmt_binospec, keck_nirspec_low, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, vlt_xshooter_uvb, vlt_xshooter_vis, magellan_fire, magellan_mage, vlt_xshooter_nir, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b
+``detnum``        int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ..                                            Restrict reduction to a list of detector indices                                                                                                                                                                                                                                                                                                                                                                                                                                                
+``sortroot``      str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                          
+``calwin``        int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                
+``scidir``        str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                 
+``qadir``         str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                      
+``redux_path``    str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+================  ==========  =======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -179,40 +179,41 @@ WavelengthSolutionPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.WavelengthSolutionPar`
 
-====================  ================  =====================================================================  ================  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                   Type              Options                                                                Default           Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
-====================  ================  =====================================================================  ================  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``reference``         str               ``arc``, ``sky``, ``pixel``                                            ``arc``           Perform wavelength calibration with an arc, sky frame.  Use 'pixel' for no wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-``method``            str               ``simple``, ``semi-brute``, ``basic``, ``holy-grail``, ``reidentify``  ``holy-grail``    Method to use to fit the individual arc lines. Most of these methods are now deprecated as they fail most of the time without significant parameter tweaking. 'holy-grail' attempts to get a first guess at line IDs by looking for patterns in the line locations. It is fully automated and works really well excpet for when it does not'reidentify' is now the preferred method, however it requires that an archive of wavelength solution has been constructed for your instrument/grating combination                           Options are: simple, semi-brute, basic, holy-grail, reidentify
-``echelle``           bool              ..                                                                     False             Is this an echelle spectrograph? If yes an additional 2-d fit wavelength fit will be performed as a function of spectral pixel and order number to improve the wavelength solution                                                                                                                                                                                                                                                                                                                                                                                                                   
-``ech_fix_format``    bool              ..                                                                     True              Is this a fixed format echelle like ESI, X-SHOOTER, or NIRES. If so reidentification will assume that each order in the data is aligned with a single order in the reid arxiv                                                                                                                                                                                                                                                                                                                                                                                                                        
-``ech_nspec_coeff``   int               ..                                                                     4                 For echelle spectrographs, order of the final 2d fit to the spectral dimension. You should choose this to be the n_final of the fits to the individual orders.                                                                                                                                                                                                                                                                                                                                                                                                                                       
-``ech_norder_coeff``  int               ..                                                                     4                 For echelle spectrographs, order of the final 2d fit to the order dimension.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
-``ech_sigrej``        int, float        ..                                                                     2.0               For echelle spectrographs sigma clipping rejection threshold in 2d fit to spectral and order dimensions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
-``lamps``             list              ..                                                                     ..                Name of one or more ions used for the wavelength calibration.  Use None for no calibration.  Options are: ArI, CdI, HgI, HeI, KrI, NeI, XeI, ZnI, ThAr                                                                                                                                                                                                                                                                                                                                                                                                                                               
-``nonlinear_counts``  float             ..                                                                     10000000000.0     Arc lines above this saturation threshold are not used in wavelength solution fits because they cannotbe accurately centroided                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
-``sigdetect``         int, float        ..                                                                     5.0               Detection threshold for arc lines                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-``reid_arxiv``        str               ..                                                                     ..                Name of the archival wavelength solution file that will be used for the wavelength reidentification if the wavelength solution method = reidentify                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-``nreid_min``         int               ..                                                                     1                 Minimum number of times that a given candidate reidentified line must be properly matched with a line in the arxiv to be considered a good reidentification. If there is a lot of duplication in the arxiv of the spectra in question (i.e. multislit) set this to a number like 1-4. For echelle this depends on the number of solutions in the arxiv. For fixed format echelle (ESI, X-SHOOTER, NIRES) set this 1. For an echelle with a tiltable grating, it will depend on the number of solutions in the arxiv.                                                                                 
-``cc_thresh``         float             ..                                                                     0.8               Threshold for the *global* cross-correlation coefficient between an input spectrum and member of the archive required to attempt reidentification. Spectra from the archive with a lower cross-correlation are not used for reidentification                                                                                                                                                                                                                                                                                                                                                         
-``cc_local_thresh``   float             ..                                                                     0.8               Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  between an input spectrum and the shifted and stretched archive spectrum above which a line must be to be considered a good line for reidentification. The local cross-correlation is evaluated at each candidate reidentified line (using a window of nlocal_cc), and is then used to score the the reidentified lines to arrive at the final set of good reidentifications                                                                                                                          
-``nlocal_cc``         int               ..                                                                     11                Size of pixel window used for local cross-correlation computation for each arc line. If not an odd number one will be added to it to make it odd.                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-``rms_threshold``     float             ..                                                                     0.15              Minimum RMS for keeping a slit/order solution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-``match_toler``       float             ..                                                                     2.0               Matching tolerance in pixels when searching for new lines. This is the difference in pixels between the wavlength assigned to an arc line by an iteration of the wavelength solution to the wavelength in the line list. This parameter is also used as the matching tolerance in pixels for a line reidentification. A good line match must match within this tolerance to the shifted and stretched archive spectrum, and the archive wavelength solution at this match must be within match_toler dispersion elements from the line in line list.                                                 
-``func``              str               ..                                                                     ``legendre``      Function used for wavelength solution fits                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
-``n_first``           int               ..                                                                     2                 Order of first guess fit to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
-``n_final``           int               ..                                                                     4                 Order of final fit to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
-``sigrej_first``      float             ..                                                                     2.0               Number of sigma for rejection for the first guess to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-``sigrej_final``      float             ..                                                                     3.0               Number of sigma for rejection for the final guess to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-``wv_cen``            float             ..                                                                     0.0               Central wavelength. Backwards compatibility with basic and semi-brute algorithms.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-``disp``              float             ..                                                                     0.0               Dispersion. Backwards compatibility with basic and semi-brute algorithms.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
-``numsearch``         int               ..                                                                     20                Number of brightest arc lines to search for in preliminary identification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
-``nfitpix``           int               ..                                                                     5                 Number of pixels to fit when deriving the centroid of the arc lines (an odd number is best)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
-``IDpixels``          int, float, list  ..                                                                     ..                One or more pixels at which to manually identify a line                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
-``IDwaves``           int, float, list  ..                                                                     ..                Wavelengths of the manually identified lines                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
-``medium``            str               ``vacuum``, ``air``                                                    ``vacuum``        Medium used when wavelength calibrating the data.  Options are: vacuum, air                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
-``frame``             str               ``heliocentric``, ``barycentric``                                      ``heliocentric``  Frame of reference for the wavelength calibration.  Options are: heliocentric, barycentric                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
-====================  ================  =====================================================================  ================  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+====================  =========================  =====================================================================  ================  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                   Type                       Options                                                                Default           Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+====================  =========================  =====================================================================  ================  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``reference``         str                        ``arc``, ``sky``, ``pixel``                                            ``arc``           Perform wavelength calibration with an arc, sky frame.  Use 'pixel' for no wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+``method``            str                        ``simple``, ``semi-brute``, ``basic``, ``holy-grail``, ``reidentify``  ``holy-grail``    Method to use to fit the individual arc lines. Most of these methods are now deprecated as they fail most of the time without significant parameter tweaking. 'holy-grail' attempts to get a first guess at line IDs by looking for patterns in the line locations. It is fully automated and works really well excpet for when it does not'reidentify' is now the preferred method, however it requires that an archive of wavelength solution has been constructed for your instrument/grating combination                           Options are: simple, semi-brute, basic, holy-grail, reidentify
+``echelle``           bool                       ..                                                                     False             Is this an echelle spectrograph? If yes an additional 2-d fit wavelength fit will be performed as a function of spectral pixel and order number to improve the wavelength solution                                                                                                                                                                                                                                                                                                                                                                                                                   
+``ech_fix_format``    bool                       ..                                                                     True              Is this a fixed format echelle like ESI, X-SHOOTER, or NIRES. If so reidentification will assume that each order in the data is aligned with a single order in the reid arxiv                                                                                                                                                                                                                                                                                                                                                                                                                        
+``ech_nspec_coeff``   int                        ..                                                                     4                 For echelle spectrographs, order of the final 2d fit to the spectral dimension. You should choose this to be the n_final of the fits to the individual orders.                                                                                                                                                                                                                                                                                                                                                                                                                                       
+``ech_norder_coeff``  int                        ..                                                                     4                 For echelle spectrographs, order of the final 2d fit to the order dimension.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+``ech_sigrej``        int, float                 ..                                                                     2.0               For echelle spectrographs sigma clipping rejection threshold in 2d fit to spectral and order dimensions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``lamps``             list                       ..                                                                     ..                Name of one or more ions used for the wavelength calibration.  Use None for no calibration.  Options are: ArI, CdI, HgI, HeI, KrI, NeI, XeI, ZnI, ThAr                                                                                                                                                                                                                                                                                                                                                                                                                                               
+``nonlinear_counts``  float                      ..                                                                     10000000000.0     Arc lines above this saturation threshold are not used in wavelength solution fits because they cannotbe accurately centroided                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+``sigdetect``         int, float, list, ndarray  ..                                                                     5.0               Detection threshold for arc lines. This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+``fwhm``              int, float                 ..                                                                     4.0               Spectral sampling of the arc lines. This is the FWHM of an arcline in *unbinned* pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+``reid_arxiv``        str                        ..                                                                     ..                Name of the archival wavelength solution file that will be used for the wavelength reidentification if the wavelength solution method = reidentify                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+``nreid_min``         int                        ..                                                                     1                 Minimum number of times that a given candidate reidentified line must be properly matched with a line in the arxiv to be considered a good reidentification. If there is a lot of duplication in the arxiv of the spectra in question (i.e. multislit) set this to a number like 1-4. For echelle this depends on the number of solutions in the arxiv. For fixed format echelle (ESI, X-SHOOTER, NIRES) set this 1. For an echelle with a tiltable grating, it will depend on the number of solutions in the arxiv.                                                                                 
+``cc_thresh``         float, list, ndarray       ..                                                                     0.7               Threshold for the *global* cross-correlation coefficient between an input spectrum and member of the archive required to attempt reidentification. Spectra from the archive with a lower cross-correlation are not used for reidentification. This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                          
+``cc_local_thresh``   float                      ..                                                                     0.8               Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  between an input spectrum and the shifted and stretched archive spectrum above which a line must be to be considered a good line for reidentification. The local cross-correlation is evaluated at each candidate reidentified line (using a window of nlocal_cc), and is then used to score the the reidentified lines to arrive at the final set of good reidentifications                                                                                                                          
+``nlocal_cc``         int                        ..                                                                     11                Size of pixel window used for local cross-correlation computation for each arc line. If not an odd number one will be added to it to make it odd.                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+``rms_threshold``     float, list, ndarray       ..                                                                     0.15              Minimum RMS for keeping a slit/order solution. This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+``match_toler``       float                      ..                                                                     2.0               Matching tolerance in pixels when searching for new lines. This is the difference in pixels between the wavlength assigned to an arc line by an iteration of the wavelength solution to the wavelength in the line list. This parameter is also used as the matching tolerance in pixels for a line reidentification. A good line match must match within this tolerance to the shifted and stretched archive spectrum, and the archive wavelength solution at this match must be within match_toler dispersion elements from the line in line list.                                                 
+``func``              str                        ..                                                                     ``legendre``      Function used for wavelength solution fits                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+``n_first``           int                        ..                                                                     2                 Order of first guess fit to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+``n_final``           int, float, list, ndarray  ..                                                                     4                 Order of final fit to the wavelength solution. This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+``sigrej_first``      float                      ..                                                                     2.0               Number of sigma for rejection for the first guess to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+``sigrej_final``      float                      ..                                                                     3.0               Number of sigma for rejection for the final guess to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+``wv_cen``            float                      ..                                                                     0.0               Central wavelength. Backwards compatibility with basic and semi-brute algorithms.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+``disp``              float                      ..                                                                     0.0               Dispersion. Backwards compatibility with basic and semi-brute algorithms.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+``numsearch``         int                        ..                                                                     20                Number of brightest arc lines to search for in preliminary identification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+``nfitpix``           int                        ..                                                                     5                 Number of pixels to fit when deriving the centroid of the arc lines (an odd number is best)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+``IDpixels``          int, float, list           ..                                                                     ..                One or more pixels at which to manually identify a line                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``IDwaves``           int, float, list           ..                                                                     ..                Wavelengths of the manually identified lines                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+``medium``            str                        ``vacuum``, ``air``                                                    ``vacuum``        Medium used when wavelength calibrating the data.  Options are: vacuum, air                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+``frame``             str                        ``heliocentric``, ``barycentric``                                      ``heliocentric``  Frame of reference for the wavelength calibration.  Options are: heliocentric, barycentric                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+====================  =========================  =====================================================================  ================  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -234,8 +235,9 @@ Key                 Type        Options                                      Def
 ``maxshift``        int, float  ..                                           0.15          Maximum shift in trace crude                                                                                                                                                                                                                                                                                                                                                                                                                
 ``pad``             int         ..                                           0             Integer number of pixels to consider beyond the slit edges.                                                                                                                                                                                                                                                                                                                                                                                 
 ``sigdetect``       int, float  ..                                           20.0          Sigma detection threshold for edge detection                                                                                                                                                                                                                                                                                                                                                                                                
-``fracignore``      float       ..                                           0.01          If a slit spans less than this fraction over the spectral size of the detector, it will be ignored (and reconstructed when/if an 'order' PCA analysis is performed).                                                                                                                                                                                                                                                                        
 ``min_slit_width``  float       ..                                           6.0           If a slit spans less than this number of arcseconds over the spatial direction of the detector, it will be ignored. Use this option to prevent the of alignment (box) slits from multislit reductions, which typically cannot be reduced without a significant struggle                                                                                                                                                                     
+``add_slits``       str, list   ..                                           []            Add one or more user-defined slits.  This is a list of lists, with each sub-list having syntax (all integers):  det:x0:x1:yrow  For example,  2:2121:2322:2000,3:1201:1500:2000                                                                                                                                                                                                                                                             
+``rm_slits``        str, list   ..                                           []            Remove one or more user-specified slits.  This is a list of lists, with each sub-list having syntax (all integers):  det:xcen:yrow  For example,  2:2121:2000,3:1500:2000                                                                                                                                                                                                                                                                   
 ``diffpolyorder``   int         ..                                           2             Order of the 2D function used to fit the 2d solution for the spatial size of all orders.                                                                                                                                                                                                                                                                                                                                                    
 ``single``          list        ..                                           []            Add a single, user-defined slit based on its location on each detector.  Syntax is a list of values, 2 per detector, that define the slit according to column values.  The second value (for the right edge) must be greater than 0 to be applied.  LRISr example: setting single = -1, -1, 7, 295 means the code will skip the user-definition for the first detector but adds one for the second.  None means no user-level slits defined.
 ``sobel_mode``      str         ``nearest``, ``constant``                    ``nearest``   Mode for Sobel filtering.  Default is 'nearest' but the developers find 'constant' works best for DEIMOS.                                                                                                                                                                                                                                                                                                                                   
@@ -252,18 +254,21 @@ WaveTiltsPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.WaveTiltsPar`
 
-===============  =========================  =============================================================  ============  ===================================================================================================================================
-Key              Type                       Options                                                        Default       Description                                                                                                                        
-===============  =========================  =============================================================  ============  ===================================================================================================================================
-``idsonly``      bool                       ..                                                             False         Only use the arc lines that have an identified wavelength to trace tilts                                                           
-``tracethresh``  int, float, list, ndarray  ..                                                             20.0          Significance threshold for arcs to be used in tracing wavelength tilts.                                                            
-``order``        int                        ..                                                             2             Order of the polynomial function to be used for the tilt of an individual arc line.  Must be 1 for echelle data (Echelle pipeline).
-``function``     str                        ..                                                             ``legendre``  Type of function for arc line fits                                                                                                 
-``yorder``       int                        ..                                                             4             Order of the polynomial function to be used to fit the tilts along the y direction.                                                
-``func2D``       str                        ..                                                             ``legendre``  Type of function for 2D fit                                                                                                        
-``method``       str                        ``pca``, ``spca``, ``spline``, ``interp``, ``perp``, ``zero``  ``spca``      Method used to trace the tilt of the slit along an order.  Options are: pca, spca, spline, interp, perp, zero                      
-``params``       int, list                  ..                                                             1, 1, 0       Parameters to use for the provided method.  TODO: Need more explanation                                                            
-===============  =========================  =============================================================  ============  ===================================================================================================================================
+===================  =========================  =======  ==============  =========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                  Type                       Options  Default         Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+===================  =========================  =======  ==============  =========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``idsonly``          bool                       ..       False           Only use the arc lines that have an identified wavelength to trace tilts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+``tracethresh``      int, float, list, ndarray  ..       20.0            Significance threshold for arcs to be used in tracing wavelength tilts. This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                                                                                                                    
+``sig_neigh``        int, float                 ..       10.0            Significance threshold for arcs to be used in line identification for the purpose of identifying neighboring lines.The tracethresh parameter above determines the significance threshold of lines that will be traced, but these lines must be at least nfwhm_neigh fwhm away from neighboring lines. This parameter determines the significance above which a line must be to be considered a possible colliding neighbor. A low value of sig_neigh will result in an overall larger number of lines, which will result in more lines above tracethresh getting rejected
+``nfwhm_neigh``      int, float                 ..       3.0             Required separation between neighboring arc lines for them to be considered for tilt tracing in units of the the spectral fwhm (see wavelength parset where fwhm is defined)                                                                                                                                                                                                                                                                                                                                                                                             
+``maxdev_tracefit``  int, float                 ..       0.2             Maximum absolute deviation (in units of fwhm) for the legendre polynomial fits to individual arc line tilt fits during iterative trace fitting (flux weighted, then gaussian weighted)                                                                                                                                                                                                                                                                                                                                                                                   
+``sigrej_trace``     int, float                 ..       3.0             Outlier rejection significance to determine which traced arc lines should be included in the global fit                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+``spat_order``       int, float, list, ndarray  ..       3               Order of the legendre polynomial to be fit to the the tilt of an arc line. This parameter determinesboth the orer of the *individual* arc line tilts, as well as the order of the spatial direction of the2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across theslit/order. This can be a single number or a list/array providing the value for each slit                                                                                                                                                           
+``spec_order``       int, float, list, ndarray  ..       4               Order of the spectral direction of the 2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the slit/order. This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                             
+``func2d``           str                        ..       ``legendre2d``  Type of function for 2D fit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``maxdev2d``         int, float                 ..       0.25            Maximum absolute deviation (in units of fwhm) rejection threshold used to determines which pixels in global 2d fits to arc line tilts are rejected because they deviate from the model by more than this value                                                                                                                                                                                                                                                                                                                                                           
+``sigrej2d``         int, float                 ..       3.0             Outlier rejection significance determining which pixels on a fit to an arc line tilt are rejected by the global 2D fit                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+===================  =========================  =======  ==============  =========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -323,7 +328,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.ScienceImagePar`
 Key                  Type        Options  Default  Description                                                                     
 ===================  ==========  =======  =======  ================================================================================
 ``bspline_spacing``  int, float  ..       0.6      Break-point spacing for the bspline fit                                         
-``maxnumber``        int         ..       ..       Maximum number of objects to extract in a science frame.  Use None for no limit.
+``maxnumber``        int         ..       10       Maximum number of objects to extract in a science frame.  Use None for no limit.
 ``manual``           list        ..       ..       List of manual extraction parameter sets                                        
 ``nodding``          bool        ..       False    Use the nodded frames to perform the sky subtraction                            
 ===================  ==========  =======  =======  ================================================================================
@@ -336,13 +341,13 @@ FlexurePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.FlexurePar`
 
-============  ==========  =================================  ==========  ====================================================================================================================================================================================================
-Key           Type        Options                            Default     Description                                                                                                                                                                                         
-============  ==========  =================================  ==========  ====================================================================================================================================================================================================
-``method``    str         ``boxcar``, ``slitcen``, ``skip``  ``boxcar``  Method used to correct for flexure. Use None for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects.  Options are: None, boxcar, slitcen, skip
-``maxshift``  int, float  ..                                 20          Maximum allowed flexure shift in pixels.                                                                                                                                                            
-``spectrum``  str         ..                                 ..          Archive sky spectrum to be used for the flexure correction.                                                                                                                                         
-============  ==========  =================================  ==========  ====================================================================================================================================================================================================
+============  ==========  =================================  ========  ====================================================================================================================================================================================================
+Key           Type        Options                            Default   Description                                                                                                                                                                                         
+============  ==========  =================================  ========  ====================================================================================================================================================================================================
+``method``    str         ``boxcar``, ``slitcen``, ``skip``  ``skip``  Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects.  Options are: None, boxcar, slitcen, skip
+``maxshift``  int, float  ..                                 20        Maximum allowed flexure shift in pixels.                                                                                                                                                            
+``spectrum``  str         ..                                 ..        Archive sky spectrum to be used for the flexure correction.                                                                                                                                         
+============  ==========  =================================  ========  ====================================================================================================================================================================================================
 
 
 ----
@@ -405,7 +410,6 @@ Alterations to the default parameters are::
           nonlinear_counts = 56360.1
       [[slits]]
           sigdetect = 50.0
-          fracignore = 0.02
   [scienceframe]
       exprng = 30, None
       [[process]]
@@ -482,8 +486,17 @@ Alterations to the default parameters are::
           rms_threshold = 0.2
       [[slits]]
           sigdetect = 50.0
+      [[tilts]]
+          tracethresh = 25
+          maxdev_tracefit = 1.0
+          spat_order = 4
+          spec_order = 7
+          maxdev2d = 1.0
+          sigrej2d = 5.0
   [scienceframe]
       exprng = 29, None
+  [scienceimage]
+      bspline_spacing = 0.8
 
 KECK NIRES
 ----------
@@ -493,7 +506,7 @@ Alterations to the default parameters are::
       spectrograph = keck_nires
   [calibrations]
       [[biasframe]]
-          useframe = overscan
+          useframe = none
       [[darkframe]]
           exprng = 20, None
       [[arcframe]]
@@ -511,25 +524,20 @@ Alterations to the default parameters are::
       [[wavelengths]]
           method = reidentify
           echelle = True
-          ech_norder_coeff = 5
+          ech_norder_coeff = 6
           ech_sigrej = 3.0
           lamps = OH_NIRES
-          nonlinear_counts = 49806.6
+          nonlinear_counts = 760000.0
           reid_arxiv = keck_nires.json
           rms_threshold = 0.2
-      [[slits]]
-          polyorder = 5
-          maxshift = 3.0
-          pcatype = order
       [[tilts]]
-          tracethresh = 10, 10, 10, 10, 10
+          tracethresh = 10.0
+          spec_order = 3
   [scienceframe]
       exprng = 20, None
       [[process]]
           satpix = nothing
           sigclip = 20.0
-  [flexure]
-      method = skip
 
 KECK NIRSPEC
 ------------
@@ -557,13 +565,12 @@ Alterations to the default parameters are::
           number = 1
           exprng = None, 5
       [[wavelengths]]
+          lamps = OH_R24000
           rms_threshold = 0.2
       [[tilts]]
           tracethresh = 10.0
   [scienceframe]
       exprng = 1, None
-  [flexure]
-      method = skip
 
 SHANE KASTb
 -----------
@@ -596,7 +603,12 @@ Alterations to the default parameters are::
       [[wavelengths]]
           lamps = CdI, HgI, HeI
           nonlinear_counts = 49806.6
+          rms_threshold = 0.2
           n_first = 1
+      [[tilts]]
+          maxdev_tracefit = 0.02
+          spec_order = 5
+          maxdev2d = 0.02
   [scienceframe]
       exprng = 61, None
 
@@ -664,7 +676,7 @@ Alterations to the default parameters are::
           exprng = 1, 61
       [[wavelengths]]
           lamps = NeI, HgI, HeI, ArI
-          nonlinear_counts = 49806.6
+          nonlinear_counts = 91200.0
   [scienceframe]
       exprng = 61, None
 
@@ -690,8 +702,6 @@ Alterations to the default parameters are::
           number = 3
       [[standardframe]]
           number = 1
-      [[tilts]]
-          params = 1, 1, 1
   [scienceframe]
       exprng = 1, None
 
@@ -751,9 +761,21 @@ Alterations to the default parameters are::
               overscan = median
       [[standardframe]]
           number = 1
+      [[wavelengths]]
+          method = reidentify
+          echelle = True
+          ech_norder_coeff = 5
+          ech_sigrej = 3.0
+          lamps = ThAr_XSHOOTER_UVB
+          nonlinear_counts = 55900.0
+          reid_arxiv = vlt_xshooter_uvb1x1_iraf.json
+          rms_threshold = 0.5
       [[slits]]
           polyorder = 5
           maxshift = 0.5
+          sigdetect = 8.0
+  [scienceframe]
+      useframe = overscan
 
 VLT XShooter_VIS
 ----------------
@@ -763,8 +785,10 @@ Alterations to the default parameters are::
       spectrograph = vlt_xshooter_vis
   [calibrations]
       [[biasframe]]
+          useframe = overscan
           number = 5
       [[arcframe]]
+          useframe = overscan
           number = 1
           [[[process]]]
               overscan = median
@@ -772,17 +796,30 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
       [[traceframe]]
+          useframe = overscan
           number = 3
           [[[process]]]
               overscan = median
       [[standardframe]]
           number = 1
+      [[wavelengths]]
+          method = reidentify
+          echelle = True
+          ech_sigrej = 3.0
+          lamps = ThAr_XSHOOTER_VIS
+          nonlinear_counts = 56360.1
+          fwhm = 11.0
+          reid_arxiv = vlt_xshooter_vis1x1.json
+          rms_threshold = 0.5
       [[slits]]
           polyorder = 6
           maxshift = 0.5
           sigdetect = 8.0
       [[tilts]]
-          tracethresh = 20.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0
+          tracethresh = 15
+          spec_order = 5
+  [scienceframe]
+      useframe = overscan
 
 VLT XShooter_NIR
 ----------------
@@ -806,18 +843,24 @@ Alterations to the default parameters are::
       [[wavelengths]]
           method = reidentify
           echelle = True
+          ech_nspec_coeff = 5
+          ech_norder_coeff = 5
           ech_sigrej = 3.0
           lamps = OH_XSHOOTER
-          nonlinear_counts = 56360.1
+          nonlinear_counts = 172000.0
+          sigdetect = 10.0
+          fwhm = 5.0
           reid_arxiv = vlt_xshooter_nir.json
           rms_threshold = 0.25
       [[slits]]
           polyorder = 5
           maxshift = 0.5
-          sigdetect = 600.0
+          sigdetect = 120.0
           pcatype = order
       [[tilts]]
-          tracethresh = 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 20, 20, 20, 20, 10
+          tracethresh = 25.0
+          maxdev_tracefit = 0.04
+          maxdev2d = 0.04
   [scienceframe]
       [[process]]
           satpix = nothing
@@ -846,19 +889,25 @@ Alterations to the default parameters are::
           number = 1
           exprng = None, 30
       [[wavelengths]]
+          method = reidentify
+          echelle = True
+          ech_nspec_coeff = 3
+          ech_norder_coeff = 5
+          ech_sigrej = 3.0
           lamps = OH_GNIRS
-          nonlinear_counts = 4970.0
-          rms_threshold = 0.2
+          nonlinear_counts = 63900.0
+          reid_arxiv = gemini_gnirs.json
+          cc_thresh = 0.6
+          rms_threshold = 1.0
+          n_final = 1, 3, 3, 3, 3, 3
       [[slits]]
           polyorder = 5
-          number = 6
           maxshift = 0.5
-          sigdetect = 300
-          min_slit_width = 4.0
-          pcatype = order
-          pcapar = 4, 3, 2, 1, 0
+          sigdetect = 220.0
       [[tilts]]
-          tracethresh = 10, 10, 10, 10, 10
+          tracethresh = 5.0, 10, 10, 10, 10, 10
+          sig_neigh = 5.0
+          nfwhm_neigh = 2.0
   [scienceframe]
       exprng = 30, None
 
@@ -883,9 +932,8 @@ Alterations to the default parameters are::
       [[standardframe]]
           number = 1
       [[wavelengths]]
+          lamps = CuI, ArI, ArII
           rms_threshold = 0.4
-      [[slits]]
-          fracignore = 0.02
 
 GEMINI-N GMOS-N
 ---------------
@@ -908,9 +956,8 @@ Alterations to the default parameters are::
       [[standardframe]]
           number = 1
       [[wavelengths]]
+          lamps = CuI, ArI, ArII
           rms_threshold = 0.4
-      [[slits]]
-          fracignore = 0.02
 
 GEMINI-N GMOS-N
 ---------------
@@ -933,9 +980,8 @@ Alterations to the default parameters are::
       [[standardframe]]
           number = 1
       [[wavelengths]]
+          lamps = CuI, ArI, ArII
           rms_threshold = 0.4
-      [[slits]]
-          fracignore = 0.02
 
 MAGELLAN FIRE
 -------------
@@ -977,8 +1023,6 @@ Alterations to the default parameters are::
       [[process]]
           satpix = nothing
           sigclip = 20.0
-  [flexure]
-      method = skip
 
 MAGELLAN MAGE
 -------------
@@ -1020,8 +1064,6 @@ Alterations to the default parameters are::
       [[process]]
           satpix = nothing
           sigclip = 20.0
-  [flexure]
-      method = skip
 
 KECK HIRES_R
 ------------
@@ -1058,4 +1100,175 @@ Alterations to the default parameters are::
       [[process]]
           satpix = nothing
           sigclip = 20.0
+
+LBT MODS1R
+----------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = lbt_mods1r
+  [calibrations]
+      [[biasframe]]
+          number = 5
+          exprng = None, 1
+      [[darkframe]]
+          exprng = 999999, None
+      [[arcframe]]
+          number = 1
+          exprng = None, 60
+          [[[process]]]
+              sigrej = -1
+      [[pixelflatframe]]
+          number = 5
+          exprng = 0, None
+      [[pinholeframe]]
+          exprng = 999999, None
+      [[traceframe]]
+          number = 5
+          exprng = 0, None
+      [[standardframe]]
+          number = 1
+          exprng = 1, 200
+      [[wavelengths]]
+          lamps = OH_MODS
+          nonlinear_counts = 64879.65
+          fwhm = 10.0
+          rms_threshold = 1.0
+          n_first = 1
+      [[slits]]
+          sigdetect = 300
+      [[tilts]]
+          maxdev_tracefit = 0.02
+          spat_order = 5
+          spec_order = 5
+          maxdev2d = 0.02
+  [scienceframe]
+      exprng = 200, None
+
+LBT MODS1B
+----------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = lbt_mods1b
+  [calibrations]
+      [[biasframe]]
+          number = 5
+          exprng = None, 1
+      [[darkframe]]
+          exprng = 999999, None
+      [[arcframe]]
+          number = 1
+          exprng = None, 60
+          [[[process]]]
+              sigrej = -1
+      [[pixelflatframe]]
+          number = 5
+          exprng = 0, None
+      [[pinholeframe]]
+          exprng = 999999, None
+      [[traceframe]]
+          number = 5
+          exprng = 0, None
+      [[standardframe]]
+          number = 1
+          exprng = 1, 200
+      [[wavelengths]]
+          lamps = XeI, ArII, ArI, NeI, KrI
+          nonlinear_counts = 64879.65
+          rms_threshold = 0.2
+          n_first = 1
+      [[slits]]
+          sigdetect = 300
+      [[tilts]]
+          maxdev_tracefit = 0.02
+          spec_order = 5
+          maxdev2d = 0.02
+  [scienceframe]
+      exprng = 200, None
+
+LBT MODS2R
+----------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = lbt_mods2r
+  [calibrations]
+      [[biasframe]]
+          number = 5
+          exprng = None, 1
+      [[darkframe]]
+          exprng = 999999, None
+      [[arcframe]]
+          number = 1
+          exprng = None, 60
+          [[[process]]]
+              sigrej = -1
+      [[pixelflatframe]]
+          number = 5
+          exprng = 0, None
+      [[pinholeframe]]
+          exprng = 999999, None
+      [[traceframe]]
+          number = 5
+          exprng = 0, None
+      [[standardframe]]
+          number = 1
+          exprng = 1, 200
+      [[wavelengths]]
+          lamps = OH_MODS
+          nonlinear_counts = 64879.65
+          fwhm = 10.0
+          rms_threshold = 1.0
+          n_first = 1
+      [[slits]]
+          sigdetect = 300
+      [[tilts]]
+          maxdev_tracefit = 0.02
+          spec_order = 5
+          maxdev2d = 0.02
+  [scienceframe]
+      exprng = 200, None
+
+LBT MODS2B
+----------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = lbt_mods2b
+  [calibrations]
+      [[biasframe]]
+          number = 5
+          exprng = None, 1
+      [[darkframe]]
+          exprng = 999999, None
+      [[arcframe]]
+          number = 1
+          exprng = None, 60
+          [[[process]]]
+              sigrej = -1
+      [[pixelflatframe]]
+          number = 5
+          exprng = 0, None
+      [[pinholeframe]]
+          exprng = 999999, None
+      [[traceframe]]
+          number = 5
+          exprng = 0, None
+      [[standardframe]]
+          number = 1
+          exprng = 1, 200
+      [[wavelengths]]
+          lamps = XeI, ArII, ArI, NeI, KrI
+          nonlinear_counts = 64879.65
+          rms_threshold = 0.2
+          n_first = 1
+      [[slits]]
+          sigdetect = 300
+      [[tilts]]
+          maxdev_tracefit = 0.02
+          spec_order = 5
+          maxdev2d = 0.02
+  [scienceframe]
+      exprng = 200, None
 

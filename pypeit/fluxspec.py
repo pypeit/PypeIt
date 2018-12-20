@@ -40,11 +40,12 @@ class FluxSpec(masterframe.MasterFrame):
       Filename of a spec1d file to be fluxed
     spectrograph : str
       Name of the spectrograph, e.g. shane_kast_blue
-      Used only to set settings for calls to the Class outside of PyepIt
+      Used only to set settings for calls to the Class outside of PypeIt
+      This includes extinction data..
     sens_file : str
       Filename of a sensitivity function file to be input
-    setup : str
-      Setup name (for MasterFrame)
+    master_key : str
+      Setup code (for MasterFrame)
     settings : dict-like
       Settings to guide the fluxing
       Key ones are ['mosaic']['longitude', 'latitude', 'elevation']
@@ -83,7 +84,7 @@ class FluxSpec(masterframe.MasterFrame):
 
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
                  std_specobjs=None, std_header=None, spectrograph=None, multi_det=None,
-                 telluric=False, setup=None, master_dir=None, mode=None, debug=False):
+                 telluric=False, master_key=None, master_dir=None, mode=None,debug=False):
 
         # Load standard files
         std_spectro = None
@@ -138,19 +139,18 @@ class FluxSpec(masterframe.MasterFrame):
         self.spectrograph = load_spectrograph(_spectrograph)
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key,
                                          master_dir=master_dir, mode=mode)
         # Get the extinction data
         self.extinction_data = None
         if self.spectrograph is not None:
-            self.extinction_data \
-                    = flux.load_extinction_data(self.spectrograph.telescope['longitude'],
-                                                self.spectrograph.telescope['latitude'])
+            self.extinction_data = flux.load_extinction_data(
+                self.spectrograph.telescope['longitude'], self.spectrograph.telescope['latitude'])
         elif self.sci_header is not None and 'LON-OBS' in self.sci_header.keys():
             self.extinction_data \
                     = flux.load_extinction_data(self.sci_header['LON-OBS'],
                                                 self.sci_header['LAT-OBS'])
-       
+
         # Once the spectrograph is instantiated, can also set the
         # extinction data
         # Parameters

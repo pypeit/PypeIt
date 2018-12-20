@@ -223,7 +223,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     return viewer, ch
 
 
-def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pstep=1, clear = False):
+def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pstep=50, clear = False):
     """ Overplot slits on image in Ginga
     Parameters
     ----------
@@ -289,7 +289,7 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pste
 
 
 def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
-               rotate=False, pstep=1, yval=None):
+               rotate=False, pstep=50, yval=None):
     """
     trace: ndarray
       x-positions on the detector

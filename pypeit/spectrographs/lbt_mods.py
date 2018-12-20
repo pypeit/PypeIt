@@ -385,7 +385,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
     """
     def __init__(self):
         # Get it started
-        super(LBTMODS2RSpectrograph, self).__init__()
+        super(LBTMODS2BSpectrograph, self).__init__()
         self.spectrograph = 'lbt_mods2b'
         self.camera = 'MODS2B'
         self.detector = [

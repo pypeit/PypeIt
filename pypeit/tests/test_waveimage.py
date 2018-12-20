@@ -28,7 +28,7 @@ def test_build_me():
     spectrograph, tslits_dict, tilts_dict, wv_calib \
             = load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True, wvcalib=True)
     # Instantiate
-    setup = 'A_01_aa'
+    master_key = 'A_01_aa'
     root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
                     else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     master_dir = root_path+'_'+spectrograph.spectrograph
@@ -36,7 +36,7 @@ def test_build_me():
     nslits = tslits_dict['lcen'].shape[1]
     maskslits = np.zeros(nslits, dtype=bool)
 
-    wvImg = waveimage.WaveImage(tslits_dict, tilts_dict['tilts'], wv_calib, spectrograph, setup=setup,
+    wvImg = waveimage.WaveImage(tslits_dict, tilts_dict['tilts'], wv_calib, spectrograph, master_key=master_key,
                                 maskslits=maskslits, master_dir=master_dir, mode=mode)
     # Build
     wave = wvImg._build_wave()
