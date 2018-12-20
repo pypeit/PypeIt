@@ -288,7 +288,7 @@ class WaveTilts(masterframe.MasterFrame):
         gdslits = np.where(self.mask == 0)[0]
 
         # Final tilts image
-        self.final_tilts = np.zeros_like(self.slitmask_science)
+        self.final_tilts = np.zeros(self.shape_science,dtype=float)
         max_spat_dim = (np.asarray(self.par['spat_order']) + 1).max()
         max_spec_dim = (np.asarray(self.par['spec_order']) + 1).max()
         self.coeffs = np.zeros((max_spec_dim, max_spat_dim,self.nslits))

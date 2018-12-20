@@ -131,6 +131,7 @@ class Calibrations(object):
         self.frame = None
         self.binning = None
         self.calib_ID = None
+        self.master_key_dict = {}
 
         # Steps
         self.steps = []
@@ -157,6 +158,7 @@ class Calibrations(object):
         self.msillumflat = None
         self.mswave = None
         self.cailb_ID = None
+        self.master_key_dict = {}
 
     def check_for_previous(self, ftype, master_key):
         """
@@ -210,6 +212,8 @@ class Calibrations(object):
 
         # Reset internals to None
         self._reset_internals()
+        # Initialize the master key dict for this science/standard frame
+        self.master_key_dict['frame'] = self.fitstbl.master_key(frame, det=det)
 
     def get_arc(self):
         """
@@ -232,6 +236,7 @@ class Calibrations(object):
         arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
         self.arc_file_list = self.fitstbl.frame_paths(arc_rows)
         self.arc_master_key = self.fitstbl.master_key(arc_rows[0], det=self.det)
+        self.master_key_dict['arc'] = self.arc_master_key
 
         prev_build = self.check_for_previous('arc', self.arc_master_key)
         if prev_build:
@@ -280,6 +285,7 @@ class Calibrations(object):
             self.bias_master_key = self.fitstbl.master_key(bias_rows[0], det=self.det)
         else:  # Allow for other bias modes
             self.bias_master_key = self.fitstbl.master_key(self.frame, det=self.det)
+        self.master_key_dict['bias'] = self.bias_master_key
 
         # Grab from internal dict (or hard-drive)?
         prev_build = self.check_for_previous('bias', self.bias_master_key)
@@ -331,6 +337,8 @@ class Calibrations(object):
 
         # Generate a bad pixel mask (should not repeat)
         self.bpm_master_key = self.fitstbl.master_key(self.frame, det=self.det)
+        self.master_key_dict['bpm'] = self.bpm_master_key
+
         prev_build = self.check_for_previous('bpm', self.bpm_master_key)
         if prev_build:
             self.msbpm = self.calib_dict[self.bpm_master_key]['bpm']
@@ -404,6 +412,7 @@ class Calibrations(object):
         else:  # Allow for user-supplied file (e.g. LRISb)
             self.pixflat_master_key = self.fitstbl.master_key(self.frame, det=self.det)
 
+        self.master_key_dict['flat'] = self.pixflat_master_key
         # Return already generated data
         prev_build1 = self.check_for_previous('normpixelflat', self.pixflat_master_key)
         prev_build2 = self.check_for_previous('illumflat', self.pixflat_master_key)
@@ -535,6 +544,7 @@ class Calibrations(object):
         self.trace_image_files = self.fitstbl.frame_paths(trace_rows)
 
         self.trace_master_key = self.fitstbl.master_key(trace_rows[0], det=self.det)
+        self.master_key_dict['trace'] = self.trace_master_key
 
         # Return already generated data
         prev_build = self.check_for_previous('trace', self.trace_master_key)
@@ -643,6 +653,7 @@ class Calibrations(object):
 
         # Save & return
         self.calib_dict[self.arc_master_key]['wave'] = self.mswave
+
         return self.mswave
 
     def get_wv_calib(self):

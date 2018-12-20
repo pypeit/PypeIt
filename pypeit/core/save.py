@@ -551,7 +551,7 @@ def save_obj_info(all_specobjs, spectrograph, basename, science_dir, binning=Non
                       format='ascii.fixed_width', overwrite=True)
 
 
-def save_2d_images(sci_output, rawfile, ext0, setup, mfdir,
+def save_2d_images(sci_output, rawfile, ext0, master_key_dict, mfdir,
                    outdir, basename, clobber=True, update_det=None):
     """ Write 2D images to the hard drive
 
@@ -560,7 +560,7 @@ def save_2d_images(sci_output, rawfile, ext0, setup, mfdir,
         fitstbl: Table
         scidx: int
         ext0: int
-        setup: str
+        master_key_dict: str
         mfdir: str
         outdir: str
         basename: str
@@ -596,9 +596,12 @@ def save_2d_images(sci_output, rawfile, ext0, setup, mfdir,
         # PYPEIT
         prihdu.header['PIPELINE'] = str('PYPEIT')
         prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
-        ssetup = setup.split('_') #settings.argflag['reduce']['masters']['setup'].split('_')
-        prihdu.header['PYPCNFIG'] = str(ssetup[0])
-        prihdu.header['PYPCALIB'] = str(ssetup[1])
+        prihdu.header['FRAMMKEY'] = master_key_dict['frame']
+        prihdu.header['BPMMKEY'] = master_key_dict['bpm']
+        prihdu.header['BIASMKEY']  = master_key_dict['bias']
+        prihdu.header['ARCMKEY']  = master_key_dict['arc']
+        prihdu.header['TRACMKEY']  = master_key_dict['trace']
+        prihdu.header['FLATMKEY']  = master_key_dict['flat']
         prihdu.header['PYPMFDIR'] = str(mfdir)
 
     # Fill in the images

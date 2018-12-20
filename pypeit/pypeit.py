@@ -179,7 +179,8 @@ class PypeIt(object):
 
             # TODO: Could put everything in this loop into a new
             # function: reduce_calibgroup(i)
-            
+            # TODO JFH: We don't need more functions;)
+
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
 
@@ -191,8 +192,8 @@ class PypeIt(object):
             u_combid_std= np.unique(self.fitstbl['comb_id'][grp_standards])
             for j, comb_id in enumerate(u_combid_std):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
-                if len(frames)>1:
-                    debugger.set_trace()  # NOT DEVELOPED YET
+                #if len(frames)>1:
+                #    debugger.set_trace()  # NOT DEVELOPED YET
                 # Bg frame(s)?
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 std_dict = self.reduce_exposure(frames, bg_frames=bg_frames,reuse_masters=reuse_masters)
@@ -309,9 +310,6 @@ class PypeIt(object):
             #TODO Is the right behavior to just use the first frame?
             self.caliBrate.set_config(self.frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
-            from IPython import embed
-            embed()
-
             # Extract
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
@@ -484,9 +482,9 @@ class PypeIt(object):
         # information to fitstbl?
         rawfile = self.fitstbl.frame_paths(frame)
         # TODO: Make sure self.det is correct!
-        master_key = self.fitstbl.master_key(frame, det=self.det)
+        #master_key = self.fitstbl.master_key(frame, det=self.det)
         save.save_2d_images(sci_dict, rawfile, self.spectrograph.primary_hdrext,
-                            master_key, self.caliBrate.master_dir, scidir, basename,
+                            self.caliBrate.master_key_dict, self.caliBrate.master_dir, scidir, basename,
                             update_det=self.par['rdx']['detnum'])
         return all_specobjs
 
