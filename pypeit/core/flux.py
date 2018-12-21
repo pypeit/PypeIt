@@ -359,7 +359,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     ## ToDo: currently I'm fitting the sensfunc in the masked region with a polynomial, should we change the algorithm to
     ##   fit polynomial first and then bsline the poly-subtracted flux ???
     ## keep tell free region for poly fit. tell2 is different from tell since tell2 include more small trunk of telluric free
-    ## regions. tell2 might not suitable for the bspline fitting. We need to select a more robust telluric region for both purpose.
+    ## regions. tell2 might be not suitable for the bspline fitting. We need to select a more robust telluric region for both purpose.
     tell2 = np.any([((wave_star >= 7580.00 * units.AA) & (wave_star <= 7750.00 * units.AA)),
                    ((wave_star >= 7160.00 * units.AA) & (wave_star <= 7340.00 * units.AA)),
                    ((wave_star >= 6860.00 * units.AA) & (wave_star <= 6930.00 * units.AA)),
