@@ -45,9 +45,7 @@ def fitstbl():
 
 @pytest.fixture
 def multi_caliBrate(fitstbl):
-    setup = 'A_01_aa'
     det = 1
-    sci_ID = 1
     spectrograph = load_kast_blue_masters(get_spectrograph=True)[0]
 
     # Only changing the defaults
@@ -67,14 +65,15 @@ def multi_caliBrate(fitstbl):
     multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl, spectrograph=spectrograph,
                                                         par=calib_par, redux_path=redux_path,
                                                         save_masters=False, write_qa=False)
-    multi_caliBrate.reset(setup, det, sci_ID, calib_par)
+    # Find the first science row
+    frame = fitstbl.find_frames('science', index=True)[0]
+    # Set
+    multi_caliBrate.set_config(frame, det, par=calib_par)
     return multi_caliBrate
-
 
 def test_instantiate(fitstbl):
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
     print(caliBrate)
-
 
 def test_pixlocn(multi_caliBrate):
     multi_caliBrate.shape = (2048,350)
@@ -110,7 +109,7 @@ def test_slits(multi_caliBrate):
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     # Run
-    tslits_dict, maskslits = multi_caliBrate.get_slits()
+    tslits_dict, maskslits = multi_caliBrate.get_slits(write_qa=False)
     # Test
     assert isinstance(tslits_dict, dict)
     assert isinstance(maskslits, np.ndarray)
@@ -123,7 +122,7 @@ def test_wv_calib(multi_caliBrate):
     multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
-    multi_caliBrate.get_slits()
+    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_arc()
     # Run
     wv_calib, maskslits = multi_caliBrate.get_wv_calib()
@@ -140,7 +139,7 @@ def test_tilts(multi_caliBrate):
     multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
-    multi_caliBrate.get_slits()
+    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_arc()
     multi_caliBrate.get_wv_calib()
     # Run
@@ -156,7 +155,7 @@ def test_flat(multi_caliBrate):
     multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
-    multi_caliBrate.get_slits()
+    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_arc()
     multi_caliBrate.get_wv_calib()
     multi_caliBrate.get_tilts()
@@ -173,7 +172,7 @@ def test_waveimg(multi_caliBrate):
     multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
-    multi_caliBrate.get_slits()
+    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_arc()
     multi_caliBrate.get_wv_calib()
     multi_caliBrate.get_tilts()

@@ -26,7 +26,7 @@ class WaveImage(masterframe.MasterFrame):
     wv_calib : dict
       wavelength solution dictionary
     settings : dict
-    setup : str
+    master_key : str
     maskslits : ndarray
       True = skip this slit
     slitpix : ndarray
@@ -45,11 +45,11 @@ class WaveImage(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'wave'
 
-    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, setup=None, master_dir=None, mode=None,
+    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, master_key=None, master_dir=None, mode=None,
                  maskslits=None):
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key,
                                          master_dir=master_dir, mode=mode)
 
         # Required parameters (but can be None)
@@ -110,7 +110,7 @@ class WaveImage(masterframe.MasterFrame):
             else:
                 iwv_calib = self.wv_calib[str(slit)]
                 tmpwv = utils.func_val(iwv_calib['fitc'], piximg[thismask], iwv_calib['function'],
-                                       minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
+                                   minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
             self.wave[thismask] = tmpwv
         # Step
         self.steps.append(inspect.stack()[0][3])

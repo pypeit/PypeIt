@@ -33,7 +33,7 @@ class BPMImage(object):
 
     Parameters
     ----------
-    spectrograph : str (optional)
+    spectrograph : str or Spectrograph
        Used to specify properties of the detector (for processing)
        Attempt to set with settings['run']['spectrograph'] if not input
     settings : dict (optional)
@@ -63,7 +63,7 @@ class BPMImage(object):
     frametype = 'bpm'
 
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph=None, shape=None, filename=None, det=None, msbias=None):
+    def __init__(self, spectrograph, shape=None, filename=None, det=None, msbias=None):
 
         # This function interprets both strings and spectrograph
         # instances now

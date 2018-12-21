@@ -92,7 +92,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['satpix'] ='nothing'
 
         # Set slits and tilts parameters
-        par['calibrations']['tilts']['order'] = 2
+#        par['calibrations']['tilts']['order'] = 2
         par['calibrations']['tilts']['tracethresh'] = [10, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 10]
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['sigdetect'] = 50
@@ -161,7 +161,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         return hdr_keys
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'idname','target', 'exptime']
+        return ['filename', 'date', 'frametype', 'idname','target', 'exptime', 'setup', 'calib',
+                'obj_id', 'bkg_id']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

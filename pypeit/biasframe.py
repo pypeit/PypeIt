@@ -16,6 +16,10 @@ from pypeit import debugger
 
 class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     """
+
+    .. todo::
+        - update doc!
+
     This class is primarily designed to generate a Bias frame for bias subtraction
       It also contains I/O methods for the Master frames of PypeIt
       The build_master() method will return a simple command (str) if that is the specified setting
@@ -34,20 +38,15 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
        Attempt to set with settings['run']['spectrograph'] if not input
     settings : dict (optional)
       Settings for trace slits
-    setup : str (optional)
+    master_key : str (optional)
       Setup tag
     det : int, optional
       Detector index, starts at 1
-    fitstbl : PypeItMetaData (optional)
-      FITS info (mainly for filenames)
-    sci_ID : int (optional)
-      Science ID value
-      used to match bias frames to the current science exposure
     par : ParSet
       PypitPar['calibrations']['biasframe']
-    redux_path : str (optional)
-      Path for reduction
-
+    master_key
+    master_dir
+    mode
 
     Attributes
     ----------
@@ -63,8 +62,8 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'bias'
 
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph, file_list = [], det=1, par=None, setup=None, master_dir=None,
-                 mode=None):
+    def __init__(self, spectrograph, file_list=[], det=1, par=None, master_key=None,
+                 master_dir=None, mode=None):
 
         # Parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
@@ -75,7 +74,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.frametype, setup, mode=mode,
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key, mode=mode,
                                          master_dir=master_dir)
 
     def build_image(self, overwrite=False, trim=True):
@@ -99,7 +98,17 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         #
         return self.stack
 
-    def determine_bias_mode(self):
+    def determine_bias_mode(self, force=False):
+        """
+
+        Args:
+            force: bool, optional
+              Force the code to attempt to load the MasterFrame
+
+        Returns:
+            self.msbias str, ndarray or None
+
+        """
         # How are we treating biases?
         # 1) No bias subtraction
         if self.par['useframe'].lower() == 'none':
@@ -111,6 +120,6 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # 3) User wants bias subtractions, use a Master biasframe?
         elif self.par['useframe'] in ['bias', 'dark']:
             # Load the MasterFrame if it exists and user requested one to load it
-            self.msbias = self.master()
+            self.msbias = self.master(force=force)
 
         return self.msbias

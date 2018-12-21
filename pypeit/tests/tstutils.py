@@ -54,21 +54,21 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
     if get_spectrograph:
         ret.append(spectrograph)
 
-    setup = 'A_01_aa'
+    master_key = 'A_1_01'
     if aimg:
-        AImg = arcimage.ArcImage(spectrograph, setup=setup, master_dir=master_dir, mode=mode)
+        AImg = arcimage.ArcImage(spectrograph, master_key=master_key, master_dir=master_dir, mode=mode)
         msarc = AImg.load_master(AImg.ms_name)
         ret.append(msarc)
 
     if tslits:
         traceSlits = traceslits.TraceSlits(None,None, spectrograph)
-        traceSlits.load_master(os.path.join(master_dir,'MasterTrace_A_01_aa'))
+        traceSlits.load_master(os.path.join(master_dir,'MasterTrace_A_1_01'))
         # This is a bit of a hack, but I'm adding the mstrace to the dict since we need it in the flat field test
         traceSlits.tslits_dict['mstrace'] = traceSlits.mstrace
         ret.append(traceSlits.tslits_dict)
 
     if tilts:
-        wvTilts = wavetilts.WaveTilts(None, None, spectrograph=spectrograph, setup=setup,
+        wvTilts = wavetilts.WaveTilts(None, None, spectrograph=spectrograph, master_key=master_key,
                                       master_dir=master_dir, mode=mode)
         tilts_dict = wvTilts.master()
         ret.append(tilts_dict)
@@ -78,7 +78,7 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
         ret.append(datasec_img)
 
     if wvcalib:
-        Wavecalib = wavecalib.WaveCalib(None, spectrograph=spectrograph, setup=setup,
+        Wavecalib = wavecalib.WaveCalib(None, spectrograph=spectrograph, master_key=master_key,
                                         master_dir=master_dir, mode=mode)
         wv_calib = Wavecalib.master()
         ret.append(wv_calib)

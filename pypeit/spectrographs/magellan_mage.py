@@ -93,7 +93,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
 
         # Set slits and tilts parameters
-        par['calibrations']['tilts']['order'] = 2
+#        par['calibrations']['tilts']['order'] = 2
         par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 3.
@@ -164,7 +164,8 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         return hdr_keys
 
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime']
+        return ['filename', 'date', 'frametype', 'target', 'exptime', 'setup', 'calib', 'obj_id',
+                'bkg_id' ]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

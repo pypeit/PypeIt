@@ -1,5 +1,7 @@
 """
 Core IO methods for the PypeIt setup.
+
+THIS MODULE IS NOW DEPRECATED AND LIKELY TO BE REMOVED
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
@@ -79,8 +81,7 @@ def calib_set(isetup_dict, fitstbl, sci_ID):
     new_cbset = {}
     cbkeys = ['arc', 'bias', 'trace', 'pixelflat', 'science']
     for cbkey in cbkeys:
-        new_cbset[cbkey] = fitstbl.find_frame_files(cbkey, sci_ID=sci_ID)
-
+        new_cbset[cbkey], _ = fitstbl.find_frame_files(cbkey, sci_ID=sci_ID)
     # Uninitialized?
     if default not in isetup_dict.keys():
         isetup_dict[default] = new_cbset
@@ -91,6 +92,7 @@ def calib_set(isetup_dict, fitstbl, sci_ID):
         def_names = np.array(isetup_dict[default][cbkey])
         if np.array_equal(def_names, new_cbset[cbkey]):
             _ = new_cbset.pop(cbkey)
+
     # Science only or exactly the same?
     if len(new_cbset) == 0:
         return default
@@ -163,6 +165,8 @@ def is_equal(val1, val2, tol=1e-3):
 def instr_setup(sci_ID, det, fitstbl, setup_dict=None, must_exist=False, skip_cset=False,
                 config_name=None, copy=False):
     """
+    DEPRECATED
+
     Define the instrument configuration.
 
     .. todo::
@@ -206,6 +210,8 @@ def instr_setup(sci_ID, det, fitstbl, setup_dict=None, must_exist=False, skip_cs
         dictionary, or the input dictionary after it has been modified
         in place.
     """
+    debugger.set_trace()
+
     # Labels
     cfig_str = string.ascii_uppercase
     cstr = '--'
@@ -413,6 +419,8 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
     -------
 
     """
+    # TODO: Not sure we should do this.  Instead just check that
+    # frametype is in the relevant keys
     if 'frametype' not in fitstbl.keys():
         fitstbl.get_frame_types()
     # Output file
@@ -423,8 +431,7 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
     ftypes = list(group_dict[setups[0]].keys())
     ftypes.sort()
     # Loop on Setup
-    asciiord = np.array(['filename', 'date', 'frameno', 'frametype',
-                         'target', 'exptime', 'dispname', 'decker', 'AB_frame'])
+    asciiord = np.array(fitstbl.spectrograph.metadata_keys())
     for setup in setups:
         ff.write('##########################################################\n')
         in_setup = []
@@ -450,21 +457,28 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
 
 
 def build_group_dict(fitstbl, setupIDs, all_sci_idx, all_sci_ID):
-    """ Generate a group dict
-    Only used for generating the .sorted output file
-
-    Parameters
-    ---------
-    fitstbl : PypeItMetaData
-    setupIDs : list
-    all_sci_idx : ndarray
-      all the science frame indices in the fitstbl
-
-    Returns
-    -------
-    group_dict : dict
     """
-    type_keys = framematch.FrameTypeBitMask().keys() + ['failures']
+    Build a dictionary with the list of exposures of each type for a
+    given instrumental setup.
+
+    Args:
+        fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
+            The metadata table for the fits files to reduce.
+        setupIDs (:obj:`list`):
+            The list of setups.
+        all_sci_idx (:obj:`list`):
+            The indices of the science frames in the data table.
+            TODO: Why is this needed?
+        all_sci_ID (:obj:`list`):
+            The ID number assigned to each science frame.
+
+    Returns:
+        dict: A dictionary with the list of file names associated with
+        each instrument configuration.  It also provides the list of
+        science and standard star targets. TODO: How are the latter
+        used, if at all?
+    """
+    type_keys = framematch.FrameTypeBitMask().keys() + ['None']
 
     group_dict = {}
     for sc,setupID in enumerate(setupIDs):
@@ -476,24 +490,26 @@ def build_group_dict(fitstbl, setupIDs, all_sci_idx, all_sci_ID):
         # Plan init
         if config_key not in group_dict.keys():
             group_dict[config_key] = {}
-            #for key in filesort.keys():
             for key in type_keys:
-                if key not in ['unknown', 'dark']:
-                    group_dict[config_key][key] = []
+#                if key not in ['None', 'dark']:
+#                    group_dict[config_key][key] = []
+                group_dict[config_key][key] = []
                 group_dict[config_key]['sciobj'] = []
                 group_dict[config_key]['stdobj'] = []
         # Fill group_dict too
-        #for key in filesort.keys():
         for key in type_keys:
-            if key in ['unknown', 'dark', 'failures']:
-                continue
-            indices = np.where(fitstbl.find_frames(key, sci_ID=sci_ID))[0]
+#            if key in ['None', 'dark']:
+#                continue
+            indices = np.where(fitstbl.find_frames(key))[0] if key in ['None', 'dark'] \
+                        else np.where(fitstbl.find_frames(key, sci_ID=sci_ID))[0]
             for idx in indices:
                 # Only add if new
                 if fitstbl['filename'][idx] not in group_dict[config_key][key]:
                     group_dict[config_key][key].append(fitstbl['filename'][idx])
+                    # TODO: How is this used?
                     if key == 'standard' and 'target' in fitstbl.keys():  # Add target name
                         group_dict[config_key]['stdobj'].append(fitstbl['target'][idx])
+                # TODO: How is this used?
                 if key == 'science' and 'target' in fitstbl.keys():  # Add target name
                     group_dict[config_key]['sciobj'].append(fitstbl['target'][scidx])
 

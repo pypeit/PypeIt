@@ -463,8 +463,10 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     return trace_dict1
 
 
-def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev = 0.2, maxrej = None,
-              maxiter = 100, sigrej = 3.0, pad_spec = 30, pad_spat =5, func2d='legendre2d', doqa=True, setup = 'test',
+def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev = 0.2,
+              maxrej = None,
+              maxiter = 100, sigrej = 3.0, pad_spec = 30, pad_spat =5,
+              func2d='legendre2d', doqa=True, master_key='test',
               slit = 0, show_QA=False, out_dir=None, debug=False):
     """
 
@@ -593,11 +595,11 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # Now do some QA
     if doqa:
         plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order, rms_fit, fwhm,
-                     slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
+                     slit=slit, setup=master_key, show_QA=show_QA, out_dir=out_dir)
         plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order, spec_order, rms_fit, fwhm,
-                       slit=slit, setup=setup, show_QA=show_QA, out_dir=out_dir)
+                       slit=slit, setup=master_key, show_QA=show_QA, out_dir=out_dir)
         plot_tilt_spec(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm, slit=slit,
-                       setup = setup, show_QA=show_QA, out_dir=out_dir)
+                       setup = master_key, show_QA=show_QA, out_dir=out_dir)
 
     return tilts_img, tilt_fit_dict, trc_tilt_dict_out
 

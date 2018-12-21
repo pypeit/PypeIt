@@ -42,10 +42,10 @@ def parser(options=None):
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('-p', '--prep_setup', default=False, action='store_true',
-                       help='Run pypeit to prepare the setup only')
-    group.add_argument('-c', '--calcheck', default=False, action='store_true',
-                       help='Run pypeit only as a check on the calibrations')
+#    group.add_argument('-p', '--prep_setup', default=False, action='store_true',
+#                       help='Run pypeit to prepare the setup only')
+#    group.add_argument('-c', '--calcheck', default=False, action='store_true',
+#                       help='Run pypeit only as a check on the calibrations')
     group.add_argument('-d', '--detector', default=None, help='Detector to limit reductions on.  If the output files exist and -o is used, the outputs for the input detector will be replaced.')
 
 #    parser.add_argument('-q', '--quick', default=False, help='Quick reduction',
@@ -85,21 +85,24 @@ def main(args):
         msgs.error("Bad extension for PypeIt reduction file."+msgs.newline()+".pypeit is required")
     logname = splitnm[0] + ".log"
 
-    # Load PypeIt file (might happen twice but that is ok)
+    # Load PypeIt file to get the spectrograph (might happen twice but that is ok)
     pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(args.pypeit_file)
 
     #
-    pypeIt = pypeit.instantiate_me(pypeitSetup.spectrograph,
+
+    pypeIt = pypeit.instantiate_me(pypeitSetup.spectrograph, args.pypeit_file,
                                    verbosity=args.verbosity,
                                    overwrite=args.overwrite, logname=logname, show=args.show)
 
     # Init Setup
-    redux_dir = './'
-    pypeIt.init_setup(args.pypeit_file, redux_dir, calibration_check=True)
-    if args.calcheck:
-        msgs.info('Done checking calibrations.  Exiting..')
-        return 0
+    ## JFH TODO This will move to the pypeit class init!
+    #pypeIt.init_setup(args.pypeit_file)
+#    if args.calcheck:
+#        msgs.info('Done checking calibrations.  Exiting..')
+#        return 0
 
+    # JFH I don't see why this is an optional argument here. We could allow the user to modify an infinite number of parameters
+    # from the command line? Why do we have the PypeIt file then? This detector can be set in the pypeit file.
     # Detector?
     if args.detector is not None:
         msgs.info("Restricting reductions to detector={}".format(args.detector))

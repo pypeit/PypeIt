@@ -157,8 +157,12 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         return hdr_keys
 
+    def configuration_keys(self):
+        return ['dispname', 'binning']
+
     def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime']
+        return ['filename', 'date', 'frametype', 'target', 'exptime', 'setup', 'calib', 'obj_id',
+                'bkg_id']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
