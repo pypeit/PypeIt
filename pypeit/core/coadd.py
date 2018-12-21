@@ -1109,7 +1109,7 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.,debug=Fa
 
     plt.tight_layout(pad=0.2,h_pad=0.,w_pad=0.2)
     if qafile is not None:
-        pp.savefig(bbox_inches='tight',dpi=600)
+        pp.savefig(bbox_inches='tight')
         pp.close()
         msgs.info("Wrote coadd QA: {:s}".format(qafile))
     if debug:
