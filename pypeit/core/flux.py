@@ -85,13 +85,26 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
             msgs.info("Extinction correction not applied")
             senstot = sensfunc_obs
 
-        extract['FLAM'] = extract['COUNTS'] * senstot/ exptime
-        extract['FLAM_SIG'] = (senstot/exptime)/ (np.sqrt(extract['COUNTS_IVAR']))
-        extract['FLAM_IVAR'] = extract['COUNTS_IVAR'] / (senstot / exptime) **2
+        flam = extract['COUNTS'] * senstot/ exptime
+        flam_sig = (senstot/exptime)/ (np.sqrt(extract['COUNTS_IVAR']))
+        flam_var = extract['COUNTS_IVAR'] / (senstot / exptime) **2
+
+        # Mask bad pixels
+        msgs.info(" Masking bad pixels")
+        msk = np.zeros_like(senstot).astype(bool)
+        msk[senstot <= 0.] = True
+        msk[extract['COUNTS_IVAR'] <= 0.] = True
+        flam[msk] = 0.
+        flam_sig[msk] = 0.
+        flam_var[msk] = 0.
+
+        extract['FLAM'] = flam
+        extract['FLAM_SIG'] = flam_sig
+        extract['FLAM_IVAR'] = flam_var
 
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
-                      star_mag=None, ra=None, dec=None, std_file = None, BALM_MASK_WID=5., nresln=None):
+                      star_mag=None, ra=None, dec=None, std_file = None, BALM_MASK_WID=5., norder=4, nresln=None,debug=False):
     """ Function to generate the sensitivity function.
     This can work in different regimes:
     - If telluric=False and RA=None and Dec=None
@@ -142,6 +155,8 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     nresln : float
       Number of resolution elements for break-point placement.
       If assigned, overwrites the settings imposed by the code.
+    norder: int
+      Order number of polynomial fit.
 
     Returns:
     -------
@@ -177,17 +192,21 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         msgs.info("Extinction correction not applied")
 
     # Create star model
-    if (ra is not None) and (dec is not None):
+    if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
         # Pull star spectral model from archive
         msgs.info("Get standard model")
         # Grab closest standard within a tolerance
         std_dict = find_standard_file(ra, dec)
-        # Load standard
-        load_standard_file(std_dict)
-        # Interpolate onto observed wavelengths
-        std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
-        xspec = std_xspec.rebin(wave_star)  # Conserves flambda
-        flux_true = xspec.flux.value
+        if std_dict is not None:
+            # Load standard
+            load_standard_file(std_dict)
+            # Interpolate onto observed wavelengths
+            std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
+            xspec = std_xspec.rebin(wave_star)  # Conserves flambda
+            flux_true = xspec.flux.value
+        else:
+            msgs.error('No spectrum found in our database for your standard star. Please use another standard star \
+                       or consider add it into out database.')
     elif (star_mag is not None) and (star_type is not None):
         # Create star spectral model
         msgs.info("Creating standard model")
@@ -195,8 +214,8 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         star_loglam, star_flux, std_dict = telluric_sed(star_mag, star_type)
         star_lam = 10 ** star_loglam
         # Generate a dict matching the output of find_standard_file
-        std_dict = dict(file='KuruczTelluricModel', name=star_type, fmt=1,
-                        ra=None, dec=None)
+        std_dict = dict(cal_file='KuruczTelluricModel', name=star_type, fmt=1,
+                        std_ra=None, std_dec=None)
         std_dict['wave'] = star_lam * units.AA
         std_dict['flux'] = 1e17 * star_flux * units.erg / units.s / units.cm ** 2 / units.AA
         # ToDO If the Kuruck model is used, rebin create weird features
@@ -210,8 +229,22 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
                    'Either the coordinates of the standard or a stellar type and magnitude are needed.')
 
 
-    if np.min(flux_true) == 0.:
-        msgs.warn('Your spectrum extends beyond calibrated standard star.')
+    if np.min(flux_true) <= 0.:
+        msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
+        # ToDo: should we extrapolate it using graybody model?
+        mask_model = flux_true<=0
+        msk_poly, poly_coeff = utils.robust_polyfit_djs(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
+                                                    invvar=None, guesses=None, maxiter=50, inmask=None, sigma=None, \
+                                                    lower=3.0, upper=3.0, maxdev=None, maxrej=3, groupdim=None,
+                                                    groupsize=None,groupbadpix=False, grow=0, sticky=True, use_mad=True)
+        star_poly = utils.func_val(poly_coeff, wave_star.value, 'polynomial')
+        #flux_true[mask_model] = star_poly[mask_model]
+        flux_true = star_poly.copy()
+        if debug:
+            plt.plot(std_dict['wave'], std_dict['flux'],'bo',label='Raw Star Model')
+            plt.plot(std_dict['wave'],  utils.func_val(poly_coeff, std_dict['wave'].value, 'polynomial'), 'k-',label='robust_poly_fit')
+            plt.plot(wave_star,flux_true,'r-',label='Your Final Star Model used for sensfunc')
+            plt.show()
 
     # Set nresln
     if nresln is None:
@@ -295,7 +328,8 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     atms_cutoff = wave_star <= 3000.0 * units.AA
     msk_star[atms_cutoff] = False
 
-    if ~telluric:
+    #if ~telluric: #Feige:  This is a bug
+    if not telluric:
         # Mask telluric absorption
         msgs.info("Masking Telluric")
         tell = np.any([((wave_star >= 7580.00 * units.AA) & (wave_star <= 7750.00 * units.AA)),
@@ -319,7 +353,75 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     kwargs_bspline = {'bkspace': resln.value * nresln}
     kwargs_reject = {'maxrej': 5}
     sensfunc = bspline_magfit(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,
-                              kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject)
+                              kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject,debug=debug)
+
+    #Cleaning sensfunc
+    ## ToDo: currently I'm fitting the sensfunc in the masked region with a polynomial, should we change the algorithm to
+    ##   fit polynomial first and then bsline the poly-subtracted flux ???
+    ## keep tell free region for poly fit. tell2 is different from tell since tell2 include more small trunk of telluric free
+    ## regions. tell2 might be not suitable for the bspline fitting. We need to select a more robust telluric region for both purpose.
+    tell2 = np.any([((wave_star >= 7580.00 * units.AA) & (wave_star <= 7750.00 * units.AA)),
+                   ((wave_star >= 7160.00 * units.AA) & (wave_star <= 7340.00 * units.AA)),
+                   ((wave_star >= 6860.00 * units.AA) & (wave_star <= 6930.00 * units.AA)),
+                   ((wave_star >= 9310.00 * units.AA) & (wave_star <= 9665.00 * units.AA)),
+                   ((wave_star >= 11120.0 * units.AA) & (wave_star <= 11545.0 * units.AA)),
+                   ((wave_star >= 12610.0 * units.AA) & (wave_star <= 12720.0 * units.AA)),
+                   ((wave_star >= 13400.0 * units.AA) & (wave_star <= 14830.0 * units.AA)),
+                   ((wave_star >= 15700.0 * units.AA) & (wave_star <= 15770.0 * units.AA)),
+                   ((wave_star >= 16000.0 * units.AA) & (wave_star <= 16100.0 * units.AA)),
+                   ((wave_star >= 16420.0 * units.AA) & (wave_star <= 16580.0 * units.AA)),
+                   ((wave_star >= 17630.0 * units.AA) & (wave_star <= 19690.0 * units.AA)),
+                   ((wave_star >= 19790.0 * units.AA) & (wave_star <= 19810.0 * units.AA)),
+                   ((wave_star >= 19950.0 * units.AA) & (wave_star <= 20310.0 * units.AA)),
+                   ((wave_star >= 20450.0 * units.AA) & (wave_star <= 20920.0 * units.AA)),
+                   ((wave_star >= 24000.0 * units.AA) & (wave_star <= 24280.0 * units.AA)),
+                   ((wave_star >= 24320.0 * units.AA) & (wave_star <= 24375.0 * units.AA)),
+                   (wave_star >= 24450.0 * units.AA)], axis=0)
+    msk_all = msk_star.copy() # mask for polynomial fitting
+    msk_sens = msk_star.copy() # mask for sensfunc
+    med, mad = utils.robust_meanstd(sensfunc)
+
+    msk_crazy = (sensfunc<=0) | (sensfunc>1e3*med)
+    msk_all[tell2] = False
+    msk_all[msk_crazy] = False
+    msk_sens[msk_crazy] = False
+
+    if (len(wave_star.value[msk_all]) < norder+1) or (len(wave_star.value[msk_all]) < 0.1*len(wave_star.value)):
+        msgs.warn('It seems this order/spectrum well within the telluric region. No polynomial fit will be performed.')
+    else:
+        #polyfit the sensfunc
+        msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_star.value[msk_all],np.log10(sensfunc[msk_all]), norder, function='polynomial',
+                                               invvar=None,guesses = None, maxiter = 50, inmask = None, sigma = None,\
+                                               lower = 3.0, upper = 3.0,maxdev=None,maxrej=3,groupdim=None,groupsize=None,\
+                                               groupbadpix=False, grow=0,sticky=True,use_mad=True)
+        sensfunc_poly = 10**(utils.func_val(poly_coeff, wave_star.value, 'polynomial'))
+        sensfunc[~msk_sens] =  sensfunc_poly[~msk_sens]
+        if debug:
+            plt.rcdefaults()
+            plt.rcParams['font.family'] = 'times new roman'
+            plt.plot(wave_star.value[~msk_sens], sensfunc[~msk_sens], 'bo')
+            plt.plot(wave_star.value, sensfunc_poly, 'r-',label='Polyfit')
+            plt.plot(wave_star.value, sensfunc, 'k-',label='bspline fitting')
+            plt.ylim(0.0, 100.0)
+            plt.legend()
+            plt.xlabel('Wavelength [ang]')
+            plt.ylabel('Sensfunc')
+            plt.show()
+            plt.close()
+
+            plt.figure(figsize=(10, 6))
+            plt.clf()
+            plt.plot(wave_star.value,flux_star*sensfunc, label='Calibrated Spectrum')
+            plt.plot(wave_star.value,flux_true, label='Model')
+            plt.plot(wave_star.value,np.sqrt(1/ivar_star))
+            plt.legend()
+            plt.xlabel('Wavelength [ang]')
+            plt.ylabel('Flux [erg/s/cm2/Ang.]')
+            plt.ylim(0,np.median(flux_true)*2.5)
+            plt.title('Final corrected spectrum')
+            plt.show()
+            plt.close()
+
 
     # JFH Left off here.
     # Creating the dict
@@ -340,12 +442,10 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     sens_dict['std_dec'] = std_dict['std_dec']
     sens_dict['std_name'] = std_dict['name']
     sens_dict['cal_file'] = std_dict['cal_file']
+    sens_dict['flux_true'] = flux_true
     #sens_dict['std_dict'] = std_dict
     #sens_dict['msk_star'] = msk_star
-
-
-
-#    sens_dict['mag_set'] = mag_set
+    #sens_dict['mag_set'] = mag_set
 
     return sens_dict
 
@@ -417,6 +517,7 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
     magfunc_mask = (magfunc < 0.99 * MAGFUNC_MAX) & (magfunc > 0.99 * MAGFUNC_MIN)
 
     # Mask outliners
+    # masktot=True means good pixel
     if inmask is None:
         masktot = (ivar_obs > 0.0) & np.isfinite(logflux_obs) & np.isfinite(ivar_obs) & \
                   np.isfinite(logflux_std) & magfunc_mask
@@ -424,7 +525,6 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
         masktot = inmask & (ivar_obs > 0.0) & np.isfinite(logflux_obs) & np.isfinite(ivar_obs) & \
                   np.isfinite(logflux_std) & magfunc_mask
     logivar_obs[~masktot] = 0.
-
 
     # Calculate sensfunc
     sensfunc = 10.0 ** (0.4 * magfunc)
@@ -534,7 +634,6 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
 
     # Check for residual of the fit
     if debug:
-
         # scale = np.power(10.0, 0.4 * sensfit)
         flux_cal = flux_obs * sensfit
         ivar_cal = ivar_obs / sensfit ** 2.
@@ -553,14 +652,10 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
         plt.show()
         plt.close()
 
-
-
-
     # QA
     msgs.work("Add QA for sensitivity function")
     if show_QA:
         qa_bspline_magfit(wave_obs, bset_log1, magfunc, masktot)
-
 
     return sensfit
 
