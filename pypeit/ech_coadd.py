@@ -1,4 +1,5 @@
-
+""" Routine for Echelle coaddition
+"""
 import numpy as np
 from astropy.io import fits
 from astropy import units
@@ -13,14 +14,16 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 
 ## ToDo: change it to a CLASS and modify coadd_1dspec.py
 def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
-    """
-    Loading single order spectrum from a PypeIt 1D specctrum fits file
-    :param file:
-    :param objid:
-    :param order:
-    :param extract:
-    :param flux:
-    :return:
+    """Loading single order spectrum from a PypeIt 1D specctrum fits file.
+        it will be called by ech_load_spec
+    Parameters:
+        fname (str) : The file name of your spec1d file
+        objid (str) : The id of the object you want to load. (default is the first object)
+        order (int) : which order you want to load (default is None, loading all orders)
+        extract (str) : 'OPT' or 'BOX'
+        flux (bool) : default is True, loading fluxed spectra
+    returns:
+        spectrum_out : XSpectrum1D
     """
     if objid is None:
         objid = 0
@@ -66,11 +69,15 @@ def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
     return spectrum_out
 
 def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
-    """
-    files: A list of file names
-    objid:
-    extract:
-    flux:
+    """Loading Echelle spectra from a list of PypeIt 1D spectrum fits files
+    Parameters:
+        files (str) : The list of file names of your spec1d file
+        objid (str) : The id (one per fits file) of the object you want to load. (default is the first object)
+        order (int) : which order you want to load (default is None, loading all orders)
+        extract (str) : 'OPT' or 'BOX'
+        flux (bool) : default is True, loading fluxed spectra
+    returns:
+        spectrum_out : XSpectrum1D
     """
 
     nfiles = len(files)
@@ -133,6 +140,31 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,
               wave_grid_method='velocity', niter=5,wave_grid_min=None, wave_grid_max=None,v_pix=None,
               scale_method='auto', do_offset=False, sigrej_final=3.,do_var_corr=False,
               qafile=None, outfile=None,do_cr=True, debug=False,**kwargs):
+    """
+    routines for coadding spectra observed with echelle spectrograph.
+    parameters:
+        files (list): file names
+        objids (str): objid
+        extract (str): 'OPT' or 'BOX'
+        flux (bool): fluxed or not
+        giantcoadd (bool): coadding order by order or do it at once?
+        wave_grid_method (str): default velocity
+        niter (int): number of iteration for rejections
+        wave_grid_min (float): min wavelength, None means it will find the min value from your spectra
+        wave_grid_max (float): max wavelength, None means it will find the max value from your spectra
+        v_pix (float): delta velocity, see coadd.py
+        scale_method (str): see coadd.py
+        do_offset (str): see coadd.py, not implemented yet.
+        sigrej_final (float): see coadd.py
+        do_var_corr (bool): see coadd.py, default False. It seems True will results in a large error
+        qafile (str): name of qafile
+        outfile (str): name of coadded spectrum
+        do_cr (bool): remove cosmic rays?
+        debug (bool): show debug plots?
+        kwargs: see coadd.py
+    returns:
+        spec1d: coadded XSpectrum1D
+    """
 
     nfile = len(files)
     if nfile <=1:

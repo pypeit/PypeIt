@@ -146,15 +146,13 @@ def load_specobj(fname):
 
 def ech_load_specobj(fname, order=None):
 
-    """ Load a spec1d file into a list of SpecObjExp objects
-    Parameters
-    ----------
-    fname : str
+    """ Load a Echelle spec1d file into a list of SpecObjExp objects
+    Parameters:
+        fname (str): The file name of your spec1d file
 
-    Returns
-    -------
-    specObjs : list of SpecObjExp
-    head0
+    Returns:
+        specObjs : list of SpecObjExp
+        head0 : The first extension fits header of your fits file
     """
     speckeys = ['WAVE', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG', 'COUNTS_IVAR', 'COUNTS']
     #
