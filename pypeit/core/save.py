@@ -661,7 +661,7 @@ def save_2d_images(sci_output, rawfile, ext0, master_key_dict, mfdir,
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 
-        # Inverse Variance model
+        # Final mask
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = '{:s}-MASK'.format(sdet)

@@ -116,8 +116,6 @@ def main(args):
         msgs.error("Requested detector {:s} has no object model.\n Maybe you chose the wrong one to view?\n" +
                    "Set with --det= or check file contents with --list".format(sdet))
     objmodel = hdu[exten].data
-    from IPython import embed
-    embed()
     # Get waveimg
     mdir = head0['PYPMFDIR']+'/'
     waveimg = masterframe.master_name('wave', head0['ARCMKEY'], mdir)
