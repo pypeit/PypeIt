@@ -154,6 +154,8 @@ def ech_load_specobj(fname, order=None):
         specObjs : list of SpecObjExp
         head0 : The first extension fits header of your fits file
     """
+    #ToDo: define a data model for Echelle spectra somewhere else. 
+
     speckeys = ['WAVE', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG', 'COUNTS_IVAR', 'COUNTS']
     #
     specObjs = []
