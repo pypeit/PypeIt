@@ -276,8 +276,8 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     return (sky_bmodel, obj_bmodel, outmask)
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
-                         bsp = 0.6, inmask = None, extract_maskwidth = 3.0, trim_edg = (3,3), std = False, prof_nsigma = None, niter=4,
-                         box_rad = 7, sigrej = 3.5,skysample = False, sn_gauss = 3.0, coadd_2d = False, show_profile=False,
+                         bsp = 0.6, inmask = None, extract_maskwidth = 4.0, trim_edg = (3,3), std = False, prof_nsigma = None,
+                         niter=4, box_rad = 7, sigrej = 3.5,skysample = False, sn_gauss = 4.0, coadd_2d = False, show_profile=False,
                          show_resids=False):
 
     """Perform local sky subtraction and  extraction
@@ -301,7 +301,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
 
     Optional Parameters
     ----------
-    extract_maskwidth: float, default = 3.0
+    extract_maskwidth: float, default = 4.0
         This parameter determines the initial size of the region in units of fwhm that will be used for local sky subtraction. This
         maskwidth is defined in the obfjind code, but is then updated here as the profile fitting improves the fwhm estimates
 
@@ -454,10 +454,11 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
 
                 obj_string = 'obj # {:}'.format(sobjs[iobj].objid) + ' on slit # {:}'.format(sobjs[iobj].slitid) + ', iter # {:}'.format(iiter) + ':'
                 if wave.any():
-                    (profile_model, xnew, fwhmfit, med_sn2) = extract.fit_profile(img_minsky[ipix], (modelivar * outmask)[ipix],
+                    sign = sobjs[iobj].sign
+                    (profile_model, xnew, fwhmfit, med_sn2) = extract.fit_profile(sign*img_minsky[ipix], (modelivar * outmask)[ipix],
                                                                                   waveimg[ipix],
                                                                                   sobjs[iobj].trace_spat - mincol,
-                                                                                  wave, flux, fluxivar,
+                                                                                  wave, sign*flux, fluxivar,
                                                                                   thisfwhm=sobjs[iobj].fwhm,
                                                                                   maskwidth=sobjs[iobj].maskwidth,
                                                                                   prof_nsigma=sobjs[iobj].prof_nsigma,

@@ -61,9 +61,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Gemini GNIRS reductions.
         """
         par = pypeitpar.PypeItPar()
-        # TODO: Make self.spectrograph a class attribute?
-        # Use the ARMS pipeline
-        #par['rdx']['pipeline'] = 'ARMS'
         par['rdx']['spectrograph'] = 'gemini_gnirs'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
@@ -105,18 +102,14 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
 
         # Flats
-        par['calibrations']['flatfield']['illumflatten'] = False
+        par['calibrations']['flatfield']['illumflatten'] = True
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.97
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.20
 
+        # Extraction
+        par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['sn_gauss'] = 4.0
 
-
-
-
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Do not correct for flexure
         par['flexure'] = None
         # Set the default exposure time ranges for the frame typing

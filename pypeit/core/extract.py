@@ -621,7 +621,7 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
 
 
 def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
-                thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 3.0, wvmnx = (2900.0,30000.0),
+                thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 4.0, wvmnx = (2900.0,30000.0),
                 maskwidth = None, prof_nsigma = None, no_deriv = False, gauss = False, obj_string = '',
                 show_profile = False):
 
@@ -1326,7 +1326,7 @@ specobj_dict = {'setup': None, 'slitid': None, 'det': 1, 'objtype': 'science'}
 
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
             hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit =None,  bg_smth = 5.0,
-            extract_maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (5,5), objmask_nthresh = 2.0,
+            extract_maskwidth = 4.0, sig_thresh = 5.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (5,5), objmask_nthresh = 2.0,
             specobj_dict=specobj_dict, show_peaks=False, show_fits = False, show_trace = False, qa_title=''):
 
     """ Find the location of objects in a slitmask slit or a echelle order.
@@ -1968,7 +1968,7 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
 
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_vec = None, plate_scale=0.2, std_trace=None, ncoeff = 5,
-                npca=None,coeff_npoly=None,min_snr=0.0,nabove_min_snr=0,pca_explained_var=99.0, box_radius=2.0, fwhm = 3.0,
+                npca=None,coeff_npoly=None, snr_trim=True, min_snr=0.0,nabove_min_snr=0,pca_explained_var=99.0, box_radius=2.0, fwhm = 3.0,
                 hand_extract_dict = None, nperslit = 5, bg_smth = 5.0, extract_maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0,
                 abs_thresh = 0.0, trim_edg = (5,5), show_peaks=False,show_fits=False,show_trace=False,show_single_trace = False, debug=False):
     """
@@ -2007,6 +2007,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_v
        the number of components contains approximately 99% of the variance
     coeff_npoly: int, default = None,
        order of polynomial used for PCA coefficients fitting. Default is None and this will be determined automatically.
+    snr_trim: bool, default=True
+       Trim objects based on S/N ratio determined from quick extraction
     min_snr: float, default = 0.0
        Minimum SNR for keeping an object. For an object to be kept it must have a median S/N ratio above min_snr for
        at least nabove_min_snr orders.
@@ -2088,9 +2090,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_v
             spec.ech_order = order_vec[iord]
         sobjs.add_sobj(sobjs_slit)
 
-
     nfound = len(sobjs)
 
+    if nfound == 0:
+        skymask = create_skymask(sobjs, allmask)
+        return sobjs, skymask[allmask]
 
     # Compute the FOF linking length based on the instrument place scale and matching length FOFSEP = 1.0"
     FOFSEP = 1.0 # separation of FOF algorithm in arcseconds
@@ -2133,7 +2137,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_v
             # ToDO fix specobjs set_item to get rid of these crappy loops
             for spec in sobjs_align[on_order]:
                 spec.ech_fracpos = uni_frac[iobj]
-                spec.ech_obj_id = uni_obj_id[iobj]
+                spec.ech_objid = uni_obj_id[iobj]
                 spec.objid = uni_obj_id[iobj]
                 spec.ech_frac_was_fit = False
 
@@ -2143,7 +2147,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_v
     # an object was found and use that fit to predict the fractional slit position on the bad orders where no object was found
     for iobj in range(nobj):
         # Grab all the members of this obj_id from the object list
-        indx_obj_id = sobjs_align.ech_obj_id == uni_obj_id[iobj]
+        indx_obj_id = sobjs_align.ech_objid == uni_obj_id[iobj]
         nthisobj_id = np.sum(indx_obj_id)
         # Perform the fit if this objects shows up on more than three orders
         if (nthisobj_id>3) and (nthisobj_id<norders):
@@ -2183,7 +2187,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_v
         # Now loop over the orders and add objects on the ordrers for which the current object was not found
         for iord in range(norders):
             # Is the current object detected on this order?
-            on_order = (sobjs_align.ech_obj_id == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
+            on_order = (sobjs_align.ech_objid == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
             if not np.any(on_order):
                 # Add this to the sobjs_align, and assign required tags
                 thisobj = specobjs.SpecObj(frameshape, slit_spat_pos[iord,:], slit_spec_pos, det = sobjs_align[0].det,
@@ -2209,12 +2213,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_v
                 thisobj.fwhm = sobjs_align[imin].fwhm
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
                 thisobj.ech_fracpos = uni_frac[iobj]
-                thisobj.ech_obj_id = uni_obj_id[iobj]
+                thisobj.ech_objid = uni_obj_id[iobj]
                 thisobj.objid = uni_obj_id[iobj]
                 thisobj.ech_frac_was_fit = True
                 sobjs_align.add_sobj(thisobj)
                 obj_id = np.append(obj_id, uni_obj_id[iobj])
                 gfrac = np.append(gfrac, uni_frac[iobj])
+
 
     # Loop over the objects and perform a quick and dirty extraction to assess S/N.
     varimg = utils.calc_ivar(ivar)
@@ -2224,38 +2229,43 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_v
     SNR_arr = np.zeros((norders, nobj))
     for iobj in range(nobj):
         for iord in range(norders):
-            indx = (sobjs_align.ech_obj_id == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
+            indx = (sobjs_align.ech_objid == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
             spec = sobjs_align[indx][0]
             thismask = slitmask == iord
             inmask_iord = inmask & thismask
-            # TODO make the snippet below its own function quick_extraction()
-            box_rad_pix = box_radius/plate_scale_ord[iord]
-            flux_tmp  = extract_boxcar(image*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
-            var_tmp  = extract_boxcar(varimg*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
-            ivar_tmp = utils.calc_ivar(var_tmp)
-            pixtot  = extract_boxcar(ivar*0 + 1.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
-            mask_tmp = (extract_boxcar(ivar*inmask_iord == 0.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec) != pixtot)
-            flux_box[:,iord,iobj] = flux_tmp*mask_tmp
-            ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
-            mask_box[:,iord,iobj] = mask_tmp
-            (mean, med_sn, stddev) = sigma_clipped_stats(flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
-                                                         sigma_lower=5.0,sigma_upper=5.0)
-            # ToDO assign this to sobjs_align for use in the extraction
-            SNR_arr[iord,iobj] = med_sn
-            spec.ech_snr = med_sn
+            if snr_trim:
+                # TODO make the snippet below its own function quick_extraction()
+                box_rad_pix = box_radius/plate_scale_ord[iord]
+                flux_tmp  = extract_boxcar(image*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+                var_tmp  = extract_boxcar(varimg*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+                ivar_tmp = utils.calc_ivar(var_tmp)
+                pixtot  = extract_boxcar(ivar*0 + 1.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+                mask_tmp = (extract_boxcar(ivar*inmask_iord == 0.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec) != pixtot)
+                flux_box[:,iord,iobj] = flux_tmp*mask_tmp
+                ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
+                mask_box[:,iord,iobj] = mask_tmp
+                (mean, med_sn, stddev) = sigma_clipped_stats(flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
+                sigma_lower=5.0,sigma_upper=5.0)
+                # ToDO assign this to sobjs_align for use in the extraction
+                SNR_arr[iord,iobj] = med_sn
+                spec.ech_snr = med_sn
+            else:
+                SNR_arr[iord, iobj] = 1e10
+                spec.ech_snr = 1e10
 
     # Purge objects with low SNR that don't show up in enough orders, sort the list of objects with respect to obj_id
     # and orderindx
     keep_obj = np.zeros(nobj,dtype=bool)
     sobjs_trim = specobjs.SpecObjs()
-    iobj_keep = 0
+    # objids are 1 based so that we can easily asign the negative to negative objects
+    iobj_keep = 1
     for iobj in range(nobj):
         if (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr):
             keep_obj[iobj] = True
-            ikeep = sobjs_align.ech_obj_id == uni_obj_id[iobj]
+            ikeep = sobjs_align.ech_objid == uni_obj_id[iobj]
             sobjs_keep = sobjs_align[ikeep].copy()
             for spec in sobjs_keep:
-                spec.ech_obj_id = iobj_keep
+                spec.ech_objid = iobj_keep
                 spec.objid = iobj_keep
             sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ech_orderindx)])
             iobj_keep += 1
@@ -2271,11 +2281,12 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_v
 
     SNR_arr_trim = SNR_arr[:,keep_obj]
 
+
     sobjs_final = sobjs_trim.copy()
     # Loop over the objects one by one and adjust/predict the traces
     pca_fits = np.zeros((nspec, norders, nobj_trim))
     for iobj in range(nobj_trim):
-        indx_obj_id = sobjs_final.ech_obj_id == iobj
+        indx_obj_id = sobjs_final.ech_objid == (iobj + 1)
         # PCA predict the masked orders which were not traced
         msgs.info('Fitting echelle object finding PCA for object {:d}\{:d} with median SNR = {:5.3f}'.format(
             iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))

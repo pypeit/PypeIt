@@ -91,6 +91,7 @@ class SpecObj(object):
         # ToDo add all attributes here and to the documentaiton
 
         # Object finding attributes
+        self.sign = 1.0
         self.objid = None
         self.spat_fracpos = None
         self.smash_peakflux = None
@@ -107,7 +108,7 @@ class SpecObj(object):
         # Some things for echelle functionality
         self.ech_order = None
         self.ech_orderindx = None
-        self.ech_obj_id = None
+        self.ech_objid = None
         self.ech_snr = None
         self.ech_fracpos = None
         self.ech_frac_was_fit = None
@@ -152,10 +153,10 @@ class SpecObj(object):
         if echelle:
             # ObjID
             self.idx = naming_model['obj']
-            if self.ech_obj_id is None:
+            if self.ech_objid is None:
                 self.idx += '----'
             else:
-                self.idx += '{:04d}'.format(self.ech_obj_id)
+                self.idx += '{:04d}'.format(self.ech_objid)
             self.idx += '-'+naming_model['order']
             if self.ech_orderindx is None:
                 self.idx += '----'
@@ -277,6 +278,24 @@ class SpecObjs(object):
 
         """
         return self.specobjs.size
+
+    def append_neg(self, sobjs_neg):
+
+        # Assign the sign and the objids
+        for spec in sobjs_neg:
+            spec.sign = -1.0
+            try:
+                spec.objid = -spec.objid
+            except TypeError:
+                pass
+            try:
+                spec.ech_objid = -spec.ech_objid
+            except TypeError:
+                pass
+
+        self.add_sobj(sobjs_neg)
+
+
 
     def add_sobj(self, sobj):
         """

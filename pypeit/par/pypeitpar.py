@@ -694,85 +694,6 @@ class FluxCalibrationPar(ParSet):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
 
-# JFH TODO this parset is now deprecated
-# TODO: What other parameters should there be?
-class SkySubtractionPar(ParSet):
-    """
-    A parameter set holding the arguments for how to perform the sky
-    subtraction.
-
-    For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
-    """
-    def __init__(self, bspline_spacing=None, nodding=None): #method=None, params=None):
-
-        # Grab the parameter names and values from the function
-        # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = OrderedDict([(k,values[k]) for k in args[1:]])
-
-        # Initialize the other used specifications for this parameter
-        # set
-        defaults = OrderedDict.fromkeys(pars.keys())
-        options = OrderedDict.fromkeys(pars.keys())
-        dtypes = OrderedDict.fromkeys(pars.keys())
-        descr = OrderedDict.fromkeys(pars.keys())
-
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-
-        defaults['bspline_spacing'] = 0.6
-        dtypes['bspline_spacing'] = [int, float]
-        descr['bspline_spacing'] = 'Break-point spacing for the bspline fit'
-
-        defaults['nodding'] = False
-        dtypes['nodding'] = bool
-        descr['nodding'] = 'Use the nodded frames to perform the sky subtraction'
-
-#        defaults['method'] = 'bspline'
-#        options['method'] = SkySubtractionPar.valid_methods()
-#        dtypes['method'] = str
-#        descr['method'] = 'Method used to for sky subtraction.  ' \
-#                          'Options are: None, {0}'.format(', '.join(options['method']))
-#
-#        defaults['params'] = 20
-#        dtypes['params'] = int
-#        descr['params'] = 'Sky-subtraction method parameters.  For bspline, set params = spacing.'
-
-        # Instantiate the parameter set
-        super(SkySubtractionPar, self).__init__(list(pars.keys()),
-                                                values=list(pars.values()),
-                                                defaults=list(defaults.values()),
-                                                options=list(options.values()),
-                                                dtypes=list(dtypes.values()),
-                                                descr=list(descr.values()))
-        self.validate()
-
-    @classmethod
-    def from_dict(cls, cfg):
-        k = cfg.keys()
-        parkeys = [ 'bspline_spacing', 'nodding' ] #'method', 'params' ]
-        kwargs = {}
-        for pk in parkeys:
-            kwargs[pk] = cfg[pk] if pk in k else None
-        return cls(**kwargs)
-
-#    @staticmethod
-#    def valid_methods():
-#        """
-#        Return the valid sky-subtraction methods
-#        """
-#        return [ 'bspline' ]
-
-    def validate(self):
-        pass
-
-#        """
-#        Check the parameters are valid for the provided method.
-#        """
-#        if self.data['method'] == 'bspline' and not isinstance(self.data['params'], int):
-#            raise ValueError('For bspline sky-subtraction method, set params = spacing (integer).')
-
 
 class ManualExtractionPar(ParSet):
     """
@@ -1883,7 +1804,7 @@ class ScienceImagePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, maxnumber=None, manual=None, nodding=None):
+    def __init__(self, bspline_spacing=None, maxnumber=None, sn_gauss=None, manual=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1916,10 +1837,11 @@ class ScienceImagePar(ParSet):
         descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
                              'None for no limit.'
 
-        # Place holder for NIR maybe in the future
-        defaults['nodding'] = False
-        dtypes['nodding'] = bool
-        descr['nodding'] = 'Use the nodded frames to perform the sky subtraction'
+        defaults['sn_gauss'] = 4.0
+        dtypes['sn_gauss'] = [int, float]
+        descr['sn_gauss'] = 'S/N threshold for performing the more sophisticated optimal extraction which performs a ' \
+                            'b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extract' \
+                            'with a Gaussian with FWHM determined from the object finding.'
 
         dtypes['manual'] = list
         descr['manual'] = 'List of manual extraction parameter sets'
@@ -1937,7 +1859,7 @@ class ScienceImagePar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'maxnumber', 'nodding']
+        parkeys = ['bspline_spacing', 'maxnumber', 'sn_gauss', 'manual']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

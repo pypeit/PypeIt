@@ -448,9 +448,9 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         coldefs = fits.ColDefs(cols)
         tbhdu = fits.BinTableHDU.from_columns(coldefs)
         tbhdu.name = sobj.idx
-        # If this is echelle write the obj_id and the orderindx to the header as well
-        if sobj.ech_obj_id is not None:
-            tbhdu.header['OBJ_ID'] = sobj.ech_obj_id
+        # If this is echelle write the objid and the orderindx to the header as well
+        if sobj.ech_objid is not None:
+            tbhdu.header['OBJID'] = sobj.ech_objid
         if sobj.ech_orderindx is not None:
             tbhdu.header['ORDER'] = sobj.ech_orderindx
         hdus += [tbhdu]
@@ -458,7 +458,7 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
     # A few more for the header
     prihdu.header['NSPEC'] = len(hdus) - 1
     prihdu.header['NPIX'] = npix
-    # If this is echelle write the obj_id and the orderindx to the header as well
+    # If this is echelle write the objid and the orderindx to the header as well
 
 
     # Finish
