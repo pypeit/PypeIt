@@ -184,6 +184,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         return msframe
 
+    # TODO Need to add functionality to use a different frame for the ilumination flat, e.g. a sky flat
     def run(self, debug=False, show=False):
         """
         Main driver to generate normalized flat field and illumination flats
@@ -225,7 +226,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Loop on slits
         for slit in range(self.nslits):
             msgs.info('Computing flat field image for slit: {:d}/{:d}'.format(slit,self.nslits-1))
-            thismask = (self.slitmask == slit)
             if self.msbpm is not None:
                 inmask = ~self.msbpm
             else:
@@ -239,8 +239,12 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                                self.spectrograph.detector[self.det - 1]['saturation']
             pixelflat, illumflat, flat_model, tilts_out, thismask_out, slit_left_out, slit_righ_out = \
                 flat.fit_flat(self.rawflatimg, this_tilts_dict, self.tslits_dict, slit,
-                              spectrograph = self.spectrograph, binning = self.binning, inmask=inmask,tweak_slits = self.flatpar['tweak_slits'],
-                              nonlinear_counts=nonlinear_counts, debug=debug)
+                              spectrograph=self.spectrograph, binning=self.binning, inmask=inmask,
+                              nonlinear_counts=nonlinear_counts,
+                              spec_samp_fine=self.flatpar['spec_samp_fine'], spec_samp_coarse=self.flatpar['spec_samp_coarse'],
+                              spat_samp=self.flatpar['spat_samp'], tweak_slits=self.flatpar['tweak_slits'],
+                              tweak_slits_thresh=self.flatpar['tweak_slits_thresh'],
+                              tweak_slits_maxfrac=self.flatpar['tweak_slits_maxfrac'],debug=debug)
             self.mspixelflat[thismask_out] = pixelflat[thismask_out]
             self.msillumflat[thismask_out] = illumflat[thismask_out]
             self.flat_model[thismask_out] = flat_model[thismask_out]
@@ -253,6 +257,12 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # If we tweaked the slits update the tilts_dict
         if self.flatpar['tweak_slits']:
             self.tilts_dict['tilts'] = final_tilts
+
+        # TODO This is a bit of a hack, we should jut not write it out. The code needs to be able to compute it though
+        # for the rest of its functionality
+        # If illumination flat fielding is turned off, set the illumflat to be one everwhere
+        if not self.flatpar['illumflatten']:
+            self.msillumflat = np.ones_like(self.msillumflat)
 
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here

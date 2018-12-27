@@ -417,7 +417,9 @@ class FlatFieldPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frame=None, illumflatten=None, tweak_slits=None, method=None): #, params=None, twodpca=None):
+    def __init__(self, frame=None, illumflatten=None, spec_samp_fine=None, spec_samp_coarse=None,
+                 spat_samp=None, tweak_slits=None, tweak_slits_thresh=None, tweak_slits_maxfrac=None):
+
     
         # Grab the parameter names and values from the function
         # arguments
@@ -444,16 +446,38 @@ class FlatFieldPar(ParSet):
         dtypes['illumflatten'] = bool
         descr['illumflatten'] = 'Use the flat field to determine the illumination profile of each slit.'
 
+        defaults['spec_samp_fine'] = 1.2
+        dtypes['spec_samp_fine'] = [int, float]
+        descr['spec_samp_fine'] = 'bspline break point spacing in units of pixels for spectral fit to flat field blaze function.'
+
+        defaults['spec_samp_coarse'] = 50.0
+        dtypes['spec_samp_coarse'] = [int, float]
+        descr['spec_samp_coarse'] = 'bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to ' \
+                                    'flat field image residuals. This should be a large number unless you are trying to ' \
+                                    'fit a sky flat with lots of narrow spectral features.'
+        defaults['spat_samp'] = 5.0
+        dtypes['spat_samp'] = [int, float]
+        descr['spat_samp'] = 'Spatial sampling for slit illumination function. This is the width of the median ' \
+                             'filter in pixels used to determine the slit illumination function, and thus sets the ' \
+                             'minimum scale on which the illumination function will have features.'
+
         defaults['tweak_slits'] = True
         dtypes['tweak_slits'] = bool
-        descr['tweak_slits'] = 'Use the illumination flat field to tweak the slit edges. illumflatten must be set to true for this to work'
+        descr['tweak_slits'] = 'Use the illumination flat field to tweak the slit edges. ' \
+                               'This will work even if illumflatten is set to False '
 
-        # ToDO This method keyword is defunct now
-        defaults['method'] = 'bspline'
-        options['method'] = FlatFieldPar.valid_methods()
-        dtypes['method'] = str
-        descr['method'] = 'Method used to flat field the data; use None to skip flat-fielding.  ' \
-                          'Options are: None, {0}'.format(', '.join(options['method']))
+        defaults['tweak_slits_thresh'] = 0.93
+        dtypes['tweak_slits_thresh'] = float
+        descr['tweak_slits_thresh'] = 'If tweak_slits is True, this sets the illumination function threshold used to ' \
+                                      'tweak the slit boundaries based on the illumination flat. ' \
+                                      'It should be a number less than 1.0'
+
+        defaults['tweak_slits_maxfrac'] = 0.10
+        dtypes['tweak_slits_maxfrac'] = float
+        descr['tweak_slits_maxfrac'] = 'If tweak_slit is True, this sets the maximum fractional amount (of a slits width) ' \
+                                       'allowed for trimming each (i.e. left and right) slit boundary, i.e. the default is 10% ' \
+                                       'which means slits would shrink or grow by at most 20% (10% on each side)'
+
 
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
@@ -469,7 +493,8 @@ class FlatFieldPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'frame', 'illumflatten', 'tweak_slits', 'method'] #', 'params', 'twodpca' ]
+        parkeys = [ 'frame', 'illumflatten', 'spec_samp_fine', 'spec_samp_coarse', 'spat_samp',
+                    'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
