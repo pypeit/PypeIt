@@ -557,7 +557,8 @@ class ScienceImage():
         for ifile in range(nfiles):
             this_proc = processimages.ProcessImages(self.spectrograph, [files[ifile]], det=self.det,par=self.frame_par['process'])
             # TODO I think trim should be hard wired, and am not letting it be a free parameter
-            sciimg = this_proc.process(bias_subtract=bias,pixel_flat=pixel_flat, illum_flat=illum_flat, bpm=bpm, apply_gain=True, trim=True)
+            sciimg = this_proc.process(bias_subtract=bias,pixel_flat=pixel_flat, illum_flat=illum_flat, bpm=bpm,
+                                       apply_gain=True, trim=True)
             # Allocate the images
             if ifile == 0:
                 # numpy is row major so stacking will be fastest with nfiles as the first dimensions
