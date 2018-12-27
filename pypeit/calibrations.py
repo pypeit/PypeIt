@@ -470,11 +470,11 @@ class Calibrations(object):
             if self.save_masters:
                 self.flatField.save_master(self.mspixflatnrm, raw_files=pixflat_image_files,
                                            steps=self.flatField.steps)
-                self.flatField.save_master(self.msillumflat, raw_files=pixflat_image_files,
-                                           steps=self.flatField.steps,
-                                           outfile=masterframe.master_name('illumflat',
-                                                                           self.pixflat_master_key,
-                                                                           self.master_dir))
+                if self.msillumflat is not None:
+                    self.flatField.save_master(self.msillumflat, raw_files=pixflat_image_files,
+                                               steps=self.flatField.steps,
+                                               outfile=masterframe.master_name('illumflat',
+                                               self.pixflat_master_key,self.master_dir))
                 # If we tweaked the slits update the master files for tilts and slits
                 if self.par['flatfield']['tweak_slits']:
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
@@ -554,7 +554,6 @@ class Calibrations(object):
             return self.tslits_dict, self.maskslits
                 
         # Instantiate (without mstrace)
-
         self.traceSlits = traceslits.TraceSlits(None, self.spectrograph,
                                                 binning=self.binning,
                                                 par=self.par['slits'],
@@ -564,7 +563,7 @@ class Calibrations(object):
                                                 mode=self.par['masters'], binbpx=self.msbpm)
 
         # Load via master, as desired
-        if not self.traceSlits.master(force=prev_build):
+        if self.traceSlits.master(force=prev_build) is None:
             # Build the trace image first
             self.traceImage = traceimage.TraceImage(self.spectrograph,self.trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
@@ -586,6 +585,7 @@ class Calibrations(object):
                                                        write_qa=write_qa)
             except:
                 self.traceSlits.save_master()
+                # TODO why do we have this error method here but nowhere else?
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
             # No slits?
             if self.tslits_dict is None:

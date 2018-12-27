@@ -258,13 +258,15 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         if self.flatpar['tweak_slits']:
             self.tilts_dict['tilts'] = final_tilts
 
-        # If illumination flat fielding is turned off, set the illumflat to be None.
-        if not self.flatpar['illumflatten']:
-            self.msillumflat = None
-
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show(slits=True, wcs_match = True)
+
+        # If illumination flat fielding is turned off, set the illumflat to be None.
+        if not self.flatpar['illumflatten']:
+            msgs.warn('You have set illumflatten=False. No illumination flat will be applied to your data.')
+            self.msillumflat = None
+
 
         # Return
         return self.mspixelflat, self.msillumflat

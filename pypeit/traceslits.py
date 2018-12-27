@@ -1242,26 +1242,33 @@ class TraceSlits(masterframe.MasterFrame):
             answer: bool
 
         """
-        # Load from filename extension. There is a fits and json file, and this routine also does file checking
-        fits_dict, ts_dict = load_traceslit_files(filename)
-        # Fail?
-        if fits_dict is None:
-            return False
-        # Load up self
-        self.binbpx = fits_dict['BINBPX'].astype(float)  # Special
-        for key in ['MSTRACE', 'PIXLOCN', 'LCEN', 'RCEN', 'SLITCEN', 'LCEN_TWEAK', 'RCEN_TWEAK', 'EDGEARR', 'SIGLEV']:
-            if key in fits_dict.keys():
-                setattr(self, key.lower(), fits_dict[key])
-        # Remake the binarr
-        self.binarr = self._make_binarr()
-        # dict
-        self.tc_dict = ts_dict['tc_dict']
-        # Load the pixel objects?
-        #self._make_pixel_arrays()  # JFH This should *NOT* be done here anymore
-        # Fill
-        self._fill_tslits_dict()
-        # Success
-        return True
+
+
+        # Does the master file exist?
+        if not os.path.isfile(filename):
+            msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
+            return None
+        else:
+            # Load from filename extension. There is a fits and json file, and this routine also does file checking
+            fits_dict, ts_dict = load_traceslit_files(filename)
+            # Fail?
+            if fits_dict is None:
+                return False
+            # Load up self
+            self.binbpx = fits_dict['BINBPX'].astype(float)  # Special
+            for key in ['MSTRACE', 'PIXLOCN', 'LCEN', 'RCEN', 'SLITCEN', 'LCEN_TWEAK', 'RCEN_TWEAK', 'EDGEARR', 'SIGLEV']:
+                if key in fits_dict.keys():
+                    setattr(self, key.lower(), fits_dict[key])
+            # Remake the binarr
+            self.binarr = self._make_binarr()
+            # dict
+            self.tc_dict = ts_dict['tc_dict']
+            # Load the pixel objects?
+            #self._make_pixel_arrays()  # JFH This should *NOT* be done here anymore
+            # Fill
+            self._fill_tslits_dict()
+            # Success
+            return True
 
     def master_old(self):
         """ Mainly for PyepIt running

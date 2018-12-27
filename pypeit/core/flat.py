@@ -188,7 +188,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
-#    debug=True
+    debug=True
     spectrograph = load_spectrograph(spectrograph)
 
     shape = flat.shape

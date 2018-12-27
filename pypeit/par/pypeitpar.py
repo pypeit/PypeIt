@@ -417,7 +417,7 @@ class FlatFieldPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frame=None, illumflatten=None, spec_samp_fine=None, spec_samp_coarse=None,
+    def __init__(self, method=None, frame=None, illumflatten=None, spec_samp_fine=None, spec_samp_coarse=None,
                  spat_samp=None, tweak_slits=None, tweak_slits_thresh=None, tweak_slits_maxfrac=None):
 
     
@@ -435,6 +435,14 @@ class FlatFieldPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+
+
+        # ToDO there are only two methods. The bspline method and skip, so maybe we should rename the bspline method.
+        defaults['method'] = 'bspline'
+        options['method'] = FlatFieldPar.valid_methods()
+        dtypes['method'] = str
+        descr['method'] = 'Method used to flat field the data; use skip to skip flat-fielding.  ' \
+                          'Options are: None, {0}'.format(', '.join(options['method']))
 
         # TODO: Provide a list of valid masters to use as options?
         defaults['frame'] = 'pixelflat'
@@ -493,7 +501,7 @@ class FlatFieldPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'frame', 'illumflatten', 'spec_samp_fine', 'spec_samp_coarse', 'spat_samp',
+        parkeys = [ 'method', 'frame', 'illumflatten', 'spec_samp_fine', 'spec_samp_coarse', 'spat_samp',
                     'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac']
         kwargs = {}
         for pk in parkeys:
@@ -514,7 +522,7 @@ class FlatFieldPar(ParSet):
         """
         Return the valid flat-field methods
         """
-        return ['bspline'] # [ 'PolyScan', 'bspline' ]. Same here. Not sure what PolyScan is
+        return ['bspline', 'skip'] # [ 'PolyScan', 'bspline' ]. Same here. Not sure what PolyScan is
 
     def validate(self):
         """

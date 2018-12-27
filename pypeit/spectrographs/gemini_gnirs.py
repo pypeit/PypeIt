@@ -105,9 +105,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
 
         # Flats
-        par['calibrations']['flat']['tracethresh'] = [5.0,10,10,10,10,10]
-        par['calibrations']['tilts']['sig_neigh'] = 5.0
-        par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
+        par['calibrations']['flatfield']['illumflatten'] = False
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.97
+
+
 
 
 
