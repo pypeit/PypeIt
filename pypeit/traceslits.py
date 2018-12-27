@@ -1152,7 +1152,7 @@ class TraceSlits(masterframe.MasterFrame):
             debugger.show_image(self.siglev, chname='siglev')
 
     # JFH TODO this needs an argument to follow convention for save_master
-    def save_master(self, root=None, gzip=True):
+    def save_master(self, root=None): #, gzip=True):
         """
         Write the main pieces of TraceSlits to the hard drive as a MasterFrame
           FITS -- mstrace and other images
@@ -1162,7 +1162,7 @@ class TraceSlits(masterframe.MasterFrame):
         ----------
         root : str (Optional)
           Path+root name for the output files
-        gzip : bool (optional)
+        gzip : bool (optional) JFH TURNED OFF GZIPPING
           gzip the FITS file (note astropy's method for this is *way* too slow)
         """
         if root is None:
@@ -1212,10 +1212,11 @@ class TraceSlits(masterframe.MasterFrame):
         hdul = fits.HDUList(hdulist)
         hdul.writeto(outfile, overwrite=True)
         msgs.info("Wrote TraceSlit arrays to {:s}".format(outfile))
-        if gzip:
-            msgs.info("gzip compressing {:s}".format(outfile))
-            command = ['gzip', '-f', outfile]
-            Popen(command)
+        # TODO None of our other masters are compressed so I'm turning this off for now
+        #if gzip:
+        #    msgs.info("gzip compressing {:s}".format(outfile))
+        #    command = ['gzip', '-f', outfile]
+        #    Popen(command)
 
         # dict of steps, settings and more
         out_dict = {}
@@ -1245,7 +1246,7 @@ class TraceSlits(masterframe.MasterFrame):
 
 
         # Does the master file exist?
-        if not os.path.isfile(filename):
+        if not (os.path.isfile(filename + '.fits') & os.path.isfile(filename + '.json')):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
             return None
         else:
@@ -1270,23 +1271,23 @@ class TraceSlits(masterframe.MasterFrame):
             # Success
             return True
 
-    def master_old(self):
-        """ Mainly for PyepIt running
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        loaded : bool
-
-        """
-        # Load master frame?
-        loaded = False
-        if self._masters_load_chk():
-            loaded = self.load_master()
-        # Return
-        return loaded
+#    def master_old(self):
+#        """ Mainly for PyepIt running
+#
+#        Parameters
+#        ----------
+#
+#        Returns
+#        -------
+#        loaded : bool
+#
+#        """
+#        # Load master frame?
+#        loaded = False
+#        if self._masters_load_chk():
+#            loaded = self.load_master()
+#        # Return
+#        return loaded
 
     def run(self, add_user_slits=None, rm_user_slits=None, trim_slits = True, plate_scale = None, show=False, write_qa=True, debug=False):
         """ Main driver for tracing slits.
@@ -1447,7 +1448,7 @@ def load_traceslit_files(root):
     """
     fits_dict = {}
     # Open FITS
-    fits_file = root+'.fits.gz'
+    fits_file = root+'.fits'
     if not os.path.isfile(fits_file):
         msgs.error("No TraceSlits FITS file found!")
 

@@ -1302,8 +1302,27 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, trc_inmask = None, fwh
     return xfit1, xpos1, xerr1, pos_set1
 
 
-specobj_dict = {'setup': None, 'slitid': None, 'det': 1, 'objtype': 'science'}
+def create_skymask(sobjs, thismask):
 
+    nobj = len(sobjs)
+    skymask = np.copy(thismask)
+    if nobj == 0:
+        return skymask
+    else:
+        nspec, nspat = thismask.shape
+        # spatial position everywhere along image
+        spat_img = np.outer(np.ones(nspec, dtype=int),np.arange(nspat, dtype=int))
+        all_fwhm = sobjs.fwhm
+        med_fwhm = np.median(all_fwhm)
+        for iobj in range(nobj):
+            # Create a mask for the pixels that will contribue to the arc
+            slit_img = np.outer(sobjs[iobj].trace_spat, np.ones(nspat))  # central trace replicated spatially
+            objmask_now = thismask & (spat_img > (slit_img - med_fwhm)) & (spat_img < (slit_img + med_fwhm))
+            skymask = skymask & np.invert(objmask_now)
+
+        return skymask
+
+specobj_dict = {'setup': None, 'slitid': None, 'det': 1, 'objtype': 'science'}
 
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
             hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit =None,  bg_smth = 5.0,
@@ -1641,10 +1660,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
 
     objmask = np.zeros_like(thismask, dtype=bool)
-    skymask = np.copy(thismask)
     if (len(sobjs) == 0) & (hand_extract_dict == None):
         msgs.info('No objects found')
-        return (specobjs.SpecObjs(), skymask[thismask], objmask[thismask])
+        skymask = create_skymask(sobjs,thismask)
+        return (specobjs.SpecObjs(), skymask[thismask])
 
 
     msgs.info('Fitting the object traces')
@@ -1769,17 +1788,18 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         close = sep <= sep_inc
         qobj[close] += sobjs[iobj].smash_peakflux*np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].fwhm**2,-9.0))
 
-    # Create an objmask
+    # Create an objmask. This is created here in case we decide to use it later, but it is not currently used
     objmask[thismask] = np.interp(ximg[thismask],xtmp,qobj) > (objmask_nthresh*threshold)
 
     # Still have to make the skymask
-    all_fwhm = sobjs.fwhm
-    med_fwhm = np.median(all_fwhm)
-    for iobj in range(nobj):
-        for ispec in range(nspec):
-            spat_min = np.fmin(np.fmax(int(np.floor(sobjs[iobj].trace_spat[ispec] - med_fwhm)),0),nspat)
-            spat_max = np.fmin(np.fmax(int(np.ceil(sobjs[iobj].trace_spat[ispec] + med_fwhm)),0),nspat)
-            skymask[ispec,spat_min:spat_max] = False
+    skymask = create_skymask(sobjs,thismask)
+    #all_fwhm = sobjs.fwhm
+    #med_fwhm = np.median(all_fwhm)
+    #for iobj in range(nobj):
+    #    for ispec in range(nspec):
+    #        spat_min = np.fmin(np.fmax(int(np.floor(sobjs[iobj].trace_spat[ispec] - med_fwhm)),0),nspat)
+    #        spat_max = np.fmin(np.fmax(int(np.ceil(sobjs[iobj].trace_spat[ispec] + med_fwhm)),0),nspat)
+    #        skymask[ispec,spat_min:spat_max] = False
 
 
     # If requested display the resulting traces on top of the image
@@ -1793,21 +1813,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
                 color = 'blue'
             ginga.show_trace(viewer, ch,sobjs[iobj].trace_spat, trc_name = sobjs[iobj].idx, color=color)
 
-#    if show_fits or show_peaks:
-#        plt.ioff()
-
-    # Clean up interactive plots if they exist
-#    if show_peaks:
-#        time.sleep(5)
-#        p_show_peaks.terminate()
-#        p_show_peaks.join()
-
-#    if show_fits:
-#        p_show_flux_wt.terminate()
-#        p_show_gauss_wt.terminate()
-
-
-    return sobjs, skymask[thismask], objmask[thismask]
+    return sobjs, skymask[thismask]
 
 
 
@@ -1961,7 +1967,7 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
 
 
 
-def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_vec = None, plate_scale=0.2, std_trace=None, ncoeff = 5,
+def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_vec = None, plate_scale=0.2, std_trace=None, ncoeff = 5,
                 npca=None,coeff_npoly=None,min_snr=0.0,nabove_min_snr=0,pca_explained_var=99.0, box_radius=2.0, fwhm = 3.0,
                 hand_extract_dict = None, nperslit = 5, bg_smth = 5.0, extract_maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0,
                 abs_thresh = 0.0, trim_edg = (5,5), show_peaks=False,show_fits=False,show_trace=False,show_single_trace = False, debug=False):
@@ -1980,9 +1986,9 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         then this code should be run. However, it is also possible to run this code on non sky subtracted images.
     ivar: float ndarray, shape (nspec, nspat)
        Inverse variance image for the input image.
-    ordermask: int ndarray, shape (nspec, nspat)
+    slitmask: int ndarray, shape (nspec, nspat)
        Integer image indicating the pixels that belong to each order. Pixels that are not on an order have value -1, and those
-       that are on an order have a value equal to the order number
+       that are on an order have a value equal to the slit number (i.e. 0 to nslits-1 from left to right on the image)
     slit_left:  float ndarray
         Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
         or (nspec)
@@ -2019,8 +2025,9 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
 
     # TODO Update FOF algorithm here with the one from scikit-learn.
 
+    allmask = slitmask > -1
     if inmask is None:
-        inmask = (ordermask > -1)
+        inmask = allmask
 
     frameshape = image.shape
     nspec = frameshape[0]
@@ -2055,21 +2062,21 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         slit_spat_pos[iord, :] = (np.interp(slit_spec_pos, spec_vec, slit_left[:,iord]), np.interp(slit_spec_pos, spec_vec, slit_righ[:,iord]))
 
     # create the ouptut images skymask and objmask
-    objmask = np.zeros_like(ordermask, dtype=bool)
-    skymask = np.copy(ordermask)
+    #objmask = np.zeros_like(slitmask, dtype=bool)
+    skymask = np.copy(allmask)
     # Loop over orders and find objects
     sobjs = specobjs.SpecObjs()
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up slitid and orderindx!
     for iord  in range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
-        thismask = ordermask == iord
+        thismask = slitmask == iord
         inmask_iord = inmask & thismask
         specobj_dict = {'setup': 'echelle', 'slitid': iord, 'det': 1, 'objtype': 'science'}
         try:
             std_in = std_trace[:,iord]
         except TypeError:
             std_in = None
-        sobjs_slit, skymask[thismask], objmask[thismask]= \
+        sobjs_slit, skymask[thismask] = \
             objfind(image, thismask, slit_left[:,iord], slit_righ[:,iord], inmask=inmask_iord,std_trace=std_in,
                     fwhm=fwhm,hand_extract_dict=hand_extract_dict, nperslit=nperslit, bg_smth=bg_smth,
                     extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh, peak_thresh=peak_thresh, abs_thresh=abs_thresh,
@@ -2219,7 +2226,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         for iord in range(norders):
             indx = (sobjs_align.ech_obj_id == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
             spec = sobjs_align[indx][0]
-            thismask = ordermask == iord
+            thismask = slitmask == iord
             inmask_iord = inmask & thismask
             # TODO make the snippet below its own function quick_extraction()
             box_rad_pix = box_radius/plate_scale_ord[iord]
@@ -2258,7 +2265,9 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
 
     nobj_trim = np.sum(keep_obj)
     if nobj_trim == 0:
-        return specobjs.SpecObjs()
+        sobjs_final = specobjs.SpecObjs()
+        skymask = create_skymask(sobjs_final, allmask)
+        return sobjs_final, skymask[allmask]
 
     SNR_arr_trim = SNR_arr[:,keep_obj]
 
@@ -2275,7 +2284,7 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
                                          debug=debug)
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
-        inmask_now = inmask & (ordermask > -1)
+        inmask_now = inmask & allmask
         xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight, ncoeff, inmask = inmask_now, show_fits=show_fits)
         # Perform iterative Gaussian weighted centroiding
         xinit_gweight = xfit_fweight.copy()
@@ -2285,12 +2294,13 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
             spec.trace_spat = xfit_gweight[:,iord]
             spec.spat_pixpos = spec.trace_spat[specmid]
 
-    # TODO need to properly take out the mean above, and reinsert the mean here
     # Set the IDs
     sobjs_final.set_idx(echelle=True)
 
+    skymask = create_skymask(sobjs_final,allmask)
+
     if show_trace:
-        viewer, ch = ginga.show_image(image*(ordermask > -1))
+        viewer, ch = ginga.show_image(image*allmask)
 
         for spec in sobjs_trim:
             color = 'green' if spec.ech_frac_was_fit else 'magenta'
@@ -2320,5 +2330,5 @@ def ech_objfind(image, ivar, ordermask, slit_left, slit_righ,inmask=None, order_
         canvas_list = text_final + text_pca + text_fit + text_notfit
         canvas.add('constructedcanvas', canvas_list)
 
-    return sobjs_final
+    return sobjs_final, skymask[allmask]
 
