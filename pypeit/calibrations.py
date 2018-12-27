@@ -384,11 +384,11 @@ class Calibrations(object):
 
         """
 
-        if self.par['flatfield']['method'] is None:
+        if self.par['flatfield']['method'] is 'skip':
             # User does not want to flat-field
             self.mspixflatnrm = None
             self.msillumflat = None
-            msgs.warning('Parameter calibrations.flatfield.method is set to None. You are NOT '
+            msgs.warning('Parameter calibrations.flatfield.method is set to skip. You are NOT '
                          'flatfielding your data!!!')
             return self.mspixflatnrm, self.msillumflat
 

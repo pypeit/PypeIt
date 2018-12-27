@@ -258,11 +258,9 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         if self.flatpar['tweak_slits']:
             self.tilts_dict['tilts'] = final_tilts
 
-        # TODO This is a bit of a hack, we should jut not write it out. The code needs to be able to compute it though
-        # for the rest of its functionality
-        # If illumination flat fielding is turned off, set the illumflat to be one everwhere
+        # If illumination flat fielding is turned off, set the illumflat to be None.
         if not self.flatpar['illumflatten']:
-            self.msillumflat = np.ones_like(self.msillumflat)
+            self.msillumflat = None
 
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here

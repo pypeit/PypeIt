@@ -74,6 +74,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Bias
         par['calibrations']['biasframe']['useframe'] = 'overscan'
 
+        # Slits
+        par['calibrations']['slits']['sigdetect'] = 220.
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 0.5
+
         # Wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
@@ -99,10 +104,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['sig_neigh'] = 5.0
         par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
 
-        # Slits
-        par['calibrations']['slits']['sigdetect'] = 220.
-        par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 0.5
+        # Flats
+        par['calibrations']['flat']['tracethresh'] = [5.0,10,10,10,10,10]
+        par['calibrations']['tilts']['sig_neigh'] = 5.0
+        par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
+
 
 
         # Scienceimage default parameters
