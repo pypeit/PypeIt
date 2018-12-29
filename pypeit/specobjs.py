@@ -92,7 +92,7 @@ class SpecObj(object):
 
         # Object finding attributes
         self.sign = 1.0
-        self.objid = None
+        self.objid = 0
         self.spat_fracpos = None
         self.smash_peakflux = None
         self.fwhm = None
@@ -108,7 +108,7 @@ class SpecObj(object):
         # Some things for echelle functionality
         self.ech_order = None
         self.ech_orderindx = None
-        self.ech_objid = None
+        self.ech_objid = 0
         self.ech_snr = None
         self.ech_fracpos = None
         self.ech_frac_was_fit = None
@@ -305,7 +305,7 @@ class SpecObjs(object):
 
         """
         # Assign the sign and the objids
-        index = (self.specobjs.objid < 0) | (self.specobjs.ech_objid < 0)
+        index = (self.objid < 0) | (self.ech_objid < 0)
         self.remove_sobj(index)
 
 

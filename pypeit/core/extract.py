@@ -1323,7 +1323,7 @@ def create_skymask(sobjs, thismask):
 
         return skymask
 
-specobj_dict = {'setup': None, 'slitid': None, 'det': 1, 'objtype': 'science'}
+specobj_dict = {'setup': None, 'slitid': 999, 'det': 1, 'objtype': 'science'}
 
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
             hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit =None,  bg_smth = 5.0,
