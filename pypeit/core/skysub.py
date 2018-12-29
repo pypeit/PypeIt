@@ -277,8 +277,8 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
                          bsp = 0.6, inmask = None, extract_maskwidth = 4.0, trim_edg = (3,3), std = False, prof_nsigma = None,
-                         niter=4, box_rad = 7, sigrej = 3.5,skysample = False, sn_gauss = 4.0, coadd_2d = False, show_profile=False,
-                         show_resids=False):
+                         niter=4, box_rad = 7, sigrej = 3.5,skysample = False, sn_gauss = 4.0, model_noise = True,
+                         show_profile=False,show_resids=False):
 
     """Perform local sky subtraction and  extraction
 
@@ -359,7 +359,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     modelivar = np.copy(sciivar)
     objimage = np.zeros_like(sciimg)
     skyimage = np.copy(global_sky)
-    varnoobj = np.abs(skyimage - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
+    #varnoobj = np.abs(skyimage - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
     xarr = np.outer(np.ones(nspec), np.arange(nspat))
     yarr = np.outer(np.arange(nspec), np.ones(nspat))
@@ -527,17 +527,17 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 skyimage.flat[isub] = sky_bmodel
                 objimage.flat[isub] = obj_bmodel
                 img_minsky.flat[isub] = sciimg.flat[isub] - sky_bmodel
-                var = np.abs(sky_bmodel + obj_bmodel - np.sqrt(2.0) * np.sqrt(rn2_img.flat[isub])) + rn2_img.flat[isub]
-                var_no = np.abs(sky_bmodel - np.sqrt(2.0) * np.sqrt(rn2_img.flat[isub])) + rn2_img.flat[isub]
+                #var_no = np.abs(sky_bmodel - np.sqrt(2.0) * np.sqrt(rn2_img.flat[isub])) + rn2_img.flat[isub]
                 igood1 = skymask.flat[isub]
                 #  update the outmask for only those pixels that were fit. This prevents masking of slit edges in outmask
                 outmask.flat[isub[igood1]] = outmask_opt[igood1]
                 #  For weighted co-adds, the variance of the image is no longer equal to the image, and so the modelivar
                 #  eqn. below is not valid. However, co-adds already have the model noise propagated correctly in sciivar,
-                #  so no need to re-model the variance
-                if coadd_2d is False:
+                #  so no need to re-model the variance.
+                if model_noise:
+                    var = np.abs(sky_bmodel + obj_bmodel - np.sqrt(2.0) * np.sqrt(rn2_img.flat[isub])) + rn2_img.flat[isub]
                     modelivar.flat[isub] = (var > 0.0) / (var + (var == 0.0))
-                    varnoobj.flat[isub] = var_no
+                    #varnoobj.flat[isub] = var_no
                 # Now do some masking based on this round of model fits
                 chi2 = (img_minsky.flat[isub] - obj_bmodel) ** 2 * modelivar.flat[isub]
                 igood = (skymask.flat[isub]) & (chi2 <= chi2_sigrej ** 2)

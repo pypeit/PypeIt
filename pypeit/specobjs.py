@@ -280,6 +280,10 @@ class SpecObjs(object):
         return self.specobjs.size
 
     def append_neg(self, sobjs_neg):
+        """
+        Append negative objects and change the sign of their objids for IR reductions
+
+        """
 
         # Assign the sign and the objids
         for spec in sobjs_neg:
@@ -295,6 +299,14 @@ class SpecObjs(object):
 
         self.add_sobj(sobjs_neg)
 
+    def purge_neg(self):
+        """
+        Purge negative objects from specobjs for IR reductions
+
+        """
+        # Assign the sign and the objids
+        index = (self.specobjs.objid < 0) | (self.specobjs.ech_objid < 0)
+        self.remove_sobj(index)
 
 
     def add_sobj(self, sobj):

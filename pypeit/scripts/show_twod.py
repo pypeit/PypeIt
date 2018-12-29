@@ -15,7 +15,6 @@ from __future__ import unicode_literals
 
 import argparse
 from astropy.table import Table
-from pypeit import traceslits
 from pypeit import ginga
 from pypeit.scienceimage import ScienceImageBitMask as bitmask
 

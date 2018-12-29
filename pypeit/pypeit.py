@@ -433,10 +433,14 @@ class PypeIt(object):
             # Global sky subtraction second pass. Uses skymask from object finding
             global_sky = self.sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'],
                                                  skymask=self.skymask, maskslits=self.maskslits, show=self.show)
-
+            # TODO add hook here for standards
             skymodel, objmodel, ivarmodel, outmask, sobjs = \
-                self.sciI.local_skysub_extract(self.sobjs_obj, self.caliBrate.mswave,
+                self.sciI.local_skysub_extract(self.sobjs_obj, self.caliBrate.mswave, model_noise=(not self.ir_redux),
                                                maskslits=self.maskslits, show_profile=self.show, show=self.show)
+
+            # Purge out the negative objects if this was a near-IR reduction
+            if self.ir_redux:
+                sobjs.purge_neg()
 
             # Flexure correction?
             self.flexure_correct(sobjs, self.maskslits)
@@ -453,7 +457,7 @@ class PypeIt(object):
             # Set to inmask in case on objects were found
             outmask = self.sciI.mask
             # empty specobjs object from object finding
-            sobjs = sobjs_obj
+            sobjs = self.sobjs_obj
             vel_corr = None
 
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr

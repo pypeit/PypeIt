@@ -299,6 +299,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
 
+    # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
     var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
     ispec, ispat = np.where(oprof > 0.0)

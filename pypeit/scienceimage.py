@@ -416,7 +416,8 @@ class ScienceImage():
     #     return self.global_sky
 
 
-    def local_skysub_extract(self, sobjs, waveimg, maskslits=None, std = False, show_profile=False, show_resids=False,show=False):
+    def local_skysub_extract(self, sobjs, waveimg, maskslits=None, model_noise=True, std = False,
+                             show_profile=False, show_resids=False, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -491,8 +492,8 @@ class ScienceImage():
                                                       self.waveimg, self.global_sky, self.rn2img,
                                                       thismask, self.tslits_dict['lcen'][:,slit],
                                                       self.tslits_dict['rcen'][:, slit],
-                                                      self.sobjs[thisobj], std = std,
-                                                      bsp=self.par['bspline_spacing'],
+                                                      self.sobjs[thisobj], model_noise=model_noise,
+                                                      std = std, bsp=self.par['bspline_spacing'],
                                                       sn_gauss=self.par['sn_gauss'],
                                                       inmask=inmask, show_profile=show_profile,
                                                       show_resids=show_resids)

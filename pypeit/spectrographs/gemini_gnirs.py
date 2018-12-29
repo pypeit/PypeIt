@@ -103,8 +103,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Flats
         par['calibrations']['flatfield']['illumflatten'] = False
-        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.97
-        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.20
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Extraction
         par['scienceimage']['bspline_spacing'] = 0.8
