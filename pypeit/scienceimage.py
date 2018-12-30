@@ -354,7 +354,7 @@ class ScienceImage():
 
         # Build and assign the slitmask and input mask if they do not already exist
         self.slitmask = self.spectrograph.slitmask(tslits_dict, binning=self.binning) if self.slitmask is None else self.slitmask
-        self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
+        #self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
 
         # Prep
         self.global_sky = np.zeros_like(self.sciimg)
@@ -366,7 +366,7 @@ class ScienceImage():
         for slit in gdslits:
             msgs.info("Global sky subtraction for slit: {:d}".format(slit))
             thismask = (self.slitmask == slit)
-            inmask = (self.mask == 0) & (self.crmask == False) & thismask & skymask_now
+            inmask = (self.mask == 0) & thismask & skymask_now
             # Find sky
             self.global_sky[thismask] =  skysub.global_skysub(self.sciimg, self.sciivar,
                                                               self.tilts, thismask,
@@ -374,7 +374,7 @@ class ScienceImage():
                                                               self.tslits_dict['rcen'][:,slit],
                                                               inmask=inmask,
                                                               bsp=self.par['bspline_spacing'],
-                                                              pos_mask = ~self.ir_redux,
+                                                              pos_mask = (not self.ir_redux),
                                                               show_fit=show_fit)
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
@@ -384,7 +384,7 @@ class ScienceImage():
             # Update the crmask by running LA cosmics again
             self.crmask = self.build_crmask(self.sciimg - self.global_sky, ivar = self.sciivar)
             # Rebuild the mask with this new crmask
-            self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask)
+            self.mask = self._update_mask_cr(self.mask, self.crmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -664,7 +664,7 @@ class ScienceImage():
             # we simply create it using the stacked images and the stacked mask
             #nused = np.sum(outmask_stack,axis=0)
             #self.mask = (nused == 0) * np.sum(mask_stack, axis=0)
-            self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, mincounts=~self.ir_redux)
+            self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, mincounts=(not self.ir_redux))
         else:
             self.mask  = mask_stack[0,:,:]
             self.crmask = crmask_stack[0,:,:]
@@ -672,8 +672,11 @@ class ScienceImage():
             self.sciivar = sciivar_stack[0,:,:]
             self.rn2img = rn2img_stack[0,:,:]
 
+        # For an IR reduction we build the CR mask after differencing
         if self.ir_redux:
             self.crmask = self.build_crmask(self.sciimg, ivar=self.sciivar)
+            self.mask = self._update_mask_cr(self.mask, self.crmask)
+
 
         # Show the science image if an interactive run, only show the crmask
         if show:
@@ -714,6 +717,17 @@ class ScienceImage():
 
         # Return
         return crmask
+
+    def _update_mask_cr(self, mask_old, crmask_new):
+        # Unset the CR bit from all places where it was set
+        CR_old = (self.bitmask.unpack(mask_old, flag='CR'))[0]
+        mask_new = np.copy(mask_old)
+        mask_new[CR_old] = self.bitmask.turn_off(mask_new[CR_old], 'CR')
+        # Now set the CR bit using the new crmask
+        indx = crmask_new.astype(bool)
+        mask_new[indx] = self.bitmask.turn_on(mask_new[indx], 'CR')
+
+        return mask_new
 
     def _build_mask(self, sciimg, sciivar, crmask, mincounts=True, slitmask = None):
         """

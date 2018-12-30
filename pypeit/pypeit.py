@@ -184,17 +184,13 @@ class PypeIt(object):
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
 
-            # Find the indices of the standard frames in this
-            # calibration group:
+            # Find the indices of the standard frames in this calibration group:
             grp_standards = frame_indx[is_standard & in_grp]
 
             # Reduce all the standard frames, loop on unique comb_id
             u_combid_std= np.unique(self.fitstbl['comb_id'][grp_standards])
             for j, comb_id in enumerate(u_combid_std):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
-                #if len(frames)>1:
-                #    debugger.set_trace()  # NOT DEVELOPED YET
-                # Bg frame(s)?
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 std_dict = self.reduce_exposure(frames, bg_frames=bg_frames,reuse_masters=reuse_masters)
                 # TODO come up with sensible naming convention for save_exposure for combined files
@@ -367,9 +363,15 @@ class PypeIt(object):
         obstime  = self.fitstbl.construct_obstime(frame)
         basename = self.fitstbl.construct_basename(frame, obstime=obstime)
         objtype  = self.fitstbl['frametype'][frame]
+        if 'science' in objtype:
+            objtype_out = 'science'
+        elif 'standard' in objtype:
+            objtype_out = 'standard'
+        else:
+            msgs.error('Unrecognized objtype')
         setup    = self.fitstbl.master_key(frame, det=det)
 
-        return objtype, setup, obstime, basename, binning
+        return objtype_out, setup, obstime, basename, binning
 
     def extract_one(self, frames, det, bg_frames=[], std_outfile=None):
         """
@@ -388,11 +390,12 @@ class PypeIt(object):
             vel_corr
 
         """
-        self.ir_redux = True if len(bg_frames) > 0 else False
-
-
-        # Grab some meta-data needed for the reduction from the fitstbl
         self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], det)
+        # Is this an IR reduction
+        self.ir_redux = True if len(bg_frames) > 0 else False
+        # Is this a stadnard star?
+        self.std_redux = 'standard' in self.objtype
+        # Grab some meta-data needed for the reduction from the fitstbl
         # Grab the files that we will reduce
         self.sciI = scienceimage.ScienceImage(self.spectrograph,
                                          self.fitstbl.frame_paths(frames),
@@ -436,14 +439,16 @@ class PypeIt(object):
             # TODO add hook here for standards
             skymodel, objmodel, ivarmodel, outmask, sobjs = \
                 self.sciI.local_skysub_extract(self.sobjs_obj, self.caliBrate.mswave, model_noise=(not self.ir_redux),
-                                               maskslits=self.maskslits, show_profile=self.show, show=self.show)
+                                               std = self.std_redux,maskslits=self.maskslits, show_profile=self.show,
+                                               show=self.show)
 
             # Purge out the negative objects if this was a near-IR reduction
             if self.ir_redux:
                 sobjs.purge_neg()
 
-            # Flexure correction?
-            self.flexure_correct(sobjs, self.maskslits)
+            # Flexure correction if this is not a standard star
+            if not self.std_redux:
+                self.flexure_correct(sobjs, self.maskslits)
             vel_corr = self.helio_correct(sobjs, self.maskslits, frames[0], self.obstime)
 
         else:
