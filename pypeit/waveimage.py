@@ -58,7 +58,7 @@ class WaveImage(masterframe.MasterFrame):
         self.wv_calib = wv_calib
         self.spectrograph = spectrograph
         self.binning = binning
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
         self.par = wv_calib['par']
 
         # Optional parameters

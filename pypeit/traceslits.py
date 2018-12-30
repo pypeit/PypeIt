@@ -214,6 +214,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Fill in a bit more (Attributes)
         slf.steps = ts_dict['steps']
+        slf.binning = ts_dict['binning']
 
         # Others
         for key in ['LCEN', 'RCEN', 'EDGEARR', 'SIGLEV']:
@@ -445,6 +446,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.tslits_dict['nspec'] = self.mstrace.shape[0]
         self.tslits_dict['nspat'] = self.mstrace.shape[1]
         self.tslits_dict['pad'] = self.par['pad']
+        self.tslits_dict['binning'] = self.binning
 
         return self.tslits_dict
 
@@ -1225,6 +1227,7 @@ class TraceSlits(masterframe.MasterFrame):
             out_dict['tc_dict'] = self.tc_dict
         out_dict['steps'] = self.steps
         out_dict['spectrograph'] = self.spectrograph.spectrograph
+        out_dict['binning'] = self.binning
         # Clean+Write
         outfile = root+'.json'
         clean_dict = ltu.jsonify(out_dict)
@@ -1409,7 +1412,7 @@ class TraceSlits(masterframe.MasterFrame):
         -------
 
         """
-        slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
+        slitmask = self.spectrograph.slitmask(self.tslits_dict)
         trace_slits.slit_trace_qa(self.mstrace, self.lcen,
                                    self.rcen, slitmask, self.extrapord, self.master_key,
                                    desc="Trace of the slit edges D{:02d}".format(self.det),

@@ -604,7 +604,7 @@ class Spectrograph(object):
 
         return self.detector[det-1]['platescale']/tel_platescale
 
-    def slitmask(self, tslits_dict, pad = None, binning = None):
+    def slitmask(self, tslits_dict, pad = None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
          overload this function to implement instrument specific slitmask behavior, for example setting
@@ -618,8 +618,6 @@ class Spectrograph(object):
          Optional Parameters
          pad: int or float
             Padding of the slit boundaries
-         binning: tuple
-            Spectrograph binning in spectral and spatial directions
 
          Returns
          -------

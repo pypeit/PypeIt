@@ -20,7 +20,7 @@ from scipy.special import ndtr
 
 
 
-def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3., maxiter=35,
+def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3.0, maxiter=35,
                   trim_edg = (3,3), pos_mask=True, show_fit=False, no_poly=False, npoly = None):
     """
     Perform global sky subtraction on an input slit
@@ -160,9 +160,10 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
                                                                   kwargs_bspline = {'bkspace':bsp},
                                                                   kwargs_reject={'groupbadpix':True, 'maxrej': 10})
     # TODO JFH This is a hack for now to deal with bad fits for which iterations do not converge. This is related
-    # to the groupbadpix behavior requested for the djs_reject rejection. I don't know if we actually need this to be set,
-    # but need to better understand why it was set in the IDL version.
-    if exit_status == 1 and (npoly != 1):
+    # to the groupbadpix behavior requested for the djs_reject rejection. It would be good to
+    # better understand what this functionality is doing, but it makes the rejection much more quickly approach a small
+    # chi^2
+    if exit_status == 1:
         msgs.warn('Maximum iterations reached in bspline_profile global sky-subtraction for npoly={:d}.'.format(npoly) +
                   msgs.newline() +
                   'Redoing sky-subtraction without polynomial degrees of freedom')
@@ -172,7 +173,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
                                                                       nord=4, upper=sigrej, lower=sigrej,
                                                                       maxiter=maxiter,
                                                                       kwargs_bspline={'bkspace': bsp},
-                                                                      kwargs_reject={'groupbadpix': True, 'maxrej': 10})
+                                                                      kwargs_reject={'groupbadpix': False, 'maxrej': 10})
 
     sky_frame = np.zeros_like(image)
     ythis = np.zeros_like(yfit)

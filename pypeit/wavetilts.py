@@ -89,7 +89,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Set the slitmask and slit boundary related attributes that the code needs for execution. This also deals with
         # arcimages that have a different binning then the trace images used to defined the slits
         if self.tslits_dict is not None and self.msarc is not None:
-            self.slitmask_science = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
+            self.slitmask_science = self.spectrograph.slitmask(self.tslits_dict)
             inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.shape

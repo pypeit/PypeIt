@@ -418,25 +418,26 @@ class PypeIt(object):
         # Object finding, first pass on frame without sky subtraction
         self.maskslits = self.caliBrate.maskslits.copy()
         # Do one iteration of object finding, and sky subtract to get initial sky model
-        sobjs_obj_init, nobj_init, skymask_init = \
+        self.sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(sciimg, self.caliBrate.tslits_dict, ir_redux=self.ir_redux,snr_trim=False, maskslits=self.maskslits)
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         initial_sky = \
             self.sciI.global_skysub(self.caliBrate.tslits_dict,self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
-                                    maskslits=self.maskslits, show=self.show)
+                                    std=self.std_redux, maskslits=self.maskslits, show=self.show)
 
-        # Object finding, second pass on frame *with* sky subtraction. Show here if requested
-        self.sobjs_obj, self.nobj, self.skymask = \
-            self.find_objects(sciimg - initial_sky, self.caliBrate.tslits_dict, ir_redux=self.ir_redux,  snr_trim=True,
-                              maskslits=self.maskslits,show_peaks=self.show)
+        if not self.std_redux:
+            # Object finding, second pass on frame *with* sky subtraction. Show here if requested
+            self.sobjs_obj, self.nobj, self.skymask = \
+                self.find_objects(sciimg - initial_sky, self.caliBrate.tslits_dict, ir_redux=self.ir_redux,  snr_trim=True,
+                maskslits=self.maskslits,show_peaks=self.show)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:
-            # Global sky subtraction second pass. Uses skymask from object finding
-            global_sky = self.sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'],
-                                                 skymask=self.skymask, maskslits=self.maskslits, show=self.show)
-            # TODO add hook here for standards
+            if not self.std_redux:
+                # Global sky subtraction second pass. Uses skymask from object finding
+                global_sky = self.sciI.global_skysub(self.caliBrate.tslits_dict, self.caliBrate.tilts_dict['tilts'],
+                                                     skymask=self.skymask, maskslits=self.maskslits, show=self.show)
             skymodel, objmodel, ivarmodel, outmask, sobjs = \
                 self.sciI.local_skysub_extract(self.sobjs_obj, self.caliBrate.mswave, model_noise=(not self.ir_redux),
                                                std = self.std_redux,maskslits=self.maskslits, show_profile=self.show,

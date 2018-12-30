@@ -322,7 +322,7 @@ class ScienceImage():
         return sobjs_ech, len(sobjs_ech), skymask
 
 
-    def global_skysub(self, tslits_dict, tilts, skymask=None, update_crmask=True, maskslits=None, show_fit=False,
+    def global_skysub(self, tslits_dict, tilts, std = False, skymask=None, update_crmask=True, maskslits=None, show_fit=False,
                       show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
@@ -347,6 +347,12 @@ class ScienceImage():
             global_sky: (numpy.ndarray) image of the the global sky model
         """
 
+        if std:
+            sigrej = 7.0
+            update_crmask = False
+        else:
+            sigrej = 3.0
+
         self.tslits_dict = tslits_dict
         self.tilts = tilts
         self.maskslits = self._get_goodslits(maskslits)
@@ -369,13 +375,14 @@ class ScienceImage():
             inmask = (self.mask == 0) & thismask & skymask_now
             # Find sky
             self.global_sky[thismask] = skysub.global_skysub(self.sciimg, self.sciivar,
-                                                              self.tilts, thismask,
-                                                              self.tslits_dict['lcen'][:,slit],
-                                                              self.tslits_dict['rcen'][:,slit],
-                                                              inmask=inmask,
-                                                              bsp=self.par['bspline_spacing'],
-                                                              pos_mask = (not self.ir_redux),
-                                                              show_fit=show_fit)
+                                                             self.tilts, thismask,
+                                                             self.tslits_dict['lcen'][:,slit],
+                                                             self.tslits_dict['rcen'][:,slit],
+                                                             inmask=inmask,
+                                                             sigrej=sigrej,
+                                                             bsp=self.par['bspline_spacing'],
+                                                             pos_mask = (not self.ir_redux),
+                                                             show_fit=show_fit)
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
                 self.maskslits[slit] = True

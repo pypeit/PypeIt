@@ -197,7 +197,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     # Get the thismask_in and input slit bounadries from the tslits_dict
     slit_left_in = tslits_dict_in['lcen'][:,slit]
     slit_righ_in = tslits_dict_in['rcen'][:,slit]
-    thismask_in = spectrograph.slitmask(tslits_dict_in, binning=binning) == slit
+    thismask_in = spectrograph.slitmask(tslits_dict_in) == slit
 
     # Compute some things using the original slit boundaries and thismask_in
 
@@ -217,7 +217,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     ximg = (spat_img - slit_left_img)/slitwidth_img
 
     # Create a wider slitmask image with shift pixels padded on each side
-    slitmask_pad = spectrograph.slitmask(tslits_dict_in, pad = pad, binning=binning)
+    slitmask_pad = spectrograph.slitmask(tslits_dict_in, pad = pad)
     thismask = (slitmask_pad == slit) # mask enclosing the wider slit bounadries
     # Create a tilts image using this padded thismask, rather than using the original thismask_in slit pixels
     tilts = tracewave.fit2tilts(shape, tilts_dict['coeffs'], tilts_dict['func2d'])
@@ -327,7 +327,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
         tslits_dict_out = copy.deepcopy(tslits_dict_in)
         tslits_dict_out['lcen'][:,slit] = slit_left_out
         tslits_dict_out['rcen'][:,slit] = slit_righ_out
-        slitmask_out = spectrograph.slitmask(tslits_dict_out, binning=binning)
+        slitmask_out = spectrograph.slitmask(tslits_dict_out)
         thismask_out = (slitmask_out == slit)
         ximg_out, edgmask_out = pixels.ximg_and_edgemask(slit_left_out, slit_righ_out, thismask_out, trim_edg=trim_edg)
         # Note that nothing changes with the tilts, since these were already extrapolated across the whole image.

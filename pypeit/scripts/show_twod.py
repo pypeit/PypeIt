@@ -122,8 +122,13 @@ def main(args):
     # THIS WILL BREAK WHEN PYPCALIB varies from calib type to calib type
     master_key = '{:s}'.format(head0['TRACMKEY'])
     trc_file = masterframe.master_name('trace', master_key, mdir)
-    Tslits = traceslits.TraceSlits.from_master_files(trc_file)
+    traceSlits = traceslits.TraceSlits.from_master_files(trc_file)
+    tslits_dict = traceSlits._fill_tslits_dict()
+    slitmask = traceSlits.spectrograph.slitmask(tslits_dict)
+
     slit_ids = [trace_slits.get_slitid(Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen, ii)[0] for ii in range(Tslits.lcen.shape[1])]
+    from IPython import embed
+    embed()
     # Show the bitmask?
     if args.showmask:
         mask_in = mask

@@ -218,7 +218,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.mspixelflat = np.ones_like(self.rawflatimg)
         self.msillumflat = np.ones_like(self.rawflatimg)
         self.flat_model = np.zeros_like(self.rawflatimg)
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
 
 
         final_tilts = np.zeros_like(self.rawflatimg)
