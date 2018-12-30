@@ -131,6 +131,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
 
     if no_poly:
         poly_basis= np.ones_like(sky)
+        npoly = 1
     else:
         npercol = np.fmax(np.floor(np.sum(thismask) / nspec), 1.0)
         # Demand at least 10 pixels per row (on average) per degree of the polynomial
@@ -158,6 +159,21 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
                                                                   maxiter=maxiter,
                                                                   kwargs_bspline = {'bkspace':bsp},
                                                                   kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    # TODO JFH This is a hack for now to deal with bad fits for which iterations do not converge. This is related
+    # to the groupbadpix behavior requested for the djs_reject rejection. I don't know if we actually need this to be set,
+    # but need to better understand why it was set in the IDL version.
+    if exit_status == 1 and (npoly != 1):
+        msgs.warn('Maximum iterations reached in bspline_profile global sky-subtraction for npoly={:d}.'.format(npoly) +
+                  msgs.newline() +
+                  'Redoing sky-subtraction without polynomial degrees of freedom')
+        poly_basis = np.ones_like(sky)
+        # Perform the full fit now
+        skyset, outmask, yfit, _, exit_status = utils.bspline_profile(pix, sky, sky_ivar, poly_basis, inmask=inmask_fit,
+                                                                      nord=4, upper=sigrej, lower=sigrej,
+                                                                      maxiter=maxiter,
+                                                                      kwargs_bspline={'bkspace': bsp},
+                                                                      kwargs_reject={'groupbadpix': True, 'maxrej': 10})
+
     sky_frame = np.zeros_like(image)
     ythis = np.zeros_like(yfit)
     ythis[isrt] = yfit
