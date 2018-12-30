@@ -245,11 +245,10 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     msgs.info('Spectral fit of flatfield for {:}'.format(nfit_spec) + ' pixels')
 
     # ToDo Figure out how to deal with the fits going crazy at the edges of the chip in spec direction
-    spec_set_fine, outmask_spec, specfit, _ = utils.bspline_profile(pix_fit, log_flat_fit, log_ivar_fit,
-                                                                    np.ones_like(pix_fit), inmask = inmask_log_fit,
-                                                                    nord = 4, upper=logrej, lower=logrej,
-                                                                    kwargs_bspline = {'bkspace':spec_samp_fine},
-                                                                    kwargs_reject={'groupbadpix':True, 'maxrej': 5})
+    spec_set_fine, outmask_spec, specfit, _, exit_status = \
+        utils.bspline_profile(pix_fit, log_flat_fit, log_ivar_fit,np.ones_like(pix_fit), inmask = inmask_log_fit,
+        nord = 4, upper=logrej, lower=logrej,
+        kwargs_bspline = {'bkspace':spec_samp_fine},kwargs_reject={'groupbadpix':True, 'maxrej': 5})
 
     # Debugging/checking spectral fit
     if debug:
@@ -311,8 +310,9 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     ximg_bsp  = np.fmax(ximg_1pix/10.0, ximg_samp*1.2)
     bsp_set = pydl.bspline(ximg_fit,nord=4, bkspace=ximg_bsp)
     fullbkpt = bsp_set.breakpoints
-    spat_set, outmask_spat, spatfit, _ = utils.bspline_profile(ximg_fit, normimg, np.ones_like(normimg),np.ones_like(normimg),
-                                                               nord=4,upper=5.0, lower=5.0,fullbkpt = fullbkpt)
+    spat_set, outmask_spat, spatfit, _, exit_status = \
+        utils.bspline_profile(ximg_fit, normimg, np.ones_like(normimg),np.ones_like(normimg),
+        nord=4,upper=5.0, lower=5.0,fullbkpt = fullbkpt)
 
     # Evaluate and save
     illumflat = np.ones_like(flat)
@@ -391,11 +391,10 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     poly_basis = pydl.fpoly(2.0*ximg_twod - 1.0, npoly).T
 
     # Perform the full 2d fit now
-    twod_set, outmask_twod, twodfit, _ = utils.bspline_profile(pix_twod, norm_twod, norm_twod_ivar,poly_basis,
-                                                               inmask = fitmask, nord = 4,
-                                                               upper=sigrej_illum, lower=sigrej_illum,
-                                                               kwargs_bspline = {'bkspace':spec_samp_coarse},
-                                                               kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    twod_set, outmask_twod, twodfit, _ , exit_status = \
+        utils.bspline_profile(pix_twod, norm_twod, norm_twod_ivar,poly_basis,inmask = fitmask, nord = 4,
+        upper=sigrej_illum, lower=sigrej_illum,
+        kwargs_bspline = {'bkspace':spec_samp_coarse},kwargs_reject={'groupbadpix':True, 'maxrej': 10})
 
     if debug:
         resid = (norm_twod  - twodfit)

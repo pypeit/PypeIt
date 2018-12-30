@@ -1410,7 +1410,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     23-June-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
-    show_peaks=True
     if specobj_dict is None:
         specobj_dict = {'setup': None, 'slitid': 999, 'det': 1, 'objtype': 'science'}
 

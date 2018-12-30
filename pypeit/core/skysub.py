@@ -20,8 +20,8 @@ from scipy.special import ndtr
 
 
 
-def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3., trim_edg = (3,3),
-                  pos_mask=True, show_fit=False, no_poly=False, npoly = None):
+def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3., maxiter=35,
+                  trim_edg = (3,3), pos_mask=True, show_fit=False, no_poly=False, npoly = None):
     """
     Perform global sky subtraction on an input slit
 
@@ -119,11 +119,11 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
             #lsky_ivar = np.full(lsky.shape, 0.1)
             # Init bspline to get the sky breakpoints (kludgy)
             #tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
-            lskyset, outmask, lsky_fit, red_chi = utils.bspline_profile(pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
-                                                                        inmask = inmask_fit[pos_sky],
-                                                                        upper=sigrej, lower=sigrej,
-                                                                        kwargs_bspline={'bkspace':bsp},
-                                                                        kwargs_reject={'groupbadpix': True, 'maxrej': 10})
+            lskyset, outmask, lsky_fit, red_chi, exit_status = \
+                utils.bspline_profile(pix[pos_sky], lsky, lsky_ivar,
+                np.ones_like(lsky),inmask = inmask_fit[pos_sky],
+                upper=sigrej, lower=sigrej,
+                kwargs_bspline={'bkspace':bsp},kwargs_reject={'groupbadpix': True, 'maxrej': 10})
             res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
             lmask = (res < 5.0) & (res > -4.0)
             sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
@@ -153,11 +153,11 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
 
 
     # Perform the full fit now
-    skyset, outmask, yfit, _ = utils.bspline_profile(pix, sky, sky_ivar,poly_basis,inmask = inmask_fit, nord = 4,
-                                                               upper=sigrej, lower=sigrej,
-                                                               kwargs_bspline = {'bkspace':bsp},
-                                                               kwargs_reject={'groupbadpix':True, 'maxrej': 10})
-
+    skyset, outmask, yfit, _, exit_status = utils.bspline_profile(pix, sky, sky_ivar,poly_basis,inmask = inmask_fit,
+                                                                  nord = 4,upper=sigrej, lower=sigrej,
+                                                                  maxiter=maxiter,
+                                                                  kwargs_bspline = {'bkspace':bsp},
+                                                                  kwargs_reject={'groupbadpix':True, 'maxrej': 10})
     sky_frame = np.zeros_like(image)
     ythis = np.zeros_like(yfit)
     ythis[isrt] = yfit
@@ -229,10 +229,10 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
 
 
 
-    sset1, outmask_good1, yfit1, red_chi1 = utils.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good, :],
-                                                              fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
-                                                              relative=relative,
-                                                              kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+    sset1, outmask_good1, yfit1, red_chi1, exit_status = \
+        utils.bspline_profile(wave[good], data[good], ivar[good],
+        profile_basis[good, :],fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
+        relative=relative,kwargs_reject={'groupbadpix': True, 'maxrej': 5})
 
     chi2 = (data[good] - yfit1) ** 2 * ivar[good]
     chi2_srt = np.sort(chi2)
@@ -243,11 +243,10 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     msgs.info('2nd round....')
     msgs.info('Iter     Chi^2     Rejected Pts')
 
-    sset, outmask_good, yfit, red_chi = utils.bspline_profile(wave[good], data[good], ivar[good] * mask1,
-                                                          profile_basis[good, :],
-                                                          fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
-                                                          relative=relative,
-                                                          kwargs_reject={'groupbadpix': True, 'maxrej': 1})
+    sset, outmask_good, yfit, red_chi, exit_status = \
+        utils.bspline_profile(wave[good], data[good], ivar[good] * mask1,profile_basis[good, :],fullbkpt=fullbkpt,
+                              upper=sigrej, lower=sigrej,relative=relative,
+                              kwargs_reject={'groupbadpix': True, 'maxrej': 1})
 
     ncoeff = npoly + nobj
     skyset = pydl.bspline(None, fullbkpt=sset.breakpoints, nord=sset.nord, npoly=npoly)
@@ -411,7 +410,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             npoly = 1
         obj_profiles = np.zeros((nspec, nspat, objwork), dtype=float)
         sigrej_eff = sigrej
-#        proc_list = [] # List of processes for interactive plotting, these are terminated at the end of each iteration sequence
         for iiter in range(1, niter + 1):
             msgs.info('--------------------------REDUCING: Iteration # ' + '{:2d}'.format(iiter) + ' of ' +
                       '{:2d}'.format(niter) + '---------------------------------------------------')
@@ -569,12 +567,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 # Just replace with the global sky
                 skyimage.flat[isub] = global_sky.flat[isub]
 
-        # Now that iterations are complete, clear the windows if show_profile was set
-#        if show_profile:
-#            for proc in proc_list:
-#                proc.terminate()
-#                proc.join()
-
         # Now that the iterations of profile fitting and sky subtraction are completed,
         # loop over the objwork objects in this grouping and perform the final extractions.
         for ii in range(objwork):
@@ -629,14 +621,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
 
         canvas_list = points_mask + points_omask + text_mask + text_omask
         canvas.add('constructedcanvas', canvas_list)
-
-    # Clean up any profile plots
-#    if show_profile:
-#        try:
-#            show_proc.terminate()
-#            show_proc.join()
-#        except:
-#            pass
 
     return (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
 
