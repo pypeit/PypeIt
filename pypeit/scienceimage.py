@@ -119,10 +119,11 @@ class ScienceImage():
     frametype = 'science'
 
     # TODO: Merge into a single parset, one for procing, and one for scienceimage
-    def __init__(self, spectrograph, file_list, bg_file_list = [], ir_redux=False, det=1, objtype='science', binning = None, setup=None,
+    def __init__(self, tslits_dict, spectrograph, file_list, bg_file_list = [], ir_redux=False, det=1, objtype='science', binning = None, setup=None,
                  par=None, frame_par=None):
 
         # Instantiation attributes for this object
+        self.tslits_dict = tslits_dict
         self.spectrograph = spectrograph
         self.file_list = file_list
         self.nsci = len(file_list)
@@ -154,11 +155,10 @@ class ScienceImage():
 
         # Other attributes that will be set later during object finding,
         # sky-subtraction, and extraction
-        self.tslits_dict = None # used by find_object
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
         self.tilts = None # used by extract
         self.mswave = None # used by extract
         self.maskslits = None # used in find_object and extract
-        self.slitmask = None
 
         # Key outputs images for extraction
         self.sciimg = None
@@ -208,7 +208,7 @@ class ScienceImage():
                 return False
         return True
 
-    def find_objects(self, image, tslits_dict, maskslits=None, show_peaks=False,
+    def find_objects(self, image, std_trace = None, maskslits=None, show_peaks=False,
                      show_fits=False, show_trace=False, show=False):
         """
         Find objects in the slits. This is currently setup only for ARMS
@@ -242,13 +242,8 @@ class ScienceImage():
 
         """
 
-        self.tslits_dict = tslits_dict
         self.maskslits = self._get_goodslits(maskslits)
         gdslits = np.where(~self.maskslits)[0]
-
-        # Build and assign the slitmask and input mask if they do not already exist
-        self.slitmask = self.spectrograph.slitmask(tslits_dict, binning=self.binning) if self.slitmask is None else self.slitmask
-        #self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
 
         # create the ouptut image for skymask
         skymask = np.zeros_like(self.sciimg,dtype=bool)
@@ -270,7 +265,7 @@ class ScienceImage():
             # is. This will be a png file(s) per slit.
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['lcen'][:,slit],self.tslits_dict['rcen'][:,slit],
-                inmask=inmask,hand_extract_dict=self.par['manual'],specobj_dict=specobj_dict, show_peaks=show_peaks,
+                inmask=inmask, std_trace=std_trace, hand_extract_dict=self.par['manual'],specobj_dict=specobj_dict, show_peaks=show_peaks,
                 show_fits=show_fits, show_trace=show_trace,qa_title=qa_title,nperslit=self.par['maxnumber'])
             sobjs.add_sobj(sobjs_slit)
 
@@ -284,7 +279,7 @@ class ScienceImage():
         return sobjs, len(sobjs), skymask
 
 
-    def find_objects_ech(self, image, tslits_dict, snr_trim=False, std_trace = None, show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False):
+    def find_objects_ech(self, image, snr_trim=False, std_trace = None, show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False):
 
         # Did they run process?
         if not self._chk_objs(['sciivar']):
@@ -296,10 +291,6 @@ class ScienceImage():
         #self.maskslits = self._get_goodslits(maskslits)
         #gdslits = np.where(~self.maskslits)[0]
 
-        # Build and assign the slitmask and input mask if they do not already exist
-        self.slitmask = self.spectrograph.slitmask(tslits_dict, binning=self.binning) if self.slitmask is None else self.slitmask
-        #self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
-
         # create the ouptut image for skymask
         skymask = np.zeros_like(self.sciimg,dtype=bool)
 
@@ -307,7 +298,7 @@ class ScienceImage():
         inmask = (self.mask == 0) & (self.crmask == False)
         # ToDO implement parsets here!
         sobjs_ech, skymask[self.slitmask > -1] = \
-            extract.ech_objfind(image, self.sciivar, self.slitmask, tslits_dict['lcen'], tslits_dict['rcen'],
+            extract.ech_objfind(image, self.sciivar, self.slitmask, self.tslits_dict['lcen'], self.tslits_dict['rcen'],
                                 snr_trim=snr_trim, inmask=inmask, plate_scale=plate_scale, std_trace=std_trace,
                                 ncoeff=5,sig_thresh=5., show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
                                 debug=debug)
@@ -322,7 +313,7 @@ class ScienceImage():
         return sobjs_ech, len(sobjs_ech), skymask
 
 
-    def global_skysub(self, tslits_dict, tilts, std = False, skymask=None, update_crmask=True, maskslits=None, show_fit=False,
+    def global_skysub(self, tilts, std = False, skymask=None, update_crmask=True, maskslits=None, show_fit=False,
                       show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
@@ -353,14 +344,9 @@ class ScienceImage():
         else:
             sigrej = 3.0
 
-        self.tslits_dict = tslits_dict
         self.tilts = tilts
         self.maskslits = self._get_goodslits(maskslits)
         gdslits = np.where(~self.maskslits)[0]
-
-        # Build and assign the slitmask and input mask if they do not already exist
-        self.slitmask = self.spectrograph.slitmask(tslits_dict, binning=self.binning) if self.slitmask is None else self.slitmask
-        #self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask) if self.mask is None else self.mask
 
         # Prep
         self.global_sky = np.zeros_like(self.sciimg)
@@ -458,14 +444,6 @@ class ScienceImage():
         # get the good slits and assign self.maskslits
         self.maskslits = self._get_goodslits(maskslits)
         gdslits = np.where(~self.maskslits)[0]
-
-        # Build and assign the slitmask and input mask if they do not already exist
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning) if self.slitmask is None \
-            else self.slitmask
-        #self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, slitmask = self.slitmask)
-        # if self.mask is None else self.mask
-        # TODO it would be nice to rebuild the mask to indicate negmask masked pixels
-        #self.negmask = negmask if negmask is None else (self.slitmask > -1)
 
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
@@ -589,7 +567,6 @@ class ScienceImage():
             # Final mask for this image
             mask_stack[ifile,:,:] = self._build_mask(sciimg, sciivar_stack[ifile,:,:], crmask_stack[ifile,:,:])
 
-
         return sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack
 
     def proc(self, bias, pixel_flat, bpm, illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5, show=False):
@@ -668,7 +645,7 @@ class ScienceImage():
             self.sciivar = utils.calc_ivar(varfinal)
             self.rn2img = np.sum(rn2img_stack*weights_stack**2,axis=0)/(weights_sum + (weights_sum == 0.0))**2
             # ToDO If I new how to add the bits, this is what I would do do create the mask. For now
-            # we simply create it using the stacked images and the stacked mask
+            # we simply create the mask again using the stacked images and the stacked mask
             #nused = np.sum(outmask_stack,axis=0)
             #self.mask = (nused == 0) * np.sum(mask_stack, axis=0)
             self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, mincounts=(not self.ir_redux))
@@ -684,6 +661,8 @@ class ScienceImage():
             self.crmask = self.build_crmask(self.sciimg, ivar=self.sciivar)
             self.mask = self._update_mask_cr(self.mask, self.crmask)
 
+        # Toggle the OFFSLIT bit at the very end
+        self.mask = self._update_mask_slitmask(self.mask, self.slitmask)
 
         # Show the science image if an interactive run, only show the crmask
         if show:
@@ -726,6 +705,7 @@ class ScienceImage():
         return crmask
 
     def _update_mask_cr(self, mask_old, crmask_new):
+
         # Unset the CR bit from all places where it was set
         CR_old = (self.bitmask.unpack(mask_old, flag='CR'))[0]
         mask_new = np.copy(mask_old)
@@ -733,10 +713,18 @@ class ScienceImage():
         # Now set the CR bit using the new crmask
         indx = crmask_new.astype(bool)
         mask_new[indx] = self.bitmask.turn_on(mask_new[indx], 'CR')
-
         return mask_new
 
-    def _build_mask(self, sciimg, sciivar, crmask, mincounts=True, slitmask = None):
+    def _update_mask_slitmask(self, mask_old, slitmask):
+
+        # Pixels excluded from any slit.
+
+        mask_new = np.copy(mask_old)
+        indx = slitmask == -1
+        mask_new[indx] = self.bitmask.turn_on(mask_new[indx], 'OFFSLITS')
+        return mask_new
+
+    def _build_mask(self, sciimg, sciivar, crmask, mincounts=True):
         """
         Return the bit value mask used during extraction.
         
@@ -773,14 +761,6 @@ class ScienceImage():
         if mincounts:
             indx = sciimg <= self.spectrograph.detector[self.det - 1]['mincounts']
             mask[indx] = self.bitmask.turn_on(mask[indx], 'MINCOUNTS')
-
-        # Pixels excluded from any slit.  Use a try/except block so that
-        # the mask can still be created even if tslits_dict has not
-        # been instantiated yet
-        # TODO: Is this still necessary?
-        if slitmask is not None:
-            indx = self.slitmask == -1
-            mask[indx] = self.bitmask.turn_on(mask[indx], 'OFFSLITS')
 
         # Undefined counts
         indx = np.invert(np.isfinite(sciimg))

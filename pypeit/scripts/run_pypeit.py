@@ -97,9 +97,6 @@ def main(args):
     # Init Setup
     ## JFH TODO This will move to the pypeit class init!
     #pypeIt.init_setup(args.pypeit_file)
-#    if args.calcheck:
-#        msgs.info('Done checking calibrations.  Exiting..')
-#        return 0
 
     # JFH I don't see why this is an optional argument here. We could allow the user to modify an infinite number of parameters
     # from the command line? Why do we have the PypeIt file then? This detector can be set in the pypeit file.

@@ -164,7 +164,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['dispangle'] = 'GRATTILT'
         hdr_keys[0]['wavecen'] = 'GRATWAVE'
         hdr_keys[0]['spectrograph'] = 'INSTRUME'
-        hdr_keys[0]['binning'] = 1
+        hdr_keys[0]['binning'] = ' '
 
         return hdr_keys
 

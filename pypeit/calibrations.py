@@ -563,7 +563,8 @@ class Calibrations(object):
                                                 mode=self.par['masters'], binbpx=self.msbpm)
 
         # Load via master, as desired
-        if self.traceSlits.master(force=prev_build) is None:
+        self.tslits_dict = self.traceSlits.master(force=prev_build)
+        if self.tslits_dict is None:
             # Build the trace image first
             self.traceImage = traceimage.TraceImage(self.spectrograph,self.trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
@@ -598,11 +599,12 @@ class Calibrations(object):
         else:
             msgs.info("TraceSlits master files loaded..")
             # Construct dictionary
-            self.tslits_dict = self.traceSlits._fill_tslits_dict()
+            #self.tslits_dict = self.traceSlits._fill_tslits_dict()
 
         # Save, initialize maskslits, and return
         self.calib_dict[self.trace_master_key]['trace'] = self.tslits_dict
         self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
+
         return self.tslits_dict, self.maskslits
 
     def get_wave(self):
