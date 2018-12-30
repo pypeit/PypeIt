@@ -1323,12 +1323,10 @@ def create_skymask_fwhm(sobjs, thismask):
 
         return skymask
 
-specobj_dict = {'setup': None, 'slitid': 999, 'det': 1, 'objtype': 'science'}
-
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
             hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit =None,  bg_smth = 5.0,
             extract_maskwidth = 4.0, sig_thresh = 5.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (5,5),
-            skymask_nthresh = 2.0, specobj_dict=specobj_dict,
+            skymask_nthresh = 1.0, specobj_dict=None,
             show_peaks=False, show_fits = False, show_trace = False, qa_title=''):
 
     """ Find the location of objects in a slitmask slit or a echelle order.
@@ -1412,7 +1410,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     23-June-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
-#    proc_list = []  # List of processes for interactive plotting, these are passed back in case the user wants to terminate them
+    show_peaks=True
+    if specobj_dict is None:
+        specobj_dict = {'setup': None, 'slitid': 999, 'det': 1, 'objtype': 'science'}
+
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
         msgs.error('Invalid value of peak_thresh. It must be between 0.0 and 1.0')
@@ -1462,10 +1463,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548,mode='nearest')
 
-    #xcen, sigma_pk, ledg, redg = find_nminima(-fluxconv,nfind=nperslit, width = pkwdth,minsep = np.fmax(fwhm, pkwdth))
-    #xcen_neg,sigma_pk_neg,ledg_neg,redg_neg = find_nminima(fluxconv,nfind=nperslit, width = pkwdth,minsep = np.fmax(fwhm, pkwdth))
-    #ypeak = np.interp(xcen,np.arange(nsamp),fluxconv)
-    #ypeak_neg = np.interp(xcen_neg,np.arange(nsamp),fluxconv)
+    #TODO Implement something here instead like the iterative continuum fitting and threshold determination that
+    # is already present in the arc.detect_lines routine. The logic behind the masking here for determining the threshold
+    # is a bit cumbersome.
 
     # Perform initial finding with a very liberal threshold
     ypeak, _, xcen, sigma_pk, _, _, _, _ = arc.detect_lines(fluxconv, cont_subtract = False, fwhm = fwhm,
@@ -1473,7 +1473,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     ypeak_neg, _, xcen_neg, sigma_pk_neg, _, _, _, _ = arc.detect_lines(-fluxconv, cont_subtract = False, fwhm = fwhm,
                                                                         input_thresh = 'None',debug=False)
     # Only mask the strong peaks
-    (mean0, med0, sigma0)     = sigma_clipped_stats(fluxconv, sigma=2.5)
+    (mean0, med0, sigma0) = sigma_clipped_stats(fluxconv, sigma=1.5)
     # Create a mask for pixels to use for a background flucutation level estimate. Mask spatial pixels that hit an object
     imask_pos = np.ones(int(nsamp), dtype=bool)
     imask_neg = np.ones(int(nsamp), dtype=bool)
@@ -1586,13 +1586,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         plt.ylabel('F/sigma (significance)')
         plt.title(qa_title)
         plt.show()
-
-        # Execute the interactive plot as another process
-        #p_show_peaks = multiprocessing.Process(target=plot_show_peaks)
-        #p_show_peaks.daemon = True # This allows the __main__ to exit without this window blocking it
-        #p_show_peaks.start()
-        #proc_list.append(p_show_peaks)
-
 
     # Now loop over all the regular apertures and assign preliminary traces to them.
     for iobj in range(nobj_reg):
@@ -1794,9 +1787,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     skymask_objflux[thismask] = np.interp(ximg[thismask],xtmp,qobj) < (skymask_nthresh*threshold)
     # Still have to make the skymask
     skymask_fwhm = create_skymask_fwhm(sobjs,thismask)
-    skymask = skymask_objflux & skymask_fwhm
-    from IPython import embed
-    embed()
+    skymask = skymask_objflux | skymask_fwhm
     # If requested display the resulting traces on top of the image
     if (nobj > 0) & (show_trace):
         viewer, ch = ginga.show_image(image*(thismask*inmask))
@@ -2312,7 +2303,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_v
     sobjs_final.set_idx(echelle=True)
 
     skymask_fwhm = create_skymask_fwhm(sobjs_final,allmask)
-    skymask = skymask_objfind & skymask_fwhm
+    skymask = skymask_objfind | skymask_fwhm
 
     if show_trace:
         viewer, ch = ginga.show_image(image*allmask)

@@ -368,7 +368,7 @@ class ScienceImage():
             thismask = (self.slitmask == slit)
             inmask = (self.mask == 0) & thismask & skymask_now
             # Find sky
-            self.global_sky[thismask] =  skysub.global_skysub(self.sciimg, self.sciivar,
+            self.global_sky[thismask] = skysub.global_skysub(self.sciimg, self.sciivar,
                                                               self.tilts, thismask,
                                                               self.tslits_dict['lcen'][:,slit],
                                                               self.tslits_dict['rcen'][:,slit],
