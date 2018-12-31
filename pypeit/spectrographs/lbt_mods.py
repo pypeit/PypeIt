@@ -166,7 +166,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
                             gain            = 2.5,
                             ronoise         = 4.2,
                             datasec='[1:8288,1:3088]',
-                            oscansec='[8250:,:]', # ToDo: fix this
+                            oscansec='[:,3000:]',
                             suffix          = '_mods1r'
                             )]
         self.numhead = 1
@@ -246,7 +246,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
                             gain            = 2.1,
                             ronoise         = 3.0,
                             datasec='[1:8288,1:3088]',
-                            oscansec='[8250:,:]',
+                            oscansec='[:,3000:]',
                             suffix          = '_mods1b'
                             )]
         self.numhead = 1

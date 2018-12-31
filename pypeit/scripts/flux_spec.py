@@ -15,6 +15,15 @@ import argparse
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # pypeit_flux_spec sensfunc --std_file=spec1d_G191b2b_KASTr_2015Jan23T024320.75.fits  --instr=shane_kast_red_ret --sensfunc_file=tmp.yaml --telluric
 # pypeit_flux_spec flux     --sci_file=spec1d_J0025-0312_KASTr_2015gen23T025323.85.fits --sensfunc_file=tmp.yaml --flux_file=tmp.fits
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Echelle examples:
+## Generate sensfunc
+# pypeit_flux_spec sensfunc keck_nires --std_file=spec1d_HIP13917_V8p6_NIRES_2018Oct01T094225.598.fits
+#         --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml --telluric --echelle --star_type A0 --star_mag 8.6 --debug
+## flux calibrate your science.
+# pypeit_flux_spec flux keck_nires --sci_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698.fits
+#         --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml
+#         --flux_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698_flux.fits --echelle
 
 
 def parser(options=None):
@@ -29,6 +38,10 @@ def parser(options=None):
     parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
     parser.add_argument("--multi_det", type=str, help="Multiple detectors (e.g. 3,7 for DEIMOS)")
     parser.add_argument("--telluric", default=False, action="store_true", help="Correct for telluric absorptions?")
+    parser.add_argument("--echelle", default=False, action="store_true", help="Echelle spectra?")
+    parser.add_argument("--star_type", type=str, help="Which type of yur telluric/standard star?")
+    parser.add_argument("--star_mag", type=float, help="What's the V-band magnitude of your telluric/standard star?")
+    parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
 
     if options is None:
         args = parser.parse_args()
@@ -43,6 +56,7 @@ def main(args, unit_test=False):
     import pdb
 
     from pypeit import fluxspec
+    #from pypeit import ech_fluxspec
 
     # Parse the steps
     steps = args.steps.split(',')
@@ -55,8 +69,8 @@ def main(args, unit_test=False):
 
     # Checks
     if 'sensfunc' in steps:
-        if args.instr is None:
-            raise IOError("You must set the instrument to generate the sensfunc")
+        #if args.instr is None:
+        #    raise IOError("You must set the instrument to generate the sensfunc")
         if args.std_file is None:
             raise IOError("You must input a spec1d file of the standard to generate the sensfunc")
         if args.sensfunc_file is None:
@@ -75,19 +89,33 @@ def main(args, unit_test=False):
         sfile = None  # Need to create it, not load it
     else:
         sfile = args.sensfunc_file
-    FxSpec = fluxspec.FluxSpec(std_spec1d_file=args.std_file,
-                               sci_spec1d_file=args.sci_file,
-                               spectrograph=args.instr,
-                               telluric=args.telluric,
-                               sens_file=sfile,
-                               multi_det=multi_det)
+
+    if args.echelle:
+        FxSpec = fluxspec.EchFluxSpec(std_spec1d_file=args.std_file,
+                                   sci_spec1d_file=args.sci_file,
+                                   spectrograph=args.spectrograph,
+                                   telluric=args.telluric,
+                                   sens_file=sfile,
+                                   star_type=args.star_type,
+                                   star_mag=args.star_mag,
+                                   debug = args.debug)
+    else:
+        FxSpec = fluxspec.FluxSpec(std_spec1d_file=args.std_file,
+                                   sci_spec1d_file=args.sci_file,
+                                   spectrograph=args.spectrograph,
+                                   telluric=args.telluric,
+                                   sens_file=sfile,
+                                   multi_det=multi_det,
+                                   debug = args.debug)
     # Step through
     if 'sensfunc' in steps:
-        # Find the star automatically?
-        if args.std_obj is None:
-            _ = FxSpec.find_standard()
-        else:
-            _ = FxSpec._set_std_obj(args.std_obj)
+        # For echelle, the code will deal with the standard star in the ech_fluxspec.py
+        if not args.echelle:
+            # Find the star automatically?
+            if args.std_obj is None:
+                _ = FxSpec.find_standard()
+            else:
+                _ = FxSpec._set_std_obj(args.std_obj)
         # Sensitivity
         _ = FxSpec.generate_sensfunc()
         # Output
