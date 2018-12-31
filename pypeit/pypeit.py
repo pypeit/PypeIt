@@ -97,7 +97,8 @@ class PypeIt(object):
         self.fitstbl._set_calib_group_bits()
         self.fitstbl._check_calib_groups()
 
-        # Using the instrument config to set specific parameters will go here
+        # TODO
+        # Use the instrument config to set specific parameters
 
         # Other Internals
         self.logname = logname

@@ -105,9 +105,67 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         return hdr_keys
 
-    def metadata_keys(self):
-        return super(KeckLRISSpectrograph, self).metadata_keys() \
-                    + ['binning', 'dichroic', 'dispangle']
+    #def metadata_keys(self):
+    #    return super(KeckLRISSpectrograph, self).metadata_keys() \
+    #                + ['binning', 'dichroic', 'dispangle']
+
+    def compound_meta(self, ifile, meta_key, headarr=None):
+        if meta_key == 'binning':
+            binning = tuple(int(x) for x in self.get_meta_value(ifile, 'bin_card', headarr=headarr).split(','))
+            return binning
+        else:
+            msgs.error("Not ready for this compound meta")
+
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
+
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='TARGNAME')
+        meta['decker'] = dict(ext=0, card='SLITNAME')
+        meta['binning'] = dict(card=None, compound=True)
+        meta['bin_card'] = dict(ext=0, card='BINNING')  # How to grab binning info from header
+
+        meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config
+        meta['dichroic'] = dict(ext=0, card='DICHNAME')
+        meta['hatch'] = dict(ext=0, card='TRAPDOOR')
+
+        lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
+                      'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
+        for kk,lamp_name in enumerate(lamp_names):
+            meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
+        # Red only, but grabbing here
+        meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
+        # Ingest
+        self.meta = meta
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that defines a unique instrument
+        configuration.
+
+        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+
+            list: List of keywords of data pulled from file headers and
+            used to constuct the :class:`pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['dispname', 'dichroic', 'decker', 'binning']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -364,6 +422,17 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         hdr_keys[0]['filter1'] = 'BLUFILT'
         return hdr_keys
 
+    def init_meta(self):
+        """
+        Meta data specific to Keck LRIS red
+
+        Returns:
+
+        """
+        super(KeckLRISBSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        self.meta['dispname'] = dict(ext=0, card='GRISNAME')
+
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 
@@ -443,6 +512,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Uses default timeunit
         # Uses default primary_hdrext
         # TODO why isn't there a sky file set here?
+        #  Because we use the default (Parnal)
         # self.sky_file ?
 
     def default_pypeit_par(self):
@@ -522,7 +592,50 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         hdr_keys = super(KeckLRISRSpectrograph, self).header_keys()
         hdr_keys[0]['filter1'] = 'REDFILT'
         return hdr_keys
-            
+
+    def init_meta(self):
+        """
+        Meta data specific to Keck LRIS red
+
+        Returns:
+
+        """
+        super(KeckLRISRSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        self.meta['dispname'] = dict(ext=0, card='GRANAME')
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that defines a unique instrument
+        configuration.
+
+        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+
+            list: List of keywords of data pulled from file headers and
+            used to constuct the :class:`pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        cfg_keys = super(KeckLRISRSpectrograph, self).configuration_keys()
+        # Add grating tilt
+        return cfg_keys+['dispangle']
+
+    def init_meta(self):
+        """
+        Meta data specific to shane_kast_blue
+
+        Returns:
+
+        """
+        super(KeckLRISRSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        # dispangle and filter1 are not defined for Shane Kast Blue
+
+        # Additional (for config)
+
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 

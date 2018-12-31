@@ -13,6 +13,8 @@ import string
 import numpy as np
 import yaml
 
+from collections import OrderedDict
+
 import datetime
 from astropy import table, coordinates, time
 
@@ -180,7 +182,10 @@ class PypeItMetaData:
                 #if meta_key in ['filename', 'directory']:
                 #    continue
                 # Grab it
-                value = self.spectrograph.get_meta(ifile, meta_key, headarr=headarr, required=True)
+                try:
+                    value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr, required=True)
+                except:
+                    debugger.set_trace()
                 data[meta_key].append(value)
         # File info
         data['directory'] = ds
@@ -764,7 +769,7 @@ class PypeItMetaData:
         for i in indx[1:]:
             j = 0
             for c in self.configs.values():
-                if np.all([c[k] == self.table[k][i] for k in cfg_keys]):
+                if row_match_config(self.table[i], c, self.spectrograph):
                     break
                 j += 1
             unique = j == len(self.configs)
@@ -777,7 +782,7 @@ class PypeItMetaData:
         msgs.info('Found {0} unique configurations.'.format(len(self.configs)))
         return self.configs
 
-    def set_configurations(self, configs=None, force=False):
+    def set_configurations(self, configs=None, force=False, ignore_frames=None):
         """
         Assign each frame to a configuration (setup) and include it in
         the metadata table.
@@ -817,8 +822,16 @@ class PypeItMetaData:
         nrows = len(self)
         for i in range(nrows):
             for d, cfg in _configs.items():
-                if np.all([cfg[d] == self.table[d][i] for d in cfg.keys()]):
+                if row_match_config(self.table[i], cfg, self.spectrograph):
                     self.table['setup'][i] = d
+        # Deal with ignored frames (e.g. bias)
+        #  For now, we set them to setup=A
+        not_setup = self.table['setup'] == 'None'
+        if np.any(not_setup) and (ignore_frames is not None):
+            ckey = list(_configs.keys())[0]
+            for idx in np.where(not_setup)[0]:
+                if self.table['frametype'][idx] in ignore_frames:
+                    self.table['setup'][idx] = ckey
 
     def _set_calib_group_bits(self):
         grp = np.empty(len(self), dtype=object)
@@ -1268,7 +1281,7 @@ class PypeItMetaData:
             msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
 
         # Columns for output
-        output_cols = np.array(self.spectrograph.metadata_keys())
+        output_cols = np.array(self.spectrograph.pypeit_file_keys())
         output_cols = output_cols[np.isin(output_cols, self.keys())].tolist()
 
         # Unique configurations
@@ -1377,7 +1390,7 @@ class PypeItMetaData:
         configuring the control-flow and algorithmic parameters and
         listing the data files to read.  This function writes the
         columns selected by the
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.metadata_keys`,
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.pypeit_file_keys`,
         which can be specific to each instrument.
 
         Users can write the file, edit it, and then re-read it into
@@ -1428,7 +1441,7 @@ class PypeItMetaData:
         # TODO: I don't think sortroot is ever used.
 
         # Columns for output
-        columns = self.spectrograph.metadata_keys()
+        columns = self.spectrograph.pypeit_file_keys()
 
         # comb, bkg columns
         if write_bkg_pairs:  # SHOULD BE RENAMED TO write_extras
@@ -1894,21 +1907,21 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
 
 
 def define_core_meta():
-    core_meta = {}
+    core_meta = OrderedDict()  # Mainly for output to PypeIt file
     # Filename
     #core_meta['directory'] = dict(dtype=str, comment='Path to raw data file')
     #core_meta['filename'] = dict(dtype=str, comment='Basename of raw data file')
+
+    # Target
+    core_meta['ra'] = dict(dtype=str, comment='Colon separated (J2000) RA')
+    core_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
+    core_meta['target'] = dict(dtype=str, comment='Name of the target')
 
     # Instrument related
     #core_meta['instrume'] = dict(dtype=str, comment='Spectrograph name')
     core_meta['dispname'] = dict(dtype=str, comment='Disperser name')
     core_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
     core_meta['binning'] = dict(dtype=tuple, comment='(spatial,spectral) binning')
-
-    # Target
-    core_meta['target'] = dict(dtype=str, comment='Name of the target')
-    core_meta['ra'] = dict(dtype=str, comment='Colon separated (J2000) RA')
-    core_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
 
     # Obs
     core_meta['mjd'] = dict(dtype=float, comment='Observation MJD; must be readable by astropy.time.Time format=mjd')
@@ -1923,6 +1936,8 @@ def define_additional_meta():
     """
     Defines meta that tends to be instrument-specific and not used as widely in the code
 
+    For meta used to define configurations, the rtol key specifies
+    the relative tolerance for a match
 
     Returns:
         additional_meta: dict
@@ -1931,13 +1946,20 @@ def define_additional_meta():
     """
     additional_meta = {}
 
-    # Instrument
+    # Instrument (generally for configuration generation)
     additional_meta['dichroic'] = dict(dtype=str, comment='Beam splitter')
     additional_meta['filter1'] = dict(dtype=str, comment='First filter in optical path')
-    additional_meta['dispangle'] = dict(dtype=float, comment='Angle of the disperser')
+    additional_meta['dispangle'] = dict(dtype=float, comment='Angle of the disperser', rtol=0.)
+    additional_meta['hatch'] = dict(dtype=str, comment='Position of instrument hatch')
+    additional_meta['bin_card'] = dict(dtype=str, comment='Header card holding binning info')
+
+    # Calibration lamps
+    for kk in range(20):
+        additional_meta['lampstat{:02d}'.format(kk+1)] = dict(dtype=str, comment='Status of a given lamp (e.g off/on)')
 
     # Time
     additional_meta['iso-date'] = dict(dtype=str, comment='Observation date; must be readable by astropy.time.Time format=isot')
+
 
     return additional_meta
 
@@ -1945,7 +1967,7 @@ def define_additional_meta():
 def get_meta_data_model():
     """
     Pull together all of the meta defined above to
-    generat the meta_data_model
+    generate the meta_data_model
 
     Returns:
         meta_data_model: dict
@@ -1966,3 +1988,18 @@ def get_meta_data_model():
     # Return
     return meta_data_model
 
+def row_match_config(row, config, spectrograph):
+    # Loop on keys in config
+    match = []
+    for k in config.keys():
+        # Deal with floating configs (e.g. grating angle)
+        if isinstance(config[k], float):
+            if np.abs(config[k]-row[k])/config[k] < spectrograph.meta[k]['rtol']:
+                match.append(True)
+            else:
+                match.append(False)
+        else:
+            # The np.all allows for arrays in the Table (e.g. binning)
+            match.append(np.all(config[k] == row[k]))
+    # Check
+    return np.all(match)

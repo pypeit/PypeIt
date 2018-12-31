@@ -376,7 +376,7 @@ class PypeItSetup(object):
 
         format = None if '.fits' in ofile else 'ascii.fixed_width'
         self.fitstbl.write(ofile,
-                           columns=None if format is None else self.spectrograph.metadata_keys(),
+                           columns=None if format is None else self.spectrograph.pypeit_file_keys(),
                            format=format, overwrite=True)
 
 
@@ -446,8 +446,9 @@ class PypeItSetup(object):
 
         # Determine the configurations and assign each frame to the
         # specified configuration
-        cfgs = self.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
-        self.fitstbl.set_configurations(cfgs)
+        ignore_frames=['bias', 'dark']
+        cfgs = self.fitstbl.unique_configurations(ignore_frames=ignore_frames)
+        self.fitstbl.set_configurations(cfgs, ignore_frames=ignore_frames)
 
         # Assign frames to calibration groups
         self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])

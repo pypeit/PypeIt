@@ -7,6 +7,8 @@ import os
 import glob
 import pytest
 
+import numpy as np
+
 from pypeit.par.util import parse_pypeit_file
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.tests.tstutils import dev_suite_required
@@ -28,8 +30,10 @@ def test_lris_red_multi_400():
     ps.build_fitstbl()
     ps.get_frame_types(flag_unknown=True)
     cfgs = ps.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
-    ps.fitstbl.set_configurations(cfgs)
+    ps.fitstbl.set_configurations(cfgs, ignore_frames=['bias', 'dark'])
     ps.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
+    # Test
+    assert np.all(ps.fitstbl['setup'] == 'A')
 
 
 @dev_suite_required
@@ -47,7 +51,7 @@ def test_lris_red_multi():
     ps.build_fitstbl()
     ps.get_frame_types(flag_unknown=True)
     cfgs = ps.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
-    ps.fitstbl.set_configurations(cfgs)
+    ps.fitstbl.set_configurations(cfgs, ignore_frames=['bias', 'dark'])
     ps.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
 

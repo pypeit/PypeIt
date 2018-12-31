@@ -19,6 +19,8 @@ from pypeit.par import pypeitpar
 from pypeit.core import pixels
 from pypeit import metadata
 
+from pypeit import debugger
+
 # TODO: Consider changing the name of this to Instrument
 class Spectrograph(object):
     """
@@ -450,13 +452,26 @@ class Spectrograph(object):
         """
         return ['dispname', 'dichroic', 'decker']
 
+    def pypeit_file_keys(self):
+        pypeit_keys = ['filename', 'frametype']
+        # Core
+        core_meta = metadata.define_core_meta()
+        pypeit_keys += list(core_meta.keys())  # Might wish to order these
+        # Add in config_keys (if new)
+        for key in self.configuration_keys():
+            if key not in pypeit_keys:
+                pypeit_keys.append(key)
+        # Finish
+        return pypeit_keys
+
+
     def compound_meta(self, ifile, meta_key, headarr=None):
         pass
 
     def init_meta(self):
         self.meta = {}
 
-    def get_meta(self, ifile, meta_key, headarr=None, required=False):
+    def get_meta_value(self, ifile, meta_key, headarr=None, required=False):
         """
         Return meta data from a given file (or its array of headers)
 
@@ -469,7 +484,7 @@ class Spectrograph(object):
               Require the meta key to be returnable
 
         Returns:
-            meta: value or list of values
+            value: value or list of values
 
         """
         if headarr is None:
@@ -477,11 +492,11 @@ class Spectrograph(object):
 
         # Loop?
         if isinstance(meta_key, list):
-            meta = []
+            values = []
             for mdict in meta_key:
-                meta.append(self.get_meta(mdict, headarr=headarr, required=required))
+                values.append(self.get_meta_value(mdict, headarr=headarr, required=required))
             #
-            return meta
+            return values
 
         # Are we prepared to provide this meta data?
         if meta_key not in self.meta.keys():
@@ -491,16 +506,19 @@ class Spectrograph(object):
                 msgs.warn("Requested meta data does not exist...")
                 return None
         # Is this not derivable?  If so, use the default
+        #   or search for it as a compound method
         if self.meta[meta_key]['card'] is None:
             if 'default' in self.meta[meta_key].keys():
                 value = self.meta[meta_key]['default']
             elif 'compound' in self.meta[meta_key].keys():
                 value = self.compound_meta(None, meta_key, headarr=headarr)
+            else:
+                msgs.error("Failed to load spectrograph value for meta: {}".format(meta_key))
         else:
             try:  # REMOVE THIS WHEN SUBMITTING THE PR
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
             except KeyError:
-                import pdb; pdb.set_trace()
+                debugger.set_trace()
 
         # Deal with dtype (DO THIS HERE OR IN METADATA?  I'M TORN)
         if self.meta_data_model[meta_key]['dtype'] == str:
@@ -517,10 +535,16 @@ class Spectrograph(object):
         return value
 
     def validate_metadata(self):
-        # Confirm all core meta is found
+        # Load up
         core_meta = metadata.define_core_meta()
+        meta_data_model = metadata.get_meta_data_model()
+        # Check core
         for key in core_meta:
-            assert key in self.meta.keys()
+            assert key in self.meta.keys(), 'key {:s} not defined in spectrograph meta!'.format(key)
+        # Check for rtol for config keys
+        for key in self.configuration_keys():
+            if meta_data_model[key]['dtype'] in ['float']:
+                assert 'rtol' in self.meta[key].keys(), 'rtol not set for key {:s} not defined in spectrograph meta!'.format(key)
         # Now confirm all meta are in the data model
         for key in self.meta.keys():
             if key not in self.meta_data_model.keys():
