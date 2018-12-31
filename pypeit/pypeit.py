@@ -366,6 +366,25 @@ class PypeIt(object):
 
         return objtype_out, setup, obstime, basename, binning
 
+    def get_std_trace(self, std_redux, det, std_outfile):
+        """
+        Returns the trace of the standard if it is applicable to the current reduction
+        """
+        if std_redux is False:
+            sobjs, hdr_std = load.load_specobjs(std_outfile)
+            sobjs_std = sobjs.get_std()
+            # Does the detector match?
+            # TODO Instrument specific logic here could be implemented with the parset. For example LRIS-B or LRIS-R we
+            # we would use the standard from another detector
+            if sobjs_std.det == det:
+                std_trace = sobjs_std.trace_spat
+            else:
+                std_trace = None
+        else:
+            std_trace = None
+
+        return std_trace
+
     def extract_one(self, frames, det, bg_frames=[], std_outfile=None):
         """
         Extract a single exposure/detector pair
@@ -383,28 +402,25 @@ class PypeIt(object):
             vel_corr
 
         """
+        # Grab some meta-data needed for the reduction from the fitstbl
         self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], det)
         # Is this an IR reduction
         self.ir_redux = True if len(bg_frames) > 0 else False
-        # Is this a stadnard star?
+        # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
-        if self.std_redux is False:
-            sobjs_std = load.load_specobjs
-            from IPython import embed
-            embed()
-
-        # Grab some meta-data needed for the reduction from the fitstbl
-        # Grab the files that we will reduce
+        # Get the standard trace if need be
+        std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
+        # Instantiate ScienceImage for the files we will reduce
         self.sciI = scienceimage.ScienceImage(self.caliBrate.tslits_dict, self.spectrograph,
-                                         self.fitstbl.frame_paths(frames),
-                                         bg_file_list=self.fitstbl.frame_paths(bg_frames),
-                                         ir_redux = self.ir_redux,
-                                         par=self.par['scienceimage'],
-                                         frame_par=self.par['scienceframe'],
-                                         objtype=self.objtype,
-                                         det=det,
-                                         binning=self.binning,
-                                         setup=self.setup)
+                                              self.fitstbl.frame_paths(frames),
+                                              bg_file_list=self.fitstbl.frame_paths(bg_frames),
+                                              ir_redux = self.ir_redux,
+                                              par=self.par['scienceimage'],
+                                              frame_par=self.par['scienceframe'],
+                                              objtype=self.objtype,
+                                              det=det,
+                                              binning=self.binning,
+                                              setup=self.setup)
         # For QA on crash
         msgs.sciexp = self.sciI
 
@@ -417,7 +433,7 @@ class PypeIt(object):
         self.maskslits = self.caliBrate.maskslits.copy()
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
-            self.find_objects(sciimg, ir_redux=self.ir_redux,snr_trim=False, maskslits=self.maskslits)
+            self.find_objects(sciimg, ir_redux=self.ir_redux, std_trace=std_trace, snr_trim=False, maskslits=self.maskslits)
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         initial_sky = \
@@ -427,7 +443,7 @@ class PypeIt(object):
         if not self.std_redux:
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
-                self.find_objects(sciimg - initial_sky, ir_redux=self.ir_redux,  snr_trim=True,
+                self.find_objects(sciimg - initial_sky, ir_redux=self.ir_redux, std_trace=std_trace, snr_trim=True,
                 maskslits=self.maskslits,show_peaks=self.show)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
@@ -467,15 +483,15 @@ class PypeIt(object):
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
 
 
-    def find_objects(self, image, ir_redux=False, snr_trim=False, maskslits=None,
+    def find_objects(self, image, ir_redux=False, std_trace=None, snr_trim=False, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         sobjs_obj_init, nobj_init, skymask_pos = \
-            self.find_obj_pypeline(image, snr_trim=snr_trim, maskslits=maskslits)
+            self.find_obj_pypeline(image, std_trace=None, snr_trim=snr_trim, maskslits=maskslits)
 
         if ir_redux:
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
-                self.find_obj_pypeline(-image, snr_trim=snr_trim, maskslits=maskslits)
+                self.find_obj_pypeline(-image, std_trace=None, snr_trim=snr_trim, maskslits=maskslits)
             skymask = skymask_pos & skymask_neg
             sobjs_obj_init.append_neg(sobjs_obj_init_neg)
         else:
@@ -483,7 +499,7 @@ class PypeIt(object):
 
         return sobjs_obj_init, len(sobjs_obj_init), skymask
 
-    def find_obj_pypeline(self, image, snr_trim=False, maskslits=None,
+    def find_obj_pypeline(self, image, std_trace=None, snr_trim=False, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
         """
         Dummy method for object finding. Overloaded by class specific object finding.
@@ -644,13 +660,13 @@ class MultiSlit(PypeIt):
         self.std_basename = None
         self.stdI = None
 
-    def find_obj_pypeline(self, image, maskslits=None, snr_trim=False,
+    def find_obj_pypeline(self, image, std_trace=None, maskslits=None, snr_trim=False,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         # Object finding, second pass on frame *with* sky subtraction. Show here if requested
         sobjs_obj, nobj, skymask = \
-            self.sciI.find_objects(image, maskslits=maskslits,show_peaks=show_peaks, show_fits=show_fits,
-                                   show_trace=show_trace)
+            self.sciI.find_objects(image, std_trace=std_trace, maskslits=maskslits,
+                                   show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace)
         return sobjs_obj, nobj, skymask
 
     # TODO: I don't think this function is written yet...
@@ -746,74 +762,15 @@ class Echelle(PypeIt):
     def __init__(self, spectrograph, **kwargs):
         super(Echelle, self).__init__(spectrograph, **kwargs)
 
-    def find_obj_pypeline(self, image, maskslits=None, snr_trim=False,
+    def find_obj_pypeline(self, image, std_trace=None, maskslits=None, snr_trim=False,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         # Object finding, second pass on frame *with* sky subtraction. Show here if requested
         sobjs_obj, nobj, skymask = \
-            self.sciI.find_objects_ech(image,snr_trim=snr_trim, show_peaks=show_peaks, show_fits=show_fits,
+            self.sciI.find_objects_ech(image, std_trace=std_trace, snr_trim=snr_trim, show_peaks=show_peaks, show_fits=show_fits,
                                        show_trace=show_trace)
         return sobjs_obj, nobj, skymask
 
-    # JFH Take background files as an argument
-    # def extract_one(self, frames, det, bg_frames = [], std_outfile = None):
-    #     """
-    #     Extract a single exposure/detector pair
-    #
-    #     sci_ID and det need to have been set internally prior to calling this method
-    #
-    #     Returns:
-    #         sciimg
-    #         sciivar
-    #         skymodel
-    #         objmodel
-    #         ivarmodel
-    #         outmask
-    #         sobjs
-    #         vel_corr
-    #
-    #     """
-    #
-    #
-    #     sciimg, sciivar, rn2img, mask, crmask, initial_sky, self.sciI = \
-    #         self.init_sci_init_sky(frames, det, bg_frames=bg_frames)
-    #
-    #     sobjs_obj, nobj = self.sciI.get_ech_objects(self.caliBrate.tslits_dict, show=self.show)
-    #
-    #     # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
-    #     if nobj > 0:
-    #         # Global sky subtraction second pass. Uses skymask from object finding
-    #         global_sky = self.sciI.global_skysub(self.caliBrate.tslits_dict,
-    #                                         self.caliBrate.tilts_dict['tilts'], use_skymask=True,
-    #                                         maskslits=self.maskslits, show=self.show)
-    #
-    #         skymodel, objmodel, ivarmodel, outmask, sobjs = self.sciI.local_skysub_extract(sobjs_obj, self.caliBrate.mswave,
-    #                                                                                        maskslits=self.maskslits, show_profile=self.show,
-    #                                                                                        show=self.show)
-    #         # Flexure correction?
-    #         self.flexure_correct(sobjs,self.maskslits)
-    #         vel_corr = self.helio_correct(sobjs, self.maskslits, frames[0], self.obstime)
-    #
-    #     else:
-    #         msgs.warn('No objects to extract for science frame' + msgs.newline()
-    #                   + self.fitstbl['filename'][self.sciI.scidx])
-    #         # set to first pass global sky
-    #         skymodel = initial_sky
-    #         objmodel = np.zeros_like(sciimg)
-    #         # Set to sciivar. Could create a model but what is the point?
-    #         ivarmodel = np.copy(sciivar)
-    #         # Set to inmask in case on objects were found
-    #         outmask = self.sciI.mask
-    #         # empty specobjs object from object finding
-    #         sobjs = sobjs_obj
-    #         vel_corr = None
-    #
-    #     return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
-
-
-
-#    def _extract_std(self):
-#        self._extract_one(std=True)
 
     # THESE ARENT USED YET BUT WE SHOULD CONSIDER IT
     @staticmethod

@@ -75,7 +75,7 @@ class SpecObj(object):
 
     # TODO
     def __init__(self, shape, slit_spat_pos, slit_spec_pos, det=1, setup=None, idx = None,
-                 slitid=999, objtype='unknown', spat_pixpos=None, config=None):
+                 slitid=999, objtype='unknown', pypeline='unknown', spat_pixpos=None, config=None):
 
 
         #Assign from init parameters
@@ -87,6 +87,7 @@ class SpecObj(object):
         self.det = det
         self.objtype = objtype
         self.config = config
+        self.pypeline = pypeline
 
         # ToDo add all attributes here and to the documentaiton
 
@@ -154,12 +155,13 @@ class SpecObj(object):
                               slitid='SLITID',
                               ech_objid='ECHOBJID',
                               ech_orderindx='ECHOINDX',
-                              ech_order='ECHORDER')
+                              ech_order='ECHORDER',
+                              pypeline='PYPELINE')
 
         return sobjs_key_dict
 
 
-    def set_idx(self, echelle=False):
+    def set_idx(self):
         """
         # Generate a unique index for this exposure
 
@@ -170,7 +172,7 @@ class SpecObj(object):
         # Detector string
         sdet = parse.get_dnum(self.det, prefix=False)
 
-        if echelle:
+        if 'Echelle' in self.pypeline:
             # ObjID
             self.idx = naming_model['obj']
             if self.ech_objid is None:
@@ -224,6 +226,8 @@ class SpecObj(object):
         else:
             return False
 
+    # TODO JFH This implementation is buggy. It appears that not all attributes are being copied correctly. I would try
+    # to fix, but I think this entire class is a piece of shit and should be replaced by something working around astropy tables.
     def copy(self):
         sobj_copy = SpecObj(self.shape, self.slit_spat_pos, self.slit_spec_pos) # Instantiate
 #        sobj_copy.__dict__ = self.__dict__.copy() # Copy over all attributes
@@ -232,6 +236,7 @@ class SpecObj(object):
         sobj_copy.__dict__ = copy.deepcopy(self.__dict__)
         sobj_copy.boxcar = copy.deepcopy(self.boxcar) # Copy boxcar and optimal dicts
         sobj_copy.optimal = copy.deepcopy(self.optimal)
+        # These attributes are numpy arrays that don't seem to copy from the lines above??
         return sobj_copy
 
     def __getitem__(self, key):
@@ -294,10 +299,48 @@ class SpecObjs(object):
         Return the number of SpecObj objects
 
         Returns:
-            nobj : int
+            nobj: int
 
         """
         return self.specobjs.size
+
+    def get_std(self):
+        """
+        Return the standard star from this Specobjs. For MultiSlit this
+        will be a single specobj in SpecObjs container, for Echelle it
+        will be the standard for all the orders.
+
+        Returns:
+            sobjs_std: SpecObjs
+
+        """
+        # Is this MultiSlit or Echelle
+        pypeline = (self.pypeline)[0]
+        if 'MultiSlit' in pypeline:
+            nspec = self[0].optimal['COUNTS'].size
+            SNR = np.zeros(self.nobj)
+            # Have to do a loop to extract the counts for all objects
+            for iobj in range(self.nobj):
+                SNR[iobj] = np.median(self[iobj].optimal['COUNTS']*np.sqrt(self[iobj].optimal['COUNTS_IVAR']))
+            istd = SNR.argmax()
+            return SpecObjs(specobjs=[self[istd]])
+        elif 'Echelle' in pypeline:
+            uni_objid = np.unique(self.ech_objid)
+            uni_order = np.unique(self.ech_orderindx)
+            nobj = len(uni_objid)
+            norders = len(uni_order)
+            SNR = np.zeros((norders, nobj))
+            for iobj in range(nobj):
+                for iord in range(norders):
+                    ind = (self.ech_objid == uni_objid[iobj]) & (self.ech_orderindx == uni_order[iord])
+                    SNR[iord, iobj] = np.median(self[ind].optimal['COUNTS']*np.sqrt(self[ind].optimal['COUNTS_IVAR']))
+            SNR_all = np.sqrt(np.sum(SNR**2,axis=0))
+            objid_std = uni_objid[SNR_all.argmax()]
+            indx = self.ech_objid == objid_std
+            return SpecObjs(specobjs=self[indx])
+        else:
+            msgs.error('Unknown pypeline')
+
 
     def append_neg(self, sobjs_neg):
         """
@@ -397,27 +440,25 @@ class SpecObjs(object):
         sobj_copy.build_summary()
         return sobj_copy
 
-    def set_idx(self, echelle=False):
+    def set_idx(self):
         for sobj in self.specobjs:
-            sobj.set_idx(echelle=echelle)
+            sobj.set_idx()
         self.build_summary()
+
 
     def __getitem__(self, item):
         """ Overload to allow one to pull an attribute
         or a portion of the SpecObjs list
-
         Parameters
         ----------
         key : str or int (or slice)
-
         Returns
         -------
-
         """
         if isinstance(item, str):
             return self.__getattr__(item)
         elif isinstance(item, (int, np.integer)):
-            return self.specobjs[item]
+            return self.specobjs[item] # TODO Is this using pointers or creating new data????
         elif (isinstance(item, slice) or  # Stolen from astropy.table
             isinstance(item, np.ndarray) or
             isinstance(item, list) or
@@ -425,8 +466,8 @@ class SpecObjs(object):
             # here for the many ways to give a slice; a tuple of ndarray
             # is produced by np.where, as in t[np.where(t['a'] > 2)]
             # For all, a new table is constructed with slice of all columns
-            #sobjs_new = np.array(self.specobjs,dtype=object)
             return SpecObjs(specobjs=self.specobjs[item])
+
 
     # TODO PROFX this code fails for assignments of this nature sobjs[:].attribute = np.array(5)
     def __setitem__(self, name, value):
@@ -577,7 +618,7 @@ def init_exp(lcen, rcen, shape, maskslits, det, scidx, fitstbl, tracelist, ypos=
     # Return
     return specobjs
 
-
+# DEPRECATED
 def objnm_to_dict(objnm):
     """ Convert an object name or list of them into a dict
 
@@ -612,7 +653,7 @@ def objnm_to_dict(objnm):
     # Return
     return odict
 
-
+# DEPRECATED
 def mtch_obj_to_objects(iobj, objects, stol=50, otol=10, **kwargs):
     """
     Parameters
@@ -649,7 +690,7 @@ def mtch_obj_to_objects(iobj, objects, stol=50, otol=10, **kwargs):
         return np.array(objects)[gdrow].tolist(), np.where(gdrow)[0].tolist()
 
 
-
+# DEPRECATED
 def get_objid(lordloc, rordloc, islit, iobj, trc_img, ypos=0.5):
     """ Convert slit position to a slitid
     Parameters
@@ -674,7 +715,7 @@ def get_objid(lordloc, rordloc, islit, iobj, trc_img, ypos=0.5):
     # Return
     return objid, xobj
 
-
+# DEPRECATED
 def instconfig(fitsrow=None, binning=None):
     """ Returns a unique config string
 
@@ -753,7 +794,7 @@ def dummy_specobj(fitstbl, det=1, extraction=True):
     # Return
     return sobj_list
 
-
+# DEPRECATED
 def lst_to_array(lst, mask=None):
     """ Simple method to convert a list to an array
 

@@ -1411,7 +1411,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     """
 
     if specobj_dict is None:
-        specobj_dict = {'setup': None, 'slitid': 999, 'det': 1, 'objtype': 'science'}
+        specobj_dict = {'setup': None, 'slitid': 999, 'det': 1, 'objtype': 'unknown', 'pypeline': 'unknown'}
 
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
@@ -1555,8 +1555,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         for iobj in range(nobj_reg):
             # ToDo Label with objid and objind here?
             thisobj = specobjs.SpecObj(frameshape, slit_spat_pos, slit_spec_pos, det = specobj_dict['det'],
-                              setup = specobj_dict['setup'], slitid = specobj_dict['slitid']
-                                       , objtype=specobj_dict['objtype'])
+                                       setup = specobj_dict['setup'], slitid = specobj_dict['slitid'],
+                                       objtype=specobj_dict['objtype'], pypeline=specobj_dict['pypeline'])
             thisobj.spat_fracpos = xcen[iobj]/nsamp
             thisobj.smash_peakflux = ypeak[iobj]
             thisobj.smash_nsig = ypeak[iobj]/sigma
@@ -1602,7 +1602,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         sobjs[iobj].trace_spec = spec_vec
         sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
-        sobjs[iobj].set_idx(echelle=True)
+        sobjs[iobj].set_idx()
 
         # Determine the fwhm max
         yhalf = 0.5*sobjs[iobj].smash_peakflux
@@ -1798,6 +1798,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
                 color = 'blue'
             ginga.show_trace(viewer, ch,sobjs[iobj].trace_spat, trc_name = sobjs[iobj].idx, color=color)
 
+
     return sobjs, skymask[thismask]
 
 
@@ -1952,11 +1953,11 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
 
 
 
-def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_vec = None, plate_scale=0.2,
-                std_trace=None, ncoeff = 5,npca=None,coeff_npoly=None, snr_trim=True, min_snr=0.0,nabove_min_snr=0,
-                pca_explained_var=99.0, box_radius=2.0, fwhm = 3.0, hand_extract_dict = None, nperslit = 5, bg_smth = 5.0,
-                extract_maskwidth = 3.0, sig_thresh = 5.0, peak_thresh = 0.0,abs_thresh = 0.0,
-                trim_edg = (5,5), show_peaks=False,show_fits=False,show_trace=False,show_single_trace = False, debug=False):
+def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_vec=None, plate_scale=0.2,
+                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, snr_trim=True, min_snr=0.0, nabove_min_snr=0,
+                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
+                extract_maskwidth=3.0, sig_thresh = 5.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
+                trim_edg=(5,5), show_peaks=False, show_fits=False, show_trace=False, show_single_trace=False, debug=False):
     """
     Object finding routine for Echelle spectrographs. This routine:
        1) runs object finding on each order individually
@@ -2019,6 +2020,10 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_v
       Skymask indicating which pixels can be used for global sky subtraction
     """
 
+    if specobj_dict is None:
+        specobj_dict = {'setup': 'unknown', 'slitid': 999, 'det': 1, 'objtype': 'unknown', 'pypeline': 'Echelle'}
+
+
     # TODO Update FOF algorithm here with the one from scikit-learn.
 
     allmask = slitmask > -1
@@ -2058,7 +2063,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_v
         slit_spat_pos[iord, :] = (np.interp(slit_spec_pos, spec_vec, slit_left[:,iord]), np.interp(slit_spec_pos, spec_vec, slit_righ[:,iord]))
 
     # create the ouptut images skymask and objmask
-    #objmask = np.zeros_like(slitmask, dtype=bool)
     skymask_objfind = np.copy(allmask)
     # Loop over orders and find objects
     sobjs = specobjs.SpecObjs()
@@ -2067,7 +2071,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ,inmask=None, order_v
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
         thismask = slitmask == iord
         inmask_iord = inmask & thismask
-        specobj_dict = {'setup': 'echelle', 'slitid': iord, 'det': 1, 'objtype': 'science'}
+        specobj_dict['slitid'] = iord
         try:
             std_in = std_trace[:,iord]
         except TypeError:

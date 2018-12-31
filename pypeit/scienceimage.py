@@ -119,7 +119,8 @@ class ScienceImage():
     frametype = 'science'
 
     # TODO: Merge into a single parset, one for procing, and one for scienceimage
-    def __init__(self, tslits_dict, spectrograph, file_list, bg_file_list = [], ir_redux=False, det=1, objtype='science', binning = None, setup=None,
+    def __init__(self, tslits_dict, spectrograph, file_list, bg_file_list = [], ir_redux=False,
+                 det=1, objtype='science', binning = None, setup=None,
                  par=None, frame_par=None):
 
         # Instantiation attributes for this object
@@ -137,6 +138,7 @@ class ScienceImage():
         self.binning = binning
         self.objtype = objtype
         self.setup = setup
+        self.pypeline = spectrograph.pypeline
 
         # Setup the parameters sets for this object
         # NOTE: This uses objtype, not frametype!
@@ -258,7 +260,7 @@ class ScienceImage():
             inmask = (self.mask == 0) & (self.crmask == False) & thismask
             # Find objects
             specobj_dict = {'setup': self.setup, 'slitid': slit,
-                            'det': self.det, 'objtype': self.objtype}
+                            'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
 
             # TODO we need to add QA paths and QA hooks. QA should be
             # done through objfind where all the relevant information
@@ -296,12 +298,15 @@ class ScienceImage():
 
         plate_scale = self.spectrograph.order_platescale(binning=self.binning)
         inmask = (self.mask == 0) & (self.crmask == False)
+        # Find objects
+        specobj_dict = {'setup': self.setup, 'slitid': 999,
+                        'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
         # ToDO implement parsets here!
         sobjs_ech, skymask[self.slitmask > -1] = \
             extract.ech_objfind(image, self.sciivar, self.slitmask, self.tslits_dict['lcen'], self.tslits_dict['rcen'],
                                 snr_trim=snr_trim, inmask=inmask, plate_scale=plate_scale, std_trace=std_trace,
-                                ncoeff=5,sig_thresh=5., show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
-                                debug=debug)
+                                specobj_dict=specobj_dict, ncoeff=5,sig_thresh=5.0,
+                                show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace, debug=debug)
 
 
 
