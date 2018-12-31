@@ -351,7 +351,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 '''
 
-def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=None, overwrite=True,
+def save_1d_spectra_fits(specObjs, header, pypeline, outfile, helio_dict=None, telescope=None, overwrite=True,
                          update_det=None):
     """ Write 1D spectra to a multi-extension FITS file
 
@@ -370,6 +370,7 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
     outfile : str
     """
     hdus, prihdu = init_hdus(update_det, outfile)
+    sobjs_key = specobjs.SpecObj.sobjs_key()
     # Init for spec1d as need be
     if hdus is None:
         prihdu = fits.PrimaryHDU()
@@ -385,6 +386,9 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
             prihdu.header['MJD-OBS'] = header['MJD-OBS']
         except KeyError:
             prihdu.header['MJD-OBS'] = header['time']  # recorded as 'time' in fitstbl
+
+        # Specify which pipeline created this file
+        prihdu.header['PYPELINE'] = pypeline
 
         # Observatory
         if telescope is not None:
@@ -448,11 +452,8 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         coldefs = fits.ColDefs(cols)
         tbhdu = fits.BinTableHDU.from_columns(coldefs)
         tbhdu.name = sobj.idx
-        # If this is echelle write the objid and the orderindx to the header as well
-        if sobj.ech_objid is not None:
-            tbhdu.header['OBJID'] = sobj.ech_objid
-        if sobj.ech_orderindx is not None:
-            tbhdu.header['ORDER'] = sobj.ech_orderindx
+        for attr, hdrcard in sobjs_key.items():
+            tbhdu.header[hdrcard] = getattr(sobj,attr)
         hdus += [tbhdu]
 
     # A few more for the header

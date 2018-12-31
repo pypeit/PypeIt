@@ -52,7 +52,7 @@ def test_gen_sensfunc():
 
     # Load a random spectrum for the sensitivity function
     sfile = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
-    specobjs = load.load_specobj(sfile)
+    specobjs = load.load_specobjs(sfile)
     telescope = telescopes.ShaneTelescopePar()
     fitstbl = metadata.dummy_fitstbl()
     RA = '05:06:36.6'

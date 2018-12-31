@@ -1252,8 +1252,6 @@ class TraceSlits(masterframe.MasterFrame):
             answer: bool
 
         """
-
-
         # Does the master file exist?
         if not (os.path.isfile(filename + '.fits') & os.path.isfile(filename + '.json')):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))

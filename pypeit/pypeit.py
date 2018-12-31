@@ -224,7 +224,6 @@ class PypeIt(object):
         self.print_end_time()
 
 
-
     def select_detectors(self):
         """
         Return the 1-indexed list of detectors to reduce.
@@ -233,10 +232,6 @@ class PypeIt(object):
             return np.arange(self.spectrograph.ndet)+1
         return [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'], int) \
                     else self.par['rdx']['detnum']
-
-    def get_binning(self):
-        # Grab the binning from the fitstable
-        return binning
 
     def reduce_exposure(self, frames, bg_frames=[], std_outfile=None, reuse_masters=False):
         """
@@ -393,7 +388,10 @@ class PypeIt(object):
         self.ir_redux = True if len(bg_frames) > 0 else False
         # Is this a stadnard star?
         self.std_redux = 'standard' in self.objtype
-
+        if self.std_redux is False:
+            sobjs_std = load.load_specobjs
+            from IPython import embed
+            embed()
 
         # Grab some meta-data needed for the reduction from the fitstbl
         # Grab the files that we will reduce
@@ -548,7 +546,7 @@ class PypeIt(object):
                 else self.caliBrate.par['wavelengths']['frame'],
                               vel_correction=vel_corr)
             # Did the user re-run a single detector?
-            save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], outfile,
+            save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], self.spectrograph.pypeline, outfile,
                                       helio_dict=helio_dict, telescope=self.spectrograph.telescope,
                                       update_det=self.par['rdx']['detnum'])
         #        elif save_format == 'hdf5':

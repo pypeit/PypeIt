@@ -28,9 +28,9 @@ def data_path(filename):
 #    assert headers[0][0]['OBJECT'] == 'Arcs'
 
 
-def test_load_specobj():
+def test_load_specobjs():
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
-    specobjs, head0 = load.load_specobj(spec_file)
+    specobjs, head0 = load.load_specobjs(spec_file)
     # Test
     assert isinstance(specobjs, list)
     assert len(specobjs[0].boxcar['COUNTS']) == 1200

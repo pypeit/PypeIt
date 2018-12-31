@@ -139,6 +139,26 @@ class SpecObj(object):
             self.idx = idx
         #
 
+    @staticmethod
+    def sobjs_key():
+        """
+        This function returns the dictionary that defines the mapping between specobjs attributes and the fits header
+        cards and "
+
+        Returns:
+            sobjs_key_dict
+
+        """
+        sobjs_key_dict = dict(det='DET',
+                              objid='OBJID',
+                              slitid='SLITID',
+                              ech_objid='ECHOBJID',
+                              ech_orderindx='ECHOINDX',
+                              ech_order='ECHORDER')
+
+        return sobjs_key_dict
+
+
     def set_idx(self, echelle=False):
         """
         # Generate a unique index for this exposure
@@ -733,7 +753,6 @@ def dummy_specobj(fitstbl, det=1, extraction=True):
     # Return
     return sobj_list
 
-#TODO We need a method to write these objects to a fits file
 
 def lst_to_array(lst, mask=None):
     """ Simple method to convert a list to an array

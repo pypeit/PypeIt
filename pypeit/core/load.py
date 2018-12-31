@@ -74,7 +74,7 @@ def load_ordloc(fname):
     return ltrace, rtrace
 
 
-def load_specobj(fname):
+def load_specobjs(fname, order=None):
     """ Load a spec1d file into a list of SpecObjExp objects
     Parameters
     ----------
@@ -85,41 +85,46 @@ def load_specobj(fname):
     specObjs : list of SpecObjExp
     head0
     """
+
+    from IPython import embed
+    embed()
+    sobjs = specobjs.SpecObjs()
     speckeys = ['WAVE', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG', 'COUNTS_IVAR', 'COUNTS']
-    #
-    specObjs = []
+    # sobjs_keys gives correspondence between header cards and sobjs attribute name
+    sobjs_key = specobjs.SpecObj.sobjs_key()
     hdulist = fits.open(fname)
     head0 = hdulist[0].header
+    pypeline = head0['PYPELINE']
+    # Is this an Echelle reduction?
+    if 'Echelle' in pypeline:
+        echelle = True
+    else:
+        echelle = False
+
     for hdu in hdulist:
         if hdu.name == 'PRIMARY':
             continue
         # Parse name
         idx = hdu.name
-        objp = idx.split('-')
-        if objp[-2][0:3] == 'DET':
-            det = int(objp[-2][3:])
-        else:
-            det = int(objp[-2][1:])
+        # if order is not None and iord !=order then do not return this extenction
+        # if order is None return all extensions
+        # if order is not None and iord ==order then only return the specific order you want.
+        if echelle and (order is not None):
+            if iord != order:
+                continue
         # Load data
         spec = Table(hdu.data)
         shape = (len(spec), 1024)  # 2nd number is dummy
-        # Init
-        #specobj = specobjs.SpecObj(shape, 'dum_config', int(objp[-1][1:]),
-        #                           int(objp[-2][1:]), [float(objp[1][1:])/10000.]*2, 0.5,
-        #                           float(objp[0][1:])/1000., 'unknown')
-        # New and wrong
-        try:
-            specobj = specobjs.SpecObj(shape, None, None, idx = idx)
-        except:
-            debugger.set_trace()
-            msgs.error("BUG ME")
-        # TODO -- Figure out if this is a default
-        # Add trace
-        try:
-            specobj.trace_spat = spec['TRACE']
-        except:
-            # KLUDGE!
-            specobj.trace_spat = np.arange(len(spec['BOX_WAVE']))
+        specobj = specobjs.SpecObj(shape, None, None, idx = idx)
+        # Assign specobj attributes from header cards
+        for attr, hdrcard in sobjs_key.items():
+            try:
+                value = hdu.header[hdrcard]
+            except:
+                continue
+            setattr(specobj, value, attr)
+
+        specobj.trace_spat = spec['TRACE']
         # Add spectrum
         if 'BOX_COUNTS' in spec.keys():
             for skey in speckeys:
@@ -139,11 +144,11 @@ def load_specobj(fname):
             # Add units on wave
             specobj.optimal['WAVE'] = specobj.optimal['WAVE'] * units.AA
         # Append
-        specObjs.append(specobj)
+        sobjs.add_sobj(specobj)
     # Return
-    return specObjs, head0
+    return sobjs, head0
 
-
+# JFH This is deprecated
 def ech_load_specobj(fname, order=None):
 
     """ Load a spec1d file into a list of SpecObjExp objects
