@@ -1941,6 +1941,14 @@ def define_additional_meta():
 
 
 def get_meta_data_model():
+    """
+    Pull together all of the meta defined above to
+    generat the meta_data_model
+
+    Returns:
+        meta_data_model: dict
+
+    """
     meta_data_model = {}
 
     # Core
