@@ -1925,6 +1925,8 @@ def define_additional_meta():
 
 
     Returns:
+        additional_meta: dict
+          Describes the additional meta data used in PypeIt
 
     """
     additional_meta = {}
