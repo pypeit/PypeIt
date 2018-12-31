@@ -21,13 +21,16 @@ from pypeit import msgs
 from pypeit.core import load
 from pypeit import utils
 from pypeit import debugger
+from pkg_resources import resource_filename
+
 
 # TODO
     # Shift spectra
     # Scale by poly
     # Better rejection
     # Grow mask in final_rej?
-
+    # QA
+    # Should we get rid of masked array?
 
 def new_wave_grid(waves, wave_method='iref', iref=0, wave_grid_min=None, wave_grid_max=None,
                   A_pix=None, v_pix=None, **kwargs):
@@ -228,7 +231,7 @@ def sn_weight(spectra, smask, debug=False):
 
     rms_sn = np.sqrt(np.mean(sn2)) # Root Mean S/N**2 value for all spectra
 
-    if rms_sn <= 4.0:
+    if rms_sn <= 3.0:
         msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn))
         weights = np.ma.outer(np.asarray(sn2), np.ones(fluxes.shape[1]))
     else:
@@ -799,7 +802,7 @@ def get_std_dev(irspec, rmask, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
 def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
                   scale_method='auto', do_offset=False, sigrej_final=3.,
                   do_var_corr=True, qafile=None, outfile=None,
-                  do_cr=True, **kwargs):
+                  do_cr=True, debug=False,**kwargs):
     """
     Parameters
     ----------
@@ -822,6 +825,11 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             write_to_disk(spectra, outfile)
         return spectra
 
+    if 'echelle' in kwargs:
+        echelle = kwargs['echelle']
+    else:
+        echelle =  False
+
     # Final wavelength array
     new_wave = new_wave_grid(spectra.data['wave'], wave_method=wave_grid_method, **kwargs)
 
@@ -836,7 +844,14 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     sn2, weights = sn_weight(rspec, rmask)
 
     # Scale (modifies rspec in place)
-    scales, omethod = scale_spectra(rspec, rmask, sn2, scale_method=scale_method, **kwargs)
+    if echelle:
+        if scale_method is None:
+            msgs.warn('No scaling betweeen different exposures/orders.')
+        else:
+            msgs.work('Need add a function to scale Echelle spectra.')
+            #scales, omethod = scale_spectra(rspec, rmask, sn2, scale_method='median', **kwargs)
+    else:
+        scales, omethod = scale_spectra(rspec, rmask, sn2, scale_method=scale_method, **kwargs)
 
     # Clean bad CR :: Should be run *after* scaling
     if do_cr:
@@ -846,6 +861,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     spec1d = one_d_coadd(rspec, rmask, weights)
 
     # Init standard deviation
+    # FW: Not sure why calling this function as you initial the std_dev = 0. in the following.
     std_dev, _ = get_std_dev(rspec, rmask, spec1d, **kwargs)
     msgs.info("Initial std_dev = {:g}".format(std_dev))
 
@@ -938,7 +954,9 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             sigrej_eff = sigrej_final*one_sigma
             chi2_cap = (flux-newflux_now - offset)**2*ivar_cap
             # Grow??
-            chi_mask = (chi2_cap > sigrej_eff**2) & (~rmask[qq,:])
+            #Is this correct? This is not growing mask
+            #chi_mask = (chi2_cap > sigrej_eff**2) & (~rmask[qq,:])
+            chi_mask = (chi2_cap > sigrej_eff**2) | (rmask[qq,:])
             nrej = np.sum(chi_mask)
             # Apply
             if nrej > 0:
@@ -959,6 +977,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
         #var_corr = var_corr * std_dev
         msgs.info("Desired variance correction: {:g}".format(var_corr))
         msgs.info("New standard deviation: {:g}".format(std_dev))
+
         if do_var_corr:
             msgs.info("Correcting variance")
             for ispec in range(rspec.nspec):
@@ -974,7 +993,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     # QA
     if qafile is not None:
         msgs.info("Writing QA file: {:s}".format(qafile))
-        coaddspec_qa(spectra, rspec, rmask, spec1d, qafile=qafile)
+        coaddspec_qa(spectra, rspec, rmask, spec1d, qafile=qafile,debug=debug)
 
     # Write to disk?
     if outfile is not None:
@@ -992,9 +1011,7 @@ def write_to_disk(spec1d, outfile):
         spec1d.write_to_fits(outfile)
     return
 
-
-
-def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=10.):
+def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.,debug=False):
     """  QA plot for 1D coadd of spectra
 
     Parameters
@@ -1012,13 +1029,24 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=10.):
 
     plt.rcdefaults()
     plt.rcParams['font.family']= 'times new roman'
+    plt.rcParams["xtick.top"] = True
+    plt.rcParams["ytick.right"] = True
+    plt.rcParams["xtick.minor.visible"] = True
+    plt.rcParams["ytick.minor.visible"] = True
+    plt.rcParams["ytick.direction"] = 'in'
+    plt.rcParams["xtick.direction"] = 'in'
+    plt.rcParams["xtick.labelsize"] = 17
+    plt.rcParams["ytick.labelsize"] = 17
+    plt.rcParams["axes.labelsize"] = 17
 
     if qafile is not None:
         pp = PdfPages(qafile)
 
-    plt.clf()
-    plt.figure()
-    gs = gridspec.GridSpec(1,2)
+    plt.figure(figsize=(12,6))
+    ax1 = plt.axes([0.07, 0.13, 0.6, 0.4])
+    ax2 = plt.axes([0.07, 0.55,0.6, 0.4])
+    ax3 = plt.axes([0.72,0.13,0.25,0.8])
+    plt.setp(ax2.get_xticklabels(), visible=False)
 
     # Deviate
     std_dev, dev_sig = get_std_dev(rspec, rmask, spec1d)
@@ -1027,49 +1055,69 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=10.):
     if dev_sig is not None:
         flat_dev_sig = dev_sig.flatten()
 
-    xmin = -10
-    xmax = 10
-    n_bins = 100
+    xmin = -5
+    xmax = 5
+    n_bins = 50
 
     # Deviation
-    ax = plt.subplot(gs[0])
     if dev_sig is not None:
         hist, edges = np.histogram(flat_dev_sig, range=(xmin, xmax), bins=n_bins)
         area = len(flat_dev_sig)*((xmax-xmin)/float(n_bins))
         xppf = np.linspace(scipy.stats.norm.ppf(0.0001), scipy.stats.norm.ppf(0.9999), 100)
-        ax.plot(xppf, area*scipy.stats.norm.pdf(xppf), color='black', linewidth=2.0)
-        ax.bar(edges[:-1], hist, width=((xmax-xmin)/float(n_bins)), alpha=0.5)
+        ax3.plot(xppf, area*scipy.stats.norm.pdf(xppf), color='black', linewidth=2.0)
+        ax3.bar(edges[:-1], hist, width=((xmax-xmin)/float(n_bins)), alpha=0.5)
+    ax3.set_xlabel('Residual Distribution')
+    ax3.set_title('New sigma = %s'%str(round(std_dev,2)),fontsize=17)
 
     # Coadd on individual
     # yrange
     medf = np.median(spec1d.flux)
     #ylim = (medf/10., yscale*medf)
-    ylim = (np.sort([0.-2*medf, yscale*medf]))
+    ylim = (np.sort([0.-1.5*medf, yscale*medf]))
     # Plot
-    ax = plt.subplot(gs[1])
-    for idx in range(ispectra.nspec):
-        ispectra.select = idx
-        ax.plot(ispectra.wavelength, ispectra.flux, alpha=0.5)#, label='individual exposure')
+    cmap = plt.get_cmap('RdYlBu_r')
+    # change to plotting the scaled spectra
+    #for idx in range(ispectra.nspec):
+    #    ispectra.select = idx
+    #    color = cmap(float(idx) / ispectra.nspec)
+    #    ax1.plot(ispectra.wavelength, ispectra.flux, color=color)
+    for idx in range(rspec.nspec):
+        rspec.select = idx
+        color = cmap(float(idx) / rspec.nspec)
+        ind_good =  rspec.sig>0
+        ind_mask = (rspec.sig>0) & (rmask[idx, :]>0)
+        ax1.plot(rspec.wavelength[ind_good], rspec.flux[ind_good], color=color,alpha=0.5)
+        ax1.scatter(rspec.wavelength[ind_mask], rspec.flux[ind_mask],
+                    marker='s',facecolor='None',edgecolor='k')
 
-    ax.plot(spec1d.wavelength, spec1d.flux, color='black', label='coadded spectrum')
-    ax.set_ylim(ylim)
-    debug=False
-    if debug:
-        ax.set_ylim(0., 180.)
-        ax.set_xlim(3840, 3860.)
-    plt.legend()
-    plt.title('Coadded + Original Spectra')
+    if (np.max(spec1d.wavelength)>(9000.0*units.AA)):
+        skytrans_file = resource_filename('pypeit', '/data/skisim/atm_transmission_secz1.5_1.6mm.dat')
+        skycat = np.genfromtxt(skytrans_file,dtype='float')
+        scale = 0.8*ylim[1]
+        ax2.plot(skycat[:,0]*1e4,skycat[:,1]*scale,'m-',alpha=0.5)
+
+    ax2.plot(spec1d.wavelength, spec1d.sig, ls='steps-',color='0.7')
+    ax2.plot(spec1d.wavelength, spec1d.flux, ls='steps-',color='b')
+
+    ax1.set_xlim([np.min(spec1d.wavelength.value),np.max(spec1d.wavelength.value)])
+    ax1.set_ylim(ylim)
+    ax2.set_xlim([np.min(spec1d.wavelength.value),np.max(spec1d.wavelength.value)])
+    ax2.set_ylim(ylim)
+    ax1.set_xlabel('Wavelength (Angstrom)')
+    ax1.set_ylabel('Flux')
+    ax2.set_ylabel('Flux')
 
     plt.tight_layout(pad=0.2,h_pad=0.,w_pad=0.2)
     if qafile is not None:
         pp.savefig(bbox_inches='tight')
         pp.close()
         msgs.info("Wrote coadd QA: {:s}".format(qafile))
+    if debug:
+        plt.show()
     plt.close()
 
-    plt.rcdefaults()
-
     return
+
 
 
 

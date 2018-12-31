@@ -699,7 +699,7 @@ class Calibrations(object):
             self.waveCalib.wv_calib = self.wv_calib
 
         # Create the mask (needs to be done here in case wv_calib was loaded from Masters)
-        self.wv_maskslits = self.waveCalib._make_maskslits(self.tslits_dict['lcen'].shape[1])
+        self.wv_maskslits = self.waveCalib.make_maskslits(self.tslits_dict['lcen'].shape[1])
         self.maskslits += self.wv_maskslits
 
         # Save & return
