@@ -383,6 +383,9 @@ class PypeIt(object):
         else:
             std_trace = None
 
+        # flatten the array if this multislit
+        if 'MultiSlit' in self.spectrograph.pypeline:
+            std_trace = std_trace.flatten()
         return std_trace
 
     def extract_one(self, frames, det, bg_frames=[], std_outfile=None):
@@ -487,11 +490,11 @@ class PypeIt(object):
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         sobjs_obj_init, nobj_init, skymask_pos = \
-            self.find_obj_pypeline(image, std_trace=None, snr_trim=snr_trim, maskslits=maskslits)
+            self.find_obj_pypeline(image, std_trace=std_trace, snr_trim=snr_trim, maskslits=maskslits)
 
         if ir_redux:
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
-                self.find_obj_pypeline(-image, std_trace=None, snr_trim=snr_trim, maskslits=maskslits)
+                self.find_obj_pypeline(-image, std_trace=std_trace, snr_trim=snr_trim, maskslits=maskslits)
             skymask = skymask_pos & skymask_neg
             sobjs_obj_init.append_neg(sobjs_obj_init_neg)
         else:
