@@ -447,15 +447,16 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     iiter = 0
     error = -1
     qdone = False
-
+    exit_status = 0
     relative_factor = 1.0
     tempin = np.copy(inmask)
-    while (error != 0 or qdone is False) and iiter <= maxiter:
+    while (error != 0 or qdone is False) and iiter <= maxiter and (exit_status == 0):
         ngood = maskwork.sum()
         goodbk = sset.mask.nonzero()[0]
         if ngood <= 1 or not sset.mask.any():
             sset.coeff = 0
-            iiter = maxiter + 1 # End iterations
+            exit_status = 2 # This will end iterations
+            #iiter = maxiter + 1 # End iterations
         else:
             # Do the fit. Return values from workit for error are as follows:
             #    0 if fit is good
@@ -495,7 +496,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
             # Rejection
             # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
             # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
-            # further consideration. I think requiring stick to be set is the more transparent behavior.
+            # further consideration. I think requiring sticky to be set is the more transparent behavior.
             maskwork, qdone = pydl.djs_reject(ydata, yfit, invvar=invvar,
                                          inmask=tempin, outmask=maskwork,
                                          upper=upper*relative_factor,
@@ -507,6 +508,13 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
         else:
             msgs.info("                             {:4d}".format(iiter) + "    ---    ---    ---    ---")
 
+    if iiter == (maxiter + 1):
+        exit_status = 1
+
+    # Exit status:
+    #    0 = fit exited cleanly
+    #    1 = maximum iterations were reached
+    #    2 = all points were masked
 
     msgs.info("***************************************************************************************************")
     msgs.info(
@@ -515,7 +523,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     # Finish
     outmask = np.copy(maskwork)
     # Return
-    return sset, outmask, yfit, reduced_chi
+    return sset, outmask, yfit, reduced_chi, exit_status
 
 
 

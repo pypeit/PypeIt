@@ -417,7 +417,9 @@ class FlatFieldPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frame=None, illumflatten=None, tweak_slits=None, method=None): #, params=None, twodpca=None):
+    def __init__(self, method=None, frame=None, illumflatten=None, spec_samp_fine=None, spec_samp_coarse=None,
+                 spat_samp=None, tweak_slits=None, tweak_slits_thresh=None, tweak_slits_maxfrac=None):
+
     
         # Grab the parameter names and values from the function
         # arguments
@@ -434,6 +436,14 @@ class FlatFieldPar(ParSet):
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
+
+        # ToDO there are only two methods. The bspline method and skip, so maybe we should rename the bspline method.
+        defaults['method'] = 'bspline'
+        options['method'] = FlatFieldPar.valid_methods()
+        dtypes['method'] = str
+        descr['method'] = 'Method used to flat field the data; use skip to skip flat-fielding.  ' \
+                          'Options are: None, {0}'.format(', '.join(options['method']))
+
         # TODO: Provide a list of valid masters to use as options?
         defaults['frame'] = 'pixelflat'
         dtypes['frame'] = str
@@ -444,16 +454,38 @@ class FlatFieldPar(ParSet):
         dtypes['illumflatten'] = bool
         descr['illumflatten'] = 'Use the flat field to determine the illumination profile of each slit.'
 
+        defaults['spec_samp_fine'] = 1.2
+        dtypes['spec_samp_fine'] = [int, float]
+        descr['spec_samp_fine'] = 'bspline break point spacing in units of pixels for spectral fit to flat field blaze function.'
+
+        defaults['spec_samp_coarse'] = 50.0
+        dtypes['spec_samp_coarse'] = [int, float]
+        descr['spec_samp_coarse'] = 'bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to ' \
+                                    'flat field image residuals. This should be a large number unless you are trying to ' \
+                                    'fit a sky flat with lots of narrow spectral features.'
+        defaults['spat_samp'] = 5.0
+        dtypes['spat_samp'] = [int, float]
+        descr['spat_samp'] = 'Spatial sampling for slit illumination function. This is the width of the median ' \
+                             'filter in pixels used to determine the slit illumination function, and thus sets the ' \
+                             'minimum scale on which the illumination function will have features.'
+
         defaults['tweak_slits'] = True
         dtypes['tweak_slits'] = bool
-        descr['tweak_slits'] = 'Use the illumination flat field to tweak the slit edges. illumflatten must be set to true for this to work'
+        descr['tweak_slits'] = 'Use the illumination flat field to tweak the slit edges. ' \
+                               'This will work even if illumflatten is set to False '
 
-        # ToDO This method keyword is defunct now
-        defaults['method'] = 'bspline'
-        options['method'] = FlatFieldPar.valid_methods()
-        dtypes['method'] = str
-        descr['method'] = 'Method used to flat field the data; use None to skip flat-fielding.  ' \
-                          'Options are: None, {0}'.format(', '.join(options['method']))
+        defaults['tweak_slits_thresh'] = 0.93
+        dtypes['tweak_slits_thresh'] = float
+        descr['tweak_slits_thresh'] = 'If tweak_slits is True, this sets the illumination function threshold used to ' \
+                                      'tweak the slit boundaries based on the illumination flat. ' \
+                                      'It should be a number less than 1.0'
+
+        defaults['tweak_slits_maxfrac'] = 0.10
+        dtypes['tweak_slits_maxfrac'] = float
+        descr['tweak_slits_maxfrac'] = 'If tweak_slit is True, this sets the maximum fractional amount (of a slits width) ' \
+                                       'allowed for trimming each (i.e. left and right) slit boundary, i.e. the default is 10% ' \
+                                       'which means slits would shrink or grow by at most 20% (10% on each side)'
+
 
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
@@ -469,7 +501,8 @@ class FlatFieldPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'frame', 'illumflatten', 'tweak_slits', 'method'] #', 'params', 'twodpca' ]
+        parkeys = [ 'method', 'frame', 'illumflatten', 'spec_samp_fine', 'spec_samp_coarse', 'spat_samp',
+                    'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -489,7 +522,7 @@ class FlatFieldPar(ParSet):
         """
         Return the valid flat-field methods
         """
-        return ['bspline'] # [ 'PolyScan', 'bspline' ]. Same here. Not sure what PolyScan is
+        return ['bspline', 'skip'] # [ 'PolyScan', 'bspline' ]. Same here. Not sure what PolyScan is
 
     def validate(self):
         """
@@ -660,85 +693,6 @@ class FluxCalibrationPar(ParSet):
         if self.data['sensfunc'] is not None and not os.path.isfile(self.data['sensfunc']):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
-
-# JFH TODO this parset is now deprecated
-# TODO: What other parameters should there be?
-class SkySubtractionPar(ParSet):
-    """
-    A parameter set holding the arguments for how to perform the sky
-    subtraction.
-
-    For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
-    """
-    def __init__(self, bspline_spacing=None, nodding=None): #method=None, params=None):
-
-        # Grab the parameter names and values from the function
-        # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = OrderedDict([(k,values[k]) for k in args[1:]])
-
-        # Initialize the other used specifications for this parameter
-        # set
-        defaults = OrderedDict.fromkeys(pars.keys())
-        options = OrderedDict.fromkeys(pars.keys())
-        dtypes = OrderedDict.fromkeys(pars.keys())
-        descr = OrderedDict.fromkeys(pars.keys())
-
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-
-        defaults['bspline_spacing'] = 0.6
-        dtypes['bspline_spacing'] = [int, float]
-        descr['bspline_spacing'] = 'Break-point spacing for the bspline fit'
-
-        defaults['nodding'] = False
-        dtypes['nodding'] = bool
-        descr['nodding'] = 'Use the nodded frames to perform the sky subtraction'
-
-#        defaults['method'] = 'bspline'
-#        options['method'] = SkySubtractionPar.valid_methods()
-#        dtypes['method'] = str
-#        descr['method'] = 'Method used to for sky subtraction.  ' \
-#                          'Options are: None, {0}'.format(', '.join(options['method']))
-#
-#        defaults['params'] = 20
-#        dtypes['params'] = int
-#        descr['params'] = 'Sky-subtraction method parameters.  For bspline, set params = spacing.'
-
-        # Instantiate the parameter set
-        super(SkySubtractionPar, self).__init__(list(pars.keys()),
-                                                values=list(pars.values()),
-                                                defaults=list(defaults.values()),
-                                                options=list(options.values()),
-                                                dtypes=list(dtypes.values()),
-                                                descr=list(descr.values()))
-        self.validate()
-
-    @classmethod
-    def from_dict(cls, cfg):
-        k = cfg.keys()
-        parkeys = [ 'bspline_spacing', 'nodding' ] #'method', 'params' ]
-        kwargs = {}
-        for pk in parkeys:
-            kwargs[pk] = cfg[pk] if pk in k else None
-        return cls(**kwargs)
-
-#    @staticmethod
-#    def valid_methods():
-#        """
-#        Return the valid sky-subtraction methods
-#        """
-#        return [ 'bspline' ]
-
-    def validate(self):
-        pass
-
-#        """
-#        Check the parameters are valid for the provided method.
-#        """
-#        if self.data['method'] == 'bspline' and not isinstance(self.data['params'], int):
-#            raise ValueError('For bspline sky-subtraction method, set params = spacing (integer).')
 
 
 class ManualExtractionPar(ParSet):
@@ -1850,7 +1804,7 @@ class ScienceImagePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, maxnumber=None, manual=None, nodding=None):
+    def __init__(self, bspline_spacing=None, maxnumber=None, sn_gauss=None, manual=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1883,10 +1837,11 @@ class ScienceImagePar(ParSet):
         descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
                              'None for no limit.'
 
-        # Place holder for NIR maybe in the future
-        defaults['nodding'] = False
-        dtypes['nodding'] = bool
-        descr['nodding'] = 'Use the nodded frames to perform the sky subtraction'
+        defaults['sn_gauss'] = 4.0
+        dtypes['sn_gauss'] = [int, float]
+        descr['sn_gauss'] = 'S/N threshold for performing the more sophisticated optimal extraction which performs a ' \
+                            'b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extract' \
+                            'with a Gaussian with FWHM determined from the object finding.'
 
         dtypes['manual'] = list
         descr['manual'] = 'List of manual extraction parameter sets'
@@ -1904,7 +1859,7 @@ class ScienceImagePar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'maxnumber', 'nodding']
+        parkeys = ['bspline_spacing', 'maxnumber', 'sn_gauss', 'manual']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

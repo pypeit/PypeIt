@@ -94,7 +94,7 @@ class FluxSpec(masterframe.MasterFrame):
         self.std_specobjs = std_specobjs
         self.std_header = std_header
         if self.std_spec1d_file is not None:
-            self.std_specobjs, self.std_header = load.load_specobj(self.std_spec1d_file)
+            self.std_specobjs, self.std_header = load.load_specobjs(self.std_spec1d_file)
             msgs.info('Loaded {0} spectra from the spec1d standard star file: {1}'.format(
                                 len(self.std_specobjs), self.std_spec1d_file))
             std_spectro = self.std_header['INSTRUME']
@@ -118,7 +118,7 @@ class FluxSpec(masterframe.MasterFrame):
         self.sci_specobjs = []
         self.sci_header = None
         if self.sci_spec1d_file is not None:
-            self.sci_specobjs, self.sci_header = load.load_specobj(self.sci_spec1d_file)
+            self.sci_specobjs, self.sci_header = load.load_specobjs(self.sci_spec1d_file)
             msgs.info('Loaded {0} spectra from the spec1d science file: {1}'.format(
                                 len(self.sci_specobjs), self.sci_spec1d_file))
             sci_spectro = self.sci_header['INSTRUME']
@@ -623,7 +623,7 @@ class EchFluxSpec(masterframe.MasterFrame):
         self.std_specobjs = std_specobjs
         self.std_header = std_header
         if self.std_spec1d_file is not None:
-            self.std_specobjs, self.std_header = load.ech_load_specobj(self.std_spec1d_file)
+            self.std_specobjs, self.std_header = load.load_specobjs(self.std_spec1d_file)
             msgs.info('Loaded {0} spectra from the spec1d standard star file: {1}'.format(
                 len(self.std_specobjs), self.std_spec1d_file))
             std_spectro = self.std_header['INSTRUME']
@@ -647,7 +647,7 @@ class EchFluxSpec(masterframe.MasterFrame):
         self.sci_specobjs = []
         self.sci_header = None
         if self.sci_spec1d_file is not None:
-            self.sci_specobjs, self.sci_header = load.ech_load_specobj(self.sci_spec1d_file)
+            self.sci_specobjs, self.sci_header = load.load_specobjs(self.sci_spec1d_file)
             msgs.info('Loaded {0} spectra from the spec1d science file: {1}'.format(
                 len(self.sci_specobjs), self.sci_spec1d_file))
             sci_spectro = self.sci_header['INSTRUME']
@@ -833,7 +833,7 @@ class EchFluxSpec(masterframe.MasterFrame):
 
         self.sens_dict = {}
         for iord in range(norder):
-            std_specobjs, std_header = load.ech_load_specobj(self.std_spec1d_file, order=iord)
+            std_specobjs, std_header = load.load_specobjs(self.std_spec1d_file, order=iord)
             std_idx = flux.find_standard(std_specobjs)
             std = std_specobjs[std_idx]
             wavemask = std.boxcar['WAVE'] > 1000.0 * units.AA

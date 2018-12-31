@@ -351,7 +351,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 '''
 
-def save_1d_spectra_fits(specObjs, header, instrume, outfile, helio_dict=None, telescope=None, overwrite=True,
+def save_1d_spectra_fits(specObjs, header, pypeline, outfile, helio_dict=None, telescope=None, overwrite=True,
                          update_det=None):
     """ Write 1D spectra to a multi-extension FITS file
 
@@ -372,6 +372,7 @@ def save_1d_spectra_fits(specObjs, header, instrume, outfile, helio_dict=None, t
     outfile : str
     """
     hdus, prihdu = init_hdus(update_det, outfile)
+    sobjs_key = specobjs.SpecObj.sobjs_key()
     # Init for spec1d as need be
     if hdus is None:
         prihdu = fits.PrimaryHDU()
@@ -388,6 +389,9 @@ def save_1d_spectra_fits(specObjs, header, instrume, outfile, helio_dict=None, t
         except KeyError:
             prihdu.header['MJD-OBS'] = header['mjd']  # recorded as 'mjd' in fitstbl
         prihdu.header['INSTRUME'] = instrume
+
+        # Specify which pipeline created this file
+        prihdu.header['PYPELINE'] = pypeline
 
         # Observatory
         if telescope is not None:
@@ -451,17 +455,14 @@ def save_1d_spectra_fits(specObjs, header, instrume, outfile, helio_dict=None, t
         coldefs = fits.ColDefs(cols)
         tbhdu = fits.BinTableHDU.from_columns(coldefs)
         tbhdu.name = sobj.idx
-        # If this is echelle write the obj_id and the orderindx to the header as well
-        if sobj.ech_obj_id is not None:
-            tbhdu.header['OBJ_ID'] = sobj.ech_obj_id
-        if sobj.ech_orderindx is not None:
-            tbhdu.header['ORDER'] = sobj.ech_orderindx
+        for attr, hdrcard in sobjs_key.items():
+            tbhdu.header[hdrcard] = getattr(sobj,attr)
         hdus += [tbhdu]
 
     # A few more for the header
     prihdu.header['NSPEC'] = len(hdus) - 1
     prihdu.header['NPIX'] = npix
-    # If this is echelle write the obj_id and the orderindx to the header as well
+    # If this is echelle write the objid and the orderindx to the header as well
 
 
     # Finish
@@ -554,7 +555,7 @@ def save_obj_info(all_specobjs, spectrograph, basename, science_dir, binning=Non
                       format='ascii.fixed_width', overwrite=True)
 
 
-def save_2d_images(sci_output, rawfile, ext0, setup, mfdir,
+def save_2d_images(sci_output, rawfile, ext0, master_key_dict, mfdir,
                    outdir, basename, clobber=True, update_det=None):
     """ Write 2D images to the hard drive
 
@@ -563,7 +564,7 @@ def save_2d_images(sci_output, rawfile, ext0, setup, mfdir,
         fitstbl: Table
         scidx: int
         ext0: int
-        setup: str
+        master_key_dict: str
         mfdir: str
         outdir: str
         basename: str
@@ -599,9 +600,12 @@ def save_2d_images(sci_output, rawfile, ext0, setup, mfdir,
         # PYPEIT
         prihdu.header['PIPELINE'] = str('PYPEIT')
         prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
-        ssetup = setup.split('_') #settings.argflag['reduce']['masters']['setup'].split('_')
-        prihdu.header['PYPCNFIG'] = str(ssetup[0])
-        prihdu.header['PYPCALIB'] = str(ssetup[1])
+        prihdu.header['FRAMMKEY'] = master_key_dict['frame']
+        prihdu.header['BPMMKEY'] = master_key_dict['bpm']
+        prihdu.header['BIASMKEY']  = master_key_dict['bias']
+        prihdu.header['ARCMKEY']  = master_key_dict['arc']
+        prihdu.header['TRACMKEY']  = master_key_dict['trace']
+        prihdu.header['FLATMKEY']  = master_key_dict['flat']
         prihdu.header['PYPMFDIR'] = str(mfdir)
 
     # Fill in the images
@@ -661,7 +665,7 @@ def save_2d_images(sci_output, rawfile, ext0, setup, mfdir,
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 
-        # Inverse Variance model
+        # Final mask
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = '{:s}-MASK'.format(sdet)

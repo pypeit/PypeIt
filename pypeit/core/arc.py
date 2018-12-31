@@ -686,9 +686,10 @@ def detect_lines(censpec, sigdetect = 5.0, input_thresh = None, cont_subtract=Tr
     input_thresh: float, str, default= None
        Optionally the user can specify the threhsold that peaks must be above to be kept. In this case the sigdetect parameter
        will be ignored. This is most useful for example for cases where cont_subtract =False, and the user prefers to determine
-       the significance  threhsold outside of this routine, rather than using this routines defaults to determine the continuum level
-       and standard deviation of the continuum subtracted spetrum. If a string input of 'None' is set then the code will simply return
-        all peaks irrespective of any threshold. This is equivalent to setting the mph parameter to None in the detect_peaks code.
+       the significance  threhsold outside of this routine, rather than using this routines defaults to determine the
+       continuum level and standard deviation of the continuum subtracted spetrum. If a string input of 'None' is set then
+       the code will simply return all peaks irrespective of any threshold. This is equivalent to setting the mph parameter
+       to None in the detect_peaks code.
 
     fwhm:  float, default = 4.0
        Number of pixels per fwhm resolution element.

@@ -480,6 +480,7 @@ class ProcessImages(object):
         # Done
         return self.stack.copy()
 
+    # TODO sort out dark current here. Need to pass exposure time for that.
     def build_rn2img(self, trim=True):
         """
         Generate the model read noise squared image

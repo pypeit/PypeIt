@@ -616,6 +616,25 @@ def is_keyword(v):
     return valid
 
 
+# TODO Given that python images are always (nspec, nspat) this routine should be flipped to a more appropriate
+# convention of returning binspectral, binspatial.
+def binning2string(binspatial, binspectral):
+    """ Convert binning keyword to binning values
+
+    Parameters
+    ----------
+    binspatial : int
+    binspectral : int
+
+    Returns
+    --------
+    binning : str
+      Binning string following the PypeIt convention
+    """
+    return '{:d},{:d}'.format(binspatial,binspectral)
+
+# TODO Given that python images are always (nspec, nspat) this routine should be flipped to a more appropriate
+# convention of returning binspectral, binspatial.
 def parse_binning(binning):
     """ Convert binning keyword to binning values
 

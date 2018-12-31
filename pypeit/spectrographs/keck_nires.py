@@ -244,7 +244,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
-    def slitmask(self, tslits_dict, pad=None, binning=None):
+    def slitmask(self, tslits_dict, pad=None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
          overload this function to implement instrument specific slitmask behavior, for example setting

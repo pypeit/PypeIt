@@ -104,7 +104,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Set the slitmask and slit boundary related attributes that the code needs for execution. This also deals with
         # arcimages that have a different binning then the trace images used to defined the slits
         if self.tslits_dict is not None and self.msarc is not None:
-            self.slitmask_science = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
+            self.slitmask_science = self.spectrograph.slitmask(self.tslits_dict)
             inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.shape
@@ -422,8 +422,7 @@ class WaveCalib(masterframe.MasterFrame):
             self.wv_calib['fit2d'] = fit2d_dict
 
         # Build mask
-        nslits = lordloc.shape[1]
-        self.make_maskslits(nslits)
+        self.make_maskslits(self.nslits)
 
         # Pack up
         self.wv_calib['steps'] = self.steps

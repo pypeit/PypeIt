@@ -61,9 +61,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Gemini GNIRS reductions.
         """
         par = pypeitpar.PypeItPar()
-        # TODO: Make self.spectrograph a class attribute?
-        # Use the ARMS pipeline
-        #par['rdx']['pipeline'] = 'ARMS'
         par['rdx']['spectrograph'] = 'gemini_gnirs'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
@@ -73,6 +70,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['number'] = 1
         # Bias
         par['calibrations']['biasframe']['useframe'] = 'overscan'
+
+        # Slits
+        par['calibrations']['slits']['sigdetect'] = 220.
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 0.5
 
         # Wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
@@ -99,16 +101,15 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['sig_neigh'] = 5.0
         par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
 
-        # Slits
-        par['calibrations']['slits']['sigdetect'] = 220.
-        par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 0.5
+        # Flats
+        par['calibrations']['flatfield']['illumflatten'] = False
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
+        # Extraction
+        par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['sn_gauss'] = 4.0
 
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Do not correct for flexure
         par['flexure'] = None
         # Set the default exposure time ranges for the frame typing
@@ -163,7 +164,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['dispangle'] = 'GRATTILT'
         hdr_keys[0]['wavecen'] = 'GRATWAVE'
         hdr_keys[0]['spectrograph'] = 'INSTRUME'
-        hdr_keys[0]['binning'] = 1
+        hdr_keys[0]['binning'] = ' '
 
         return hdr_keys
 

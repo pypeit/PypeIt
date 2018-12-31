@@ -83,8 +83,8 @@ def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_
     return slit_left_out, slit_righ_out, tweak_dict
 
 
-def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binning = None, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
-             spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0), pad =5.0,
+def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binning = None, inmask = None,
+             spec_samp_fine = 1.2, spec_samp_coarse = 50.0, spat_samp = 5.0, npoly = None, trim_edg = (3.0,3.0), pad =5.0,
              tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.10, nonlinear_counts =1e10, debug = False):
 
 
@@ -107,7 +107,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     Optional Parameters
     -------------------
     spectrograph: object, pypeit.spectrographs.spectrograh.Spectrograph
-          Spectrograph objects for implementing spectrograph specific modifications to the flat. For example,
+          Spectrograph object for implementing spectrograph specific modifications to the flat. For example,
           for fixed format echelle's we want to mask certain parts of the orders. The default whill just use
           the generic spectrograph object which forms the basis of the spectrograph specific ones.
 
@@ -126,16 +126,13 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
       determine the slit illumination function, and thus sets the minimum scale on which the illumination function will
       have features.
 
-    spat_illum_thresh: float, default = 0.01
-      Spatial illumination function threshold. If the slits have
-
     trim_edg: tuple of floats  (left_edge, right_edge), default (3,3)
       indicates how many pixels to trim from left and right slit edges for creating the edgemask, which is used to mask
       the edges from the initial (fine) spectroscopic fit to the blaze function.
 
     pad: int, default = 5
-      Padding window used to create expanded slitmask images used for determining slit boundaries. Tilts are also computed using
-      this expanded slitmask in cases the slit boundaries need to be moved outward.
+      Padding window used to create expanded slitmask images used for re-determining slit boundaries. Tilts are also
+      computed using this expanded slitmask in cases the slit boundaries need to be moved outward.
 
     npoly: int, default = None
       Order of polynomial for 2-d bspline-polynomial fit to flat field image residuals. The code determines the order of
@@ -147,7 +144,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
       Slit edges will be tweaked such the left and right bounadaries intersect the location where the illumination
       function falls below tweak_slits_thresh (see below) of its maximum value near the center (moving out from the center)
 
-    tweak_slits_thresh: float, default = 0.85
+    tweak_slits_thresh: float, default = 0.93
       If tweak_slits is True, this sets the illumination function threshold used to tweak the slits
 
     tweak_slits_maxfrac: float, default = 0.10
@@ -157,21 +154,31 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     debug: bool, default = False
       Show plots useful for debugging. This will block further execution of the code until the plot windows are closed.
 
-
-   TODO update for new behavior
     Returns
     -------
-    pixeflat:   ndarray with size = np.sum(thismask)
-      Pixelflat gives pixel-to-pixel variations of detector response. Values are centered about unity and
-      are returned at the locations where thismask == True
+    pixeflat:   ndarray with same shape as flat
+      Pixelflat gives pixel-to-pixel variations of detector response. Values are centered about unity.
 
-    illumflat:   ndarray with size = np.sum(thismask)
+    illumflat:  ndarray with same shape as flat
       Illumination flat gives variations of the slit illumination function across the spatial direction of the detect.
-      Values are centered about unity and are returned at the locations where thismask == True. The slit illumination
-      function is computed by dividing out the spectral response and collapsing out the spectral direction.
+      Values are centered about unity. The slit illumination function is computed by dividing out the spectral response and
+      collapsing out the spectral direction.
 
-    flat_model:  ndarray with size = np.sum(thismask)
+    flat_model:  ndarray with same shape as flat
       Full 2-d model image of the input flat image in units of electrons.  The pixelflat is defined to be flat/flat_model.
+
+    tilts: ndarray with same shape as flat
+      Tilts image fit for this slit evaluated using the new slit boundaries
+
+    thismask_out: ndarray with same shape as flat, bool
+       Boolean mask indicating which pixels are on the slit now with the new slit boundaries
+
+    slit_left_out: ndarray with shape (nspec,)
+       Tweaked left slit bounadries
+
+    slit_righ_out: ndarray with shape (nspec,)
+       Tweaked right slit bounadries
+
 
 
     Revision History
@@ -181,7 +188,6 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
-#    debug=True
     spectrograph = load_spectrograph(spectrograph)
 
     shape = flat.shape
@@ -191,7 +197,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     # Get the thismask_in and input slit bounadries from the tslits_dict
     slit_left_in = tslits_dict_in['lcen'][:,slit]
     slit_righ_in = tslits_dict_in['rcen'][:,slit]
-    thismask_in = spectrograph.slitmask(tslits_dict_in, binning=binning) == slit
+    thismask_in = spectrograph.slitmask(tslits_dict_in) == slit
 
     # Compute some things using the original slit boundaries and thismask_in
 
@@ -211,8 +217,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     ximg = (spat_img - slit_left_img)/slitwidth_img
 
     # Create a wider slitmask image with shift pixels padded on each side
-    pad = 5.0
-    slitmask_pad = spectrograph.slitmask(tslits_dict_in, pad = pad, binning=binning)
+    slitmask_pad = spectrograph.slitmask(tslits_dict_in, pad = pad)
     thismask = (slitmask_pad == slit) # mask enclosing the wider slit bounadries
     # Create a tilts image using this padded thismask, rather than using the original thismask_in slit pixels
     tilts = tracewave.fit2tilts(shape, tilts_dict['coeffs'], tilts_dict['func2d'])
@@ -240,11 +245,10 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     msgs.info('Spectral fit of flatfield for {:}'.format(nfit_spec) + ' pixels')
 
     # ToDo Figure out how to deal with the fits going crazy at the edges of the chip in spec direction
-    spec_set_fine, outmask_spec, specfit, _ = utils.bspline_profile(pix_fit, log_flat_fit, log_ivar_fit,
-                                                                    np.ones_like(pix_fit), inmask = inmask_log_fit,
-                                                                    nord = 4, upper=logrej, lower=logrej,
-                                                                    kwargs_bspline = {'bkspace':spec_samp_fine},
-                                                                    kwargs_reject={'groupbadpix':True, 'maxrej': 5})
+    spec_set_fine, outmask_spec, specfit, _, exit_status = \
+        utils.bspline_profile(pix_fit, log_flat_fit, log_ivar_fit,np.ones_like(pix_fit), inmask = inmask_log_fit,
+        nord = 4, upper=logrej, lower=logrej,
+        kwargs_bspline = {'bkspace':spec_samp_fine},kwargs_reject={'groupbadpix':True, 'maxrej': 5})
 
     # Debugging/checking spectral fit
     if debug:
@@ -283,7 +287,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     isrt_spat = np.argsort(ximg[fit_spat])
     ximg_fit = ximg[fit_spat][isrt_spat]
     norm_spec_fit = norm_spec[fit_spat][isrt_spat]
-    norm_spec_ivar = np.ones_like(norm_spec_fit)/(spat_illum_thresh**2)
+    #norm_spec_ivar = np.ones_like(norm_spec_fit)/(spat_illum_thresh**2)
     nfit_spat = np.sum(fit_spat)
 
     slitwidth = np.median(slit_righ_in - slit_left_in) # How many pixels wide is the slit at each Y?
@@ -306,8 +310,9 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     ximg_bsp  = np.fmax(ximg_1pix/10.0, ximg_samp*1.2)
     bsp_set = pydl.bspline(ximg_fit,nord=4, bkspace=ximg_bsp)
     fullbkpt = bsp_set.breakpoints
-    spat_set, outmask_spat, spatfit, _ = utils.bspline_profile(ximg_fit, normimg, np.ones_like(normimg),np.ones_like(normimg),
-                                                               nord=4,upper=5.0, lower=5.0,fullbkpt = fullbkpt)
+    spat_set, outmask_spat, spatfit, _, exit_status = \
+        utils.bspline_profile(ximg_fit, normimg, np.ones_like(normimg),np.ones_like(normimg),
+        nord=4,upper=5.0, lower=5.0,fullbkpt = fullbkpt)
 
     # Evaluate and save
     illumflat = np.ones_like(flat)
@@ -322,7 +327,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
         tslits_dict_out = copy.deepcopy(tslits_dict_in)
         tslits_dict_out['lcen'][:,slit] = slit_left_out
         tslits_dict_out['rcen'][:,slit] = slit_righ_out
-        slitmask_out = spectrograph.slitmask(tslits_dict_out, binning=binning)
+        slitmask_out = spectrograph.slitmask(tslits_dict_out)
         thismask_out = (slitmask_out == slit)
         ximg_out, edgmask_out = pixels.ximg_and_edgemask(slit_left_out, slit_righ_out, thismask_out, trim_edg=trim_edg)
         # Note that nothing changes with the tilts, since these were already extrapolated across the whole image.
@@ -386,11 +391,10 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, spectrograph = None, binnin
     poly_basis = pydl.fpoly(2.0*ximg_twod - 1.0, npoly).T
 
     # Perform the full 2d fit now
-    twod_set, outmask_twod, twodfit, _ = utils.bspline_profile(pix_twod, norm_twod, norm_twod_ivar,poly_basis,
-                                                               inmask = fitmask, nord = 4,
-                                                               upper=sigrej_illum, lower=sigrej_illum,
-                                                               kwargs_bspline = {'bkspace':spec_samp_coarse},
-                                                               kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    twod_set, outmask_twod, twodfit, _ , exit_status = \
+        utils.bspline_profile(pix_twod, norm_twod, norm_twod_ivar,poly_basis,inmask = fitmask, nord = 4,
+        upper=sigrej_illum, lower=sigrej_illum,
+        kwargs_bspline = {'bkspace':spec_samp_coarse},kwargs_reject={'groupbadpix':True, 'maxrej': 10})
 
     if debug:
         resid = (norm_twod  - twodfit)
