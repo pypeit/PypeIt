@@ -381,17 +381,23 @@ class PypeIt(object):
         """
         if std_redux is False:
             sobjs, hdr_std = load.load_specobjs(std_outfile)
-            sobjs_std = sobjs.get_std()
             # Does the detector match?
             # TODO Instrument specific logic here could be implemented with the parset. For example LRIS-B or LRIS-R we
             # we would use the standard from another detector
-            if sobjs_std.det == det:
+            this_det = sobjs.det == det
+            if np.any(this_det):
+                sobjs_det = sobjs[this_det]
+                sobjs_std = sobjs_det.get_std()
                 std_trace = sobjs_std.trace_spat
+                # flatten the array if this multislit
+                if 'MultiSlit' in self.spectrograph.pypeline:
+                    std_trace = std_trace.flatten()
+                elif 'Echelle' in self.spectrograph.pypeline:
+                    std_trace = std_trace.T
+                else:
+                    msgs.error('Unrecognized pypeline')
             else:
                 std_trace = None
-            # flatten the array if this multislit
-            if 'MultiSlit' in self.spectrograph.pypeline:
-                std_trace = std_trace.flatten()
         else:
             std_trace = None
 
@@ -415,7 +421,7 @@ class PypeIt(object):
 
         """
         # Grab some meta-data needed for the reduction from the fitstbl
-        self.objtype, self.setup, self.obstime, basename, self.binning = self.get_sci_metadata(frames[0], det)
+        self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], det)
         # Is this an IR reduction
         self.ir_redux = True if len(bg_frames) > 0 else False
         # Is this a standard star?

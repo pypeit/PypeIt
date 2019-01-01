@@ -1590,9 +1590,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     for iobj in range(nobj_reg):
         # Was a standard trace provided? If so, use that as a crutch.
         if std_trace is not None:
-            msgs.info('Using input STANDARD star trace as crutch for object tracing')
+            if iobj == 0:
+                msgs.info('Using input STANDARD star trace as crutch for object tracing')
             x_trace = np.interp(specmid, spec_vec, std_trace)
-            #shift = slit_left + xsize*sobjs[iobj].spat_fracpos - x_trace
             shift = np.interp(specmid, spec_vec,
                               slit_left + xsize * sobjs[iobj].spat_fracpos) - x_trace
             sobjs[iobj].trace_spat = std_trace + shift
@@ -1953,8 +1953,8 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
 
 
 
-def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_vec=None, plate_scale=0.2,
-                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, snr_trim=True, min_snr=0.0, nabove_min_snr=0,
+def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_link=1.0, order_vec=None, plate_scale=0.2,
+                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, snr_trim=True, min_snr=0.2, nabove_min_snr=1,
                 pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
                 extract_maskwidth=3.0, sig_thresh = 5.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
                 trim_edg=(5,5), show_peaks=False, show_fits=False, show_trace=False, show_single_trace=False, debug=False):
@@ -1966,6 +1966,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_
           fractional position along the order.
        4) A PCA fit to the traces is performed using the routine above pca_fit
 
+    Parameters
+    ----------
     image:  float ndarray, shape (nspec, nspat)
         Image to search for objects from. This image has shape (nspec, nspat) where the first dimension (nspec) is spectral,
         and second dimension (nspat) is spatial. Note this image can either have the sky background in it, or have already been sky subtracted.
@@ -1982,8 +1984,15 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_
     slit_righ:  float ndarray
         Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
         or (nspec)
+
+    Optional Parameters
+    ----------
     inmask: ndarray, bool, shape (nspec, nspat), default = None
         Input mask for the input image.
+    fof_link: float, default = 0.3"
+        Friends-of-friends linking length in arcseconds used to link together traces across orders. The routine links
+        together at the same fractional slit position and links them together with a friends-of-friends algorithm using
+        this linking length.
     plate_scale: float or ndarray, if an ndarray shape is (norders,) default = 0.2
        plate scale of your detector, in unit of arcsec/pix. This can either be a single float for every order, or an array
        with size norders indicating the plate scale of each order.
@@ -1996,14 +2005,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_
        order of polynomial used for PCA coefficients fitting. Default is None and this will be determined automatically.
     snr_trim: bool, default=True
        Trim objects based on S/N ratio determined from quick extraction
-    min_snr: float, default = 0.0
+    min_snr: float, default = 0.2
        Minimum SNR for keeping an object. For an object to be kept it must have a median S/N ratio above min_snr for
        at least nabove_min_snr orders.
-    nabove_min_snr: int, default = 0
+    nabove_min_snr: int, default = 1
        The required number of orders that an object must have with median SNR>min_snr in order to be kept.
-    pca_percentile:
-       percentile used for determining which order is a bad order
-    box_radius: box_car extraction radius
+    box_radius: float,
+      box_car extraction radius in arcseconds for SNR calculation and trimming
     sig_thresh: threshord for finding objects
     show_peaks: whether plotting the QA of peak finding of your object in each order
     show_fits: Plot trace fitting
@@ -2067,7 +2075,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_
     # Loop over orders and find objects
     sobjs = specobjs.SpecObjs()
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up slitid and orderindx!
-    for iord  in range(norders):
+    for iord in range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
         thismask = slitmask == iord
         inmask_iord = inmask & thismask
@@ -2093,9 +2101,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_
     if nfound == 0:
         return sobjs, skymask_objfind[allmask]
 
-    # Compute the FOF linking length based on the instrument place scale and matching length FOFSEP = 1.0"
-    FOFSEP = 1.0 # separation of FOF algorithm in arcseconds
-    FOF_frac = FOFSEP/(np.median(slit_width)*np.median(plate_scale_ord))
+    FOF_frac = fof_link/(np.median(np.median(slit_width,axis=0)*plate_scale_ord))
 
     # Run the FOF. We use fake coordinaes
     fracpos = sobjs.spat_fracpos
@@ -2103,15 +2109,40 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_
     dec_fake = 0.0*fracpos
     if nfound>1:
         (inobj_id, multobj_id, firstobj_id, nextobj_id) = spheregroup(ra_fake, dec_fake, FOF_frac/1000.0)
-        obj_id = inobj_id.copy()
-        uni_obj_id, uni_ind = np.unique(obj_id, return_index=True)
-        nobj = len(uni_obj_id)
-        msgs.info('FOF matching found {:d}'.format(nobj) + ' unique objects')
+        obj_id_init = inobj_id.copy()
     elif nfound==1:
-        obj_id = np.zeros(1,dtype='int')
-        uni_obj_id, uni_ind = np.unique(obj_id, return_index=True)
-        nobj = len(obj_id)
-        msgs.warn('Only find one object no FOF matching is needed')
+        obj_id_init = np.zeros(1,dtype='int')
+
+    uni_obj_id_init, uni_ind_init = np.unique(obj_id_init, return_index=True)
+
+    # Now loop over the unique objects and check that there is only one object per order. If FOF
+    # grouped > 1 objects on the same order, then this will be popped out as its own unique object
+    obj_id = obj_id_init.copy()
+    nobj_init = len(uni_obj_id_init)
+    for iobj in range(nobj_init):
+        for iord in range(norders):
+            on_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ech_orderindx == iord)
+            if (np.sum(on_order) > 1):
+                msgs.warn('Found multiple objects in a FOF group on order iord={:d}'.format(iord) + msgs.newline() +
+                          'Spawning new objects to maintain a single object per order.')
+                off_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ech_orderindx != iord)
+                ind = np.where(on_order)[0]
+                if np.any(off_order):
+                    # Keep the closest object to the location of the rest of the group (on other orders)
+                    # as corresponding to this obj_id, and spawn new obj_ids for the others.
+                    frac_mean = np.mean(fracpos[off_order])
+                    min_dist_ind = np.argmin(np.abs(fracpos[ind] - frac_mean))
+                else:
+                    # If there are no other objects with this obj_id to compare to, then we simply have multiple
+                    # objects grouped together on the same order, so just spawn new object IDs for them to maintain
+                    # one obj_id per order
+                    min_dist_ind = 0
+                ind_rest = np.setdiff1d(ind,ind[min_dist_ind])
+                obj_id[ind_rest] = (np.arange(len(ind_rest)) + 1) + obj_id_init.max()
+
+    uni_obj_id, uni_ind = np.unique(obj_id, return_index=True)
+    nobj = len(uni_obj_id)
+    msgs.info('FOF matching found {:d}'.format(nobj) + ' unique objects')
 
     gfrac = np.zeros(nfound)
     for jj in range(nobj):
@@ -2139,9 +2170,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_
                 spec.ech_frac_was_fit = False
 
 
-
-    # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of the good orders where
-    # an object was found and use that fit to predict the fractional slit position on the bad orders where no object was found
+    # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of
+    # the good orders where an object was found and use that fit to predict the fractional slit position on the bad orders
+    # where no object was found
     for iobj in range(nobj):
         # Grab all the members of this obj_id from the object list
         indx_obj_id = sobjs_align.ech_objid == uni_obj_id[iobj]
@@ -2189,7 +2220,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_
                 # Add this to the sobjs_align, and assign required tags
                 thisobj = specobjs.SpecObj(frameshape, slit_spat_pos[iord,:], slit_spec_pos, det = sobjs_align[0].det,
                                            setup = sobjs_align[0].setup, slitid = iord,
-                                           objtype=sobjs_align[0].objtype)
+                                           objtype=sobjs_align[0].objtype, pypeline=sobjs_align[0].pypeline)
                 thisobj.ech_orderindx = iord
                 thisobj.ech_order = order_vec[iord]
                 thisobj.spat_fracpos = uni_frac[iobj]
@@ -2202,7 +2233,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_
                     thisobj.trace_spat = slit_left[:, iord] + slit_width[:, iord] * frac_mean_new[iord]  # new trace
                 thisobj.trace_spec = spec_vec
                 thisobj.spat_pixpos = thisobj.trace_spat[specmid]
-                thisobj.set_idx()
                 # Use the real detections of this objects for the FWHM
                 this_obj_id = obj_id == uni_obj_id[iobj]
                 # Assign to the fwhm of the nearest detected order
@@ -2213,10 +2243,10 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_
                 thisobj.ech_objid = uni_obj_id[iobj]
                 thisobj.objid = uni_obj_id[iobj]
                 thisobj.ech_frac_was_fit = True
+                thisobj.set_idx()
                 sobjs_align.add_sobj(thisobj)
                 obj_id = np.append(obj_id, uni_obj_id[iobj])
                 gfrac = np.append(gfrac, uni_frac[iobj])
-
 
     # Loop over the objects and perform a quick and dirty extraction to assess S/N.
     varimg = utils.calc_ivar(ivar)
@@ -2286,7 +2316,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_
         indx_obj_id = sobjs_final.ech_objid == (iobj + 1)
         # PCA predict the masked orders which were not traced
         msgs.info('Fitting echelle object finding PCA for object {:d}\{:d} with median SNR = {:5.3f}'.format(
-            iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
+                iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
         pca_fits[:, :, iobj], _, _, _= pca_trace((sobjs_final[indx_obj_id].trace_spat).T,
                                          npca=npca, pca_explained_var=pca_explained_var, coeff_npoly=coeff_npoly,
                                          debug=debug)
