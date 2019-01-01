@@ -380,12 +380,12 @@ class PypeIt(object):
                 std_trace = sobjs_std.trace_spat
             else:
                 std_trace = None
+            # flatten the array if this multislit
+            if 'MultiSlit' in self.spectrograph.pypeline:
+                std_trace = std_trace.flatten()
         else:
             std_trace = None
 
-        # flatten the array if this multislit
-        if 'MultiSlit' in self.spectrograph.pypeline:
-            std_trace = std_trace.flatten()
         return std_trace
 
     def extract_one(self, frames, det, bg_frames=[], std_outfile=None):
