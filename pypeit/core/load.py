@@ -140,6 +140,110 @@ def load_specobjs(fname):
     # Return
     return sobjs, head0
 
+def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
+    """Loading single order spectrum from a PypeIt 1D specctrum fits file.
+        it will be called by ech_load_spec
+    Parameters:
+        fname (str) : The file name of your spec1d file
+        objid (str) : The id of the object you want to load. (default is the first object)
+        order (int) : which order you want to load (default is None, loading all orders)
+        extract (str) : 'OPT' or 'BOX'
+        flux (bool) : default is True, loading fluxed spectra
+    returns:
+        spectrum_out : XSpectrum1D
+    """
+    if objid is None:
+        objid = 0
+    if order is None:
+        msgs.error('Please specify which order you want to load')
+
+    # read extension name into a list
+    primary_header = fits.getheader(fname, 0)
+    nspec = primary_header['NSPEC']
+    extnames = [primary_header['EXT0001']] * nspec
+    for kk in range(nspec):
+        extnames[kk] = primary_header['EXT' + '{0:04}'.format(kk + 1)]
+    extnameroot = extnames[0]
+
+    # Figure out which extension is the required data
+    ordername = '{0:04}'.format(order)
+    extname = extnameroot.replace('OBJ0000', objid)
+    extname = extname.replace('ORDER0000', 'ORDER' + ordername)
+    try:
+        exten = extnames.index(extname) + 1
+        msgs.info("Loading extension {:s} of spectrum {:s}".format(extname, fname))
+    except:
+        msgs.error("Spectrum {:s} does not contain {:s} extension".format(fname, extname))
+
+    spectrum = load.load_1dspec(fname, exten=exten, extract=extract, flux=flux)
+    # Polish a bit -- Deal with NAN, inf, and *very* large values that will exceed
+    #   the floating point precision of float32 for var which is sig**2 (i.e. 1e38)
+    bad_flux = np.any([np.isnan(spectrum.flux), np.isinf(spectrum.flux),
+                       np.abs(spectrum.flux) > 1e30,
+                       spectrum.sig ** 2 > 1e10,
+                       ], axis=0)
+    # Sometimes Echelle spectra have zero wavelength
+    bad_wave = spectrum.wavelength < 1000.0*units.AA
+    bad_all = bad_flux + bad_wave
+    ## trim bad part
+    wave_out,flux_out,sig_out = spectrum.wavelength[~bad_all],spectrum.flux[~bad_all],spectrum.sig[~bad_all]
+    spectrum_out = XSpectrum1D.from_tuple((wave_out,flux_out,sig_out), verbose=False)
+    #if np.sum(bad_flux):
+    #    msgs.warn("There are some bad flux values in this spectrum.  Will zero them out and mask them (not ideal)")
+    #    spectrum.data['flux'][spectrum.select][bad_flux] = 0.
+    #    spectrum.data['sig'][spectrum.select][bad_flux] = 0.
+
+    return spectrum_out
+
+# JFH This routine is deprecated.
+def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
+    """Loading Echelle spectra from a list of PypeIt 1D spectrum fits files
+    Parameters:
+        files (str) : The list of file names of your spec1d file
+        objid (str) : The id (one per fits file) of the object you want to load. (default is the first object)
+        order (int) : which order you want to load (default is None, loading all orders)
+        extract (str) : 'OPT' or 'BOX'
+        flux (bool) : default is True, loading fluxed spectra
+    returns:
+        spectrum_out : XSpectrum1D
+    """
+
+    nfiles = len(files)
+    if objid is None:
+        objid = ['OBJ0000'] * nfiles
+    elif len(objid) == 1:
+        objid = objid * nfiles
+    elif len(objid) != nfiles:
+        msgs.error('The length of objid should be either 1 or equal to the number of spectra files.')
+
+    fname = files[0]
+    ext_final = fits.getheader(fname, -1)
+    norder = ext_final['ORDER'] + 1
+    msgs.info('spectrum {:s} has {:d} orders'.format(fname, norder))
+    if norder <= 1:
+        msgs.error('The number of orders have to be greater than one for echelle. Longslit data?')
+
+    # Load spectra
+    spectra_list = []
+    for ii, fname in enumerate(files):
+
+        if order is None:
+            msgs.info('Loading all orders into a gaint spectra')
+            for iord in range(norder):
+                spectrum = load_spec_order(fname,objid=objid[ii],order=iord,extract=extract,flux=flux)
+                # Append
+                spectra_list.append(spectrum)
+        elif order >= norder:
+            msgs.error('order number cannot greater than the total number of orders')
+        else:
+            spectrum = load_spec_order(fname, objid=objid[ii], order=order, extract=extract, flux=flux)
+            # Append
+            spectra_list.append(spectrum)
+    # Join into one XSpectrum1D object
+    spectra = collate(spectra_list)
+    # Return
+    return spectra
+
 def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
     """
     Parameters

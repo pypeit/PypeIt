@@ -744,6 +744,7 @@ class EchFluxSpec(masterframe.MasterFrame):
 
         Parameters
         ----------
+        sens_dicts: dict, echelle sens function dict
         outfile : str, optional
           Use this input instead of the 'proper' (or unattainable) MasterFrame name
 

@@ -30,6 +30,7 @@ from pkg_resources import resource_filename
     # Better rejection
     # Grow mask in final_rej?
     # QA
+    # Should we get rid of masked array?
 
 def new_wave_grid(waves, wave_method='iref', iref=0, wave_grid_min=None, wave_grid_max=None,
                   A_pix=None, v_pix=None, **kwargs):
