@@ -127,6 +127,18 @@ class PypeIt(object):
         qa.gen_mf_html(self.pypeit_file)
         qa.gen_exp_html()
 
+    def outfile_exists(self, frame):
+        """
+         Returns: True if the 2d file exists
+                 False if it does not exist
+
+        """
+        # Check if the 2d output file exists
+        scidir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
+        basename = self.fitstbl.construct_basename(frame)
+        outfile = scidir + '/spec2d_{:s}.fits'.format(basename)
+        return os.path.isfile(outfile)
+
     def get_std_outfile(self, grp_standards):
         # TODO: Need to decide how to associate standards with
         # science frames in the case where there is more than one
@@ -188,10 +200,13 @@ class PypeIt(object):
             for j, comb_id in enumerate(u_combid_std):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
-
-                std_dict = self.reduce_exposure(frames, bg_frames=bg_frames)
-                # TODO come up with sensible naming convention for save_exposure for combined files
-                self.save_exposure(frames[0], std_dict, self.basename)
+                if not self.outfile_exists(frames[0]) or self.overwrite:
+                    std_dict = self.reduce_exposure(frames, bg_frames=bg_frames)
+                    # TODO come up with sensible naming convention for save_exposure for combined files
+                    self.save_exposure(frames[0], std_dict, self.basename)
+                else:
+                    msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
+                              '. Set overwrite=True to recreate and overwrite.')
 
             # Find the indices of the science frames in this calibration group:
             grp_science = frame_indx[is_science & in_grp]
@@ -205,10 +220,14 @@ class PypeIt(object):
             for j, comb_id in enumerate(u_combid):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
-                sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile)
-                science_basename[j] = self.basename
-                # TODO come up with sensible naming convention for save_exposure for combined files
-                self.save_exposure(frames[0], sci_dict, self.basename)
+                if not self.outfile_exists(frames[0]) or self.overwrite:
+                    sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile)
+                    science_basename[j] = self.basename
+                    # TODO come up with sensible naming convention for save_exposure for combined files
+                    self.save_exposure(frames[0], sci_dict, self.basename)
+                else:
+                    msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
+                              '. Set overwrite=True to recreate and overwrite.')
 
             # Apply the flux calibration for this calibration group
             # TODO: I don't think this function is written yet...
@@ -336,7 +355,7 @@ class PypeIt(object):
 
         return vel_corr
 
-    def get_sci_metadata(self,frame, det):
+    def get_sci_metadata(self, frame, det):
 
         # Set binning, obstime, basename, and objtype
         try:
@@ -352,7 +371,7 @@ class PypeIt(object):
             objtype_out = 'standard'
         else:
             msgs.error('Unrecognized objtype')
-        setup    = self.fitstbl.master_key(frame, det=det)
+        setup = self.fitstbl.master_key(frame, det=det)
 
         return objtype_out, setup, obstime, basename, binning
 
@@ -396,7 +415,7 @@ class PypeIt(object):
 
         """
         # Grab some meta-data needed for the reduction from the fitstbl
-        self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], det)
+        self.objtype, self.setup, self.obstime, basename, self.binning = self.get_sci_metadata(frames[0], det)
         # Is this an IR reduction
         self.ir_redux = True if len(bg_frames) > 0 else False
         # Is this a standard star?
@@ -546,23 +565,13 @@ class PypeIt(object):
             return
 
         # Write 1D spectra
-        save_format = 'fits'
-        if save_format == 'fits':
-            outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
-                                   'spec1d_{:s}.fits'.format(basename))
-            helio_dict = dict(refframe='pixel'
-                if self.caliBrate.par['wavelengths']['reference'] == 'pixel'
-                else self.caliBrate.par['wavelengths']['frame'],
-                              vel_correction=vel_corr)
-            # Did the user re-run a single detector?
-            save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], self.spectrograph.pypeline, outfile,
-                                      helio_dict=helio_dict, telescope=self.spectrograph.telescope,
-                                      update_det=self.par['rdx']['detnum'])
-        #        elif save_format == 'hdf5':
-        #            debugger.set_trace()  # NEEDS REFACTORING
-        #            arsave.save_1d_spectra_hdf5(None)
-        else:
-            msgs.error(save_format + ' is not a recognized output format!')
+        outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],'spec1d_{:s}.fits'.format(basename))
+        helio_dict = dict(refframe='pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
+            self.caliBrate.par['wavelengths']['frame'],vel_correction=vel_corr)
+        # Did the user re-run a single detector?
+        save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], self.spectrograph.pypeline, outfile,
+                                  helio_dict=helio_dict, telescope=self.spectrograph.telescope,
+                                  update_det=self.par['rdx']['detnum'])
         # 1D only?
         if only_1d:
             return
@@ -577,8 +586,9 @@ class PypeIt(object):
         rawfile = self.fitstbl.frame_paths(frame)
         # TODO: Make sure self.det is correct!
         #master_key = self.fitstbl.master_key(frame, det=self.det)
+        outfile = scidir + '/spec2d_{:s}.fits'.format(basename)
         save.save_2d_images(sci_dict, rawfile, self.spectrograph.primary_hdrext,
-                            self.caliBrate.master_key_dict, self.caliBrate.master_dir, scidir, basename,
+                            self.caliBrate.master_key_dict, self.caliBrate.master_dir, outfile,
                             update_det=self.par['rdx']['detnum'])
         return all_specobjs
 

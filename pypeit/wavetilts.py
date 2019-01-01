@@ -81,7 +81,6 @@ class WaveTilts(masterframe.MasterFrame):
         self.det = det
         self.redux_path = redux_path
         # TODO this code is duplicated verbatim in wavetilts. Should it be a function
-        # TODO this code is duplicated verbatim in wavetilts. Should it be a function
         if self.spectrograph.detector is not None:
             self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
         else:

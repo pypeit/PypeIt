@@ -39,23 +39,25 @@ def make_dirs(spectrograph, caldir, scidir, qadir, redux_path=None, overwrite=Fa
     newdir = os.path.join(redux_path, scidir)
     if os.path.exists(newdir):
         msgs.info("The following directory already exists:"+msgs.newline()+newdir)
-        if not overwrite:
-            rmdir = ''
-            while os.path.exists(newdir):
-                while rmdir != 'n' and rmdir != 'y' and rmdir != 'r':
-                    rmdir = input(msgs.input() + 'Remove this directory and its contents?'
-                                  + '([y]es, [n]o, [r]ename) - ')
-                if rmdir == 'n':
-                    msgs.warn("Any previous calibration files may be overwritten")
-                    break
-                elif rmdir == 'r':
-                    newdir = input(msgs.input()+"Enter a new directory name: ")
-                elif rmdir == 'y':
-                    shutil.rmtree(newdir)
-                    os.mkdir(newdir)
-                    break
-            if rmdir == 'r':
-                os.mkdir(newdir)
+        # JFH I am disabling this for now. If the directory exists it does not get re-created. If it does not exist
+        # it is created.
+#        if not overwrite:
+#            rmdir = ''
+#            while os.path.exists(newdir):
+#                while rmdir != 'n' and rmdir != 'y' and rmdir != 'r':
+#                    rmdir = input(msgs.input() + 'Remove this directory and its contents?'
+#                                  + '([y]es, [n]o, [r]ename) - ')
+#                if rmdir == 'n':
+#                    msgs.warn("Any previous calibration files may be overwritten")
+#                    break
+#                elif rmdir == 'r':
+#                    newdir = input(msgs.input()+"Enter a new directory name: ")
+#                elif rmdir == 'y':
+#                    shutil.rmtree(newdir)
+#                    os.mkdir(newdir)
+#                    break
+#            if rmdir == 'r':
+#                os.mkdir(newdir)
     else:
         os.mkdir(newdir)
 
@@ -66,17 +68,18 @@ def make_dirs(spectrograph, caldir, scidir, qadir, redux_path=None, overwrite=Fa
     msgs.info("Creating Master Calibrations directory")
     newdir = os.path.join(redux_path, caldir+'_'+spectrograph)
     if os.path.exists(newdir):
-        if not overwrite:
-            msgs.info("The following directory already exists:"+msgs.newline()+newdir)
-            rmdir = ''
-            while rmdir != 'n' and rmdir != 'y':
-                rmdir = input(msgs.input() + 'Remove this directory and its contents?'
-                              '([y]es, [n]o) - ')
-            if rmdir == 'n':
-                msgs.warn("Any previous calibration files will be overwritten")
-            else:
-                shutil.rmtree(newdir)
-                os.mkdir(newdir)
+        # JFH Disabling this overwrite stuff
+        msgs.info("The following directory already exists:"+msgs.newline()+newdir)
+#        if not overwrite:
+#            rmdir = ''
+#            while rmdir != 'n' and rmdir != 'y':
+#                rmdir = input(msgs.input() + 'Remove this directory and its contents?'
+#                              '([y]es, [n]o) - ')
+#            if rmdir == 'n':
+#                msgs.warn("Any previous calibration files will be overwritten")
+#            else:
+#                shutil.rmtree(newdir)
+#                os.mkdir(newdir)
     else:
         os.mkdir(newdir)
 
