@@ -64,7 +64,7 @@ class PypeIt(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, pypeit_file, verbosity=2, overwrite=True, logname=None, show=False,
+    def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None, show=False,
                  redux_path=None):
 
         # Setup
@@ -81,6 +81,9 @@ class PypeIt(object):
         # Other Internals
         self.logname = logname
         self.overwrite = overwrite
+        # Currently the runtime argument determines the behavior for reuse_masters. There is also a reuse_masters
+        # parameter in the parset but it is currently ignored.
+        self.reuse_masters=reuse_masters
         self.show = show
 
 
@@ -99,12 +102,12 @@ class PypeIt(object):
             = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
                                                  par=self.par['calibrations'],
                                                  redux_path=self.par['rdx']['redux_path'],
+                                                 reuse_masters=self.reuse_masters,
                                                  save_masters=True, write_qa=True,
                                                  show=self.show)
         # Init
         self.verbosity = verbosity
         # TODO: I don't think this ever used
-
 
         self.frame = None
         self.det = None
@@ -143,15 +146,10 @@ class PypeIt(object):
 
         return std_outfile
 
-    def reduce_all(self, reuse_masters=False):
+    def reduce_all(self):
         """
         Reduce all of the science exposures
         Generate all needed calibration files
-
-        Args:
-            reuse_masters (:obj:`bool`, optional):
-                Use the master frames if available (same as setting
-                par['calibrations']['masters'] = 'reuse'.
 
         Returns:
 
@@ -190,7 +188,8 @@ class PypeIt(object):
             for j, comb_id in enumerate(u_combid_std):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
-                std_dict = self.reduce_exposure(frames, bg_frames=bg_frames,reuse_masters=reuse_masters)
+
+                std_dict = self.reduce_exposure(frames, bg_frames=bg_frames)
                 # TODO come up with sensible naming convention for save_exposure for combined files
                 self.save_exposure(frames[0], std_dict, self.basename)
 
@@ -205,18 +204,15 @@ class PypeIt(object):
             u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
             for j, comb_id in enumerate(u_combid):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
-                #if len(frames)>1:
-                #    debugger.set_trace()  # NOT DEVELOPED YET
-                # Bg frame(s)?
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
-                sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile,reuse_masters=reuse_masters)
+                sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile)
                 science_basename[j] = self.basename
                 # TODO come up with sensible naming convention for save_exposure for combined files
                 self.save_exposure(frames[0], sci_dict, self.basename)
 
             # Apply the flux calibration for this calibration group
             # TODO: I don't think this function is written yet...
-            #self.flux_calibrate(reuse_masters=False)
+            #self.flux_calibrate()
 
             msgs.info('Finished calibration group {0}'.format(i))
 
@@ -233,7 +229,7 @@ class PypeIt(object):
         return [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'], int) \
                     else self.par['rdx']['detnum']
 
-    def reduce_exposure(self, frames, bg_frames=[], std_outfile=None, reuse_masters=False):
+    def reduce_exposure(self, frames, bg_frames=[], std_outfile=None):
         """
         Reduce a single exposure
 
@@ -247,8 +243,6 @@ class PypeIt(object):
                 0-indexed row in :attr:`fitstbl` with a standard frame
                 associated with the frame to reduce, or the name of a
                 file with a previously PypeIt-reduced standard spectrum.
-            reuse_masters (:obj:`bool`, optional):
-                Re-use MasterFrame files when available
 
         Returns:
             dict: The dictionary containing the primary outputs of
@@ -261,10 +255,6 @@ class PypeIt(object):
         # Save the frame
         self.frames = frames
         self.bg_frames = bg_frames
-
-        # Insist on re-using MasterFrames where applicable
-        if reuse_masters:
-            self.par['calibrations']['masters'] = 'reuse'
 
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}

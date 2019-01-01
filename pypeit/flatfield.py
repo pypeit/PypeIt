@@ -66,7 +66,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'pixelflat'
 
     def __init__(self, spectrograph, file_list=[], binning = None, det=1, par=None, master_key=None, master_dir=None,
-                 mode=None, flatpar=None, msbias=None, msbpm = None, tslits_dict=None, tilts_dict=None):
+                 reuse_masters=False, flatpar=None, msbias=None, msbpm = None, tslits_dict=None, tilts_dict=None):
 
         # Image processing parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
@@ -78,7 +78,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, mode=mode)
+                                         master_dir=master_dir, reuse_masters=reuse_masters)
 
         # Parameters unique to this Object
         self.msbias = msbias

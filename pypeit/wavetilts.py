@@ -57,8 +57,8 @@ class WaveTilts(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'tilts'
 
-    def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, wavepar = None, det=1, master_key=None, master_dir=None,
-                 mode=None, redux_path=None, bpm=None):
+    def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, wavepar = None, det=1,
+                 master_key=None, master_dir=None, reuse_masters=False, redux_path=None, bpm=None):
 
         # Instantiate the spectograph
         # TODO: (KBW) Do we need this?  It's only used to get the
@@ -70,7 +70,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.binning = binning
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, mode=mode)
+                                         master_dir=master_dir, reuse_masters=reuse_masters)
 
 
         # Parameters (but can be None)

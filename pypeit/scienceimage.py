@@ -413,7 +413,8 @@ class ScienceImage():
     #
     #     return self.global_sky
 
-
+    # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
+    # being updated?
     def local_skysub_extract(self, sobjs, waveimg, maskslits=None, model_noise=True, std = False,
                              show_profile=False, show_resids=False, show=False):
         """

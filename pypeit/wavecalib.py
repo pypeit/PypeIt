@@ -70,14 +70,14 @@ class WaveCalib(masterframe.MasterFrame):
     # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
     # parameters since instantiating without them does nothing. Make them required
     def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, det=1, master_key=None, master_dir=None,
-                 mode=None, redux_path=None, bpm = None):
+                 reuse_masters=False, redux_path=None, bpm = None):
 
         # Instantiate the spectograph
         self.spectrograph = load_spectrograph(spectrograph)
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, mode=mode)
+                                         master_dir=master_dir, reuse_masters=reuse_masters)
 
         # Required parameters (but can be None)
         self.msarc = msarc

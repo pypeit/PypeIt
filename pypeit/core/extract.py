@@ -2202,7 +2202,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_
                     thisobj.trace_spat = slit_left[:, iord] + slit_width[:, iord] * frac_mean_new[iord]  # new trace
                 thisobj.trace_spec = spec_vec
                 thisobj.spat_pixpos = thisobj.trace_spat[specmid]
-                thisobj.set_idx(echelle=True)
+                thisobj.set_idx()
                 # Use the real detections of this objects for the FWHM
                 this_obj_id = obj_id == uni_obj_id[iobj]
                 # Assign to the fwhm of the nearest detected order
@@ -2303,7 +2303,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, order_
             spec.spat_pixpos = spec.trace_spat[specmid]
 
     # Set the IDs
-    sobjs_final.set_idx(echelle=True)
+    sobjs_final.set_idx()
 
     skymask_fwhm = create_skymask_fwhm(sobjs_final,allmask)
     skymask = skymask_objfind | skymask_fwhm

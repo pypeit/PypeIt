@@ -1881,7 +1881,7 @@ class CalibrationsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, caldir=None, masters=None, setup=None, trim=None, badpix=None,
+    def __init__(self, caldir=None, reuse_masters=None, setup=None, trim=None, badpix=None,
                  biasframe=None, darkframe=None, arcframe=None, pixelflatframe=None,
                  pinholeframe=None, traceframe=None, standardframe=None, flatfield=None,
                  wavelengths=None, slits=None, tilts=None):
@@ -1904,13 +1904,11 @@ class CalibrationsPar(ParSet):
         dtypes['caldir'] = str
         descr['caldir'] = 'Directory relative to calling directory to write master files.'
 
-        options['masters'] = CalibrationsPar.allowed_master_options()
-        dtypes['masters'] = str
-        descr['masters'] = 'Treatment of master frames.  Use None to select the default ' \
-                           'behavior (which is?), \'reuse\' to use any existing masters, and ' \
-                           '\'force\' to __only__ use master frames.  ' \
-                           'Options are: None, {0}'.format(', '.join(options['masters']))
-
+        # JFH Currently this parameter does nothing, since it is controlled by the run_pypeit argument -m
+        options['reuse_masters'] = False #CalibrationsPar.allowed_master_options()
+        dtypes['reuse_masters'] = bool
+        descr['reuse_masters'] = 'If True PypeIt will reuse existing master frames rather than recreate them. If False, it will' \
+                                 '  recreate the master frames. '
         dtypes['setup'] = str
         descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
                          'C_02_aa .  The detector number is ignored but the other information ' \
@@ -1977,14 +1975,14 @@ class CalibrationsPar(ParSet):
                                               options=list(options.values()),
                                               dtypes=list(dtypes.values()),
                                               descr=list(descr.values()))
-        self.validate()
+        #self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
 
         # Basic keywords
-        parkeys = [ 'caldir', 'masters', 'setup', 'trim', 'badpix' ]
+        parkeys = [ 'caldir', 'reuse_masters', 'setup', 'trim', 'badpix' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2015,20 +2013,22 @@ class CalibrationsPar(ParSet):
 
         return cls(**kwargs)
 
-    @staticmethod
-    def allowed_master_options():
-        """Return the allowed handling methods for the master frames."""
-        return [ 'reuse', 'force' ]
+    #@staticmethod
+    #def allowed_master_options():
+    #    """Return the allowed handling methods for the master frames."""
+    #    return [ 'reuse', 'force' ]
 
     # TODO: Perform extensive checking that the parameters are valid for
     # the Calibrations class.  May not be necessary because validate will
     # be called for all the sub parameter sets, but this can do higher
     # level checks, if necessary.
-    def validate(self):
-        if self.data['masters'] == 'force' \
-                and (self.data['setup'] is None or len(self.data['setup']) == 0):
-            raise ValueError('When forcing use of master frames, you must specify the setup to '
-                             'be used using the \'setup\' keyword.')
+
+    # JFH I'm not sure what to do about this function? Commentingo out for now.
+    #def validate(self):
+    #    if self.data['masters'] == 'force' \
+    #            and (self.data['setup'] is None or len(self.data['setup']) == 0):
+    #        raise ValueError('When forcing use of master frames, you must specify the setup to '
+    #                         'be used using the \'setup\' keyword.')
 
 #-----------------------------------------------------------------------------
 # Parameters superset

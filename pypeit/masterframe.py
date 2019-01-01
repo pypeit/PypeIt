@@ -12,8 +12,6 @@ from astropy.io import fits
 from pypeit.par import pypeitpar
 import os
 
-from pypeit import debugger
-
 from abc import ABCMeta
 
 
@@ -40,7 +38,7 @@ class MasterFrame(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, frametype, master_key, spectrograph=None,
-                 master_dir=None, mode=None, par=None, redux_path=None):
+                 master_dir=None, reuse_masters=False, par=None, redux_path=None):
 
         # Output path
         if master_dir is None:
@@ -51,7 +49,7 @@ class MasterFrame(object):
         # Other parameters
         self.frametype = frametype
         self.master_key = master_key
-        self.mode = mode
+        self.reuse_masters=reuse_masters
         self.msframe = None
 
     @property
@@ -71,11 +69,6 @@ class MasterFrame(object):
     def mdir(self):
         return self.master_dir
 
-    def _masters_load_chk(self):
-        # Logic on whether to load the masters frame
-        # TODO -- These two modes are now effecitvely the same.  Remove one
-        return self.mode == 'reuse' or self.mode == 'force'
-
     def master(self, force=False):
         """
         Load the master frame from disk, as settings allows. This routine checks the the mode of master usage
@@ -93,7 +86,7 @@ class MasterFrame(object):
 
         """
         # Are we loading master files from disk?
-        if self._masters_load_chk() or force:
+        if self.reuse_masters:
             self.msframe = self.load_master(self.ms_name)
             return self.msframe
         else:

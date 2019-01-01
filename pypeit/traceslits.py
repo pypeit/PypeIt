@@ -108,10 +108,11 @@ class TraceSlits(masterframe.MasterFrame):
                  binning=None,
                  par=None, det=1, master_key=None, master_dir=None,
                  redux_path=None,
-                 mode=None, binbpx=None, ednum=100000):
+                 reuse_masters=False, binbpx=None, ednum=100000):
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, master_key, master_dir=master_dir, mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key, master_dir=master_dir,
+                                         reuse_masters=reuse_masters)
 
         # TODO -- Remove pixlocn as a required item
 

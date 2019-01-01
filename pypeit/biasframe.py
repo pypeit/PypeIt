@@ -63,7 +63,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
     # Keep order same as processimages (or else!)
     def __init__(self, spectrograph, file_list=[], det=1, par=None, master_key=None,
-                 master_dir=None, mode=None):
+                 master_dir=None, reuse_masters=False):
 
         # Parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
@@ -74,7 +74,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.frametype, master_key, mode=mode,
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key, reuse_masters=reuse_masters,
                                          master_dir=master_dir)
 
     def build_image(self, overwrite=False, trim=True):
