@@ -55,6 +55,14 @@
 - Pushed pieces of run_pypeit into the PypeIt class
 - Removed future as a dependency
 - Change point step size to 50 pixels in show_slits and show_trace for major speed up
+- Implemented difference imaging for near-IR reductions for both Multislit and Echelle
+- Fixed a bug in echelle object finding algorithm.
+- Implemented using standard stars as crutches for object tracing.
+- Reworked the implementation of reuse_masters in the PypeIt class and in
+the Calibrations class.
+- New behavior associated with the -o overwrite feature in run_pypeit.
+User prompting feature has been disabled. Existing science files will not
+be re-created unless the -o option is set.
 
 0.9.0
 -----
