@@ -1804,7 +1804,7 @@ class ScienceImagePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, maxnumber=None, sn_gauss=None, manual=None):
+    def __init__(self, bspline_spacing=None, sig_thresh=None, maxnumber=None, sn_gauss=None, manual=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1830,7 +1830,11 @@ class ScienceImagePar(ParSet):
 
         defaults['bspline_spacing'] = 0.6
         dtypes['bspline_spacing'] = [int, float]
-        descr['bspline_spacing'] = 'Break-point spacing for the bspline fit'
+        descr['bspline_spacing'] = 'Break-point spacing for the bspline sky subtraction fits.'
+
+        defaults['sig_thresh'] = 10.0
+        dtypes['sig_thresh'] = [int, float]
+        descr['sig_thresh'] = 'Significance threshold for object finding.'
 
         defaults['maxnumber'] = 10
         dtypes['maxnumber'] = int
@@ -1859,7 +1863,7 @@ class ScienceImagePar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'maxnumber', 'sn_gauss', 'manual']
+        parkeys = ['bspline_spacing', 'sig_thresh', 'maxnumber', 'sn_gauss', 'manual']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

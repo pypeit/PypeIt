@@ -452,7 +452,7 @@ class PypeIt(object):
         self.maskslits = self.caliBrate.maskslits.copy()
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
-            self.find_objects(sciimg, ir_redux=self.ir_redux, std_trace=std_trace, snr_trim=False, maskslits=self.maskslits)
+            self.find_objects(sciimg, std=self.std_redux, ir_redux=self.ir_redux, std_trace=std_trace, snr_trim=False, maskslits=self.maskslits)
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         initial_sky = \
@@ -462,7 +462,7 @@ class PypeIt(object):
         if not self.std_redux:
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
-                self.find_objects(sciimg - initial_sky, ir_redux=self.ir_redux, std_trace=std_trace, snr_trim=True,
+                self.find_objects(sciimg - initial_sky, std=self.std_redux, ir_redux=self.ir_redux, std_trace=std_trace, snr_trim=True,
                 maskslits=self.maskslits,show_peaks=self.show)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
@@ -506,15 +506,15 @@ class PypeIt(object):
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
 
 
-    def find_objects(self, image, ir_redux=False, std_trace=None, snr_trim=False, maskslits=None,
+    def find_objects(self, image, std=False, ir_redux=False, std_trace=None, snr_trim=False, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         sobjs_obj_init, nobj_init, skymask_pos = \
-            self.find_obj_pypeline(image, std_trace=std_trace, snr_trim=snr_trim, maskslits=maskslits)
+            self.find_obj_pypeline(image, std=std, std_trace=std_trace, snr_trim=snr_trim, maskslits=maskslits)
 
         if ir_redux:
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
-                self.find_obj_pypeline(-image, std_trace=std_trace, snr_trim=snr_trim, maskslits=maskslits)
+                self.find_obj_pypeline(-image, std=std, std_trace=std_trace, snr_trim=snr_trim, maskslits=maskslits)
             skymask = skymask_pos & skymask_neg
             sobjs_obj_init.append_neg(sobjs_obj_init_neg)
         else:
@@ -522,7 +522,7 @@ class PypeIt(object):
 
         return sobjs_obj_init, len(sobjs_obj_init), skymask
 
-    def find_obj_pypeline(self, image, std_trace=None, snr_trim=False, maskslits=None,
+    def find_obj_pypeline(self, image, std=False, std_trace=None, snr_trim=False, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
         """
         Dummy method for object finding. Overloaded by class specific object finding.
@@ -674,12 +674,12 @@ class MultiSlit(PypeIt):
         self.std_basename = None
         self.stdI = None
 
-    def find_obj_pypeline(self, image, std_trace=None, maskslits=None, snr_trim=False,
+    def find_obj_pypeline(self, image, std=False, std_trace=None, maskslits=None, snr_trim=False,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         # Object finding, second pass on frame *with* sky subtraction. Show here if requested
         sobjs_obj, nobj, skymask = \
-            self.sciI.find_objects(image, std_trace=std_trace, maskslits=maskslits,
+            self.sciI.find_objects(image, std=std, std_trace=std_trace, maskslits=maskslits,
                                    show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace)
         return sobjs_obj, nobj, skymask
 
@@ -776,12 +776,12 @@ class Echelle(PypeIt):
     def __init__(self, spectrograph, **kwargs):
         super(Echelle, self).__init__(spectrograph, **kwargs)
 
-    def find_obj_pypeline(self, image, std_trace=None, maskslits=None, snr_trim=False,
+    def find_obj_pypeline(self, image, std=False, std_trace=None, maskslits=None, snr_trim=False,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         # Object finding, second pass on frame *with* sky subtraction. Show here if requested
         sobjs_obj, nobj, skymask = \
-            self.sciI.find_objects_ech(image, std_trace=std_trace, snr_trim=snr_trim, show_peaks=show_peaks, show_fits=show_fits,
+            self.sciI.find_objects_ech(image, std=std, std_trace=std_trace, snr_trim=snr_trim, show_peaks=show_peaks, show_fits=show_fits,
                                        show_trace=show_trace)
         return sobjs_obj, nobj, skymask
 

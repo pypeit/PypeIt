@@ -210,7 +210,7 @@ class ScienceImage():
                 return False
         return True
 
-    def find_objects(self, image, std_trace = None, maskslits=None, show_peaks=False,
+    def find_objects(self, image, std=False, std_trace = None, maskslits=None, show_peaks=False,
                      show_fits=False, show_trace=False, show=False):
         """
         Find objects in the slits. This is currently setup only for ARMS
@@ -265,9 +265,10 @@ class ScienceImage():
             # TODO we need to add QA paths and QA hooks. QA should be
             # done through objfind where all the relevant information
             # is. This will be a png file(s) per slit.
+            sig_thresh = 30.0 if std else self.par['sig_thresh']
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['lcen'][:,slit],self.tslits_dict['rcen'][:,slit],
-                inmask=inmask, std_trace=std_trace, hand_extract_dict=self.par['manual'],specobj_dict=specobj_dict,
+                inmask=inmask, std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=self.par['manual'],specobj_dict=specobj_dict,
                 show_peaks=show_peaks,show_fits=show_fits, show_trace=show_trace,qa_title=qa_title,
                 nperslit=self.par['maxnumber'])
             sobjs.add_sobj(sobjs_slit)
@@ -282,7 +283,7 @@ class ScienceImage():
         return sobjs, len(sobjs), skymask
 
 
-    def find_objects_ech(self, image, snr_trim=False, std_trace = None, show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False):
+    def find_objects_ech(self, image, std=False, snr_trim=False, std_trace = None, show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False):
 
         # Did they run process?
         if not self._chk_objs(['sciivar']):
@@ -303,10 +304,11 @@ class ScienceImage():
         specobj_dict = {'setup': self.setup, 'slitid': 999,
                         'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
         # ToDO implement parsets here!
+        sig_thresh = 30.0 if std else self.par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = \
             extract.ech_objfind(image, self.sciivar, self.slitmask, self.tslits_dict['lcen'], self.tslits_dict['rcen'],
                                 snr_trim=snr_trim, inmask=inmask, plate_scale=plate_scale, std_trace=std_trace,
-                                specobj_dict=specobj_dict, ncoeff=5,sig_thresh=10.0,
+                                specobj_dict=specobj_dict,sig_thresh=sig_thresh,
                                 show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace, debug=debug)
 
 
