@@ -1297,7 +1297,7 @@ class HolyGrail:
         # For all newly labeled lines, create a patt_dict of these labeled lines
         # Perform a final fit on these lines
 
-        self._debug = True
+        #self._debug = True
         # First, sort spectra according to increasing central wavelength
         ngd = good_fit.sum()
         idx_gd = np.zeros(ngd, dtype=np.int)
@@ -1510,8 +1510,6 @@ class HolyGrail:
             iperfect = np.array(patt_dict['scores']) != 'Perfect'
             patt_dict['mask'][iperfect] = False
             patt_dict['nmatch'] = np.sum(patt_dict['mask'])
-            from IPython import embed
-            embed()
             if patt_dict['nmatch'] < 3:
                 patt_dict['acceptable'] = False
 
@@ -1535,11 +1533,10 @@ class HolyGrail:
             self._all_patt_dict[str(bs)] = copy.deepcopy(patt_dict)
             self._all_final_fit[str(bs)] = copy.deepcopy(final_fit)
             if self._debug:
-                xrng = np.arange(self._npix)
                 xplt = np.linspace(0.0, 1.0, self._npix)
                 yplt = utils.func_val(final_fit['fitc'], xplt, 'legendre', minx=0.0, maxx=1.0)
                 plt.plot(final_fit['pixel_fit'], final_fit['wave_fit'], 'bx')
-                plt.plot(xplt, yplt, 'r-')
+                plt.plot(xrng, yplt, 'r-')
                 plt.show()
         return new_bad_slits
 
