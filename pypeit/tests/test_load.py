@@ -4,10 +4,12 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+
 ### TEST_UNICODE_LITERALS
 
 import os
 import pytest
+from pypeit.specobjs import SpecObjs
 
 from pypeit.core import load
 
@@ -32,7 +34,7 @@ def test_load_specobjs():
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     specobjs, head0 = load.load_specobjs(spec_file)
     # Test
-    assert isinstance(specobjs, list)
+    assert isinstance(specobjs, SpecObjs)
     assert len(specobjs[0].boxcar['COUNTS']) == 1200
 
 
