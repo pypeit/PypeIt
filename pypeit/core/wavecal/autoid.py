@@ -1320,7 +1320,7 @@ class HolyGrail:
                 fitc = self._all_final_fit[str(slit)]['fitc']
                 fitfunc = self._all_final_fit[str(slit)]['function']
                 fmin, fmax = self._all_final_fit[str(slit)]['fmin'], self._all_final_fit[str(slit)]['fmax']
-                wave_soln = utils.func_val(fitc, xrng, fitfunc, minx=fmin, maxx=fmax)
+                wave_soln = utils.func_val(fitc, xrng/float(self._npix-1), fitfunc, minx=fmin, maxx=fmax)
                 wvc_gd_jfh[cntr] = wave_soln[self._npix//2]
                 dsp_gd_jfh[cntr]= np.median(wave_soln - np.roll(wave_soln,1))
                 cntr += 1
@@ -2155,8 +2155,7 @@ class HolyGrail:
     def finalize_fit(self, detections):
         """ Once the best IDs have been found for each slit, perform a final fit to all slits and save the results
         """
-        from IPython import embed
-        embed()
+
         for slit in range(self._nslit):
             if slit not in self._ok_mask:
                 continue
