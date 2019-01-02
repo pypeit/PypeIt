@@ -378,7 +378,7 @@ class PypeIt(object):
         """
         Returns the trace of the standard if it is applicable to the current reduction
         """
-        if std_redux is False:
+        if std_redux is False and std_outfile is not None:
             sobjs, hdr_std = load.load_specobjs(std_outfile)
             # Does the detector match?
             # TODO Instrument specific logic here could be implemented with the parset. For example LRIS-B or LRIS-R we
@@ -400,8 +400,6 @@ class PypeIt(object):
         else:
             std_trace = None
 
-        from IPython import embed
-        embed()
         return std_trace
 
     def extract_one(self, frames, det, bg_frames=[], std_outfile=None):

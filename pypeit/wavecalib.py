@@ -323,8 +323,6 @@ class WaveCalib(masterframe.MasterFrame):
         else:
             msgs.info("Loading Master {0:s} frame:".format(self.frametype) + msgs.newline() + filename)
             self.wv_calib = linetools.utils.loadjson(filename)
-            from IPython import embed
-            embed()
             # Recast a few items as arrays
             for key in self.wv_calib.keys():
                 if key in ['steps', 'par']:  # This isn't really necessary
