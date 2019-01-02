@@ -30,7 +30,8 @@ class MasterFrame(object):
       Path for reduction
     spectrograph : Spectrograph, optional
       Only used for directory_path;  should be Deprecated
-    mode: ???
+    reuse_masters: bool, default = False
+      Reuse already created master files from disk.
 
     Attributes
     ----------
@@ -69,7 +70,7 @@ class MasterFrame(object):
     def mdir(self):
         return self.master_dir
 
-    def master(self):
+    def master(self, prev_build=False):
         """
         Load the master frame from disk, as settings allows. This routine checks the the mode of master usage
         then calls the load_master method. This method should not be overloaded by children of this class. Instead
@@ -83,7 +84,7 @@ class MasterFrame(object):
 
         """
         # Are we loading master files from disk?
-        if self.reuse_masters:
+        if self.reuse_masters or prev_build:
             self.msframe = self.load_master(self.ms_name)
             return self.msframe
         else:

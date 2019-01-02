@@ -341,7 +341,8 @@ def fit2darc_orders_qa(fit_dict, outfile=None):
         plt.show()
 
 
-
+# JFH CAn we replace reasize with this simpler function:  rebin_factor
+# https://scipy-cookbook.readthedocs.io/items/Rebinning.html
 def resize_mask2arc(shape_arc, slitmask_orig):
     """
     Resizes a slitmask created with some original binning to be a slitmak relevant to an arc with a different binning

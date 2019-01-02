@@ -58,7 +58,7 @@ def test_user_redo():
                                 'MasterWaveCalib_ShaneKastBlue_A.json')
     assert os.path.isfile(wvcalib_file)
     # Instantiate
-    waveCalib = wavecalib.WaveCalib(None, spectrograph='shane_kast_blue')
+    waveCalib = wavecalib.WaveCalib(None, None, spectrograph='shane_kast_blue')
     wv_calib = waveCalib.load_master(wvcalib_file)
     # Setup
     waveCalib.par['sigdetect'] = 5.
@@ -68,7 +68,7 @@ def test_user_redo():
     waveCalib.arccen = np.zeros((npix,nslit))
     waveCalib.arccen[:,0] = waveCalib.wv_calib['0']['spec']
     # Do it
-    new_wv_calib = waveCalib._build_wv_calib('holy-grail', skip_QA=True)
+    new_wv_calib = waveCalib.build_wv_calib(waveCalib.arccen, 'holy-grail', skip_QA=True)
     # Test
     assert new_wv_calib['0']['rms'] < 0.2
     # Now also test the utility script that reads in the wavecalib

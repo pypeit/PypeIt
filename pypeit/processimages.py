@@ -156,6 +156,7 @@ class ProcessImages(object):
 #        slf.stack = hdul[0].data
 #        return slf
 
+    # JFH I'm not following why these are properties and not simply attributes.
     @property
     def nfiles(self):
         """
@@ -180,7 +181,7 @@ class ProcessImages(object):
         """
         return len(self.raw_images)
 
-    def load_images(self, file_list):
+    def load_images(self):
         """ Load raw images from the disk
         Also loads the datasec info
 
@@ -192,20 +193,20 @@ class ProcessImages(object):
         # Load the image data and headers
         raw_images = []  # Zeros out any previous load
         headers = []
-        for ifile in file_list:
+        for ifile in self.file_list:
             img, head = self.spectrograph.load_raw_frame(ifile, det=self.det)
             raw_images.append(img)
             self.headers.append(head)
         # Get the data sections
         datasec, one_indexed, include_end, transpose \
-                = self.spectrograph.get_image_section(file_list[0], self.det,
+                = self.spectrograph.get_image_section(self.file_list[0], self.det,
                                                       section='datasec')
         datasec = [parse.sec2slice(sec, one_indexed=one_indexed,
                                            include_end=include_end, require_dim=2,
                                            transpose=transpose) for sec in datasec ]
         # Get the overscan sections
         oscansec, one_indexed, include_end, transpose \
-                = self.spectrograph.get_image_section(file_list[0], self.det,
+                = self.spectrograph.get_image_section(self.file_list[0], self.det,
                                                       section='oscansec')
         oscansec = [ parse.sec2slice(sec, one_indexed=one_indexed,
                                             include_end=include_end, require_dim=2,
@@ -213,6 +214,7 @@ class ProcessImages(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Consider a return statement
+        self.raw_images = raw_images
         return raw_images, headers, datasec, oscansec
 
     def apply_gain(self, stack, trim=True):
@@ -247,7 +249,7 @@ class ProcessImages(object):
         # Return
         return stack
 
-    def bias_subtract(self, raw_images, msbias, trim=True, force=False, par=None):
+    def bias_subtract(self, raw_images, msbias, datasec, oscansec, trim=True, force=False, par=None):
         """
         Subtract the bias.
 
@@ -292,8 +294,8 @@ class ProcessImages(object):
                 temp = image-msbias
             elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
-                temp = procimg.subtract_overscan(image, numamplifiers, self.datasec,
-                                                   self.oscansec,
+                temp = procimg.subtract_overscan(image, numamplifiers, datasec,
+                                                   oscansec,
                                                    method=self.proc_par['overscan'],
                                                    params=self.proc_par['overscan_par'])
                 # Trim?
@@ -445,10 +447,10 @@ class ProcessImages(object):
 
         # Load images
         if 'load_images' not in self.steps:
-            self.raw_images, self.headers, self.datasec, self.oscansec = self.load_images(self.file_list)
+            self.raw_images, self.headers, self.datasec, self.oscansec = self.load_images()
         # Bias subtract
         if bias_subtract is not None:
-            self.proc_images = self.bias_subtract(self.raw_images, bias_subtract, trim=trim)
+            self.proc_images = self.bias_subtract(self.raw_images, bias_subtract, self.datasec, self.oscansec, trim=trim)
         elif 'bias_subtract' not in self.steps:
             msgs.warn("Your images have not been bias subtracted!")
 
