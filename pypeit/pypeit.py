@@ -322,6 +322,8 @@ class PypeIt(object):
             # JFH TODO write out the background frame?
 
         # Return
+        from IPython import embed
+        embed()
         return sci_dict
 
     def flexure_correct(self,sobjs,maskslits):
