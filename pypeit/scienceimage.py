@@ -537,6 +537,7 @@ class ScienceImage():
     # JFH TODO I think science image should not be a child of Processimages. Then this could be running on a file list
     # I think this would be simpler. Implement this!
 
+    # JFH TODO This stuff should be eventually moved ot processimages
     def read_stack(self, files, bias, pixel_flat, bpm, illum_flat, cosmics=False):
         """  Utility function for reading in image stacks using ProcessImages
         Parameters
@@ -577,6 +578,7 @@ class ScienceImage():
 
         return sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack
 
+    # JFH TODO This stuff should be eventually moved to proc
     def proc(self, bias, pixel_flat, bpm, illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5, show=False):
         """ Process the image
 
