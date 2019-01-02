@@ -51,9 +51,9 @@ def test_load(deimos_flat_files, kast_blue_bias_files):
     # Kast blue
     kastb_bias = processimages.ProcessImages('shane_kast_blue', kast_blue_bias_files)
     # Load
-    kastb_bias.load_images()
+    _, _, datasec , _ = kastb_bias.load_images()
     # Check datasec
-    assert kastb_bias.datasec[0][0] == slice(0,1024,None)
+    assert datasec[0][0] == slice(0,1024,None)
 
 
 @dev_suite_required
