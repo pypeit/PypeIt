@@ -357,8 +357,7 @@ class ScienceImage():
         # Prep
         self.global_sky = np.zeros_like(self.sciimg)
 
-        # Mask objects using the skymask? If skymask has been set by
-        # objfinding, and masking is requested, then do so
+        # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciimg, dtype=bool)
         # Loop on slits
         for slit in gdslits:
