@@ -33,9 +33,6 @@ def parser(options=None):
                              'writing these files.')
     parser.add_argument('-m', '--use_masters', default=False, action='store_true',
                         help='Load previously generated MasterFrames')
-    # JFH TODO I think debug arc is now defunct?
-    parser.add_argument('--debug_arc', default=False, action='store_true',
-                        help='Turn wavelength/arc debugging on')
     parser.add_argument('-s', '--show', default=False, action='store_true',
                         help='Show reduction steps via plots (which will block further execution until clicked on) '
                              'and outputs to ginga. Requires remote control ginga session via "ginga --modules=RC &"')
