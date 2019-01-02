@@ -46,7 +46,7 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
                     else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     master_dir = root_path+'_'+spectrograph.spectrograph
 
-    mode = 'reuse'
+    reuse_masters = True
 
     # Load up the Masters
     ret = []
@@ -56,20 +56,20 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
 
     master_key = 'A_1_01'
     if aimg:
-        AImg = arcimage.ArcImage(spectrograph, master_key=master_key, master_dir=master_dir, mode=mode)
+        AImg = arcimage.ArcImage(spectrograph, master_key=master_key, master_dir=master_dir, reuse_masters=reuse_masters)
         msarc = AImg.load_master(AImg.ms_name)
         ret.append(msarc)
 
     if tslits:
         traceSlits = traceslits.TraceSlits(None,None, spectrograph)
-        traceSlits.load_master(os.path.join(master_dir,'MasterTrace_A_1_01'))
+        tslits_dict = traceSlits.load_master(os.path.join(master_dir,'MasterTrace_A_1_01'))
         # This is a bit of a hack, but I'm adding the mstrace to the dict since we need it in the flat field test
-        traceSlits.tslits_dict['mstrace'] = traceSlits.mstrace
-        ret.append(traceSlits.tslits_dict)
+        tslits_dict['mstrace'] = traceSlits.mstrace
+        ret.append(tslits_dict)
 
     if tilts:
         wvTilts = wavetilts.WaveTilts(None, None, spectrograph=spectrograph, master_key=master_key,
-                                      master_dir=master_dir, mode=mode)
+                                      master_dir=master_dir, reuse_masters=reuse_masters)
         tilts_dict = wvTilts.master()
         ret.append(tilts_dict)
 
@@ -79,7 +79,7 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
 
     if wvcalib:
         Wavecalib = wavecalib.WaveCalib(None, spectrograph=spectrograph, master_key=master_key,
-                                        master_dir=master_dir, mode=mode)
+                                        master_dir=master_dir, reuse_masters=reuse_masters)
         wv_calib = Wavecalib.master()
         ret.append(wv_calib)
 

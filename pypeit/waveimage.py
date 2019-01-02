@@ -45,12 +45,12 @@ class WaveImage(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'wave'
 
-    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, binning = None, master_key=None, master_dir=None, mode=None,
-                 maskslits=None):
+    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, binning = None, master_key=None, master_dir=None,
+                 reuse_masters=False, maskslits=None):
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, mode=mode)
+                                         master_dir=master_dir, reuse_masters=reuse_masters)
 
         # Required parameters (but can be None)
         self.tslits_dict = tslits_dict

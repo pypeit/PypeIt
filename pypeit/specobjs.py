@@ -93,7 +93,7 @@ class SpecObj(object):
 
         # Object finding attributes
         self.sign = 1.0
-        self.objid = 0
+        self.objid = 999
         self.spat_fracpos = None
         self.smash_peakflux = None
         self.fwhm = None
@@ -109,7 +109,7 @@ class SpecObj(object):
         # Some things for echelle functionality
         self.ech_order = None
         self.ech_orderindx = None
-        self.ech_objid = 0
+        self.ech_objid = 999
         self.ech_snr = None
         self.ech_fracpos = None
         self.ech_frac_was_fit = None
@@ -333,7 +333,8 @@ class SpecObjs(object):
             for iobj in range(nobj):
                 for iord in range(norders):
                     ind = (self.ech_objid == uni_objid[iobj]) & (self.ech_orderindx == uni_order[iord])
-                    SNR[iord, iobj] = np.median(self[ind].optimal['COUNTS']*np.sqrt(self[ind].optimal['COUNTS_IVAR']))
+                    spec = self[ind]
+                    SNR[iord, iobj] = np.median(spec[0].optimal['COUNTS']*np.sqrt(spec[0].optimal['COUNTS_IVAR']))
             SNR_all = np.sqrt(np.sum(SNR**2,axis=0))
             objid_std = uni_objid[SNR_all.argmax()]
             indx = self.ech_objid == objid_std
@@ -361,6 +362,10 @@ class SpecObjs(object):
                 pass
 
         self.add_sobj(sobjs_neg)
+
+        # Sort objects according to their spatial location. Necessary for the extraction to properly work
+        spat_pixpos = self.spat_pixpos
+        self.specobjs = self.specobjs[spat_pixpos.argsort()]
 
     def purge_neg(self):
         """

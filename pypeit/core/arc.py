@@ -50,7 +50,8 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     -------
     """
 
-    # Normalize  for pixels
+    # Normalize  for pixels. Fits are performed in normalized units (pixels/(nspec-1) to be able to deal with various
+    # binnings.
     min_spec = 0.0
     max_spec = 1.0
     xnspecmin1 = float(nspec-1)
@@ -342,7 +343,19 @@ def fit2darc_orders_qa(fit_dict, outfile=None):
 
 
 def resize_mask2arc(shape_arc, slitmask_orig):
+    """
+    Resizes a slitmask created with some original binning to be a slitmak relevant to an arc with a different binning
 
+    Args:
+        shape_arc: tuple
+            shape of the arc
+        slitmask_orig: ndarray, float
+            original slitmask
+    Returns:
+        slitmask: ndarray, float
+            Slitmask with shape corresponding to that of the arc
+
+    """
     (nspec, nspat) = shape_arc
     # Is our arc a different size than the other calibs? If yes, slit_left/slit_righ, slitpix, and inmask will
     # be a different size
@@ -360,7 +373,21 @@ def resize_mask2arc(shape_arc, slitmask_orig):
     return slitmask
 
 def resize_slits2arc(shape_arc, shape_orig, trace_orig):
+    """
+    Resizes a a trace created with some original binning to be a relevant to an arc with a different binning
 
+    Args:
+        shape_arc: tuple
+            shape of the arc
+        shape_orig: tuple
+            original shape of the images used to create the trace
+        trace_orig: ndarray, float
+            trace that you want to resize
+    Returns:
+        trace: ndarray, float
+            trace corresponding to the binning of the arc
+
+    """
     (nspec, nspat) = shape_arc
     # Is our arc a different size than the other calibs? If yes, slit_left/slit_righ, slitpix, and inmask will
     # be a different size

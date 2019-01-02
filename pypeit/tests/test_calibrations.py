@@ -75,11 +75,12 @@ def test_instantiate(fitstbl):
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
     print(caliBrate)
 
-def test_pixlocn(multi_caliBrate):
-    multi_caliBrate.shape = (2048,350)
-    pixlocn = multi_caliBrate.get_pixlocn()
-    # Test
-    assert pixlocn.shape == (2048,350,4)
+# pixlocn is deprecated
+#def test_pixlocn(multi_caliBrate):
+#    multi_caliBrate.shape = (2048,350)
+#    pixlocn = multi_caliBrate.get_pixlocn()
+#    # Test
+#    assert pixlocn.shape == (2048,350,4)
 
 
 def test_bias(multi_caliBrate):
@@ -105,7 +106,7 @@ def test_bpm(multi_caliBrate):
 def test_slits(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
-    multi_caliBrate.get_pixlocn()
+    #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     # Run
@@ -119,11 +120,11 @@ def test_slits(multi_caliBrate):
 def test_wv_calib(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
-    multi_caliBrate.get_pixlocn()
+    #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
-    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_arc()
+    multi_caliBrate.get_slits(write_qa=False)
     # Run
     wv_calib, maskslits = multi_caliBrate.get_wv_calib()
     assert isinstance(wv_calib, dict)
@@ -136,11 +137,11 @@ def test_wv_calib(multi_caliBrate):
 def test_tilts(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
-    multi_caliBrate.get_pixlocn()
+    #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
-    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_arc()
+    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_wv_calib()
     # Run
     tilts_dict, maskslits = multi_caliBrate.get_tilts()
@@ -152,11 +153,11 @@ def test_tilts(multi_caliBrate):
 def test_flat(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
-    multi_caliBrate.get_pixlocn()
+    #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
-    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_arc()
+    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_wv_calib()
     multi_caliBrate.get_tilts()
     # Run
@@ -169,11 +170,11 @@ def test_flat(multi_caliBrate):
 def test_waveimg(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
-    multi_caliBrate.get_pixlocn()
+    #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
-    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_arc()
+    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_wv_calib()
     multi_caliBrate.get_tilts()
     multi_caliBrate.get_flats()

@@ -90,7 +90,7 @@ class Calibrations(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None, save_masters=True,
+    def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None, reuse_masters=False, save_masters=True,
                  write_qa=True, show=False):
 
         # Check the type of the provided fits table
@@ -100,6 +100,7 @@ class Calibrations(object):
         # Parameters unique to this Object
         self.fitstbl = fitstbl
         self.save_masters = save_masters
+        self.reuse_masters = reuse_masters
         self.write_qa = write_qa
         self.show = show
 
@@ -248,10 +249,10 @@ class Calibrations(object):
         self.arcImage = arcimage.ArcImage(self.spectrograph, file_list=self.arc_file_list,
                                           det=self.det, msbias=self.msbias,
                                           par=self.par['arcframe'], master_key=self.arc_master_key,
-                                          master_dir=self.master_dir, mode=self.par['masters'])
+                                          master_dir=self.master_dir, reuse_masters=self.reuse_masters)
 
         # Load the MasterFrame (if it exists and is desired)?
-        self.msarc = self.arcImage.master(force=prev_build)
+        self.msarc = self.arcImage.master()
         if self.msarc is None:  # Otherwise build it
             msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
             self.msarc = self.arcImage.build_image()
@@ -298,11 +299,11 @@ class Calibrations(object):
         self.biasFrame = biasframe.BiasFrame(self.spectrograph, file_list=self.bias_file_list,
                                              det=self.det, par=self.par['biasframe'],
                                              master_key=self.bias_master_key,
-                                             master_dir=self.master_dir, mode=self.par['masters'])
+                                             master_dir=self.master_dir, reuse_masters=self.reuse_masters)
 
         # How are we treating biases: 1) No bias, 2) overscan, or 3) use
         # bias subtraction. If use bias is there a master?
-        self.msbias = self.biasFrame.determine_bias_mode(force=prev_build)
+        self.msbias = self.biasFrame.determine_bias_mode()
         # This could be made more elegant, like maybe msbias should be
         # set to 'none' analgous to how overscan is treated???
         if (self.msbias is None) and (self.par['biasframe']['useframe'] != 'none'):
@@ -364,7 +365,7 @@ class Calibrations(object):
         # Build it
         bpmImage = bpmimage.BPMImage(self.spectrograph,det=self.det, shape=self.shape)
         # Build, save, and return
-        self.msbpm = bpmImage.build()
+        self.msbpm = bpmImage.build(filename=sci_image_files[0])
         self.calib_dict[self.bpm_master_key]['bpm'] = self.msbpm
         return self.msbpm
 
@@ -426,7 +427,7 @@ class Calibrations(object):
                                              binning = self.binning,
                                              det=self.det, par=self.par['pixelflatframe'],
                                              master_key=self.pixflat_master_key, master_dir=self.master_dir,
-                                             mode=self.par['masters'],
+                                             reuse_masters=self.reuse_masters,
                                              flatpar=self.par['flatfield'], msbias=self.msbias,
                                              tslits_dict=self.tslits_dict,
                                              tilts_dict=self.tilts_dict)
@@ -434,7 +435,7 @@ class Calibrations(object):
         # --- Pixel flats
 
         # 1)  Try to load master files from disk (MasterFrame)?
-        self.mspixflatnrm = self.flatField.master(force=prev_build1)
+        self.mspixflatnrm = self.flatField.master()
         if prev_build2:
             self.msillumflat = self.flatField.load_master_illumflat()
 
@@ -560,10 +561,11 @@ class Calibrations(object):
                                                 det=self.det, master_key=self.trace_master_key,
                                                 master_dir=self.master_dir,
                                                 redux_path=self.redux_path,
-                                                mode=self.par['masters'], binbpx=self.msbpm)
+                                                reuse_masters=self.reuse_masters,
+                                                binbpx=self.msbpm)
 
         # Load via master, as desired
-        self.tslits_dict = self.traceSlits.master(force=prev_build)
+        self.tslits_dict = self.traceSlits.master()
         if self.tslits_dict is None:
             # Build the trace image first
             self.traceImage = traceimage.TraceImage(self.spectrograph,self.trace_image_files, det=self.det,
@@ -644,9 +646,9 @@ class Calibrations(object):
         self.waveImage = waveimage.WaveImage(self.tslits_dict, self.tilts_dict['tilts'], self.wv_calib,self.spectrograph,
                                              binning = self.binning,
                                              master_key=self.arc_master_key, master_dir=self.master_dir,
-                                             mode=self.par['masters'], maskslits=self.maskslits)
+                                             reuse_masters=self.reuse_masters, maskslits=self.maskslits)
         # Attempt to load master
-        self.mswave = self.waveImage.master(force=prev_build)
+        self.mswave = self.waveImage.master()
         if self.mswave is None:
             self.mswave = self.waveImage._build_wave()
         # Save to hard-drive
@@ -697,11 +699,14 @@ class Calibrations(object):
         nonlinear = self.spectrograph.detector[self.det-1]['saturation'] \
                         * self.spectrograph.detector[self.det-1]['nonlinear']
         # Instantiate
-        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, binning = self.binning, spectrograph=self.spectrograph,det=self.det,
-                                             par=self.par['wavelengths'], master_key=self.arc_master_key, master_dir=self.master_dir,
-                                             mode=self.par['masters'],redux_path=self.redux_path, bpm=self.msbpm)
+        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, binning = self.binning,
+                                             spectrograph=self.spectrograph,det=self.det,
+                                             par=self.par['wavelengths'], master_key=self.arc_master_key,
+                                             master_dir=self.master_dir,
+                                             reuse_masters=self.reuse_masters,
+                                             redux_path=self.redux_path, bpm=self.msbpm)
         # Load from disk (MasterFrame)?
-        self.wv_calib = self.waveCalib.master(force=prev_build)
+        self.wv_calib = self.waveCalib.master()
         # Build?
         if self.wv_calib is None:
             self.wv_calib, _ = self.waveCalib.run(skip_QA=(not self.write_qa))
@@ -720,30 +725,6 @@ class Calibrations(object):
         self.calib_dict[self.arc_master_key]['wvmask'] = self.wv_maskslits
         # Return
         return self.wv_calib, self.maskslits
-
-    # def get_pixlocn(self):
-    #     """
-    #     Generate the pixlocn image
-    #
-    #     Requirements:
-    #       spectrograph, shape
-    #
-    #     Returns:
-    #         self.pixlocn: ndarray
-    #     """
-    #     # Make sure shape is defined
-    #     #self._check_shape()
-    #     # Check internals
-    #     self._chk_set(['shape'])
-    #
-    #     # Get the pixel locations
-    #     xgap=self.spectrograph.detector[self.det-1]['xgap']
-    #     ygap=self.spectrograph.detector[self.det-1]['ygap']
-    #     ysize=self.spectrograph.detector[self.det-1]['ysize']
-    #     self.pixlocn = pixels.gen_pixloc(self.shape, xgap=xgap, ygap=ygap, ysize=ysize)
-    #
-    #     # Return
-    #     return self.pixlocn
 
     def get_tilts(self):
         """
@@ -782,10 +763,10 @@ class Calibrations(object):
                                              binning = self.binning,
                                              par=self.par['tilts'], wavepar = self.par['wavelengths'], det=self.det,
                                              master_key=self.arc_master_key, master_dir=self.master_dir,
-                                             mode=self.par['masters'],
+                                             reuse_masters=self.reuse_masters,
                                              redux_path=self.redux_path, bpm=self.msbpm)
         # Master
-        self.tilts_dict = self.waveTilts.master(force=prev_build)
+        self.tilts_dict = self.waveTilts.master()
         if self.tilts_dict is None:
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.tilts_dict, self.wt_maskslits \
@@ -873,10 +854,10 @@ class MultiSlitCalibrations(Calibrations):
     Child of Calibrations class for performing multi-slit (and longslit)
     calibrations.
     """
-    def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None, save_masters=True,
+    def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None, reuse_masters=False, save_masters=True,
                  write_qa=True, show = False, steps=None):
         Calibrations.__init__(self, fitstbl, spectrograph=spectrograph, par=par,
-                              redux_path=redux_path, save_masters=save_masters,
+                              redux_path=redux_path, reuse_masters=reuse_masters, save_masters=save_masters,
                               write_qa=write_qa, show = show)
         self.steps = MultiSlitCalibrations.default_steps() if steps is None else steps
 

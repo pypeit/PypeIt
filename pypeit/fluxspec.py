@@ -85,7 +85,7 @@ class FluxSpec(masterframe.MasterFrame):
 
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
                  std_specobjs=None, std_header=None, spectrograph=None, multi_det=None,
-                 telluric=False, master_key=None, master_dir=None, mode=None,debug=False):
+                 telluric=False, master_key=None, master_dir=None, reuse_masters=False,debug=False):
 
         # Load standard files
         std_spectro = None
@@ -141,7 +141,7 @@ class FluxSpec(masterframe.MasterFrame):
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, mode=mode)
+                                         master_dir=master_dir, reuse_masters=reuse_masters)
         # Get the extinction data
         self.extinction_data = None
         if self.spectrograph is not None:
@@ -613,7 +613,7 @@ class EchFluxSpec(masterframe.MasterFrame):
 
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
                  std_specobjs=None, std_header=None, spectrograph=None,
-                 telluric=False, setup=None, master_dir=None, mode=None,
+                 telluric=False, setup=None, master_dir=None, reuse_masters=False,
                  star_type=None, star_mag=None, BALM_MASK_WID=5.0, nresln=None, debug=False):
 
         # Load standard files
@@ -670,7 +670,7 @@ class EchFluxSpec(masterframe.MasterFrame):
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         master_dir=master_dir, mode=mode)
+                                         master_dir=master_dir, reuse_masters=reuse_masters)
         # Get the extinction data
         self.extinction_data = None
         if self.spectrograph is not None:

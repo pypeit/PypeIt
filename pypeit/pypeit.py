@@ -27,8 +27,6 @@ from pypeit.core import load
 from pypeit.spectrographs.util import load_spectrograph
 
 
-from pypeit import debugger
-
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
@@ -70,7 +68,7 @@ class PypeIt(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, pypeit_file, verbosity=2, overwrite=True, logname=None, show=False,
+    def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None, show=False,
                  redux_path=None):
 
         # Load
@@ -103,6 +101,9 @@ class PypeIt(object):
         # Other Internals
         self.logname = logname
         self.overwrite = overwrite
+        # Currently the runtime argument determines the behavior for reuse_masters. There is also a reuse_masters
+        # parameter in the parset but it is currently ignored.
+        self.reuse_masters=reuse_masters
         self.show = show
 
         # Make the output directories
@@ -117,12 +118,12 @@ class PypeIt(object):
             = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
                                                  par=self.par['calibrations'],
                                                  redux_path=self.par['rdx']['redux_path'],
+                                                 reuse_masters=self.reuse_masters,
                                                  save_masters=True, write_qa=True,
                                                  show=self.show)
         # Init
         self.verbosity = verbosity
         # TODO: I don't think this ever used
-
 
         self.frame = None
         self.det = None
@@ -142,14 +143,26 @@ class PypeIt(object):
         qa.gen_mf_html(self.pypeit_file)
         qa.gen_exp_html()
 
-    def get_std_outfile(self, grp_standards):
+    def outfile_exists(self, frame):
+        """
+         Returns: True if the 2d file exists
+                 False if it does not exist
+
+        """
+        # Check if the 2d output file exists
+        scidir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
+        basename = self.fitstbl.construct_basename(frame)
+        outfile = scidir + '/spec2d_{:s}.fits'.format(basename)
+        return os.path.isfile(outfile)
+
+    def get_std_outfile(self, standard_frames):
         # TODO: Need to decide how to associate standards with
         # science frames in the case where there is more than one
         # standard associated with a given science frame.  Below, I
         # just use the first standard
 
         std_outfile = None
-        std_frame = None if len(grp_standards) == 0 else grp_standards[0]
+        std_frame = None if len(standard_frames) == 0 else standard_frames[0]
         # Prepare to load up standard?
         if std_frame is not None:
             std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
@@ -161,15 +174,10 @@ class PypeIt(object):
 
         return std_outfile
 
-    def reduce_all(self, reuse_masters=False):
+    def reduce_all(self):
         """
         Reduce all of the science exposures
         Generate all needed calibration files
-
-        Args:
-            reuse_masters (:obj:`bool`, optional):
-                Use the master frames if available (same as setting
-                par['calibrations']['masters'] = 'reuse'.
 
         Returns:
 
@@ -190,12 +198,8 @@ class PypeIt(object):
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
 
-        # Iterate through each calibration group
+        # Iterate over each calibration group and reduce the standards
         for i in range(self.fitstbl.n_calib_groups):
-
-            # TODO: Could put everything in this loop into a new
-            # function: reduce_calibgroup(i)
-            # TODO JFH: We don't need more functions;)
 
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
@@ -208,33 +212,43 @@ class PypeIt(object):
             for j, comb_id in enumerate(u_combid_std):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
-                std_dict = self.reduce_exposure(frames, bg_frames=bg_frames,reuse_masters=reuse_masters)
-                # TODO come up with sensible naming convention for save_exposure for combined files
-                self.save_exposure(frames[0], std_dict, self.basename)
+                if not self.outfile_exists(frames[0]) or self.overwrite:
+                    std_dict = self.reduce_exposure(frames, bg_frames=bg_frames)
+                    # TODO come up with sensible naming convention for save_exposure for combined files
+                    self.save_exposure(frames[0], std_dict, self.basename)
+                else:
+                    msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
+                              '. Set overwrite=True to recreate and overwrite.')
+
+        # Iterate over each calibration group again and reduce the science frames
+        for i in range(self.fitstbl.n_calib_groups):
+
+            # Find all the frames in this calibration group
+            in_grp = self.fitstbl.find_calib_group(i)
 
             # Find the indices of the science frames in this calibration group:
             grp_science = frame_indx[is_science & in_grp]
-            # Associate standards (previously reduced above) with this group
-            std_outfile = self.get_std_outfile(grp_standards)
-            # Reduce all the science frames; keep the basenames of the
-            # science frames for use in flux calibration
+            # Associate standards (previously reduced above) for this setup
+            std_outfile = self.get_std_outfile(frame_indx[is_standard])
+            # Reduce all the science frames; keep the basenames of the science frames for use in flux calibration
             science_basename = [None]*len(grp_science)
             # Loop on unique comb_id
             u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
             for j, comb_id in enumerate(u_combid):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
-                #if len(frames)>1:
-                #    debugger.set_trace()  # NOT DEVELOPED YET
-                # Bg frame(s)?
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
-                sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile,reuse_masters=reuse_masters)
-                science_basename[j] = self.basename
-                # TODO come up with sensible naming convention for save_exposure for combined files
-                self.save_exposure(frames[0], sci_dict, self.basename)
+                if not self.outfile_exists(frames[0]) or self.overwrite:
+                    sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile)
+                    science_basename[j] = self.basename
+                    # TODO come up with sensible naming convention for save_exposure for combined files
+                    self.save_exposure(frames[0], sci_dict, self.basename)
+                else:
+                    msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
+                              '. Set overwrite=True to recreate and overwrite.')
 
             # Apply the flux calibration for this calibration group
             # TODO: I don't think this function is written yet...
-            #self.flux_calibrate(reuse_masters=False)
+            #self.flux_calibrate()
 
             msgs.info('Finished calibration group {0}'.format(i))
 
@@ -251,7 +265,7 @@ class PypeIt(object):
         return [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'], int) \
                     else self.par['rdx']['detnum']
 
-    def reduce_exposure(self, frames, bg_frames=[], std_outfile=None, reuse_masters=False):
+    def reduce_exposure(self, frames, bg_frames=[], std_outfile=None):
         """
         Reduce a single exposure
 
@@ -265,8 +279,6 @@ class PypeIt(object):
                 0-indexed row in :attr:`fitstbl` with a standard frame
                 associated with the frame to reduce, or the name of a
                 file with a previously PypeIt-reduced standard spectrum.
-            reuse_masters (:obj:`bool`, optional):
-                Re-use MasterFrame files when available
 
         Returns:
             dict: The dictionary containing the primary outputs of
@@ -279,10 +291,6 @@ class PypeIt(object):
         # Save the frame
         self.frames = frames
         self.bg_frames = bg_frames
-
-        # Insist on re-using MasterFrames where applicable
-        if reuse_masters:
-            self.par['calibrations']['masters'] = 'reuse'
 
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
@@ -364,7 +372,7 @@ class PypeIt(object):
 
         return vel_corr
 
-    def get_sci_metadata(self,frame, det):
+    def get_sci_metadata(self, frame, det):
 
         # Set binning, obstime, basename, and objtype
         try:
@@ -380,7 +388,7 @@ class PypeIt(object):
             objtype_out = 'standard'
         else:
             msgs.error('Unrecognized objtype')
-        setup    = self.fitstbl.master_key(frame, det=det)
+        setup = self.fitstbl.master_key(frame, det=det)
 
         return objtype_out, setup, obstime, basename, binning
 
@@ -388,22 +396,28 @@ class PypeIt(object):
         """
         Returns the trace of the standard if it is applicable to the current reduction
         """
-        if std_redux is False:
+        if std_redux is False and std_outfile is not None:
             sobjs, hdr_std = load.load_specobjs(std_outfile)
-            sobjs_std = sobjs.get_std()
             # Does the detector match?
             # TODO Instrument specific logic here could be implemented with the parset. For example LRIS-B or LRIS-R we
             # we would use the standard from another detector
-            if sobjs_std.det == det:
+            this_det = sobjs.det == det
+            if np.any(this_det):
+                sobjs_det = sobjs[this_det]
+                sobjs_std = sobjs_det.get_std()
                 std_trace = sobjs_std.trace_spat
+                # flatten the array if this multislit
+                if 'MultiSlit' in self.spectrograph.pypeline:
+                    std_trace = std_trace.flatten()
+                elif 'Echelle' in self.spectrograph.pypeline:
+                    std_trace = std_trace.T
+                else:
+                    msgs.error('Unrecognized pypeline')
             else:
                 std_trace = None
         else:
             std_trace = None
 
-        # flatten the array if this multislit
-        if 'MultiSlit' in self.spectrograph.pypeline:
-            std_trace = std_trace.flatten()
         return std_trace
 
     def extract_one(self, frames, det, bg_frames=[], std_outfile=None):
@@ -454,7 +468,7 @@ class PypeIt(object):
         self.maskslits = self.caliBrate.maskslits.copy()
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
-            self.find_objects(sciimg, ir_redux=self.ir_redux, std_trace=std_trace, snr_trim=False, maskslits=self.maskslits)
+            self.find_objects(sciimg, std=self.std_redux, ir_redux=self.ir_redux, std_trace=std_trace, snr_trim=False, maskslits=self.maskslits)
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         initial_sky = \
@@ -464,7 +478,7 @@ class PypeIt(object):
         if not self.std_redux:
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
-                self.find_objects(sciimg - initial_sky, ir_redux=self.ir_redux, std_trace=std_trace, snr_trim=True,
+                self.find_objects(sciimg - initial_sky, std=self.std_redux, ir_redux=self.ir_redux, std_trace=std_trace, snr_trim=True,
                 maskslits=self.maskslits,show_peaks=self.show)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
@@ -488,8 +502,12 @@ class PypeIt(object):
             vel_corr = self.helio_correct(sobjs, self.maskslits, frames[0], self.obstime)
 
         else:
-            msgs.warn('No objects to extract for science frame' + msgs.newline()
-                      + self.fitstbl['filename'][self.sciI.scidx])
+            # Print status message
+            msgs_string = 'No objects to extract for target {:s}'.format(self.fitstbl['target'][frames[0]]) + msgs.newline()
+            msgs_string += 'On frames:' + msgs.newline()
+            for iframe in frames:
+                msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
+            msgs.warn(msgs_string)
             # set to first pass global sky
             skymodel = initial_sky
             objmodel = np.zeros_like(sciimg)
@@ -504,15 +522,15 @@ class PypeIt(object):
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
 
 
-    def find_objects(self, image, ir_redux=False, std_trace=None, snr_trim=False, maskslits=None,
+    def find_objects(self, image, std=False, ir_redux=False, std_trace=None, snr_trim=False, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         sobjs_obj_init, nobj_init, skymask_pos = \
-            self.find_obj_pypeline(image, std_trace=std_trace, snr_trim=snr_trim, maskslits=maskslits)
+            self.find_obj_pypeline(image, std=std, std_trace=std_trace, snr_trim=snr_trim, maskslits=maskslits)
 
         if ir_redux:
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
-                self.find_obj_pypeline(-image, std_trace=std_trace, snr_trim=snr_trim, maskslits=maskslits)
+                self.find_obj_pypeline(-image, std=std, std_trace=std_trace, snr_trim=snr_trim, maskslits=maskslits)
             skymask = skymask_pos & skymask_neg
             sobjs_obj_init.append_neg(sobjs_obj_init_neg)
         else:
@@ -520,7 +538,7 @@ class PypeIt(object):
 
         return sobjs_obj_init, len(sobjs_obj_init), skymask
 
-    def find_obj_pypeline(self, image, std_trace=None, snr_trim=False, maskslits=None,
+    def find_obj_pypeline(self, image, std=False, std_trace=None, snr_trim=False, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
         """
         Dummy method for object finding. Overloaded by class specific object finding.
@@ -574,23 +592,13 @@ class PypeIt(object):
             return
 
         # Write 1D spectra
-        save_format = 'fits'
-        if save_format == 'fits':
-            outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
-                                   'spec1d_{:s}.fits'.format(basename))
-            helio_dict = dict(refframe='pixel'
-                if self.caliBrate.par['wavelengths']['reference'] == 'pixel'
-                else self.caliBrate.par['wavelengths']['frame'],
-                              vel_correction=vel_corr)
-            # Did the user re-run a single detector?
-            save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], self.spectrograph.pypeline, outfile,
-                                      helio_dict=helio_dict, telescope=self.spectrograph.telescope,
-                                      update_det=self.par['rdx']['detnum'])
-        #        elif save_format == 'hdf5':
-        #            debugger.set_trace()  # NEEDS REFACTORING
-        #            arsave.save_1d_spectra_hdf5(None)
-        else:
-            msgs.error(save_format + ' is not a recognized output format!')
+        outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],'spec1d_{:s}.fits'.format(basename))
+        helio_dict = dict(refframe='pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
+            self.caliBrate.par['wavelengths']['frame'],vel_correction=vel_corr)
+        # Did the user re-run a single detector?
+        save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], self.spectrograph.pypeline, outfile,
+                                  helio_dict=helio_dict, telescope=self.spectrograph.telescope,
+                                  update_det=self.par['rdx']['detnum'])
         # 1D only?
         if only_1d:
             return
@@ -605,8 +613,9 @@ class PypeIt(object):
         rawfile = self.fitstbl.frame_paths(frame)
         # TODO: Make sure self.det is correct!
         #master_key = self.fitstbl.master_key(frame, det=self.det)
+        outfile = scidir + '/spec2d_{:s}.fits'.format(basename)
         save.save_2d_images(sci_dict, rawfile, self.spectrograph.primary_hdrext,
-                            self.caliBrate.master_key_dict, self.caliBrate.master_dir, scidir, basename,
+                            self.caliBrate.master_key_dict, self.caliBrate.master_dir, outfile,
                             update_det=self.par['rdx']['detnum'])
         return all_specobjs
 
@@ -681,12 +690,12 @@ class MultiSlit(PypeIt):
         self.std_basename = None
         self.stdI = None
 
-    def find_obj_pypeline(self, image, std_trace=None, maskslits=None, snr_trim=False,
+    def find_obj_pypeline(self, image, std=False, std_trace=None, maskslits=None, snr_trim=False,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         # Object finding, second pass on frame *with* sky subtraction. Show here if requested
         sobjs_obj, nobj, skymask = \
-            self.sciI.find_objects(image, std_trace=std_trace, maskslits=maskslits,
+            self.sciI.find_objects(image, std=std, std_trace=std_trace, maskslits=maskslits,
                                    show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace)
         return sobjs_obj, nobj, skymask
 
@@ -783,12 +792,12 @@ class Echelle(PypeIt):
     def __init__(self, spectrograph, **kwargs):
         super(Echelle, self).__init__(spectrograph, **kwargs)
 
-    def find_obj_pypeline(self, image, std_trace=None, maskslits=None, snr_trim=False,
+    def find_obj_pypeline(self, image, std=False, std_trace=None, maskslits=None, snr_trim=False,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         # Object finding, second pass on frame *with* sky subtraction. Show here if requested
         sobjs_obj, nobj, skymask = \
-            self.sciI.find_objects_ech(image, std_trace=std_trace, snr_trim=snr_trim, show_peaks=show_peaks, show_fits=show_fits,
+            self.sciI.find_objects_ech(image, std=std, std_trace=std_trace, snr_trim=snr_trim, show_peaks=show_peaks, show_fits=show_fits,
                                        show_trace=show_trace)
         return sobjs_obj, nobj, skymask
 

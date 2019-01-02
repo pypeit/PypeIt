@@ -24,6 +24,7 @@ def parser(options=None):
                         help='PypeIt reduction file (must have .pypeit extension)')
     parser.add_argument('-v', '--verbosity', type=int, default=2,
                         help='Verbosity level between 0 [none] and 2 [all]')
+    # JFH TODO Are the -t and -r keyword still valid given that run_pypeit no longer runs setup?
     parser.add_argument('-t', '--hdrframetype', default=False, action='store_true',
                         help='Use file headers and the instument-specific keywords to determine'
                              'the type of each frame')
@@ -32,13 +33,10 @@ def parser(options=None):
                              'writing these files.')
     parser.add_argument('-m', '--use_masters', default=False, action='store_true',
                         help='Load previously generated MasterFrames')
-#    parser.add_argument('--devtest', default=False, action='store_true',
-#                        help='Running development tests')
-    parser.add_argument('--debug_arc', default=False, action='store_true',
-                        help='Turn wavelength/arc debugging on')
     parser.add_argument('-s', '--show', default=False, action='store_true',
                         help='Show reduction steps via plots (which will block further execution until clicked on) '
                              'and outputs to ginga. Requires remote control ginga session via "ginga --modules=RC &"')
+    # JFH Should the default now be true with the new definition.
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
     group = parser.add_mutually_exclusive_group()
@@ -88,15 +86,9 @@ def main(args):
     # Load PypeIt file to get the spectrograph (might happen twice but that is ok)
     pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(args.pypeit_file)
 
-    #
-
     pypeIt = pypeit.instantiate_me(pypeitSetup.spectrograph, args.pypeit_file,
-                                   verbosity=args.verbosity,
+                                   verbosity=args.verbosity,reuse_masters=args.use_masters,
                                    overwrite=args.overwrite, logname=logname, show=args.show)
-
-    # Init Setup
-    ## JFH TODO This will move to the pypeit class init!
-    #pypeIt.init_setup(args.pypeit_file)
 
     # JFH I don't see why this is an optional argument here. We could allow the user to modify an infinite number of parameters
     # from the command line? Why do we have the PypeIt file then? This detector can be set in the pypeit file.
@@ -105,8 +97,7 @@ def main(args):
         msgs.info("Restricting reductions to detector={}".format(args.detector))
         pypeIt.par['rdx']['detnum'] = int(args.detector)
 
-    pypeIt.reduce_all(reuse_masters=args.use_masters)
-
+    pypeIt.reduce_all()
     msgs.info('Data reduction complete')
     # QA HTML
     msgs.info('Generating QA HTML')

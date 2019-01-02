@@ -70,14 +70,14 @@ class WaveCalib(masterframe.MasterFrame):
     # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
     # parameters since instantiating without them does nothing. Make them required
     def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, det=1, master_key=None, master_dir=None,
-                 mode=None, redux_path=None, bpm = None):
+                 reuse_masters=False, redux_path=None, bpm = None):
 
         # Instantiate the spectograph
         self.spectrograph = load_spectrograph(spectrograph)
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, mode=mode)
+                                         master_dir=master_dir, reuse_masters=reuse_masters)
 
         # Required parameters (but can be None)
         self.msarc = msarc
@@ -297,7 +297,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return arccen, arc_maskslit
 
-    def load_master(self, filename, force = False):
+    def load_master(self, filename):
         """
         Load a full (all slit) wv_calib dict
 
@@ -319,13 +319,10 @@ class WaveCalib(masterframe.MasterFrame):
         # Does the master file exist?
         if not os.path.isfile(filename):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            if force:
-                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
             return None
         else:
             msgs.info("Loading Master {0:s} frame:".format(self.frametype) + msgs.newline() + filename)
             self.wv_calib = linetools.utils.loadjson(filename)
-
             # Recast a few items as arrays
             for key in self.wv_calib.keys():
                 if key in ['steps', 'par']:  # This isn't really necessary

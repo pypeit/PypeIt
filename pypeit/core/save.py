@@ -555,8 +555,7 @@ def save_obj_info(all_specobjs, spectrograph, basename, science_dir, binning=Non
                       format='ascii.fixed_width', overwrite=True)
 
 
-def save_2d_images(sci_output, rawfile, ext0, master_key_dict, mfdir,
-                   outdir, basename, clobber=True, update_det=None):
+def save_2d_images(sci_output, rawfile, ext0, master_key_dict, mfdir, outfile, clobber=True, update_det=None):
     """ Write 2D images to the hard drive
 
     Args:
@@ -566,14 +565,12 @@ def save_2d_images(sci_output, rawfile, ext0, master_key_dict, mfdir,
         ext0: int
         master_key_dict: str
         mfdir: str
-        outdir: str
-        basename: str
+        outfile: str
         clobber: bool, optional
 
     Returns:
 
     """
-    outfile = outdir+'/spec2d_{:s}.fits'.format(basename)
     hdus, prihdu = init_hdus(update_det, outfile)
     if hdus is None:
         # Original header
