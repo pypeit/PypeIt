@@ -182,12 +182,8 @@ class PypeIt(object):
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
 
-        # Iterate through each calibration group
+        # Iterate over each calibration group and reduce the standards
         for i in range(self.fitstbl.n_calib_groups):
-
-            # TODO: Could put everything in this loop into a new
-            # function: reduce_calibgroup(i)
-            # TODO JFH: We don't need more functions;)
 
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
@@ -208,15 +204,17 @@ class PypeIt(object):
                     msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
 
+        # Iterate over each calibration group again and reduce the science frames
+        for i in range(self.fitstbl.n_calib_groups):
+
+            # Find all the frames in this calibration group
+            in_grp = self.fitstbl.find_calib_group(i)
+
             # Find the indices of the science frames in this calibration group:
             grp_science = frame_indx[is_science & in_grp]
             # Associate standards (previously reduced above) for this setup
-            # JFH before we were running this command, but this has the problem that it cannot handle
-            # a situation where one standard is being used for many calib groups
-            # std_outfile = self.get_std_outfile(grp_standards)
             std_outfile = self.get_std_outfile(frame_indx[is_standard])
-            # Reduce all the science frames; keep the basenames of the
-            # science frames for use in flux calibration
+            # Reduce all the science frames; keep the basenames of the science frames for use in flux calibration
             science_basename = [None]*len(grp_science)
             # Loop on unique comb_id
             u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
