@@ -146,7 +146,7 @@ class PypeIt(object):
         # just use the first standard
 
         std_outfile = None
-        std_frame = None if len(standards_frames) == 0 else standard_frames[0]
+        std_frame = None if len(standard_frames) == 0 else standard_frames[0]
         # Prepare to load up standard?
         if std_frame is not None:
             std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
