@@ -267,8 +267,9 @@ class ScienceImage():
             # is. This will be a png file(s) per slit.
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['lcen'][:,slit],self.tslits_dict['rcen'][:,slit],
-                inmask=inmask, std_trace=std_trace, hand_extract_dict=self.par['manual'],specobj_dict=specobj_dict, show_peaks=show_peaks,
-                show_fits=show_fits, show_trace=show_trace,qa_title=qa_title,nperslit=self.par['maxnumber'])
+                inmask=inmask, std_trace=std_trace, hand_extract_dict=self.par['manual'],specobj_dict=specobj_dict,
+                show_peaks=show_peaks,show_fits=show_fits, show_trace=show_trace,qa_title=qa_title,
+                nperslit=self.par['maxnumber'])
             sobjs.add_sobj(sobjs_slit)
 
         # Steps
@@ -305,7 +306,7 @@ class ScienceImage():
         sobjs_ech, skymask[self.slitmask > -1] = \
             extract.ech_objfind(image, self.sciivar, self.slitmask, self.tslits_dict['lcen'], self.tslits_dict['rcen'],
                                 snr_trim=snr_trim, inmask=inmask, plate_scale=plate_scale, std_trace=std_trace,
-                                specobj_dict=specobj_dict, ncoeff=5,sig_thresh=5.0,
+                                specobj_dict=specobj_dict, ncoeff=5,sig_thresh=10.0,
                                 show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace, debug=debug)
 
 

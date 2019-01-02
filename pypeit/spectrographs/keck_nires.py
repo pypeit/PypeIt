@@ -154,7 +154,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['target'] = 'OBJECT'
         hdr_keys[0]['naxis0'] = 'NAXIS2'
         hdr_keys[0]['naxis1'] = 'NAXIS1'
-        hdr_keys[0]['binning'] = 1
+        hdr_keys[0]['binning'] = ' '
         hdr_keys[0]['dispname'] = 'INSTR'  # Should be 'spec' if in the spectroscopy mode
 
         return hdr_keys

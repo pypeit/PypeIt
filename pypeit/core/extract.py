@@ -1325,7 +1325,7 @@ def create_skymask_fwhm(sobjs, thismask):
 
 def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
             hand_extract_dict = None, std_trace = None, ncoeff = 5, nperslit =None,  bg_smth = 5.0,
-            extract_maskwidth = 4.0, sig_thresh = 5.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (5,5),
+            extract_maskwidth = 4.0, sig_thresh = 10.0, peak_thresh = 0.0, abs_thresh = 0.0, trim_edg = (5,5),
             skymask_nthresh = 1.0, specobj_dict=None,
             show_peaks=False, show_fits = False, show_trace = False, qa_title=''):
 
@@ -1956,7 +1956,7 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_link=1.0, order_vec=None, plate_scale=0.2,
                 std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, snr_trim=True, min_snr=0.2, nabove_min_snr=1,
                 pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
-                extract_maskwidth=3.0, sig_thresh = 5.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
+                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
                 trim_edg=(5,5), show_peaks=False, show_fits=False, show_trace=False, show_single_trace=False, debug=False):
     """
     Object finding routine for Echelle spectrographs. This routine:
