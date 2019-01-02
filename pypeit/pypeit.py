@@ -25,9 +25,7 @@ from pypeit.core import wave
 from pypeit.core import save
 from pypeit.core import load
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.scripts import run_pypeit
 
-from pypeit import debugger
 
 class PypeIt(object):
     """
