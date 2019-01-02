@@ -389,10 +389,16 @@ class PypeItMetaData:
         existing_keys = list(set(self.table.keys()) & set(usrdata.keys()))
         if len(existing_keys) > 0 and match_type:
             for key in existing_keys:
-                if self.table[key].dtype.type != usrdata[key].dtype.type:
+                if len(self.table[key].shape) > 1:  # DEAL WITH ARRAYS, TUPLES -- ASSUME SEPARATED BY ,
+                    vals = []
+                    for item in usrdata[key].data:
+                        vals.append(np.array(item.split(',')).astype(self.table[key].dtype))
+                    usrdata[key] = vals
+                elif self.table[key].dtype.type != usrdata[key].dtype.type:
                     try:
                         usrdata[key] = usrdata[key].astype(self.table[key].dtype)
                     except:
+                        debugger.set_trace()
                         pass
         
         # Include the user data in the table

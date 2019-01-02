@@ -97,12 +97,17 @@ class Spectrograph(object):
     @staticmethod
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
-    
+
+    def config_specific_par(self, par, filename):
+        pass
+
+    '''
     def get_lacosmics_par(self,proc_par,binning=None):
         # Workaround to make these parameters a function of binning for LRIS.
         sigclip = proc_par['sigclip']
         objlim = proc_par['objlim']
         return sigclip, objlim
+    '''
 
     def _check_telescope(self):
         # Check the detector
@@ -453,6 +458,13 @@ class Spectrograph(object):
         return ['dispname', 'dichroic', 'decker']
 
     def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file
+
+        Returns:
+            pypeit_keys: list
+
+        """
         pypeit_keys = ['filename', 'frametype']
         # Core
         core_meta = metadata.define_core_meta()
@@ -464,9 +476,25 @@ class Spectrograph(object):
         # Finish
         return pypeit_keys
 
-
     def compound_meta(self, ifile, meta_key, headarr=None):
-        pass
+        """
+        Methods to generate meta in a more complex manner than simply
+        reading from the header
+
+        These are defined per spectrograph, as needed
+
+        Args:
+            ifile: str or None
+              Input filename
+            meta_key: str
+            headarr: list, optional
+              List of headers
+
+        Returns:
+            value:
+
+        """
+        return None
 
     def init_meta(self):
         self.meta = {}
@@ -477,8 +505,9 @@ class Spectrograph(object):
 
         Args:
             ifile: str or None
+              Input filename
             meta_key: str or list of str
-            headarr: list
+            headarr: list, optional
               List of headers
             required: bool, optional
               Require the meta key to be returnable
@@ -605,6 +634,7 @@ class Spectrograph(object):
         raise NotImplementedError('Header keyword with frame type not defined for {0}.'.format(
                                   self.spectrograph))
 
+    '''
     def check_headers(self, headers, expected_values=None):
         """
         Check headers match instrument-spectific expectations.
@@ -633,6 +663,7 @@ class Spectrograph(object):
                 raise ValueError('Keyword {0} in extension {1} has incorrect value.  '.format(
                                     card, ext)
                                  + 'Expected {0} but found {1}.'.format(v, headers[ext][card]))
+    '''
 
     @property
     def ndet(self):

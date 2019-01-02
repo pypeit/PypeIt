@@ -66,6 +66,9 @@ class Calibrations(object):
         show (:obj:`bool`, optional):
             Show plots of PypeIt's results as the code progesses.
             Requires interaction from the users.
+        binning (:obj:`tuple`, optional)
+            Describes the instrument binning, currently binspatial, binspectral
+            Generally during the call to set_config()
 
     Attributes:
         fitstbl
@@ -208,7 +211,7 @@ class Calibrations(object):
         self.det = det
         if par is not None:
             self.par = par
-        # Deal with the binning!
+        # Deal with binning
         self.binning = self.fitstbl['binning'][self.frame]
 
         # Reset internals to None
@@ -424,7 +427,7 @@ class Calibrations(object):
 
         # Instantiate
         self.flatField = flatfield.FlatField(self.spectrograph, file_list=pixflat_image_files,
-                                             binning = self.binning,
+                                             binning=self.binning,
                                              det=self.det, par=self.par['pixelflatframe'],
                                              master_key=self.pixflat_master_key, master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
@@ -575,7 +578,7 @@ class Calibrations(object):
                                                          trim=self.par['trim'], apply_gain=True)
 
             # Compute the plate scale in arcsec which is needed to trim short slits
-            binspatial, binspectral = parse.parse_binning(self.binning)
+            binspatial, binspectral = self.binning
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
             # User-defined slits??
@@ -699,7 +702,7 @@ class Calibrations(object):
         nonlinear = self.spectrograph.detector[self.det-1]['saturation'] \
                         * self.spectrograph.detector[self.det-1]['nonlinear']
         # Instantiate
-        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, binning = self.binning,
+        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, binning=self.binning,
                                              spectrograph=self.spectrograph,det=self.det,
                                              par=self.par['wavelengths'], master_key=self.arc_master_key,
                                              master_dir=self.master_dir,
@@ -760,7 +763,7 @@ class Calibrations(object):
 
         # Instantiate
         self.waveTilts = wavetilts.WaveTilts(self.msarc, self.tslits_dict, spectrograph=self.spectrograph,
-                                             binning = self.binning,
+                                             binning=self.binning,
                                              par=self.par['tilts'], wavepar = self.par['wavelengths'], det=self.det,
                                              master_key=self.arc_master_key, master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,

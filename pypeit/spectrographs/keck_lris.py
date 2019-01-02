@@ -52,6 +52,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [29, None]
         return par
 
+    '''
     def header_keys(self):
         """
         Return a dictionary with the header keywords to read from the
@@ -104,14 +105,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             hdr_keys[0]['lampstat{:02d}'.format(kk+1)] = lamp_name
 
         return hdr_keys
-
-    #def metadata_keys(self):
-    #    return super(KeckLRISSpectrograph, self).metadata_keys() \
-    #                + ['binning', 'dichroic', 'dispangle']
+    '''
 
     def compound_meta(self, ifile, meta_key, headarr=None):
         if meta_key == 'binning':
-            binning = tuple(int(x) for x in self.get_meta_value(ifile, 'bin_card', headarr=headarr).split(','))
+            binning = parse.parse_binning(self.get_meta_value(ifile, 'bin_card', headarr=headarr))
             return binning
         else:
             msgs.error("Not ready for this compound meta")
@@ -137,16 +135,17 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         meta['mjd'] = dict(ext=0, card='MJD-OBS')
         meta['exptime'] = dict(ext=0, card='ELAPTIME')
         meta['airmass'] = dict(ext=0, card='AIRMASS')
-        # Extras for config
+        # Extras for config and frametyping
         meta['dichroic'] = dict(ext=0, card='DICHNAME')
         meta['hatch'] = dict(ext=0, card='TRAPDOOR')
+        # Red only, but grabbing here
+        meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
 
+        # Lamps
         lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
                       'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
         for kk,lamp_name in enumerate(lamp_names):
             meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
-        # Red only, but grabbing here
-        meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
         # Ingest
         self.meta = meta
 
@@ -397,6 +396,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         return par
 
+    '''
     def check_headers(self, headers):
         """
         Check headers match expectations for an LRISb exposure.
@@ -416,11 +416,14 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                              '1.CCDGEOM': 'e2v (Marconi) CCD44-82',
                              '1.CCDNAME': '00151-14-1' }
         super(KeckLRISBSpectrograph, self).check_headers(headers, expected_values=expected_values)
+    '''
 
+    '''
     def header_keys(self):
         hdr_keys = super(KeckLRISBSpectrograph, self).header_keys()
         hdr_keys[0]['filter1'] = 'BLUFILT'
         return hdr_keys
+    '''
 
     def init_meta(self):
         """
@@ -541,14 +544,49 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Scienceimage
         par['scienceimage']['bspline_spacing'] = 0.8
 
+        # Defaults for anything other than 1,1 binning
+        #  Rest config_specific_par below if binning is (1,1)
+        par['scienceframe']['process']['sigclip'] = 5.
+        par['scienceframe']['process']['objlim'] = 5.
 
         # reidentification stuff
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400_8500_d560.json'
-
-
         return par
 
+    def config_specific_par(self, par, filename):
+        """
+        Set par values according to the specific frame
+
+        Here, we only fuss with parameters related to CR rejection
+
+        Args:
+            par:  ParSet
+            filename: str
+
+        Returns:
+            par may be modified in place
+
+        """
+        # Lacosmic CR settings
+        #   Grab the defaults for LRISr
+        dpar = self.default_pypeit_par()
+        default_sigclip = dpar['scienceframe']['process']['sigclip']
+        default_objlim = dpar['scienceframe']['process']['objlim']
+        # Check whether the user has changed the parameters.
+        #   If so, don't over-ride
+        if (par['scienceframe']['process']['sigclip'] == default_sigclip) and (
+                par['scienceframe']['process']['objlim'] == default_objlim):
+            #
+            binning = self.get_meta_value(filename, 'binning')
+            # Unbinned LRISr needs very aggressive LACosmics parameters.
+            if binning == (1,1):
+                sigclip = 3.0
+                objlim = 0.5
+                par['scienceframe']['process']['sigclip'] = sigclip
+                par['scienceframe']['process']['objlim'] = objlim
+
+    '''
     def get_lacosmics_par(self,proc_par,binning='1x1'):
         par = self.default_pypeit_par()
         default_sigclip = par['scienceframe']['process']['sigclip']
@@ -566,7 +604,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             sigclip = proc_par['sigclip']
             objlim = proc_par['objlim']
         return sigclip, objlim
+    '''
 
+    '''
     def check_headers(self, headers):
         """
         Check headers match expectations for an LRISr exposure.
@@ -587,11 +627,14 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                              '1.CCDNAME': '19-3',
                              '3.CCDNAME': '19-2' }
         super(KeckLRISRSpectrograph, self).check_headers(headers, expected_values=expected_values)
+    '''
 
+    '''
     def header_keys(self):
         hdr_keys = super(KeckLRISRSpectrograph, self).header_keys()
         hdr_keys[0]['filter1'] = 'REDFILT'
         return hdr_keys
+    '''
 
     def init_meta(self):
         """
@@ -622,19 +665,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         cfg_keys = super(KeckLRISRSpectrograph, self).configuration_keys()
         # Add grating tilt
         return cfg_keys+['dispangle']
-
-    def init_meta(self):
-        """
-        Meta data specific to shane_kast_blue
-
-        Returns:
-
-        """
-        super(KeckLRISRSpectrograph, self).init_meta()
-        # Add the name of the dispersing element
-        # dispangle and filter1 are not defined for Shane Kast Blue
-
-        # Additional (for config)
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
