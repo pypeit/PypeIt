@@ -1404,6 +1404,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     skymask_nthresh: float, default = 2.0
         The multiple of the final object finding threshold (see above) which is used to create the skymask using the value
         of the peak flux in the slit profile (image with the spectral direction smashed out).
+    specobj_dict: dict, default = None
+         Dictionary containing meta-data for the objects that will be propgated into the SpecObj objects, i.e. setup,
+         slitid, detector, object type, and pipeline. The default is None, in which case the following dictionary will be used.
+        specobj_dict = {'setup': None, 'slitid': 999, 'det': 1, 'objtype': 'unknown', 'pypeline': 'unknown'}
 
     Returns
     -------
