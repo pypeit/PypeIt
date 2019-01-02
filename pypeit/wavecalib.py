@@ -335,7 +335,7 @@ class WaveCalib(masterframe.MasterFrame):
                 self.par = self.wv_calib['par'].copy()
             return self.wv_calib
 
-    def save_master(self, data):
+    def save_master(self, data, outfile=None):
 
         _outfile = self.ms_name if outfile is None else outfile
         if os.path.exists(_outfile) and (not overwrite):
