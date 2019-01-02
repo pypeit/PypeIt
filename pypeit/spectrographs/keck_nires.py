@@ -83,27 +83,25 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 6
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
-        # Tilt parameters
-        # Tilt parameters
-        par['calibrations']['tilts']['tracethresh'] =  20.0
-        par['calibrations']['tilts']['spat_order'] =  3
-        par['calibrations']['tilts']['spec_order'] =  3
 
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
+        # Tilt parameters
+        par['calibrations']['tilts']['tracethresh'] =  10.0
+        #par['calibrations']['tilts']['spat_order'] =  3
+        #par['calibrations']['tilts']['spec_order'] =  3
+
+        # Flats
+        par['calibrations']['flatfield']['illumflatten'] = False
+
+        # Extraction
+        par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['sn_gauss'] = 4.0
+
+        # Flexure
+        par['flexure']['method'] = 'skip'
+
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
 
-
-        # Set slits and tilts parameters
-        par['calibrations']['tilts']['tracethresh'] = 10.0
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Do not correct for flexure
-        par['flexure'] = pypeitpar.FlexurePar()
-        par['flexure']['method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]
         par['calibrations']['arcframe']['exprng'] = [20, None]
