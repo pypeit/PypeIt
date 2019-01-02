@@ -34,9 +34,6 @@ from sklearn.decomposition import PCA
 from pypeit import specobjs
 from pypeit.core.pydl import spheregroup
 
-
-#from IPython import embed
-
 # MASK VALUES FROM EXTRACTION
 # 0 
 # 2**0 = Flagged as bad detector pixel
@@ -1766,7 +1763,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     # Assign integer objids
     #ToDo Replace with sobjs[:].objid = np.arange(nobj) once the _setitem functionality is figured out
     for ii in range(nobj):
-        sobjs[ii].objid = ii +1
+        sobjs[ii].objid = ii + 1
 
     # Assign the maskwidth and compute some inputs for the object mask
     xtmp = (np.arange(nsamp) + 0.5)/nsamp

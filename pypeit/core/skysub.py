@@ -391,8 +391,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     # Loop over objects and group them
     i1 = 0
     while i1 < nobj:
-        group = []
-        group.append(i1)
+        group = np.array([], dtype=np.int)
+        group = np.append(group, i1)
         # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in objfind with a log(S/N) correction for bright objects
         mincols = np.maximum(sobjs[i1].trace_spat - sobjs[i1].maskwidth - 1, slit_left)
         maxcols = np.minimum(sobjs[i1].trace_spat + sobjs[i1].maskwidth + 1, slit_righ)
@@ -403,15 +403,15 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             if touch.any():
                 maxcols = np.minimum(np.maximum(righ_edge, maxcols), slit_righ)
                 mincols = np.maximum(np.minimum(left_edge, mincols), slit_left)
-                group.append(i2)
+                group = np.append(group, i2)
         # Keep for next iteration
-        i1 = max(group) + 1
+        i1 = group.max() + 1
         # Some bookeeping to define the sub-image and make sure it does not land off the mask
         objwork = len(group)
         scope = np.sum(thismask, axis=0)
         iscp, = np.where(scope)
-        imin = min(iscp)
-        imax = max(iscp)
+        imin = iscp.min()
+        imax = iscp.max()
         mincol = np.fmax(np.floor(min(mincols)), imin)
         maxcol = np.fmin(np.ceil(max(maxcols)), imax)
         nc = int(maxcol - mincol + 1)
@@ -588,8 +588,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         # loop over the objwork objects in this grouping and perform the final extractions.
         for ii in range(objwork):
             iobj = group[ii]
-            msgs.info('Extracting for obj # {:d}'.format(iobj + 1) + ' of {:d}'.format(nobj) +
-                      ' on slit # {:d}'.format(sobjs[iobj].slitid) + ' at x = {:5.2f}'.format(sobjs[iobj].spat_pixpos))
+            msgs.info('Extracting obj # {:d}'.format(iobj + 1) + ' of {:d}'.format(nobj) +
+                      ' with objid = {:d}'.format(sobjs[iobj].objid) + ' on slit # {:d}'.format(sobjs[iobj].slitid) +
+                      ' at x = {:5.2f}'.format(sobjs[iobj].spat_pixpos))
             this_profile = obj_profiles[:, :, ii]
             trace = np.outer(sobjs[iobj].trace_spat, np.ones(nspat))
             objmask = ((xarr >= (trace - 2.0 * box_rad)) & (xarr <= (trace + 2.0 * box_rad)))

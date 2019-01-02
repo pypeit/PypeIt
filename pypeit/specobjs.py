@@ -363,6 +363,10 @@ class SpecObjs(object):
 
         self.add_sobj(sobjs_neg)
 
+        # Sort objects according to their spatial location. Necessary for the extraction to properly work
+        spat_pixpos = self.spat_pixpos
+        self.specobjs = self.specobjs[spat_pixpos.argsort()]
+
     def purge_neg(self):
         """
         Purge negative objects from specobjs for IR reductions
