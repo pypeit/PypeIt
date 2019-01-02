@@ -1301,7 +1301,20 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, trc_inmask = None, fwh
 
 
 def create_skymask_fwhm(sobjs, thismask):
+    """
+    Creates a skymask from a SpecObjs object using the fwhm of each object
+    Args:
+        sobjs: SpecObjs object
+            Objects for which you would like to create the mask
+        thismask: ndarray, bool, shape (nspec, nspat)
+            Boolean image indicating pixels which are on the slit
 
+    Returns:
+        skymask:  ndarray, bool, shape (nspec, nspat)
+           Boolean image with the same size as thismask indicating which pixels are usable for global sky subtraction.
+           True = usable for sky subtraction, False = should be masked when sky subtracting.
+
+    """
     nobj = len(sobjs)
     skymask = np.copy(thismask)
     if nobj == 0:
