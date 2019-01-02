@@ -365,7 +365,7 @@ class Calibrations(object):
         # Build it
         bpmImage = bpmimage.BPMImage(self.spectrograph,det=self.det, shape=self.shape)
         # Build, save, and return
-        self.msbpm = bpmImage.build()
+        self.msbpm = bpmImage.build(filename=sci_image_files[0])
         self.calib_dict[self.bpm_master_key]['bpm'] = self.msbpm
         return self.msbpm
 

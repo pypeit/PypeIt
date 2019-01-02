@@ -86,7 +86,7 @@ class BPMImage(object):
         # Output
         self.bpm_img = None
 
-    def build(self, datasec=None):
+    def build(self, datasec=None, filename=None):
         """
         Generate the BPM Image
 
@@ -99,7 +99,7 @@ class BPMImage(object):
         if self.shape is not None:
             # WARNING: This assumes shape is the untrimmed size of the
             # image!
-            self.bpm_img = self.spectrograph.bpm(shape=self.shape, det=self.det)
+            self.bpm_img = self.spectrograph.bpm(shape=self.shape, det=self.det, filename=filename)
             #if self.trim:
             #    mask = self.spectrograph.get_datasec_img(filename=self.filename, det=self.det) < 1
         else:
