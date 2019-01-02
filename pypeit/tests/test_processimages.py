@@ -61,12 +61,12 @@ def test_bias_subtract(deimos_flat_files):
     # DEIMOS
     deimos_flats = processimages.ProcessImages('keck_deimos', deimos_flat_files)
     # Load
-    deimos_flats.load_images()
+    raw_images, _, datasec, oscansec = deimos_flats.load_images()
     # Bias subtract (and trim)
-    deimos_flats.bias_subtract('overscan')
+    proc_images = deimos_flats.bias_subtract(raw_images, 'overscan', datasec, oscansec)
     # Test
-    assert isinstance(deimos_flats.proc_images, np.ndarray)
-    assert deimos_flats.proc_images.shape == (4096,2048,2)
+    assert isinstance(proc_images, np.ndarray)
+    assert proc_images.shape == (4096,2048,2)
 
 
 @dev_suite_required
@@ -74,13 +74,13 @@ def test_combine(deimos_flat_files):
     # DEIMOS
     deimos_flats = processimages.ProcessImages('keck_deimos', deimos_flat_files)
     # Load
-    deimos_flats.load_images()
-    # Bias subtracgt
-    deimos_flats.bias_subtract('overscan')
+    raw_images, _, datasec, oscansec = deimos_flats.load_images()
+    # Bias subtract (and trim)
+    proc_images = deimos_flats.bias_subtract(raw_images, 'overscan', datasec, oscansec)
     # Combine
-    stack = deimos_flats.combine()
+    stack = deimos_flats.combine(proc_images)
     # Test
-    assert isinstance(deimos_flats.stack, np.ndarray)
-    assert deimos_flats.stack.shape == (4096,2048)
+    assert isinstance(stack, np.ndarray)
+    assert stack.shape == (4096,2048)
 
 
