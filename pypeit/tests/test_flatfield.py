@@ -18,9 +18,6 @@ from astropy.table import Table
 from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
 from pypeit import flatfield
 
-from pypeit import debugger
-
-
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
