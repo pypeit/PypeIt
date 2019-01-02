@@ -400,6 +400,8 @@ class PypeIt(object):
         else:
             std_trace = None
 
+        from IPython import embed
+        embed()
         return std_trace
 
     def extract_one(self, frames, det, bg_frames=[], std_outfile=None):

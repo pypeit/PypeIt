@@ -1538,7 +1538,6 @@ class HolyGrail:
                 plt.plot(final_fit['pixel_fit'], final_fit['wave_fit'], 'bx')
                 plt.plot(xplt, yplt, 'r-')
                 plt.show()
-                #pdb.set_trace()
         return new_bad_slits
 
     def cross_match_order(self, good_fit):
@@ -2156,6 +2155,8 @@ class HolyGrail:
     def finalize_fit(self, detections):
         """ Once the best IDs have been found for each slit, perform a final fit to all slits and save the results
         """
+        from IPython import embed
+        embed()
         for slit in range(self._nslit):
             if slit not in self._ok_mask:
                 continue

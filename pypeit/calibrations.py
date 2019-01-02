@@ -252,7 +252,7 @@ class Calibrations(object):
                                           master_dir=self.master_dir, reuse_masters=self.reuse_masters)
 
         # Load the MasterFrame (if it exists and is desired)?
-        self.msarc = self.arcImage.master(force=prev_build)
+        self.msarc = self.arcImage.master()
         if self.msarc is None:  # Otherwise build it
             msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
             self.msarc = self.arcImage.build_image()
@@ -303,7 +303,7 @@ class Calibrations(object):
 
         # How are we treating biases: 1) No bias, 2) overscan, or 3) use
         # bias subtraction. If use bias is there a master?
-        self.msbias = self.biasFrame.determine_bias_mode(force=prev_build)
+        self.msbias = self.biasFrame.determine_bias_mode()
         # This could be made more elegant, like maybe msbias should be
         # set to 'none' analgous to how overscan is treated???
         if (self.msbias is None) and (self.par['biasframe']['useframe'] != 'none'):
@@ -435,7 +435,7 @@ class Calibrations(object):
         # --- Pixel flats
 
         # 1)  Try to load master files from disk (MasterFrame)?
-        self.mspixflatnrm = self.flatField.master(force=prev_build1)
+        self.mspixflatnrm = self.flatField.master()
         if prev_build2:
             self.msillumflat = self.flatField.load_master_illumflat()
 
@@ -565,7 +565,7 @@ class Calibrations(object):
                                                 binbpx=self.msbpm)
 
         # Load via master, as desired
-        self.tslits_dict = self.traceSlits.master(force=prev_build)
+        self.tslits_dict = self.traceSlits.master()
         if self.tslits_dict is None:
             # Build the trace image first
             self.traceImage = traceimage.TraceImage(self.spectrograph,self.trace_image_files, det=self.det,
@@ -648,7 +648,7 @@ class Calibrations(object):
                                              master_key=self.arc_master_key, master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters, maskslits=self.maskslits)
         # Attempt to load master
-        self.mswave = self.waveImage.master(force=prev_build)
+        self.mswave = self.waveImage.master()
         if self.mswave is None:
             self.mswave = self.waveImage._build_wave()
         # Save to hard-drive
@@ -706,7 +706,7 @@ class Calibrations(object):
                                              reuse_masters=self.reuse_masters,
                                              redux_path=self.redux_path, bpm=self.msbpm)
         # Load from disk (MasterFrame)?
-        self.wv_calib = self.waveCalib.master(force=prev_build)
+        self.wv_calib = self.waveCalib.master()
         # Build?
         if self.wv_calib is None:
             self.wv_calib, _ = self.waveCalib.run(skip_QA=(not self.write_qa))
@@ -766,7 +766,7 @@ class Calibrations(object):
                                              reuse_masters=self.reuse_masters,
                                              redux_path=self.redux_path, bpm=self.msbpm)
         # Master
-        self.tilts_dict = self.waveTilts.master(force=prev_build)
+        self.tilts_dict = self.waveTilts.master()
         if self.tilts_dict is None:
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.tilts_dict, self.wt_maskslits \

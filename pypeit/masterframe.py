@@ -69,16 +69,13 @@ class MasterFrame(object):
     def mdir(self):
         return self.master_dir
 
-    def master(self, force=False):
+    def master(self):
         """
         Load the master frame from disk, as settings allows. This routine checks the the mode of master usage
         then calls the load_master method. This method should not be overloaded by children of this class. Instead
         one should overload the load_master method below.
 
         Args:
-            force: bool, optional
-              Force the attempt of loading the master frame
-              Key for when looping on multiple exposures to avoid remaking the file
 
         Returns:
             msframe : ndarray or None

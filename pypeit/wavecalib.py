@@ -297,7 +297,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return arccen, arc_maskslit
 
-    def load_master(self, filename, force = False):
+    def load_master(self, filename):
         """
         Load a full (all slit) wv_calib dict
 
@@ -319,13 +319,12 @@ class WaveCalib(masterframe.MasterFrame):
         # Does the master file exist?
         if not os.path.isfile(filename):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            if force:
-                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
             return None
         else:
             msgs.info("Loading Master {0:s} frame:".format(self.frametype) + msgs.newline() + filename)
             self.wv_calib = linetools.utils.loadjson(filename)
-
+            from IPython import embed
+            embed()
             # Recast a few items as arrays
             for key in self.wv_calib.keys():
                 if key in ['steps', 'par']:  # This isn't really necessary
