@@ -30,7 +30,8 @@ class MasterFrame(object):
       Path for reduction
     spectrograph : Spectrograph, optional
       Only used for directory_path;  should be Deprecated
-    mode: ???
+    reuse_masters: bool, default = False
+      Reuse already created master files from disk.
 
     Attributes
     ----------
