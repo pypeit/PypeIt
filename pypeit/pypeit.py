@@ -773,12 +773,12 @@ class Echelle(PypeIt):
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         sobjs_obj_init, nobj_init, skymask_pos = \
-            self.sciI.find_objects_ech(image, std=std, std_trace=std_trace, maskslits=maskslits, snr_trim=snr_trim,
+            self.sciI.find_objects_ech(image, std=std, std_trace=std_trace, snr_trim=snr_trim,
                                    show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
 
         if ir_redux:
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
-                self.sciI.find_objects_ech(-image, std=std, std_trace=std_trace, maskslits=maskslits, snr_trim=snr_trim,
+                self.sciI.find_objects_ech(-image, std=std, std_trace=std_trace, snr_trim=snr_trim,
                 show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
             skymask = skymask_pos & skymask_neg
             sobjs_obj_init.append_neg(sobjs_obj_init_neg)
