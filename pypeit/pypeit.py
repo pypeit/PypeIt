@@ -139,14 +139,14 @@ class PypeIt(object):
         outfile = scidir + '/spec2d_{:s}.fits'.format(basename)
         return os.path.isfile(outfile)
 
-    def get_std_outfile(self, grp_standards):
+    def get_std_outfile(self, standard_frames):
         # TODO: Need to decide how to associate standards with
         # science frames in the case where there is more than one
         # standard associated with a given science frame.  Below, I
         # just use the first standard
 
         std_outfile = None
-        std_frame = None if len(grp_standards) == 0 else grp_standards[0]
+        std_frame = None if len(standards_frames) == 0 else standard_frames[0]
         # Prepare to load up standard?
         if std_frame is not None:
             std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
@@ -210,8 +210,11 @@ class PypeIt(object):
 
             # Find the indices of the science frames in this calibration group:
             grp_science = frame_indx[is_science & in_grp]
-            # Associate standards (previously reduced above) with this group
-            std_outfile = self.get_std_outfile(grp_standards)
+            # Associate standards (previously reduced above) for this setup
+            # JFH before we were running this command, but this has the problem that it cannot handle
+            # a situation where one standard is being used for many calib groups
+            # std_outfile = self.get_std_outfile(grp_standards)
+            std_outfile = self.get_std_outfile(frame_indx[is_standard])
             # Reduce all the science frames; keep the basenames of the
             # science frames for use in flux calibration
             science_basename = [None]*len(grp_science)
