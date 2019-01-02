@@ -597,7 +597,8 @@ class PypeIt(object):
         helio_dict = dict(refframe='pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
             self.caliBrate.par['wavelengths']['frame'],vel_correction=vel_corr)
         # Did the user re-run a single detector?
-        save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], self.spectrograph.pypeline, outfile,
+        save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], self.spectrograph.pypeline,
+                                  self.spectrograph.spectrograph, outfile,
                                   helio_dict=helio_dict, telescope=self.spectrograph.telescope,
                                   update_det=self.par['rdx']['detnum'])
         # 1D only?

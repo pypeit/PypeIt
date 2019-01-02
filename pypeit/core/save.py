@@ -351,7 +351,8 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 '''
 
-def save_1d_spectra_fits(specObjs, header, pypeline, outfile, helio_dict=None, telescope=None, overwrite=True,
+def save_1d_spectra_fits(specObjs, header, pypeline, instrume,
+                         outfile, helio_dict=None, telescope=None, overwrite=True,
                          update_det=None):
     """ Write 1D spectra to a multi-extension FITS file
 
@@ -359,6 +360,8 @@ def save_1d_spectra_fits(specObjs, header, pypeline, outfile, helio_dict=None, t
     ----------
     specobjs : SpecObjs object
     header : dict or Row (dict-like)
+    pypeline : str
+      Name of instrument
     instrume : str
       Name of instrument
     outfile : str
@@ -496,8 +499,6 @@ def save_obj_info(all_specobjs, spectrograph, basename, science_dir, binning=Non
     -------
 
     """
-
-
     slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
     binspatial, binspectral = parse.parse_binning(binning)
     for specobj in all_specobjs:

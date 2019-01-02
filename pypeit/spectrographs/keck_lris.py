@@ -107,12 +107,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         return hdr_keys
     '''
 
-    def compound_meta(self, ifile, meta_key, headarr=None):
-        if meta_key == 'binning':
-            binning = parse.parse_binning(self.get_meta_value(ifile, 'bin_card', headarr=headarr))
-            return binning
-        else:
-            msgs.error("Not ready for this compound meta")
 
     def init_meta(self):
         """
@@ -130,7 +124,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         meta['target'] = dict(ext=0, card='TARGNAME')
         meta['decker'] = dict(ext=0, card='SLITNAME')
         meta['binning'] = dict(card=None, compound=True)
-        meta['bin_card'] = dict(ext=0, card='BINNING')  # How to grab binning info from header
 
         meta['mjd'] = dict(ext=0, card='MJD-OBS')
         meta['exptime'] = dict(ext=0, card='ELAPTIME')
@@ -148,6 +141,14 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
         # Ingest
         self.meta = meta
+
+    def compound_meta(self, headarr, meta_key):
+        if meta_key == 'binning':
+            binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
+            binning = parse.binning2string(binspatial, binspec)
+            return binning
+        else:
+            msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -658,9 +659,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         Returns:
 
-            list: List of keywords of data pulled from file headers and
-            used to constuct the :class:`pypeit.metadata.PypeItMetaData`
-            object.
+            list: List of keywords of data pulled from meta
         """
         cfg_keys = super(KeckLRISRSpectrograph, self).configuration_keys()
         # Add grating tilt

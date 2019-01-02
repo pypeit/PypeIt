@@ -66,8 +66,8 @@ class Calibrations(object):
         show (:obj:`bool`, optional):
             Show plots of PypeIt's results as the code progesses.
             Requires interaction from the users.
-        binning (:obj:`tuple`, optional)
-            Describes the instrument binning, currently binspatial, binspectral
+        binning (:obj:`str`, optional)
+            Describes the instrument binning, currently binspatial,binspectral
             Generally during the call to set_config()
 
     Attributes:
@@ -578,7 +578,7 @@ class Calibrations(object):
                                                          trim=self.par['trim'], apply_gain=True)
 
             # Compute the plate scale in arcsec which is needed to trim short slits
-            binspatial, binspectral = self.binning
+            binspatial, binspectral = parse.parse_binning(self.binning)
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
             # User-defined slits??
@@ -647,7 +647,7 @@ class Calibrations(object):
         # Instantiate
         # ToDO we are regenerating this mask a lot in this module. Could reduce that
         self.waveImage = waveimage.WaveImage(self.tslits_dict, self.tilts_dict['tilts'], self.wv_calib,self.spectrograph,
-                                             binning = self.binning,
+                                             binning=self.binning,
                                              master_key=self.arc_master_key, master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters, maskslits=self.maskslits)
         # Attempt to load master

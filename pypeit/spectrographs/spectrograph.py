@@ -476,7 +476,7 @@ class Spectrograph(object):
         # Finish
         return pypeit_keys
 
-    def compound_meta(self, ifile, meta_key, headarr=None):
+    def compound_meta(self, headarr, meta_key):
         """
         Methods to generate meta in a more complex manner than simply
         reading from the header
@@ -484,11 +484,9 @@ class Spectrograph(object):
         These are defined per spectrograph, as needed
 
         Args:
-            ifile: str or None
-              Input filename
-            meta_key: str
-            headarr: list, optional
+            headarr: list
               List of headers
+            meta_key: str
 
         Returns:
             value:
@@ -540,7 +538,7 @@ class Spectrograph(object):
             if 'default' in self.meta[meta_key].keys():
                 value = self.meta[meta_key]['default']
             elif 'compound' in self.meta[meta_key].keys():
-                value = self.compound_meta(None, meta_key, headarr=headarr)
+                value = self.compound_meta(headarr, meta_key)
             else:
                 msgs.error("Failed to load spectrograph value for meta: {}".format(meta_key))
         else:
@@ -570,9 +568,9 @@ class Spectrograph(object):
         # Check core
         for key in core_meta:
             assert key in self.meta.keys(), 'key {:s} not defined in spectrograph meta!'.format(key)
-        # Check for rtol for config keys
+        # Check for rtol for config keys that are type float
         for key in self.configuration_keys():
-            if meta_data_model[key]['dtype'] in ['float']:
+            if meta_data_model[key]['dtype'] in [float]:
                 assert 'rtol' in self.meta[key].keys(), 'rtol not set for key {:s} not defined in spectrograph meta!'.format(key)
         # Now confirm all meta are in the data model
         for key in self.meta.keys():

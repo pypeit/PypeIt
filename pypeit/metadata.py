@@ -390,10 +390,7 @@ class PypeItMetaData:
         if len(existing_keys) > 0 and match_type:
             for key in existing_keys:
                 if len(self.table[key].shape) > 1:  # DEAL WITH ARRAYS, TUPLES -- ASSUME SEPARATED BY ,
-                    vals = []
-                    for item in usrdata[key].data:
-                        vals.append(np.array(item.split(',')).astype(self.table[key].dtype))
-                    usrdata[key] = vals
+                    debugger.set_trace()  # NOT ALLOWED!!
                 elif self.table[key].dtype.type != usrdata[key].dtype.type:
                     try:
                         usrdata[key] = usrdata[key].astype(self.table[key].dtype)
@@ -1913,6 +1910,12 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
 
 
 def define_core_meta():
+    """
+    Each meta dtype must be scalar or str.  No tuple, list, ndarray, etc.
+
+    Returns:
+
+    """
     core_meta = OrderedDict()  # Mainly for output to PypeIt file
     # Filename
     #core_meta['directory'] = dict(dtype=str, comment='Path to raw data file')
@@ -1924,13 +1927,12 @@ def define_core_meta():
     core_meta['target'] = dict(dtype=str, comment='Name of the target')
 
     # Instrument related
-    #core_meta['instrume'] = dict(dtype=str, comment='Spectrograph name')
     core_meta['dispname'] = dict(dtype=str, comment='Disperser name')
     core_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
-    core_meta['binning'] = dict(dtype=tuple, comment='(spatial,spectral) binning')
+    core_meta['binning'] = dict(dtype=str, comment='(spatial,spectral) binning')
 
     # Obs
-    core_meta['mjd'] = dict(dtype=float, comment='Observation MJD; must be readable by astropy.time.Time format=mjd')
+    core_meta['mjd'] = dict(dtype=float, comment='Observation MJD; Read by astropy.time.Time format=mjd')
     core_meta['airmass'] = dict(dtype=float, comment='Airmass')
     core_meta['exptime'] = dict(dtype=float, comment='Exposure time')
 
@@ -1957,7 +1959,6 @@ def define_additional_meta():
     additional_meta['filter1'] = dict(dtype=str, comment='First filter in optical path')
     additional_meta['dispangle'] = dict(dtype=float, comment='Angle of the disperser', rtol=0.)
     additional_meta['hatch'] = dict(dtype=str, comment='Position of instrument hatch')
-    additional_meta['bin_card'] = dict(dtype=str, comment='Header card holding binning info')
 
     # Calibration lamps
     for kk in range(20):

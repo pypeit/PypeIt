@@ -281,6 +281,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         super(KeckDEIMOSSpectrograph, self).check_headers(headers, expected_values=expected_values)
     '''
 
+    '''
     def header_keys(self):
         """
         Return a dictionary with the header keywords to read from the
@@ -326,22 +327,67 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         hdr_keys[1]['naxis1'] = 'NAXIS1'
 
         return hdr_keys
+    '''
+
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
+
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='TARGNAME')
+        meta['decker'] = dict(ext=0, card='SLMSKNAM')
+        meta['binning'] = dict(card=None, compound=True)
+
+        meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        meta['dispname'] = dict(ext=0, card='GRATENAM')
+        meta['hatch'] = dict(ext=0, card='HATCHPOS')
+        meta['dispangle'] = dict(card=None, compound=True, rtol=1e-5)
+        # Lamps
+        meta['lampstat01'] = dict(ext=0, card='LAMPS')
+
+        # Ingest
+        self.meta = meta
+
+    def compound_meta(self, headarr, meta_key):
+        if meta_key == 'binning':
+            binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
+            binning = parse.binning2string(binspatial, binspec)
+            return binning
+        elif meta_key == 'dispangle':
+            if headarr[0]['GRATEPOS'] == 3:
+                return headarr[0]['G3TLTWAV']
+            elif headarr[0]['GRATEPOS'] == 4:
+                return headarr[0]['G4TLTWAV']
+            else:
+                debugger.set_trace()
+        else:
+            msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
-        #TODO: Placeholder to get tests to clear
-        return ['decker', 'binning' ]
+        """
+        Return the metadata keys that defines a unique instrument
+        configuration.
 
-    def validate_metadata(self, fitstbl):
-        if np.any(fitstbl['gratepos'] == 3):
-            fitstbl['dispangle'] = fitstbl['g3tltwav']
-            gmt = fitstbl['gratepos'] == 4
-            fitstbl['dispangle'][gmt] = fitstbl['g4tltwav'][gmt]
-            return
-        fitstbl['dispangle'] = fitstbl['g4tltwav']
+        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
 
-    def metadata_keys(self):
-        return super(KeckDEIMOSSpectrograph, self).metadata_keys() \
-                    + ['binning', 'gratepos', 'dispangle']
+        Returns:
+            list: List of keywords of data pulled from meta
+        """
+        return ['dispname', 'decker', 'binning', 'dispangle']
+
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -349,17 +395,17 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
-            return good_exp & (fitstbl['lamps'] == 'Off') & (fitstbl['hatch'] == 'open')
+            return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'open')
         if ftype == 'bias':
-            return good_exp & (fitstbl['lamps'] == 'Off') & (fitstbl['hatch'] == 'closed')
+            return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'closed')
         if ftype == 'pixelflat' or ftype == 'trace':
             # Flats and trace frames are typed together
-            return good_exp & (fitstbl['lamps'] == 'Qz') & (fitstbl['hatch'] == 'closed')
+            return good_exp & (fitstbl['lampstat01'] == 'Qz') & (fitstbl['hatch'] == 'closed')
         if ftype == 'pinhole' or ftype == 'dark':
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'arc':
-            return good_exp & (fitstbl['lamps'] == 'Kr Xe Ar Ne') & (fitstbl['hatch'] == 'closed')
+            return good_exp & (fitstbl['lampstat01'] == 'Kr Xe Ar Ne') & (fitstbl['hatch'] == 'closed')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
