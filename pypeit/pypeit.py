@@ -503,7 +503,7 @@ class PypeIt(object):
 
         return sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, sobjs, vel_corr
 
-
+    # TODO Make this a dummy method put this stuff in the individual object finding methods.
     def find_objects(self, image, std=False, ir_redux=False, std_trace=None, snr_trim=False, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
