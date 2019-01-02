@@ -111,7 +111,7 @@ class PypeItMetaData:
             raise TypeError('Input parameter set must be of type PypeItPar.')
         self.type_bitmask = framematch.FrameTypeBitMask()
         self.table = table.Table(data if file_list is None 
-                                 else self._new_build(file_list, strict=strict))
+                                 else self._build(file_list, strict=strict))
                         #else self._build(file_list, strict=strict))
         if usrdata is not None:
             self.merge(usrdata)
@@ -153,7 +153,7 @@ class PypeItMetaData:
             return
         msgs.error('{0} not a defined method for the background pair columns.'.format(bkg_pairs))
 
-    def _new_build(self, file_list, strict=True):
+    def _build(self, file_list, strict=True):
 
         # Required meta for reduction
         #required_meta = define_core_meta()
@@ -183,7 +183,7 @@ class PypeItMetaData:
                 #    continue
                 # Grab it
                 try:
-                    value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr, required=True,
+                    value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr, required=strict,
                                                              ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
                 except:
                     debugger.set_trace()
@@ -198,7 +198,7 @@ class PypeItMetaData:
         # Return
         return data
 
-    def _build(self, file_list, strict=True, bkg_pairs='empty'):
+    def _old_build(self, file_list, strict=True, bkg_pairs='empty'):
         """
         Returns a dictionary with the data to be included in the table.
         """
