@@ -486,8 +486,12 @@ class PypeIt(object):
             vel_corr = self.helio_correct(sobjs, self.maskslits, frames[0], self.obstime)
 
         else:
-            msgs.warn('No objects to extract for science frame' + msgs.newline()
-                      + self.fitstbl['filename'][self.sciI.scidx])
+            # Print status message
+            msgs_string = 'No objects to extract for target {:s}'.format(self.fitstbl['target'][frames[0]]) + msgs.newline()
+            msgs_string += 'On frames:' + msgs.newline()
+            for iframe in frames:
+                msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
+            msgs.warn(msgs_string)
             # set to first pass global sky
             skymodel = initial_sky
             objmodel = np.zeros_like(sciimg)
