@@ -92,9 +92,9 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         return hdr_keys
     '''
 
-    def compound_meta(self, ifile, meta_key, headarr=None):
+    def compound_meta(self, headarr, meta_key):
         if meta_key == 'mjd':
-            time = self.get_meta_value(ifile, 'iso-date', headarr=headarr)
+            time = headarr[0]['DATE']
             ttime = Time(time, format='isot')
             return ttime.mjd
         else:
@@ -116,13 +116,12 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         meta['target'] = dict(ext=0, card='OBJECT')
         # dispname is arm specific (blue/red)
         meta['decker'] = dict(ext=0, card='SLIT_N')
-        meta['binning'] = dict(ext=0, card=None, default=(1,1))
+        meta['binning'] = dict(ext=0, card=None, default='1,1')
         meta['mjd'] = dict(ext=0, card=None, compound=True)
         meta['exptime'] = dict(ext=0, card='EXPTIME')
         meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Additional ones, generally for configuration determination or time
         meta['dichroic'] = dict(ext=0, card='BSPLIT_N')
-        meta['iso-date'] = dict(ext=0, card='DATE')  # ISOT time
         lamp_names = [ '1', '2', '3', '4', '5',
                        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
         for kk,lamp_name in enumerate(lamp_names):

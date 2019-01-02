@@ -183,7 +183,8 @@ class PypeItMetaData:
                 #    continue
                 # Grab it
                 try:
-                    value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr, required=True)
+                    value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr, required=True,
+                                                             ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
                 except:
                     debugger.set_trace()
                 data[meta_key].append(value)
@@ -1963,9 +1964,6 @@ def define_additional_meta():
     # Calibration lamps
     for kk in range(20):
         additional_meta['lampstat{:02d}'.format(kk+1)] = dict(dtype=str, comment='Status of a given lamp (e.g off/on)')
-
-    # Time
-    additional_meta['iso-date'] = dict(dtype=str, comment='Observation date; must be readable by astropy.time.Time format=isot')
 
 
     return additional_meta

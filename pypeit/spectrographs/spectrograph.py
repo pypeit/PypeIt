@@ -497,7 +497,7 @@ class Spectrograph(object):
     def init_meta(self):
         self.meta = {}
 
-    def get_meta_value(self, ifile, meta_key, headarr=None, required=False):
+    def get_meta_value(self, ifile, meta_key, headarr=None, required=False, ignore_bad_header=False):
         """
         Return meta data from a given file (or its array of headers)
 
@@ -509,6 +509,8 @@ class Spectrograph(object):
               List of headers
             required: bool, optional
               Require the meta key to be returnable
+            ignore_bad_header: bool, optional
+              Over-ride required;  not recommended
 
         Returns:
             value: value or list of values
@@ -542,10 +544,18 @@ class Spectrograph(object):
             else:
                 msgs.error("Failed to load spectrograph value for meta: {}".format(meta_key))
         else:
-            try:  # REMOVE THIS WHEN SUBMITTING THE PR
+            # Grab from the header, if we can
+            try:
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
             except KeyError:
-                debugger.set_trace()
+                if required:
+                    if not ignore_bad_header:
+                        msgs.error("Required card {:s} missing from your header of {:s}.  Add it!!".format(
+                            self.meta[meta_key]['card'], ifile))
+                    else:
+                        msgs.warn("Required card {:s} missing from your header of {:s}.  Proceeding with risk..".format(
+                            self.meta[meta_key]['card'], ifile))
+                return None
 
         # Deal with dtype (DO THIS HERE OR IN METADATA?  I'M TORN)
         if self.meta_data_model[meta_key]['dtype'] == str:
