@@ -199,15 +199,13 @@ class ProcessImages(object):
             self.headers.append(head)
         # Get the data sections
         self.datasec, one_indexed, include_end, transpose \
-                = self.spectrograph.get_image_section(self.file_list[0], self.det,
-                                                      section='datasec')
+            = self.spectrograph.get_image_section(self.file_list[0], self.det,section='datasec')
         self.datasec = [ parse.sec2slice(sec, one_indexed=one_indexed,
                                            include_end=include_end, require_dim=2,
                                            transpose=transpose) for sec in self.datasec ]
         # Get the overscan sections
-        self.oscansec, one_indexed, include_end, transpose \
-                = self.spectrograph.get_image_section(self.file_list[0], self.det,
-                                                      section='oscansec')
+        self.oscansec, one_indexed, include_end, transpose = \
+            self.spectrograph.get_image_section(self.file_list[0], self.det,section='oscansec')
         self.oscansec = [ parse.sec2slice(sec, one_indexed=one_indexed,
                                             include_end=include_end, require_dim=2,
                                             transpose=transpose) for sec in self.oscansec ]
