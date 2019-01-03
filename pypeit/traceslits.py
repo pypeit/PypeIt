@@ -194,7 +194,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         fits_dict, ts_dict = load_traceslit_files(root)
-        msgs.info("Loading Slits from {:s}".format(root + '.fits'))
+        msgs.info("Loading Slits from {:s}".format(root + '.fits.gz'))
 
         # Deal with parameters
         if par is None:
@@ -1159,7 +1159,7 @@ class TraceSlits(masterframe.MasterFrame):
             debugger.show_image(self.siglev, chname='siglev')
 
     # JFH TODO this needs an argument to follow convention for save_master
-    def save_master(self, root=None): #, gzip=True):
+    def save_master(self, root=None, gzip=True):
         """
         Write the main pieces of TraceSlits to the hard drive as a MasterFrame
           FITS -- mstrace and other images
@@ -1219,11 +1219,11 @@ class TraceSlits(masterframe.MasterFrame):
         hdul = fits.HDUList(hdulist)
         hdul.writeto(outfile, overwrite=True)
         msgs.info("Wrote TraceSlit arrays to {:s}".format(outfile))
-        # TODO None of our other masters are compressed so I'm turning this off for now
-        #if gzip:
-        #    msgs.info("gzip compressing {:s}".format(outfile))
-        #    command = ['gzip', '-f', outfile]
-        #    Popen(command)
+        # TODO None of our other masters are compressed so why do we gzip these?
+        if gzip:
+            msgs.info("gzip compressing {:s}".format(outfile))
+            command = ['gzip', '-f', outfile]
+            Popen(command)
 
         # dict of steps, settings and more
         out_dict = {}
@@ -1458,7 +1458,7 @@ def load_traceslit_files(root):
     """
     fits_dict = {}
     # Open FITS
-    fits_file = root+'.fits'
+    fits_file = root+'.fits.gz'
     if not os.path.isfile(fits_file):
         msgs.error("No TraceSlits FITS file found!")
 
