@@ -35,9 +35,6 @@ def test_flexure():
 def test_fluxcalibration():
     pypeitpar.FluxCalibrationPar()
 
-def test_skysubtraction():
-    pypeitpar.SkySubtractionPar()
-
 def test_manualextraction():
     pypeitpar.ManualExtractionPar()
 

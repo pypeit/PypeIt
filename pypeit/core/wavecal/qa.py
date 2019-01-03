@@ -60,6 +60,7 @@ def arc_fit_qa(fit, outfile=None, ids_only=False, title=None):
     pixel_fit = fit['pixel_fit'][mask]
     wave_fit = fit['wave_fit'][mask]
     ions = fit['ions'][mask]
+    xnorm = fit['xnorm']
     for kk, x in enumerate(pixel_fit):
         ind_left = np.fmax(int(x)-2, 0)
         ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
@@ -94,23 +95,23 @@ def arc_fit_qa(fit, outfile=None, ids_only=False, title=None):
             edgecolor='gray', facecolor='none')
     # Solution
     xval = np.arange(len(arc_spec))
-    wave = utils.func_val(fit['fitc'], xval, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
-    ax_fit.plot(xval, wave, 'r-')
+    wave_soln = fit['wave_soln'] #utils.func_val(fit['fitc'], xval, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
+    ax_fit.plot(xval, wave_soln, 'r-')
     xmin, xmax = 0., len(arc_spec)
     ax_fit.set_xlim(xmin, xmax)
-    ymin,ymax = np.min(wave)*.95,  np.max(wave)*1.05
-    ax_fit.set_ylim(np.min(wave)*.95,  np.max(wave)*1.05)
+    ymin,ymax = np.min(wave_soln)*.95,  np.max(wave_soln)*1.05
+    ax_fit.set_ylim((ymin, ymax))
     ax_fit.set_ylabel('Wavelength')
     ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
     # Stats
-    wave_soln = utils.func_val(fit['fitc'], pixel_fit, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
-    rms = np.sqrt(np.sum((wave_fit-wave_soln)**2)/len(pixel_fit)) # Ang
-    dwv_pix = np.median(np.abs(wave-np.roll(wave,1)))
+    wave_soln_fit = utils.func_val(fit['fitc'], pixel_fit/xnorm, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
+    rms = np.sqrt(np.sum((wave_fit-wave_soln_fit)**2)/len(pixel_fit)) # Ang
+    dwv_pix = np.median(np.abs(wave_soln-np.roll(wave_soln,1)))
     ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(dwv_pix), size='small')
     ax_fit.text(0.1*len(arc_spec), 0.80*ymin+(ymax-ymin),'RMS={:.3f} (pixels)'.format(rms/dwv_pix), size='small')
     # Arc Residuals
     ax_res = plt.subplot(gs[1,1])
-    res = wave_fit-wave_soln
+    res = wave_fit-wave_soln_fit
     ax_res.scatter(pixel_fit, res/dwv_pix, marker='x')
     ax_res.plot([xmin,xmax], [0.,0], 'k--')
     ax_res.set_xlim(xmin, xmax)

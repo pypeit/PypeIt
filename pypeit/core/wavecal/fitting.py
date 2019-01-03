@@ -156,6 +156,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         weights = np.ones(tcent.size)
 
     nspec = spec.size
+    xnspecmin1 = float(nspec-1)
     # Setup for fitting
     sv_ifit = list(ifit)  # Keep the originals
     all_ids = -999.*np.ones(len(tcent))
@@ -165,15 +166,14 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     # Fit
     n_order = n_first
     flg_quit = False
-    #fmin , fmax = -1.0, 1.0
-    fmin, fmax = 0.0, float(nspec-1)
+    fmin, fmax = 0.0, 1.0
     while (n_order <= n_final) and (flg_quit is False):
         # Fit with rejection
         xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
-        mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=func, sigma=sigrej_first,
+        mask, fit = utils.robust_polyfit(xfit/xnspecmin1, yfit, n_order, function=func, sigma=sigrej_first,
                                          minx=fmin, maxx=fmax, verbose=verbose, weights=wfit)
 
-        rms_ang = utils.calc_fit_rms(xfit[mask == 0], yfit[mask == 0], fit, func, minx=fmin, maxx=fmax,
+        rms_ang = utils.calc_fit_rms(xfit[mask == 0]/xnspecmin1, yfit[mask == 0], fit, func, minx=fmin, maxx=fmax,
                                      weights=wfit[mask == 0])
         rms_pix = rms_ang/disp
         if verbose:
@@ -182,7 +182,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask == 0]) + sv_ifit
         # Find new points (should we allow removal of the originals?)
-        twave = utils.func_val(fit, tcent, func, minx=fmin, maxx=fmax)
+        twave = utils.func_val(fit, tcent/xnspecmin1, func, minx=fmin, maxx=fmax)
         for ss, iwave in enumerate(twave):
             mn = np.min(np.abs(iwave-llist['wave']))
             if mn/disp < match_toler:
@@ -206,7 +206,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     #fmin, fmax = 0., 1.
     #xfit, yfit, wfit = tcent[ifit]/(nspec-1), all_ids[ifit], weights[ifit]
     xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
-    mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=func, sigma=sigrej_final,
+    mask, fit = utils.robust_polyfit(xfit/xnspecmin1, yfit, n_order, function=func, sigma=sigrej_final,
                                      minx=fmin, maxx=fmax, verbose=verbose, weights=wfit)#, debug=True)
     irej = np.where(mask == 1)[0]
     if len(irej) > 0:
@@ -214,7 +214,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         yrej = yfit[irej]
         if verbose:
             for kk, imask in enumerate(irej):
-                wave = utils.func_val(fit, xrej[kk], func, minx=fmin, maxx=fmax)
+                wave = utils.func_val(fit, xrej[kk]/xnspecmin1, func, minx=fmin, maxx=fmax)
                 msgs.info('Rejecting arc line {:g}; {:g}'.format(yfit[imask], wave))
     else:
         xrej = []
@@ -226,20 +226,22 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     ions = all_idsion[ifit]
 #    ions = all_idsion[ifit][mask == 0]
     # Final RMS
-    rms_ang = utils.calc_fit_rms(xfit[mask==0], yfit[mask==0], fit, func,
+    rms_ang = utils.calc_fit_rms(xfit[mask==0]/xnspecmin1, yfit[mask==0], fit, func,
                                  minx=fmin, maxx=fmax, weights=wfit[mask==0])
 #    rms_ang = utils.calc_fit_rms(xfit, yfit, fit, func,
 #                                 minx=fmin, maxx=fmax, weights=wfit)
     rms_pix = rms_ang/disp
 
     # Pack up fit
-    cen_wave = utils.func_val(fit, float(nspec)/2, func, minx=fmin, maxx=fmax)
-    cen_wave_min1 = utils.func_val(fit, float(nspec)/2 - 1.0, func, minx=fmin, maxx=fmax)
+    spec_vec = np.arange(nspec)
+    wave_soln = utils.func_val(fit,spec_vec/xnspecmin1, func, minx=fmin, maxx=fmax)
+    cen_wave = utils.func_val(fit, float(nspec)/2/xnspecmin1, func, minx=fmin, maxx=fmax)
+    cen_wave_min1 = utils.func_val(fit, (float(nspec)/2 - 1.0)/xnspecmin1, func, minx=fmin, maxx=fmax)
     cen_disp = cen_wave - cen_wave_min1
 
     final_fit = dict(fitc=fit, function=func, pixel_fit=xfit, wave_fit=yfit, weights=wfit, ions=ions,
-                     fmin=fmin, fmax=fmax, nspec=nspec, cen_wave = cen_wave, cen_disp = cen_disp,
-                     xrej=xrej, yrej=yrej, mask=(mask ==0), spec=spec, nrej=sigrej_final,
+                     fmin=fmin, fmax=fmax, xnorm = xnspecmin1, nspec=nspec, cen_wave = cen_wave, cen_disp = cen_disp,
+                     xrej=xrej, yrej=yrej, mask=(mask == 0), spec=spec, wave_soln = wave_soln, nrej=sigrej_final,
                      shift=0., tcent=tcent, rms=rms_pix)
 
     # If set to True, this will output a file that can then be included in the tests

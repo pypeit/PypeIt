@@ -15,6 +15,7 @@ import numpy as np
 
 from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
 from pypeit import wavetilts
+from pypeit.core import tracewave
 from pypeit.par import pypeitpar
 
 
@@ -41,23 +42,23 @@ def test_step_by_step(master_dir):
     parset = spectrograph.default_pypeit_par()
     par = parset['calibrations']['tilts']
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, master_key=master_key,
-                                    master_dir=master_dir,mode='reuse',
-                                    tslits_dict=tslits_dict)
+                                    master_dir=master_dir,reuse_masters=True, tslits_dict=tslits_dict)
     # Extract arcs
-    arccen, maskslits = waveTilts._extract_arcs()
+    arccen, maskslits = waveTilts.extract_arcs(waveTilts.slitcen, waveTilts.slitmask, msarc, waveTilts.inmask)
     assert arccen.shape == (2048,1)
     # Tilts in the slit
     slit = 0
     waveTilts.slitmask = waveTilts.spectrograph.slitmask(waveTilts.tslits_dict)
     thismask = waveTilts.slitmask == slit
-    waveTilts.lines_spec, waveTilts.lines_spat = waveTilts._find_lines(waveTilts.arccen[:, slit], waveTilts.slitcen[:, slit], slit)
+    waveTilts.lines_spec, waveTilts.lines_spat = waveTilts.find_lines(arccen[:, slit], waveTilts.slitcen[:, slit], slit)
 
-    trcdict = waveTilts._trace_tilts(waveTilts.msarc, waveTilts.lines_spec, waveTilts.lines_spat, thismask, slit)
+    trcdict = waveTilts.trace_tilts(waveTilts.msarc, waveTilts.lines_spec, waveTilts.lines_spat, thismask, slit)
     assert isinstance(trcdict, dict)
     # 2D Fit
     spat_order = waveTilts._parse_param(waveTilts.par, 'spat_order', slit)
     spec_order = waveTilts._parse_param(waveTilts.par, 'spec_order', slit)
-    tilts, coeffs = waveTilts._fit_tilts(trcdict, thismask, waveTilts.slitcen[:, slit], spat_order, spec_order,slit, doqa=False)
+    coeffs = waveTilts.fit_tilts(trcdict, thismask, waveTilts.slitcen[:, slit], spat_order, spec_order,slit, doqa=False)
+    tilts = tracewave.fit2tilts(waveTilts.slitmask_science.shape, coeffs, waveTilts.par['func2d'])
     assert np.max(tilts) < 1.01
 
 
@@ -72,8 +73,7 @@ def test_run(master_dir):
     spectrograph.detector[0]['nonlinear'] = 0.9
     par = pypeitpar.WaveTiltsPar()
     waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, master_key=master_key,
-                                    master_dir=master_dir, mode='reuse',
-                                    tslits_dict=tslits_dict)
+                                    master_dir=master_dir, reuse_masters=True, tslits_dict=tslits_dict)
     # Run
     tilts_dict, mask = waveTilts.run(doqa=False)
     assert isinstance(tilts_dict['tilts'], np.ndarray)

@@ -44,7 +44,6 @@ def test_save2d_fits():
     fitstbl['filename'] = 'b1.fits.gz'
     # Settings
     #settings.argflag['run']['directory']['science'] = data_path('')
-    mastery_key = 'A_1_01'
     spectrograph = 'shane_kast_blue'
     # Fill with dummy images
     dum = np.ones((100,100))
@@ -58,12 +57,15 @@ def test_save2d_fits():
     path = fitstbl['directory'][scidx]
     ifile = fitstbl['filename'][scidx]
     rawfile = os.path.join(path, ifile)
-    save.save_2d_images(sci_dict, rawfile, 0, mastery_key, data_path('MF')+'_'+spectrograph,
-                        data_path(''), basename)
+    master_dir = data_path('MF')+'_'+spectrograph
+    outfile = data_path('') + 'spec2d_{:s}.fits'.format(basename)
+    # Create a dummy master_key_dict
+    master_key_dict = dict(frame='', bpm='bpmkey',bias='',arc='',trace='',flat='')
+    save.save_2d_images(sci_dict, rawfile, 0, master_key_dict, master_dir, outfile)
     # Read and test
     head0 = fits.getheader(data_path('spec2d_test.fits'))
-    assert head0['PYPCNFIG'] == 'A'
-    assert head0['PYPCALIB'] == '1'
+    assert head0['PYPMFDIR'] == master_dir
+    assert head0['BPMMKEY'] == 'bpmkey'
     assert 'PYPEIT' in head0['PIPELINE']
 
 
@@ -75,7 +77,9 @@ def test_save1d_fits():
     sobj = mk_specobj()
     specObjs = specobjs.SpecObjs([sobj])
     # Write to FITS
-    save.save_1d_spectra_fits(specObjs, fitstbl[5], data_path('tst.fits'))
+    basename = 'test'
+    outfile = data_path('') + 'spec1d_{:s}.fits'.format(basename)
+    save.save_1d_spectra_fits(specObjs, fitstbl[5], 'MultiSlit', outfile)
 
 
 # NEEDS REFACTORING

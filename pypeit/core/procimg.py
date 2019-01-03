@@ -219,6 +219,7 @@ def sn_frame(slf, sciframe, idx):
 def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
              remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
     """
+    #TODO JFH Some documenation here would have been nice!
     settings_det : settings.spect[dnum]
       Detector info
 
@@ -365,7 +366,7 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
     msgs.info("Growing cosmic ray mask by 1 pixel")
     crmask = grow_masked(crmask.astype(np.float), grow, 1.0)
 
-    return crmask
+    return crmask.astype(bool)
 
 
 def cr_screen(a, mask_value=0.0, spatial_axis=1):
@@ -869,7 +870,7 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
         _darkcurr = 0 if darkcurr is None else darkcurr
         if exptime is not None:
             _darkcurr *= exptime/3600.
-        return np.abs(sciframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise + _darkcurr
+        return np.abs(sciframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise + _darkcurr
 
     # TODO: There's some complicated logic here.  Why is objframe
     # needed?  Can't a users just use objframe in place of sciframe and
@@ -878,7 +879,7 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
 
     # ToDO JFH: shouldn't dark current be added here as well??
     _objframe = np.zeros_like(skyframe) if objframe is None else objframe
-    return np.abs(skyframe + _objframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise
+    return np.abs(skyframe + _objframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise
 
 
 

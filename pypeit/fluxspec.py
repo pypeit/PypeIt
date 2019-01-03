@@ -85,7 +85,7 @@ class FluxSpec(masterframe.MasterFrame):
 
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
                  std_specobjs=None, std_header=None, spectrograph=None, multi_det=None,
-                 telluric=False, master_key=None, master_dir=None, mode=None,debug=False):
+                 telluric=False, master_key=None, master_dir=None, reuse_masters=False,debug=False):
 
         # Load standard files
         std_spectro = None
@@ -94,7 +94,7 @@ class FluxSpec(masterframe.MasterFrame):
         self.std_specobjs = std_specobjs
         self.std_header = std_header
         if self.std_spec1d_file is not None:
-            self.std_specobjs, self.std_header = load.load_specobj(self.std_spec1d_file)
+            self.std_specobjs, self.std_header = load.load_specobjs(self.std_spec1d_file)
             msgs.info('Loaded {0} spectra from the spec1d standard star file: {1}'.format(
                                 len(self.std_specobjs), self.std_spec1d_file))
             std_spectro = self.std_header['INSTRUME']
@@ -118,7 +118,7 @@ class FluxSpec(masterframe.MasterFrame):
         self.sci_specobjs = []
         self.sci_header = None
         if self.sci_spec1d_file is not None:
-            self.sci_specobjs, self.sci_header = load.load_specobj(self.sci_spec1d_file)
+            self.sci_specobjs, self.sci_header = load.load_specobjs(self.sci_spec1d_file)
             msgs.info('Loaded {0} spectra from the spec1d science file: {1}'.format(
                                 len(self.sci_specobjs), self.sci_spec1d_file))
             sci_spectro = self.sci_header['INSTRUME']
@@ -141,7 +141,7 @@ class FluxSpec(masterframe.MasterFrame):
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, mode=mode)
+                                         master_dir=master_dir, reuse_masters=reuse_masters)
         # Get the extinction data
         self.extinction_data = None
         if self.spectrograph is not None:
@@ -612,7 +612,7 @@ class EchFluxSpec(masterframe.MasterFrame):
 
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
                  std_specobjs=None, std_header=None, spectrograph=None,
-                 telluric=False, setup=None, master_dir=None, mode=None,
+                 telluric=False, setup=None, master_dir=None, reuse_masters=False,
                  star_type=None, star_mag=None, BALM_MASK_WID=5.0, nresln=None, debug=False):
 
         # Load standard files
@@ -622,7 +622,7 @@ class EchFluxSpec(masterframe.MasterFrame):
         self.std_specobjs = std_specobjs
         self.std_header = std_header
         if self.std_spec1d_file is not None:
-            self.std_specobjs, self.std_header = load.ech_load_specobj(self.std_spec1d_file)
+            self.std_specobjs, self.std_header = load.load_specobjs(self.std_spec1d_file)
             msgs.info('Loaded {0} spectra from the spec1d standard star file: {1}'.format(
                 len(self.std_specobjs), self.std_spec1d_file))
             std_spectro = self.std_header['INSTRUME']
@@ -646,7 +646,7 @@ class EchFluxSpec(masterframe.MasterFrame):
         self.sci_specobjs = []
         self.sci_header = None
         if self.sci_spec1d_file is not None:
-            self.sci_specobjs, self.sci_header = load.ech_load_specobj(self.sci_spec1d_file)
+            self.sci_specobjs, self.sci_header = load.load_specobjs(self.sci_spec1d_file)
             msgs.info('Loaded {0} spectra from the spec1d science file: {1}'.format(
                 len(self.sci_specobjs), self.sci_spec1d_file))
             sci_spectro = self.sci_header['INSTRUME']
@@ -669,7 +669,7 @@ class EchFluxSpec(masterframe.MasterFrame):
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         master_dir=master_dir, mode=mode)
+                                         master_dir=master_dir, reuse_masters=reuse_masters)
         # Get the extinction data
         self.extinction_data = None
         if self.spectrograph is not None:
@@ -832,7 +832,7 @@ class EchFluxSpec(masterframe.MasterFrame):
 
         self.sens_dict = {}
         for iord in range(norder):
-            std_specobjs, std_header = load.ech_load_specobj(self.std_spec1d_file, order=iord)
+            std_specobjs, std_header = load.load_specobjs(self.std_spec1d_file, order=iord)
             std_idx = flux.find_standard(std_specobjs)
             std = std_specobjs[std_idx]
             wavemask = std.boxcar['WAVE'] > 1000.0 * units.AA

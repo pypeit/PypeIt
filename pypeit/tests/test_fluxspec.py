@@ -82,6 +82,9 @@ def test_from_sens_func(master_dir):
     # TODO: Should change this to a from_sens_file instance.  Most of
     # the class is uninstantiated and methods will fail if you
     # instantiate this way...
+
+    # JFH Not sure what the problem is here, but the relevant file is missing and it says above this should not
+    # point to cooked.
     FxSpec3 = fluxspec.FluxSpec(spectrograph='shane_kast_blue',
                                 sens_file=os.path.join(master_dir,'MasterSensFunc_A_aa.fits'))
     assert isinstance(FxSpec3.sens_dict, dict)

@@ -72,8 +72,8 @@ def test_keck_lris_red():
     dsec_img = spectrograph.get_datasec_img(example_file, det=2)
     shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
     # Simple
-    bpmImage = bpmimage.BPMImage('keck_lris_red', shape=shape, filename=example_file, det=2)
-    bpm = bpmImage.build()
+    bpmImage = bpmimage.BPMImage('keck_lris_red', shape=shape, det=2)
+    bpm = bpmImage.build(filename=example_file)
     assert np.sum(bpm) > 0
 
 
@@ -86,7 +86,7 @@ def test_keck_deimos():
     dsec_img = spectrograph.get_datasec_img(example_file, det=2)
     shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
     # Simple
-    bpmImage = bpmimage.BPMImage('keck_deimos', shape=shape, filename=example_file, det=4)
+    bpmImage = bpmimage.BPMImage('keck_deimos', shape=shape, det=4)
     bpm = bpmImage.build()
     assert bpm[0,0] == 1
 

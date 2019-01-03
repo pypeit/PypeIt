@@ -1,10 +1,29 @@
 
 
+GNIRS
+-----------
+gemini_gnirs.json
+
+See dev_algorithms/wavelengths/gnirs_wave_calib.py in the dev suite. We created gemini_gnirs_idl.json
+using this file from IDL: 
+
+scifile ='/Users/joe/REDUX/gnirs_redux/1420+0227/Science/1420+0227_1/sci-N20110622S0304-307.fits'
+
+Then ran:
+
+| N20160127S0399.fits | 2016-01-27 |   science,arc   | J1335+3533 |   300.0 | 32/mmSB_G5533 | SCXD_G5531 |
+
+to create gemini_gnirs.json
+
 
 NIRES
 -----------
-keck_nires.json is based on holy-grail applies to this frame:
+keck_nires.json is based on holy-grail applied to this frame:
 |     filename         |                  date | frametype      |      target | exptime |
+| s180604_0089.fits.gz | 2018-06-0412:56:12.38 |    science,arc |  J1724+1901 |   300.0 |
+| s180604_0090.fits.gz | 2018-06-0413:02:07.85 |    science,arc |  J1724+1901 |   300.0 |
+| s180604_0091.fits.gz | 2018-06-0413:08:00.26 |    science,arc |  J1724+1901 |   300.0 |
+| s180604_0092.fits.gz | 2018-06-0413:13:54.71 |    science,arc |  J1724+1901 |   300.0 |
 | s180604_0089.fits.gz | 2018-06-0412:56:12.38 |    science,arc |  J1724+1901 |   300.0 |
 
 Created with Holy Grail, sigdetect = 5.0, and line list OH_NIRES
@@ -14,10 +33,17 @@ Created with Holy Grail, sigdetect = 5.0, and line list OH_NIRES
 
 X-shooter
 ---------
-| XSHOO.2016-08-02T09:32:03.463.fits.gz | 2016-08-02T09:32:03.463 | science,arc     | J0100     |   900.0 |
+* NIR
+  ---
+vlt_xshooter_nir.json
 
-Created with sigdetect = 5.0. Line identifications were first done in IRAF by Ema Farina to create vlt_xshooter_nir_iraf.json,
-then this database was used to reidentify the above frame, and was archived. 
+| XSHOO.2017-06-28T23:51:39.115.fits    |  x    | science,arc     |   pisco    | 1200.0 |
+
+
+Created with sigdetect = 5.0. Line identifications were first done in
+IRAF by Ema Farina (on J0100, XSHOO.2016-08-02T09:32:03.463.fits.gz)to
+create vlt_xshooter_nir_iraf.json, then this database was used to
+reidentify the above frame, and was archived.
 
 
 * VIS 1x1

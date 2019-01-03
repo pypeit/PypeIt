@@ -15,9 +15,9 @@ from __future__ import unicode_literals
 
 import argparse
 from astropy.table import Table
-from pypeit import traceslits
 from pypeit import ginga
-
+from pypeit.spectrographs import util
+from pypeit.scienceimage import ScienceImageBitMask as bitmask
 
 def parser(options=None):
 
@@ -102,7 +102,7 @@ def main(args):
     except ValueError:  # Backwards compatability
         msgs.error("Requested detector {:s} has no bit mask.\n Maybe you chose the wrong one to view?\n" +
                    "Set with --det= or check file contents with --list".format(sdet))
-    bitmask = hdu[exten].data
+    mask = hdu[exten].data
     try:
         exten = names.index('DET{:s}-IVARMODEL'.format(sdet))
     except ValueError:  # Backwards compatability
@@ -117,67 +117,73 @@ def main(args):
                    "Set with --det= or check file contents with --list".format(sdet))
     objmodel = hdu[exten].data
     # Get waveimg
-    cwd = os.getcwd()
-    waveimg = cwd+'/'+ os.path.basename(os.path.normpath(head0['PYPMFDIR'])) +\
-              '/MasterWave_'+'{:s}_{:s}_{:02d}.fits'.format(head0['PYPCNFIG'], head0['PYPCALIB'], args.det)
-    # Load Tslits
     mdir = head0['PYPMFDIR']+'/'
+    waveimg = masterframe.master_name('wave', head0['ARCMKEY'], mdir)
+    # Load Tslits
     # THIS WILL BREAK WHEN PYPCALIB varies from calib type to calib type
-    setup = '{:s}_{:s}_{:s}'.format(head0['PYPCNFIG'], head0['PYPCALIB'], sdet)
-    trc_file = masterframe.master_name('trace', setup, mdir)
-    Tslits = traceslits.TraceSlits.from_master_files(trc_file)
-    slit_ids = [trace_slits.get_slitid(Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen, ii)[0] for ii in range(Tslits.lcen.shape[1])]
+    master_key = '{:s}'.format(head0['TRACMKEY'])
+    trc_file = masterframe.master_name('trace', master_key, mdir)
+    tslits_dict = traceslits.load_tslits_dict(trc_file)
+    spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
+    slitmask = spectrograph.slitmask(tslits_dict)
+    shape = (tslits_dict['nspec'], tslits_dict['nspat'])
+    slit_ids = [trace_slits.get_slitid(shape, tslits_dict['lcen'], tslits_dict['rcen'], ii)[0]
+                for ii in range(tslits_dict['lcen'].shape[1])]
     # Show the bitmask?
     if args.showmask:
-        bitmask_in = bitmask
+        mask_in = mask
     else:
-        bitmask_in = None
+        mask_in = None
     # Object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')
     hdulist_1d = fits.open(spec1d_file)
     det_nm = 'DET{:s}'.format(sdet)
 
+    # Unpack the bitmask
+    bitMask = bitmask()
+    bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask = bitMask.unpack(mask)
+
     # Now show each image to a separate channel
 
-
     # SCIIMG
-    image = (sciimg)*(bitmask == 0)  # sky subtracted image
-    (mean, med, sigma) = sigma_clipped_stats(image[bitmask == 0], sigma_lower=5.0, sigma_upper=5.0)
+
+    image = sciimg # Raw science image
+    (mean, med, sigma) = sigma_clipped_stats(image[mask == 0], sigma_lower=5.0, sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 4.0 * sigma
     chname_skysub='sciimg-det{:s}'.format(sdet)
     # Clear all channels at the beginning
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
-                                  bitmask=bitmask_in, clear=True) #, cuts=(cut_min, cut_max), wcs_match=True)
+                                  bitmask=mask_in, clear=True) #, cuts=(cut_min, cut_max), wcs_match=True)
 
     # SKYSUB
-    image = (sciimg - skymodel) * (bitmask == 0)  # sky subtracted image
-    (mean, med, sigma) = sigma_clipped_stats(image[bitmask == 0], sigma_lower=5.0, sigma_upper=5.0)
+    image = (sciimg - skymodel) * (mask == 0)  # sky subtracted image
+    (mean, med, sigma) = sigma_clipped_stats(image[mask == 0], sigma_lower=5.0, sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 4.0 * sigma
     chname_skysub='skysub-det{:s}'.format(sdet)
     # Clear all channels at the beginning
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
-                                  bitmask=bitmask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
+                                  bitmask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
                                   # JFH For some reason Ginga crashes when I try to put cuts in here.
     show_trace(hdulist_1d, det_nm, viewer, ch)
-    ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
+    ginga.show_slits(viewer, ch, tslits_dict['lcen'], tslits_dict['rcen'], slit_ids)#, args.det)
 
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
-    image = (sciimg - skymodel) * np.sqrt(ivarmodel) * (bitmask == 0)  # sky residual map
+    image = (sciimg - skymodel) * np.sqrt(ivarmodel) * (mask == 0)  # sky residual map
     viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=waveimg,
-                                  cuts=(-5.0, 5.0), bitmask = bitmask_in) #,wcs_match=True)
+                                  cuts=(-5.0, 5.0), bitmask = mask_in) #,wcs_match=True)
     show_trace(hdulist_1d, det_nm, viewer, ch)
-    ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
+    ginga.show_slits(viewer, ch, tslits_dict['lcen'], tslits_dict['rcen'], slit_ids)#, args.det)
 
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
-    image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * (bitmask == 0)  # full model residual map
+    image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * (mask == 0)  # full model residual map
     viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=waveimg,
-                                  cuts = (-5.0, 5.0), bitmask = bitmask_in) #,wcs_match=True)
+                                  cuts = (-5.0, 5.0), bitmask = mask_in) #,wcs_match=True)
     show_trace(hdulist_1d, det_nm, viewer, ch)
-    ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
+    ginga.show_slits(viewer, ch, tslits_dict['lcen'], tslits_dict['rcen'], slit_ids)#, args.det)
 
 
     # After displaying all the images sync up the images with WCS_MATCH

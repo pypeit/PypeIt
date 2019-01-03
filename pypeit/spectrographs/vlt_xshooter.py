@@ -126,19 +126,18 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
 
-        #
         match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['binning'] = ''
         # Bias
         match_criteria['bias']['match'] = {}
         match_criteria['bias']['match']['binning'] = ''
         # Pixelflat
-        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
+        match_criteria['pixelflat']['match'] = {}
+        match_criteria['pixelflat']['match']['binning'] = ''
         # Traceflat
-        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
+        match_criteria['trace']['match'] = {}
+        match_criteria['trace']['match']['binning'] = ''
         # Arc
-        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
-
+        match_criteria['arc']['match'] = {}
         # Return
         return match_criteria
 
@@ -343,9 +342,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         """
 
-        # NIR has no binning, but for an instrument with binning we would do this
-        #binspatial, binspectral = parse.parse_binning(binning)
-
         # ToDO Either assume a linear trend or measure this
         # X-shooter manual says, but gives no exact numbers per order.
         # NIR: 52.4 pixels (0.210"/pix) at order 11 to 59.9 pixels (0.184"/pix) at order 26.
@@ -357,7 +353,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         return plate_scale
 
 
-    def slitmask(self, tslits_dict, pad=None, binning=None):
+    def slitmask(self, tslits_dict, pad=None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
          overload this function to implement instrument specific slitmask behavior, for example setting
@@ -394,7 +390,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
         order_max = [1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000]
         order_min = [420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0]
-        # TODO add binning adjustments to these
         for islit in range(nslits):
             orderbad = (slitmask == islit) & ((spec_img < order_min[islit]) | (spec_img > order_max[islit]))
             slitmask[orderbad] = -1
@@ -427,8 +422,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 0.595,
                             ronoise         = 3.1,
-                            datasec         = '[29:1970,1:]',
-                            oscansec        = '[2:7, 1:]',
+                            datasec         = '[11:2058,1:]', #'[29:1970,1:]',
+                            oscansec        = '[2059:2106,1:]',
                             suffix          = '_VIS'
                             )]
         self.numhead = 1
@@ -471,11 +466,14 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.50 # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['n_final'] = [3] + 13*[4] + [3]
         par['calibrations']['wavelengths']['fwhm'] = 11.0 # This is for 1x1 binning. Needs to be divided by binning for binned data!!
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         # ToDo the arxived solution is for 1x1 binning. It needs to be generalized for different binning!
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.json'
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.50
+        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
@@ -551,7 +549,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         return plate_scale*binspatial
 
 
-    def slitmask(self, tslits_dict, pad=None, binning=None):
+    def slitmask(self, tslits_dict, pad=None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
          overload this function to implement instrument specific slitmask behavior, for example setting
@@ -578,10 +576,14 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # These lines are always the same
         pad = tslits_dict['pad'] if pad is None else pad
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
+        nslits = tslits_dict['lcen'].shape[1]
+        if nslits != self.norders:
+            msgs.error('Not all the orders were identified!')
 
+        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
         spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
 
+        binning = tslits_dict['binning']
         binspatial, binspectral = parse.parse_binning(binning)
         # These are the order boundaries determined by eye by JFH.
         order_max = np.asarray([4000]*14 + [3000])//binspectral
@@ -590,6 +592,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         for iorder in range(self.norders):
             orderbad = (slitmask == iorder) & ((spec_img < order_min[iorder]) | (spec_img > order_max[iorder]))
             slitmask[orderbad] = -1
+
         return slitmask
 
 

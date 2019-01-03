@@ -45,18 +45,19 @@ class WaveImage(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'wave'
 
-    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, master_key=None, master_dir=None, mode=None,
-                 maskslits=None):
+    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, binning = None, master_key=None, master_dir=None,
+                 reuse_masters=False, maskslits=None):
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, mode=mode)
+                                         master_dir=master_dir, reuse_masters=reuse_masters)
 
         # Required parameters (but can be None)
         self.tslits_dict = tslits_dict
         self.tilts = tilts
         self.wv_calib = wv_calib
         self.spectrograph = spectrograph
+        self.binning = binning
         self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
         self.par = wv_calib['par']
 
@@ -84,11 +85,10 @@ class WaveImage(masterframe.MasterFrame):
         ok_slits = np.where(~self.maskslits)[0]
         self.wave = np.zeros_like(self.tilts)
         nspec =self.slitmask.shape[0]
-        piximg = self.tilts*(nspec-1)
 
         # Error checking on the wv_calib
-        if (nspec-1) != int(self.wv_calib[str(0)]['fmax']):
-            msgs.error('Your wavelength fits used inconsistent normalization. Something is wrong!')
+        #if (nspec-1) != int(self.wv_calib[str(0)]['fmax']):
+        #    msgs.error('Your wavelength fits used inconsistent normalization. Something is wrong!')
 
         # Ff this is echelle print out a status message and do some error checking
         if self.par['echelle']:
@@ -102,15 +102,14 @@ class WaveImage(masterframe.MasterFrame):
             if self.par['echelle']:
                 order = self.spectrograph.slit2order(slit)
                 # evaluate solution
-                tmpwv = utils.func_val(self.wv_calib['fit2d']['coeffs'], piximg[thismask], self.wv_calib['fit2d']['func2d'],
-                                       x2=np.ones_like(piximg[thismask])*order,
+                tmpwv = utils.func_val(self.wv_calib['fit2d']['coeffs'], self.tilts[thismask], self.wv_calib['fit2d']['func2d'],
+                                       x2=np.ones_like(self.tilts[thismask])*order,
                                        minx=self.wv_calib['fit2d']['min_spec'], maxx=self.wv_calib['fit2d']['max_spec'],
                                        minx2=self.wv_calib['fit2d']['min_order'], maxx2=self.wv_calib['fit2d']['max_order'])/order
-                #tmpwv = arc.eval2dfit(self.wv_calib['fit2d'],piximg[thismask],order)/order
             else:
                 iwv_calib = self.wv_calib[str(slit)]
-                tmpwv = utils.func_val(iwv_calib['fitc'], piximg[thismask], iwv_calib['function'],
-                                   minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
+                tmpwv = utils.func_val(iwv_calib['fitc'], self.tilts[thismask], iwv_calib['function'],
+                                       minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
             self.wave[thismask] = tmpwv
         # Step
         self.steps.append(inspect.stack()[0][3])

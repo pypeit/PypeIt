@@ -23,10 +23,38 @@ from bisect import insort, bisect_left
 #from pydl.pydlutils import math
 #from pydl.pydlutils import bspline
 
+
+
 from pypeit.core import pydl
 
 from pypeit import msgs
-from pypeit import debugger
+
+
+def rebin(a, newshape):
+    '''Rebin an array to a new shape using slicing. This routine is taken from:
+    https://scipy-cookbook.readthedocs.io/items/Rebinning.html. The image shapes need
+    not be integer multiples of each other, but in this regime the transformation will
+    not be reversible, i.e. if a_orig = rebin(rebin(a,newshape), a.shape) then
+    a_orig will not be everywhere equal to a (but it will be equal in most places).
+
+    Args:
+        a: ndarray, any dtype
+          Image of any dimensionality and data type
+        newshape:
+          Shape of the new image desired. Dimensionality must be the same as a.
+    Returns:
+        a_new: ndarray, same dtype as a
+          Image with same values as a rebinning to shape newshape
+    '''
+
+    if not len(a.shape) == len(newshape):
+        msgs.error('Dimension of a image does not match dimension of new requested image shape')
+
+    slices = [slice(0, old, float(old) / new) for old, new in zip(a.shape, newshape)]
+    coordinates = np.mgrid[slices]
+    indices = coordinates.astype('i')  # choose the biggest smaller integer index
+    return a[tuple(indices)]
+
 
 def quicksave(data,fname):
     """
@@ -447,15 +475,16 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     iiter = 0
     error = -1
     qdone = False
-
+    exit_status = 0
     relative_factor = 1.0
     tempin = np.copy(inmask)
-    while (error != 0 or qdone is False) and iiter <= maxiter:
+    while (error != 0 or qdone is False) and iiter <= maxiter and (exit_status == 0):
         ngood = maskwork.sum()
         goodbk = sset.mask.nonzero()[0]
         if ngood <= 1 or not sset.mask.any():
             sset.coeff = 0
-            iiter = maxiter + 1 # End iterations
+            exit_status = 2 # This will end iterations
+            #iiter = maxiter + 1 # End iterations
         else:
             # Do the fit. Return values from workit for error are as follows:
             #    0 if fit is good
@@ -495,7 +524,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
             # Rejection
             # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
             # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
-            # further consideration. I think requiring stick to be set is the more transparent behavior.
+            # further consideration. I think requiring sticky to be set is the more transparent behavior.
             maskwork, qdone = pydl.djs_reject(ydata, yfit, invvar=invvar,
                                          inmask=tempin, outmask=maskwork,
                                          upper=upper*relative_factor,
@@ -507,6 +536,13 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
         else:
             msgs.info("                             {:4d}".format(iiter) + "    ---    ---    ---    ---")
 
+    if iiter == (maxiter + 1):
+        exit_status = 1
+
+    # Exit status:
+    #    0 = fit exited cleanly
+    #    1 = maximum iterations were reached
+    #    2 = all points were masked
 
     msgs.info("***************************************************************************************************")
     msgs.info(
@@ -515,7 +551,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     # Finish
     outmask = np.copy(maskwork)
     # Return
-    return sset, outmask, yfit, reduced_chi
+    return sset, outmask, yfit, reduced_chi, exit_status
 
 
 
