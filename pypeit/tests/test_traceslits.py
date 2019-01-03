@@ -30,7 +30,7 @@ def test_chk_kast_slits():
         traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
         norig = traceSlits.nslit
         # Run me
-        traceSlits.run(write_qa=False)  # Don't need plate_scale for longslit
+        traceSlits.run(trim_slits=False, write_qa=False)  # Don't need plate_scale for longslit
         # Test
         assert traceSlits.nslit == norig
 

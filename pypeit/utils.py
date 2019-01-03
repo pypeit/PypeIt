@@ -30,6 +30,32 @@ from pypeit.core import pydl
 from pypeit import msgs
 
 
+def rebin(a, newshape):
+    '''Rebin an array to a new shape using slicing. This routine is taken from:
+    https://scipy-cookbook.readthedocs.io/items/Rebinning.html. The image shapes need
+    not be integer multiples of each other, but in this regime the transformation will
+    not be reversible, i.e. if a_orig = rebin(rebin(a,newshape), a.shape) then
+    a_orig will not be everywhere equal to a (but it will be equal in most places).
+
+    Args:
+        a: ndarray, any dtype
+          Image of any dimensionality and data type
+        newshape:
+          Shape of the new image desired. Dimensionality must be the same as a.
+    Returns:
+        a_new: ndarray, same dtype as a
+          Image with same values as a rebinning to shape newshape
+    '''
+
+    if not len(a.shape) == len(newshape):
+        msgs.error('Dimension of a image does not match dimension of new requested image shape')
+
+    slices = [slice(0, old, float(old) / new) for old, new in zip(a.shape, newshape)]
+    coordinates = np.mgrid[slices]
+    indices = coordinates.astype('i')  # choose the biggest smaller integer index
+    return a[tuple(indices)]
+
+
 def quicksave(data,fname):
     """
     Save a fits file (quickly) -- overwrite is forced, and no quality control checks

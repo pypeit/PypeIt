@@ -65,6 +65,7 @@ the Calibrations class.
 - New behavior associated with the -o overwrite feature in run_pypeit.
 User prompting feature has been disabled. Existing science files will not
 be re-created unless the -o option is set.
+- Fixed a bug where local sky subtraction was crashing when all the pixels get masked.
 - Nearly resurrected simple_calib
 - New method to build the fitstbl of meta data
 - Refactor handling of meta data including a data model defining core and additional meta data
