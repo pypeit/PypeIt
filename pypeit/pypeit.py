@@ -95,6 +95,9 @@ class PypeIt(object):
         self.fitstbl.set_defaults()  # Only does something if values not set in PypeIt file
         self.fitstbl._set_calib_group_bits()
         self.fitstbl._check_calib_groups()
+        # Write .calib file (For QA naming amongst other things)
+        calib_file = pypeit_file.replace('.pypeit', '.calib')
+        self.fitstbl.write_calib(calib_file)
 
         # Use the instrument config to set specific parameters (rarely occurs)
         is_science = self.fitstbl.find_frames('science')
