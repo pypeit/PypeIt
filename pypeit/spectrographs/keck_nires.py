@@ -101,6 +101,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
+        # Do not bias subtract
+        par['scienceframe']['useframe'] ='none'
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]

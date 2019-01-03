@@ -117,6 +117,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['exprng'] = [None, 30]
         par['calibrations']['standardframe']['exprng'] = [None, 30]
         par['scienceframe']['exprng'] = [30, None]
+
+        # Do not bias subtract
+        par['scienceframe']['useframe'] ='none'
+
+
         return par
 
     def check_headers(self, headers):
