@@ -154,14 +154,17 @@ class WaveCalib(masterframe.MasterFrame):
             #self.par['match_toler'] = 3.
             #self.arcparam['Nstrong'] = 13
 
-            CuI = wavecal.waveio.load_line_list('CuI', use_ion=True, NIST=True)
-            ArI = wavecal.waveio.load_line_list('ArI', use_ion=True, NIST=True)
-            ArII = wavecal.waveio.load_line_list('ArII', use_ion=True, NIST=True)
-            llist = vstack([CuI, ArI, ArII])
-            self.arcparam['llist'] = llist
+            #CuI = wavecal.waveio.load_line_list('CuI', use_ion=True, NIST=True)
+            #ArI = wavecal.waveio.load_line_list('ArI', use_ion=True, NIST=True)
+            #ArII = wavecal.waveio.load_line_list('ArII', use_ion=True, NIST=True)
+            #llist = vstack([CuI, ArI, ArII])
+            #self.arcparam['llist'] = llist
+            lines = self.par['lamps']
+            line_lists = wavecal.waveio.load_line_lists(lines)
 
-            self.wv_calib = arc.simple_calib_driver(self.msarc, self.par, arccen, ok_mask,
+            self.wv_calib = arc.simple_calib_driver(self.msarc, line_lists, arccen, ok_mask,
                                                     nfitpix=self.par['nfitpix'],
+
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'semi-brute':
@@ -193,7 +196,7 @@ class WaveCalib(masterframe.MasterFrame):
                     self.maskslits[slit] = True
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
-            arcfitter = wavecal.autoid.HolyGrail(arccen, par = self.par, ok_mask=ok_mask)
+            arcfitter = wavecal.autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'reidentify':
             # Now preferred

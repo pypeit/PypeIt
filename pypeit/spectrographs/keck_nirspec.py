@@ -182,7 +182,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     '''
     def pypeit_file_keys(self):
         pypeit_keys = super(KeckNIRSPECSpectrograph, self).pypeit_file_keys()
-        pypeit_keys += ['calib', 'obj_id', 'bkg_id']
+        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
         return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):

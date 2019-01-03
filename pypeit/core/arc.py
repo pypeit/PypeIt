@@ -10,16 +10,13 @@ from matplotlib import pyplot as plt
 import scipy
 from astropy.stats import sigma_clipped_stats, sigma_clip
 
-from pypeit import ararclines
 from pypeit import debugger
+
 from pypeit import msgs
 from pypeit import utils
-from pypeit.core import parse
-from pypeit.core import pixels
 from pypeit.core.wavecal import autoid
+from pypeit.core.wavecal import wvutils
 from pypeit import debugger
-from pypeit.core import pydl
-from pypeit.core import qa
 from skimage.transform import resize
 
 def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0, func2d='legendre2d', debug=False):
@@ -947,21 +944,21 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     return ampl, cent, widt, centerr
 
 
-def simple_calib_driver(msarc, aparm, censpec, ok_mask, nfitpix=5, get_poly=False,
-                        IDpixels=None, IDwaves=None):
+def simple_calib_driver(msarc, llist, censpec, ok_mask, nfitpix=5, get_poly=False,
+                        IDpixels=None, IDwaves=None, nonlinear_counts=None):
     wv_calib = {}
     for slit in ok_mask:
-        iwv_calib = simple_calib(msarc, aparm, censpec[:, slit], nfitpix=nfitpix,
-                                 get_poly=get_poly, IDpixels=IDpixels, IDwaves=IDwaves)
+        iwv_calib = simple_calib(msarc, llist, censpec[:, slit], nfitpix=nfitpix,
+                                 get_poly=get_poly, IDpixels=IDpixels, IDwaves=IDwaves,
+                                 nonlinear_counts=nonlinear_counts)
         wv_calib[str(slit)] = iwv_calib.copy()
     return wv_calib
 
 
-def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
-                 IDpixels=None, IDwaves=None, debug=False, sigdetect=5.):
+def simple_calib(msarc, llist, censpec, nfitpix=5, get_poly=False,
+                 IDpixels=None, IDwaves=None, debug=False, sigdetect=5.,
+                 nonlinear_counts=None):
     """Simple calibration algorithm for longslit wavelengths
-
-    Uses slf._arcparam to guide the analysis
 
     Parameters
     ----------
@@ -981,17 +978,16 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, _, w, yprep, nsig = detect_lines(censpec, nfitpix=nfitpix,
-                                                         sigdetect=sigdetect,
-                                                         nonlinear_counts = aparm['nonlinear_counts'])
+    #tampl, tcent, twid, _, w, yprep, nsig = detect_lines(censpec, nfitpix=nfitpix,
+    #                                                     sigdetect=sigdetect,
+    #                                                     nonlinear_counts = aparm['nonlinear_counts'])
+    tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
+        censpec, sigdetect=sigdetect, nonlinear_counts=nonlinear_counts)#, debug = debug_peaks)
 
     # Cut down to the good ones
-    tcent = tcent[w]
-    tampl = tampl[w]
+    tcent = tcent[icut]
+    #tampl = tampl[w]
     msgs.info('Detected {:d} lines in the arc spectrum.'.format(len(w[0])))
-
-    # Read Arc linelist
-    llist = aparm['llist']
 
     # IDs were input by hand
     if IDpixels is not None:
@@ -1034,6 +1030,9 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
                 idsion[jj] = llist['Ion'][imnw]
                 msgs.info("Identifying arc line: {:s} {:g}".format(idsion[jj],ids[jj]))
     else:
+        # DEPRECATED!!
+        debugger.set_trace()
+        '''
         # Generate dpix pairs
         msgs.info("Using pair algorithm for wavelength solution")
         nlist = len(llist)
@@ -1082,9 +1081,13 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
                 debugger.plot1d(yprep)
             else:
                 msgs.error('Insufficient lines to auto-fit.')
+        '''
 
     # Debug
     msgs.work('Cross correlate here?')
+
+    debugger.set_trace() # STOPPED HERE
+    #  SHOULD MAKE A CALL to fitting.iterative_fitting()
 
     # Setup for fitting
     ifit = idx_str[gd_str]
@@ -1094,24 +1097,24 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     all_ids[ifit] = ids[gd_str]
     all_idsion[ifit] = idsion[gd_str]
     # Fit
-    n_order = aparm['n_first']
+    n_order = par['n_first']
     flg_quit = False
     fmin, fmax = -1., 1.
     msgs.info('Iterative wavelength fitting..')
     #debug=True
-    while (n_order <= aparm['n_final']) and (flg_quit is False):
+    while (n_order <= par['n_final']) and (flg_quit is False):
         #msgs.info('n_order={:d}'.format(n_order))
         # Fit with rejection
         xfit, yfit = tcent[ifit], all_ids[ifit]
-        mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
-        rms_ang = utils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
+        mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=par['func'], sigma=par['sigrej_first'], minv=fmin, maxv=fmax)
+        rms_ang = utils.calc_fit_rms(xfit, yfit, fit, par['func'], minv=fmin, maxv=fmax)
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask == 0]) + sv_ifit
         # Find new points (should we allow removal of the originals?)
-        twave = utils.func_val(fit, tcent, aparm['func'], minv=fmin, maxv=fmax)
+        twave = utils.func_val(fit, tcent, par['func'], minv=fmin, maxv=fmax)
         for ss,iwave in enumerate(twave):
             mn = np.min(np.abs(iwave-llist['wave']))
-            if mn/aparm['disp'] < aparm['match_toler']:
+            if mn/aparm['disp'] < par['match_toler']:
                 imn = np.argmin(np.abs(iwave-llist['wave']))
                 if debug:
                     print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
@@ -1124,7 +1127,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
         if debug:
             debugger.set_trace()
         # Increment order
-        if n_order < aparm['n_final']:
+        if n_order < par['n_final']:
             n_order += 1
         else:
             # This does 2 iterations at the final order
@@ -1133,7 +1136,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     # Final fit (originals can now be rejected)
     fmin, fmax = 0., 1.
     xfit, yfit = tcent[ifit]/(msarc.shape[0]-1), all_ids[ifit]
-    mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)
+    mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=par['func'], sigma=par['sigrej_final'], minv=fmin, maxv=fmax)
     irej = np.where(mask==1)[0]
     if len(irej) > 0:
         xrej = xfit[irej]
