@@ -65,6 +65,13 @@ the Calibrations class.
 - New behavior associated with the -o overwrite feature in run_pypeit.
 User prompting feature has been disabled. Existing science files will not
 be re-created unless the -o option is set.
+- Nearly resurrected simple_calib
+- New method to build the fitstbl of meta data
+- Refactor handling of meta data including a data model defining core and additional meta data
+- Replaces metadata_keys with pypeit_file_keys for output to PypeIt file
+- Updates new metadata approach for VLT, Keck, Lick, Gemini instruments
+- Remove PypeItSetup call from within PypeIt
+- Remove lacosmic specific method in Spectrograph;  replaced with config_specific_par
 
 0.9.0
 -----

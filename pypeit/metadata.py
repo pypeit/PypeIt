@@ -390,8 +390,8 @@ class PypeItMetaData:
         existing_keys = list(set(self.table.keys()) & set(usrdata.keys()))
         if len(existing_keys) > 0 and match_type:
             for key in existing_keys:
-                if len(self.table[key].shape) > 1:  # DEAL WITH ARRAYS, TUPLES -- ASSUME SEPARATED BY ,
-                    debugger.set_trace()  # NOT ALLOWED!!
+                if len(self.table[key].shape) > 1:  # NOT ALLOWED!!
+                    debugger.set_trace()
                 elif self.table[key].dtype.type != usrdata[key].dtype.type:
                     try:
                         usrdata[key] = usrdata[key].astype(self.table[key].dtype)
@@ -1215,8 +1215,15 @@ class PypeItMetaData:
         return self.set_frame_types(type_bits, merge=merge)
 
     def set_defaults(self):
+        """
+        Set default values for comb_id and calib
+        columns of the fitstbl
+
+        Returns:
+            self.table is modified in place
+
+        """
         # Set comb_id
-        # TODO-- a bit kludgy to do it here;  consider another place but it must be after usrdata is ingested
         if not np.any(self['comb_id'] >= 0):
             sci_std_idx = np.where(np.any([self.find_frames('science'),
                                            self.find_frames('standard')], axis=0))[0]
@@ -1905,9 +1912,20 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
 
 def define_core_meta():
     """
+    Define the core set of meta data that must be defined
+    to run PypeIt
+
+    Each meta entry is a dict with keys
+       dtype: str, float, int
+       comment: str
+       rtol: float, optional
+         Sets the relative tolerance for float meta when used to set a configuration
+
     Each meta dtype must be scalar or str.  No tuple, list, ndarray, etc.
 
     Returns:
+        core_meta: dict
+
 
     """
     core_meta = OrderedDict()  # Mainly for output to PypeIt file
@@ -1937,6 +1955,8 @@ def define_core_meta():
 def define_additional_meta():
     """
     Defines meta that tends to be instrument-specific and not used as widely in the code
+
+    See define_core_meta() for additional details
 
     For meta used to define configurations, the rtol key specifies
     the relative tolerance for a match
@@ -1991,6 +2011,23 @@ def get_meta_data_model():
     return meta_data_model
 
 def row_match_config(row, config, spectrograph):
+    """
+    Queries whether a row from the fitstbl matches the
+    input configuration
+
+    Args:
+        row: Row
+          From fitstbl
+        config: dict
+          Defines the configuration
+        spectrograph: Spectrograph
+          Used to grab the rtol value for float meta (e.g. dispangle)
+
+    Returns:
+        answer: bool
+          True if the row matches the input configuration
+
+    """
     # Loop on keys in config
     match = []
     for k in config.keys():

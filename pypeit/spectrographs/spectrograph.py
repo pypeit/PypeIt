@@ -33,8 +33,6 @@ class Spectrograph(object):
             currently supported spectrographs.
         telescope (:class:`TelescopePar`):
             Parameters of the telescope that feeds this spectrograph.
-        camera (str):
-            Name of the spectrograph camera.
         detector (list):
             A list of instances of
             :class:`pypeit.par.pypeitpar.DetectorPar` with the parameters
@@ -58,7 +56,6 @@ class Spectrograph(object):
     def __init__(self):
         self.spectrograph = 'base'
         self.telescope = None
-        self.camera = None
         self.detector = None
         self.naxis = None
 #        self.raw_naxis = None
@@ -99,6 +96,18 @@ class Spectrograph(object):
         return pypeitpar.PypeItPar()
 
     def config_specific_par(self, par, filename):
+        """
+        Used to modify the ParSet from metadata
+        drawn from the input file
+
+        Args:
+            par: ParSet
+            filename: str
+
+        Returns:
+            par is modified in place
+
+        """
         pass
 
     '''
@@ -430,6 +439,7 @@ class Spectrograph(object):
         # before that.
         return self.empty_bpm(shape=shape, filename=filename, det=det)
 
+    '''
     # TODO: (KBW) I've removed all the defaults.  Should maybe revisit
     # this
     def default_header_keys(self):
@@ -439,6 +449,7 @@ class Spectrograph(object):
 
     def header_keys(self):
         return self.default_header_keys()
+    '''
 
     def configuration_keys(self):
         """
@@ -495,6 +506,13 @@ class Spectrograph(object):
         return None
 
     def init_meta(self):
+        """
+        Define how meta values are dervied from the spectrograph files
+
+        Returns:
+            self.meta defined
+
+        """
         self.meta = {}
 
     def get_meta_value(self, ifile, meta_key, headarr=None, required=False, ignore_bad_header=False):
@@ -572,6 +590,14 @@ class Spectrograph(object):
         return value
 
     def validate_metadata(self):
+        """
+        Validates the meta definitions of the Spectrograph
+        by making a series of comparisons to the meta data model
+        definied in metadata.py
+
+        Returns:
+
+        """
         # Load up
         core_meta = metadata.define_core_meta()
         meta_data_model = metadata.get_meta_data_model()
@@ -586,10 +612,6 @@ class Spectrograph(object):
         for key in self.meta.keys():
             if key not in self.meta_data_model.keys():
                 msgs.error("Meta data {:s} not in meta_data_model".format(key))
-
-    #def metadata_keys(self):
-    #    return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker']
-    #            #'setup', 'calib']#, 'comb_id', 'bkg_id']
 
     def get_headarr(self, filename, strict=True):
         """
@@ -788,7 +810,6 @@ class Spectrograph(object):
         txt = '<{:s}: '.format(self.__class__.__name__)
         txt += ' spectrograph={:s},'.format(self.spectrograph)
         txt += ' telescope={:s},'.format(self.telescope['name'])
-        txt += ' camera={:s}'.format(self.camera)
         txt += '>'
         return txt
 
