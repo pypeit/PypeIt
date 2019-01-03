@@ -65,7 +65,7 @@ the Calibrations class.
 - New behavior associated with the -o overwrite feature in run_pypeit.
 User prompting feature has been disabled. Existing science files will not
 be re-created unless the -o option is set.
-
+- Fixed a bug where local sky subtraction was crashing when all the pixels get masked.
 0.9.0
 -----
 

@@ -194,7 +194,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         fits_dict, ts_dict = load_traceslit_files(root)
-        msgs.info("Loading Slits from {:s}".format(root + '.fits.gz'))
+        msgs.info("Loading Slits from {:s}".format(root + '.fits'))
 
         # Deal with parameters
         if par is None:

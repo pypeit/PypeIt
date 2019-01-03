@@ -506,7 +506,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
 
             sky_bmodel = np.array(0.0)
             iterbsp = 0
-            while (sky_bmodel.any() == False) & (iterbsp <= 5):
+            while (not sky_bmodel.any()) & (iterbsp <= 5):
                 bsp_now = (1.2 ** iterbsp) * bsp
                 # if skysample is set, determine optimal break-point spacing
                 # directly measuring how well we are sampling of the sky. The
@@ -531,13 +531,13 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 keep = (fullbkpt >= piximg.flat[isub[ithis]].min()) & (fullbkpt <= piximg.flat[isub[ithis]].max())
                 fullbkpt = fullbkpt[keep]
                 obj_profiles_flat = obj_profiles.reshape(nspec * nspat, objwork)
-                (sky_bmodel, obj_bmodel, outmask_opt) = skyoptimal(piximg.flat[isub], sciimg.flat[isub],
-                                                                   (modelivar * skymask).flat[isub],
-                                                                   obj_profiles_flat[isub, :], sortpix,
-                                                                   spatial=spatial_img.flat[isub],
-                                                                   fullbkpt=fullbkpt, sigrej=sigrej_eff, npoly=npoly)
+                sky_bmodel, obj_bmodel, outmask_opt = skyoptimal(piximg.flat[isub], sciimg.flat[isub],
+                                                                 (modelivar * skymask).flat[isub],
+                                                                 obj_profiles_flat[isub, :], sortpix,
+                                                                 spatial=spatial_img.flat[isub],
+                                                                 fullbkpt=fullbkpt, sigrej=sigrej_eff, npoly=npoly)
                 iterbsp = iterbsp + 1
-                if (sky_bmodel.any() is False) & (iterbsp <= 4):
+                if (not sky_bmodel.any()) & (iterbsp <= 4):
                     msgs.warn('***************************************')
                     msgs.warn('WARNING: bspline sky-subtraction failed')
                     msgs.warn('Increasing bkpt spacing by 20%. Retry')
