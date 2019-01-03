@@ -553,7 +553,7 @@ class Calibrations(object):
             self.tslits_dict = self.calib_dict[self.trace_master_key]['trace']
             self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
             return self.tslits_dict, self.maskslits
-                
+
         # Instantiate (without mstrace)
         self.traceSlits = traceslits.TraceSlits(None, self.spectrograph,
                                                 binning=self.binning,
