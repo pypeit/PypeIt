@@ -13,7 +13,9 @@ PypeIt distinguishes between various configurations
 for a given instrument when processing calibrations,
 generating Master frames, and performing the data
 reduction.  This Table summarizes the parameters that
-specify a unique setup:
+may specify a unique setup.  The actual items used
+are set by the configuration_keys() method in each
+spectrograph.
 
 ========= ========= ====== ======== =======================================
 Element   Attribute  Type   Example    Description
@@ -31,7 +33,7 @@ slit      decker    str    long_1.0 Name of decker or slit mask
 ========= ========= ====== ======== =======================================
 
 Each setup is given a unique setup ID value which is a
-two digit number starting at 01 (stored as a string).
+capitol letter, e.g. A.
 
 If you tend to observe with one instrument configuration
 and with a simple set of calibrations, then setup should

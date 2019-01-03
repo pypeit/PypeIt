@@ -42,7 +42,7 @@
 - Added configurations, calibration groups, and background index to
 - Total revamp of Tilts. Arc line tracing significantly improved.
 - Fixes to trace_crude_init, trace_fweight, and trace_gweight.
-- Many other small bug fixes and modifications particulary in the
+- Many other small bug fixes and modifications particularly in the
   fitting routines.
 - Lots of development related to echelle functionality.
 - Major enhancements to fitting routines (in utils)
@@ -73,6 +73,7 @@ be re-created unless the -o option is set.
 - Updates new metadata approach for VLT, Keck, Lick, Gemini instruments
 - Remove PypeItSetup call from within PypeIt
 - Remove lacosmic specific method in Spectrograph;  replaced with config_specific_par
+- setup block now required when running on a PypeIt file
 
 0.9.0
 -----

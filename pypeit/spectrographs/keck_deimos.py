@@ -360,6 +360,16 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.meta = meta
 
     def compound_meta(self, headarr, meta_key):
+        """
+
+        Args:
+            headarr: list
+            meta_key: str
+
+        Returns:
+            value
+
+        """
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspatial, binspec)
