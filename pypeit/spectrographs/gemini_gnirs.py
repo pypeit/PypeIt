@@ -119,6 +119,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [30, None]
         return par
 
+    '''
     def check_headers(self, headers):
         """
         Check headers match expectations for an LRISb exposure.
@@ -167,12 +168,39 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['binning'] = ' '
 
         return hdr_keys
+    '''
+
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
+
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='TARGNAME')
+        meta['decker'] = dict(ext=0, card='DECKER')
+
+        meta['binning'] = dict(ext=0, card=None, default='1,1')
+        meta['mjd'] = dict(ext=0, card='MJD_OBS')
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        meta['dispname'] = dict(ext=0, card='GRATING')
+        meta['hatch'] = dict(ext=0, card='COVER')
+        meta['dispangle'] = dict(ext=0, card='GRATTILT', rtol=1e-4)
+        meta['idname'] = dict(ext=0, card='OBSTYPE')
+
+        # Ingest
+        self.meta = meta
 
     def configuration_keys(self):
-        return ['decker', 'dispname']
-
-    def metadata_keys(self):
-        return super(GeminiGNIRSSpectrograph, self).metadata_keys() + ['dispangle', 'idname']
+        return ['decker', 'dispname', 'dispangle']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

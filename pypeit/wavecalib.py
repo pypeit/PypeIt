@@ -34,6 +34,7 @@ class WaveCalib(masterframe.MasterFrame):
     ----------
     msarc : ndarray
       Arc image, created by the ArcImage class
+
     Optional Parameters
     --------------------
     settings : dict, optional
@@ -41,6 +42,8 @@ class WaveCalib(masterframe.MasterFrame):
     det : int, optional
       Detector number
     master_key : str, optional
+    spectrograph : Spectrograph
+      Optional so that one can load a solution without using the Spectrograph, e.g. waveio.load_reid_arxiv()
 
     Attributes
     ----------
@@ -67,10 +70,8 @@ class WaveCalib(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'wv_calib'
 
-    # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
-    # parameters since instantiating without them does nothing. Make them required
-    def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, det=1, master_key=None, master_dir=None,
-                 reuse_masters=False, redux_path=None, bpm = None):
+    def __init__(self, msarc, tslits_dict, binning=None, spectrograph=None, par=None, det=1, master_key=None, master_dir=None,
+                 reuse_masters=False, redux_path=None, bpm=None):
 
         # Instantiate the spectograph
         self.spectrograph = load_spectrograph(spectrograph)
@@ -97,8 +98,11 @@ class WaveCalib(masterframe.MasterFrame):
         self.arccen = None # central arc spectrum
 
         # TODO this code is duplicated verbatim in wavetilts. Should it be a function
-        if self.spectrograph.detector is not None:
-            self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
+        if spectrograph is not None:
+            if self.spectrograph.detector is not None:
+                self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
+            else:
+                self.nonlinear_counts=1e10
         else:
             self.nonlinear_counts=1e10
         # Set the slitmask and slit boundary related attributes that the code needs for execution. This also deals with
@@ -509,7 +513,10 @@ class WaveCalib(masterframe.MasterFrame):
 
 def load_wv_calib(filename):
     """
-    Utility function which enables one to load the wv_calib and parset from a master file one line of code without instantiating the class.
+    Utility function which enables one to load the wv_calib and parset from a master file one line
+    of code without instantiating the class.
+
+    Note:  This method instantiates without a Spectrograph
 
     Parameters
     ----------
