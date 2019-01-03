@@ -244,12 +244,16 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     good = good[wave[good].argsort()]
     relative, = np.where(relative_mask[good])
 
+    outmask = np.zeros(wave.shape, dtype=bool)
 
-
-    sset1, outmask_good1, yfit1, red_chi1, exit_status = \
-        utils.bspline_profile(wave[good], data[good], ivar[good],
-        profile_basis[good, :],fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
-        relative=relative,kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+    if ngood > 0:
+        sset1, outmask_good1, yfit1, red_chi1, exit_status = utils.bspline_profile(
+            wave[good], data[good], ivar[good],
+            profile_basis[good, :],fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
+            relative=relative,kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+    else:
+        msgs.warn('All pixels are masked in skyoptimal. Not performing local sky subtraction.')
+        return np.zeros_like(wave), np.zeros_like(wave), outmask
 
     chi2 = (data[good] - yfit1) ** 2 * ivar[good]
     chi2_srt = np.sort(chi2)
@@ -260,10 +264,14 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     msgs.info('2nd round....')
     msgs.info('Iter     Chi^2     Rejected Pts')
 
-    sset, outmask_good, yfit, red_chi, exit_status = \
-        utils.bspline_profile(wave[good], data[good], ivar[good] * mask1,profile_basis[good, :],fullbkpt=fullbkpt,
-                              upper=sigrej, lower=sigrej,relative=relative,
-                              kwargs_reject={'groupbadpix': True, 'maxrej': 1})
+    if np.any(mask1):
+        sset, outmask_good, yfit, red_chi, exit_status = \
+            utils.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good, :], inmask=mask1,
+                                  fullbkpt=fullbkpt, upper=sigrej, lower=sigrej, relative=relative,
+                                  kwargs_reject={'groupbadpix': True, 'maxrej': 1})
+    else:
+        msgs.warn('All pixels are masked in skyoptimal after first round of rejection. Not performing local sky subtraction.')
+        return np.zeros_like(wave), np.zeros_like(wave), outmask
 
     ncoeff = npoly + nobj
     skyset = pydl.bspline(None, fullbkpt=sset.breakpoints, nord=sset.nord, npoly=npoly)
@@ -286,10 +294,9 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
         obj_bmodel1, _ = objset.value(wave)
         obj_bmodel = obj_bmodel + obj_bmodel1 * profile_basis[:, i]
 
-    outmask = np.zeros(wave.shape, dtype=bool)
     outmask[good] = outmask_good
 
-    return (sky_bmodel, obj_bmodel, outmask)
+    return sky_bmodel, obj_bmodel, outmask
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
                          bsp = 0.6, inmask = None, extract_maskwidth = 4.0, trim_edg = (3,3), std = False, prof_nsigma = None,
