@@ -1841,32 +1841,25 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
     fitstbl : PypeItMetaData
 
     """
-    fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
+    fitsdict = {}
     fitsdict['index'] = np.arange(nfile)
-    fitsdict['utc'] = ['2015-01-23']*nfile
     fitsdict['directory'] = [directory]*nfile
     fitsdict['filename'] = ['b{:03d}.fits.gz'.format(i) for i in range(nfile)]
     # TODO: The below will fail at 60
-    fitsdict['date'] = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]
-    fitsdict['time'] = [(1432085758+i*60)/3600. for i in range(nfile)]
+    dates = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]
+    ttime = time.Time(dates, format='isot')
+    fitsdict['mjd'] = ttime.mjd
     fitsdict['target'] = ['Dummy']*nfile
     fitsdict['ra'] = ['00:00:00']*nfile
     fitsdict['dec'] = ['+00:00:00']*nfile
     fitsdict['exptime'] = [300.] * nfile
-    fitsdict['naxis0'] = [2048] * nfile
-    fitsdict['naxis1'] = [2048] * nfile
     fitsdict['dispname'] = ['600/4310'] * nfile
     fitsdict['dichroic'] = ['560'] * nfile
-    fitsdict['dispangle'] = ['none'] * nfile
-    fitsdict["binning"] = ['1x1']*nfile
+    fitsdict["binning"] = ['1,1']*nfile
     fitsdict["airmass"] = [1.0]*nfile
 
     if spectrograph == 'shane_kast_blue':
         fitsdict['numamplifiers'] = [1] * nfile
-        fitsdict['naxis0'] = [2112] * nfile
-        fitsdict['naxis1'] = [2048] * nfile
-        fitsdict['slitwid'] = [1.] * nfile
-        fitsdict['slitlen'] = ['none'] * nfile
         # Lamps
         for i in range(1,17):
             fitsdict['lampstat{:02d}'.format(i)] = ['off'] * nfile
@@ -1960,10 +1953,14 @@ def define_additional_meta():
     additional_meta['filter1'] = dict(dtype=str, comment='First filter in optical path')
     additional_meta['dispangle'] = dict(dtype=float, comment='Angle of the disperser', rtol=0.)
     additional_meta['hatch'] = dict(dtype=str, comment='Position of instrument hatch')
+    additional_meta['slitwid'] = dict(dtype=float, comment='Slit width, sometimes distinct from decker')
 
     # Calibration lamps
     for kk in range(20):
         additional_meta['lampstat{:02d}'.format(kk+1)] = dict(dtype=str, comment='Status of a given lamp (e.g off/on)')
+
+    # Misc
+    additional_meta['idname'] = dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)')
 
 
     return additional_meta

@@ -218,6 +218,17 @@ class PypeItSetup(object):
     def vanilla_pypeit_file(pypeit_file, root, spectrograph, extension='.fits'):
         """
         Write a vanilla PypeIt file.
+
+        Args:
+            pypeit_file: str
+              Name of PypeIt file
+            root: str
+            spectrograph: str
+              Name of spectrograph
+            extension: str, optional
+
+        Returns:
+
         """
         # Generate
         dfname = os.path.join(root, '*{0}*'.format(extension)) \

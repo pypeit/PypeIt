@@ -389,6 +389,23 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         return par
 
+    def init_meta(self):
+        """
+        Meta data specific to shane_kast_blue
+
+        Returns:
+
+        """
+        super(ShaneKastRedSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        # dispangle is not defined for Shane Kast Blue
+
+        # Required
+        self.meta['dispname'] = dict(ext=0, card='GRATNG_N')
+        self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
+        # Additional (for config)
+
+
     def check_header(self, headers):
         """
         Check headers match expectations for a Shane Kast red exposure.

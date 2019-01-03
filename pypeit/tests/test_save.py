@@ -79,7 +79,7 @@ def test_save1d_fits():
     # Write to FITS
     basename = 'test'
     outfile = data_path('') + 'spec1d_{:s}.fits'.format(basename)
-    save.save_1d_spectra_fits(specObjs, fitstbl[5], 'MultiSlit', outfile)
+    save.save_1d_spectra_fits(specObjs, fitstbl[5], 'MultiSlit', 'shane_kast_blue', outfile)
 
 
 # NEEDS REFACTORING

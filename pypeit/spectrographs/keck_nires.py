@@ -126,6 +126,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                               '1.NAXIS2': 1024 }
         super(KeckNIRESSpectrograph, self).check_headers(headers, expected_values=expected_values)
 
+    '''
     def header_keys(self):
         """
         Return a dictionary with the header keywords to read from the
@@ -156,13 +157,41 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['dispname'] = 'INSTR'  # Should be 'spec' if in the spectroscopy mode
 
         return hdr_keys
+    '''
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
+
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='OBJECT')
+        meta['decker'] = dict(ext=0, card=None, default='default')
+        meta['binning'] = dict(ext=0, card=None, default='1,1')
+
+        meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        meta['exptime'] = dict(ext=0, card='ITIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        meta['dispname'] = dict(ext=0, card='INSTR')
+        meta['idname'] = dict(ext=0, card='OBSTYPE')
+
+        # Ingest
+        self.meta = meta
 
     def configuration_keys(self):
-        return ['dispname', 'binning']
+        return ['dispname']
 
-    def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'setup', 'calib', 'obj_id',
-                'bkg_id']
+    def pypeit_file_keys(self):
+        pypeit_keys = super(KeckNIRESSpectrograph, self).pypeit_file_keys()
+        pypeit_keys += ['calib', 'obj_id', 'bkg_id']
+        return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

@@ -521,6 +521,7 @@ def parse_pypeit_file(ifile, file_check=True, runtime=False):
         data_files, frametype, usrtbl = _read_data_file_table(lines[s:e], file_check=file_check)
     is_config[s-1:e+1] = False
     if len(data_files) == 0 and file_check:
+        import pdb; pdb.set_trace()
         msgs.error('There are no raw data frames' + msgs.newline() +
                    'Perhaps the path to the data is incorrect?')
     else:

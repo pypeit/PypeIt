@@ -10,6 +10,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.core import parse
 
 from pypeit import debugger
 
@@ -89,6 +90,7 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [90, None]
         return par
 
+    '''
     def check_headers(self, headers):
         """
         Check headers match expectations for an WHT ISIS Blue exposure.
@@ -148,14 +150,67 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
         hdr_keys[1]['naxis0'] = 'NAXIS2'
 
         return hdr_keys
+    '''
 
-    def validate_metadata(self, fitstbl):
-        fitstbl['binning'] = np.array(['{0},{1}'.format(bx,by) 
-                                for bx,by in zip(fitstbl['binning_x'], fitstbl['binning_y'])])
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
 
-    def metadata_keys(self):
-        return super(WhtIsisBlueSpectrograph, self).metadata_keys() \
-                    + ['binning', 'dichroic', 'dispangle']
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='OBJECT')
+        meta['decker'] = dict(card=None, compound=True)
+        meta['binning'] = dict(card=None, compound=True)
+
+        meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        meta['decker'] = dict(ext=0, card='ISISLITU')
+        # Extras for config and frametyping
+        meta['dispname'] = dict(ext=0, card='ISIGRAT')
+        meta['dichroic'] = dict(ext=0, card='ISIDICHR')
+        meta['dispangle'] = dict(ext=0, card='CENWAVE', rtol=1e-4)
+        meta['slitwid'] = dict(ext=0, card='ISISLITW')
+        meta['idname'] = dict(ext=0, card='IMAGETYP')
+        # Lamps
+        meta['lampstat01'] = dict(ext=0, card='CAGLAMPS')
+
+        # Ingest
+        self.meta = meta
+
+    def compound_meta(self, headarr, meta_key):
+        if meta_key == 'binning':
+            binspatial = headarr[0]['CCDXBIN']
+            binspec = headarr[0]['CCDYBIN']
+            return parse.binning2string(binspatial, binspec)
+        else:
+            msgs.error("Not ready for this compound meta")
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that defines a unique instrument
+        configuration.
+
+        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            list: List of keywords of data pulled from meta
+        """
+        return ['dispname', 'decker', 'binning', 'dispangle', 'dichroic']
+
+    def pypeit_file_keys(self):
+        pypeit_keys = super(WhtIsisBlueSpectrograph, self).pypeit_file_keys()
+        pypeit_keys += ['slitwid']
+        return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -163,16 +218,16 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
-            return good_exp & (fitstbl['lamps'] == 'Off') & (fitstbl['idname'] == 'object')
+            return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['idname'] == 'object')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'zero')
         if ftype in ['pixelflat', 'trace']:
-            return good_exp & (fitstbl['lamps'] == 'W') & (fitstbl['idname'] == 'flat')
+            return good_exp & (fitstbl['lampstat01'] == 'W') & (fitstbl['idname'] == 'flat')
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'arc':
-            return good_exp & (fitstbl['lamps'] == 'CuNe+CuAr') & (fitstbl['idname'] == 'arc')
+            return good_exp & (fitstbl['lampstat01'] == 'CuNe+CuAr') & (fitstbl['idname'] == 'arc')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
