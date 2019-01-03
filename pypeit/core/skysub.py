@@ -545,7 +545,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                         'Old bsp = {:5.2f}'.format(bsp_now) + '; New bsp = {:5.2f}'.format(1.2 ** (iterbsp) * bsp))
                     msgs.warn('***************************************')
 
-            if (sky_bmodel.any() == True):
+            if sky_bmodel.any():
                 skyimage.flat[isub] = sky_bmodel
                 objimage.flat[isub] = obj_bmodel
                 img_minsky.flat[isub] = sciimg.flat[isub] - sky_bmodel
