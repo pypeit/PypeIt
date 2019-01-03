@@ -263,7 +263,7 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
         subsam = utils.subsample(scicopy)
         conved = signal.convolve2d(subsam, laplkernel, mode="same", boundary="symm")
         cliped = conved.clip(min=0.0)
-        lplus = utils.rebin(cliped, np.array(cliped.shape)/2.0)
+        lplus = utils.rebin_evlist(cliped, np.array(cliped.shape)/2.0)
 
         msgs.info("Creating noise model")
         # Build a custom noise map, and compare  this to the laplacian

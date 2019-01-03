@@ -55,6 +55,20 @@ def rebin(a, newshape):
     indices = coordinates.astype('i')  # choose the biggest smaller integer index
     return a[tuple(indices)]
 
+# JFH This function is only used by procimg.lacosmic. Can it be replaced by above?
+def rebin_evlist(frame, newshape):
+    # This appears to be from
+    # https://scipy-cookbook.readthedocs.io/items/Rebinning.html
+    shape = frame.shape
+    lenShape = len(shape)
+    factor = np.asarray(shape)/np.asarray(newshape)
+    evList = ['frame.reshape('] + \
+             ['int(newshape[%d]),int(factor[%d]),'% (i, i) for i in range(lenShape)] + \
+             [')'] + ['.sum(%d)' % (i+1) for i in range(lenShape)] + \
+             ['/factor[%d]' % i for i in range(lenShape)]
+    return eval(''.join(evList))
+
+
 
 def quicksave(data,fname):
     """
@@ -1269,16 +1283,6 @@ def poly_iterfit(x,y,ordr,maxrej=5):
     msgs.info("Robust regression identified {0:d} outliers".format(r))
     return c
 
-
-def rebin(frame, newshape):
-    shape = frame.shape
-    lenShape = len(shape)
-    factor = np.asarray(shape)/np.asarray(newshape)
-    evList = ['frame.reshape('] + \
-             ['int(newshape[%d]),int(factor[%d]),'% (i, i) for i in range(lenShape)] + \
-             [')'] + ['.sum(%d)' % (i+1) for i in range(lenShape)] + \
-             ['/factor[%d]' % i for i in range(lenShape)]
-    return eval(''.join(evList))
 
 
 def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
