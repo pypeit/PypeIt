@@ -20,7 +20,7 @@ from pypeit.core.wavecal import autoid
 from pypeit import debugger
 from pypeit.core import pydl
 from pypeit.core import qa
-from skimage.transform import resize
+#from skimage.transform import resize
 
 def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0, func2d='legendre2d', debug=False):
     """Routine to obtain the 2D wavelength solution for an echelle spectrograph. This is calculated from the spec direction
@@ -366,8 +366,9 @@ def resize_mask2arc(shape_arc, slitmask_orig):
             msgs.error('Problem with images sizes. arcimg size and calibration size need to be integer multiples of each other')
         else:
             msgs.info('Calibration images have different binning than the arcimg. Resizing calibs for arc spectrum extraction.')
-
-        slitmask = ((np.round(resize(slitmask_orig.astype(np.integer), (nspec, nspat), preserve_range=True, order=0))).astype(np.integer)).astype(slitmask_orig.dtype)
+        slitmask = utils.rebin(slitmask_orig, (nspec, nspat))
+        # Previous line using skimage
+        #slitmask = ((np.round(resize(slitmask_orig.astype(np.integer), (nspec, nspat), preserve_range=True, order=0))).astype(np.integer)).astype(slitmask_orig.dtype)
     else:
         slitmask = slitmask_orig
 
