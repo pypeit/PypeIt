@@ -535,113 +535,9 @@ class ScienceImage(processimages.ProcessImages):
         else: # Otherwise, if self.maskslits exists, use the previously set maskslits
             pass
         return self.maskslits
-    #
-    #
-    # # JFH TODO This stuff should be eventually moved to proc
-    # def proc_old(self, bias, pixel_flat, bpm, illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5, show=False):
-    #     """ Process the image
-    #
-    #     Wrapper to ProcessImages.process()
-    #
-    #     Needed in part to set self.sciframe, although I could kludge it another way..
-    #
-    #     Returns
-    #     -------
-    #     self.sciframe
-    #     self.rawvarframe
-    #     self.crmask
-    #
-    #     """
-    #     # Process
-    #     self.bpm = bpm
-    #     self.bias = bias
-    #     self.pixel_flat = pixel_flat
-    #     self.illum_flat = illum_flat
-    #
-    #     if self.ir_redux:
-    #         if sigma_clip is True:
-    #             msgs.error('You cannot sigma clip with difference imaging as this will reject objects')
-    #         all_files = self.file_list + self.bg_file_list
-    #         cosmics = False # If we are differencing CR reject after we difference for better performance
-    #         # weights account for possibility of differing number of sci and bg images, i.e.
-    #         #  stack = 1/n_sci \Sum sci  - 1/n_bg \Sum bg
-    #         weights = np.hstack((np.ones(self.nsci)/float(self.nsci),-1.0*np.ones(self.nbg)/float(self.nbg)))
-    #     else:
-    #         all_files = self.file_list
-    #         cosmics = True
-    #         weights = np.ones(self.nsci)/float(self.nsci)
-    #
-    #     sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack = \
-    #         self.read_stack(all_files, bias, pixel_flat, bpm, illum_flat, cosmics=cosmics)
-    #     nfiles = len(all_files)
-    #
-    #     # ToDO The bitmask is not being properly propagated here!
-    #     if self.nsci > 1 or self.ir_redux:
-    #         if sigma_clip:
-    #             msgs.error('Sigma clipping is not yet supported')
-    #             if sigrej is None:
-    #             if self.nsci <= 2:
-    #                 sigrej = 100.0  # Irrelevant for only 1 or 2 files, we don't sigma clip below
-    #             elif self.nsci == 3:
-    #                 sigrej = 1.1
-    #             elif self.nsci == 4:
-    #                 sigrej = 1.3
-    #             elif self.nsci == 5:
-    #                 sigrej = 1.6
-    #             elif self.nsci == 6:
-    #                 sigrej = 1.9
-    #             else:
-    #                 sigrej = 2.0
-    #             # sigma clip if we have enough images
-    #             if self.nsci > 2: # cannot sigma clipo for <= 2 images
-    #                 ## TODO THis is not tested!!
-    #                 # JFH ToDO Should we be sigma clipping here at all? What if the two background frames are not
-    #                 # at the same location, this then causes problems?
-    #                 # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
-    #                 data = np.ma.MaskedArray(sciimg_stack, (mask_stack > 0))
-    #                 sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters,cenfunc='median')
-    #                 data_clipped = sigclip(data, axis=0, masked=True)
-    #                 outmask_stack = np.invert(data_clipped.mask) # outmask = True are good values
-    #         else:
-    #             outmask_stack = (mask_stack == 0)  # outmask = True are good values
-    #
-    #             var_stack = utils.calc_ivar(sciivar_stack)
-    #             weights_stack = np.einsum('i,ijk->ijk',weights,outmask_stack)
-    #             weights_sum = np.sum(weights_stack, axis=0)
-    #             # Masked everwhere nused == 0
-    #             self.crmask = np.sum(crmask_stack,axis=0) == nfiles # Was everywhere a CR
-    #             self.sciimg = np.sum(sciimg_stack*weights_stack,axis=0)/(weights_sum + (weights_sum == 0.0))
-    #             varfinal = np.sum(var_stack*weights_stack**2,axis=0)/(weights_sum + (weights_sum == 0.0))**2
-    #             self.sciivar = utils.calc_ivar(varfinal)
-    #             self.rn2img = np.sum(rn2img_stack*weights_stack**2,axis=0)/(weights_sum + (weights_sum == 0.0))**2
-    #             # ToDO If I new how to add the bits, this is what I would do do create the mask. For now
-    #             # we simply create the mask again using the stacked images and the stacked mask
-    #             #nused = np.sum(outmask_stack,axis=0)
-    #             #self.mask = (nused == 0) * np.sum(mask_stack, axis=0)
-    #             self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, saturation=self.saturation,
-    #                                          mincounts=(not self.ir_redux))
-    #     else:
-    #         self.mask  = mask_stack[0,:,:]
-    #         self.crmask = crmask_stack[0,:,:]
-    #         self.sciimg = sciimg_stack[0,:,:]
-    #         self.sciivar = sciivar_stack[0,:,:]
-    #         self.rn2img = rn2img_stack[0,:,:]
-    #
-    #     # For an IR reduction we build the CR mask after differencing
-    #     if self.ir_redux:
-    #         self.crmask = self.build_crmask(self.sciimg, ivar=self.sciivar)
-    #         self.mask = self._update_mask_cr(self.mask, self.crmask)
-    #
-    #     # Toggle the OFFSLIT bit at the very end
-    #     self.mask = self._update_mask_slitmask(self.mask, self.slitmask)
-    #
-    #     # Show the science image if an interactive run, only show the crmask
-    #     if show:
-    #         # Only mask the CRs in this image
-    #         self.show('image', image=self.sciimg*(self.crmask == 0), chname='sciimg')
-    #
-    #     return self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask
 
+
+    # JFH TODO This stuff should be eventually moved to processimages?
     def proc(self, bias, pixel_flat, bpm, illum_flat=None, reject_cr=True, sigma_clip=False, sigrej=None,
              maxiters=5,show=False):
 
@@ -710,7 +606,6 @@ class ScienceImage(processimages.ProcessImages):
         return sciimg, sciivar, rn2img, mask, crmask
 
 
-    # JFH TODO This stuff should be eventually moved to proc
     def proc_diff(self, file_list, bg_file_list, reject_cr = True,sigma_clip=False, sigrej=None, maxiters=5):
         """ Process the image
 
