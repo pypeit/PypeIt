@@ -227,8 +227,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['flexure'] = pypeitpar.FlexurePar()
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
+
         # Do not bias subtract
-        par['scienceframe']['useframe'] = 'none'
+        par['scienceframe']['useframe'] ='none'
+        # This is a hack for now until we can specify for each image type what to do. Bias currently
+        # controls everything
+        par['calibrations']['biasframe']['useframe'] = 'none'
 
         return par
 

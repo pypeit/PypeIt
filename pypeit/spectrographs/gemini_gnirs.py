@@ -68,8 +68,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['number'] = 5
         par['calibrations']['traceframe']['number'] = 5
         par['calibrations']['arcframe']['number'] = 1
-        # Bias
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
 
         # Slits
         par['calibrations']['slits']['sigdetect'] = 220.
@@ -120,6 +118,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Do not bias subtract
         par['scienceframe']['useframe'] ='none'
+        # This is a hack for now until we can specify for each image type what to do. Bias currently
+        # controls everything
+        par['calibrations']['biasframe']['useframe'] = 'none'
+
 
 
         return par
