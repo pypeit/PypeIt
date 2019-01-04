@@ -2042,9 +2042,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
       Skymask indicating which pixels can be used for global sky subtraction
     """
 
-
-    debug=True
-    show_peaks=True
     if specobj_dict is None:
         specobj_dict = {'setup': 'unknown', 'slitid': 999, 'det': 1, 'objtype': 'unknown', 'pypeline': 'Echelle'}
 
