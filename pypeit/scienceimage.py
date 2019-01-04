@@ -20,32 +20,32 @@ from pypeit.core import trace_slits
 from pypeit.par import pypeitpar
 from pypeit.core import procimg
 
+#
+# from pypeit.bitmask import BitMask
+#
+#
+# class ScienceImageBitMask(BitMask):
+#     """
+#     Define a bitmask used to set the reasons why each pixel in a science
+#     image was masked.
+#     """
+#     def __init__(self):
+#         # TODO:
+#         #   - Can IVAR0 and IVAR_NAN be consolidated into a single bit?
+#         #   - Is EXTRACT ever set?
+#         mask = {       'BPM': 'Component of the instrument-specific bad pixel mask',
+#                         'CR': 'Cosmic ray detected',
+#                 'SATURATION': 'Saturated pixel',
+#                  'MINCOUNTS': 'Pixel below the instrument-specific minimum counts',
+#                   'OFFSLITS': 'Pixel does not belong to any slit',
+#                     'IS_NAN': 'Pixel value is undefined',
+#                      'IVAR0': 'Inverse variance is undefined',
+#                   'IVAR_NAN': 'Inverse variance is NaN',
+#                    'EXTRACT': 'Pixel masked during local skysub and extraction'
+#                }
+#         super(ScienceImageBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
-from pypeit.bitmask import BitMask
-
-
-class ScienceImageBitMask(BitMask):
-    """
-    Define a bitmask used to set the reasons why each pixel in a science
-    image was masked.
-    """
-    def __init__(self):
-        # TODO:
-        #   - Can IVAR0 and IVAR_NAN be consolidated into a single bit?
-        #   - Is EXTRACT ever set?
-        mask = {       'BPM': 'Component of the instrument-specific bad pixel mask',
-                        'CR': 'Cosmic ray detected',
-                'SATURATION': 'Saturated pixel',
-                 'MINCOUNTS': 'Pixel below the instrument-specific minimum counts',
-                  'OFFSLITS': 'Pixel does not belong to any slit',
-                    'IS_NAN': 'Pixel value is undefined',
-                     'IVAR0': 'Inverse variance is undefined',
-                  'IVAR_NAN': 'Inverse variance is NaN',
-                   'EXTRACT': 'Pixel masked during local skysub and extraction'
-               }
-        super(ScienceImageBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
-
-class ScienceImage():
+class ScienceImage(processimages.ProcessImages):
     """
     This class will organize and run actions related to
     a Science or Standard star exposure
@@ -123,6 +123,17 @@ class ScienceImage():
                  det=1, objtype='science', binning = None, setup=None,
                  par=None, frame_par=None):
 
+
+        # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
+        self.objtype = objtype
+        self.par = pypeitpar.ScienceImagePar() if par is None else par
+        self.frame_par = pypeitpar.FrameGroupPar(objtype) if frame_par is None else frame_par
+        self.proc_par = self.frame_par['process']
+
+        # Start up by instantiating the process images class for reading in the relevant science files
+        processimages.ProcessImages.__init__(self, spectrograph, [], det=det,
+                                             par=self.frame_par['process'])
+
         # Instantiation attributes for this object
         self.tslits_dict = tslits_dict
         self.spectrograph = spectrograph
@@ -136,14 +147,12 @@ class ScienceImage():
             msgs.error('IR reductions require that bg files are specified')
         self.det = det
         self.binning = binning
-        self.objtype = objtype
         self.setup = setup
         self.pypeline = spectrograph.pypeline
 
-        # Setup the parameters sets for this object
-        # NOTE: This uses objtype, not frametype!
-        self.par = pypeitpar.ScienceImagePar() if par is None else par
-        self.frame_par = pypeitpar.FrameGroupPar(objtype) if frame_par is None else frame_par
+        # Set some detector parameters that we will need
+        self.saturation = self.spectrograph.detector[self.det - 1]['saturation']
+        self.mincounts = self.spectrograph.detector[self.det - 1]['mincounts']
 
         # These attributes will be sert when the image(s) are processed
         self.bpm = None
@@ -152,9 +161,6 @@ class ScienceImage():
         self.illum_flat = None
 
         self.steps = []
-
-
-
         # Other attributes that will be set later during object finding,
         # sky-subtraction, and extraction
         self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
@@ -172,7 +178,7 @@ class ScienceImage():
         self.skymask = None
         self.outmask = None
         self.mask = None                        # The composite bit value array
-        self.bitmask = ScienceImageBitMask()    # The bit mask interpreter
+#        self.bitmask = ScienceImageBitMask()    # The bit mask interpreter
         self.extractmask = None
         # SpecObjs object
         self.sobjs_obj = None # Only object finding but no extraction
@@ -381,10 +387,11 @@ class ScienceImage():
                 self.maskslits[slit] = True
 
         if update_crmask:
-            # Update the crmask by running LA cosmics again
-            self.crmask = self.build_crmask(self.sciimg - self.global_sky, ivar = self.sciivar)
+            self.crmask = self.build_crmask(self.sciimg - self.global_sky, self.proc_par,
+                                                                   self.det, self.spectrograph, ivar = self.sciivar,
+                                                                   binning=self.binning)
             # Rebuild the mask with this new crmask
-            self.mask = self._update_mask_cr(self.mask, self.crmask)
+            self.mask = self.update_mask_cr(self.mask, self.crmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -502,11 +509,6 @@ class ScienceImage():
             self.show('local', sobjs = self.sobjs, slits= True)
             self.show('resid', sobjs = self.sobjs, slits= True)
 
-        # Clean up any interactive windows that are still up
-#        for proc in self.qa_proc_list:
-#            proc.terminate()
-#            proc.join()
-
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
@@ -533,53 +535,183 @@ class ScienceImage():
         else: # Otherwise, if self.maskslits exists, use the previously set maskslits
             pass
         return self.maskslits
+    #
+    #
+    # # JFH TODO This stuff should be eventually moved to proc
+    # def proc_old(self, bias, pixel_flat, bpm, illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5, show=False):
+    #     """ Process the image
+    #
+    #     Wrapper to ProcessImages.process()
+    #
+    #     Needed in part to set self.sciframe, although I could kludge it another way..
+    #
+    #     Returns
+    #     -------
+    #     self.sciframe
+    #     self.rawvarframe
+    #     self.crmask
+    #
+    #     """
+    #     # Process
+    #     self.bpm = bpm
+    #     self.bias = bias
+    #     self.pixel_flat = pixel_flat
+    #     self.illum_flat = illum_flat
+    #
+    #     if self.ir_redux:
+    #         if sigma_clip is True:
+    #             msgs.error('You cannot sigma clip with difference imaging as this will reject objects')
+    #         all_files = self.file_list + self.bg_file_list
+    #         cosmics = False # If we are differencing CR reject after we difference for better performance
+    #         # weights account for possibility of differing number of sci and bg images, i.e.
+    #         #  stack = 1/n_sci \Sum sci  - 1/n_bg \Sum bg
+    #         weights = np.hstack((np.ones(self.nsci)/float(self.nsci),-1.0*np.ones(self.nbg)/float(self.nbg)))
+    #     else:
+    #         all_files = self.file_list
+    #         cosmics = True
+    #         weights = np.ones(self.nsci)/float(self.nsci)
+    #
+    #     sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack = \
+    #         self.read_stack(all_files, bias, pixel_flat, bpm, illum_flat, cosmics=cosmics)
+    #     nfiles = len(all_files)
+    #
+    #     # ToDO The bitmask is not being properly propagated here!
+    #     if self.nsci > 1 or self.ir_redux:
+    #         if sigma_clip:
+    #             msgs.error('Sigma clipping is not yet supported')
+    #             if sigrej is None:
+    #             if self.nsci <= 2:
+    #                 sigrej = 100.0  # Irrelevant for only 1 or 2 files, we don't sigma clip below
+    #             elif self.nsci == 3:
+    #                 sigrej = 1.1
+    #             elif self.nsci == 4:
+    #                 sigrej = 1.3
+    #             elif self.nsci == 5:
+    #                 sigrej = 1.6
+    #             elif self.nsci == 6:
+    #                 sigrej = 1.9
+    #             else:
+    #                 sigrej = 2.0
+    #             # sigma clip if we have enough images
+    #             if self.nsci > 2: # cannot sigma clipo for <= 2 images
+    #                 ## TODO THis is not tested!!
+    #                 # JFH ToDO Should we be sigma clipping here at all? What if the two background frames are not
+    #                 # at the same location, this then causes problems?
+    #                 # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
+    #                 data = np.ma.MaskedArray(sciimg_stack, (mask_stack > 0))
+    #                 sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters,cenfunc='median')
+    #                 data_clipped = sigclip(data, axis=0, masked=True)
+    #                 outmask_stack = np.invert(data_clipped.mask) # outmask = True are good values
+    #         else:
+    #             outmask_stack = (mask_stack == 0)  # outmask = True are good values
+    #
+    #             var_stack = utils.calc_ivar(sciivar_stack)
+    #             weights_stack = np.einsum('i,ijk->ijk',weights,outmask_stack)
+    #             weights_sum = np.sum(weights_stack, axis=0)
+    #             # Masked everwhere nused == 0
+    #             self.crmask = np.sum(crmask_stack,axis=0) == nfiles # Was everywhere a CR
+    #             self.sciimg = np.sum(sciimg_stack*weights_stack,axis=0)/(weights_sum + (weights_sum == 0.0))
+    #             varfinal = np.sum(var_stack*weights_stack**2,axis=0)/(weights_sum + (weights_sum == 0.0))**2
+    #             self.sciivar = utils.calc_ivar(varfinal)
+    #             self.rn2img = np.sum(rn2img_stack*weights_stack**2,axis=0)/(weights_sum + (weights_sum == 0.0))**2
+    #             # ToDO If I new how to add the bits, this is what I would do do create the mask. For now
+    #             # we simply create the mask again using the stacked images and the stacked mask
+    #             #nused = np.sum(outmask_stack,axis=0)
+    #             #self.mask = (nused == 0) * np.sum(mask_stack, axis=0)
+    #             self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, saturation=self.saturation,
+    #                                          mincounts=(not self.ir_redux))
+    #     else:
+    #         self.mask  = mask_stack[0,:,:]
+    #         self.crmask = crmask_stack[0,:,:]
+    #         self.sciimg = sciimg_stack[0,:,:]
+    #         self.sciivar = sciivar_stack[0,:,:]
+    #         self.rn2img = rn2img_stack[0,:,:]
+    #
+    #     # For an IR reduction we build the CR mask after differencing
+    #     if self.ir_redux:
+    #         self.crmask = self.build_crmask(self.sciimg, ivar=self.sciivar)
+    #         self.mask = self._update_mask_cr(self.mask, self.crmask)
+    #
+    #     # Toggle the OFFSLIT bit at the very end
+    #     self.mask = self._update_mask_slitmask(self.mask, self.slitmask)
+    #
+    #     # Show the science image if an interactive run, only show the crmask
+    #     if show:
+    #         # Only mask the CRs in this image
+    #         self.show('image', image=self.sciimg*(self.crmask == 0), chname='sciimg')
+    #
+    #     return self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask
 
-    # JFH TODO I think science image should not be a child of Processimages. Then this could be running on a file list
-    # I think this would be simpler. Implement this!
+    def proc(self, bias, pixel_flat, bpm, illum_flat=None, reject_cr=True, sigma_clip=False, sigrej=None,
+             maxiters=5,show=False):
 
-    # JFH TODO This stuff should be eventually moved ot processimages
-    def read_stack(self, files, bias, pixel_flat, bpm, illum_flat, cosmics=False):
-        """  Utility function for reading in image stacks using ProcessImages
-        Parameters
-            file_list:
+        # Process
+        self.bpm = bpm
+        self.bias = bias
+        self.pixel_flat = pixel_flat
+        self.illum_flat = illum_flat
+
+        if self.ir_redux:
+            self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = self.proc_diff(
+                self.file_list, self.bg_file_list, reject_cr=True, sigma_clip=False)
+        else:
+            self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = self.proc_sci(
+                self.file_list, reject_cr=True, sigma_clip=False)
+
+        # Now add the slitmask to the mask (i.e. post CR reject)
+        self.mask = self.update_mask_slitmask(self.mask, self.slitmask)
+
+        # Show the science image if an interactive run, only show the crmask
+        if show:
+            # Only mask the CRs in this image
+            self.show('image', image=self.sciimg * (self.crmask == 0), chname='sciimg')
+
+        return self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask
+
+    def proc_sci(self, file_list, reject_cr=True, sigma_clip=False, sigrej=None, maxiters=5):
+        """
+
+        Args:
             bias:
             pixel_flat:
             bpm:
             illum_flat:
+            sigma_clip:
+            sigrej:
+            maxiters:
+            show:
+
         Returns:
+
         """
-        nfiles = len(files)
-        for ifile in range(nfiles):
-            this_proc = processimages.ProcessImages(self.spectrograph, [files[ifile]], det=self.det,par=self.frame_par['process'])
-            # TODO I think trim should be hard wired, and am not letting it be a free parameter
-            sciimg = this_proc.process(bias_subtract=bias,pixel_flat=pixel_flat, illum_flat=illum_flat, bpm=bpm,
-                                       apply_gain=True, trim=True)
-            # Allocate the images
-            if ifile == 0:
-                # numpy is row major so stacking will be fastest with nfiles as the first dimensions
-                shape = (nfiles, sciimg.shape[0],sciimg.shape[1])
-                sciimg_stack  = np.zeros(shape)
-                sciivar_stack = np.zeros(shape)
-                rn2img_stack  = np.zeros(shape)
-                crmask_stack  = np.zeros(shape,dtype=bool)
-                mask_stack  = np.zeros(shape,self.bitmask.minimum_dtype(asuint=True))
 
-            # Construct raw variance image
-            rawvarframe = this_proc.build_rawvarframe(trim=True)
-            # Mask cosmic rays
-            sciivar_stack[ifile,:,:] =  utils.calc_ivar(rawvarframe)
-            if cosmics:
-                crmask_stack[ifile,:,:] = self.build_crmask(sciimg, ivar=sciivar_stack[ifile,:,:])
-            sciimg_stack[ifile,:,:] = sciimg
-            # Build read noise squared image
-            rn2img_stack[ifile,:,:] = this_proc.build_rn2img()
-            # Final mask for this image
-            mask_stack[ifile,:,:] = self._build_mask(sciimg, sciivar_stack[ifile,:,:], crmask_stack[ifile,:,:])
+        nsci = len(file_list)
+        weights = np.ones(nsci)/float(nsci)
+        sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack = \
+        self.read_stack(file_list, self.bias, self.pixel_flat, self.bpm, self.det, self.proc_par, self.spectrograph,
+                            illum_flat=self.illum_flat, reject_cr=reject_cr, binning=self.binning)
 
-        return sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack
+        # ToDO The bitmask is not being properly propagated here!
+        if nsci > 1:
+            sciimg, sciivar, rn2img, outmask = procimg.weighted_combine(
+                weights, sciimg_stack, sciivar_stack, rn2img_stack, (mask_stack == 0),
+                sigma_clip=sigma_clip, sigrej=sigrej, maxiters=maxiters)
+            # assumes everything masked in the outmask is a CR in the individual images
+            crmask = np.invert(outmask)
+            # Create a mask for this image now
+            mask = self.build_mask(sciimg, sciivar, crmask, self.bpm, saturation=self.saturation, mincounts=self.mincounts)
+        else:
+            mask = mask_stack[0, :, :]
+            crmask = crmask_stack[0, :, :]
+            sciimg = sciimg_stack[0, :, :]
+            sciivar = sciivar_stack[0, :, :]
+            rn2img = rn2img_stack[0, :, :]
+
+        return sciimg, sciivar, rn2img, mask, crmask
+
 
     # JFH TODO This stuff should be eventually moved to proc
-    def proc(self, bias, pixel_flat, bpm, illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5, show=False):
+    def proc_diff(self, file_list, bg_file_list, reject_cr = True,sigma_clip=False, sigrej=None, maxiters=5):
         """ Process the image
 
         Wrapper to ProcessImages.process()
@@ -593,208 +725,27 @@ class ScienceImage():
         self.crmask
 
         """
-        # Process
-        self.bpm = bpm
-        self.bias = bias
-        self.pixel_flat = pixel_flat
-        self.illum_flat = illum_flat
 
-        if self.ir_redux:
-            if sigma_clip is True:
-                msgs.error('You cannot sigma clip with difference imaging as this will reject objects')
-            all_files = self.file_list + self.bg_file_list
-            cosmics = False # If we are differencing CR reject after we difference for better performance
-            # weights account for possibility of differing number of sci and bg images, i.e.
-            #  stack = 1/n_sci \Sum sci  - 1/n_bg \Sum bg
-            weights = np.hstack((np.ones(self.nsci)/float(self.nsci),-1.0*np.ones(self.nbg)/float(self.nbg)))
-        else:
-            all_files = self.file_list
-            cosmics = True
-            weights = np.ones(self.nsci)/float(self.nsci)
+        sciimg_sci, sciivar_sci, rn2img_sci, mask_sci, crmask_sci = self.proc_sci(
+            file_list, reject_cr=reject_cr, sigma_clip=sigma_clip, sigrej=sigrej,maxiters=maxiters)
+        sciimg_bg, sciivar_bg, rn2img_bg, mask_bg, crmask_bg = self.proc_sci(
+            bg_file_list, reject_cr=reject_cr, sigma_clip=sigma_clip, sigrej=sigrej,maxiters=maxiters)
 
-        sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack = \
-            self.read_stack(all_files, bias, pixel_flat, bpm, illum_flat, cosmics=cosmics)
-        nfiles = len(all_files)
-        if sigma_clip and (sigrej is None):
-            if self.nsci <= 2:
-                sigrej = 100.0 # Irrelevant for only 1 or 2 files, we don't sigma clip below
-            elif self.nsci == 3:
-                sigrej = 1.1
-            elif self.nsci == 4:
-                sigrej = 1.3
-            elif self.nsci == 5:
-                sigrej = 1.6
-            elif self.nsci == 6:
-                sigrej = 1.9
-            else:
-                sigrej = 2.0
+        # Combine the images
+        outmask_comb = (mask_sci == 0) & (mask_bg == 0)
+        sciimg = sciimg_sci - sciimg_bg
+        varcomb = utils.calc_ivar(sciivar_sci) + utils.calc_ivar(sciivar_bg)
+        sciivar = utils.calc_ivar(varcomb)*outmask_comb
+        rn2img = rn2img_sci + rn2img_bg
+        # Now reject CRs again on the differenced image
+        crmask_diff = self.build_crmask(sciimg, self.proc_par, self.det, self.spectrograph, ivar=sciivar, binning=self.binning)
+        # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
+        crmask = crmask_diff | np.invert(outmask_comb)
+        # Create a mask for this image now
+        mask = self.build_mask(sciimg, sciivar, crmask, self.bpm, saturation=self.saturation)
 
-        # ToDO The bitmask is not being properly propagated here!
-        if self.nsci > 1:
-            if sigma_clip:
-                # sigma clip if we have enough images
-                if self.nsci > 2: # cannot sigma clipo for <= 2 images
-                    ## TODO THis is not tested!!
-                    # JFH ToDO Should we be sigma clipping here at all? What if the two background frames are not
-                    # at the same location, this then causes problems?
-                    # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
-                    data = np.ma.MaskedArray(sciimg_stack, (mask_stack > 0))
-                    sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters,cenfunc='median')
-                    data_clipped = sigclip(data, axis=0, masked=True)
-                    outmask_stack = np.invert(data_clipped.mask) # outmask = True are good values
-            else:
-                outmask_stack = (mask_stack == 0)  # outmask = True are good values
+        return sciimg, sciivar, rn2img, mask, crmask
 
-            var_stack = utils.calc_ivar(sciivar_stack)
-            weights_stack = np.einsum('i,ijk->ijk',weights,outmask_stack)
-            weights_sum = np.sum(weights_stack, axis=0)
-            # Masked everwhere nused == 0
-            self.crmask = np.sum(crmask_stack,axis=0) == nfiles # Was everywhere a CR
-            self.sciimg = np.sum(sciimg_stack*weights_stack,axis=0)/(weights_sum + (weights_sum == 0.0))
-            varfinal = np.sum(var_stack*weights_stack**2,axis=0)/(weights_sum + (weights_sum == 0.0))**2
-            self.sciivar = utils.calc_ivar(varfinal)
-            self.rn2img = np.sum(rn2img_stack*weights_stack**2,axis=0)/(weights_sum + (weights_sum == 0.0))**2
-            # ToDO If I new how to add the bits, this is what I would do do create the mask. For now
-            # we simply create the mask again using the stacked images and the stacked mask
-            #nused = np.sum(outmask_stack,axis=0)
-            #self.mask = (nused == 0) * np.sum(mask_stack, axis=0)
-            self.mask = self._build_mask(self.sciimg, self.sciivar, self.crmask, mincounts=(not self.ir_redux))
-        else:
-            self.mask  = mask_stack[0,:,:]
-            self.crmask = crmask_stack[0,:,:]
-            self.sciimg = sciimg_stack[0,:,:]
-            self.sciivar = sciivar_stack[0,:,:]
-            self.rn2img = rn2img_stack[0,:,:]
-
-        # For an IR reduction we build the CR mask after differencing
-        if self.ir_redux:
-            self.crmask = self.build_crmask(self.sciimg, ivar=self.sciivar)
-            self.mask = self._update_mask_cr(self.mask, self.crmask)
-
-        # Toggle the OFFSLIT bit at the very end
-        self.mask = self._update_mask_slitmask(self.mask, self.slitmask)
-
-        # Show the science image if an interactive run, only show the crmask
-        if show:
-            # Only mask the CRs in this image
-            self.show('image', image=self.sciimg*(self.crmask == 0), chname='sciimg')
-
-        return self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask
-
-    def build_crmask(self, stack, ivar=None):
-        """
-        Generate the CR mask frame
-
-        Wrapper to procimg.lacosmic
-
-        Parameters
-        ----------
-        varframe : ndarray, optional
-
-        Returns
-        -------
-        self.crmask : ndarray
-          1. = Masked CR
-
-        """
-        # Run LA Cosmic to get the cosmic ray mask
-        proc_par = self.frame_par['process']
-        varframe = utils.calc_ivar(ivar)
-        saturation = self.spectrograph.detector[self.det-1]['saturation']
-        nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
-        sigclip, objlim = self.spectrograph.get_lacosmics_par(proc_par,binning=self.binning)
-        crmask = procimg.lacosmic(self.det, stack, saturation, nonlinear,
-                                  varframe=varframe, maxiter=proc_par['lamaxiter'],
-                                  grow=proc_par['grow'],
-                                  remove_compact_obj=proc_par['rmcompact'],
-                                  sigclip=sigclip,
-                                  sigfrac=proc_par['sigfrac'],
-                                  objlim=objlim)
-
-        # Return
-        return crmask
-
-    def _update_mask_cr(self, mask_old, crmask_new):
-
-        # Unset the CR bit from all places where it was set
-        CR_old = (self.bitmask.unpack(mask_old, flag='CR'))[0]
-        mask_new = np.copy(mask_old)
-        mask_new[CR_old] = self.bitmask.turn_off(mask_new[CR_old], 'CR')
-        # Now set the CR bit using the new crmask
-        indx = crmask_new.astype(bool)
-        mask_new[indx] = self.bitmask.turn_on(mask_new[indx], 'CR')
-        return mask_new
-
-    def _update_mask_slitmask(self, mask_old, slitmask):
-
-        # Pixels excluded from any slit.
-
-        mask_new = np.copy(mask_old)
-        indx = slitmask == -1
-        mask_new[indx] = self.bitmask.turn_on(mask_new[indx], 'OFFSLITS')
-        return mask_new
-
-    def _build_mask(self, sciimg, sciivar, crmask, mincounts=True):
-        """
-        Return the bit value mask used during extraction.
-        
-        The mask keys are defined by :class:`ScienceImageBitMask`.  Any
-        pixel with mask == 0 is valid, otherwise the pixel has been
-        masked.  To determine why a given pixel has been masked::
-
-            bitmask = ScienceImageBitMask()
-            reasons = bm.flagged_bits(mask[i,j])
-
-        To get all the pixel masked for a specific set of reasons::
-
-            indx = bm.flagged(mask, flag=['CR', 'SATURATION'])
-
-        Returns:
-            numpy.ndarray: The bit value mask for the science image.
-        """
-        # Instatiate the mask
-        mask = np.zeros_like(sciimg, dtype=self.bitmask.minimum_dtype(asuint=True))
-
-        # Bad pixel mask
-        indx = self.bpm.astype(bool)
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'BPM')
-
-        # Cosmic rays
-        indx = crmask.astype(bool)
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'CR')
-
-        # Saturated pixels
-        indx = sciimg >= self.spectrograph.detector[self.det - 1]['saturation']
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'SATURATION')
-
-        # Minimum counts
-        if mincounts:
-            indx = sciimg <= self.spectrograph.detector[self.det - 1]['mincounts']
-            mask[indx] = self.bitmask.turn_on(mask[indx], 'MINCOUNTS')
-
-        # Undefined counts
-        indx = np.invert(np.isfinite(sciimg))
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'IS_NAN')
-
-        # Bad inverse variance values
-        indx = np.invert(sciivar > 0.0)
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR0')
-
-        # Undefined inverse variances
-        indx = np.invert(np.isfinite(sciivar))
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR_NAN')
-
-        return mask
-
-    def run_the_steps(self):
-        """
-        Run full the full recipe of calibration steps
-
-        Returns:
-
-        """
-        for step in self.steps:
-            getattr(self, 'get_{:s}'.format(step))()
 
     def show(self, attr, image=None, showmask=False, sobjs=None, chname=None, slits=False,clear=False):
         """
