@@ -777,8 +777,6 @@ class Echelle(PypeIt):
     def find_objects(self, image, std=False, ir_redux=False, std_trace=None, snr_trim=False, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
-        from IPython import embed
-        embed()
         sobjs_obj_init, nobj_init, skymask_pos = \
             self.sciI.find_objects_ech(image, std=std, std_trace=std_trace, snr_trim=snr_trim,
                                    show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
