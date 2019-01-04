@@ -2042,6 +2042,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
       Skymask indicating which pixels can be used for global sky subtraction
     """
 
+
+    debug=True
+    show_peaks=True
     if specobj_dict is None:
         specobj_dict = {'setup': 'unknown', 'slitid': 999, 'det': 1, 'objtype': 'unknown', 'pypeline': 'Echelle'}
 
@@ -2182,7 +2185,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
                 spec.ech_objid = uni_obj_id[iobj]
                 spec.objid = uni_obj_id[iobj]
                 spec.ech_frac_was_fit = False
-
 
     # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of
     # the good orders where an object was found and use that fit to predict the fractional slit position on the bad orders
