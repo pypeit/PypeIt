@@ -299,6 +299,45 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
 
     return sky_bmodel, obj_bmodel, outmask
 
+def plot_bkpt_qa(bsp_min, fullbkpt, piximg, skyimage, sampmask, mincol=None, maxcol=None, iiter=None, niter=None):
+
+    plt.figure(figsize=(14, 6))
+    pix = piximg[sampmask]
+    sky = skyimage[sampmask]
+    isrt = pix.argsort()
+    pix = pix[isrt]
+    sky = sky[isrt]
+
+    bset0 = pydl.bspline(pix, nord=4, bkspace=bsp_min)
+    # This is the uniform sampling grid of breakpoints typically used
+    fullbkpt_grid = bset0.breakpoints
+    keep = (fullbkpt_grid >= piximg[sampmask].min()) & (fullbkpt_grid <= piximg[sampmask].max())
+    fullbkpt_grid=fullbkpt_grid[keep]
+    # This is approximate and only for the sake of visualization:
+    spat_samp_vec = np.sum(sampmask,axis=1) # spatial sampling per spectral direction pixel
+    spat_samp_med = np.median(spat_samp_vec)
+    window_size = int(np.ceil(5*spat_samp_med))
+
+    sky_med_filt = utils.fast_running_median(sky, window_size)
+
+    sky_bkpt_grid = np.interp(fullbkpt_grid, pix, sky_med_filt)
+    sky_bkpt = np.interp(fullbkpt, pix, sky_med_filt)
+    plt.clf()
+    ax = plt.gca()
+    ax.plot(pix, sky, color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None')
+    #ax.plot(pix, sky_med_filt, color='cornflowerblue', label='median sky', linewidth=1.2)
+    ax.plot(fullbkpt_grid, sky_bkpt_grid, color='lawngreen', marker='o', markersize=2.0, mfc='lawngreen',
+            fillstyle='full', linestyle='None', label = 'uniform bkpt grid')
+    ax.plot(fullbkpt, sky_bkpt, color='red', marker='o', markersize=4.0, mfc='red',
+            fillstyle='full', linestyle='None', label = 'actual bkpt')
+    ax.set_ylim((0.99 * sky_med_filt.min(), 1.01 *sky_med_filt.max()))
+    if niter is not None:
+        plt.title('Bkpt sampling spat pixels {:7.1f}-{:7.1f}'.format(mincol,maxcol) +
+        'Iter#' + '{:2d}'.format(iiter) + ' of ' + '{:2d}'.format(niter))
+    plt.legend()
+    plt.show()
+
+
 def skybkpts(bsp_min, piximg, sampmask):
     """
 
@@ -341,11 +380,10 @@ def skybkpts(bsp_min, piximg, sampmask):
     dsamp = scipy.ndimage.convolve(dsamp_med, kernel, mode='reflect')
     # if more than 80% of the pixels have dsamp < bsp_min than just use a uniform breakpoint spacing
     if np.sum(dsamp <= bsp_min) > 0.8*nbkpt:
-        bset0 = pydl.bspline(sky_pix, nord=4, bkspace=bsp_min)
-        skybkpt = bset0.breakpoints
         msgs.info('Sampling of wavelengths is nearly continuous. Using uniform spacing:' + msgs.newline() +
                   'bsp={:5.3f}'.format(bsp_min))
-        return skybkpt
+        bset0 = pydl.bspline(sky_pix, nord=4, bkspace=bsp_min)
+        skybkpt = bset0.breakpoints
     else:
         skybkpt_orig = samplmax + dsamp/2.0
         skybkpt_orig.sort()
@@ -377,13 +415,17 @@ def skybkpts(bsp_min, piximg, sampmask):
                     else:
                         skybkpt = np.hstack((skybkpt[0:indx_bkpt], bkpt_new, skybkpt[indx_bkpt + 1:]))
 
-        return skybkpt
+        skybkpt.sort()
+
+    keep = (skybkpt >= piximg[sampmask].min()) & (skybkpt <= piximg[sampmask].max())
+
+    return skybkpt[keep]
 
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
                          bsp = 0.6, inmask = None, extract_maskwidth = 4.0, trim_edg = (3,3), std = False, prof_nsigma = None,
                          niter=4, box_rad = 7, sigrej = 3.5,skysample = True, sn_gauss = 4.0, model_noise = True,
-                         show_profile=False,show_resids=False):
+                         debug_bkpts = True, show_profile=False,show_resids=False):
 
     """Perform local sky subtraction and  extraction
 
@@ -597,25 +639,27 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 # directly measuring how well we are sampling of the sky. The
                 # bsp in this case correspons to the minimum distance between
                 # breakpoints which we allow.
+                sampmask = (waveimg > 0.0) & ibool
                 if skysample:
-                    sampmask = (waveimg > 0.0) & ibool
                     fullbkpt = skybkpts(bsp_now, piximg, sampmask)
                     # TODO Port long_skybkpts.pro code and put it here.
                 else:
+                    # TODO This should soon be deprecated
                     # TODO Clean this up no need to flatten here
                     pixvec = piximg[skymask]
                     srt = pixvec.flatten().argsort()
                     bset0 = pydl.bspline(pixvec.flat[srt], nord=4, bkspace=bsp_now)
                     fullbkpt = bset0.breakpoints
-                from IPython import embed
-                embed()
+
                 # check to see if only a subset of the image is used.
                 # if so truncate input pixels since this can result in singular matrices
                 isub, = np.where(ibool.flatten())
                 sortpix = (piximg.flat[isub]).argsort()
-                ithis, = np.where(thismask.flat[isub])
-                keep = (fullbkpt >= piximg.flat[isub[ithis]].min()) & (fullbkpt <= piximg.flat[isub[ithis]].max())
+                keep = (fullbkpt >= piximg[sampmask].min()) & (fullbkpt <= piximg[sampmask].max())
                 fullbkpt = fullbkpt[keep]
+                if debug_bkpts:
+                    plot_bkpt_qa(bsp_now, fullbkpt, piximg, skyimage, sampmask,
+                                 mincol=mincol, maxcol=maxcol, iiter=iiter, niter=niter)
                 obj_profiles_flat = obj_profiles.reshape(nspec * nspat, objwork)
                 sky_bmodel, obj_bmodel, outmask_opt = skyoptimal(piximg.flat[isub], sciimg.flat[isub],
                                                                  (modelivar * skymask).flat[isub],
