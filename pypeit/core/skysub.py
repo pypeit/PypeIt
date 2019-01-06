@@ -329,6 +329,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, debug=False,
     fullbkpt_grid = fullbkpt_grid[keep]
     used_grid = False
     if not bkpts_optimal:
+        msgs.info('bkpts_optimal = False --> using uniform bkpt spacing spacing: bsp={:5.3f}'.format(bsp_min))
         fullbkpt = fullbkpt_grid
         used_grid = True
     else:
@@ -356,8 +357,8 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, debug=False,
         dsamp = scipy.ndimage.convolve(dsamp_med, kernel, mode='reflect')
         # if more than 80% of the pixels have dsamp < bsp_min than just use a uniform breakpoint spacing
         if np.sum(dsamp <= bsp_min) > 0.8*nbkpt:
-            msgs.info('Sampling of wavelengths is nearly continuous. Using uniform spacing:' + msgs.newline() +
-                      'bsp={:5.3f}'.format(bsp_min))
+            msgs.info('Sampling of wavelengths is nearly continuous.')
+            msgs.info('Using uniform bkpt spacing: bsp={:5.3f}'.format(bsp_min))
             fullbkpt = fullbkpt_grid
             used_grid = True
         else:
