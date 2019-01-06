@@ -298,6 +298,10 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
 
     return sky_bmodel, obj_bmodel, outmask
 
+def skybkpts(piximg, ):
+    pass
+
+
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
                          bsp = 0.6, inmask = None, extract_maskwidth = 4.0, trim_edg = (3,3), std = False, prof_nsigma = None,
                          niter=4, box_rad = 7, sigrej = 3.5,skysample = False, sn_gauss = 4.0, model_noise = True,
@@ -384,13 +388,13 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     skyimage = np.copy(global_sky)
     #varnoobj = np.abs(skyimage - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
-    xarr = np.outer(np.ones(nspec), np.arange(nspat))
-    yarr = np.outer(np.arange(nspec), np.ones(nspat))
+    spat_img = np.outer(np.ones(nspec), np.arange(nspat))
+    spec_img = np.outer(np.arange(nspec), np.ones(nspat))
 
-    xa_min = xarr[thismask].min()
-    xa_max = xarr[thismask].max()
-    ya_min = yarr[thismask].min()
-    ya_max = yarr[thismask].max()
+    xa_min = spat_img[thismask].min()
+    xa_max = spat_img[thismask].max()
+    ya_min = spec_img[thismask].min()
+    ya_max = spec_img[thismask].max()
 
     xsize = slit_righ - slit_left
     spatial_img = thismask * ximg * (np.outer(xsize, np.ones(nspat)))
@@ -465,7 +469,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     # For later iterations, profile fitting is based on an optimal extraction
                     last_profile = obj_profiles[:, :, ii]
                     trace = np.outer(sobjs[iobj].trace_spat, np.ones(nspat))
-                    objmask = ((xarr >= (trace - 2.0 * box_rad)) & (xarr <= (trace + 2.0 * box_rad)))
+                    objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
                     extract.extract_optimal(sciimg, modelivar, (outmask & objmask), waveimg, skyimage, rn2_img, last_profile,
                                     box_rad, sobjs[iobj])
                     # If the extraction is bad do not update
@@ -523,8 +527,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     fullbkpt = bset0.breakpoints
                 # check to see if only a subset of the image is used.
                 # if so truncate input pixels since this can result in singular matrices
-                ibool = (yarr >= ya_min) & (yarr <= ya_max) & (xarr >= xa_min) & (xarr <= xa_max) & (xarr >= mincol) & (
-                            xarr <= maxcol) & thismask
+                ibool = (spec_img >= ya_min) & (spec_img <= ya_max) & (spat_img >= xa_min) & (spat_img <= xa_max) & (spat_img >= mincol) & (
+                            spat_img <= maxcol) & thismask
                 isub, = np.where(ibool.flatten())
                 sortpix = (piximg.flat[isub]).argsort()
                 ithis, = np.where(thismask.flat[isub])
@@ -600,7 +604,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                       ' at x = {:5.2f}'.format(sobjs[iobj].spat_pixpos))
             this_profile = obj_profiles[:, :, ii]
             trace = np.outer(sobjs[iobj].trace_spat, np.ones(nspat))
-            objmask = ((xarr >= (trace - 2.0 * box_rad)) & (xarr <= (trace + 2.0 * box_rad)))
+            objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
             extract.extract_optimal(sciimg, modelivar * thismask, (outmask & objmask), waveimg, skyimage, rn2_img, this_profile,
                             box_rad, sobjs[iobj])
             sobjs[iobj].mincol = mincol
