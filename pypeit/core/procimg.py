@@ -9,6 +9,94 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit.core import parse
 
+def img_list_error_check(sci_list, var_list):
+    """
+    Utility routine for dealing dealing with lists of image stacks for rebin2d and weigthed_combine routines below. This
+    routine checks that the images sizes are correct and routines the shape of the image stacks.
+    Args:
+        sci_list: list
+            List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
+            which are to be combined with the  weights, inmask_stack, and possibly sigma clipping
+        var_list: list
+            List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
+            which are to be combined with proper erorr propagation, i.e.
+            using the  weights**2, inmask_stack, and possibly sigma clipping
+
+    Returns:
+        shape: tuple
+            The shapes of the image stacks, (nimgs, nspec, nspat)
+
+    """
+    shape_sci_list = []
+    for img in sci_list:
+        shape_sci_list.append(img.shape)
+        if img.ndim != 3:
+            msgs.error('Dimensionality of an image in sci_list is not 3')
+
+    shape_var_list = []
+    for img in var_list:
+        shape_var_list.append(img.shape)
+        if img.ndim != 3:
+            msgs.error('Dimensionality of an image in var_list is not 3')
+
+    for isci in shape_sci_list:
+        if isci != shape_sci_list[0]:
+            msgs.error('An image in sci_list have different dimensions')
+        for ivar in shape_var_list:
+            if ivar != shape_var_list[0]:
+                msgs.error('An image in var_list have different dimensions')
+            if isci != ivar:
+                msgs.error('An image in sci_list had different dimensions than an image in var_list')
+
+    shape = shape_sci_list[0]
+
+    return shape
+
+def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, sci_list, var_list):
+
+
+    shape = img_list_error_check(sci_list, var_list)
+    nimgs = shape[0]
+    nspec = shape[1]
+    nspat = shape[2]
+    nsmp_rect_stack = np.zeros(shape)
+    norm_rect_stack = np.zeros(shape)
+    # allocate the output mages
+    nspec_rect = spec_bins.size - 1
+    nspat_rect = spat_bins.size - 1
+    shape_out = (nimgs, nspec_rect, nspat_rect)
+    sci_list_out = []
+    for ii in range(len(sci_list)):
+        sci_list_out.append(np.zeros(shape))
+    var_list_out = []
+    for jj in range(len(var_list)):
+        var_list_out.append(np.zeros(shape))
+
+    for img in range(nimgs):
+        # This fist image is purely for bookeeping purposes to determine the number of times each pixel
+        # could have been sampled
+        thismask = thismask_stack[img, :, :]
+        spec_rebin_this = waveimg_stack[img, :, :][thismask]
+        spat_rebin_this = spatimg_stack[img, :, :][thismask]
+
+        norm_img_this, spec_edges, spat_edges = np.histogram2d(spec_rebin_this, spat_rebin_this,
+                                                               bins=[spec_bins, spat_bins], density=False)
+        nsmp_rect_stack[img, :, :] = norm_img_this
+
+        finmask = thismask & inmask_stack[img,:,:]
+        spec_rebin = waveimg_stack[img, :, :][finmask]
+        spat_rebin = spatimg_stack[img, :, :][finmask]
+        norm_img, spec_edges, spat_edges = np.histogram2d(spec_rebin, spat_rebin,
+                                                          bins=[spec_bins, spat_bins], density=False)
+        norm_rect_stack[img, :, :] = norm_img
+
+        # Rebin the science images
+        for sci, sci_out in zip(sci_list, sci_list_out):
+            weigh_img, spec_edges, spat_edges = np.histogram2d(spec_rebin, spat_rebin,
+                                                               bins=[spec_bins, spat_bins], density=False,
+                                                               weights=sci[img,:,:][finmask])
+            sci_out[img, :, :] = (norm_img > 0.0) * weigh_img / (norm_img + (norm_img == 0.0))
+
 
 def weighted_combine(weights, sci_list, var_list, inmask_stack,
                      sigma_clip=False, sigma_clip_stack = None, sigrej=None, maxiters=5):
@@ -48,28 +136,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
            Image of integers indicating the number of images that contributed to each pixel
     """
 
-    shape_sci_list = []
-    for img in sci_list:
-        shape_sci_list.append(img.shape)
-        if img.ndim != 3:
-            msgs.error('Dimensionality of an image in sci_list is not 3')
-
-    shape_var_list = []
-    for img in var_list:
-        shape_var_list.append(img.shape)
-        if img.ndim != 3:
-            msgs.error('Dimensionality of an image in var_list is not 3')
-
-    for isci in shape_sci_list:
-        if isci != shape_sci_list[0]:
-            msgs.error('An image in sci_list have different dimensions')
-        for ivar in shape_var_list:
-            if ivar != shape_var_list[0]:
-                msgs.error('An image in var_list have different dimensions')
-            if isci != ivar:
-                msgs.error('An image in sci_list had different dimensions than an image in var_list')
-
-    shape = shape_sci_list[0]
+    shape = img_list_error_check(sci_list, var_list)
     nimgs = shape[0]
     nspec = shape[1]
     nspat = shape[2]
