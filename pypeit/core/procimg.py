@@ -38,12 +38,10 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
             Maximum number of iterations for sigma clipping using astropy.stats.SigmaClip
 
     Returns:
-        sciimg: float ndarray, shape (nspec, nspat)
-           Scince image
-        sciivar: float ndarray, shape (nspec, nspat)
-           Propagated inverse variance image
-        rn2img:  float ndarray, shape (nspec, nspat)
-           Propagated rn2img
+        sci_list_out: list
+           The list of ndarray float combined images with shape (nspec, nspat)
+        var_list_out: list
+           The list of ndarray propagated variance images with shape (nspec, nspat)
         outmask: bool ndarray, shape (nspec, nspat)
            Mask for combined image. True=Good, False=Bad
         nused: int ndarray, shape (nspec, nspat)
