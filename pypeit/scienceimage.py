@@ -589,9 +589,12 @@ class ScienceImage(processimages.ProcessImages):
 
         # ToDO The bitmask is not being properly propagated here!
         if nsci > 1:
-            sciimg, sciivar, rn2img, outmask = procimg.weighted_combine(
-                weights, sciimg_stack, sciivar_stack, rn2img_stack, (mask_stack == 0),
-                sigma_clip=sigma_clip, sigrej=sigrej, maxiters=maxiters)
+            sci_list = [sciimg_stack]
+            var_stack = utils.calc_ivar(sciivar_stack)
+            var_list = [var_stack, rn2img_stack]
+            sciimg, sciivar, rn2img, outmask, nused = procimg.weighted_combine(
+                weights, sci_list, var_list, (mask_stack == 0),
+                sigma_clip=sigma_clip, sigma_clip_stack = sciimg_stack, sigrej=sigrej, maxiters=maxiters)
             # assumes everything masked in the outmask is a CR in the individual images
             crmask = np.invert(outmask)
             # Create a mask for this image now

@@ -9,38 +9,28 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit.core import parse
 
-"""
 
-Args:
-    weights: ndarray, float shape (nimgs)
-    sciimg_stack: ndarray, float, shape (nimgs, nspec, nspat)
-        Array of science images
-    sciivar_stack: ndarray, float, shape (nimgs, nspec, nspat)
-        Array of inverse variance images
-    rn2img_stack:  ndarray, float, shape (nimgs, nspec, nspat)
-        Array of effective read noise squred images (i.e. RN^2, digitization noise, dark current)
-    inmask_stack: ndarray, boolean, shape (nimgs, nspec, nspat)
-        Array of input masks for the images. True = Good, False=Bad
-
-Returns:
-"""
-
-def weighted_combine(weights, sciimg_stack, sciivar_stack, rn2img_stack, inmask_stack,
-                     sigma_clip=False, sigrej=None, maxiters=5):
+def weighted_combine(weights, sci_list, var_list, inmask_stack,
+                     sigma_clip=False, sigma_clip_stack = None, sigrej=None, maxiters=5):
     """
 
     Args:
         weights: ndarray, float shape (nimgs)
-        sciimg_stack: ndarray, float, shape (nimgs, nspec, nspat)
-            Array of science images
-        sciivar_stack: ndarray, float, shape (nimgs, nspec, nspat)
-            Array of inverse variance images
-        rn2img_stack:  ndarray, float, shape (nimgs, nspec, nspat)
-            Array of effective read noise squred images (i.e. RN^2, digitization noise, dark current)
+        sci_list: list
+            List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
+            which are to be combined with the  weights, inmask_stack, and possibly sigma clipping
+        var_list: list
+            List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
+            which are to be combined with proper erorr propagation, i.e.
+            using the  weights**2, inmask_stack, and possibly sigma clipping
         inmask_stack: ndarray, boolean, shape (nimgs, nspec, nspat)
             Array of input masks for the images. True = Good, False=Bad
         sigma_clip: bool, default = False
             Combine with a mask by sigma clipping the image stack. Only valid if nimgs > 2
+        sigma_clip_stack: ndarray, float, shape (nimgs, nspec, nspat), default = None
+            The image stack to be used for the sigma clipping. For example if
+            if the list of images to be combined with the weights is [sciimg_stack, waveimg_stack, tilts_stack] you
+            would be sigma clipping with sciimg_stack, and would set sigma_clip_stack = sciimg_stack
         sigrej: int or float, default = None
             Rejection threshold for sigma clipping. Code defaults to determining this automatically based
             on the numberr of images provided.
@@ -56,24 +46,55 @@ def weighted_combine(weights, sciimg_stack, sciivar_stack, rn2img_stack, inmask_
            Propagated rn2img
         outmask: bool ndarray, shape (nspec, nspat)
            Mask for combined image. True=Good, False=Bad
+        nused: int ndarray, shape (nspec, nspat)
+           Image of integers indicating the number of images that contributed to each pixel
     """
 
-    if sciimg_stack.ndim == 3:
-        nimgs = sciimg_stack.shape[0]
-    elif sciimg_stack.ndim == 2:
-        nimgs = 1
-    else:
-        msgs.error('Invalid size for image stacks')
+    shape_sci_list = []
+    for img in sci_list:
+        shape_sci_list.append(img.shape)
+        if img.ndim != 3:
+            msgs.error('Dimensionality of an image in sci_list is not 3')
 
-    if nimgs < 2:
-        msgs.error('Cannot combine a single image')
+    shape_var_list = []
+    for img in var_list:
+        shape_var_list.append(img.shape)
+        if img.ndim != 3:
+            msgs.error('Dimensionality of an image in var_list is not 3')
 
-    if sigma_clip and nimgs < 3:
-        msgs.warn('Sigma clipping requested, but you cannot sigma clip with less than 3 images. '
-                  'Proceeding without sigma clipping')
+    for isci in shape_sci_list:
+        if isci != shape_sci_list[0]:
+            msgs.error('An image in sci_list have different dimensions')
+        for ivar in shape_var_list:
+            if ivar != shape_var_list[0]:
+                msgs.error('An image in var_list have different dimensions')
+            if isci != ivar:
+                msgs.error('An image in sci_list had different dimensions than an image in var_list')
 
-    if sigma_clip and self.nsci >= 3:
-        msgs.error('Sigma clipping is not yet supported')
+    shape = shape_sci_list[0]
+    nimgs = shape[0]
+    nspec = shape[1]
+    nspat = shape[2]
+
+    if nimgs == 1:
+        # If only one image is passed in, simply return the input lists of images, but reshaped
+        # to be (nspec, nspat)
+        msgs.warn('Cannot combine a single image. Returning input images')
+        sci_list_out = []
+        for sci_stack in sci_list:
+            sci_list_out.append(sci_stack.reshape((nspec, nspat)))
+        var_list_out = []
+        for var_stack in var_list:
+            var_list_out.append(var_stack.reshape((nspec, nspat)))
+        outmask = inmask_stack.reshape((nspec, nspat))
+        nused = outmask.astype(int)
+        return sci_list_out, var_list_out, outmask, nused
+
+
+
+    if sigma_clip and nimgs >= 3:
+        if sigma_clip_stack is None:
+            msgs.error('You must specify sigma_clip_stack, i.e. which quantity to use for sigma clipping')
         if sigrej is None:
             if nimgs <= 2:
                 sigrej = 100.0  # Irrelevant for only 1 or 2 files, we don't sigma clip below
@@ -89,24 +110,113 @@ def weighted_combine(weights, sciimg_stack, sciivar_stack, rn2img_stack, inmask_
                 sigrej = 2.0
         # sigma clip if we have enough images
         # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
-        data = np.ma.MaskedArray(sciimg_stack, np.invert(inmask_stack))
+        data = np.ma.MaskedArray(sigma_clip_stack, np.invert(inmask_stack))
         sigclip = astropy.stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median')
         data_clipped = sigclip(data, axis=0, masked=True)
         mask_stack = np.invert(data_clipped.mask)  # mask_stack = True are good values
     else:
+        if sigma_clip and nimgs < 3:
+            msgs.warn('Sigma clipping requested, but you cannot sigma clip with less than 3 images. '
+                      'Proceeding without sigma clipping')
         mask_stack = inmask_stack  # mask_stack = True are good values
 
+    nused = np.sum(mask_stack, axis=0)
     weights_stack = np.einsum('i,ijk->ijk', weights, mask_stack)
     weights_sum = np.sum(weights_stack, axis=0)
-    sciimg = np.sum(sciimg_stack * weights_stack, axis=0) / (weights_sum + (weights_sum == 0.0))
-    var_stack = utils.calc_ivar(sciivar_stack)
-    varfinal = np.sum(var_stack * weights_stack ** 2, axis=0) / (weights_sum + (weights_sum == 0.0)) ** 2
-    sciivar = utils.calc_ivar(varfinal)
-    rn2img = np.sum(rn2img_stack * weights_stack ** 2, axis=0) / (weights_sum + (weights_sum == 0.0)) ** 2
+    sci_list_out = []
+    for sci_stack in sci_list:
+        sci_list_out.append(np.sum(sci_stack*weights_stack, axis=0)/(weights_sum + (weights_sum == 0.0)))
+    var_list_out = []
+    for var_stack in var_list:
+        var_list_out.append(np.sum(var_stack * weights_stack ** 2, axis=0) / (weights_sum + (weights_sum == 0.0)) ** 2)
     # Was it masked everywhere?
     outmask = np.any(mask_stack, axis=0)
 
-    return sciimg, sciivar, rn2img, outmask
+    return sci_list_out, var_list_out, outmask, nused
+#
+#
+# def weighted_combine_old(weights, sciimg_stack, sciivar_stack, rn2img_stack, inmask_stack,
+#                      sigma_clip=False, sigrej=None, maxiters=5):
+#     """
+#
+#     Args:
+#         weights: ndarray, float shape (nimgs)
+#         sciimg_stack: ndarray, float, shape (nimgs, nspec, nspat)
+#             Array of science images
+#         sciivar_stack: ndarray, float, shape (nimgs, nspec, nspat)
+#             Array of inverse variance images
+#         rn2img_stack:  ndarray, float, shape (nimgs, nspec, nspat)
+#             Array of effective read noise squred images (i.e. RN^2, digitization noise, dark current)
+#         inmask_stack: ndarray, boolean, shape (nimgs, nspec, nspat)
+#             Array of input masks for the images. True = Good, False=Bad
+#         sigma_clip: bool, default = False
+#             Combine with a mask by sigma clipping the image stack. Only valid if nimgs > 2
+#         sigrej: int or float, default = None
+#             Rejection threshold for sigma clipping. Code defaults to determining this automatically based
+#             on the numberr of images provided.
+#         maxiters:
+#             Maximum number of iterations for sigma clipping using astropy.stats.SigmaClip
+#
+#     Returns:
+#         sciimg: float ndarray, shape (nspec, nspat)
+#            Scince image
+#         sciivar: float ndarray, shape (nspec, nspat)
+#            Propagated inverse variance image
+#         rn2img:  float ndarray, shape (nspec, nspat)
+#            Propagated rn2img
+#         outmask: bool ndarray, shape (nspec, nspat)
+#            Mask for combined image. True=Good, False=Bad
+#     """
+#
+#     if sciimg_stack.ndim == 3:
+#         nimgs = sciimg_stack.shape[0]
+#     elif sciimg_stack.ndim == 2:
+#         nimgs = 1
+#     else:
+#         msgs.error('Invalid size for image stacks')
+#
+#     if nimgs < 2:
+#         msgs.error('Cannot combine a single image')
+#
+#     if sigma_clip and nimgs < 3:
+#         msgs.warn('Sigma clipping requested, but you cannot sigma clip with less than 3 images. '
+#                   'Proceeding without sigma clipping')
+#
+#     if sigma_clip and nimgs >= 3:
+#         msgs.error('Sigma clipping is not yet supported')
+#         if sigrej is None:
+#             if nimgs <= 2:
+#                 sigrej = 100.0  # Irrelevant for only 1 or 2 files, we don't sigma clip below
+#             elif nimgs == 3:
+#                 sigrej = 1.1
+#             elif nimgs == 4:
+#                 sigrej = 1.3
+#             elif nimgs == 5:
+#                 sigrej = 1.6
+#             elif nimgs == 6:
+#                 sigrej = 1.9
+#             else:
+#                 sigrej = 2.0
+#         # sigma clip if we have enough images
+#         # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
+#         data = np.ma.MaskedArray(sciimg_stack, np.invert(inmask_stack))
+#         sigclip = astropy.stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median')
+#         data_clipped = sigclip(data, axis=0, masked=True)
+#         mask_stack = np.invert(data_clipped.mask)  # mask_stack = True are good values
+#     else:
+#         mask_stack = inmask_stack  # mask_stack = True are good values
+#
+#     weights_stack = np.einsum('i,ijk->ijk', weights, mask_stack)
+#     weights_sum = np.sum(weights_stack, axis=0)
+#     sciimg = np.sum(sciimg_stack * weights_stack, axis=0) / (weights_sum + (weights_sum == 0.0))
+#     var_stack = utils.calc_ivar(sciivar_stack)
+#     varfinal = np.sum(var_stack * weights_stack ** 2, axis=0) / (weights_sum + (weights_sum == 0.0)) ** 2
+#     sciivar = utils.calc_ivar(varfinal)
+#     rn2img = np.sum(rn2img_stack * weights_stack ** 2, axis=0) / (weights_sum + (weights_sum == 0.0)) ** 2
+#     # Was it masked everywhere?
+#     outmask = np.any(mask_stack, axis=0)
+#
+#     return sciimg, sciivar, rn2img, outmask
 
 
 # TODO: Add sigdev to the high-level parameter set so that it can be
