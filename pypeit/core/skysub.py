@@ -391,10 +391,10 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     spat_img = np.outer(np.ones(nspec), np.arange(nspat))
     spec_img = np.outer(np.arange(nspec), np.ones(nspat))
 
-    xa_min = spat_img[thismask].min()
-    xa_max = spat_img[thismask].max()
-    ya_min = spec_img[thismask].min()
-    ya_max = spec_img[thismask].max()
+    spat_min = spat_img[thismask].min()
+    spat_max = spat_img[thismask].max()
+    spec_min = spec_img[thismask].min()
+    spec_max = spec_img[thismask].max()
 
     xsize = slit_righ - slit_left
     spatial_img = thismask * ximg * (np.outer(xsize, np.ones(nspat)))
@@ -527,7 +527,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     fullbkpt = bset0.breakpoints
                 # check to see if only a subset of the image is used.
                 # if so truncate input pixels since this can result in singular matrices
-                ibool = (spec_img >= ya_min) & (spec_img <= ya_max) & (spat_img >= xa_min) & (spat_img <= xa_max) & (spat_img >= mincol) & (
+                ibool = (spec_img >= spec_min) & (spec_img <= spec_max) & (spat_img >= spat_min) & (spat_img <= spat_max) & (spat_img >= mincol) & (
                             spat_img <= maxcol) & thismask
                 isub, = np.where(ibool.flatten())
                 sortpix = (piximg.flat[isub]).argsort()
