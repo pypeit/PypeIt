@@ -1464,6 +1464,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         fluxsub = flux_mean - np.median(flux_mean)
     else:
         kernel_size= int(np.ceil(bg_smth*fwhm) // 2 * 2 + 1) # This ensure kernel_size is odd
+        # TODO should we be using  scipy.ndimage.filters.median_filter to better control the boundaries?
         fluxsub = flux_mean - scipy.signal.medfilt(flux_mean, kernel_size=kernel_size)
         # This little bit below deals with degenerate cases for which the slit gets brighter toward the edge, i.e. when
         # alignment stars saturate and bleed over into other slits. In this case the median smoothed profile is the nearly

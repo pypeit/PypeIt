@@ -17,6 +17,7 @@ from pypeit.core import extract
 from matplotlib import pyplot as plt
 
 from scipy.special import ndtr
+import scipy
 
 
 
@@ -298,13 +299,90 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
 
     return sky_bmodel, obj_bmodel, outmask
 
-def skybkpts(piximg, ):
-    pass
+def skybkpts(bsp_min, piximg, sampmask):
+    """
+
+    Args:
+        bsp_min: float
+           Desired B-spline breakpoint spacing in pixels
+        piximg: ndarray float, shape = (nspec, nspat)
+           Image containing the pixel sampling, i.e. (nspec-1)*tilts
+        sampmask: ndarray, bool
+           Boolean array indicating the pixels for which the B-spline fit will actually be evaluated. True = Good, False=Bad
+
+    Returns:
+        skybkpt: ndarray, float
+           Locations of the optimally sampled breakpoints
+
+    """
+
+    sky_pix = piximg[sampmask].sort()
+    piximg_temp = np.ma.array(np.copy(piximg))
+    piximg_temp.mask = np.invert(sampmask)
+    samplmin = np.ma.min(piximg_temp,fill_value=np.inf,axis=1)
+    samplmin = samplmin[np.invert(samplmin.mask)].data
+    samplmax = np.ma.max(piximg_temp,fill_value=-np.inf,axis=1)
+    samplmax = samplmax[np.invert(samplmax.mask)].data
+    if samplmax.size != samplmin.size:
+        msgs.error('This should not happen')
+    nbkpt = samplmax.size
+    # Determine the sampling. dsamp represents the gap in spectral pixel (wavelength) coverage between
+    # subsequent spectral direction pixels in the piximg, i.e. it is the difference between the minimum
+    # value of the piximg at spectral direction pixel i+1, and the maximum value of the piximg at spectral
+    # direction pixel i. A negative value dsamp < 0 implies continuous sampling with no gaps, i.e. the
+    # the arc lines are sufficiently tilted that there is no sampling gap.
+    dsamp_init = np.roll(samplmin, -1) - samplmax
+    dsamp_init[nbkpt - 1] = dsamp_init[nbkpt - 2]
+    kernel_size = int(np.fmax(np.ceil(dsamp_init.size*0.01)//2*2 + 1,15))  # This ensures kernel_size is odd
+    dsamp_med = scipy.ndimage.filters.median_filter(dsamp_init, size=kernel_size, mode='reflect')
+    boxcar_size = int(np.fmax(np.ceil(dsamp_med.size*0.005)//2*2 + 1,5))
+    # Boxcar smooth median dsamp
+    kernel = np.ones(boxcar_size)/ float(boxcar_size)
+    dsamp = scipy.ndimage.convolve(dsamp_med, kernel, mode='reflect')
+    # if more than 80% of the pixels have dsamp < bsp_min than just use a uniform breakpoint spacing
+    if np.sum(dsamp <= bsp_min) > 0.8*nbkpt:
+        bset0 = pydl.bspline(sky_pix, nord=4, bkspace=bsp_min)
+        skybkpt = bset0.breakpoints
+        msgs.info('Sampling of wavelengths is nearly continuous. Using uniform spacing:' + msgs.newline() +
+                  'bsp={:5.3f}'.format(bsp_min))
+        return skybkpt
+    else:
+        skybkpt_orig = samplmax + dsamp/2.0
+        skybkpt_orig.sort()
+        # Compute the distance between breakpoints
+        dsamp_bkpt = skybkpt_orig-np.roll(skybkpt_orig, 1)
+        dsamp_bkpt[0] = dsamp_bkpt[1]
+        # Good breakpoints are those that are at least separated by our original desired bkpt spacing
+        igood = dsamp_bkpt >= bsp_min
+        if np.any(igood):
+            skybkpt_orig = skybkpt_orig[igood]
+        skybkpt = skybkpt_orig.copy()
+        # Recompute the distance between breakpoints
+        dsamp_bkpt = skybkpt_orig-np.roll(skybkpt_orig, 1)
+        dsamp_bkpt[0] = dsamp_bkpt[1]
+        nbkpt = skybkpt_orig.size
+        for ibkpt in range(nbkpt):
+            dsamp_eff = np.fmax(dsamp_bkpt[ibkpt], bsp_min)
+            # can we fit in another bkpt?
+            if dsamp_bkpt[ibkpt] > 2*dsamp_eff:
+                nsmp = int(np.fmax(np.floor(dsamp_bkpt[ibkpt]/dsamp_eff),2))
+                bkpt_new = skybkpt_orig[ibkpt - 1] + (np.arange(nsmp - 1) + 1)*dsamp_bkpt[ibkpt]/float(nsmp)
+                indx_arr = np.where(skybkpt == skybkpt_orig[ibkpt-1])[0]
+                if len(indx_arr) > 0:
+                    indx_bkpt = indx_arr[0]
+                    if indx_bkpt == 0:
+                        skybkpt = np.hstack((skybkpt[0], bkpt_new, skybkpt[indx_bkpt + 1:]))
+                    elif indx_bkpt == (skybkpt.size-2):
+                        skybkpt = np.hstack((skybkpt[0:indx_bkpt], bkpt_new, skybkpt[indx_bkpt + 1]))
+                    else:
+                        skybkpt = np.hstack((skybkpt[0:indx_bkpt], bkpt_new, skybkpt[indx_bkpt + 1:]))
+
+        return skybkpt
 
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
                          bsp = 0.6, inmask = None, extract_maskwidth = 4.0, trim_edg = (3,3), std = False, prof_nsigma = None,
-                         niter=4, box_rad = 7, sigrej = 3.5,skysample = False, sn_gauss = 4.0, model_noise = True,
+                         niter=4, box_rad = 7, sigrej = 3.5,skysample = True, sn_gauss = 4.0, model_noise = True,
                          show_profile=False,show_resids=False):
 
     """Perform local sky subtraction and  extraction
@@ -337,7 +415,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
      :func:`tuple`
 
      """
-
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = trim_edg)
 
@@ -512,23 +589,28 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             iterbsp = 0
             while (not sky_bmodel.any()) & (iterbsp <= 5):
                 bsp_now = (1.2 ** iterbsp) * bsp
+                ibool = (spec_img >= spec_min) & (spec_img <= spec_max) & \
+                        (spat_img >= spat_min) & (spat_img <= spat_max) & \
+                        (spat_img >= mincol) & (spat_img <= maxcol) & \
+                        thismask
                 # if skysample is set, determine optimal break-point spacing
                 # directly measuring how well we are sampling of the sky. The
                 # bsp in this case correspons to the minimum distance between
                 # breakpoints which we allow.
                 if skysample:
-                    sampmask = (waveimg > 0.0) & (thismask == True)
-                    # fullbkpt = skybkpts()
+                    sampmask = (waveimg > 0.0) & ibool
+                    fullbkpt = skybkpts(bsp_now, piximg, sampmask)
                     # TODO Port long_skybkpts.pro code and put it here.
                 else:
+                    # TODO Clean this up no need to flatten here
                     pixvec = piximg[skymask]
                     srt = pixvec.flatten().argsort()
                     bset0 = pydl.bspline(pixvec.flat[srt], nord=4, bkspace=bsp_now)
                     fullbkpt = bset0.breakpoints
+                from IPython import embed
+                embed()
                 # check to see if only a subset of the image is used.
                 # if so truncate input pixels since this can result in singular matrices
-                ibool = (spec_img >= spec_min) & (spec_img <= spec_max) & (spat_img >= spat_min) & (spat_img <= spat_max) & (spat_img >= mincol) & (
-                            spat_img <= maxcol) & thismask
                 isub, = np.where(ibool.flatten())
                 sortpix = (piximg.flat[isub]).argsort()
                 ithis, = np.where(thismask.flat[isub])
