@@ -592,9 +592,12 @@ class ScienceImage(processimages.ProcessImages):
             sci_list = [sciimg_stack]
             var_stack = utils.calc_ivar(sciivar_stack)
             var_list = [var_stack, rn2img_stack]
-            sciimg, sciivar, rn2img, outmask, nused = procimg.weighted_combine(
+            sci_list_out, var_list_out, outmask, nused = procimg.weighted_combine(
                 weights, sci_list, var_list, (mask_stack == 0),
                 sigma_clip=sigma_clip, sigma_clip_stack = sciimg_stack, sigrej=sigrej, maxiters=maxiters)
+            sciimg = sci_list_out[0]
+            sciivar = utils.calc_ivar(var_list_out[0])
+            rn2img = var_list_out[1]
             # assumes everything masked in the outmask is a CR in the individual images
             crmask = np.invert(outmask)
             # Create a mask for this image now
