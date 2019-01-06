@@ -88,8 +88,6 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         nused = outmask.astype(int)
         return sci_list_out, var_list_out, outmask, nused
 
-
-
     if sigma_clip and nimgs >= 3:
         if sigma_clip_stack is None:
             msgs.error('You must specify sigma_clip_stack, i.e. which quantity to use for sigma clipping')
@@ -126,7 +124,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         sci_list_out.append(np.sum(sci_stack*weights_stack, axis=0)/(weights_sum + (weights_sum == 0.0)))
     var_list_out = []
     for var_stack in var_list:
-        var_list_out.append(np.sum(var_stack * weights_stack ** 2, axis=0) / (weights_sum + (weights_sum == 0.0)) ** 2)
+        var_list_out.append(np.sum(var_stack * weights_stack**2, axis=0) / (weights_sum + (weights_sum == 0.0))**2)
     # Was it masked everywhere?
     outmask = np.any(mask_stack, axis=0)
 
