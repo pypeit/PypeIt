@@ -37,25 +37,75 @@ def get_wave_ind(wave_grid, wave_min, wave_max):
     return ind_lower, ind_upper
 
 
-def coadd2d(sciimg_stack, sciivar_stack, inmask_stack, skymodel_stack, tilts_stack, waveimg_stack, trace_stack,
+def coadd2d(sciimg_stack, sciivar_stack, skymodel_stack, inmask_stack, tilts_stack, waveimg_stack, trace_stack,
             thismask_stack, weights=None, loglam_grid=None, wave_grid=None):
     """
+    This routine will perform a 2d co-add of a stack of PypeIt spec2d reduction outputs. The slit will be
+    'rectified' onto a spatial and spectral grid, which encompasses the spectral and spatial coverage of the image stacks.
+    The rectification uses nearest grid point interpolation to avoid covariant errors.
+    Dithering is supported as all images are centered relative to a set of reference traces in trace_stack.
 
     Args:
-        sciimg_stack:
-        sciivar_stack:
-        inmask_stack:
-        skymodel_stack:
-        tilts_stack:
-        waveimg_stack:
-        trace_stack:
-        thismask_stack:
-        weights:
-        loglam_grid:
-        wave_grid:
+    -----
+        sciimg_stack: float ndarray, shape = (nimgs, nspec, nspat)
+           Stack of science images
+        sciivar_stack: float ndarray, shape = (nimgs, nspec, nspat)
+           Stack of inverse variance images
+        skymodel_stack: float ndarray, shape = (nimgs, nspec, nspat)
+           Stack of the model sky
+        inmask_stack: bool ndarray, shape = (nimgs, nspec, nspat)
+           Stack of input masks. True = Good, False=Bad
+        tilts_stack: float ndarray, shape = (nimgs, nspec, nspat)
+           Stack of the wavelength tilts
+        waveimg_stack: float ndarray, shape = (nimgs, nspec, nspat)
+           Stack of the wavelength images
+        trace_stack: float ndarray, shape (nimgs, nspec)
+           Stack of reference traces about which the images are rectified and coadded.
+           If the images were not dithered then this reference trace can simply be the center
+           of the slit slitcen = (slit_left + slit_righ)/2. If the images were dithered, then this could trace_stack
+           could either be the slitcen appropriately shifted with the dither pattern, or it could the trace of the object
+           of interest in each exposure determined by running PypeIt on the individual images.
+        thismask_stack: bool ndarray, shape = (nimgs, nspec, nspat)
+           Stack of masks indicating which pixels are on the slit in question. True = On slit, False=Off slit.
+
+    Optional Args:
+    --------------
+        weights: float ndarray, shape = (nimgs,), default = None
+            Set of weights used for the weighted combined of the rectified images using weighted_combine. If the
+            weights are not provided then a uniform weighting will be adopted.
+        loglam_grid: float ndarray, shape = any, default = None
+            Wavelength grid in log10(wave) onto which the image stacks will be rectified. The code will automatically
+            choose the subset of this grid encompassing the wavelength coverage of the image stacks proviced
+            (using waveimg_stack). Either loglam grid or wave_grid need to be provided
+        wave_grid:  float ndarray, shape = any, default = None
+            Same as loglam_grid but allowing a grid in wave to be provided instead of the log10(wave).
 
     Returns:
+        (sciimg, sciivar, imgminsky, outmask, nused, tilts, waveimg, dspat, thismask, tslits_dict)
 
+        sciimg: float ndarray shape = (nspec_coadd, nspat_coadd)
+            Rectified and coadded science image
+        sciivar: float ndarray shape = (nspec_coadd, nspat_coadd)
+            Rectified and coadded inverse variance image with correct error propagation
+        imgminsky: float ndarray shape = (nspec_coadd, nspat_coadd)
+            Rectified and coadded sky subtracted image
+        outmask: bool ndarray shape = (nspec_coadd, nspat_coadd)
+            Output mask for rectified and coadded images. True = Good, False=Bad.
+        nused: int ndarray shape = (nspec_coadd, nspat_coadd)
+            Image of integers indicating the number of images from the image stack that contributed to each pixel
+        tilts: float ndarray shape = (nspec_coadd, nspat_coadd)
+            The averaged tilts image corresponding to the rectified and coadded data.
+        waveimg: float ndarray shape = (nspec_coadd, nspat_coadd)
+            The averaged wavelength image corresponding to the rectified and coadded data.
+        dspat: float ndarray shape = (nspec_coadd, nspat_coadd)
+            The average spatial offsets in pixels from the reference trace trace_stack corresponding to the rectified
+            and coadded data.
+        thismask: bool ndarray shape = (nspec_coadd, nspat_coadd)
+            Output mask for rectified and coadded images. True = Good, False=Bad. This image is trivial, and
+            is simply an image of True values the same shape as the rectified and coadded data.
+        tslits_dict: dict
+            tslits_dict dictionary containing the information about the slits boundaries. The slit boundaries
+            are trivial and are simply vertical traces at 0 and nspat_coadd-1.
     """
     nimgs, nspec, nspat = sciimg_stack.shape
 
@@ -363,91 +413,6 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     outmask = np.any(mask_stack, axis=0)
 
     return sci_list_out, var_list_out, outmask, nused
-#
-#
-# def weighted_combine_old(weights, sciimg_stack, sciivar_stack, rn2img_stack, inmask_stack,
-#                      sigma_clip=False, sigrej=None, maxiters=5):
-#     """
-#
-#     Args:
-#         weights: ndarray, float shape (nimgs)
-#         sciimg_stack: ndarray, float, shape (nimgs, nspec, nspat)
-#             Array of science images
-#         sciivar_stack: ndarray, float, shape (nimgs, nspec, nspat)
-#             Array of inverse variance images
-#         rn2img_stack:  ndarray, float, shape (nimgs, nspec, nspat)
-#             Array of effective read noise squred images (i.e. RN^2, digitization noise, dark current)
-#         inmask_stack: ndarray, boolean, shape (nimgs, nspec, nspat)
-#             Array of input masks for the images. True = Good, False=Bad
-#         sigma_clip: bool, default = False
-#             Combine with a mask by sigma clipping the image stack. Only valid if nimgs > 2
-#         sigrej: int or float, default = None
-#             Rejection threshold for sigma clipping. Code defaults to determining this automatically based
-#             on the numberr of images provided.
-#         maxiters:
-#             Maximum number of iterations for sigma clipping using astropy.stats.SigmaClip
-#
-#     Returns:
-#         sciimg: float ndarray, shape (nspec, nspat)
-#            Scince image
-#         sciivar: float ndarray, shape (nspec, nspat)
-#            Propagated inverse variance image
-#         rn2img:  float ndarray, shape (nspec, nspat)
-#            Propagated rn2img
-#         outmask: bool ndarray, shape (nspec, nspat)
-#            Mask for combined image. True=Good, False=Bad
-#     """
-#
-#     if sciimg_stack.ndim == 3:
-#         nimgs = sciimg_stack.shape[0]
-#     elif sciimg_stack.ndim == 2:
-#         nimgs = 1
-#     else:
-#         msgs.error('Invalid size for image stacks')
-#
-#     if nimgs < 2:
-#         msgs.error('Cannot combine a single image')
-#
-#     if sigma_clip and nimgs < 3:
-#         msgs.warn('Sigma clipping requested, but you cannot sigma clip with less than 3 images. '
-#                   'Proceeding without sigma clipping')
-#
-#     if sigma_clip and nimgs >= 3:
-#         msgs.error('Sigma clipping is not yet supported')
-#         if sigrej is None:
-#             if nimgs <= 2:
-#                 sigrej = 100.0  # Irrelevant for only 1 or 2 files, we don't sigma clip below
-#             elif nimgs == 3:
-#                 sigrej = 1.1
-#             elif nimgs == 4:
-#                 sigrej = 1.3
-#             elif nimgs == 5:
-#                 sigrej = 1.6
-#             elif nimgs == 6:
-#                 sigrej = 1.9
-#             else:
-#                 sigrej = 2.0
-#         # sigma clip if we have enough images
-#         # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
-#         data = np.ma.MaskedArray(sciimg_stack, np.invert(inmask_stack))
-#         sigclip = astropy.stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median')
-#         data_clipped = sigclip(data, axis=0, masked=True)
-#         mask_stack = np.invert(data_clipped.mask)  # mask_stack = True are good values
-#     else:
-#         mask_stack = inmask_stack  # mask_stack = True are good values
-#
-#     weights_stack = np.einsum('i,ijk->ijk', weights, mask_stack)
-#     weights_sum = np.sum(weights_stack, axis=0)
-#     sciimg = np.sum(sciimg_stack * weights_stack, axis=0) / (weights_sum + (weights_sum == 0.0))
-#     var_stack = utils.calc_ivar(sciivar_stack)
-#     varfinal = np.sum(var_stack * weights_stack ** 2, axis=0) / (weights_sum + (weights_sum == 0.0)) ** 2
-#     sciivar = utils.calc_ivar(varfinal)
-#     rn2img = np.sum(rn2img_stack * weights_stack ** 2, axis=0) / (weights_sum + (weights_sum == 0.0)) ** 2
-#     # Was it masked everywhere?
-#     outmask = np.any(mask_stack, axis=0)
-#
-#     return sciimg, sciivar, rn2img, outmask
-
 
 # TODO: Add sigdev to the high-level parameter set so that it can be
 # changed by the user?
