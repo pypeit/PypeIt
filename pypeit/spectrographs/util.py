@@ -47,9 +47,12 @@ def load_spectrograph(spectrograph):
     #if spectrograph is None:
     #    return None
     # JFH Changed the above to address this and other issues
+    # JXP Turned back.  The Spectrograph class is an ABC and should not
+    #  be instantiated on its own.  And at the moment it can't be anyhow.
 
     if spectrograph is None:
-        return spectrographs.spectrograph.Spectrograph()
+        return None
+        #return spectrographs.spectrograph.Spectrograph()
 
     if isinstance(spectrograph, spectrographs.spectrograph.Spectrograph):
         return spectrograph

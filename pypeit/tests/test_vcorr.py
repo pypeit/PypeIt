@@ -58,11 +58,10 @@ def test_geocorrect(fitstbl):
 #    spectrograph = load_spectrograph('keck_lris_blue')
 
     # Specobjs (wrap in a list to mimic a slit)
-    sobj_list = specobjs.dummy_specobj(fitstbl, extraction=True)
+    sobj_list = specobjs.dummy_specobj((2048,2048), extraction=True)
     specObjs = specobjs.SpecObjs(sobj_list)
     scidx = 5
-    tbname = fitstbl['date'][scidx]
-    obstime = Time(tbname, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
+    obstime = Time(fitstbl['mjd'][scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
     maskslits = np.array([False]*specObjs.nobj)
 
     helio, hel_corr = wave.geomotion_correct(specObjs, maskslits, fitstbl, scidx, obstime,

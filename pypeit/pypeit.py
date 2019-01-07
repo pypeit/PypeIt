@@ -1,3 +1,6 @@
+"""
+Main driver class for PypeIt run
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -10,9 +13,7 @@ import datetime
 import numpy as np
 from collections import OrderedDict
 
-from astropy.time import Time
 from pypeit import msgs
-from pypeit import pypeitsetup
 from pypeit import calibrations
 from pypeit import scienceimage
 from pypeit import specobjs
@@ -20,12 +21,18 @@ from pypeit import fluxspec
 from pypeit import ginga
 from pypeit.core import paths
 from pypeit.core import qa
-#from pypeit.core import pypsetup
 from pypeit.core import wave
 from pypeit.core import save
 from pypeit.core import load
 from pypeit.spectrographs.util import load_spectrograph
 
+
+from configobj import ConfigObj
+from pypeit.par.util import parse_pypeit_file
+from pypeit.par import PypeItPar
+from pypeit.metadata import PypeItMetaData
+
+from pypeit import debugger
 
 class PypeIt(object):
     """
@@ -65,16 +72,38 @@ class PypeIt(object):
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None, show=False,
                  redux_path=None):
 
-        # Setup
+        # Load
+        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file, runtime=True)
         self.pypeit_file = pypeit_file
-        ps = pypeitsetup.PypeItSetup.from_pypeit_file(self.pypeit_file)
-        ps.run(setup_only=False)
-        # Only need the parameters, spectrograph, and metadata for the remainder
-        self.par = ps.par
-        # self.spectrograph = ps.spectrograph
-        self.fitstbl = ps.fitstbl
 
-        self.pypeitSetup = ps
+        # Spectrograph
+        cfg = ConfigObj(cfg_lines)
+        spectrograph_name = cfg['rdx']['spectrograph']
+        self.spectrograph = load_spectrograph(spectrograph_name)
+
+        # Par
+        spectrograph_cfg_lines = self.spectrograph.default_pypeit_par().to_config()
+        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+
+        # Fitstbl
+        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, file_list=data_files,
+                                      usrdata=usrdata, strict=True)
+        # The following could be put in a prepare_to_run() method in PypeItMetaData
+        if 'setup' not in self.fitstbl.keys():
+            self.fitstbl['setup'] = setups[0]
+        self.fitstbl.get_frame_types(user=frametype)  # This sets them using the user inputs
+        self.fitstbl.set_defaults()  # Only does something if values not set in PypeIt file
+        self.fitstbl._set_calib_group_bits()
+        self.fitstbl._check_calib_groups()
+        # Write .calib file (For QA naming amongst other things)
+        calib_file = pypeit_file.replace('.pypeit', '.calib')
+        self.fitstbl.write_calib(calib_file)
+
+        # Use the instrument config to set specific parameters (rarely occurs)
+        is_science = self.fitstbl.find_frames('science')
+        sci_files = self.fitstbl.frame_paths(is_science)
+        self.spectrograph.config_specific_par(self.par, sci_files[0])
+
 
         # Other Internals
         self.logname = logname
@@ -83,10 +112,6 @@ class PypeIt(object):
         # parameter in the parset but it is currently ignored.
         self.reuse_masters=reuse_masters
         self.show = show
-
-
-        # Spectrometer class
-        self.spectrograph = load_spectrograph(ps.spectrograph)
 
         # Make the output directories
         self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
@@ -357,10 +382,7 @@ class PypeIt(object):
     def get_sci_metadata(self, frame, det):
 
         # Set binning, obstime, basename, and objtype
-        try:
-            binning = self.fitstbl['binning'][frame]
-        except:
-            binning = None
+        binning = self.fitstbl['binning'][frame]
         obstime  = self.fitstbl.construct_obstime(frame)
         basename = self.fitstbl.construct_basename(frame, obstime=obstime)
         objtype  = self.fitstbl['frametype'][frame]
@@ -564,7 +586,8 @@ class PypeIt(object):
         helio_dict = dict(refframe='pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
             self.caliBrate.par['wavelengths']['frame'],vel_correction=vel_corr)
         # Did the user re-run a single detector?
-        save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], self.spectrograph.pypeline, outfile,
+        save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], self.spectrograph.pypeline,
+                                  self.spectrograph.spectrograph, outfile,
                                   helio_dict=helio_dict, telescope=self.spectrograph.telescope,
                                   update_det=self.par['rdx']['detnum'])
         # 1D only?

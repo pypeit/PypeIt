@@ -161,6 +161,9 @@ class ScienceImage(processimages.ProcessImages):
         self.illum_flat = None
 
         self.steps = []
+
+
+
         # Other attributes that will be set later during object finding,
         # sky-subtraction, and extraction
         self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
@@ -549,10 +552,11 @@ class ScienceImage(processimages.ProcessImages):
 
         if self.ir_redux:
             self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = self.proc_diff(
-                self.file_list, self.bg_file_list, reject_cr=True, sigma_clip=False)
+                self.file_list, self.bg_file_list, reject_cr=True, sigma_clip=False,
+                sigrej=sigrej, maxiters=maxiters)
         else:
             self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = self.proc_sci(
-                self.file_list, reject_cr=True, sigma_clip=False)
+                self.file_list, reject_cr=True, sigma_clip=False, sigrej=sigrej, maxiters=maxiters)
 
         # Now add the slitmask to the mask (i.e. post CR reject)
         self.mask = self.update_mask_slitmask(self.mask, self.slitmask)

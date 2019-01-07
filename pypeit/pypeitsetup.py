@@ -218,6 +218,17 @@ class PypeItSetup(object):
     def vanilla_pypeit_file(pypeit_file, root, spectrograph, extension='.fits'):
         """
         Write a vanilla PypeIt file.
+
+        Args:
+            pypeit_file: str
+              Name of PypeIt file
+            root: str
+            spectrograph: str
+              Name of spectrograph
+            extension: str, optional
+
+        Returns:
+
         """
         # Generate
         dfname = os.path.join(root, '*{0}*'.format(extension)) \
@@ -238,7 +249,7 @@ class PypeItSetup(object):
     def __repr__(self):
         return '<{:s}: nfiles={:d}>'.format(self.__class__.__name__, self.nfiles)
 
-    def build_fitstbl(self, strict=True, bkg_pairs=None):
+    def build_fitstbl(self, strict=True):
         """
         Construct the table with metadata for the frames to reduce.
 
@@ -250,16 +261,7 @@ class PypeItSetup(object):
                 read the headers of any of the files in
                 :attr:`file_list`.  Set to False to only report a
                 warning and continue.
-            bkg_pairs (:obj:`str`, optional):
-                When constructing the
-                :class:`pypeit.metadata.PypeItMetaData` object, include
-                two columns called `comb_id` and `bkg_id` that identify
-                object and background frame pairs.  The string indicates
-                how these these columns should be added::
-                    - `empty`: The columns are added but their values
-                      are all originally set to -1.  **This is
-                      currently the only option.**
-    
+
         Returns:
             :obj:`astropy.table.Table`: Table with the metadata for each
             fits file to reduce.  Note this is different from
@@ -385,7 +387,7 @@ class PypeItSetup(object):
 
         format = None if '.fits' in ofile else 'ascii.fixed_width'
         self.fitstbl.write(ofile,
-                           columns=None if format is None else self.spectrograph.metadata_keys(),
+                           columns=None if format is None else self.spectrograph.pypeit_file_keys(),
                            format=format, overwrite=True)
 
 
@@ -455,18 +457,15 @@ class PypeItSetup(object):
 
         # Determine the configurations and assign each frame to the
         # specified configuration
-        cfgs = self.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
-        self.fitstbl.set_configurations(cfgs)
+        ignore_frames=['bias', 'dark']
+        cfgs = self.fitstbl.unique_configurations(ignore_frames=ignore_frames)
+        self.fitstbl.set_configurations(cfgs, ignore_frames=ignore_frames)
 
         # Assign frames to calibration groups
         self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
-        # Set comb_id
-        # TODO-- a bit kludgy to do it here;  consider another place but it must be after usrdata is ingested
-        if not np.any(self.fitstbl['comb_id'] >= 0):
-            sci_std_idx = np.where(np.any([self.fitstbl.find_frames('science'),
-                              self.fitstbl.find_frames('standard')], axis=0))[0]
-            self.fitstbl['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
+        # Set default comb_id (only done if needed)
+        self.fitstbl.set_defaults()
 
         # Assign science IDs based on the calibrations groups (to be
         # deprecated)

@@ -17,6 +17,9 @@ from pypeit import msgs
 from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.core import pixels
+from pypeit import metadata
+
+from pypeit import debugger
 
 # TODO: Consider changing the name of this to Instrument
 class Spectrograph(object):
@@ -30,8 +33,6 @@ class Spectrograph(object):
             currently supported spectrographs.
         telescope (:class:`TelescopePar`):
             Parameters of the telescope that feeds this spectrograph.
-        camera (str):
-            Name of the spectrograph camera.
         detector (list):
             A list of instances of
             :class:`pypeit.par.pypeitpar.DetectorPar` with the parameters
@@ -55,7 +56,6 @@ class Spectrograph(object):
     def __init__(self):
         self.spectrograph = 'base'
         self.telescope = None
-        self.camera = None
         self.detector = None
         self.naxis = None
 #        self.raw_naxis = None
@@ -77,6 +77,11 @@ class Spectrograph(object):
         # Init Calibrations Par
 #        self._set_calib_par()
 
+        # Init meta
+        self.meta_data_model = metadata.get_meta_data_model()
+        self.init_meta()
+        self.validate_metadata()
+
     @staticmethod
     def default_sky_spectrum():
         """
@@ -89,12 +94,29 @@ class Spectrograph(object):
     @staticmethod
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
-    
+
+    def config_specific_par(self, par, filename):
+        """
+        Used to modify the ParSet from metadata
+        drawn from the input file
+
+        Args:
+            par: ParSet
+            filename: str
+
+        Returns:
+            par is modified in place
+
+        """
+        pass
+
+    '''
     def get_lacosmics_par(self,proc_par,binning=None):
         # Workaround to make these parameters a function of binning for LRIS.
         sigclip = proc_par['sigclip']
         objlim = proc_par['objlim']
         return sigclip, objlim
+    '''
 
     def _check_telescope(self):
         # Check the detector
@@ -417,6 +439,7 @@ class Spectrograph(object):
         # before that.
         return self.empty_bpm(shape=shape, filename=filename, det=det)
 
+    '''
     # TODO: (KBW) I've removed all the defaults.  Should maybe revisit
     # this
     def default_header_keys(self):
@@ -426,6 +449,7 @@ class Spectrograph(object):
 
     def header_keys(self):
         return self.default_header_keys()
+    '''
 
     def configuration_keys(self):
         """
@@ -442,14 +466,152 @@ class Spectrograph(object):
             used to constuct the :class:`pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'dichroic', 'decker' ] #, 'dispangle' ] #,  'slitwid', 'slitlen' ]
+        return ['dispname', 'dichroic', 'decker']
 
-    def validate_metadata(self, fitstbl):
-        pass
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file
 
-    def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker',
-                'setup', 'calib']#, 'comb_id', 'bkg_id']
+        Returns:
+            pypeit_keys: list
+
+        """
+        pypeit_keys = ['filename', 'frametype']
+        # Core
+        core_meta = metadata.define_core_meta()
+        pypeit_keys += list(core_meta.keys())  # Might wish to order these
+        # Add in config_keys (if new)
+        for key in self.configuration_keys():
+            if key not in pypeit_keys:
+                pypeit_keys.append(key)
+        # Finish
+        return pypeit_keys
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate meta in a more complex manner than simply
+        reading from the header
+
+        These are defined per spectrograph, as needed
+
+        Args:
+            headarr: list
+              List of headers
+            meta_key: str
+
+        Returns:
+            value:
+
+        """
+        return None
+
+    def init_meta(self):
+        """
+        Define how meta values are dervied from the spectrograph files
+
+        Returns:
+            self.meta defined
+
+        """
+        self.meta = {}
+
+    def get_meta_value(self, ifile, meta_key, headarr=None, required=False, ignore_bad_header=False):
+        """
+        Return meta data from a given file (or its array of headers)
+
+        Args:
+            ifile: str or None
+              Input filename
+            meta_key: str or list of str
+            headarr: list, optional
+              List of headers
+            required: bool, optional
+              Require the meta key to be returnable
+            ignore_bad_header: bool, optional
+              Over-ride required;  not recommended
+
+        Returns:
+            value: value or list of values
+
+        """
+        if headarr is None:
+            headarr = self.get_headarr(ifile)
+
+        # Loop?
+        if isinstance(meta_key, list):
+            values = []
+            for mdict in meta_key:
+                values.append(self.get_meta_value(mdict, headarr=headarr, required=required))
+            #
+            return values
+
+        # Are we prepared to provide this meta data?
+        if meta_key not in self.meta.keys():
+            if required:
+                msgs.error("Need to allow for meta_key={} in your meta data".format(meta_key))
+            else:
+                msgs.warn("Requested meta data does not exist...")
+                return None
+        # Is this not derivable?  If so, use the default
+        #   or search for it as a compound method
+        if self.meta[meta_key]['card'] is None:
+            if 'default' in self.meta[meta_key].keys():
+                value = self.meta[meta_key]['default']
+            elif 'compound' in self.meta[meta_key].keys():
+                value = self.compound_meta(headarr, meta_key)
+            else:
+                msgs.error("Failed to load spectrograph value for meta: {}".format(meta_key))
+        else:
+            # Grab from the header, if we can
+            try:
+                value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
+            except KeyError:
+                if required:
+                    if not ignore_bad_header:
+                        msgs.error("Required card {:s} missing from your header of {:s}.  Add it!!".format(
+                            self.meta[meta_key]['card'], ifile))
+                    else:
+                        msgs.warn("Required card {:s} missing from your header of {:s}.  Proceeding with risk..".format(
+                            self.meta[meta_key]['card'], ifile))
+                return None
+
+        # Deal with dtype (DO THIS HERE OR IN METADATA?  I'M TORN)
+        if self.meta_data_model[meta_key]['dtype'] == str:
+            value = str(value).strip()
+        elif self.meta_data_model[meta_key]['dtype'] == int:
+            value = int(value)
+        elif self.meta_data_model[meta_key]['dtype'] == float:
+            value = float(value)
+        elif self.meta_data_model[meta_key]['dtype'] == tuple:
+            assert isinstance(value, tuple)
+        else:
+            debugger.set_trace()
+        # Return
+        return value
+
+    def validate_metadata(self):
+        """
+        Validates the meta definitions of the Spectrograph
+        by making a series of comparisons to the meta data model
+        definied in metadata.py
+
+        Returns:
+
+        """
+        # Load up
+        core_meta = metadata.define_core_meta()
+        meta_data_model = metadata.get_meta_data_model()
+        # Check core
+        for key in core_meta:
+            assert key in self.meta.keys(), 'key {:s} not defined in spectrograph meta!'.format(key)
+        # Check for rtol for config keys that are type float
+        for key in self.configuration_keys():
+            if meta_data_model[key]['dtype'] in [float]:
+                assert 'rtol' in self.meta[key].keys(), 'rtol not set for key {:s} not defined in spectrograph meta!'.format(key)
+        # Now confirm all meta are in the data model
+        for key in self.meta.keys():
+            if key not in self.meta_data_model.keys():
+                msgs.error("Meta data {:s} not in meta_data_model".format(key))
 
     def get_headarr(self, filename, strict=True):
         """
@@ -502,6 +664,7 @@ class Spectrograph(object):
         raise NotImplementedError('Header keyword with frame type not defined for {0}.'.format(
                                   self.spectrograph))
 
+    '''
     def check_headers(self, headers, expected_values=None):
         """
         Check headers match instrument-spectific expectations.
@@ -530,6 +693,7 @@ class Spectrograph(object):
                 raise ValueError('Keyword {0} in extension {1} has incorrect value.  '.format(
                                     card, ext)
                                  + 'Expected {0} but found {1}.'.format(v, headers[ext][card]))
+    '''
 
     @property
     def ndet(self):
@@ -646,7 +810,6 @@ class Spectrograph(object):
         txt = '<{:s}: '.format(self.__class__.__name__)
         txt += ' spectrograph={:s},'.format(self.spectrograph)
         txt += ' telescope={:s},'.format(self.telescope['name'])
-        txt += ' camera={:s}'.format(self.camera)
         txt += '>'
         return txt
 

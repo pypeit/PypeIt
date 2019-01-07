@@ -859,7 +859,7 @@ class ReducePar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
-                 qadir=None, redux_path=None):
+                 qadir=None, redux_path=None, ignore_bad_headers=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -894,6 +894,10 @@ class ReducePar(ParSet):
         descr['calwin'] = 'The window of time in hours to search for calibration frames for a ' \
                           'science frame'
 
+        defaults['ignore_bad_headers'] = False
+        dtypes['ignore_bad_headers'] = bool
+        descr['ignore_bad_headers'] = 'Ignore bad headers (NOT recommended unless you know it is safe).'
+
         defaults['scidir'] = 'Science'
         dtypes['scidir'] = str
         descr['scidir'] = 'Directory relative to calling directory to write science files.'
@@ -922,7 +926,7 @@ class ReducePar(ParSet):
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
-                    'redux_path']
+                    'redux_path', 'ignore_bad_headers']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
