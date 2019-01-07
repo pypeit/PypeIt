@@ -57,34 +57,71 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [200, None]
         return par
 
-    def header_keys(self):
+#    def header_keys(self):
+#        """
+#        Provide the relevant header keywords
+#        """
+#
+#        hdr_keys = {}
+#        hdr_keys[0] = {}
+#
+#        hdr_keys[0]['target'] = 'OBJECT'
+#        hdr_keys[0]['idname'] = 'IMAGETYP'
+#        hdr_keys[0]['time'] = 'MJD-OBS'
+#        hdr_keys[0]['utc'] = 'UTC-OBS'
+#        hdr_keys[0]['date'] = 'DATE-OBS'
+#        hdr_keys[0]['ra'] = 'OBJRA'
+#        hdr_keys[0]['dec'] = 'OBJDEC'
+#        hdr_keys[0]['airmass'] = 'AIRMASS'
+#        hdr_keys[0]['binning'] = 'CCDXBIN'
+#        hdr_keys[0]['exptime'] = 'EXPTIME'
+#        hdr_keys[0]['decker'] = 'MASKNAME'
+#        hdr_keys[0]['dichroic'] = 'FILTNAME'
+#        hdr_keys[0]['dispname'] = 'GRATNAME'
+#        hdr_keys[0]['spectrograph'] = 'INSTRUME'
+#
+#        hdr_keys[0]['naxis0'] = 'NAXIS2'
+#        hdr_keys[0]['naxis1'] = 'NAXIS1'
+#
+#        return hdr_keys
+
+    def init_meta(self):
         """
-        Provide the relevant header keywords
+        Generate the meta data dict
+        Note that the children can add to this
+
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        self.meta = {}
+        # Required (core)
+        self.meta['ra'] = dict(ext=0, card='OBJRA')
+        self.meta['dec'] = dict(ext=0, card='OBJDEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['decker'] = dict(ext=0, card='MASKNAME')
+        self.meta['binning'] = dict(card=None, compound=True)
+        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['dispname'] = dict(ext=0, card='GRATNAME')
+
+    def compound_meta(self, headarr, meta_key):
         """
 
-        hdr_keys = {}
-        hdr_keys[0] = {}
+        Args:
+            headarr: list
+            meta_key: str
 
-        hdr_keys[0]['target'] = 'OBJECT'
-        hdr_keys[0]['idname'] = 'IMAGETYP'
-        hdr_keys[0]['time'] = 'MJD-OBS'
-        hdr_keys[0]['utc'] = 'UTC-OBS'
-        hdr_keys[0]['date'] = 'DATE-OBS'
-        hdr_keys[0]['ra'] = 'OBJRA'
-        hdr_keys[0]['dec'] = 'OBJDEC'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['binning'] = 'CCDXBIN'
-        hdr_keys[0]['exptime'] = 'EXPTIME'
-        hdr_keys[0]['decker'] = 'MASKNAME'
-        hdr_keys[0]['dichroic'] = 'FILTNAME'
-        hdr_keys[0]['dispname'] = 'GRATNAME'
-        hdr_keys[0]['spectrograph'] = 'INSTRUME'
+        Returns:
+            value
 
-        hdr_keys[0]['naxis0'] = 'NAXIS2'
-        hdr_keys[0]['naxis1'] = 'NAXIS1'
-
-
-        return hdr_keys
+        """
+        if meta_key == 'binning':
+            binspatial, binspec = parse.parse_binning(headarr[0]['CCDXBIN'])
+            binning = parse.binning2string(binspatial, binspec)
+            return binning
+        msgs.error("Not ready for this compound meta")
 
     # Uses parent metadata keys
 
@@ -109,35 +146,35 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def get_match_criteria(self):
-        """Set the general matching criteria for LBT MODS."""
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['naxis0'] = '=0'
-        match_criteria['standard']['match']['naxis1'] = '=0'
-
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['naxis0'] = '=0'
-        match_criteria['bias']['match']['naxis1'] = '=0'
-
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-        match_criteria['pixelflat']['match']['decker'] = ''
-
-        match_criteria['trace']['match'] = {}
-        match_criteria['trace']['match']['naxis0'] = '=0'
-        match_criteria['trace']['match']['naxis1'] = '=0'
-        match_criteria['trace']['match']['decker'] = ''
-
-        match_criteria['arc']['match'] = {}
-        match_criteria['arc']['match']['naxis0'] = '=0'
-        match_criteria['arc']['match']['naxis1'] = '=0'
-
-        return match_criteria
+#    def get_match_criteria(self):
+#        """Set the general matching criteria for LBT MODS."""
+#        match_criteria = {}
+#        for key in framematch.FrameTypeBitMask().keys():
+#            match_criteria[key] = {}
+#
+#        match_criteria['standard']['match'] = {}
+#        match_criteria['standard']['match']['naxis0'] = '=0'
+#        match_criteria['standard']['match']['naxis1'] = '=0'
+#
+#        match_criteria['bias']['match'] = {}
+#        match_criteria['bias']['match']['naxis0'] = '=0'
+#        match_criteria['bias']['match']['naxis1'] = '=0'
+#
+#        match_criteria['pixelflat']['match'] = {}
+#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
+#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
+#        match_criteria['pixelflat']['match']['decker'] = ''
+#
+#        match_criteria['trace']['match'] = {}
+#        match_criteria['trace']['match']['naxis0'] = '=0'
+#        match_criteria['trace']['match']['naxis1'] = '=0'
+#        match_criteria['trace']['match']['decker'] = ''
+#
+#        match_criteria['arc']['match'] = {}
+#        match_criteria['arc']['match']['naxis0'] = '=0'
+#        match_criteria['arc']['match']['naxis1'] = '=0'
+#
+#        return match_criteria
 
 
 class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
@@ -204,21 +241,21 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 
         return par
 
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for a LBT MODS1R exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = {   '0.NAXIS': 2,
-                            '0.INSTRUME': 'MODS1R' }
-        super(LBTMODS1RSpectrograph, self).check_headers(headers,
-                                                             expected_values=expected_values)
+#    def check_headers(self, headers):
+#        """
+#        Check headers match expectations for a LBT MODS1R exposure.
+#
+#        See also
+#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+#
+#        Args:
+#            headers (list):
+#                A list of headers read from a fits file
+#        """
+#        expected_values = {   '0.NAXIS': 2,
+#                            '0.INSTRUME': 'MODS1R' }
+#        super(LBTMODS1RSpectrograph, self).check_headers(headers,
+#                                                             expected_values=expected_values)
 
 class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
     """
@@ -281,21 +318,21 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
 
         return par
 
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for a LBT MODS1B exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = {   '0.NAXIS': 2,
-                            '0.INSTRUME': 'MODS1B' }
-        super(LBTMODS1BSpectrograph, self).check_headers(headers,
-                                                             expected_values=expected_values)
+#    def check_headers(self, headers):
+#        """
+#        Check headers match expectations for a LBT MODS1B exposure.
+#
+#        See also
+#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+#
+#        Args:
+#            headers (list):
+#                A list of headers read from a fits file
+#        """
+#        expected_values = {   '0.NAXIS': 2,
+#                            '0.INSTRUME': 'MODS1B' }
+#        super(LBTMODS1BSpectrograph, self).check_headers(headers,
+#                                                             expected_values=expected_values)
 
 
 class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
@@ -363,21 +400,21 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
 
         return par
 
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for a LBT MODS2R exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = {   '0.NAXIS': 2,
-                            '0.INSTRUME': 'MODS2R' }
-        super(LBTMODS2RSpectrograph, self).check_headers(headers,
-                                                             expected_values=expected_values)
+#    def check_headers(self, headers):
+#        """
+#        Check headers match expectations for a LBT MODS2R exposure.
+#
+#        See also
+#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+#
+#        Args:
+#            headers (list):
+#                A list of headers read from a fits file
+#        """
+#        expected_values = {   '0.NAXIS': 2,
+#                            '0.INSTRUME': 'MODS2R' }
+#        super(LBTMODS2RSpectrograph, self).check_headers(headers,
+#                                                             expected_values=expected_values)
 
 class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
     """
@@ -440,18 +477,19 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
 
         return par
 
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for a LBT MODS2B exposure.
+#    def check_headers(self, headers):
+#        """
+#        Check headers match expectations for a LBT MODS2B exposure.
+#
+#        See also
+#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+#
+#        Args:
+#            headers (list):
+#                A list of headers read from a fits file
+#        """
+#        expected_values = {   '0.NAXIS': 2,
+#                            '0.INSTRUME': 'MODS2B' }
+#        super(LBTMODS2BSpectrograph, self).check_headers(headers,
+#                                                             expected_values=expected_values)
 
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = {   '0.NAXIS': 2,
-                            '0.INSTRUME': 'MODS2B' }
-        super(LBTMODS2BSpectrograph, self).check_headers(headers,
-                                                             expected_values=expected_values)
