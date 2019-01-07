@@ -53,24 +53,66 @@ def img_list_error_check(sci_list, var_list):
     return shape
 
 def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, sci_list, var_list):
+    """
+    Rebin a set of images and propagate variance onto a new spectral and spatial grid. This routine effectively
+    performs "recitifies" images using np.histogram2d which is extremely fast and effectiveluy performs
+    nearest grid point interpolation.
 
+    Args:
+        spec_bins: float ndarray, shape = (nspec_rebin)
+           Spectral bins to rebin to.
+        spat_bins: float ndarray, shape = (nspat_rebin)
+           Spatial bins to rebin to.
+        waveimg_stack: float ndarray, shape = (nimgs, nspec, nspat)
+            Stack of nimgs wavelength images with shape = (nspec, nspat) each
+        spatimg_stack: float ndarray, shape = (nimgs, nspec, nspat)
+            Stack of nimgs spatial position images with shape = (nspec, nspat) each
+        thismask_stack: bool ndarray, shape = (nimgs, nspec, nspat)
+            Stack of nimgs images with shape = (nspec, nspat) indicating the locatons on the pixels on an image that
+            are on the slit in question.
+        inmask_stack: bool ndarray, shape = (nimgs, nspec, nspat)
+            Stack of nimgs images with shape = (nspec, nspat) indicating which pixels on an image are masked.
+            True = Good, False = Bad
+        sci_list: list
+            List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
+            which are to be rebinned onto the new spec_bins, spat_bins
+        var_list: list
+            List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
+            which are to be rebbinned with proper erorr propagation
+
+    Returns:
+        sci_list_out: list
+           The list of ndarray rebinned images with new shape (nimgs, nspec_rebin, nspat_rebin)
+        var_list_out: list
+           The list of ndarray rebinned variance images with correct error propagation with shape
+           (nimgs, nspec_rebin, nspat_rebin)
+        norm_rebin_stack: int ndarray, shape (nimgs, nspec_rebin, nspat_rebin)
+           An image stack indicating the integer occupation number of a given pixel. In other words, this number would be zero
+           for empty bins, one for bins that were populated by a single pixel, etc. This image takes the input
+           inmask_stack into account. The output mask for each image can be formed via
+           outmask_rebin_satck = (norm_rebin_stack > 0)
+        nsmp_rebin_stack: int ndarray, shape (nimgs, nspec_rebin, nspat_rebin)
+           An image stack indicating the integer occupation number of a given pixel taking only the thismask_stack into
+           account, but taking the inmask_stack into account. This image is mainly constructed for bookeeping purposes,
+           as it represents the number of times each pixel in the rebin image was populated taking only the "geometry"
+           of the rebinning into account (i.e. the thismask_stack), but not the masking (inmask_stack).
+
+    """
 
     shape = img_list_error_check(sci_list, var_list)
     nimgs = shape[0]
-    nspec = shape[1]
-    nspat = shape[2]
-    nsmp_rect_stack = np.zeros(shape)
-    norm_rect_stack = np.zeros(shape)
     # allocate the output mages
-    nspec_rect = spec_bins.size - 1
-    nspat_rect = spat_bins.size - 1
-    shape_out = (nimgs, nspec_rect, nspat_rect)
+    nspec_rebin = spec_bins.size - 1
+    nspat_rebin = spat_bins.size - 1
+    shape_out = (nimgs, nspec_rebin, nspat_rebin)
+    nsmp_rebin_stack = np.zeros(shape_out)
+    norm_rebin_stack = np.zeros(shape_out)
     sci_list_out = []
     for ii in range(len(sci_list)):
-        sci_list_out.append(np.zeros(shape))
+        sci_list_out.append(np.zeros(shape_out))
     var_list_out = []
     for jj in range(len(var_list)):
-        var_list_out.append(np.zeros(shape))
+        var_list_out.append(np.zeros(shape_out))
 
     for img in range(nimgs):
         # This fist image is purely for bookeeping purposes to determine the number of times each pixel
@@ -79,23 +121,33 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
         spec_rebin_this = waveimg_stack[img, :, :][thismask]
         spat_rebin_this = spatimg_stack[img, :, :][thismask]
 
-        norm_img_this, spec_edges, spat_edges = np.histogram2d(spec_rebin_this, spat_rebin_this,
+        nsmp_rebin_stack[img, :, :], spec_edges, spat_edges = np.histogram2d(spec_rebin_this, spat_rebin_this,
                                                                bins=[spec_bins, spat_bins], density=False)
-        nsmp_rect_stack[img, :, :] = norm_img_this
 
         finmask = thismask & inmask_stack[img,:,:]
         spec_rebin = waveimg_stack[img, :, :][finmask]
         spat_rebin = spatimg_stack[img, :, :][finmask]
         norm_img, spec_edges, spat_edges = np.histogram2d(spec_rebin, spat_rebin,
                                                           bins=[spec_bins, spat_bins], density=False)
-        norm_rect_stack[img, :, :] = norm_img
+        norm_rebin_stack[img, :, :] = norm_img
 
         # Rebin the science images
-        for sci, sci_out in zip(sci_list, sci_list_out):
-            weigh_img, spec_edges, spat_edges = np.histogram2d(spec_rebin, spat_rebin,
+        for indx, sci in enumerate(sci_list):
+            weigh_sci, spec_edges, spat_edges = np.histogram2d(spec_rebin, spat_rebin,
                                                                bins=[spec_bins, spat_bins], density=False,
                                                                weights=sci[img,:,:][finmask])
-            sci_out[img, :, :] = (norm_img > 0.0) * weigh_img / (norm_img + (norm_img == 0.0))
+            sci_list_out[indx][img, :, :] = (norm_img > 0.0) * weigh_sci/(norm_img + (norm_img == 0.0))
+
+        # Rebin the variance images, note the norm_img**2 factor for correct error propagation
+        for indx, var in enumerate(var_list):
+            weigh_var, spec_edges, spat_edges = np.histogram2d(spec_rebin, spat_rebin,
+                                                               bins=[spec_bins, spat_bins], density=False,
+                                                               weights=var[img, :, :][finmask])
+            var_list_out[indx][img, :, :] = (norm_img > 0.0)*weigh_var/(norm_img + (norm_img == 0.0))**2
+
+
+
+    return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 
 def weighted_combine(weights, sci_list, var_list, inmask_stack,
