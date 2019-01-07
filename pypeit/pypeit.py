@@ -474,7 +474,7 @@ class PypeIt(object):
         self.sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(self.sciimg, std=self.std_redux, ir_redux=self.ir_redux,
                               std_trace=std_trace, snr_trim=False,maskslits=self.maskslits,
-                              show = (not self.std_redux))
+                              show = self.show & (not self.std_redux))
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         self.initial_sky = \
