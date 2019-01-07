@@ -542,14 +542,14 @@ class ProcessImages(object):
         varframe = utils.calc_ivar(ivar)
         saturation = spectrograph.detector[det-1]['saturation']
         nonlinear = spectrograph.detector[det-1]['nonlinear']
-        sigclip, objlim = spectrograph.get_lacosmics_par(proc_par,binning=binning)
+        #sigclip, objlim = spectrograph.get_lacosmics_par(proc_par,binning=binning)
         crmask = procimg.lacosmic(det, stack, saturation, nonlinear,
                                   varframe=varframe, maxiter=proc_par['lamaxiter'],
                                   grow=proc_par['grow'],
                                   remove_compact_obj=proc_par['rmcompact'],
-                                  sigclip=sigclip,
+                                  sigclip=proc_par['sigclip'],
                                   sigfrac=proc_par['sigfrac'],
-                                  objlim=objlim)
+                                  objlim=proc_par['objlim'])
 
         # Return
         return crmask
