@@ -64,8 +64,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['number'] = 5
         par['calibrations']['traceframe']['number'] = 5
         par['calibrations']['arcframe']['number'] = 1
-        # Bias
-        par['calibrations']['biasframe']['useframe'] = 'none'
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
@@ -83,27 +81,34 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 6
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
-        # Tilt parameters
-        # Tilt parameters
-        par['calibrations']['tilts']['tracethresh'] =  20.0
-        par['calibrations']['tilts']['spat_order'] =  3
-        par['calibrations']['tilts']['spec_order'] =  3
 
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
+        # Tilt parameters
+        par['calibrations']['tilts']['tracethresh'] =  10.0
+        #par['calibrations']['tilts']['spat_order'] =  3
+        #par['calibrations']['tilts']['spec_order'] =  3
+
+        # Flats
+        par['calibrations']['flatfield']['illumflatten'] = False
+
+        # Extraction
+        par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['sn_gauss'] = 4.0
+
+        # Flexure
+        par['flexure']['method'] = 'skip'
+
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
 
+        # Do not bias subtract
+        par['scienceframe']['useframe'] ='overscan'
+        # This is a hack for now until we can specify for each image type what to do. Bias currently
+        # controls everything
+        par['calibrations']['biasframe']['useframe'] = 'overscan'
 
-        # Set slits and tilts parameters
-        par['calibrations']['tilts']['tracethresh'] = 10.0
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Do not correct for flexure
-        par['flexure'] = pypeitpar.FlexurePar()
-        par['flexure']['method'] = 'skip'
+
+
+
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]
         par['calibrations']['arcframe']['exprng'] = [20, None]
@@ -128,6 +133,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                               '1.NAXIS2': 1024 }
         super(KeckNIRESSpectrograph, self).check_headers(headers, expected_values=expected_values)
 
+    '''
     def header_keys(self):
         """
         Return a dictionary with the header keywords to read from the
@@ -154,17 +160,45 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['target'] = 'OBJECT'
         hdr_keys[0]['naxis0'] = 'NAXIS2'
         hdr_keys[0]['naxis1'] = 'NAXIS1'
-        hdr_keys[0]['binning'] = 1
+        hdr_keys[0]['binning'] = ' '
         hdr_keys[0]['dispname'] = 'INSTR'  # Should be 'spec' if in the spectroscopy mode
 
         return hdr_keys
+    '''
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
+
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='OBJECT')
+        meta['decker'] = dict(ext=0, card=None, default='default')
+        meta['binning'] = dict(ext=0, card=None, default='1,1')
+
+        meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        meta['exptime'] = dict(ext=0, card='ITIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        meta['dispname'] = dict(ext=0, card='INSTR')
+        meta['idname'] = dict(ext=0, card='OBSTYPE')
+
+        # Ingest
+        self.meta = meta
 
     def configuration_keys(self):
-        return ['dispname', 'binning']
+        return ['dispname']
 
-    def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'setup', 'calib', 'obj_id',
-                'bkg_id']
+    def pypeit_file_keys(self):
+        pypeit_keys = super(KeckNIRESSpectrograph, self).pypeit_file_keys()
+        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -244,7 +278,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
-    def slitmask(self, tslits_dict, pad=None, binning=None):
+    def slitmask(self, tslits_dict, pad=None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
          overload this function to implement instrument specific slitmask behavior, for example setting

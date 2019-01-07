@@ -32,12 +32,11 @@ def test_build_me():
     root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
                     else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     master_dir = root_path+'_'+spectrograph.spectrograph
-    mode = 'reuse'
     nslits = tslits_dict['lcen'].shape[1]
     maskslits = np.zeros(nslits, dtype=bool)
 
     wvImg = waveimage.WaveImage(tslits_dict, tilts_dict['tilts'], wv_calib, spectrograph, master_key=master_key,
-                                maskslits=maskslits, master_dir=master_dir, mode=mode)
+                                maskslits=maskslits, master_dir=master_dir, reuse_masters=True)
     # Build
     wave = wvImg._build_wave()
     assert int(np.max(wave)) > 5510

@@ -42,7 +42,7 @@
 - Added configurations, calibration groups, and background index to
 - Total revamp of Tilts. Arc line tracing significantly improved.
 - Fixes to trace_crude_init, trace_fweight, and trace_gweight.
-- Many other small bug fixes and modifications particulary in the
+- Many other small bug fixes and modifications particularly in the
   fitting routines.
 - Lots of development related to echelle functionality.
 - Major enhancements to fitting routines (in utils)
@@ -55,6 +55,25 @@
 - Pushed pieces of run_pypeit into the PypeIt class
 - Removed future as a dependency
 - Change point step size to 50 pixels in show_slits and show_trace for major speed up
+- Implemented difference imaging for near-IR reductions for both Multislit and Echelle
+- Fixed a bug in echelle object finding algorithm.
+- Fixed bug in object finding associated with telluric standards and narrow
+slits.
+- Implemented using standard stars as crutches for object tracing.
+- Reworked the implementation of reuse_masters in the PypeIt class and in
+the Calibrations class.
+- New behavior associated with the -o overwrite feature in run_pypeit.
+User prompting feature has been disabled. Existing science files will not
+be re-created unless the -o option is set.
+- Fixed a bug where local sky subtraction was crashing when all the pixels get masked.
+- Nearly resurrected simple_calib
+- New method to build the fitstbl of meta data
+- Refactor handling of meta data including a data model defining core and additional meta data
+- Replaces metadata_keys with pypeit_file_keys for output to PypeIt file
+- Updates new metadata approach for VLT, Keck, Lick, Gemini instruments
+- Remove PypeItSetup call from within PypeIt
+- Remove lacosmic specific method in Spectrograph;  replaced with config_specific_par
+- setup block now required when running on a PypeIt file
 
 0.9.0
 -----

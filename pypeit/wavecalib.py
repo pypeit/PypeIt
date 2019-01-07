@@ -34,6 +34,7 @@ class WaveCalib(masterframe.MasterFrame):
     ----------
     msarc : ndarray
       Arc image, created by the ArcImage class
+
     Optional Parameters
     --------------------
     settings : dict, optional
@@ -41,6 +42,8 @@ class WaveCalib(masterframe.MasterFrame):
     det : int, optional
       Detector number
     master_key : str, optional
+    spectrograph : Spectrograph
+      Optional so that one can load a solution without using the Spectrograph, e.g. waveio.load_reid_arxiv()
 
     Attributes
     ----------
@@ -59,7 +62,7 @@ class WaveCalib(masterframe.MasterFrame):
     maskslits : ndarray (nslit); bool
       Slits to ignore because they were not extracted
       WARNING: Outside of this Class, it is best to regenerate
-      the mask using  _make_maskslits()
+      the mask using  make_maskslits()
     arcparam : dict
       Arc parameter (instrument/disperser specific)
     """
@@ -67,17 +70,15 @@ class WaveCalib(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'wv_calib'
 
-    # ToDo This code will crash is spectrograph and det are not set. I see no reason why these should be optional
-    # parameters since instantiating without them does nothing. Make them required
-    def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, det=1, master_key=None, master_dir=None,
-                 mode=None, redux_path=None, bpm = None):
+    def __init__(self, msarc, tslits_dict, binning=None, spectrograph=None, par=None, det=1, master_key=None, master_dir=None,
+                 reuse_masters=False, redux_path=None, bpm=None):
 
         # Instantiate the spectograph
         self.spectrograph = load_spectrograph(spectrograph)
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, mode=mode)
+                                         master_dir=master_dir, reuse_masters=reuse_masters)
 
         # Required parameters (but can be None)
         self.msarc = msarc
@@ -97,14 +98,17 @@ class WaveCalib(masterframe.MasterFrame):
         self.arccen = None # central arc spectrum
 
         # TODO this code is duplicated verbatim in wavetilts. Should it be a function
-        if self.spectrograph.detector is not None:
-            self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
+        if spectrograph is not None:
+            if self.spectrograph.detector is not None:
+                self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
+            else:
+                self.nonlinear_counts=1e10
         else:
             self.nonlinear_counts=1e10
         # Set the slitmask and slit boundary related attributes that the code needs for execution. This also deals with
         # arcimages that have a different binning then the trace images used to defined the slits
         if self.tslits_dict is not None and self.msarc is not None:
-            self.slitmask_science = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
+            self.slitmask_science = self.spectrograph.slitmask(self.tslits_dict)
             inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.shape
@@ -154,14 +158,17 @@ class WaveCalib(masterframe.MasterFrame):
             #self.par['match_toler'] = 3.
             #self.arcparam['Nstrong'] = 13
 
-            CuI = wavecal.waveio.load_line_list('CuI', use_ion=True, NIST=True)
-            ArI = wavecal.waveio.load_line_list('ArI', use_ion=True, NIST=True)
-            ArII = wavecal.waveio.load_line_list('ArII', use_ion=True, NIST=True)
-            llist = vstack([CuI, ArI, ArII])
-            self.arcparam['llist'] = llist
+            #CuI = wavecal.waveio.load_line_list('CuI', use_ion=True, NIST=True)
+            #ArI = wavecal.waveio.load_line_list('ArI', use_ion=True, NIST=True)
+            #ArII = wavecal.waveio.load_line_list('ArII', use_ion=True, NIST=True)
+            #llist = vstack([CuI, ArI, ArII])
+            #self.arcparam['llist'] = llist
+            lines = self.par['lamps']
+            line_lists = wavecal.waveio.load_line_lists(lines)
 
-            self.wv_calib = arc.simple_calib_driver(self.msarc, self.par, arccen, ok_mask,
+            self.wv_calib = arc.simple_calib_driver(self.msarc, line_lists, arccen, ok_mask,
                                                     nfitpix=self.par['nfitpix'],
+
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'semi-brute':
@@ -193,7 +200,7 @@ class WaveCalib(masterframe.MasterFrame):
                     self.maskslits[slit] = True
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
-            arcfitter = wavecal.autoid.HolyGrail(arccen, par = self.par, ok_mask=ok_mask)
+            arcfitter = wavecal.autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'reidentify':
             # Now preferred
@@ -207,7 +214,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.wv_calib = final_fit
 
         # Remake mask (*mainly for the QA that follows*)
-        self.maskslits = self._make_maskslits(len(self.maskslits))
+        self.maskslits = self.make_maskslits(len(self.maskslits))
         ok_mask = np.where(~self.maskslits)[0]
 
         # QA
@@ -297,7 +304,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return arccen, arc_maskslit
 
-    def load_master(self, filename, force = False):
+    def load_master(self, filename):
         """
         Load a full (all slit) wv_calib dict
 
@@ -319,13 +326,10 @@ class WaveCalib(masterframe.MasterFrame):
         # Does the master file exist?
         if not os.path.isfile(filename):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            if force:
-                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
             return None
         else:
             msgs.info("Loading Master {0:s} frame:".format(self.frametype) + msgs.newline() + filename)
             self.wv_calib = linetools.utils.loadjson(filename)
-
             # Recast a few items as arrays
             for key in self.wv_calib.keys():
                 if key in ['steps', 'par']:  # This isn't really necessary
@@ -338,7 +342,7 @@ class WaveCalib(masterframe.MasterFrame):
                 self.par = self.wv_calib['par'].copy()
             return self.wv_calib
 
-    def save_master(self, data, outfile=None, raw_files=None, overwrite=True, extensions=None, names=None):
+    def save_master(self, data, outfile=None, raw_files=None, steps=None, overwrite=True, extensions=None, names=None):
 
         _outfile = self.ms_name if outfile is None else outfile
         if os.path.exists(_outfile) and (not overwrite):
@@ -358,7 +362,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         return
 
-    def _make_maskslits(self, nslit):
+    def make_maskslits(self, nslit):
         """
         (re)Generate the mask for wv_calib based on its contents
         This is the safest way to go...
@@ -422,7 +426,7 @@ class WaveCalib(masterframe.MasterFrame):
             self.wv_calib['fit2d'] = fit2d_dict
 
         # Build mask
-        self._make_maskslits(self.nslits)
+        self.make_maskslits(self.nslits)
 
         # Pack up
         self.wv_calib['steps'] = self.steps
@@ -509,7 +513,10 @@ class WaveCalib(masterframe.MasterFrame):
 
 def load_wv_calib(filename):
     """
-    Utility function which enables one to load the wv_calib and parset from a master file one line of code without instantiating the class.
+    Utility function which enables one to load the wv_calib and parset from a master file one line
+    of code without instantiating the class.
+
+    Note:  This method instantiates without a Spectrograph
 
     Parameters
     ----------

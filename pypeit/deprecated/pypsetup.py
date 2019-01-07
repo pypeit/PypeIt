@@ -1,5 +1,7 @@
 """
 Core IO methods for the PypeIt setup.
+
+THIS MODULE IS NOW DEPRECATED AND LIKELY TO BE REMOVED
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 

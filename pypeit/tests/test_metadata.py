@@ -7,6 +7,8 @@ import os
 import glob
 import pytest
 
+import numpy as np
+
 from pypeit.par.util import parse_pypeit_file
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.tests.tstutils import dev_suite_required
@@ -28,8 +30,10 @@ def test_lris_red_multi_400():
     ps.build_fitstbl()
     ps.get_frame_types(flag_unknown=True)
     cfgs = ps.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
-    ps.fitstbl.set_configurations(cfgs)
+    ps.fitstbl.set_configurations(cfgs, ignore_frames=['bias', 'dark'])
     ps.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
+    # Test
+    assert np.all(ps.fitstbl['setup'] == 'A')
 
 
 @dev_suite_required
@@ -47,7 +51,7 @@ def test_lris_red_multi():
     ps.build_fitstbl()
     ps.get_frame_types(flag_unknown=True)
     cfgs = ps.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
-    ps.fitstbl.set_configurations(cfgs)
+    ps.fitstbl.set_configurations(cfgs, ignore_frames=['bias', 'dark'])
     ps.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
 
@@ -116,8 +120,8 @@ def test_lris_blue_pypeit_overwrite():
     fitstbl = PypeItMetaData('keck_lris_blue', file_list=data_files)
     fitstbl_usr = PypeItMetaData('keck_lris_blue', file_list=data_files, usrdata=usrdata)
 
-    assert fitstbl['dispname'][0] == '600/7500', 'Grating name changed in file header'
-    assert fitstbl_usr['dispname'][0] == '400/3400', 'Grating name changed in pypeit file'
-    assert fitstbl['dispname'][0] != fitstbl_usr['dispname'][0], \
+    assert fitstbl['target'][0] == 'unknown', 'Grating name changed in file header'
+    assert fitstbl_usr['target'][0] == 'test', 'Grating name changed in pypeit file'
+    assert fitstbl['target'][0] != fitstbl_usr['target'][0], \
             'Fits header value and input pypeit file value expected to be different.'
 

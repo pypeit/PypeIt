@@ -57,8 +57,8 @@ class WaveTilts(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'tilts'
 
-    def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, wavepar = None, det=1, master_key=None, master_dir=None,
-                 mode=None, redux_path=None, bpm=None):
+    def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, wavepar = None, det=1,
+                 master_key=None, master_dir=None, reuse_masters=False, redux_path=None, bpm=None):
 
         # Instantiate the spectograph
         # TODO: (KBW) Do we need this?  It's only used to get the
@@ -70,7 +70,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.binning = binning
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, mode=mode)
+                                         master_dir=master_dir, reuse_masters=reuse_masters)
 
 
         # Parameters (but can be None)
@@ -81,7 +81,6 @@ class WaveTilts(masterframe.MasterFrame):
         self.det = det
         self.redux_path = redux_path
         # TODO this code is duplicated verbatim in wavetilts. Should it be a function
-        # TODO this code is duplicated verbatim in wavetilts. Should it be a function
         if self.spectrograph.detector is not None:
             self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
         else:
@@ -89,7 +88,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Set the slitmask and slit boundary related attributes that the code needs for execution. This also deals with
         # arcimages that have a different binning then the trace images used to defined the slits
         if self.tslits_dict is not None and self.msarc is not None:
-            self.slitmask_science = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
+            self.slitmask_science = self.spectrograph.slitmask(self.tslits_dict)
             inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.shape
@@ -288,7 +287,7 @@ class WaveTilts(masterframe.MasterFrame):
         gdslits = np.where(self.mask == 0)[0]
 
         # Final tilts image
-        self.final_tilts = np.zeros_like(self.slitmask_science)
+        self.final_tilts = np.zeros(self.shape_science,dtype=float)
         max_spat_dim = (np.asarray(self.par['spat_order']) + 1).max()
         max_spec_dim = (np.asarray(self.par['spec_order']) + 1).max()
         self.coeffs = np.zeros((max_spec_dim, max_spat_dim,self.nslits))

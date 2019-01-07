@@ -616,12 +616,31 @@ def is_keyword(v):
     return valid
 
 
+# TODO Given that python images are always (nspec, nspat) this routine should be flipped to a more appropriate
+# convention of returning binspectral, binspatial.
+def binning2string(binspatial, binspectral):
+    """ Convert binning keyword to binning values
+
+    Parameters
+    ----------
+    binspatial : int
+    binspectral : int
+
+    Returns
+    --------
+    binning : str
+      Binning string following the PypeIt convention
+    """
+    return '{:d},{:d}'.format(binspatial,binspectral)
+
+# TODO Given that python images are always (nspec, nspat) this routine should be flipped to a more appropriate
+# convention of returning binspectral, binspatial.
 def parse_binning(binning):
     """ Convert binning keyword to binning values
 
     Parameters
     ----------
-    binning : str
+    binning : str, ndarray, or tuple
       Probably parsed from the header
 
     Returns
@@ -631,7 +650,6 @@ def parse_binning(binning):
 
     """
     # comma separated format
-    binspatial, binspectral = None, None
     if isinstance(binning, basestring):
         if ',' in binning:
             binspatial, binspectral = [int(item) for item in binning.split(',')]  # Keck standard, I think
@@ -642,15 +660,14 @@ def parse_binning(binning):
             binspatial, binspectral = 1,1
         else:
             binspatial, binspectral = [int(item) for item in binning.strip().split(' ')]  # Gemini
+    elif isinstance(binning, tuple):
+        binspatial, binspectral = binning
+    elif isinstance(binning, np.ndarray):
+        binspatial, binspectral = binning
     else:
-        pass
-    # Finish
-    if binspatial is None:
-        msgs.warn("Unable to parse input binning: {}".format(binning))
-        msgs.warn("Assuming unbinned, i.e.  1x1")
-        return 1,1
-    else:
-        return binspatial, binspectral
+        msgs.error("Unable to parse input binning: {}".format(binning))
+    # Return
+    return binspatial, binspectral
 
 
 def dummy_settings(pypeitdir=None, nfile=10, spectrograph='shane_kast_blue',

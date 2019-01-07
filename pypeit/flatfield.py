@@ -66,7 +66,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'pixelflat'
 
     def __init__(self, spectrograph, file_list=[], binning = None, det=1, par=None, master_key=None, master_dir=None,
-                 mode=None, flatpar=None, msbias=None, msbpm = None, tslits_dict=None, tilts_dict=None):
+                 reuse_masters=False, flatpar=None, msbias=None, msbpm = None, tslits_dict=None, tilts_dict=None):
 
         # Image processing parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
@@ -78,7 +78,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, mode=mode)
+                                         master_dir=master_dir, reuse_masters=reuse_masters)
 
         # Parameters unique to this Object
         self.msbias = msbias
@@ -184,6 +184,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         return msframe
 
+    # TODO Need to add functionality to use a different frame for the ilumination flat, e.g. a sky flat
     def run(self, debug=False, show=False):
         """
         Main driver to generate normalized flat field and illumination flats
@@ -217,7 +218,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.mspixelflat = np.ones_like(self.rawflatimg)
         self.msillumflat = np.ones_like(self.rawflatimg)
         self.flat_model = np.zeros_like(self.rawflatimg)
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict, binning=self.binning)
+        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
 
 
         final_tilts = np.zeros_like(self.rawflatimg)
@@ -225,7 +226,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Loop on slits
         for slit in range(self.nslits):
             msgs.info('Computing flat field image for slit: {:d}/{:d}'.format(slit,self.nslits-1))
-            thismask = (self.slitmask == slit)
             if self.msbpm is not None:
                 inmask = ~self.msbpm
             else:
@@ -239,8 +239,12 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                                self.spectrograph.detector[self.det - 1]['saturation']
             pixelflat, illumflat, flat_model, tilts_out, thismask_out, slit_left_out, slit_righ_out = \
                 flat.fit_flat(self.rawflatimg, this_tilts_dict, self.tslits_dict, slit,
-                              spectrograph = self.spectrograph, binning = self.binning, inmask=inmask,tweak_slits = self.flatpar['tweak_slits'],
-                              nonlinear_counts=nonlinear_counts, debug=debug)
+                              spectrograph=self.spectrograph, binning=self.binning, inmask=inmask,
+                              nonlinear_counts=nonlinear_counts,
+                              spec_samp_fine=self.flatpar['spec_samp_fine'], spec_samp_coarse=self.flatpar['spec_samp_coarse'],
+                              spat_samp=self.flatpar['spat_samp'], tweak_slits=self.flatpar['tweak_slits'],
+                              tweak_slits_thresh=self.flatpar['tweak_slits_thresh'],
+                              tweak_slits_maxfrac=self.flatpar['tweak_slits_maxfrac'],debug=debug)
             self.mspixelflat[thismask_out] = pixelflat[thismask_out]
             self.msillumflat[thismask_out] = illumflat[thismask_out]
             self.flat_model[thismask_out] = flat_model[thismask_out]
@@ -257,6 +261,12 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show(slits=True, wcs_match = True)
+
+        # If illumination flat fielding is turned off, set the illumflat to be None.
+        if not self.flatpar['illumflatten']:
+            msgs.warn('You have set illumflatten=False. No illumination flat will be applied to your data.')
+            self.msillumflat = None
+
 
         # Return
         return self.mspixelflat, self.msillumflat

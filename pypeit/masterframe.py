@@ -12,8 +12,6 @@ from astropy.io import fits
 from pypeit.par import pypeitpar
 import os
 
-from pypeit import debugger
-
 from abc import ABCMeta
 
 
@@ -32,7 +30,8 @@ class MasterFrame(object):
       Path for reduction
     spectrograph : Spectrograph, optional
       Only used for directory_path;  should be Deprecated
-    mode: ???
+    reuse_masters: bool, default = False
+      Reuse already created master files from disk.
 
     Attributes
     ----------
@@ -40,7 +39,7 @@ class MasterFrame(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, frametype, master_key, spectrograph=None,
-                 master_dir=None, mode=None, par=None, redux_path=None):
+                 master_dir=None, reuse_masters=False, par=None, redux_path=None):
 
         # Output path
         if master_dir is None:
@@ -51,7 +50,7 @@ class MasterFrame(object):
         # Other parameters
         self.frametype = frametype
         self.master_key = master_key
-        self.mode = mode
+        self.reuse_masters=reuse_masters
         self.msframe = None
 
     @property
@@ -71,21 +70,13 @@ class MasterFrame(object):
     def mdir(self):
         return self.master_dir
 
-    def _masters_load_chk(self):
-        # Logic on whether to load the masters frame
-        # TODO -- These two modes are now effecitvely the same.  Remove one
-        return self.mode == 'reuse' or self.mode == 'force'
-
-    def master(self, force=False):
+    def master(self, prev_build=False):
         """
         Load the master frame from disk, as settings allows. This routine checks the the mode of master usage
         then calls the load_master method. This method should not be overloaded by children of this class. Instead
         one should overload the load_master method below.
 
         Args:
-            force: bool, optional
-              Force the attempt of loading the master frame
-              Key for when looping on multiple exposures to avoid remaking the file
 
         Returns:
             msframe : ndarray or None
@@ -93,7 +84,7 @@ class MasterFrame(object):
 
         """
         # Are we loading master files from disk?
-        if self._masters_load_chk() or force:
+        if self.reuse_masters or prev_build:
             self.msframe = self.load_master(self.ms_name)
             return self.msframe
         else:
@@ -192,6 +183,7 @@ class MasterFrame(object):
 
 # ToDo Remove this master name function and instead have a master name function in each class.
 # These utility functions are occaisonally needed by other functions which is why they are outside the class.
+# Or make it a staticmethod in the Classes
 def master_name(ftype, master_key, mdir):
     """ Default filenames for MasterFrames
 

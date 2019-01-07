@@ -13,6 +13,8 @@ import string
 import numpy as np
 import yaml
 
+from collections import OrderedDict
+
 import datetime
 from astropy import table, coordinates, time
 
@@ -110,11 +112,12 @@ class PypeItMetaData:
         self.type_bitmask = framematch.FrameTypeBitMask()
         self.table = table.Table(data if file_list is None 
                                  else self._build(file_list, strict=strict))
+                        #else self._build(file_list, strict=strict))
         if usrdata is not None:
             self.merge(usrdata)
         # Instrument-specific validation of the header metadata. This
         # alters self.table in place!
-        self.spectrograph.validate_metadata(self.table)
+        #self.spectrograph.validate_metadata(self.table)
 
         # Initialize internal attributes
         self.configs = None
@@ -150,7 +153,52 @@ class PypeItMetaData:
             return
         msgs.error('{0} not a defined method for the background pair columns.'.format(bkg_pairs))
 
-    def _build(self, file_list, strict=True, bkg_pairs='empty'):
+    def _build(self, file_list, strict=True):
+
+        # Required meta for reduction
+        #required_meta = define_core_meta()
+
+        # Spectrograph specific
+        #additional_meta = define_additional_meta()
+        #additional_keys = self.spectrograph.additional_meta()
+        #for key in additional_keys:
+        #    required_meta[key] = additional_meta[key]
+        required_meta = self.spectrograph.meta
+
+        # Build lists to fill
+        data = {k:[] for k in required_meta.keys()}
+
+        ds, fs = [], []
+        for ifile in file_list:
+            # Read the fits headers
+            headarr = self.spectrograph.get_headarr(ifile, strict=strict)
+            # Add the directory and file name to the table
+            d,f = os.path.split(ifile)
+            ds.append(d)
+            fs.append(f)
+            # Grab Meta
+            for meta_key in data.keys():
+                # Skip external ones
+                #if meta_key in ['filename', 'directory']:
+                #    continue
+                # Grab it
+                try:
+                    value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr, required=strict,
+                                                             ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
+                except:
+                    debugger.set_trace()
+                data[meta_key].append(value)
+        # File info
+        data['directory'] = ds
+        data['filename'] = fs
+        # Additional bits and pieces
+        self._add_bkg_pairs(data, 'empty')
+        # Validate
+        _ = time.Time(data['mjd'], format='mjd')
+        # Return
+        return data
+
+    def _old_build(self, file_list, strict=True, bkg_pairs='empty'):
         """
         Returns a dictionary with the data to be included in the table.
         """
@@ -218,7 +266,7 @@ class PypeItMetaData:
             for key in data.keys():
                 if key in PypeItMetaData.default_keys():
                     continue
-    
+
                 # Try to read the header item
                 try:
                     value = headarr[ext[key]][head_keys[ext[key]][key]]
@@ -239,7 +287,7 @@ class PypeItMetaData:
                     else:
                         idate = None
                     value = self.convert_time(value, date=idate)
-    
+
                 # Set the value
                 vtype = type(value)
                 if np.issubdtype(vtype, np.str_):
@@ -250,7 +298,7 @@ class PypeItMetaData:
                 else:
                     msgs.bug('Unexpected type, {1}, for key {0}'.format(key,
                              vtype).replace('<type ','').replace('>',''))
-    
+
             msgs.info('Successfully loaded headers for file:' + msgs.newline() + ifile)
 
         # Report
@@ -342,10 +390,13 @@ class PypeItMetaData:
         existing_keys = list(set(self.table.keys()) & set(usrdata.keys()))
         if len(existing_keys) > 0 and match_type:
             for key in existing_keys:
-                if self.table[key].dtype.type != usrdata[key].dtype.type:
+                if len(self.table[key].shape) > 1:  # NOT ALLOWED!!
+                    debugger.set_trace()
+                elif self.table[key].dtype.type != usrdata[key].dtype.type:
                     try:
                         usrdata[key] = usrdata[key].astype(self.table[key].dtype)
                     except:
+                        debugger.set_trace()
                         pass
         
         # Include the user data in the table
@@ -489,13 +540,7 @@ class PypeItMetaData:
         Returns:
             astropy.time.Time: The MJD of the observation.
         """
-        try:
-            return time.Time(self['time'][row], format='mjd')
-        except:
-            msgs.warn('There is no time column in the metadata table!' + msgs.newline() +
-                      'The time and heliocentric corrections will be wrong!' + msgs.newline() +
-                      'This is a bad idea. Continuing with a dummy time value')
-            return '2010-01-01'
+        return time.Time(self['mjd'][row], format='mjd')
 
     def construct_basename(self, row, obstime=None):
         """
@@ -728,7 +773,7 @@ class PypeItMetaData:
         for i in indx[1:]:
             j = 0
             for c in self.configs.values():
-                if np.all([c[k] == self.table[k][i] for k in cfg_keys]):
+                if row_match_config(self.table[i], c, self.spectrograph):
                     break
                 j += 1
             unique = j == len(self.configs)
@@ -741,7 +786,7 @@ class PypeItMetaData:
         msgs.info('Found {0} unique configurations.'.format(len(self.configs)))
         return self.configs
 
-    def set_configurations(self, configs=None, force=False):
+    def set_configurations(self, configs=None, force=False, ignore_frames=None):
         """
         Assign each frame to a configuration (setup) and include it in
         the metadata table.
@@ -781,8 +826,16 @@ class PypeItMetaData:
         nrows = len(self)
         for i in range(nrows):
             for d, cfg in _configs.items():
-                if np.all([cfg[d] == self.table[d][i] for d in cfg.keys()]):
+                if row_match_config(self.table[i], cfg, self.spectrograph):
                     self.table['setup'][i] = d
+        # Deal with ignored frames (e.g. bias)
+        #  For now, we set them to setup=A
+        not_setup = self.table['setup'] == 'None'
+        if np.any(not_setup) and (ignore_frames is not None):
+            ckey = list(_configs.keys())[0]
+            for idx in np.where(not_setup)[0]:
+                if self.table['frametype'][idx] in ignore_frames:
+                    self.table['setup'][idx] = ckey
 
     def _set_calib_group_bits(self):
         grp = np.empty(len(self), dtype=object)
@@ -1161,6 +1214,24 @@ class PypeItMetaData:
         msgs.info("Typing completed!")
         return self.set_frame_types(type_bits, merge=merge)
 
+    def set_defaults(self):
+        """
+        Set default values for comb_id and calib
+        columns of the fitstbl
+
+        Returns:
+            self.table is modified in place
+
+        """
+        # Set comb_id
+        if not np.any(self['comb_id'] >= 0):
+            sci_std_idx = np.where(np.any([self.find_frames('science'),
+                                           self.find_frames('standard')], axis=0))[0]
+            self['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
+        # calib
+        if 'calib' not in self.keys():
+            self['calib'] = str(0)
+
     def write_setups(self, ofile, overwrite=True, ignore=None):
         """
         Write the *.setups file.
@@ -1221,7 +1292,7 @@ class PypeItMetaData:
             msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
 
         # Columns for output
-        output_cols = np.array(self.spectrograph.metadata_keys())
+        output_cols = np.array(self.spectrograph.pypeit_file_keys())
         output_cols = output_cols[np.isin(output_cols, self.keys())].tolist()
 
         # Unique configurations
@@ -1330,7 +1401,7 @@ class PypeItMetaData:
         configuring the control-flow and algorithmic parameters and
         listing the data files to read.  This function writes the
         columns selected by the
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.metadata_keys`,
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.pypeit_file_keys`,
         which can be specific to each instrument.
 
         Users can write the file, edit it, and then re-read it into
@@ -1381,11 +1452,11 @@ class PypeItMetaData:
         # TODO: I don't think sortroot is ever used.
 
         # Columns for output
-        columns = self.spectrograph.metadata_keys()
+        columns = self.spectrograph.pypeit_file_keys()
 
         # comb, bkg columns
-        if write_bkg_pairs:
-            for key in ['comb_id', 'bkg_id']:
+        if write_bkg_pairs:  # SHOULD BE RENAMED TO write_extras
+            for key in ['calib', 'comb_id', 'bkg_id']:
                 if key not in columns:
                     columns += [key]
 
@@ -1777,32 +1848,25 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
     fitstbl : PypeItMetaData
 
     """
-    fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
+    fitsdict = {}
     fitsdict['index'] = np.arange(nfile)
-    fitsdict['utc'] = ['2015-01-23']*nfile
     fitsdict['directory'] = [directory]*nfile
     fitsdict['filename'] = ['b{:03d}.fits.gz'.format(i) for i in range(nfile)]
     # TODO: The below will fail at 60
-    fitsdict['date'] = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]
-    fitsdict['time'] = [(1432085758+i*60)/3600. for i in range(nfile)]
+    dates = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]
+    ttime = time.Time(dates, format='isot')
+    fitsdict['mjd'] = ttime.mjd
     fitsdict['target'] = ['Dummy']*nfile
     fitsdict['ra'] = ['00:00:00']*nfile
     fitsdict['dec'] = ['+00:00:00']*nfile
     fitsdict['exptime'] = [300.] * nfile
-    fitsdict['naxis0'] = [2048] * nfile
-    fitsdict['naxis1'] = [2048] * nfile
     fitsdict['dispname'] = ['600/4310'] * nfile
     fitsdict['dichroic'] = ['560'] * nfile
-    fitsdict['dispangle'] = ['none'] * nfile
-    fitsdict["binning"] = ['1x1']*nfile
+    fitsdict["binning"] = ['1,1']*nfile
     fitsdict["airmass"] = [1.0]*nfile
 
     if spectrograph == 'shane_kast_blue':
         fitsdict['numamplifiers'] = [1] * nfile
-        fitsdict['naxis0'] = [2112] * nfile
-        fitsdict['naxis1'] = [2048] * nfile
-        fitsdict['slitwid'] = [1.] * nfile
-        fitsdict['slitlen'] = ['none'] * nfile
         # Lamps
         for i in range(1,17):
             fitsdict['lampstat{:02d}'.format(i)] = ['off'] * nfile
@@ -1846,3 +1910,135 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
     return fitstbl
 
 
+def define_core_meta():
+    """
+    Define the core set of meta data that must be defined
+    to run PypeIt
+
+    Each meta entry is a dict with keys
+       dtype: str, float, int
+       comment: str
+       rtol: float, optional
+         Sets the relative tolerance for float meta when used to set a configuration
+
+    Each meta dtype must be scalar or str.  No tuple, list, ndarray, etc.
+
+    Returns:
+        core_meta: dict
+
+
+    """
+    core_meta = OrderedDict()  # Mainly for output to PypeIt file
+    # Filename
+    #core_meta['directory'] = dict(dtype=str, comment='Path to raw data file')
+    #core_meta['filename'] = dict(dtype=str, comment='Basename of raw data file')
+
+    # Target
+    core_meta['ra'] = dict(dtype=str, comment='Colon separated (J2000) RA')
+    core_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
+    core_meta['target'] = dict(dtype=str, comment='Name of the target')
+
+    # Instrument related
+    core_meta['dispname'] = dict(dtype=str, comment='Disperser name')
+    core_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
+    core_meta['binning'] = dict(dtype=str, comment='(spatial,spectral) binning')
+
+    # Obs
+    core_meta['mjd'] = dict(dtype=float, comment='Observation MJD; Read by astropy.time.Time format=mjd')
+    core_meta['airmass'] = dict(dtype=float, comment='Airmass')
+    core_meta['exptime'] = dict(dtype=float, comment='Exposure time')
+
+    # Return
+    return core_meta
+
+
+def define_additional_meta():
+    """
+    Defines meta that tends to be instrument-specific and not used as widely in the code
+
+    See define_core_meta() for additional details
+
+    For meta used to define configurations, the rtol key specifies
+    the relative tolerance for a match
+
+    Returns:
+        additional_meta: dict
+          Describes the additional meta data used in PypeIt
+
+    """
+    additional_meta = {}
+
+    # Instrument (generally for configuration generation)
+    additional_meta['dichroic'] = dict(dtype=str, comment='Beam splitter')
+    additional_meta['filter1'] = dict(dtype=str, comment='First filter in optical path')
+    additional_meta['dispangle'] = dict(dtype=float, comment='Angle of the disperser', rtol=0.)
+    additional_meta['hatch'] = dict(dtype=str, comment='Position of instrument hatch')
+    additional_meta['slitwid'] = dict(dtype=float, comment='Slit width, sometimes distinct from decker')
+
+    # Calibration lamps
+    for kk in range(20):
+        additional_meta['lampstat{:02d}'.format(kk+1)] = dict(dtype=str, comment='Status of a given lamp (e.g off/on)')
+
+    # Misc
+    additional_meta['idname'] = dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)')
+
+
+    return additional_meta
+
+
+def get_meta_data_model():
+    """
+    Pull together all of the meta defined above to
+    generate the meta_data_model
+
+    Returns:
+        meta_data_model: dict
+
+    """
+    meta_data_model = {}
+
+    # Core
+    core_meta = define_core_meta()
+    for key in core_meta.keys():
+        meta_data_model[key] = core_meta[key].copy()
+
+    # Additional
+    additional_meta = define_additional_meta()
+    for key in additional_meta.keys():
+        meta_data_model[key] = additional_meta[key].copy()
+
+    # Return
+    return meta_data_model
+
+def row_match_config(row, config, spectrograph):
+    """
+    Queries whether a row from the fitstbl matches the
+    input configuration
+
+    Args:
+        row: Row
+          From fitstbl
+        config: dict
+          Defines the configuration
+        spectrograph: Spectrograph
+          Used to grab the rtol value for float meta (e.g. dispangle)
+
+    Returns:
+        answer: bool
+          True if the row matches the input configuration
+
+    """
+    # Loop on keys in config
+    match = []
+    for k in config.keys():
+        # Deal with floating configs (e.g. grating angle)
+        if isinstance(config[k], float):
+            if np.abs(config[k]-row[k])/config[k] < spectrograph.meta[k]['rtol']:
+                match.append(True)
+            else:
+                match.append(False)
+        else:
+            # The np.all allows for arrays in the Table (e.g. binning)
+            match.append(np.all(config[k] == row[k]))
+    # Check
+    return np.all(match)

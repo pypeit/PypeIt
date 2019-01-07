@@ -61,9 +61,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Gemini GNIRS reductions.
         """
         par = pypeitpar.PypeItPar()
-        # TODO: Make self.spectrograph a class attribute?
-        # Use the ARMS pipeline
-        #par['rdx']['pipeline'] = 'ARMS'
         par['rdx']['spectrograph'] = 'gemini_gnirs'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
@@ -71,8 +68,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['number'] = 5
         par['calibrations']['traceframe']['number'] = 5
         par['calibrations']['arcframe']['number'] = 1
-        # Bias
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
+
+        # Slits
+        par['calibrations']['slits']['sigdetect'] = 50.
+        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['maxshift'] = 0.5
 
         # Wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
@@ -99,16 +99,15 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['sig_neigh'] = 5.0
         par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
 
-        # Slits
-        par['calibrations']['slits']['sigdetect'] = 220.
-        par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 0.5
+        # Flats
+        par['calibrations']['flatfield']['illumflatten'] = False
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
+        # Extraction
+        par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['sn_gauss'] = 4.0
 
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Do not correct for flexure
         par['flexure'] = None
         # Set the default exposure time ranges for the frame typing
@@ -116,8 +115,18 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['exprng'] = [None, 30]
         par['calibrations']['standardframe']['exprng'] = [None, 30]
         par['scienceframe']['exprng'] = [30, None]
+
+        # Do not bias subtract
+        par['scienceframe']['useframe'] ='overscan'
+        # This is a hack for now until we can specify for each image type what to do. Bias currently
+        # controls everything
+        par['calibrations']['biasframe']['useframe'] = 'overscan'
+
+
+
         return par
 
+    '''
     def check_headers(self, headers):
         """
         Check headers match expectations for an LRISb exposure.
@@ -163,15 +172,42 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['dispangle'] = 'GRATTILT'
         hdr_keys[0]['wavecen'] = 'GRATWAVE'
         hdr_keys[0]['spectrograph'] = 'INSTRUME'
-        hdr_keys[0]['binning'] = 1
+        hdr_keys[0]['binning'] = ' '
 
         return hdr_keys
+    '''
+
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
+
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='TARGNAME')
+        meta['decker'] = dict(ext=0, card='DECKER')
+
+        meta['binning'] = dict(ext=0, card=None, default='1,1')
+        meta['mjd'] = dict(ext=0, card='MJD_OBS')
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        meta['dispname'] = dict(ext=0, card='GRATING')
+        meta['hatch'] = dict(ext=0, card='COVER')
+        meta['dispangle'] = dict(ext=0, card='GRATTILT', rtol=1e-4)
+        meta['idname'] = dict(ext=0, card='OBSTYPE')
+
+        # Ingest
+        self.meta = meta
 
     def configuration_keys(self):
-        return ['decker', 'dispname']
-
-    def metadata_keys(self):
-        return super(GeminiGNIRSSpectrograph, self).metadata_keys() + ['dispangle', 'idname']
+        return ['decker', 'dispname', 'dispangle']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -283,7 +319,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         nslits = tslits_dict['lcen'].shape[1]
         if nslits != self.norders:
-            msgs.error('There is a problem with your slit bounadries. You have nslits={:d} orders, whereas NIR has norders={:d}'.format(nslits,self.norders))
+            msgs.error('There is a problem with your slit bounadries. You have nslits={:d} orders, whereas GNIRS has norders={:d}'.format(nslits,self.norders))
         # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
         order_max = [1022,1022,1022,1022,1022,1022]
         order_min = [512,280, 0, 0, 0, 0]
