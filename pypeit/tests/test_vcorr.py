@@ -13,9 +13,7 @@ from astropy import units
 
 from pypeit.core import wave
 from pypeit import specobjs
-from pypeit import metadata
-from pypeit.tests.tstutils import load_kast_blue_masters
-from pypeit.spectrographs.util import load_spectrograph
+from pypeit.tests.tstutils import dummy_fitstbl
 
 mjd = 57783.269661
 RA = '07:06:23.45'
@@ -28,7 +26,7 @@ alt = 4160.0               # Elevation of the telescope (in m)
 
 @pytest.fixture
 def fitstbl():
-    return metadata.dummy_fitstbl()
+    return dummy_fitstbl()
 
 
 def test_geovelocity():

@@ -8,14 +8,15 @@ import pytest
 
 import numpy as np
 
-from pypeit import metadata
 from pypeit.core import framematch
 #from pypeit.pypmsgs import PypeItError
+
+from pypeit.tests.tstutils import dummy_fitstbl
 
 
 @pytest.fixture
 def fitstbl():
-    return metadata.dummy_fitstbl()
+    return dummy_fitstbl()
 
 
 #@pytest.fixture
