@@ -9,6 +9,121 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit.core import parse
 
+
+def get_wave_ind(wave_grid, wave_min, wave_max):
+    """
+    Utility routine used by coadd2d to determine the starting and ending indices of a wavelength grid.
+
+    Args:
+        wave_grid: float ndarray
+          Wavelength grid.
+        wave_min: float
+          Minimum wavelength covered by the data in question.
+        wave_max: float
+          Maximum wavelength covered by the data in question.
+
+    Returns:
+        (ind_lower, ind_upper): tuple, int
+          Integer lower and upper indices into the array wave_grid that cover the interval (wave_min, wave_max)
+    """
+
+    diff = wave_grid - wave_min
+    diff[diff > 0] = np.inf
+    ind_lower = np.argmin(np.abs(diff))
+    diff = wave_max - wave_grid
+    diff[diff > 0] = np.inf
+    ind_upper = np.argmin(np.abs(diff))
+
+    return ind_lower, ind_upper
+
+
+def coadd2d(sciimg_stack, sciivar_stack, inmask_stack, skymodel_stack, tilts_stack, waveimg_stack, trace_stack,
+            thismask_stack, weights=None, loglam_grid=None, wave_grid=None):
+    """
+
+    Args:
+        sciimg_stack:
+        sciivar_stack:
+        inmask_stack:
+        skymodel_stack:
+        tilts_stack:
+        waveimg_stack:
+        trace_stack:
+        thismask_stack:
+        weights:
+        loglam_grid:
+        wave_grid:
+
+    Returns:
+
+    """
+    nimgs, nspec, nspat = sciimg_stack.shape
+
+    # Determine the wavelength grid that we will use for the current slit/order
+    wave_min = waveimg_stack[thismask_stack].min()
+    wave_max = waveimg_stack[thismask_stack].max()
+    if loglam_grid is not None:
+        ind_lower, ind_upper = get_wave_ind(loglam_grid, np.log10(wave_min), np.log10(wave_max))
+        loglam_bins = loglam_grid[ind_lower:ind_upper + 1]
+        wave_bins = np.power(10.0, loglam_bins)
+    elif wave_grid is not None:
+        ind_lower, ind_upper = get_wave_ind(wave_grid, wave_min, wave_max)
+        wave_bins = wave_grid[ind_lower:ind_upper + 1]
+        loglam_bins = np.log10(wave_bins)
+    else:
+        msgs.error('You must input either a uniformly space loglam grid or wave grid')
+
+    if weights is None:
+        msgs.info('No weights were provided. Using uniform weights.')
+        weights = np.ones(nimgs) / float(nimgs)
+
+    # Create the slit_cen_stack and determine the minimum and maximum spatial offsets that we need to cover to determine
+    # the spatial bins
+    spat_img = np.outer(np.ones(nspec), np.arange(nspat))
+    dspat_stack = np.zeros_like(sciimg_stack)
+    spat_min = np.inf
+    spat_max = -np.inf
+    for img in range(nimgs):
+        # center of the slit replicated spatially
+        slit_cen_img = np.outer(trace_stack[img, :], np.ones(nspat))
+        dspat_iexp = (spat_img - slit_cen_img)
+        dspat_stack[img, :, :] = dspat_iexp
+        thismask_now = thismask_stack[img, :, :]
+        spat_min = np.fmin(spat_min, dspat_iexp[thismask_now].min())
+        spat_max = np.fmax(spat_max, dspat_iexp[thismask_now].max())
+
+    spat_min_int = int(np.floor(spat_min))
+    spat_max_int = int(np.ceil(spat_max))
+    dspat_bins = np.arange(spat_min_int, spat_max_int + 1, 1)
+
+    sci_list = [sciimg_stack, sciimg_stack - skymodel_stack, tilts_stack, waveimg_stack, dspat_stack]
+    var_list = [utils.calc_ivar(sciivar_stack)]
+
+    sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = rebin2d(
+        wave_bins, dspat_bins, waveimg_stack, dspat_stack, thismask_stack, inmask_stack, sci_list, var_list)
+
+    # Now compute the final stack with sigma clipping
+    sigrej = 3.0
+    maxiters = 10
+    sci_list_out, var_list_out, outmask, nused = weighted_combine(
+        weights, sci_list_rebin, var_list_rebin, (norm_rebin_stack != 0),
+        sigma_clip=True, sigma_clip_stack=sci_list_rebin[1], sigrej=sigrej, maxiters=maxiters)
+    sciimg, imgminsky, tilts, waveimg, dspat = sci_list_out
+    sciivar = utils.calc_ivar(var_list_out[0])
+
+    nspec_coadd, nspat_coadd = imgminsky.shape
+
+    # Now let's try to do an extraction
+    thismask = np.ones_like(imgminsky, dtype=bool)
+    slit_left = np.full(nspec_coadd, 0.0)
+    slit_righ = np.full(nspec_coadd, nspat_coadd - 1)
+    tslits_dict = dict(lcen=slit_left, rcen=slit_righ,
+                             nspec=nspec_coadd, nspat=nspat_coadd,
+                             pad=0, binning=None, spectrograph=None)
+
+    return sciimg, sciivar, imgminsky, outmask, nused, tilts, waveimg, dspat, thismask, tslits_dict
+
+
 def img_list_error_check(sci_list, var_list):
     """
     Utility routine for dealing dealing with lists of image stacks for rebin2d and weigthed_combine routines below. This
