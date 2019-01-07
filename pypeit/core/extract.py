@@ -43,8 +43,6 @@ from pypeit.core.pydl import spheregroup
 
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
-import multiprocessing
-
 
 def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
     """ Extract the total flux within a variable window at many positions. This routine will accept an asymmetric/variable window
