@@ -17,7 +17,7 @@ from pypeit import msgs
 from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.core import pixels
-from pypeit import metadata
+from pypeit.metadata import PypeItMetaData
 
 from pypeit import debugger
 
@@ -77,7 +77,7 @@ class Spectrograph(object):
 #        self._set_calib_par()
 
         # Init meta
-        self.meta_data_model = metadata.get_meta_data_model()
+        self.meta_data_model = PypeItMetaData.get_meta_data_model()
         self.init_meta()
         self.validate_metadata()
 
@@ -492,7 +492,7 @@ class Spectrograph(object):
         """
         pypeit_keys = ['filename', 'frametype']
         # Core
-        core_meta = metadata.define_core_meta()
+        core_meta = PypeItMetaData.define_core_meta()
         pypeit_keys += list(core_meta.keys())  # Might wish to order these
         # Add in config_keys (if new)
         for key in self.configuration_keys():
@@ -613,8 +613,8 @@ class Spectrograph(object):
 
         """
         # Load up
-        core_meta = metadata.define_core_meta()
-        meta_data_model = metadata.get_meta_data_model()
+        core_meta = PypeItMetaData.define_core_meta()
+        meta_data_model = PypeItMetaData.get_meta_data_model()
         # Check core
         for key in core_meta:
             assert key in self.meta.keys(), 'key {:s} not defined in spectrograph meta!'.format(key)

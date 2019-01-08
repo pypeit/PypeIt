@@ -18,14 +18,13 @@ except NameError:
     FileExistsError = OSError
 
 from astropy import units
-import linetools.utils
 
 from pypeit.core import flux
 from pypeit.core import load
-from pypeit import utils
-from pypeit import metadata
 from pypeit import telescopes
 from pypeit.spectrographs.util import load_spectrograph
+
+from pypeit.tests.tstutils import dummy_fitstbl
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
@@ -54,7 +53,7 @@ def test_gen_sensfunc():
     sfile = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     specobjs = load.load_specobjs(sfile)
     telescope = telescopes.ShaneTelescopePar()
-    fitstbl = metadata.dummy_fitstbl()
+    fitstbl = dummy_fitstbl()
     RA = '05:06:36.6'
     DEC = '52:52:01.0'
 

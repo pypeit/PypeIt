@@ -13,11 +13,10 @@ import pytest
 import glob
 import numpy as np
 
-from pypeit import metadata
 from pypeit import calibrations
 from pypeit.par import pypeitpar
 
-from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
+from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, dummy_fitstbl
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -26,12 +25,12 @@ def data_path(filename):
 @pytest.fixture
 def fitstbl():
     if os.getenv('PYPEIT_DEV') is None:
-        fitstbl = metadata.dummy_fitstbl(directory=data_path(''))
+        fitstbl = dummy_fitstbl(directory=data_path(''))
         fitstbl['filename'][1] = 'b1.fits.gz'
         fitstbl['filename'][5] = 'b27.fits.gz'
         return fitstbl
 
-    fitstbl = metadata.dummy_fitstbl(directory=os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
+    fitstbl = dummy_fitstbl(directory=os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
                                                            'Shane_Kast_blue', '600_4310_d55'))
     fitstbl['filename'][1] = 'b1.fits.gz'
     for ii in range(2,5):

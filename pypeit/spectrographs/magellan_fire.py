@@ -4,6 +4,8 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
+from astropy.time import Time
+
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
@@ -15,10 +17,14 @@ from pypeit import debugger
 class MagellanFIRESpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Magellan/FIRE specific code
-    Important Notes:
-        For FIRE Echelle, we usually use high gain and SUTR read mode. The exposure time is usually
-        around 900s. The detector parameters below are based on such mode. Standard star and calibrations
-        are usually use Fowler 1 read mode in which case the read noise is ~20 electron.
+
+    .. note::
+        For FIRE Echelle, we usually use high gain and SUTR read mode.
+        The exposure time is usually around 900s. The detector
+        parameters below are based on such mode. Standard star and
+        calibrations are usually use Fowler 1 read mode in which case
+        the read noise is ~20 electron.
+
     """
     def __init__(self):
         # Get it started
@@ -55,6 +61,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
     def pypeline(self):
         return 'Echelle'
 
+    # TODO: Remove dependency on self.  Non-linear counts does not need
+    # to be a parameter.
     def default_pypeit_par(self):
         """
         Set default parameters for Shane Kast Blue reductions.
@@ -112,57 +120,87 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [20, None]
         return par
 
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for a Keck NIRES exposure.
+#    def check_headers(self, headers):
+#        """
+#        Check headers match expectations for a Keck NIRES exposure.
+#
+#        See also
+#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+#
+#        Args:
+#            headers (list):
+#                A list of headers read from a fits file
+#        """
+#        expected_values = { '0.INSTRUME': 'FIRE',
+#                               '0.NAXIS': 2,
+#                              '0.NAXIS1': 2048,
+#                              '0.NAXIS2': 2048 }
+#        super(MagellanFIRESpectrograph, self).check_headers(headers, expected_values=expected_values)
 
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+#    def header_keys(self):
+#        """
+#        Return a dictionary with the header keywords to read from the
+#        fits file.
+#
+#        Returns:
+#            dict: A nested dictionary with the header keywords to read.
+#            The first level gives the extension to read and the second
+#            level gives the common name for header values that is passed
+#            on to the PypeItMetaData object.
+#        """
+#        hdr_keys = {}
+#        hdr_keys[0] = {}
+#
+#        # Copied over defaults
+#        hdr_keys[0]['idname'] = 'OBSTYPE'
+#        #hdr_keys[0]['time'] = 'MJD-OBS'
+#        hdr_keys[0]['date'] = 'DATE-OBS'
+#        hdr_keys[0]['utc'] = 'UT-TIME'
+#        hdr_keys[0]['ra'] = 'RA'
+#        hdr_keys[0]['dec'] = 'DEC'
+#        hdr_keys[0]['airmass'] = 'AIRMASS'
+#        hdr_keys[0]['exptime'] = 'EXPTIME'
+#        hdr_keys[0]['target'] = 'OBJECT'
+#        hdr_keys[0]['naxis0'] = 'NAXIS2'
+#        hdr_keys[0]['naxis1'] = 'NAXIS1'
+#        hdr_keys[0]['binning'] = 1
+#        hdr_keys[0]['dispname'] = 'INSTR'  # Should be 'spec' if in the spectroscopy mode
+#
+#        return hdr_keys
+#
+#    def metadata_keys(self):
+#        return ['filename', 'date', 'frametype', 'idname','target', 'exptime', 'setup', 'calib',
+#                'obj_id', 'bkg_id']
 
-        Args:
-            headers (list):
-                A list of headers read from a fits file
+    def init_meta(self):
         """
-        expected_values = { '0.INSTRUME': 'FIRE',
-                               '0.NAXIS': 2,
-                              '0.NAXIS1': 2048,
-                              '0.NAXIS2': 2048 }
-        super(MagellanFIRESpectrograph, self).check_headers(headers, expected_values=expected_values)
-
-    def header_keys(self):
-        """
-        Return a dictionary with the header keywords to read from the
-        fits file.
+        Generate the meta data dict
+        Note that the children can add to this
 
         Returns:
-            dict: A nested dictionary with the header keywords to read.
-            The first level gives the extension to read and the second
-            level gives the common name for header values that is passed
-            on to the PypeItMetaData object.
+            self.meta: dict (generated in place)
+
         """
-        hdr_keys = {}
-        hdr_keys[0] = {}
+        self.meta = {}
+        # Required (core)
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        #TODO: Check decker is correct
+        self.meta['decker'] = dict(ext=0, card='SLIT')
+        self.meta['binning'] = dict(ext=0, card=None, default='1,1')
+        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        self.meta['dispname'] = dict(ext=0, card='INSTR')
 
-        # Copied over defaults
-        hdr_keys[0]['idname'] = 'OBSTYPE'
-        #hdr_keys[0]['time'] = 'MJD-OBS'
-        hdr_keys[0]['date'] = 'DATE-OBS'
-        hdr_keys[0]['utc'] = 'UT-TIME'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['exptime'] = 'EXPTIME'
-        hdr_keys[0]['target'] = 'OBJECT'
-        hdr_keys[0]['naxis0'] = 'NAXIS2'
-        hdr_keys[0]['naxis1'] = 'NAXIS1'
-        hdr_keys[0]['binning'] = 1
-        hdr_keys[0]['dispname'] = 'INSTR'  # Should be 'spec' if in the spectroscopy mode
-
-        return hdr_keys
-
-    def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'idname','target', 'exptime', 'setup', 'calib',
-                'obj_id', 'bkg_id']
+    def compound_meta(self, headarr, meta_key):
+        if meta_key == 'mjd':
+            time = headarr[0]['DATE']
+            ttime = Time(time, format='isot')
+            return ttime.mjd
+        msgs.error("Not ready for this compound meta")
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -183,33 +221,33 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def get_match_criteria(self):
-        """Set the general matching criteria for FIRE"""
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['naxis0'] = '=0'
-        match_criteria['standard']['match']['naxis1'] = '=0'
-
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['naxis0'] = '=0'
-        match_criteria['bias']['match']['naxis1'] = '=0'
-
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-
-        match_criteria['trace']['match'] = {}
-        match_criteria['trace']['match']['naxis0'] = '=0'
-        match_criteria['trace']['match']['naxis1'] = '=0'
-
-        match_criteria['arc']['match'] = {}
-        match_criteria['arc']['match']['naxis0'] = '=0'
-        match_criteria['arc']['match']['naxis1'] = '=0'
-
-        return match_criteria
+#    def get_match_criteria(self):
+#        """Set the general matching criteria for FIRE"""
+#        match_criteria = {}
+#        for key in framematch.FrameTypeBitMask().keys():
+#            match_criteria[key] = {}
+#
+#        match_criteria['standard']['match'] = {}
+#        match_criteria['standard']['match']['naxis0'] = '=0'
+#        match_criteria['standard']['match']['naxis1'] = '=0'
+#
+#        match_criteria['bias']['match'] = {}
+#        match_criteria['bias']['match']['naxis0'] = '=0'
+#        match_criteria['bias']['match']['naxis1'] = '=0'
+#
+#        match_criteria['pixelflat']['match'] = {}
+#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
+#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
+#
+#        match_criteria['trace']['match'] = {}
+#        match_criteria['trace']['match']['naxis0'] = '=0'
+#        match_criteria['trace']['match']['naxis1'] = '=0'
+#
+#        match_criteria['arc']['match'] = {}
+#        match_criteria['arc']['match']['naxis0'] = '=0'
+#        match_criteria['arc']['match']['naxis1'] = '=0'
+#
+#        return match_criteria
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
@@ -324,3 +362,4 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         # FIRE has no binning, but for an instrument with binning we would do this
         #binspatial, binspectral = parse.parse_binning(binning)
         return np.full(5, 0.15)
+

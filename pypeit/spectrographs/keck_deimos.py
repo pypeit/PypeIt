@@ -350,8 +350,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         meta['mjd'] = dict(ext=0, card='MJD-OBS')
         meta['exptime'] = dict(ext=0, card='ELAPTIME')
         meta['airmass'] = dict(ext=0, card='AIRMASS')
-        # Extras for config and frametyping
         meta['dispname'] = dict(ext=0, card='GRATENAM')
+        # Extras for config and frametyping
         meta['hatch'] = dict(ext=0, card='HATCHPOS')
         meta['dispangle'] = dict(card=None, compound=True, rtol=1e-5)
         # Lamps
@@ -421,6 +421,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    # TODO: We should aim to get rid of this...
     def idname(self, ftype):
         """
         Return the `idname` for the selected frame type for this instrument.
