@@ -21,7 +21,6 @@ from pypeit import metadata
 
 from pypeit import debugger
 
-# TODO: Consider changing the name of this to Instrument
 class Spectrograph(object):
     """
     Generic class for spectrograph-specific codes
@@ -656,8 +655,8 @@ class Spectrograph(object):
                            + 'calibration file, otherwise consider removing.')
         return headarr
 
-    def get_match_criteria(self):
-        msgs.error("You need match criteria for your spectrograph.")
+#    def get_match_criteria(self):
+#        msgs.error("You need match criteria for your spectrograph.")
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         raise NotImplementedError('Frame typing not defined for {0}.'.format(self.spectrograph))

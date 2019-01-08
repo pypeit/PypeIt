@@ -3,7 +3,7 @@
 from __future__ import absolute_import, division, print_function
 
 import glob
-
+import os
 import numpy as np
 from astropy.io import fits
 
@@ -243,7 +243,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         return raw_img, head0
 
-    def get_image_section(self, filename, det, section='datasec'):
+    def get_image_section(self, inp=None, det=1, section='datasec'):
         """
         Return a string representation of a slice defining a section of
         the detector image.
@@ -251,21 +251,21 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         Overwrites base class function to use :func:`read_lris` to get
         the image sections.
 
-        .. todo::
-            - It feels really ineffiecient to just get the image section
-              using the full :func:`read_lris`.  Can we parse that
-              function into something that can give you the image
-              section directly?
+        .. todo ::
+            - It is really ineffiecient.  Can we parse
+              :func:`read_deimos` into something that can give you the
+              image section directly?
 
         This is done separately for the data section and the overscan
         section in case one is defined as a header keyword and the other
         is defined directly.
         
         Args:
-            filename (str):
-                data filename
-            det (int):
-                Detector number
+            inp (:obj:`str`):
+                String providing the file name to read.  Unlike the base
+                class, a file name *must* be provided.
+            det (:obj:`int`, optional):
+                1-indexed detector number.
             section (:obj:`str`, optional):
                 The section to return.  Should be either datasec or
                 oscansec, according to the :class:`DetectorPar`
@@ -279,7 +279,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             their order transposed.
         """
         # Read the file
-        temp, head0, secs = read_lris(filename, det)
+        if inp is None:
+            msgs.error('Must provide Keck LRIS file to get image section.')
+        elif not os.path.isfile(inp):
+            msgs.error('File {0} does not exist!'.format(inp))
+        temp, head0, secs = read_lris(inp, det)
         if section == 'datasec':
             return secs[0], False, False, False
         elif section == 'oscansec':

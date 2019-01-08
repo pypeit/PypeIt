@@ -261,6 +261,9 @@ class ProcessImages(object):
         Load image header, data, and relevant image sections into
         memory.
 
+        This always forces the data to be re-read, even if it's already
+        in memory.
+
         Args:
             files (:obj:`str`, :obj:`list`, optional):
                 One or more files to read and process.  If None, use
@@ -287,9 +290,8 @@ class ProcessImages(object):
                 - :obj:`slice` objects that select the overscan sections
                   of the returned image data, accounting for any image binning.
         """
-        # TODO: I'd like to allow the method to use the already assigned
-        # internal files in the case that files is None.
-        self._set_files(files)
+        if files is not None:
+            self._set_files(files)
 
         # Set the detector
         if det is not None:
@@ -312,17 +314,27 @@ class ProcessImages(object):
                 self.binning[i] = self.spectrograph.parse_binning(self.headers[i])
 
             # Get the data sections, one section per amplifier
-            datasec, one_indexed, include_end, transpose \
-                    = self.spectrograph.get_image_section(inp=self.headers[i], det=self.det,
-                                                          section='datasec')
+            try:
+                datasec, one_indexed, include_end, transpose \
+                        = self.spectrograph.get_image_section(inp=self.headers[i], det=self.det,
+                                                              section='datasec')
+            except:
+                datasec, one_indexed, include_end, transpose \
+                        = self.spectrograph.get_image_section(inp=self.files[i], det=self.det,
+                                                              section='datasec')
             self.datasec[i] = [ parse.sec2slice(sec, one_indexed=one_indexed,
                                                 include_end=include_end, require_dim=2,
                                                 transpose=transpose, binning=self.binning[i])
                                     for sec in datasec ]
             # Get the overscan sections, one section per amplifier
-            oscansec, one_indexed, include_end, transpose \
-                    = self.spectrograph.get_image_section(inp=self.headers[i], det=self.det,
-                                                          section='oscansec')
+            try:
+                oscansec, one_indexed, include_end, transpose \
+                        = self.spectrograph.get_image_section(inp=self.headers[i], det=self.det,
+                                                              section='oscansec')
+            except:
+                oscansec, one_indexed, include_end, transpose \
+                        = self.spectrograph.get_image_section(inp=self.files[i], det=self.det,
+                                                              section='oscansec')
             self.oscansec[i] = [ parse.sec2slice(sec, one_indexed=one_indexed,
                                                  include_end=include_end, require_dim=2,
                                                  transpose=transpose, binning=self.binning[i])

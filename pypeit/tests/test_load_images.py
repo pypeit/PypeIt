@@ -14,24 +14,84 @@ import numpy as np
 from pypeit.processimages import ProcessImages
 from pypeit.tests.tstutils import dev_suite_required
 
-#@dev_suite_required
-#def test_load_deimos():
-#    files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L_8400',
-#                         'd0914_0014.fits.gz')
-#    proc = processimages.ProcessImages('keck_deimos', None)
-#    proc.load_images(files)
-#    try:
-#        # First amplifier
-#        data_img = proc.raw_images[0][proc.datasec[0][0]]
-#    except:
-#        pytest.fail('DEIMOS test data section failed.')
+@dev_suite_required
+def test_load_deimos():
+    files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L_8400',
+                         'd0914_0014.fits.gz')
+    proc = ProcessImages('keck_deimos', files)
+    proc.load_images()
+    try:
+        # First amplifier
+        data_img = proc.raw_images[0][proc.datasec[0][0]]
+    except:
+        pytest.fail('DEIMOS test data section failed.')
+
+@dev_suite_required
+def test_load_lris():
+    files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_LRIS_blue',
+                         'long_400_3400_d560', 'LB.20160109.14149.fits.gz')
+    proc = ProcessImages('keck_lris_blue', files)
+    proc.load_images()
+    try:
+        # First amplifier
+        data_img = proc.raw_images[0][proc.datasec[0][0]]
+    except:
+        pytest.fail('LRIS test data section failed.')
+
+@dev_suite_required
+def test_load_nires():
+    files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRES', 'NIRES',
+                         's180604_0004.fits.gz')
+    proc = ProcessImages('keck_nires', files)
+    proc.load_images()
+    try:
+        # First amplifier
+        data_img = proc.raw_images[0][proc.datasec[0][0]]
+    except:
+        pytest.fail('NIRES test data section failed.')
+
+@dev_suite_required
+def test_load_nirspec():
+    files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRSPEC', 'NIRSPEC-1',
+                         'NS.20160414.02604.fits.gz')
+    proc = ProcessImages('keck_nirspec_low', files)
+    proc.load_images()
+    try:
+        # First amplifier
+        data_img = proc.raw_images[0][proc.datasec[0][0]]
+    except:
+        pytest.fail('NIRSPEC test data section failed.')
+
+@dev_suite_required
+def test_load_kast():
+    files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Shane_Kast_blue', '600_4310_d55',
+                         'b1.fits.gz')
+    proc = ProcessImages('shane_kast_blue', files)
+    proc.load_images()
+    try:
+        # First amplifier
+        data_img = proc.raw_images[0][proc.datasec[0][0]]
+    except:
+        pytest.fail('Shane Kast test data section failed.')
+
+@dev_suite_required
+def test_load_isis():
+    files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'WHT_ISIS_blue', 'long_R300B_d5300',
+                         'r2324566.fit.gz')
+    proc = ProcessImages('wht_isis_blue', files)
+    proc.load_images()
+    try:
+        # First amplifier
+        data_img = proc.raw_images[0][proc.datasec[0][0]]
+    except:
+        pytest.fail('WHT ISIS test data section failed.')
 
 @dev_suite_required
 def test_load_vlt_xshooter_uvb():
     files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER',
                          'UVB_1x1/XSHOO.2010-04-28T05:34:32.723.fits.gz')
-    proc = ProcessImages('vlt_xshooter_uvb', None)
-    proc.load_images(files)
+    proc = ProcessImages('vlt_xshooter_uvb', files)
+    proc.load_images()
     try:
         data_img = proc.raw_images[0][proc.datasec[0][0]]
     except:
@@ -59,10 +119,43 @@ def test_load_vlt_xshooter_vis():
 def test_load_vlt_xshooter_nir():
     files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER',
                          'NIR/XSHOO.2016-08-02T08:45:49.494.fits.gz')
-    proc = ProcessImages('vlt_xshooter_nir', None)
-    proc.load_images(files)
+    proc = ProcessImages('vlt_xshooter_nir', files)
+    proc.load_images()
     try:
         data_img = proc.raw_images[0][proc.datasec[0][0]]
     except:
         pytest.fail('VLT XSHOOTER NIR test data section failed: {0}'.format(files))
+
+@dev_suite_required
+def test_load_gnirs():
+    files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Gemini_GNIRS/GNIRS/',
+                         'N20160127S0389.fits')
+    proc = ProcessImages('gemini_gnirs', files)
+    proc.load_images()
+    try:
+        data_img = proc.raw_images[0][proc.datasec[0][0]]
+    except:
+        pytest.fail('Gemini GNIRS test data section failed: {0}'.format(files))
+
+@dev_suite_required
+def test_load_fire():
+    files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Magellan_FIRE/FIRE',
+                         'fire_0029.fits.gz')
+    proc = ProcessImages('magellan_fire', files)
+    proc.load_images()
+    try:
+        data_img = proc.raw_images[0][proc.datasec[0][0]]
+    except:
+        pytest.fail('Magellan FIRE test data section failed: {0}'.format(files))
+
+@dev_suite_required
+def test_load_gnirs():
+    files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Gemini_GNIRS/GNIRS/',
+                         'N20160127S0389.fits')
+    proc = ProcessImages('gemini_gnirs', files)
+    proc.load_images()
+    try:
+        data_img = proc.raw_images[0][proc.datasec[0][0]]
+    except:
+        pytest.fail('Gemini GNIRS test data section failed: {0}'.format(files))
 

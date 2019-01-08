@@ -230,8 +230,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-
-
+    def parse_binning(self, inp, det=1):
+        return '1,1'
 
     def order_platescale(self, binning=None):
 
