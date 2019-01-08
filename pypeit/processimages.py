@@ -117,7 +117,7 @@ class ProcessImages(object):
     frametype='Unknown'
     bitmask = ProcessImagesBitMask()  # The bit mask interpreter
 
-    def __init__(self, spectrograph, files, det=1, par=None, binning=None):
+    def __init__(self, spectrograph, files=None, det=1, par=None, binning=None):
 
         # Assign the internal list of files
         self._set_files(files)
@@ -162,7 +162,8 @@ class ProcessImages(object):
         self.pixel_flat = None      # passed as an argument to process(), flat_field()
         self.illum_flat = None        # passed as an argument to process(), flat_field()
 
-    def _set_files(self, files, check=True):
+#    def _set_files(self, files, check=True):
+    def _set_files(self, files, check=False):
         """
         Assign the provided files to :attr:`files`.
 
@@ -357,7 +358,7 @@ class ProcessImages(object):
         # TODO: This is overkill when self.datasec is loaded, and this
         # call is made for a few of the steps.  Can we be more
         # efficient?
-        datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+        datasec_img = self.spectrograph.get_datasec_img(self.files[0], det=self.det)
         if trim:
             datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)
         if self.stack.shape != datasec_img.shape:
@@ -405,7 +406,7 @@ class ProcessImages(object):
 
         # If trimming, get the image identifying amplifier used for the
         # data section
-        datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+        datasec_img = self.spectrograph.get_datasec_img(self.files[0], det=self.det)
 
         msgs.info("Bias subtracting your image(s)")
         # Reset proc_images -- Is there any reason we wouldn't??
@@ -420,7 +421,8 @@ class ProcessImages(object):
                 temp = image-msbias
             elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
-                temp = procimg.subtract_overscan(image, numamplifiers, self.datasec, self.oscansec,
+                temp = procimg.subtract_overscan(image, numamplifiers, self.datasec[kk],
+                                                 self.oscansec[kk],
                                                  method=self.proc_par['overscan'],
                                                  params=self.proc_par['overscan_par'])
                 # Trim?
@@ -544,7 +546,7 @@ class ProcessImages(object):
             # Trim even if not bias subtracting
             temp = self.raw_images[0]
             if trim:
-                datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+                datasec_img = self.spectrograph.get_datasec_img(self.files[0], det=self.det)
                 temp = procimg.trim_frame(temp, datasec_img < 1)
             self.proc_images = np.zeros((temp.shape[0], temp.shape[1], self.nloaded))
             for kk,image in enumerate(self.raw_images):
@@ -581,7 +583,7 @@ class ProcessImages(object):
 
         """
         msgs.info("Generating read noise image from detector properties and amplifier layout)")
-        datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+        datasec_img = self.spectrograph.get_datasec_img(self.files[0], det=self.det)
         if trim:
             datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)
         detector = self.spectrograph.detector[self.det-1]
@@ -605,7 +607,7 @@ class ProcessImages(object):
 
         """
         msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
-        datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+        datasec_img = self.spectrograph.get_datasec_img(self.files[0], det=self.det)
         if trim:
             datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)
         detector = self.spectrograph.detector[self.det-1]
@@ -831,7 +833,7 @@ class ProcessImages(object):
         # Add raw_files to header
         for i in range(self.nfiles):
             hdrname = "FRAME{0:03d}".format(i+1)
-            hdu.header[hdrname] = self.file_list[i]
+            hdu.header[hdrname] = self.files[i]
         # Spectrograph
         hdu.header['INSTRUME'] = self.spectrograph.spectrograph
         # Parameters

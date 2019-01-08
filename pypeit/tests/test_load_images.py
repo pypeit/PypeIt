@@ -129,7 +129,7 @@ def test_load_vlt_xshooter_nir():
 @dev_suite_required
 def test_load_gnirs():
     files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Gemini_GNIRS/GNIRS/',
-                         'N20160127S0389.fits')
+                         'cN20170331S0206.fits')
     proc = ProcessImages('gemini_gnirs', files)
     proc.load_images()
     try:

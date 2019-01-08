@@ -247,7 +247,7 @@ class Spectrograph(object):
                 # Force the call to the except block
                 raise KeyError
             elif isinstance(inp, str):
-                hdu = fits.open(filename)
+                hdu = fits.open(inp)
                 hdr = hdu[self.detector[det-1]['dataext']].header
             elif isinstance(inp, fits.Header):
                 hdr = inp
