@@ -82,11 +82,20 @@ class PypeIt(object):
         self.spectrograph = load_spectrograph(spectrograph_name)
 
         # Par
-        spectrograph_cfg_lines = self.spectrograph.default_pypeit_par().to_config()
+        # Defaults
+        spectrograph_def_par = self.spectrograph.default_pypeit_par()
+        # Grab a science file for configuration specific parameters
+        for idx, row in enumerate(usrdata):
+            if 'science' in row['frametype']:
+                sci_file = data_files[idx]
+                break
+        # Set
+        spectrograph_cfg_lines = self.spectrograph.config_specific_par(spectrograph_def_par, sci_file).to_config()
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        debugger.set_trace()
 
         # Fitstbl
-        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, file_list=data_files,
+        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, file_list=data_files,
                                       usrdata=usrdata, strict=True)
         # The following could be put in a prepare_to_run() method in PypeItMetaData
         if 'setup' not in self.fitstbl.keys():
@@ -98,11 +107,6 @@ class PypeIt(object):
         # Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
         self.fitstbl.write_calib(calib_file)
-
-        # Use the instrument config to set specific parameters (rarely occurs)
-        is_science = self.fitstbl.find_frames('science')
-        sci_files = self.fitstbl.frame_paths(is_science)
-        self.spectrograph.config_specific_par(self.par, sci_files[0])
 
 
         # Other Internals

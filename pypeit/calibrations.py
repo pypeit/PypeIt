@@ -50,12 +50,12 @@ class Calibrations(object):
         fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
             The class holding the metadata for all the frames in this
             PypeIt run.
+        par (:class:`pypeit.par.pypeitpar.PypeItPar`):
+            Parameter set defining optional parameters of PypeIt's
+            low-level algorithms.  Needs to specifically be a
+            CalibrationsPar child.
         spectrograph (:obj:`str`, optional):
             The name of the spectrograph to reduce.  TODO: Not needed.
-        par (:class:`pypeit.par.pypeitpar.PypeItPar`, optional):
-            Parameter set defining optional parameters of PypeIt's
-            low-level algorithms.  If None, defined using
-            :func:`pypeit.spectrograph.spectrographs.Spectrograph.default_pypeit_par`.
         redux_path (:obj:`str`, optional):
             Top-level directory for PypeIt output.  If None, the current
             working directory is used.
@@ -93,7 +93,7 @@ class Calibrations(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None, reuse_masters=False, save_masters=True,
+    def __init__(self, fitstbl, par, spectrograph=None, redux_path=None, reuse_masters=False, save_masters=True,
                  write_qa=True, show=False):
 
         # Check the type of the provided fits table
@@ -107,6 +107,11 @@ class Calibrations(object):
         self.write_qa = write_qa
         self.show = show
 
+        # Test par
+        self.par = par
+        if not isinstance(self.par, pypeitpar.CalibrationsPar):
+            raise TypeError('Input parameters must be a CalibrationsPar instance.')
+
         # Spectrometer class
         # TODO: the spectrograph is already defined in fitstbl
         _spectrograph = spectrograph
@@ -118,12 +123,6 @@ class Calibrations(object):
             _spectrograph = fitstbl['instrume'][0]
         self.spectrograph = load_spectrograph(_spectrograph)
 
-        # Instantiate the parameters
-        # TODO: How far down through the other classes to we propagate
-        # the spectrograph defaults as is done here...
-        self.par = self.spectrograph.default_pypeit_par()['calibrations'] if par is None else par
-        if not isinstance(self.par, pypeitpar.CalibrationsPar):
-            raise TypeError('Input parameters must be a CalibrationsPar instance.')
 
         # Output dirs
         self.redux_path = os.getcwd() if redux_path is None else redux_path

@@ -100,12 +100,12 @@ class PypeItMetaData:
             use in the data reduction.
 
     """
-    def __init__(self, spectrograph, par=None, file_list=None, data=None, usrdata=None, strict=True):
+    def __init__(self, spectrograph, par, file_list=None, data=None, usrdata=None, strict=True):
         if data is None and file_list is None:
             msgs.warn('Both data and file_list are None in the instantiation of PypeItMetaData.'
                       '  The table will be empty!')
         self.spectrograph = spectrograph
-        self.par = self.spectrograph.default_pypeit_par() if par is None else par
+        self.par = par
         if not isinstance(self.par, PypeItPar):
             raise TypeError('Input parameter set must be of type PypeItPar.')
         self.type_bitmask = framematch.FrameTypeBitMask()
@@ -154,7 +154,7 @@ class PypeItMetaData:
         # Instrument related
         core_meta['dispname'] = dict(dtype=str, comment='Disperser name')
         core_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
-        core_meta['binning'] = dict(dtype=str, comment='(spatial,spectral) binning')
+        core_meta['binning'] = dict(dtype=str, comment='"spatial,spectral" binning')
 
         # Obs
         core_meta['mjd'] = dict(dtype=float, comment='Observation MJD; Read by astropy.time.Time format=mjd')

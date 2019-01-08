@@ -361,7 +361,7 @@ def save_1d_spectra_fits(specObjs, header, pypeline, instrume,
     specobjs : SpecObjs object
     header : dict or Row (dict-like)
     pypeline : str
-      Name of instrument
+      Name of PypeIt pipeline (e.g. 'MultiSlit')
     instrume : str
       Name of instrument
     outfile : str
@@ -388,9 +388,9 @@ def save_1d_spectra_fits(specObjs, header, pypeline, instrume,
             except KeyError:
                 prihdu.header[key.upper()] = header[key]
         try:
-            prihdu.header['MJD-OBS'] = header['MJD-OBS']
-        except KeyError:
             prihdu.header['MJD-OBS'] = header['mjd']  # recorded as 'mjd' in fitstbl
+        except KeyError:
+            prihdu.header['MJD-OBS'] = header['MJD-OBS']
         prihdu.header['INSTRUME'] = instrume
 
         # Specify which pipeline created this file

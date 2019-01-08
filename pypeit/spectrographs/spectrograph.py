@@ -95,20 +95,20 @@ class Spectrograph(object):
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
 
-    def config_specific_par(self, par, filename):
+    def config_specific_par(self, par, scifile):
         """
         Used to modify the ParSet from metadata
         drawn from the input file
 
         Args:
             par: ParSet
-            filename: str
+            scifile: str
 
         Returns:
-            par is modified in place
+            par
 
         """
-        pass
+        return par
 
     '''
     def get_lacosmics_par(self,proc_par,binning=None):
