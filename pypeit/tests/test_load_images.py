@@ -149,13 +149,24 @@ def test_load_fire():
         pytest.fail('Magellan FIRE test data section failed: {0}'.format(files))
 
 @dev_suite_required
-def test_load_gnirs():
-    files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Gemini_GNIRS/GNIRS/',
-                         'N20160127S0389.fits')
-    proc = ProcessImages('gemini_gnirs', files)
+def test_load_mage():
+    files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Magellan_MAGE/MAGE',
+                         'mage1002.fits.gz')
+    proc = ProcessImages('magellan_mage', files)
     proc.load_images()
     try:
         data_img = proc.raw_images[0][proc.datasec[0][0]]
     except:
-        pytest.fail('Gemini GNIRS test data section failed: {0}'.format(files))
+        pytest.fail('Magellan MAGE test data section failed: {0}'.format(files))
+
+@dev_suite_required
+def test_load_hires():
+    files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_HIRES/RED',
+                         'hires0009.fits.gz')
+    proc = ProcessImages('keck_hires_red', files)
+    proc.load_images()
+    try:
+        data_img = proc.raw_images[0][proc.datasec[0][0]]
+    except:
+        pytest.fail('Keck HIRES test data section failed: {0}'.format(files))
 
