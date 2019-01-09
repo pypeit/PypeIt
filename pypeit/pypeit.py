@@ -125,8 +125,7 @@ class PypeIt(object):
 
         # Instantiate Calibrations class
         self.caliBrate \
-            = calibrations.MultiSlitCalibrations(self.fitstbl, spectrograph=self.spectrograph,
-                                                 par=self.par['calibrations'],
+            = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'], self.spectrograph,
                                                  redux_path=self.par['rdx']['redux_path'],
                                                  reuse_masters=self.reuse_masters,
                                                  save_masters=True, write_qa=True,

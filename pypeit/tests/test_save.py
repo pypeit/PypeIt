@@ -74,7 +74,7 @@ def test_save1d_fits():
     """ save1d to FITS and HDF5
     """
     # Init
-    fitstbl = dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
+    fitstbl = dummy_fitstbl(spectro_name='shane_kast_blue', directory=data_path(''))
     sobj = mk_specobj()
     specObjs = specobjs.SpecObjs([sobj])
     # Write to FITS

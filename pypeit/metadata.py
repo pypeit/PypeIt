@@ -57,10 +57,8 @@ class PypeItMetaData:
             The spectrograph used to collect the data save to each file.
             The class is used to provide the header keyword data to
             include in the table and specify any validation checks.
-        par (:obj:`pypeit.par.pypeitpar.PypeItPar`, optional):
-            PypeIt parameters used to set the code behavior.  If not
-            provided, the default parameters specific to the provided
-            spectrograph are used.
+        par (:obj:`pypeit.par.pypeitpar.PypeItPar`):
+            PypeIt parameters used to set the code behavior.
         file_list (:obj:`list`, optional):
             The list of files to include in the table.
         data (table-like, optional):

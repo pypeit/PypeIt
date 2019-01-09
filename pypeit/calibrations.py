@@ -54,8 +54,8 @@ class Calibrations(object):
             Parameter set defining optional parameters of PypeIt's
             low-level algorithms.  Needs to specifically be a
             CalibrationsPar child.
-        spectrograph (:obj:`str`, optional):
-            The name of the spectrograph to reduce.  TODO: Not needed.
+        spectrograph (:obj:`pypeit.spectrograph.Spectrograph`):
+            Spectrograph object
         redux_path (:obj:`str`, optional):
             Top-level directory for PypeIt output.  If None, the current
             working directory is used.
@@ -93,7 +93,7 @@ class Calibrations(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, fitstbl, par, spectrograph=None, redux_path=None, reuse_masters=False, save_masters=True,
+    def __init__(self, fitstbl, par, spectrograph, redux_path=None, reuse_masters=False, save_masters=True,
                  write_qa=True, show=False):
 
         # Check the type of the provided fits table
@@ -113,15 +113,7 @@ class Calibrations(object):
             raise TypeError('Input parameters must be a CalibrationsPar instance.')
 
         # Spectrometer class
-        # TODO: the spectrograph is already defined in fitstbl
-        _spectrograph = spectrograph
-        if spectrograph is None:
-            # Set spectrograph from FITS table instrument header
-            # keyword.
-            if par is not None and par['rdx']['spectrograph'] != fitstbl['instrume'][0]:
-                msgs.error('Specified spectrograph does not match instrument in the fits table!')
-            _spectrograph = fitstbl['instrume'][0]
-        self.spectrograph = load_spectrograph(_spectrograph)
+        self.spectrograph = spectrograph
 
 
         # Output dirs
@@ -856,9 +848,9 @@ class MultiSlitCalibrations(Calibrations):
     Child of Calibrations class for performing multi-slit (and longslit)
     calibrations.
     """
-    def __init__(self, fitstbl, spectrograph=None, par=None, redux_path=None, reuse_masters=False, save_masters=True,
+    def __init__(self, fitstbl, par, spectrograph, redux_path=None, reuse_masters=False, save_masters=True,
                  write_qa=True, show = False, steps=None):
-        Calibrations.__init__(self, fitstbl, spectrograph=spectrograph, par=par,
+        Calibrations.__init__(self, fitstbl, par, spectrograph,
                               redux_path=redux_path, reuse_masters=reuse_masters, save_masters=save_masters,
                               write_qa=write_qa, show = show)
         self.steps = MultiSlitCalibrations.default_steps() if steps is None else steps

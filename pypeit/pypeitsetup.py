@@ -347,7 +347,7 @@ class PypeItSetup(object):
         self.fitstbl
 
         """
-        self.fitstbl = PypeItMetaData(self.spectrograph, data=Table.read(fits_file))
+        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, data=Table.read(fits_file))
 #        # Need to convert bytestrings back to unicode
 #        try:
 #            self.fitstbl.convert_bytestring_to_unicode()
