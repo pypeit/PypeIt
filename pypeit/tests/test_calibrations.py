@@ -61,8 +61,8 @@ def multi_caliBrate(fitstbl):
     redux_path = data_path('') if os.getenv('PYPEIT_DEV') is None \
                                 else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
 
-    multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl, spectrograph=spectrograph,
-                                                        par=calib_par, redux_path=redux_path,
+    multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph,
+                                                        redux_path=redux_path,
                                                         save_masters=False, write_qa=False)
     # Find the first science row
     frame = fitstbl.find_frames('science', index=True)[0]
@@ -71,7 +71,9 @@ def multi_caliBrate(fitstbl):
     return multi_caliBrate
 
 def test_instantiate(fitstbl):
-    caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
+    par = pypeitpar.PypeItPar()
+    spectrograph = load_kast_blue_masters(get_spectrograph=True)[0]
+    caliBrate = calibrations.MultiSlitCalibrations(fitstbl, par['calibrations'], spectrograph)
     print(caliBrate)
 
 # pixlocn is deprecated
