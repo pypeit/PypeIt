@@ -95,7 +95,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
         meta['mjd'] = dict(ext=0, card='MJD-OBS')
         meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', ftypes=['science', 'standard'])
+        meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
         # Extras for config and frametyping
         meta['dispname'] = dict(ext=0, card=None, default='default')
         meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')

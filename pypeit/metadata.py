@@ -110,7 +110,7 @@ class PypeItMetaData:
             raise TypeError('Input parameter set must be of type PypeItPar.')
         self.type_bitmask = framematch.FrameTypeBitMask()
         self.table = table.Table(data if file_list is None 
-                                 else self._build(file_list, strict=strict))
+                                 else self._build(file_list, strict=strict, usrdata=usrdata))
                         #else self._build(file_list, strict=strict))
         if usrdata is not None:
             self.merge(usrdata)
@@ -254,23 +254,32 @@ class PypeItMetaData:
             return
         msgs.error('{0} not a defined method for the background pair columns.'.format(bkg_pairs))
 
-    def _build(self, file_list, strict=True):
+    def _build(self, file_list, strict=True, usrdata=None):
+        """
+        Generate the fitstbl that will be at the heart of PypeItMetaData
 
-        # Required meta for reduction
-        #required_meta = define_core_meta()
+        Args:
+            file_list:
+            strict:
+            usrdata: Table, optional
+              Parsed for frametype for a few instruments (e.g. VLT) where meta data may not be required
 
-        # Spectrograph specific
-        #additional_meta = define_additional_meta()
-        #additional_keys = self.spectrograph.additional_meta()
-        #for key in additional_keys:
-        #    required_meta[key] = additional_meta[key]
+        Returns:
+            data: Table
+
+        """
         required_meta = self.spectrograph.meta
 
         # Build lists to fill
         data = {k:[] for k in required_meta.keys()}
 
         ds, fs = [], []
-        for ifile in file_list:
+        for idx, ifile in enumerate(file_list):
+            # User data (for frame type)
+            if usrdata is not None:
+                usr_row = usrdata[idx]
+            else:
+                usr_row = None
             # Read the fits headers
             headarr = self.spectrograph.get_headarr(ifile, strict=strict)
             # Add the directory and file name to the table
@@ -279,15 +288,9 @@ class PypeItMetaData:
             fs.append(f)
             # Grab Meta
             for meta_key in data.keys():
-                # Skip external ones
-                #if meta_key in ['filename', 'directory']:
-                #    continue
-                # Grab it
-                try:
-                    value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr, required=strict,
-                                                             ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
-                except:
-                    debugger.set_trace()
+                value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr, required=strict,
+                                                         ignore_bad_header=self.par['rdx']['ignore_bad_headers'],
+                                                         usr_row=usr_row)
                 data[meta_key].append(value)
         # File info
         data['directory'] = ds

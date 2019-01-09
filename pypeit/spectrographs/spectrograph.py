@@ -515,7 +515,8 @@ class Spectrograph(object):
         """
         self.meta = {}
 
-    def get_meta_value(self, ifile, meta_key, headarr=None, required=False, ignore_bad_header=False):
+    def get_meta_value(self, ifile, meta_key, headarr=None, required=False, ignore_bad_header=False,
+                       usr_row=None):
         """
         Return meta data from a given file (or its array of headers)
 
@@ -529,6 +530,8 @@ class Spectrograph(object):
               Require the meta key to be returnable
             ignore_bad_header: bool, optional
               Over-ride required;  not recommended
+            usr_row: Row
+              Provides user supplied frametype (and other things not used)
 
         Returns:
             value: value or list of values
@@ -566,10 +569,20 @@ class Spectrograph(object):
             try:
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
             except KeyError:
+                kerror = True
                 if required:
                     if not ignore_bad_header:
-                        msgs.error("Required card {:s} missing from your header of {:s}.  Add it!!".format(
-                            self.meta[meta_key]['card'], ifile))
+                        # Is this meta required for this frame type (Spectrograph specific)
+                        if ('required_ftypes' in self.meta[meta_key]) and (usr_row is not None):
+                            kerror = False
+                            # Is it required?
+                            for ftype in usr_row['frametype'].split(','):
+                                if ftype in self.meta[meta_key]['required_ftypes']:
+                                    kerror = True
+                        # Bomb out?
+                        if kerror:
+                            msgs.error("Required card {:s} missing from your header of {:s}.  Add it!!".format(
+                                self.meta[meta_key]['card'], ifile))
                     else:
                         msgs.warn("Required card {:s} missing from your header of {:s}.  Proceeding with risk..".format(
                             self.meta[meta_key]['card'], ifile))

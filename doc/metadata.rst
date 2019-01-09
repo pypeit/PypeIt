@@ -76,6 +76,12 @@ and has a set value, one sets it by `default`::
 
         meta['binning'] = dict(ext=0, card=None, default='1,1')
 
+If the meta is only required for a set of frametypes (e.g. VLT which does
+not provide RA/DEC for calibrations), you may specify which frametypes
+*require* it with::
+
+        meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science'])
+
 For meta data that depends on more than one header card or has some
 other complexity, the `compound_meta()` method is used.  Here is
 an example from Keck/DEIMOS::

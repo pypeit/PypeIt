@@ -92,7 +92,6 @@ class PypeIt(object):
         # Set
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(spectrograph_def_par, sci_file).to_config()
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
-        debugger.set_trace()
 
         # Fitstbl
         self.fitstbl = PypeItMetaData(self.spectrograph, self.par, file_list=data_files,
