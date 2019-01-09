@@ -88,8 +88,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         """
         meta = {}
         # Required (core)
-        meta['ra'] = dict(card=None, compound=True, ftypes=['science', 'standard'])  # Need to convert to : separated
-        meta['dec'] = dict(card=None, compound=True, ftypes=['science', 'standard'])
+        meta['ra'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])  # Need to convert to : separated
+        meta['dec'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])
         meta['target'] = dict(ext=0, card='OBJECT')
         meta['binning'] = dict(card=None, compound=True)
 
