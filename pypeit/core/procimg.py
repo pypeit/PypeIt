@@ -616,7 +616,6 @@ def sn_frame(slf, sciframe, idx):
 def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
              remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
     """
-    #TODO JFH Some documenation here would have been nice!
     settings_det : settings.spect[dnum]
       Detector info
 

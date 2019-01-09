@@ -13,6 +13,7 @@ from pypeit.par.util import parse_pypeit_file
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.metadata import PypeItMetaData
+from pypeit.spectrographs.util import load_spectrograph
 
 
 @dev_suite_required
@@ -117,8 +118,10 @@ def test_lris_blue_pypeit_overwrite():
         data_files[i] = os.path.join(os.environ['PYPEIT_DEV'], '/'.join(path_list[j:]))
 
     # Read the fits table with and without the user data
-    fitstbl = PypeItMetaData('keck_lris_blue', file_list=data_files)
-    fitstbl_usr = PypeItMetaData('keck_lris_blue', file_list=data_files, usrdata=usrdata)
+    spectrograph = load_spectrograph('keck_lris_blue')
+    par = spectrograph.default_pypeit_par()
+    fitstbl = PypeItMetaData(spectrograph, par, file_list=data_files)
+    fitstbl_usr = PypeItMetaData(spectrograph, par, file_list=data_files, usrdata=usrdata)
 
     assert fitstbl['target'][0] == 'unknown', 'Grating name changed in file header'
     assert fitstbl_usr['target'][0] == 'test', 'Grating name changed in pypeit file'

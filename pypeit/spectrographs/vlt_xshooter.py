@@ -88,16 +88,14 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         """
         meta = {}
         # Required (core)
-        meta['ra'] = dict(card=None, compound=True)  # Need to convert to : separated
-        meta['dec'] = dict(card=None, compound=True)
-        #meta['ra'] = dict(ext=0, card='RA')
-        #meta['dec'] = dict(ext=0, card='DEC')
+        meta['ra'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])  # Need to convert to : separated
+        meta['dec'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])
         meta['target'] = dict(ext=0, card='OBJECT')
         meta['binning'] = dict(card=None, compound=True)
 
         meta['mjd'] = dict(ext=0, card='MJD-OBS')
         meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START')
+        meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
         # Extras for config and frametyping
         meta['dispname'] = dict(ext=0, card=None, default='default')
         meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
