@@ -571,23 +571,25 @@ class Spectrograph(object):
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
             except KeyError:
                 value = None
-        # Was this required?
-        if required and (value is None):
-            kerror = True
-            if not ignore_bad_header:
-                # Is this meta required for this frame type (Spectrograph specific)
-                if ('required_ftypes' in self.meta[meta_key]) and (usr_row is not None):
-                    kerror = False
-                    # Is it required?
-                    for ftype in usr_row['frametype'].split(','):
-                        if ftype in self.meta[meta_key]['required_ftypes']:
-                            kerror = True
-                # Bomb out?
-                if kerror:
-                    msgs.error('Required meta "{:s}" did not load!  You may have a corrupt header'.format(meta_key))
-            else:
-                msgs.warn("Required card {:s} missing from your header of {:s}.  Proceeding with risk..".format(
-                    self.meta[meta_key]['card'], ifile))
+
+        if value is None:
+            # Was this required?
+            if required:
+                kerror = True
+                if not ignore_bad_header:
+                    # Is this meta required for this frame type (Spectrograph specific)
+                    if ('required_ftypes' in self.meta[meta_key]) and (usr_row is not None):
+                        kerror = False
+                        # Is it required?
+                        for ftype in usr_row['frametype'].split(','):
+                            if ftype in self.meta[meta_key]['required_ftypes']:
+                                kerror = True
+                    # Bomb out?
+                    if kerror:
+                        msgs.error('Required meta "{:s}" did not load!  You may have a corrupt header'.format(meta_key))
+                else:
+                    msgs.warn("Required card {:s} missing from your header of {:s}.  Proceeding with risk..".format(
+                        self.meta[meta_key]['card'], ifile))
             return None
 
         # Deal with dtype (DO THIS HERE OR IN METADATA?  I'M TORN)
