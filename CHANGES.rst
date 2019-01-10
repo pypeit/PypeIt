@@ -79,7 +79,7 @@ takes the sampling set by the wavelength tilts into account.
 - Fixed a major bug in the near-IR difference imaging for the case of A-B, i.e. just two images.
 - Introduced routines into core.procimg that will be used in 2-d co-adding.
 - Tweaks to VLT X-SHOOTER spectrograph class to improve reductions.
-- Moved methods for imaging processing from scienceimage class to processimages class. 
+- Moved methods for imaging processing from scienceimage class to processimages class.
 
 0.9.0
 -----
