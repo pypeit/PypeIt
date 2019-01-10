@@ -300,6 +300,8 @@ class Spectrograph(object):
             # Get the image shape
             raw_naxis = self.get_raw_image_shape(filename, det=det)
 
+            binning = self.parse_binning(filename)
+
             data_sections, one_indexed, include_end, transpose \
                     = self.get_image_section(filename, det, section='datasec')
 
@@ -308,8 +310,9 @@ class Spectrograph(object):
             for i in range(self.detector[det-1]['numamplifiers']):
                 # Convert the data section from a string to a slice
                 datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
-                                            include_end=include_end, require_dim=2,
-                                            transpose=transpose)
+                                          include_end=include_end, require_dim=2,
+                                          binning=binning,
+                                          transpose=transpose)
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
         return self.datasec_img

@@ -416,6 +416,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
 
 # TODO: Add sigdev to the high-level parameter set so that it can be
 # changed by the user?
+# JFH I think this crappy code below is deprecated
 def find_bad_pixels(bias, numamplifiers, datasec, sigdev=10.0, trim=True):
     """
     Identify bad pixels in the datasection of the bias frame based on
