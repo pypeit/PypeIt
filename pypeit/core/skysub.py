@@ -300,8 +300,8 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     return sky_bmodel, obj_bmodel, outmask
 
 
-def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, debug=False,
-                  skyimage = None, mincol=None, maxcol=None):
+def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
+                  skyimage = None, mincol=None, maxcol=None, debug=False):
     """
 
     Args:
@@ -311,6 +311,18 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, debug=False,
            Image containing the pixel sampling, i.e. (nspec-1)*tilts
         sampmask: ndarray, bool
            Boolean array indicating the pixels for which the B-spline fit will actually be evaluated. True = Good, False=Bad
+    Optional Args:
+        samp_frac: float, default = 0.8
+           The fraction of spectral direction pixels required to have a sampling difference < bsp_min in order to instead
+           adopt a uniform break point spacing, rather adopting the optimally spaced breakpoints.
+        skyimage: ndarray, shape = (nspec, nspat), default = None
+           Sky model image used only for QA.
+        mincol: float, default = None
+           Minimum spatial column used for local sky subtraction fitting. Only used for title of QA plot.
+        maxcol: float, defualt = None
+           Maximum spatial column used for local sky subtraction fitting. Only used for title of QA plot.
+        debug: bool, default = False
+           Show QA plot to debug breakpoint placing.
 
     Returns:
         fullbkpt: ndarray, float
@@ -355,8 +367,8 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, debug=False,
         # Boxcar smooth median dsamp
         kernel = np.ones(boxcar_size)/ float(boxcar_size)
         dsamp = scipy.ndimage.convolve(dsamp_med, kernel, mode='reflect')
-        # if more than 80% of the pixels have dsamp < bsp_min than just use a uniform breakpoint spacing
-        if np.sum(dsamp <= bsp_min) > 0.8*nbkpt:
+        # if more than samp_frac of the pixels have dsamp < bsp_min than just use a uniform breakpoint spacing
+        if np.sum(dsamp <= bsp_min) > samp_frac*nbkpt:
             msgs.info('Sampling of wavelengths is nearly continuous.')
             msgs.info('Using uniform bkpt spacing: bsp={:5.3f}'.format(bsp_min))
             fullbkpt = fullbkpt_grid
