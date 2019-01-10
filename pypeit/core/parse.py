@@ -732,7 +732,8 @@ def dummy_settings(pypeitdir=None, nfile=10, spectrograph='shane_kast_blue',
     return
 
 
-def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, transpose=False):
+def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, transpose=False,
+              binning=None):
     """
     Convert a string representation of an array subsection (slice) into
     a list of slice objects.
@@ -760,6 +761,9 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
                 tslices = parse_sec2slice('[:10,10:]')[::-1]
                 tslices = parse_sec2slice('[:10,10:]', transpose=True)
 
+        binning (:obj:`str`, optional):
+            The image binning.  The `subarray` string is always expected to be for an unbinned image.  This binning keyword is used to adjust the slice for an image that is binned.  The string must be a comma-separated list of number providing the binning along the relevant axis.
+
     Returns:
         tuple: A tuple of slice objects, one per dimension of the
         prospective array.
@@ -779,13 +783,17 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
     sections = subarray.strip('[]').split(',')
     # Check the dimensionality
     ndim = len(sections)
+    _binning = [1]*ndim if binning is None else np.array(binning.split(',')).astype(int)
+    if len(_binning) != ndim:
+        raise ValueError('Incorrect binning dimensions (found {0}, expected {1}).'.format(
+                            len(_binning), ndim))
     if require_dim is not None and ndim != require_dim:
         raise ValueError('Number of slices ({0}) in {1} does not match '.format(ndim, subarray) + 
                          'required dimensions ({0}).'.format(require_dim))
     # Convert the slice of each dimension from a string to a slice
     # object
     slices = []
-    for s in sections:
+    for s,b in zip(sections,_binning):
         # Must be able to find the colon
         if ':' not in s:
             raise ValueError('Unrecognized slice string: {0}'.format(s))
@@ -802,6 +810,7 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
         if include_end and _s[1] is not None:
             # Increment to include last 
             _s[1] += 1
+        _s = [ None if ss is None else ss//b for ss in _s ]
         # Append the new slice
         slices += [slice(*_s)]
 

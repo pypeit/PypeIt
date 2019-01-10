@@ -243,38 +243,41 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
         raise ValueError('No implementation for status = {0}'.format(status))
 
-    def get_match_criteria(self):
-        """Set the general matching criteria for Keck NIRSPEC."""
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
+    def parse_binning(self, inp, det=1):
+        return '1,1'
 
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['naxis0'] = '=0'
-        match_criteria['standard']['match']['naxis1'] = '=0'
-
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['naxis0'] = '=0'
-        match_criteria['bias']['match']['naxis1'] = '=0'
-
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-        match_criteria['pixelflat']['match']['decker'] = ''
-        match_criteria['pixelflat']['match']['dispname'] = ''
-
-        match_criteria['trace']['match'] = {}
-        match_criteria['trace']['match']['naxis0'] = '=0'
-        match_criteria['trace']['match']['naxis1'] = '=0'
-        match_criteria['trace']['match']['decker'] = ''
-        match_criteria['trace']['match']['dispname'] = ''
-
-        match_criteria['arc']['match'] = {}
-        match_criteria['arc']['match']['naxis0'] = '=0'
-        match_criteria['arc']['match']['naxis1'] = '=0'
-        match_criteria['arc']['match']['dispname'] = ''
-
-        return match_criteria
+#    def get_match_criteria(self):
+#        """Set the general matching criteria for Keck NIRSPEC."""
+#        match_criteria = {}
+#        for key in framematch.FrameTypeBitMask().keys():
+#            match_criteria[key] = {}
+#
+#        match_criteria['standard']['match'] = {}
+#        match_criteria['standard']['match']['naxis0'] = '=0'
+#        match_criteria['standard']['match']['naxis1'] = '=0'
+#
+#        match_criteria['bias']['match'] = {}
+#        match_criteria['bias']['match']['naxis0'] = '=0'
+#        match_criteria['bias']['match']['naxis1'] = '=0'
+#
+#        match_criteria['pixelflat']['match'] = {}
+#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
+#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
+#        match_criteria['pixelflat']['match']['decker'] = ''
+#        match_criteria['pixelflat']['match']['dispname'] = ''
+#
+#        match_criteria['trace']['match'] = {}
+#        match_criteria['trace']['match']['naxis0'] = '=0'
+#        match_criteria['trace']['match']['naxis1'] = '=0'
+#        match_criteria['trace']['match']['decker'] = ''
+#        match_criteria['trace']['match']['dispname'] = ''
+#
+#        match_criteria['arc']['match'] = {}
+#        match_criteria['arc']['match']['naxis0'] = '=0'
+#        match_criteria['arc']['match']['naxis1'] = '=0'
+#        match_criteria['arc']['match']['dispname'] = ''
+#
+#        return match_criteria
 
     # TODO: This function is unstable to shape...
     def bpm(self, shape=None, **null_kwargs):

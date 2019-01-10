@@ -54,24 +54,37 @@ class ProcessImages(object):
     Base class to guide image loading and processing.
 
     Args:
-        file_list (list):
-            List of files to read and process.
-        spectrograph (:obj:`str`, :class:`Spectrograph`):
+        spectrograph (:obj:`str`,
+        :class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The spectrograph from which the data was taken.  Must be
             provided as a string that can be interpreted by
             :func:`pypeit.spectrographs.util.load_spectrograph` or a
-            preconstructed instance of :class:`Spectrograph`.
+            preconstructed instance of
+            :class:`pypeit.spectrographs.spectrograph.Spectrograph`.
+        files (:obj:`str`, :obj:`list`):
+            One or more files to read and process.
         det (:obj:`int`, optional):
             The 1-indexed number of the detector.  Default is 1.
-        par (:obj:`pypeitpar.ProcessImagesPar`, optional):
+        par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`, optional):
             Parameters that dictate the processing of the images.  See
-            `pypeit.par.pypeitpar.ProcessImagesPar` for the defaults. 
+            :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
+            defaults.
+        binning (:obj:`list`, optional):
+            Binning of the relevant images in each file provided as a
+            string.  Will be parsed into spatial and spectral binning
+            using :func:`pypeit.core.parse.parse_binning`.  If None,
+            determined from the header of each file.
 
     Attributes:
-        file_list (list):
-        det (int):
-        spectrograph (:obj:`str`, :class:`Spectrograph`):
-        frametype (str):
+        files (:obj:`list`):
+            The list of files to reduce. List can be empty.
+        spectrograph
+        (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The spectrograph used to take the data.
+        det (:obj:`int`):
+            Detector to process
+        frametype (:obj:`str`):
+            Class attribute that is overwritten by derived classes.
         stack (:obj:`numpy.ndarray`):
         steps (list):
         raw_images (list):
@@ -86,37 +99,38 @@ class ProcessImages(object):
             from the images.
 
     Raises:
-        IOError: Raised if the provided file_list is not a list.
-        TypeError: Raised if the spectrograph is not a :obj:`str` or
+        TypeError:
+            Raised if the spectrograph is not a :obj:`str` or
             :class:`Spectrograph`.
     """
 
-    # ToDO add a utility function which acts as a wrapper for this class, and simply takes a filename, and returns the
-    # image and the classor something, i.e.
+    # TODO: add a utility function which acts as a wrapper for this
+    # class, and simply takes a filename, and returns the image and the
+    # classor something, i.e.
     #
-    # class = pypeit_proc(filename, biasfile = biasfile, pixflatfile=pixflatfile, illumflatfile=illumflatfile)
+    # class = pypeit_proc(filename, biasfile = biasfile, pixflatfile=pixflatfile,
+    #                     illumflatfile=illumflatfile)
+    #
     # or maybe it should return the image and the class?
 
     # Class attribute is unknown.  Will be overwritten by children
     frametype='Unknown'
     bitmask = ProcessImagesBitMask()  # The bit mask interpreter
 
-    def __init__(self, spectrograph, file_list, det=1, par=None):
+    def __init__(self, spectrograph, files=None, det=1, par=None, binning=None):
 
-        # Required parameters
-        if not isinstance(file_list, list):
-            raise IOError("file_list input to ProcessImages must be list. Empty is fine")
-        self.file_list = file_list
+        # Assign the internal list of files
+        self._set_files(files)
+
+        # Set the spectrograph
         self.spectrograph = load_spectrograph(spectrograph)
 
-        # Optional
-        self.det = det
-
+        # Assign the parameters to use to process the images
         if par is not None and not isinstance(par, pypeitpar.ProcessImagesPar):
             raise TypeError('Provided ParSet for processing images must be type ProcessImagesPar.')
 
         # TODO: This can't be called self.par because it may overwrite
-        # the self.par of the derived classes (e.g. BiasFrame).  The may
+        # the self.par of the derived classes (e.g. BiasFrame).  There may
         # be a better way to do this, but I'm punting for now.
         self.proc_par = pypeitpar.ProcessImagesPar() if par is None else par
 
@@ -124,16 +138,20 @@ class ProcessImages(object):
         self.stack = None
         self.steps = []
 
+        # Attributes set by load_images
+        self.det = det
         self.raw_images = []
         self.headers = []
-
-        self.proc_images = None  # Will be an ndarray
         self.datasec = []
         self.oscansec = []
+        self.binning = binning      # Can be None
+
+        self.proc_images = None  # Will be an ndarray
 
         # WARNING: Exposure time None by default here in the base class.
         # The exposure time is currently only defined by ScienceImage
         # and only used by build_rawvarframe
+        # TODO: Is this only set by children?
         self.exptime = None
 
         # Constructed by process:
@@ -143,6 +161,47 @@ class ProcessImages(object):
         self.bpm = None             # passed as an argument to process(), flat_field()
         self.pixel_flat = None      # passed as an argument to process(), flat_field()
         self.illum_flat = None        # passed as an argument to process(), flat_field()
+
+#    def _set_files(self, files, check=True):
+    def _set_files(self, files, check=False):
+        """
+        Assign the provided files to :attr:`files`.
+
+        Args:
+            files (None, :obj:`str`, :obj:`list`):
+                The files to process.
+            check (:obj:`bool`, optional):
+                Check that the files exist on disk.
+
+        Raises:
+            PypeItError:
+                Raised if the input objects have the wrong type.
+        """
+        if files is None:
+            self.files = []
+        elif isinstance(files, str):
+            self.files = [files]
+        elif isinstance(files, list):
+            if not np.all([isinstance(f, str) for f in files]):
+                msgs.error('File list elements must be strings.')
+            self.files = files
+        else:
+            msgs.error('Provides files must be None, a string name, or a list of strings.')
+
+        if check:
+            self._check_files()
+
+    def _check_files(self):
+        """
+        Check that files in :attr:`files` exist.
+
+        Raises:
+            PypeItError:
+                Raised if any of the files don't exist.
+        """
+        for f in self.files:
+            if not os.path.isfile(f):
+                msgs.error('{0} does not exist!'.format(f))
 
     # TODO: This is currently only use by BiasFrame as a test.  Now that
     # ProcessImages takes in these other parameter sets, we'll need to
@@ -187,56 +246,101 @@ class ProcessImages(object):
     @property
     def nfiles(self):
         """
-        Number of files in the file_list
-
-        Returns
-        -------
-        nfiles : int
-
+        The number of files to process.
         """
-        return len(self.file_list)
+        return len(self.files)
 
     @property
     def nloaded(self):
         """
-        Number of raw images loaded
-
-        Returns
-        -------
-        nloaded : int
-
+        The number of raw images loaded, ready for use.
         """
         return len(self.raw_images)
 
-    def load_images(self):
-        """ Load raw images from the disk
-        Also loads the datasec info
-
-        Returns
-        -------
-        self.raw_images : list
-        self.headers : list
+    def load_images(self, files=None, det=None, binning=None):
         """
-        # Load the image data and headers
-        self.raw_images = []  # Zeros out any previous load
-        self.headers = []
-        for ifile in self.file_list:
-            img, head = self.spectrograph.load_raw_frame(ifile, det=self.det)
-            self.raw_images.append(img)
-            self.headers.append(head)
-        # Get the data sections
-        self.datasec, one_indexed, include_end, transpose \
-            = self.spectrograph.get_image_section(self.file_list[0], self.det,section='datasec')
-        self.datasec = [ parse.sec2slice(sec, one_indexed=one_indexed,
-                                           include_end=include_end, require_dim=2,
-                                           transpose=transpose) for sec in self.datasec ]
-        # Get the overscan sections
-        self.oscansec, one_indexed, include_end, transpose = \
-            self.spectrograph.get_image_section(self.file_list[0], self.det,section='oscansec')
-        self.oscansec = [ parse.sec2slice(sec, one_indexed=one_indexed,
-                                            include_end=include_end, require_dim=2,
-                                            transpose=transpose) for sec in self.oscansec ]
-        # Step
+        Load image header, data, and relevant image sections into
+        memory.
+
+        This always forces the data to be re-read, even if it's already
+        in memory.
+
+        Args:
+            files (:obj:`str`, :obj:`list`, optional):
+                One or more files to read and process.  If None, use
+                :attr:`files`.
+            det (:obj:`int`, optional):
+                The 1-indexed detector to read.  If None, :attr:`det` is
+                used.
+            binning (:obj:`str`, :obj:`list`, optional):
+                Binning of the images in PypeIt format (a
+                comma-separated string ordered by spatial then spectral
+                binning in numbers of pixels).  If None, this is parsed
+                from the file headers.
+
+        Returns:
+            Five lists are returned::
+                - numpy arrays with the raw image data.  See
+                  :func:`pypeit.spectrographs.spectrograph.Spectrograph.load_raw_frame`.
+                - :class:`astropy.io.fits.Header` instances with the
+                  relevant header for the image data.  See
+                  :func:`pypeit.spectrographs.spectrograph.Spectrograph.load_raw_frame`.
+                - :obj:`str` objects with the PypeIt-format binning
+                - :obj:`slice` objects that select the data sections of
+                  the returned image data, accounting for any image binning.
+                - :obj:`slice` objects that select the overscan sections
+                  of the returned image data, accounting for any image binning.
+        """
+        if files is not None:
+            self._set_files(files)
+
+        # Set the detector
+        if det is not None:
+            self.det = det
+
+        # Zero out any previous load
+        # TODO: Do we need to be more explicit than this?  I.e., use del
+        self.raw_images = [None]*self.nfiles
+        self.headers = [None]*self.nfiles
+        self.binning = [None]*self.nfiles if binning is None else binning
+        self.datasec = [None]*self.nfiles
+        self.oscansec = [None]*self.nfiles
+
+        for i in range(self.nfiles):
+            # Load the image data and headers
+            self.raw_images[i], self.headers[i] \
+                    = self.spectrograph.load_raw_frame(self.files[i], det=self.det)
+
+            if self.binning[i] is None:
+                self.binning[i] = self.spectrograph.parse_binning(self.headers[i])
+
+            # Get the data sections, one section per amplifier
+            try:
+                datasec, one_indexed, include_end, transpose \
+                        = self.spectrograph.get_image_section(inp=self.headers[i], det=self.det,
+                                                              section='datasec')
+            except:
+                datasec, one_indexed, include_end, transpose \
+                        = self.spectrograph.get_image_section(inp=self.files[i], det=self.det,
+                                                              section='datasec')
+            self.datasec[i] = [ parse.sec2slice(sec, one_indexed=one_indexed,
+                                                include_end=include_end, require_dim=2,
+                                                transpose=transpose, binning=self.binning[i])
+                                    for sec in datasec ]
+            # Get the overscan sections, one section per amplifier
+            try:
+                oscansec, one_indexed, include_end, transpose \
+                        = self.spectrograph.get_image_section(inp=self.headers[i], det=self.det,
+                                                              section='oscansec')
+            except:
+                oscansec, one_indexed, include_end, transpose \
+                        = self.spectrograph.get_image_section(inp=self.files[i], det=self.det,
+                                                              section='oscansec')
+            self.oscansec[i] = [ parse.sec2slice(sec, one_indexed=one_indexed,
+                                                 include_end=include_end, require_dim=2,
+                                                 transpose=transpose, binning=self.binning[i])
+                                    for sec in oscansec ]
+        # Include step
         self.steps.append(inspect.stack()[0][3])
 
     def apply_gain(self, trim=True):
@@ -254,7 +358,7 @@ class ProcessImages(object):
         # TODO: This is overkill when self.datasec is loaded, and this
         # call is made for a few of the steps.  Can we be more
         # efficient?
-        datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+        datasec_img = self.spectrograph.get_datasec_img(self.files[0], det=self.det)
         if trim:
             datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)
         if self.stack.shape != datasec_img.shape:
@@ -302,7 +406,7 @@ class ProcessImages(object):
 
         # If trimming, get the image identifying amplifier used for the
         # data section
-        datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+        datasec_img = self.spectrograph.get_datasec_img(self.files[0], det=self.det)
 
         msgs.info("Bias subtracting your image(s)")
         # Reset proc_images -- Is there any reason we wouldn't??
@@ -317,11 +421,10 @@ class ProcessImages(object):
                 temp = image-msbias
             elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
-                #debugger.set_trace()
-                temp = procimg.subtract_overscan(image, numamplifiers, self.datasec,
-                                                   self.oscansec,
-                                                   method=self.proc_par['overscan'],
-                                                   params=self.proc_par['overscan_par'])
+                temp = procimg.subtract_overscan(image, numamplifiers, self.datasec[kk],
+                                                 self.oscansec[kk],
+                                                 method=self.proc_par['overscan'],
+                                                 params=self.proc_par['overscan_par'])
                 # Trim?
                 if trim:
                     temp = procimg.trim_frame(temp, datasec_img < 1)
@@ -421,6 +524,7 @@ class ProcessImages(object):
         """
 
         # Over-write?
+        # TODO: This should probably raise an error.
         if (inspect.stack()[0][3] in self.steps) & (not overwrite):
             msgs.warn("Images already combined.  Use overwrite=True to do it again.")
             return
@@ -441,7 +545,7 @@ class ProcessImages(object):
             # Trim even if not bias subtracting
             temp = self.raw_images[0]
             if trim:
-                datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+                datasec_img = self.spectrograph.get_datasec_img(self.files[0], det=self.det)
                 temp = procimg.trim_frame(temp, datasec_img < 1)
             self.proc_images = np.zeros((temp.shape[0], temp.shape[1], self.nloaded))
             for kk,image in enumerate(self.raw_images):
@@ -478,7 +582,7 @@ class ProcessImages(object):
 
         """
         msgs.info("Generating read noise image from detector properties and amplifier layout)")
-        datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+        datasec_img = self.spectrograph.get_datasec_img(self.files[0], det=self.det)
         if trim:
             datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)
         detector = self.spectrograph.detector[self.det-1]
@@ -502,7 +606,7 @@ class ProcessImages(object):
 
         """
         msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
-        datasec_img = self.spectrograph.get_datasec_img(self.file_list[0], det=self.det)
+        datasec_img = self.spectrograph.get_datasec_img(self.files[0], det=self.det)
         if trim:
             datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)
         detector = self.spectrograph.detector[self.det-1]
@@ -728,7 +832,7 @@ class ProcessImages(object):
         # Add raw_files to header
         for i in range(self.nfiles):
             hdrname = "FRAME{0:03d}".format(i+1)
-            hdu.header[hdrname] = self.file_list[i]
+            hdu.header[hdrname] = self.files[i]
         # Spectrograph
         hdu.header['INSTRUME'] = self.spectrograph.spectrograph
         # Parameters
@@ -754,7 +858,5 @@ class ProcessImages(object):
         return txt
 
 
-
-
-
 # TODO Add a function here that just reads in a fits file given a filename. Guess the instrument from the headers.
+

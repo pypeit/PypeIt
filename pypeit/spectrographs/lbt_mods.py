@@ -146,6 +146,12 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    def parse_binning(self, inp, det=1):
+        """
+        Get the pixel binning for an image.
+        """
+        return super(LBTMODSSpectrograph, self).parse_binning(inp, det=det, key='CCDXBIN')
+
 #    def get_match_criteria(self):
 #        """Set the general matching criteria for LBT MODS."""
 #        match_criteria = {}

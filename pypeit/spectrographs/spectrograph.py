@@ -21,7 +21,6 @@ from pypeit.metadata import PypeItMetaData
 
 from pypeit import debugger
 
-# TODO: Consider changing the name of this to Instrument
 class Spectrograph(object):
     """
     Generic class for spectrograph-specific codes
@@ -200,7 +199,7 @@ class Spectrograph(object):
         # Return
         return raw_img, head0
 
-    def get_image_section(self, filename, det, section='datasec'):
+    def get_image_section(self, inp=None, det=1, section='datasec'):
         """
         Return a string representation of a slice defining a section of
         the detector image.
@@ -215,21 +214,24 @@ class Spectrograph(object):
         is defined directly.
         
         Args:
-            filename (str):
-                data filename
-            det (int):
-                Detector number
+            inp (:obj:`str`, `astropy.io.fits.Header`, optional):
+                String providing the file name to read, or the relevant
+                header object.  Default is None, meaning that the
+                detector attribute must provide the image section
+                itself, not the header keyword.
+            det (:obj:`int`, optional):
+                1-indexed detector number.
             section (:obj:`str`, optional):
-                The section to return.  Should be either datasec or
-                oscansec, according to the :class:`pypeitpar.DetectorPar`
-                keywords.
+                The section to return.  Should be either 'datasec' or
+                'oscansec', according to the
+                :class:`pypeitpar.DetectorPar` keywords.
 
         Returns:
-            list, bool: A list of string representations for the image
-            sections, one string per amplifier, followed by three
-            booleans: if the slices are one indexed, if the slices
-            should include the last pixel, and if the slice should have
-            their order transposed.
+            A list of string representations for the image sections, one
+            string per amplifier, followed by three booleans: if the
+            slices are one indexed, if the slices should include the
+            last pixel, and if the slice should have their order
+            transposed.
         """
         # Check the section is one of the detector keywords
         if section not in self.detector[det-1].keys():
@@ -240,12 +242,24 @@ class Spectrograph(object):
 
         # Get the data section
         try:
+            # Parse inp
+            if inp is None:
+                # Force the call to the except block
+                raise KeyError
+            elif isinstance(inp, str):
+                hdu = fits.open(inp)
+                hdr = hdu[self.detector[det-1]['dataext']].header
+            elif isinstance(inp, fits.Header):
+                hdr = inp
+            else:
+                msgs.error('Input must be a filename or a fits.Header object.')
+
             # Try using the image sections as header keywords
-            hdu = fits.open(filename)
-            image_sections = [ hdu[self.detector[det-1]['dataext']].header[key] \
-                                    for key in self.detector[det-1][section] ]
-        except:
-            # Otherwise use the detector definition directly
+            image_sections = [ hdr[key] for key in self.detector[det-1][section] ]
+        except KeyError:
+            # Expect a KeyError to be thrown if the section defined by
+            # the detector attribute is actually the image section
+            # string itself
             image_sections = self.detector[det-1][section]
             if not isinstance(image_sections, list):
                 image_sections = [image_sections]
@@ -658,8 +672,8 @@ class Spectrograph(object):
                            + 'calibration file, otherwise consider removing.')
         return headarr
 
-    def get_match_criteria(self):
-        msgs.error("You need match criteria for your spectrograph.")
+#    def get_match_criteria(self):
+#        msgs.error("You need match criteria for your spectrograph.")
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         raise NotImplementedError('Frame typing not defined for {0}.'.format(self.spectrograph))
@@ -711,6 +725,49 @@ class Spectrograph(object):
                                     card, ext)
                                  + 'Expected {0} but found {1}.'.format(v, headers[ext][card]))
     '''
+
+    def parse_binning(self, inp, det=1, key='BINNING'):
+        """
+        Get the pixel binning for an image.
+
+        Args:
+            inp (:obj:`str`, `astropy.io.fits.Header`):
+                String providing the file name to read, or the relevant
+                header object.
+            det (:obj:`int`, optional):
+                1-indexed detector number.
+            key (:obj:`str`, optional):
+                Header key with the binning.  This is included as an
+                argument in the base-class implementation so that it can
+                be called by the derived classes for most cases, when
+                the binning is in a single keyword.
+
+        Returns:
+            str: String representation of the binning.  The ordering is
+            as provided in the header, regardless of which axis is
+            designated as the dispersion axis.  It is expected that this
+            be used with :func:`pypeit.core.parse.sec2slice` to setup
+            the data and overscane sections of the image data.
+
+        Raises:
+            PypeItError:
+                Raised if `inp` is not one of the accepted types.
+        """
+        # Get the header
+        # TODO: Read primary header by default instead?
+        if isinstance(inp, str):
+            hdu = fits.open(inp)
+            hdr = hdu[self.detector[det-1]['dataext']].header
+        elif isinstance(inp, fits.Header):
+            hdr = inp
+        else:
+            msgs.error('Input must be a filename or fits.Header object')
+
+        # Parse the keyword
+        binning = parse.parse_binning(hdr[key])
+
+        # Return comma-separated string
+        return ','.join([ str(b) for b in binning])
 
     @property
     def ndet(self):

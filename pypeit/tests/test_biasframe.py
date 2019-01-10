@@ -44,24 +44,25 @@ def test_instantiate(kast_blue_bias_files):
     bias_frame0 = biasframe.BiasFrame('shane_kast_blue')
     assert bias_frame0.nfiles == 0
     #
-    bias_frame1 = biasframe.BiasFrame('shane_kast_blue', file_list = kast_blue_bias_files)
+    bias_frame1 = biasframe.BiasFrame('shane_kast_blue', files=kast_blue_bias_files)
     assert bias_frame1.nfiles == 10
 
 @dev_suite_required
 def test_process(kast_blue_bias_files):
     # Instantiate
-    bias_frame = biasframe.BiasFrame('shane_kast_blue', file_list = kast_blue_bias_files)
+    bias_frame = biasframe.BiasFrame('shane_kast_blue', files=kast_blue_bias_files)
     # Run
     bias_img = bias_frame.build_image()
     assert isinstance(bias_img, np.ndarray)
     assert isinstance(bias_frame.stack, np.ndarray)
     assert bias_frame.steps[-1] == 'combine'
 
+#test_traceimage.py
 
 @dev_suite_required
 def test_read_write(kast_blue_bias_files):
     # Instantiate
-    bias_frame = biasframe.BiasFrame('shane_kast_blue', file_list = kast_blue_bias_files)
+    bias_frame = biasframe.BiasFrame('shane_kast_blue', files=kast_blue_bias_files)
     # Run
     bias_img = bias_frame.build_image()
     # Write
@@ -80,7 +81,7 @@ def test_run_and_master(kast_blue_bias_files):
     master_key = 'A_1_01'
     # Instantiate
     master_dir = root_path+'_shane_kast_blue'
-    bias_frame = biasframe.BiasFrame('shane_kast_blue', file_list = kast_blue_bias_files,
+    bias_frame = biasframe.BiasFrame('shane_kast_blue', files=kast_blue_bias_files,
                                      master_key=master_key, master_dir=master_dir)
     assert bias_frame.frametype == 'bias'
 

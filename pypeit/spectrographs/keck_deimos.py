@@ -5,6 +5,7 @@ from __future__ import absolute_import, division, print_function
 
 import glob
 import re
+import os
 import numpy as np
 
 from scipy import interpolate
@@ -489,7 +490,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Return
         return match_criteria
 
-    def get_image_section(self, filename, det, section='datasec'):
+    def get_image_section(self, inp=None, det=1, section='datasec'):
         """
         Return a string representation of a slice defining a section of
         the detector image.
@@ -497,21 +498,21 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         Overwrites base class function to use :func:`read_deimos` to get
         the image sections.
 
-        .. todo::
-            - It feels really ineffiecient to just get the image section
-              using the full :func:`read_deimos`.  Can we parse that
-              function into something that can give you the image
-              section directly?
+        .. todo ::
+            - It is really ineffiecient.  Can we parse
+              :func:`read_deimos` into something that can give you the
+              image section directly?
 
         This is done separately for the data section and the overscan
         section in case one is defined as a header keyword and the other
         is defined directly.
         
         Args:
-            filename (str):
-                data filename
-            det (int):
-                Detector number
+            inp (:obj:`str`):
+                String providing the file name to read.  Unlike the base
+                class, a file name *must* be provided.
+            det (:obj:`int`, optional):
+                1-indexed detector number.
             section (:obj:`str`, optional):
                 The section to return.  Should be either datasec or
                 oscansec, according to the :class:`DetectorPar`
@@ -525,7 +526,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             their order transposed.
         """
         # Read the file
-        temp, head0, secs = read_deimos(filename, det)
+        if inp is None:
+            msgs.error('Must provide Keck DEIMOS file to get image section.')
+        elif not os.path.isfile(inp):
+            msgs.error('File {0} does not exist!'.format(inp))
+        temp, head0, secs = read_deimos(inp, det)
         if section == 'datasec':
             return secs[0], False, False, False
         elif section == 'oscansec':
@@ -600,46 +605,45 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
-    # TODO: Is this function still used?
-    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
-                       msarc_shape=None, **null_kwargs):
-        """
-
-        Args:
-            arcparam:
-            disperser:
-            fitstbl:
-            arc_idx:
-            msarc_shape:
-            binspectral:
-            **null_kwargs:
-
-        Returns:
-
-        """
-        arcparam['wv_cen'] = fitstbl['dispangle'][arc_idx]
-        # TODO -- Should set according to the lamps that were on
-        #arcparam['lamps'] = ['ArI','NeI','KrI','XeI']
-        # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
-        # detector and there is no mechanism in place to create that yet
-
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-#        arcparam['min_nsig'] = 30.  # Minimum signififance
-        arcparam['sigdetect'] = 10.0      # Min significance for arc lines to be used
-        arcparam['wvmnx'] = [3000., 11000.]  # Guess at wavelength range
-        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3  # Matcing tolerance (pixels)
-        arcparam['func'] = 'legendre'  # Function for fitting
-        arcparam['n_first'] = 2  # Order of polynomial for first fit
-        arcparam['n_final'] = 4  # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2  # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.0  # Number of sigma for rejection (final fit)
-
-        arcparam['min_ampl'] = 1000.  # Lines tend to be very strong
-        arcparam['wvmnx'][0] = 4000.
-        arcparam['wvmnx'][1] = 11000.
-
-    #        if disperser == '830G': # Blaze 8640
+#    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
+#                       msarc_shape=None, **null_kwargs):
+#        """
+#
+#        Args:
+#            arcparam:
+#            disperser:
+#            fitstbl:
+#            arc_idx:
+#            msarc_shape:
+#            binspectral:
+#            **null_kwargs:
+#
+#        Returns:
+#
+#        """
+#        arcparam['wv_cen'] = fitstbl['dispangle'][arc_idx]
+#        # TODO -- Should set according to the lamps that were on
+#        #arcparam['lamps'] = ['ArI','NeI','KrI','XeI']
+#        # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
+#        # detector and there is no mechanism in place to create that yet
+#
+#        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+##        arcparam['min_nsig'] = 30.  # Minimum signififance
+#        arcparam['sigdetect'] = 10.0      # Min significance for arc lines to be used
+#        arcparam['wvmnx'] = [3000., 11000.]  # Guess at wavelength range
+#        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
+#        arcparam['match_toler'] = 3  # Matcing tolerance (pixels)
+#        arcparam['func'] = 'legendre'  # Function for fitting
+#        arcparam['n_first'] = 2  # Order of polynomial for first fit
+#        arcparam['n_final'] = 4  # Order of polynomial for final fit
+#        arcparam['nsig_rej'] = 2  # Number of sigma for rejection
+#        arcparam['nsig_rej_final'] = 3.0  # Number of sigma for rejection (final fit)
+#
+#        arcparam['min_ampl'] = 1000.  # Lines tend to be very strong
+#        arcparam['wvmnx'][0] = 4000.
+#        arcparam['wvmnx'][1] = 11000.
+#
+#    #        if disperser == '830G': # Blaze 8640
 #            arcparam['n_first']=2 # Too much curvature for 1st order
 #            arcparam['disp']=0.47 # Ang per pixel (unbinned)
 #            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
