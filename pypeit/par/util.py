@@ -30,6 +30,7 @@ from astropy.table import Table
 from configobj import ConfigObj
 
 from pypeit import msgs
+from pypeit import debugger
 
 #-----------------------------------------------------------------------
 # Parameter utility functions
@@ -473,7 +474,18 @@ def _read_data_file_table(lines, file_check=True):
 
 def _parse_setup_lines(lines):
     """Return a list of the setup names"""
-    return [ l.split()[1].strip() for l in lines if 'Setup' in l ]
+    setups = []
+    for l in lines:
+        if 'Setup' in l:
+            tsetup = l.split()[1].strip()
+            # Remove any lingering colon
+            if tsetup[-1] == ':':
+                setup = tsetup[:-1]
+            else:
+                setup = tsetup
+            setups.append(setup)
+    #
+    return setups
 
 
 def parse_pypeit_file(ifile, file_check=True, runtime=False):
