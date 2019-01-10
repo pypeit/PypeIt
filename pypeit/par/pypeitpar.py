@@ -946,7 +946,7 @@ class ReducePar(ParSet):
                 'tng_dolores', 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
                 'magellan_fire', 'magellan_mage', 'vlt_xshooter_nir', 'gemini_gmos_south_ham',
                 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
-                'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b']
+                'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b', 'vlt_fors2']
 
     def validate(self):
         pass

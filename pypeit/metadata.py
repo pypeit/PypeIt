@@ -186,6 +186,7 @@ class PypeItMetaData:
         additional_meta['dispangle'] = dict(dtype=float, comment='Angle of the disperser', rtol=0.)
         additional_meta['hatch'] = dict(dtype=str, comment='Position of instrument hatch')
         additional_meta['slitwid'] = dict(dtype=float, comment='Slit width, sometimes distinct from decker')
+        additional_meta['detector'] = dict(dtype=str, comment='Name of detector')
 
         # Calibration lamps
         for kk in range(20):
