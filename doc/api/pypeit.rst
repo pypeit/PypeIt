@@ -26,6 +26,7 @@ Submodules
    pypeit.calibrations
    pypeit.check_requirements
    pypeit.debugger
+   pypeit.ech_coadd
    pypeit.filter
    pypeit.flatfield
    pypeit.fluxspec

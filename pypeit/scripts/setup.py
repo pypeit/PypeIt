@@ -20,8 +20,8 @@ def parser(options=None):
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-r', '--root', type=str, default=None,
                        help='File path+root, e.g. /data/Kast/b ')
-    group.add_argument('-p', '--pypeit_file', type=str, default=None,
-                       help='PypeIt file to use')
+    #group.add_argument('-p', '--pypeit_file', type=str, default=None,
+    #                   help='PypeIt file to use')
     parser.add_argument('-s', '--spectrograph', default=None, type=str,
                         help='A valid spectrograph identifier: {0}'.format(
                                 ', '.join(valid_spectrographs())))
@@ -76,19 +76,21 @@ def main(args):
     if args.root is not None:
         ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension,
                                         output_path=sort_dir)
-    elif args.pypeit_file is not None:
-        ps = PypeItSetup.from_pypeit_file(args.pypeit_file)
     else:
         # Should never reach here
-        raise IOError('Something wrong in pypeit_setup command-line arguments.')
-        
+        raise IOError('Need to set -r !!')
+        #raise IOError('Something wrong in pypeit_setup command-line arguments.')
+    #elif args.pypeit_file is not None:
+    #    ps = PypeItSetup.from_pypeit_file(args.pypeit_file)
+
     # Run the setup
     #ps.run(setup_only=True, bkg_pairs='empty' if args.background else None, sort_dir=sort_dir)
-    ps.run(setup_only=True, sort_dir=sort_dir)
+    ps.run(setup_only=True, sort_dir=sort_dir, write_bkg_pairs=args.background)
 
     # Use PypeItMetaData to write the complete PypeIt file
-    pypeit_file = os.path.join(output_path, '{0}.pypeit'.format(args.spectrograph))
-    ps.fitstbl.write_pypeit(pypeit_file, split=args.cfg_split, overwrite=args.overwrite,
+    if args.cfg_split:
+        pypeit_file = os.path.join(output_path, '{0}.pypeit'.format(args.spectrograph))
+        ps.fitstbl.write_pypeit(pypeit_file, overwrite=args.overwrite,
                             cfg_lines=ps.user_cfg, write_bkg_pairs=args.background)
     return 0
 

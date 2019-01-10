@@ -6,6 +6,8 @@ import glob
 
 import numpy as np
 from astropy.io import fits
+from astropy.coordinates import SkyCoord
+from astropy import units
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -44,6 +46,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         # Right now turn off flexure compensation
         return par
 
+    '''
     def header_keys(self):
         hdr_keys = {}
         hdr_keys[0] = {}
@@ -73,10 +76,55 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['binning_y'] = 'HIERARCH ESO DET WIN1 BINY'
         # UTC, decker are arm dependent
         return hdr_keys
+    '''
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
+
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])  # Need to convert to : separated
+        meta['dec'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])
+        meta['target'] = dict(ext=0, card='OBJECT')
+        meta['binning'] = dict(card=None, compound=True)
+
+        meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
+        # Extras for config and frametyping
+        meta['dispname'] = dict(ext=0, card=None, default='default')
+        meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
+
+        # Ingest
+        self.meta = meta
+
+    def compound_meta(self, headarr, meta_key):
+        if meta_key == 'binning':
+            binspatial = headarr[0]['HIERARCH ESO DET WIN1 BINX']
+            binspec = headarr[0]['HIERARCH ESO DET WIN1 BINY']
+            binning = parse.binning2string(binspatial, binspec)
+            return binning
+        elif meta_key in ['ra', 'dec']:
+            try:  # Calibs do not have RA values
+                coord = SkyCoord(ra=headarr[0]['RA'], dec=headarr[0]['DEC'], unit='deg')
+            except:
+                return None
+            if meta_key == 'ra':
+                return coord.ra.to_string(unit=units.hour,sep=':',pad=True,precision=2)
+            else:
+                return coord.dec.to_string(sep=':',pad=True,alwayssign=True,precision=1)
+        else:
+            msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         return []
 
+    '''
     def validate_metadata(self, fitstbl):
         indx = fitstbl['binning_x'] == 'None'
         fitstbl['binning_x'][indx] = 1
@@ -84,10 +132,17 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         fitstbl['binning_y'][indx] = 1
         fitstbl['binning'] = np.array(['{0},{1}'.format(bx,by)
                                 for bx,by in zip(fitstbl['binning_x'], fitstbl['binning_y'])])
+    '''
 
+    '''
     def metadata_keys(self):
         return ['filename', 'date', 'frametype', 'idname', 'target', 'exptime', 'decker',
                 'binning', 'setup', 'calib', 'obj_id', 'bkg_id']
+    '''
+    def pypeit_file_keys(self):
+        pypeit_keys = super(VLTXShooterSpectrograph, self).pypeit_file_keys()
+        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -241,11 +296,28 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         super(VLTXShooterNIRSpectrograph, self).check_headers(headers,
                                                               expected_values=expected_values)
 
+    '''
     def header_keys(self):
         hdr_keys = super(VLTXShooterNIRSpectrograph, self).header_keys()
         hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'
         hdr_keys[0]['utc'] = 'HIERARCH ESO DET EXP UTC'
         return hdr_keys
+    '''
+
+    def init_meta(self):
+        """
+        Meta data specific to VLT NIR
+
+        Returns:
+
+        """
+        super(VLTXShooterNIRSpectrograph, self).init_meta()
+        # No binning in the NIR
+        self.meta['binning'] = dict(card=None, default='1,1')
+
+        # Required
+        self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI5 NAME')
+
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
@@ -486,6 +558,20 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         return par
 
+    def init_meta(self):
+        """
+        Meta data specific to VLT NIR
+
+        Returns:
+
+        """
+        super(VLTXShooterVISSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        # dispangle and filter1 are not defined for Shane Kast Blue
+
+        # Required
+        self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI4 NAME')
+
     def slit2order(self, islit):
 
         """
@@ -596,6 +682,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         return slitmask
 
 
+    '''
     def check_headers(self, headers, expected_values = None):
         """
         Check headers match expectations for a VLT/XSHOOTER exposure.
@@ -618,6 +705,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI4 NAME'
         hdr_keys[0]['utc'] = 'UTC'      # Some have UTC, most do not
         return hdr_keys
+    '''
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
@@ -720,10 +808,21 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # TODO FIX THIS TO USE BIASES!!
         par['scienceframe']['useframe'] ='overscan'
 
-
-
         return par
 
+    def init_meta(self):
+        """
+        Meta data specific to VLT NIR
+
+        Returns:
+
+        """
+        super(VLTXShooterUVBSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        # dispangle and filter1 are not defined for Shane Kast Blue
+
+        # Required
+        self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI3 NAME')
 
     def slit2order(self, islit):
 
@@ -782,6 +881,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Right now I just took the average
         return np.full(self.norders, 0.161)*binspatial
 
+    '''
     def check_headers(self, headers, expected_values=None):
         """
         Check headers match expectations for a VLT/XSHOOTER exposure.
@@ -803,6 +903,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI3 NAME'
         # TODO: UVB does not have a utc keyword?
         return hdr_keys
+    '''
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """

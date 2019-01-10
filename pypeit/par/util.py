@@ -30,6 +30,7 @@ from astropy.table import Table
 from configobj import ConfigObj
 
 from pypeit import msgs
+from pypeit import debugger
 
 #-----------------------------------------------------------------------
 # Parameter utility functions
@@ -473,10 +474,21 @@ def _read_data_file_table(lines, file_check=True):
 
 def _parse_setup_lines(lines):
     """Return a list of the setup names"""
-    return [ l.split()[1].strip() for l in lines if 'Setup' in l ]
+    setups = []
+    for l in lines:
+        if 'Setup' in l:
+            tsetup = l.split()[1].strip()
+            # Remove any lingering colon
+            if tsetup[-1] == ':':
+                setup = tsetup[:-1]
+            else:
+                setup = tsetup
+            setups.append(setup)
+    #
+    return setups
 
 
-def parse_pypeit_file(ifile, file_check=True):
+def parse_pypeit_file(ifile, file_check=True, runtime=False):
     """
     Parse the user-provided .pypeit reduction file.
 
@@ -486,6 +498,8 @@ def parse_pypeit_file(ifile, file_check=True):
         file_check (:obj:`bool`, optional):
             Check that the files in the pypeit configuration data file
             exist, and fault if they do not.
+        runtime (:obj:`boo`, optional):
+            Perform additional checks if called to run PypeIt
 
     Returns:
         :obj:`lists`: Four lists are provided:
@@ -533,6 +547,15 @@ def parse_pypeit_file(ifile, file_check=True):
     else:
         setups = _parse_setup_lines(lines[s:e])
         is_config[s-1:e+1] = False
+
+    # Running PypeIt?
+    if runtime:
+        for key in ['filename', 'frametype']:
+            if key not in usrtbl.keys():
+                msgs.error("Need to add {:s} to your PypeIt file before using run_pypeit".format(key))
+        # Setup
+        if len(setups) != 1:
+            msgs.error("Need to add setup info to your PypeIt file in the setup block!")
 
     msgs.info('Input file loaded successfully')
     return list(lines[is_config]), data_files, frametype, usrtbl, setups

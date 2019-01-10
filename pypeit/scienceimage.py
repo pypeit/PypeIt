@@ -702,14 +702,14 @@ class ScienceImage():
         varframe = utils.calc_ivar(ivar)
         saturation = self.spectrograph.detector[self.det-1]['saturation']
         nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
-        sigclip, objlim = self.spectrograph.get_lacosmics_par(proc_par,binning=self.binning)
+        #sigclip, objlim = self.spectrograph.get_lacosmics_par(proc_par,binning=self.binning)
         crmask = procimg.lacosmic(self.det, stack, saturation, nonlinear,
                                   varframe=varframe, maxiter=proc_par['lamaxiter'],
                                   grow=proc_par['grow'],
                                   remove_compact_obj=proc_par['rmcompact'],
-                                  sigclip=sigclip,
+                                  sigclip=proc_par['sigclip'],
                                   sigfrac=proc_par['sigfrac'],
-                                  objlim=objlim)
+                                  objlim=proc_par['objlim'])
 
         # Return
         return crmask

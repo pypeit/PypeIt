@@ -765,19 +765,18 @@ def instconfig(fitsrow=None, binning=None):
     return config
 
 
-def dummy_specobj(fitstbl, det=1, extraction=True):
+def dummy_specobj(shape, det=1, extraction=True):
     """ Generate dummy specobj classes
     Parameters
     ----------
-    fitstbl : Table/PypeItMetaData
-      Expecting the fitsdict from dummy_fitsdict
+    shape : tuple
+      naxis1, naxis0
     Returns
     sobj_list: list
       Pair of SpecObj objects
     -------
 
     """
-    shape = fitstbl['naxis1'][0], fitstbl['naxis0'][0]
     config = 'AA'
     scidx = 5 # Could be wrong
     xslit = (0.3,0.7) # Center of the detector

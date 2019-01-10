@@ -5,6 +5,8 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
+from astropy.time import Time
+
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
@@ -68,6 +70,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [1, None]
         return par
 
+    '''
     def check_headers(self, headers):
         """
         Check headers match expectations for an TNG Dolores exposure.
@@ -116,10 +119,68 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         hdr_keys[0]['lamps'] = 'LMP_ID'
 
         return hdr_keys
+    '''
 
-    def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'idname',
-                'setup', 'calib', 'obj_id', 'bkg_id']
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
+
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='OBJCAT')
+        meta['decker'] = dict(ext=0, card='SLMSKNAM')
+        meta['binning'] = dict(card=None, compound=True)
+
+        meta['mjd'] = dict(ext=0, card=None, compound=True)
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        meta['dispname'] = dict(ext=0, card='GRM_ID')
+        #meta['dispangle'] = dict(card=None, compound=True, rtol=1e-5)
+        meta['idname'] = dict(ext=0, card='IMAGETYP')
+        # Lamps
+        meta['lampstat01'] = dict(ext=0, card='LMP_ID')
+
+        # Ingest
+        self.meta = meta
+
+    def compound_meta(self, headarr, meta_key):
+        if meta_key == 'mjd':
+            time = headarr[0]['DATE-OBS']
+            ttime = Time(time, format='isot')
+            return ttime.mjd
+        else:
+            msgs.error("Not ready for this compound meta")
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that defines a unique instrument
+        configuration.
+
+        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            list: List of keywords of data pulled from meta
+        """
+        return ['dispname', 'decker']
+
+
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype == 'science':
+            return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'open')
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

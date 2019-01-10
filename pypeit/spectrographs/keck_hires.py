@@ -48,35 +48,56 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['flexure'] = pypeitpar.FlexurePar()
         return par
 
-    def header_keys(self):
-        hdr_keys = {}
-        hdr_keys[0] = {}
+#    def header_keys(self):
+#        hdr_keys = {}
+#        hdr_keys[0] = {}
+#
+#        # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+#        hdr_keys[0]['idname']  = 'OBSTYPE'
+#        # Header keyword for the name given by the observer to a given frame
+#        hdr_keys[0]['target']  = 'OBJECT'
+#        hdr_keys[0]['utc'] = 'UTC'
+#        # The UT date of the observation which is used for heliocentric
+#        # (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+#        hdr_keys[0]['date']    = 'DATE-OBS'
+#        # Right Ascension of the target
+#        hdr_keys[0]['ra']      = 'RA'
+#        # Declination of the target
+#        hdr_keys[0]['dec']     = 'DEC'
+#        # Airmass at start of observation
+#        hdr_keys[0]['airmass'] = 'AIRMASS'
+#        # Exposure time keyword
+#        hdr_keys[0]['exptime'] = 'EXPTIME'
+#        hdr_keys[0]['binning'] = 'BINNING'
+#        # ECHANGL and XDANGL
+#        hdr_keys[0]['echangl'] = 'ECHANGL'
+#        hdr_keys[0]['xdangl'] = 'XDANGL'
+#        return hdr_keys
+#
+#    def metadata_keys(self):
+#        return ['filename', 'date', 'frametype', 'idname', 'target', 'exptime', 'decker',
+#                'binning', 'echangl', 'xdangl', 'setup', 'calib', 'obj_id', 'bkg_id']
 
-        # The keyword that identifies the frame type (i.e. bias, flat, etc.)
-        hdr_keys[0]['idname']  = 'OBSTYPE'
-        # Header keyword for the name given by the observer to a given frame
-        hdr_keys[0]['target']  = 'OBJECT'
-        hdr_keys[0]['utc'] = 'UTC'
-        # The UT date of the observation which is used for heliocentric
-        # (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
-        hdr_keys[0]['date']    = 'DATE-OBS'
-        # Right Ascension of the target
-        hdr_keys[0]['ra']      = 'RA'
-        # Declination of the target
-        hdr_keys[0]['dec']     = 'DEC'
-        # Airmass at start of observation
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        # Exposure time keyword
-        hdr_keys[0]['exptime'] = 'EXPTIME'
-        hdr_keys[0]['binning'] = 'BINNING'
-        # ECHANGL and XDANGL
-        hdr_keys[0]['echangl'] = 'ECHANGL'
-        hdr_keys[0]['xdangl'] = 'XDANGL'
-        return hdr_keys
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
+        """
+        self.meta = {}
+        # Required (core)
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['decker'] = dict(ext=0, card='DECKNAME')
+        self.meta['binning'] = dict(ext=0, card='BINNING')
 
-    def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'idname', 'target', 'exptime', 'decker',
-                'binning', 'echangl', 'xdangl', 'setup', 'calib', 'obj_id', 'bkg_id']
+        self.meta['mjd'] = dict(ext=0, card='MJD')
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['dispname'] = dict(ext=0, card='ECHNAME')
+        # Extras for config and frametyping
+#        self.meta['echangl'] = dict(ext=0, card='ECHANGL')
+#        self.meta['xdangl'] = dict(ext=0, card='XDANGL')
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -167,30 +188,30 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 
-    def get_match_criteria(self):
-        # TODO: Matching needs to be looked at...
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-        #
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['binning'] = ''
-        # Bias
-        match_criteria['pixelflat']['number'] = 5
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['binning'] = ''
-        # Pixelflat
-        match_criteria['pixelflat']['number'] = 5
-        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
-        # Traceflat
-        match_criteria['pixelflat']['number'] = 5
-        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
-        # Arc
-        match_criteria['pixelflat']['number'] = 1
-        match_criteria['arc']['match'] = match_criteria['bias']['match'].copy()
-
-        # Return
-        return match_criteria
+#    def get_match_criteria(self):
+#        # TODO: Matching needs to be looked at...
+#        match_criteria = {}
+#        for key in framematch.FrameTypeBitMask().keys():
+#            match_criteria[key] = {}
+#        #
+#        match_criteria['standard']['match'] = {}
+#        match_criteria['standard']['match']['binning'] = ''
+#        # Bias
+#        match_criteria['pixelflat']['number'] = 5
+#        match_criteria['bias']['match'] = {}
+#        match_criteria['bias']['match']['binning'] = ''
+#        # Pixelflat
+#        match_criteria['pixelflat']['number'] = 5
+#        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
+#        # Traceflat
+#        match_criteria['pixelflat']['number'] = 5
+#        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
+#        # Arc
+#        match_criteria['pixelflat']['number'] = 1
+#        match_criteria['arc']['match'] = match_criteria['bias']['match'].copy()
+#
+#        # Return
+#        return match_criteria
 
 
 class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
@@ -291,27 +312,30 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
 
         return par
 
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an KECK/HIRES-R exposure.
+#    def check_headers(self, headers):
+#        """
+#        Check headers match expectations for an KECK/HIRES-R exposure.
+#
+#        See also
+#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+#
+#        Args:
+#            headers (list):
+#                A list of headers read from a fits file
+#        """
+#        expected_values = { '0.INSTRUME': 'HIRES: High Resolution Echelle Spectrometer',
+#                            '0.XDISPERS': 'RED'}
+#        super(KECKHIRESRSpectrograph, self).check_headers(headers,
+#                                                              expected_values=expected_values)
+#
+#    def header_keys(self):
+#        hdr_keys = super(KECKHIRESRSpectrograph, self).header_keys()
+#        hdr_keys[0]['decker'] = 'DECKNAME'
+#        return hdr_keys
 
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'HIRES: High Resolution Echelle Spectrometer',
-                            '0.XDISPERS': 'RED'}
-        super(KECKHIRESRSpectrograph, self).check_headers(headers,
-                                                              expected_values=expected_values)
-
-    def header_keys(self):
-        hdr_keys = super(KECKHIRESRSpectrograph, self).header_keys()
-        hdr_keys[0]['decker'] = 'DECKNAME'
-        return hdr_keys
-
+    def init_meta(self):
+        super(KECKHIRESRSpectrograph, self).init_meta()
+        self.meta['decker'] = dict(ext=0, card='DECKNAME')
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """

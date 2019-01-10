@@ -83,6 +83,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
         return par
 
+    '''
     def check_headers(self, headers):
         """
         Check headers match expectations for an LRISb exposure.
@@ -139,13 +140,50 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             hdr_keys[0]['lampstat{:02d}'.format(kk+1)] = lamp_name
 
         return hdr_keys
+    '''
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
+
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='TARGNAME')
+        meta['decker'] = dict(ext=0, card='SLITNAME')
+        meta['binning'] = dict(ext=0, card=None, default='1,1')
+
+        meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        meta['dispname'] = dict(ext=0, card='DISPERS')
+        meta['hatch'] = dict(ext=0, card='CALMPOS')
+        meta['idname'] = dict(ext=0, card='IMAGETYP')
+        # Lamps
+        lamp_names = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON', 'FLAT']
+        for kk,lamp_name in enumerate(lamp_names):
+            meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
+        # Ingest
+        self.meta = meta
 
     def configuration_keys(self):
         return ['decker', 'dispname']
 
+    '''
     def metadata_keys(self):
         return super(KeckNIRSPECSpectrograph, self).metadata_keys() \
                     + ['echellepos', 'crosspos', 'idname']
+    '''
+    def pypeit_file_keys(self):
+        pypeit_keys = super(KeckNIRSPECSpectrograph, self).pypeit_file_keys()
+        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -269,6 +307,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         self.spectrograph = 'keck_nirspec_low'
 
 
+    '''
     def check_header(self, headers):
         """Validate elements of the header."""
         chk_dict = {}
@@ -277,16 +316,6 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
         chk_dict[1]['NAXIS'] = 2
         return chk_dict
+    '''
 
-    '''
-    def header_keys(self):
-        """
-        Header keys specific to keck_nirspec
-        Returns:
-        """
-        head_keys = self.nirspec_header_keys()
-        # Add the name of the filter used
-        head_keys[0]['filter'] = 'FILNAME'
-        return head_keys
-    '''
 

@@ -4,6 +4,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
+from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -23,7 +24,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         super(ShaneKastSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast'
         self.telescope = telescopes.ShaneTelescopePar()
-        self.timeunit = 'isot'
+        #self.timeunit = 'isot'
 
     @staticmethod
     def default_pypeit_par():
@@ -56,6 +57,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [61, None]
         return par
 
+    '''
     def header_keys(self):
         """
         Provide the relevant header keywords
@@ -88,11 +90,54 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
             hdr_keys[0]['lampstat{:02d}'.format(kk+1)] = 'LAMPSTA{0}'.format(lamp_name)
 
         return hdr_keys
+    '''
 
-    # Uses parent metadata keys
+    def compound_meta(self, headarr, meta_key):
+        if meta_key == 'mjd':
+            time = headarr[0]['DATE']
+            ttime = Time(time, format='isot')
+            return ttime.mjd
+        else:
+            msgs.error("Not ready for this compound meta")
+
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
+
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='OBJECT')
+        # dispname is arm specific (blue/red)
+        meta['decker'] = dict(ext=0, card='SLIT_N')
+        meta['binning'] = dict(ext=0, card=None, default='1,1')
+        meta['mjd'] = dict(ext=0, card=None, compound=True)
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Additional ones, generally for configuration determination or time
+        meta['dichroic'] = dict(ext=0, card='BSPLIT_N')
+        lamp_names = [ '1', '2', '3', '4', '5',
+                       'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+        for kk,lamp_name in enumerate(lamp_names):
+            meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card='LAMPSTA{0}'.format(lamp_name))
+        # Ingest
+        self.meta = meta
 
     def configuration_keys(self):
-        #TODO: Placeholder to get tests to clear
+        """
+        Set the configuration keys
+
+        Returns:
+            cfg_keys: list
+
+        """
+        # decker is not included because arcs are often taken with a 0.5" slit
         return ['dispname', 'dichroic' ]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -262,6 +307,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         super(ShaneKastBlueSpectrograph, self).check_headers(headers,
                                                              expected_values=expected_values)
 
+    '''
     def header_keys(self):
         """
         Header keys specific to shane_kast_blue
@@ -274,6 +320,22 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # dispangle and filter1 are not defined for Shane Kast Blue
         hdr_keys[0]['dispname'] = 'GRISM_N'
         return hdr_keys
+    '''
+
+    def init_meta(self):
+        """
+        Meta data specific to shane_kast_blue
+
+        Returns:
+
+        """
+        super(ShaneKastBlueSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        # dispangle and filter1 are not defined for Shane Kast Blue
+
+        # Required
+        self.meta['dispname'] = dict(ext=0, card='GRISM_N')
+        # Additional (for config)
 
 
 class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
@@ -326,6 +388,23 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
         return par
+
+    def init_meta(self):
+        """
+        Meta data specific to shane_kast_blue
+
+        Returns:
+
+        """
+        super(ShaneKastRedSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        # dispangle is not defined for Shane Kast Blue
+
+        # Required
+        self.meta['dispname'] = dict(ext=0, card='GRATNG_N')
+        self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
+        # Additional (for config)
+
 
     def check_header(self, headers):
         """
@@ -438,6 +517,22 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         hdr_keys[0]['filter1'] = 'RDFILT_N'
         hdr_keys[0]['dispangle'] = 'GRTILT_P'
         return hdr_keys
+
+    def init_meta(self):
+        """
+        Meta data specific to shane_kast_blue
+
+        Returns:
+
+        """
+        super(ShaneKastRedRetSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        # dispangle and filter1 are not defined for Shane Kast Blue
+
+        # Required
+        self.meta['dispname'] = dict(ext=0, card='GRATNG_N')
+        self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
+        # Additional (for config)
 
     def get_match_criteria(self):
         # Get the parent matching criteria ...
