@@ -1228,7 +1228,7 @@ class TraceSlits(masterframe.MasterFrame):
         # dict of steps, settings and more
         out_dict = {}
         # JFH added this below because of a crash discovered when running save_master from a pre-existing MasterFile
-        if isinstance(self.par, pypeitpar.PypeItPar):
+        if isinstance(self.par, pypeitpar.TraceSlitsPar):
             out_dict['settings'] = parset_to_dict(self.par)
         elif isinstance(self.par, dict):
             out_dict['settings'] = self.par
