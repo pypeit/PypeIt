@@ -608,7 +608,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
-        # TODO FIX THIS TO USE BIASES!!
+        # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
+        # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
         par['scienceframe']['useframe'] ='overscan'
 
         return par
