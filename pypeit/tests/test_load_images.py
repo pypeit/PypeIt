@@ -114,7 +114,6 @@ def test_load_vlt_xshooter_vis():
         except:
             pytest.fail('VLT XSHOOTER VIS test data section failed: {0}'.format(f))
 
-
 @dev_suite_required
 def test_load_vlt_xshooter_nir():
     files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER',
