@@ -333,7 +333,6 @@ class ProcessImages(object):
                 # Instantiate proc_images
                 self.proc_images = np.zeros((temp.shape[0], temp.shape[1], self.nloaded))
             self.proc_images[:,:,kk] = temp.copy()
-
         # Step
         self.steps.append(inspect.stack()[0][3])
 

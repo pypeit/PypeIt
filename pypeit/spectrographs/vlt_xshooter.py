@@ -284,10 +284,10 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['scienceframe']['process']['satpix'] ='nothing'
 
         # Do not bias subtract
-        par['scienceframe']['useframe'] ='overscan'
+        par['scienceframe']['useframe'] ='none'
         # This is a hack for now until we can specify for each image type what to do. Bias currently
         # controls everything
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
+        par['calibrations']['biasframe']['useframe'] = 'none'
 
         return par
 
