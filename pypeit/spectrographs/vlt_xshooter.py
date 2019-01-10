@@ -88,16 +88,14 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         """
         meta = {}
         # Required (core)
-        meta['ra'] = dict(card=None, compound=True)  # Need to convert to : separated
-        meta['dec'] = dict(card=None, compound=True)
-        #meta['ra'] = dict(ext=0, card='RA')
-        #meta['dec'] = dict(ext=0, card='DEC')
+        meta['ra'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])  # Need to convert to : separated
+        meta['dec'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])
         meta['target'] = dict(ext=0, card='OBJECT')
         meta['binning'] = dict(card=None, compound=True)
 
         meta['mjd'] = dict(ext=0, card='MJD-OBS')
         meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START')
+        meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
         # Extras for config and frametyping
         meta['dispname'] = dict(ext=0, card=None, default='default')
         meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
@@ -324,10 +322,10 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['scienceframe']['process']['satpix'] ='nothing'
 
         # Do not bias subtract
-        par['scienceframe']['useframe'] ='overscan'
+        par['scienceframe']['useframe'] ='none'
         # This is a hack for now until we can specify for each image type what to do. Bias currently
         # controls everything
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
+        par['calibrations']['biasframe']['useframe'] = 'none'
 
         return par
 
@@ -604,6 +602,11 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+        # Flats
+        par['calibrations']['flatfield']['illumflatten'] = False
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # TODO FIX THIS TO USE BIASES!!
         par['scienceframe']['useframe'] ='overscan'

@@ -57,8 +57,8 @@
 - Change point step size to 50 pixels in show_slits and show_trace for major speed up
 - Implemented difference imaging for near-IR reductions for both Multislit and Echelle
 - Fixed a bug in echelle object finding algorithm.
-- Fixed bug in object finding associated with telluric standards and narrow
-slits.
+- Fixed bug in object finding associated with defining the background level for bright
+telluric standards and short slits.
 - Implemented using standard stars as crutches for object tracing.
 - Reworked the implementation of reuse_masters in the PypeIt class and in
 the Calibrations class.
@@ -74,6 +74,12 @@ be re-created unless the -o option is set.
 - Remove PypeItSetup call from within PypeIt
 - Remove lacosmic specific method in Spectrograph;  replaced with config_specific_par
 - setup block now required when running on a PypeIt file
+- Introduced a new method of determining breakpoint locations for local sky subtraction which
+takes the sampling set by the wavelength tilts into account.
+- Fixed a major bug in the near-IR difference imaging for the case of A-B, i.e. just two images.
+- Introduced routines into core.procimg that will be used in 2-d co-adding.
+- Tweaks to VLT X-SHOOTER spectrograph class to improve reductions.
+- Moved methods for imaging processing from scienceimage class to processimages class.
 
 0.9.0
 -----

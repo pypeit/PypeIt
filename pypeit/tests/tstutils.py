@@ -25,7 +25,7 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype=False):
+def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype=False):
     """
     Generate a dummy fitstbl for testing
 
@@ -33,7 +33,7 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
     ----------
     nfile : int, optional
       Number of files to mimic
-    spectrograph : str, optional
+    spectro_name : str, optional
       Name of spectrograph to mimic
     notype : bool (optional)
       If True, do not add image type info to the fitstbl
@@ -60,7 +60,7 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
     fitsdict["binning"] = ['1,1']*nfile
     fitsdict["airmass"] = [1.0]*nfile
 
-    if spectrograph == 'shane_kast_blue':
+    if spectro_name == 'shane_kast_blue':
         fitsdict['numamplifiers'] = [1] * nfile
         # Lamps
         for i in range(1,17):
@@ -83,13 +83,14 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='', notype
     for k in fitsdict.keys():
         fitsdict[k] = np.array(fitsdict[k])
 
-    fitstbl = PypeItMetaData(load_spectrograph(spectrograph), data=fitsdict)
-    fitstbl['instrume'] = spectrograph
+    spectrograph = load_spectrograph(spectro_name)
+    fitstbl = PypeItMetaData(spectrograph, spectrograph.default_pypeit_par(), data=fitsdict)
+    fitstbl['instrume'] = spectro_name
     type_bits = np.zeros(len(fitstbl), dtype=fitstbl.type_bitmask.minimum_dtype())
 
     # Image typing
     if not notype:
-        if spectrograph == 'shane_kast_blue':
+        if spectro_name == 'shane_kast_blue':
             #fitstbl['sci_ID'] = 1  # This links all the files to the science object
             type_bits[0] = fitstbl.type_bitmask.turn_on(type_bits[0], flag='bias')
             type_bits[1] = fitstbl.type_bitmask.turn_on(type_bits[1], flag='arc')

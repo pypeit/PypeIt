@@ -57,10 +57,8 @@ class PypeItMetaData:
             The spectrograph used to collect the data save to each file.
             The class is used to provide the header keyword data to
             include in the table and specify any validation checks.
-        par (:obj:`pypeit.par.pypeitpar.PypeItPar`, optional):
-            PypeIt parameters used to set the code behavior.  If not
-            provided, the default parameters specific to the provided
-            spectrograph are used.
+        par (:obj:`pypeit.par.pypeitpar.PypeItPar`):
+            PypeIt parameters used to set the code behavior.
         file_list (:obj:`list`, optional):
             The list of files to include in the table.
         data (table-like, optional):
@@ -100,17 +98,17 @@ class PypeItMetaData:
             use in the data reduction.
 
     """
-    def __init__(self, spectrograph, par=None, file_list=None, data=None, usrdata=None, strict=True):
+    def __init__(self, spectrograph, par, file_list=None, data=None, usrdata=None, strict=True):
         if data is None and file_list is None:
             msgs.warn('Both data and file_list are None in the instantiation of PypeItMetaData.'
                       '  The table will be empty!')
         self.spectrograph = spectrograph
-        self.par = self.spectrograph.default_pypeit_par() if par is None else par
+        self.par = par
         if not isinstance(self.par, PypeItPar):
             raise TypeError('Input parameter set must be of type PypeItPar.')
         self.type_bitmask = framematch.FrameTypeBitMask()
         self.table = table.Table(data if file_list is None 
-                                 else self._build(file_list, strict=strict))
+                                 else self._build(file_list, strict=strict, usrdata=usrdata))
                         #else self._build(file_list, strict=strict))
         if usrdata is not None:
             self.merge(usrdata)
@@ -154,7 +152,7 @@ class PypeItMetaData:
         # Instrument related
         core_meta['dispname'] = dict(dtype=str, comment='Disperser name')
         core_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
-        core_meta['binning'] = dict(dtype=str, comment='(spatial,spectral) binning')
+        core_meta['binning'] = dict(dtype=str, comment='"spatial,spectral" binning')
 
         # Obs
         core_meta['mjd'] = dict(dtype=float, comment='Observation MJD; Read by astropy.time.Time format=mjd')
@@ -254,23 +252,32 @@ class PypeItMetaData:
             return
         msgs.error('{0} not a defined method for the background pair columns.'.format(bkg_pairs))
 
-    def _build(self, file_list, strict=True):
+    def _build(self, file_list, strict=True, usrdata=None):
+        """
+        Generate the fitstbl that will be at the heart of PypeItMetaData
 
-        # Required meta for reduction
-        #required_meta = define_core_meta()
+        Args:
+            file_list:
+            strict:
+            usrdata: Table, optional
+              Parsed for frametype for a few instruments (e.g. VLT) where meta data may not be required
 
-        # Spectrograph specific
-        #additional_meta = define_additional_meta()
-        #additional_keys = self.spectrograph.additional_meta()
-        #for key in additional_keys:
-        #    required_meta[key] = additional_meta[key]
+        Returns:
+            data: Table
+
+        """
         required_meta = self.spectrograph.meta
 
         # Build lists to fill
         data = {k:[] for k in required_meta.keys()}
 
         ds, fs = [], []
-        for ifile in file_list:
+        for idx, ifile in enumerate(file_list):
+            # User data (for frame type)
+            if usrdata is not None:
+                usr_row = usrdata[idx]
+            else:
+                usr_row = None
             # Read the fits headers
             headarr = self.spectrograph.get_headarr(ifile, strict=strict)
             # Add the directory and file name to the table
@@ -279,15 +286,9 @@ class PypeItMetaData:
             fs.append(f)
             # Grab Meta
             for meta_key in data.keys():
-                # Skip external ones
-                #if meta_key in ['filename', 'directory']:
-                #    continue
-                # Grab it
-                try:
-                    value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr, required=strict,
-                                                             ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
-                except:
-                    debugger.set_trace()
+                value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr, required=strict,
+                                                         ignore_bad_header=self.par['rdx']['ignore_bad_headers'],
+                                                         usr_row=usr_row)
                 data[meta_key].append(value)
         # File info
         data['directory'] = ds
@@ -703,17 +704,18 @@ class PypeItMetaData:
         slitlen = 'none' if 'slitlen' not in self.keys() else self['slitlen'][row]
         binning = '1,1' if 'binning' not in self.keys() else self['binning'][row]
 
-        setup = {self['setup'][row]:
+        skey = 'Setup {}'.format(self['setup'][row])
+        setup = {skey:
                     {'--':
                         {'disperser': {'name': dispname, 'angle':dispangle},
                          'dichroic': dichroic,
                          'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen}}}}
         _det = np.arange(self.spectrograph.ndet)+1 if det is None else [det]
         for d in _det:
-            setup[self['setup'][row]][str(d).zfill(2)] \
+            setup[skey][str(d).zfill(2)] \
                     = {'binning': binning, 'det': d,
                        'namp': self.spectrograph.detector[d-1]['numamplifiers']}
-        return setup[self['setup'][row]] if config_only else setup
+        return setup[skey] if config_only else setup
 
     def get_configuration_names(self, ignore=None, return_index=False):
         """
@@ -1315,6 +1317,23 @@ class PypeItMetaData:
         msgs.info("Typing completed!")
         return self.set_frame_types(type_bits, merge=merge)
 
+    def set_pypeit_cols(self, write_bkg_pairs=False):
+        # Columns for output
+        columns = self.spectrograph.pypeit_file_keys()
+
+        # comb, bkg columns
+        if write_bkg_pairs:  # SHOULD BE RENAMED TO write_extras
+            for key in ['calib', 'comb_id', 'bkg_id']:
+                if key not in columns:
+                    columns += [key]
+
+        # Take only those present
+        output_cols = np.array(columns)
+        output_cols = output_cols[np.isin(output_cols, self.keys())].tolist()
+
+        # Return
+        return output_cols
+
     def set_defaults(self):
         """
         Set default values for comb_id and calib
@@ -1361,7 +1380,7 @@ class PypeItMetaData:
         ff.write(yaml.dump(utils.yamlify(cfg)))
         ff.close()
 
-    def write_sorted(self, ofile, overwrite=True, ignore=None):
+    def write_sorted(self, ofile, overwrite=True, ignore=None, write_bkg_pairs=False):
         """
         Write the *.sorted file.
 
@@ -1392,9 +1411,8 @@ class PypeItMetaData:
         if os.path.isfile(ofile) and not overwrite:
             msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
 
-        # Columns for output
-        output_cols = np.array(self.spectrograph.pypeit_file_keys())
-        output_cols = output_cols[np.isin(output_cols, self.keys())].tolist()
+        # Grab output columns
+        output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs)
 
         # Unique configurations
         setups, indx = self.get_configuration_names(ignore=ignore, return_index=True)
@@ -1493,7 +1511,7 @@ class PypeItMetaData:
         ff.write(yaml.dump(utils.yamlify(cfg)))
         ff.close()
 
-    def write_pypeit(self, ofile, split=False, overwrite=False, ignore=None, cfg_lines=None,
+    def write_pypeit(self, ofile, overwrite=False, ignore=None, cfg_lines=None,
                      write_bkg_pairs=False):
         """
         Write a *.pypeit file in data-table format.
@@ -1505,26 +1523,9 @@ class PypeItMetaData:
         :func:`pypeit.spectrographs.spectrograph.Spectrograph.pypeit_file_keys`,
         which can be specific to each instrument.
 
-        Users can write the file, edit it, and then re-read it into
-        PypeIt to change the designated frame type, instrument setup,
-        calibration group, or source/background groupings.
-
-        A pypeit file can contain multiple configurations or be split
-        into one pypeit file per instrument configuration.
-
         Args:
             ofile (:obj:`str`):
                 Name for the output pypeit file.
-            split (:obj:`bool`, optional):
-
-                Split the data by instrument configuration leading to
-                one PypeIt file per setup.  The name of the output
-                directory is the root of the provided output file name
-                and the setup character.  The pypeit file in each
-                directory is based on the same, but with the '.pypeit'
-                extension.  By default, all instrument setups are kept
-                in the same PypeIt file.
-
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file(s).
             ignore (:obj:`list`, optional):
@@ -1542,29 +1543,33 @@ class PypeItMetaData:
                     - `empty`: The columns are added but their values
                       are all originally set to -1.  **This is
                       currently the only option.**
+        Deprecated:
+          Users can write the file, edit it, and then re-read it into
+          PypeIt to change the designated frame type, instrument setup,
+          calibration group, or source/background groupings.
+
+          A pypeit file can contain multiple configurations or be split
+          into one pypeit file per instrument configuration.
+            split (:obj:`bool`, optional):
+                Split the data by instrument configuration leading to
+                one PypeIt file per setup.  The name of the output
+                directory is the root of the provided output file name
+                and the setup character.  The pypeit file in each
+                directory is based on the same, but with the '.pypeit'
+                extension.  By default, all instrument setups are kept
+                in the same PypeIt file.
 
         Raises:
             PypeItError:
                 Raised if the 'setup' isn't defined and split is True.
         """
-        if 'setup' not in self.keys() and split:
-            msgs.error('Cannot write pypeit file split by setup; run set_configurations.')
+        #if 'setup' not in self.keys() and split:
+        #    msgs.error('Cannot write pypeit file split by setup; run set_configurations.')
 
-        # TODO: I don't think sortroot is ever used.
+        # Grab output columns
+        output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs)
 
-        # Columns for output
-        columns = self.spectrograph.pypeit_file_keys()
-
-        # comb, bkg columns
-        if write_bkg_pairs:  # SHOULD BE RENAMED TO write_extras
-            for key in ['calib', 'comb_id', 'bkg_id']:
-                if key not in columns:
-                    columns += [key]
-
-        # Take only those present
-        output_cols = np.array(columns)
-        output_cols = output_cols[np.isin(output_cols, self.keys())].tolist()
-
+        '''
         if not split:
             # Write all configurations to a single file
 
@@ -1583,8 +1588,7 @@ class PypeItMetaData:
             make_pypeit_file(ofile, self.spectrograph.spectrograph, [], cfg_lines=cfg_lines,
                              setup_lines=setup_lines, sorted_files=data_lines, paths=paths)
             return
-
-        # Write each configuration to its own file
+        '''
 
         # Unique configurations
         setups, indx = self.get_configuration_names(ignore=ignore, return_index=True)
@@ -1598,9 +1602,8 @@ class PypeItMetaData:
             # Create the output file name
             _ofile = os.path.join(odir, '{0}.pypeit'.format(root))
             # Get the setup lines
-            cfg = self.get_setup(i, config_only=True)
-            setup_lines = ['Setup {0}'.format(setup)]
-            setup_lines += yaml.dump(utils.yamlify(cfg)).split('\n')[:-1]
+            cfg = self.get_setup(i, config_only=False)
+            setup_lines = yaml.dump(utils.yamlify(cfg)).split('\n')[:-1]
             # Get the paths
             in_cfg = self['setup'] == setup
             paths = np.unique(self['directory'][in_cfg]).tolist()
@@ -1613,7 +1616,6 @@ class PypeItMetaData:
             # Write the file
             make_pypeit_file(_ofile, self.spectrograph.spectrograph, [], cfg_lines=cfg_lines,
                              setup_lines=setup_lines, sorted_files=data_lines, paths=paths)
-
 
     def write(self, ofile, columns=None, format=None, overwrite=False):
         """

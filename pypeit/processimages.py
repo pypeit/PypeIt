@@ -436,7 +436,6 @@ class ProcessImages(object):
                 # Instantiate proc_images
                 self.proc_images = np.zeros((temp.shape[0], temp.shape[1], self.nloaded))
             self.proc_images[:,:,kk] = temp.copy()
-
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -622,7 +621,7 @@ class ProcessImages(object):
         # Return
         return self.rawvarframe
 
-
+    # TODO Move these staticmethods to procimg
     # This is a static method because I need to be able to run it from outside the class and would prefer
     # to not have to create an instance of the class everytime I want to do that.
     @staticmethod

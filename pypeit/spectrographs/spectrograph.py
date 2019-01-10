@@ -94,20 +94,20 @@ class Spectrograph(object):
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
 
-    def config_specific_par(self, par, filename):
+    def config_specific_par(self, par, scifile):
         """
         Used to modify the ParSet from metadata
         drawn from the input file
 
         Args:
             par: ParSet
-            filename: str
+            scifile: str
 
         Returns:
-            par is modified in place
+            par
 
         """
-        pass
+        return par
 
     '''
     def get_lacosmics_par(self,proc_par,binning=None):
@@ -529,7 +529,8 @@ class Spectrograph(object):
         """
         self.meta = {}
 
-    def get_meta_value(self, ifile, meta_key, headarr=None, required=False, ignore_bad_header=False):
+    def get_meta_value(self, ifile, meta_key, headarr=None, required=False, ignore_bad_header=False,
+                       usr_row=None):
         """
         Return meta data from a given file (or its array of headers)
 
@@ -543,6 +544,8 @@ class Spectrograph(object):
               Require the meta key to be returnable
             ignore_bad_header: bool, optional
               Over-ride required;  not recommended
+            usr_row: Row
+              Provides user supplied frametype (and other things not used)
 
         Returns:
             value: value or list of values
@@ -568,6 +571,7 @@ class Spectrograph(object):
                 return None
         # Is this not derivable?  If so, use the default
         #   or search for it as a compound method
+        value = None
         if self.meta[meta_key]['card'] is None:
             if 'default' in self.meta[meta_key].keys():
                 value = self.meta[meta_key]['default']
@@ -580,14 +584,27 @@ class Spectrograph(object):
             try:
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
             except KeyError:
-                if required:
-                    if not ignore_bad_header:
-                        msgs.error("Required card {:s} missing from your header of {:s}.  Add it!!".format(
-                            self.meta[meta_key]['card'], ifile))
-                    else:
-                        msgs.warn("Required card {:s} missing from your header of {:s}.  Proceeding with risk..".format(
-                            self.meta[meta_key]['card'], ifile))
-                return None
+                value = None
+
+        if value is None:
+            # Was this required?
+            if required:
+                kerror = True
+                if not ignore_bad_header:
+                    # Is this meta required for this frame type (Spectrograph specific)
+                    if ('required_ftypes' in self.meta[meta_key]) and (usr_row is not None):
+                        kerror = False
+                        # Is it required?
+                        for ftype in usr_row['frametype'].split(','):
+                            if ftype in self.meta[meta_key]['required_ftypes']:
+                                kerror = True
+                    # Bomb out?
+                    if kerror:
+                        msgs.error('Required meta "{:s}" did not load!  You may have a corrupt header'.format(meta_key))
+                else:
+                    msgs.warn("Required card {:s} missing from your header of {:s}.  Proceeding with risk..".format(
+                        self.meta[meta_key]['card'], ifile))
+            return None
 
         # Deal with dtype (DO THIS HERE OR IN METADATA?  I'M TORN)
         if self.meta_data_model[meta_key]['dtype'] == str:

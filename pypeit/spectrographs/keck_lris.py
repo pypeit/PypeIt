@@ -559,7 +559,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400_8500_d560.json'
         return par
 
-    def config_specific_par(self, par, filename):
+    def config_specific_par(self, par, scifile):
         """
         Set par values according to the specific frame
 
@@ -567,29 +567,24 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         Args:
             par:  ParSet
-            filename: str
+            scifile: str
+              Name of the science file to use
 
         Returns:
-            par may be modified in place
+            par
 
         """
         # Lacosmic CR settings
         #   Grab the defaults for LRISr
-        dpar = self.default_pypeit_par()
-        default_sigclip = dpar['scienceframe']['process']['sigclip']
-        default_objlim = dpar['scienceframe']['process']['objlim']
-        # Check whether the user has changed the parameters.
-        #   If so, don't over-ride
-        if (par['scienceframe']['process']['sigclip'] == default_sigclip) and (
-                par['scienceframe']['process']['objlim'] == default_objlim):
-            #
-            binning = self.get_meta_value(filename, 'binning')
-            # Unbinned LRISr needs very aggressive LACosmics parameters.
-            if binning == (1,1):
-                sigclip = 3.0
-                objlim = 0.5
-                par['scienceframe']['process']['sigclip'] = sigclip
-                par['scienceframe']['process']['objlim'] = objlim
+        binning = self.get_meta_value(scifile, 'binning')
+        # Unbinned LRISr needs very aggressive LACosmics parameters for 1x1 binning
+        if binning == '1,1':
+            sigclip = 3.0
+            objlim = 0.5
+            par['scienceframe']['process']['sigclip'] = sigclip
+            par['scienceframe']['process']['objlim'] = objlim
+        # Return
+        return par
 
     '''
     def get_lacosmics_par(self,proc_par,binning='1x1'):

@@ -347,7 +347,7 @@ class PypeItSetup(object):
         self.fitstbl
 
         """
-        self.fitstbl = PypeItMetaData(self.spectrograph, data=Table.read(fits_file))
+        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, data=Table.read(fits_file))
 #        # Need to convert bytestrings back to unicode
 #        try:
 #            self.fitstbl.convert_bytestring_to_unicode()
@@ -387,12 +387,12 @@ class PypeItSetup(object):
 
         format = None if '.fits' in ofile else 'ascii.fixed_width'
         self.fitstbl.write(ofile,
-                           columns=None if format is None else self.spectrograph.pypeit_file_keys(),
+                           #columns=None if format is None else self.spectrograph.pypeit_file_keys(),
                            format=format, overwrite=True)
 
 
     def run(self, setup_only=False, calibration_check=False,
-            use_header_id=False, sort_dir=None):
+            use_header_id=False, sort_dir=None, write_bkg_pairs=False):
         """
         Once instantiated, this is the main method used to construct the
         object.
@@ -479,7 +479,7 @@ class PypeItSetup(object):
 #            self.match_ABBA()
 
         # Write metadata
-        self.write_metadata(sort_dir=sort_dir)
+        #self.write_metadata(sort_dir=sort_dir)
 
         if setup_only:
             # Collate all matching files and write .sorted Table (on pypeit_setup only)
@@ -488,17 +488,19 @@ class PypeItSetup(object):
                                 else pypeit_file.replace('.pypeit', '.sorted')
             if sort_dir is not None:
                 sorted_file = os.path.join(sort_dir, os.path.split(sorted_file)[1])
-            self.fitstbl.write_sorted(sorted_file)
+            self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs)
             msgs.info("Wrote sorted file data to {:s}".format(sorted_file))
 
+            '''
             # Write the setup file
-            setup_file = self.spectrograph.spectrograph + '.setups' \
-                                if pypeit_file is None or len(pypeit_file) == 0 \
-                                else pypeit_file.replace('.pypeit', '.setups')
-            if sort_dir is not None:
-                setup_file = os.path.join(sort_dir, os.path.split(setup_file)[1])
+            #setup_file = self.spectrograph.spectrograph + '.setups' \
+            #                    if pypeit_file is None or len(pypeit_file) == 0 \
+            #                    else pypeit_file.replace('.pypeit', '.setups')
+            #if sort_dir is not None:
+            #    setup_file = os.path.join(sort_dir, os.path.split(setup_file)[1])
             # TODO: I want to simplify this
-            self.fitstbl.write_setups(setup_file)
+            #self.fitstbl.write_setups(setup_file)
+            '''
         else:
             # Write the calib file
             calib_file = self.spectrograph.spectrograph + '.calib' \
@@ -523,7 +525,7 @@ class PypeItSetup(object):
                 msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(
                             self.fitstbl['target'][idx],self.fitstbl['filename'][idx]))
             msgs.info("Setup is complete.")
-            msgs.info("Inspect the .setups file")
+            msgs.info("Inspect the .sorted file")
             return None, None, None
 
         return self.par, self.spectrograph, self.fitstbl

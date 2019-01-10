@@ -1227,7 +1227,13 @@ class TraceSlits(masterframe.MasterFrame):
 
         # dict of steps, settings and more
         out_dict = {}
-        out_dict['settings'] = parset_to_dict(self.par)
+        # JFH added this below because of a crash discovered when running save_master from a pre-existing MasterFile
+        if isinstance(self.par, pypeitpar.TraceSlitsPar):
+            out_dict['settings'] = parset_to_dict(self.par)
+        elif isinstance(self.par, dict):
+            out_dict['settings'] = self.par
+        else:
+            msgs.error('Unrecognized type for self.par')
         if self.tc_dict is not None:
             out_dict['tc_dict'] = self.tc_dict
         out_dict['steps'] = self.steps
