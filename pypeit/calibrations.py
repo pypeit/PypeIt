@@ -352,10 +352,6 @@ class Calibrations(object):
         # most calibrations, although we are allowing for arcs of different shape becuase of X-shooter etc.
         self.shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
 
-        # Check it matches the processed arc;  if not we have issues..
-        #if not (self.shape == shape):
-        #    msgs.error("You have an untrimmed arc!  We aren't prepared for this..")
-
         # Build it
         bpmImage = bpmimage.BPMImage(self.spectrograph,det=self.det, shape=self.shape)
         # Build, save, and return
