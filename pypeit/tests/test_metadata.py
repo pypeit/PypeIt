@@ -82,8 +82,8 @@ def test_lris_red_multi_run():
             'Should have identified r170816_0057.fits as a science frame'
 
     # Clean-up
-    os.remove('keck_lris_red.lst')
-    os.remove('keck_lris_red.setups')
+    #os.remove('keck_lris_red.lst')
+    #os.remove('keck_lris_red.setups')
     os.remove('keck_lris_red.sorted')
 
 
