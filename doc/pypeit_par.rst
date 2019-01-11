@@ -818,6 +818,9 @@ Alterations to the default parameters are::
               overscan = median
       [[standardframe]]
           number = 1
+      [[flatfield]]
+          illumflatten = False
+          tweak_slits_thresh = 0.9
       [[wavelengths]]
           method = reidentify
           echelle = True
@@ -848,7 +851,7 @@ Alterations to the default parameters are::
       spectrograph = vlt_xshooter_nir
   [calibrations]
       [[biasframe]]
-          useframe = overscan
+          useframe = none
           number = 5
       [[arcframe]]
           number = 1
@@ -885,7 +888,7 @@ Alterations to the default parameters are::
           maxdev_tracefit = 0.04
           maxdev2d = 0.04
   [scienceframe]
-      useframe = overscan
+      useframe = none
       [[process]]
           satpix = nothing
           sigclip = 20.0
