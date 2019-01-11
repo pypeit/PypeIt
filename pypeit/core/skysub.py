@@ -581,7 +581,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         rows = np.arange(nspec, dtype=np.intp)
         columns = np.arange(mincol, mincol + nc, dtype=np.intp)
         ipix = np.ix_(rows, columns)
-        skymask = outmask & ~edgmask
+        skymask = outmask & np.invert(edgmask)
         if nc > 100:
             npoly = 3
         elif nc > 40:
