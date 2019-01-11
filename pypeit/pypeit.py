@@ -475,7 +475,7 @@ class PypeIt(object):
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(self.sciimg, std=self.std_redux, ir_redux=self.ir_redux,
-                              std_trace=std_trace, snr_trim=False,maskslits=self.maskslits,
+                              std_trace=std_trace,maskslits=self.maskslits,
                               show = self.show & (not self.std_redux))
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
@@ -487,8 +487,7 @@ class PypeIt(object):
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.find_objects(self.sciimg - self.initial_sky, std=self.std_redux, ir_redux=self.ir_redux,
-                                  std_trace=std_trace, snr_trim=True,
-                                  maskslits=self.maskslits,show=self.show)
+                                  std_trace=std_trace,maskslits=self.maskslits,show=self.show)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:
@@ -497,9 +496,9 @@ class PypeIt(object):
                 self.global_sky = self.sciI.global_skysub(self.caliBrate.tilts_dict['tilts'],
                                                      skymask=self.skymask, maskslits=self.maskslits, show=self.show)
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
-                self.sciI.local_skysub_extract(self.sobjs_obj, self.caliBrate.mswave, model_noise=(not self.ir_redux),
-                                               std = self.std_redux,maskslits=self.maskslits, show_profile=self.show,
-                                               show=self.show)
+                self.local_skysub_extract(self.sobjs_obj, self.caliBrate.mswave, model_noise=(not self.ir_redux),
+                                          std = self.std_redux,maskslits=self.maskslits, show_profile=self.show,
+                                          show=self.show)
 
             # Purge out the negative objects if this was a near-IR reduction
             if self.ir_redux:
@@ -508,7 +507,7 @@ class PypeIt(object):
             # Flexure correction if this is not a standard star
             if not self.std_redux:
                 self.flexure_correct(self.sobjs, self.maskslits)
-            vel_corr = self.helio_correct(self.sobjs, self.maskslits, frames[0], self.obstime)
+            self.vel_corr = self.helio_correct(self.sobjs, self.maskslits, frames[0], self.obstime)
 
         else:
             # Print status message
@@ -518,15 +517,15 @@ class PypeIt(object):
                 msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
             msgs.warn(msgs_string)
             # set to first pass global sky
-            skymodel = self.initial_sky
-            objmodel = np.zeros_like(sciimg)
+            self.skymodel = self.initial_sky
+            self.objmodel = np.zeros_like(sciimg)
             # Set to sciivar. Could create a model but what is the point?
-            ivarmodel = np.copy(self.sciivar)
+            self.ivarmodel = np.copy(self.sciivar)
             # Set to inmask in case on objects were found
-            outmask = self.mask
+            self.outmask = self.mask
             # empty specobjs object from object finding
-            sobjs = self.sobjs_obj
-            vel_corr = None
+            self.sobjs = self.sobjs_obj
+            self.vel_corr = None
 
         return self.sciimg, self.sciivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, vel_corr
 
@@ -540,6 +539,16 @@ class PypeIt(object):
         """
 
         return None, None, None
+
+    def local_skysub_extract(self, sobjs_obj, waveimage, model_noise=True, std=False, maskslits=None, show_profile=False, show=False):
+        """
+        Dummy method for locak skysubtraction and extraction. Overloaded by class specific object finding.
+
+        Returns:
+
+        """
+
+        return None, None, None, None, None
 
     # TODO: Why not use self.frame?
     def save_exposure(self, frame, sci_dict, basename, only_1d=False):
@@ -705,7 +714,16 @@ class MultiSlit(PypeIt):
 
         return sobjs_obj_init, len(sobjs_obj_init), skymask
 
-    # TODO: I don't think this function is written yet...
+    def local_skysub_extract(self, sobjs_obj, waveimage, model_noise=True, std=False, maskslits=None,
+                             show_profile=False, show=False):
+
+        skymodel, objmodel, ivarmodel, outmask, sobjs = \
+            self.sciI.local_skysub_extract(sobjs_obj, waveimage, model_noise=model_noise, std=std, maskslits=maskslits,
+                                           show_profile=show_profile, show=show)
+
+        return skymodel, objmodel, ivarmodel, outmask, sobjs
+
+        # TODO: I don't think this function is written yet...
     def flux_calibrate(self):
         """
         Doc it
@@ -799,16 +817,16 @@ class Echelle(PypeIt):
         super(Echelle, self).__init__(spectrograph, **kwargs)
 
 
-    def find_objects(self, image, std=False, ir_redux=False, std_trace=None, snr_trim=False, maskslits=None,
+    def find_objects(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         sobjs_obj_init, nobj_init, skymask_pos = \
-            self.sciI.find_objects_ech(image, std=std, std_trace=std_trace, snr_trim=snr_trim,
+            self.sciI.find_objects_ech(image, std=std, std_trace=std_trace,
                                    show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
 
         if ir_redux:
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
-                self.sciI.find_objects_ech(-image, std=std, std_trace=std_trace, snr_trim=snr_trim,
+                self.sciI.find_objects_ech(-image, std=std, std_trace=std_trace,
                 show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
             skymask = skymask_pos & skymask_neg
             sobjs_obj_init.append_neg(sobjs_obj_init_neg)
@@ -821,6 +839,15 @@ class Echelle(PypeIt):
 
         return sobjs_obj_init, len(sobjs_obj_init), skymask
 
+
+    def local_skysub_extract(self, sobjs_obj, waveimage, model_noise=True, std=False, maskslits=None,
+                             show_profile=False, show=False):
+
+        skymodel, objmodel, ivarmodel, outmask, sobjs = \
+            self.sciI.local_skysub_extract_ech(sobjs_obj, waveimage, model_noise=model_noise, std=std, maskslits=maskslits,
+                                           show_profile=show_profile, show=show)
+
+        return skymodel, objmodel, ivarmodel, outmask, sobjs
 
     # THESE ARENT USED YET BUT WE SHOULD CONSIDER IT
     @staticmethod

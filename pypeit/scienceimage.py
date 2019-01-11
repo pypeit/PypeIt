@@ -292,7 +292,7 @@ class ScienceImage(processimages.ProcessImages):
         return sobjs, len(sobjs), skymask
 
 
-    def find_objects_ech(self, image, std=False, snr_trim=False, std_trace = None, show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False):
+    def find_objects_ech(self, image, std=False, std_trace = None, show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False):
 
         # Did they run process?
         if not self._chk_objs(['sciivar']):
@@ -316,7 +316,7 @@ class ScienceImage(processimages.ProcessImages):
         sig_thresh = 30.0 if std else self.par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = \
             extract.ech_objfind(image, self.sciivar, self.slitmask, self.tslits_dict['lcen'], self.tslits_dict['rcen'],
-                                snr_trim=snr_trim, inmask=inmask, plate_scale=plate_scale, std_trace=std_trace,
+                                inmask=inmask, plate_scale=plate_scale, std_trace=std_trace,
                                 specobj_dict=specobj_dict,sig_thresh=sig_thresh,
                                 show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace, debug=debug)
 
@@ -514,6 +514,126 @@ class ScienceImage(processimages.ProcessImages):
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+
+    # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
+    # being updated?
+    def local_skysub_extract_ech(self, sobjs, waveimg, model_full_slit=True, model_noise=True, std = False,
+                                 maskslits=None, show_profile=False, show_resids=False, show=False):
+        """
+        Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
+
+        Wrapper to skysub.local_skysub_extract
+
+        Parameters
+        ----------
+        sobjs: object
+           Specobjs object containing Specobj objects containing information about objects found.
+        waveimg: ndarray, shape (nspec, nspat)
+           Wavelength map
+
+        Optional Parameters
+        -------------------
+
+
+        Returns:
+            global_sky: (numpy.ndarray) image of the the global sky model
+        """
+
+        if not self._chk_objs([ # Did they run process?
+                                'sciimg', 'sciivar', 'rn2img',
+                                # Did they run global sky subtraction, self.global_skysub()?
+                                'global_sky',
+                                # Did the input the right calibrations in prev steps?
+                                'tilts', 'tslits_dict']):
+            msgs.error('All quantities necessary to run local_skysub_extract() have not been set.')
+
+        from IPython import embed
+        embed()
+
+        self.waveimg = waveimg
+        # get the good slits and assign self.maskslits
+        self.maskslits = self._get_goodslits(maskslits)
+        gdslits = np.where(~self.maskslits)[0]
+
+        # Allocate the images that are needed
+        # Initialize to mask in case no objects were found
+        self.outmask = np.copy(self.mask)
+        # Initialize to input mask in case no objects were found
+        #self.extractmask = (self.mask == 0) & self.negmask
+        self.extractmask = (self.mask == 0)
+        # Initialize to zero in case no objects were found
+        self.objmodel = np.zeros_like(self.sciimg)
+        # Set initially to global sky in case no objects were found
+        self.skymodel  = np.copy(self.global_sky)
+        # Set initially to sciivar in case no obects were found.
+        self.ivarmodel = np.copy(self.sciivar)
+
+        # Could actually create a model anyway here, but probably
+        # overkill since nothing is extracted
+
+        self.sobjs = sobjs.copy()
+
+        norders = self.spectrograph.norders
+        order_vec = self.spectrograph.order_vec
+
+        if (np.sum(self.sobjs.sign > 0) % norders) == 0:
+            nobjs = int((np.sum(self.sobjs.sign > 0)/norders))
+        else:
+            msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or ordres!')
+
+        order_snr = np.zeros((norders, nobjs))
+        uni_objid = np.unique(self.sobjs[self.sobjs.sign > 0].ech_objid)
+        for iord in range(norders):
+            for iobj in range(nobjs):
+                ind = (self.sobjs.ech_orderindx == iord) & (self.sobjs.ech_objid == uni_objid[iobj])
+                order_snr[iord,iobj] = self.sobjs[ind].ech_snr
+
+        # Compute the average SNR and find the brightest object
+        snr_bar = np.mean(order_snr,axis=0)
+        srt_obj = snr_bar.argsort()[::-1]
+        ibright = srt_obj[0] # index of the brightest object
+        # Now extract the orders in descending order of S/N for the brightest object
+        srt_snr = order_snr[:,ibright].argsort()[::-1]
+        fwhm_here = np.zeros(norders)
+        fwhm_was_fit = np.zeros(norders,dtype=bool)
+
+        # Loop on slits
+        for jorder in range(norders):
+            iord = srt_snr[jorder]
+            order = self.spectrograph.slit2order[iord]
+            msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit))
+            thisobj = (self.sobjs.ech_orderindx == iord) # indices of objects for this slit
+            thismask = (self.slitmask == iord) # pixels for this slit
+            # True  = Good, False = Bad for inmask
+            inmask = (self.mask == 0) & (self.crmask == False) & thismask
+            # Local sky subtraction and extraction
+            self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.extractmask[thismask] = \
+                skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts,
+                self.waveimg, self.global_sky, self.rn2img,
+                thismask, self.tslits_dict['lcen'][:,slit],
+                self.tslits_dict['rcen'][:, slit],
+                self.sobjs[thisobj], model_full_slit=model_full_slit,
+                model_noise=model_noise,
+                std = std, bsp=self.par['bspline_spacing'],
+                sn_gauss=self.par['sn_gauss'],
+                inmask=inmask, show_profile=show_profile,
+                show_resids=show_resids)
+
+        # Set the bit for pixels which were masked by the extraction.
+        # For extractmask, True = Good, False = Bad
+        iextract = (self.mask == 0) & (self.extractmask == False)
+        self.outmask[iextract] += np.uint64(2**8)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+
+        if show:
+            self.show('local', sobjs = self.sobjs, slits= True)
+            self.show('resid', sobjs = self.sobjs, slits= True)
+
+        # Return
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+
+
 
 
     def _get_goodslits(self, maskslits):

@@ -446,13 +446,14 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
                          bsp = 0.6, inmask = None, extract_maskwidth = 4.0, trim_edg = (3,3), std = False, prof_nsigma = None,
-                         niter=4, box_rad = 7, sigrej = 3.5, bkpts_optimal=True, sn_gauss = 4.0, model_noise = True,
+                         niter=4, box_rad = 7, sigrej = 3.5, bkpts_optimal=True, sn_gauss = 4.0,
+                         model_full_slit=False, model_noise = True,
                          debug_bkpts = False, show_profile=False, show_resids=False):
 
     """Perform local sky subtraction and  extraction
 
-     Parameters
-     ----------
+     Args:
+
      sciimg : numpy float 2-d array (nspec, nspat)
          sky-subtracted image
      sciivar : numpy float 2-d array (nspec, nspat)
@@ -466,10 +467,25 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
      rn2_img:
          Image with the read noise squared per pixel
          object trace
+     thismask:
+     slit_left:
+     slit_righ:
+     sobjs:
 
-    Optional Parameters
-    -------------------
-    bkpts_optimal = bool, default True
+     Optional Args:
+
+     bsp:
+     inmask:
+     extract_maskwidth: float, default = 4.0
+        This parameter determines the initial size of the region in units of fwhm that will be used for local sky subtraction. This
+        maskwidth is defined in the obfjind code, but is then updated here as the profile fitting improves the fwhm estimates
+     trim_edg:
+     std:
+     prof_nsigma:
+     niter:
+     box_rad:
+     sigrej:
+     bkpts_optimal: bool, default True
          bkpts_optimal = True:
               The optimal break-point spacing will be determined directly using the optimal_bkpts function
               by measuring how well we are sampling the sky  using the piximg = (nspec-1)*yilyd. The bsp parameter
@@ -480,16 +496,26 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
 
                   bset = pydl.bspline(piximg_values, nord=4, bkspace=bsp)
                   fullbkpt = bset.breakpoints
+     sn_gauss:
+     model_full_slit: bool, default = False
+          Set the maskwidth of the objects to be equal to the slit width/2 such that the entire slit will be modeled
+          by the local skysubtraction. This mode is recommended for echelle spectra with reasonably narrow slits.
+     model_noise:
+     debug_bkpts:
+     show_profile:
+     show_resids:
 
-    extract_maskwidth: float, default = 4.0
-        This parameter determines the initial size of the region in units of fwhm that will be used for local sky subtraction. This
-        maskwidth is defined in the obfjind code, but is then updated here as the profile fitting improves the fwhm estimates
+     Returns:
 
-     Returns
-     -------
      :func:`tuple`
 
-     """
+    """
+
+    # Adjust maskwidths of the objects such that we will apply the local_skysub_extract to the entire slit
+    if model_full_slit:
+        max_slit_width = np.max(slit_righ - slit_left)
+        for spec in sobjs:
+            spec.maskwidth = max_slit_width/2.0
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = trim_edg)
 

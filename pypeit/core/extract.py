@@ -1967,7 +1967,7 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
 
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_link=1.0, order_vec=None, plate_scale=0.2,
-                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, snr_trim=True, min_snr=0.2, nabove_min_snr=1,
+                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, min_snr=-np.inf, nabove_min_snr=1,
                 pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
                 extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
                 trim_edg=(5,5), show_peaks=False, show_fits=False, show_trace=False, show_single_trace=False, debug=False):
@@ -2016,8 +2016,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
        the number of components contains approximately 99% of the variance
     coeff_npoly: int, default = None,
        order of polynomial used for PCA coefficients fitting. Default is None and this will be determined automatically.
-    snr_trim: bool, default=True
-       Trim objects based on S/N ratio determined from quick extraction
     min_snr: float, default = 0.2
        Minimum SNR for keeping an object. For an object to be kept it must have a median S/N ratio above min_snr for
        at least nabove_min_snr orders.
@@ -2272,25 +2270,21 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
             spec = sobjs_align[indx][0]
             thismask = slitmask == iord
             inmask_iord = inmask & thismask
-            if snr_trim:
-                # TODO make the snippet below its own function quick_extraction()
-                box_rad_pix = box_radius/plate_scale_ord[iord]
-                flux_tmp  = extract_boxcar(image*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
-                var_tmp  = extract_boxcar(varimg*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
-                ivar_tmp = utils.calc_ivar(var_tmp)
-                pixtot  = extract_boxcar(ivar*0 + 1.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
-                mask_tmp = (extract_boxcar(ivar*inmask_iord == 0.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec) != pixtot)
-                flux_box[:,iord,iobj] = flux_tmp*mask_tmp
-                ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
-                mask_box[:,iord,iobj] = mask_tmp
-                (mean, med_sn, stddev) = sigma_clipped_stats(flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
-                sigma_lower=5.0,sigma_upper=5.0)
-                # ToDO assign this to sobjs_align for use in the extraction
-                SNR_arr[iord,iobj] = med_sn
-                spec.ech_snr = med_sn
-            else:
-                SNR_arr[iord, iobj] = 1e10
-                spec.ech_snr = 1e10
+            # TODO make the snippet below its own function quick_extraction()
+            box_rad_pix = box_radius/plate_scale_ord[iord]
+            flux_tmp  = extract_boxcar(image*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+            var_tmp  = extract_boxcar(varimg*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+            ivar_tmp = utils.calc_ivar(var_tmp)
+            pixtot  = extract_boxcar(ivar*0 + 1.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+            mask_tmp = (extract_boxcar(ivar*inmask_iord == 0.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec) != pixtot)
+            flux_box[:,iord,iobj] = flux_tmp*mask_tmp
+            ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
+            mask_box[:,iord,iobj] = mask_tmp
+            (mean, med_sn, stddev) = sigma_clipped_stats(flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
+            sigma_lower=5.0,sigma_upper=5.0)
+            # ToDO assign this to sobjs_align for use in the extraction
+            SNR_arr[iord,iobj] = med_sn
+            spec.ech_snr = med_sn
 
     # Purge objects with low SNR that don't show up in enough orders, sort the list of objects with respect to obj_id
     # and orderindx
@@ -2313,6 +2307,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
                       ' on at least nabove_min_snr >= {:d}'.format(nabove_min_snr) + ' orders')
 
     nobj_trim = np.sum(keep_obj)
+
     if nobj_trim == 0:
         sobjs_final = specobjs.SpecObjs()
         skymask = create_skymask_fwhm(sobjs_final, allmask)
