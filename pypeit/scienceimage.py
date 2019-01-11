@@ -19,6 +19,7 @@ from pypeit.core import extract
 from pypeit.core import trace_slits
 from pypeit.par import pypeitpar
 from pypeit.core import procimg
+from matplotlib import pyplot as plt
 
 #
 # from pypeit.bitmask import BitMask
@@ -518,7 +519,7 @@ class ScienceImage(processimages.ProcessImages):
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
     def local_skysub_extract_ech(self, sobjs, waveimg, model_full_slit=True, model_noise=True, std = False,
-                                 maskslits=None, show_profile=False, show_resids=False, show=False):
+                                 maskslits=None, show_profile=False, show_resids=False, show_fwhm=False, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -574,7 +575,8 @@ class ScienceImage(processimages.ProcessImages):
         self.sobjs = sobjs.copy()
 
         norders = self.spectrograph.norders
-        order_vec = self.spectrograph.order_vec
+        slit_vec = np.arange(norders)
+        order_vec = self.spectrograph.order_vec()
 
         if (np.sum(self.sobjs.sign > 0) % norders) == 0:
             nobjs = int((np.sum(self.sobjs.sign > 0)/norders))
@@ -596,13 +598,46 @@ class ScienceImage(processimages.ProcessImages):
         srt_snr = order_snr[:,ibright].argsort()[::-1]
         fwhm_here = np.zeros(norders)
         fwhm_was_fit = np.zeros(norders,dtype=bool)
-
-        # Loop on slits
+        # Loop on orders
         for jorder in range(norders):
             iord = srt_snr[jorder]
             order = self.spectrograph.slit2order[iord]
-            msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit))
-            thisobj = (self.sobjs.ech_orderindx == iord) # indices of objects for this slit
+            msgs.info("Local sky subtraction and extraction for slit/order: {:d}/{:d}".format(iord,order))
+            other_orders = (fwhm_here > 0) & (not fwhm_was_fit)
+            other_fit    = (fwhm_here > 0) & fwhm_was_fit
+            for isrt in range(nobjs):
+                iobj = srt_obj[isrt]
+                if (order_snr[iord, iobj] <= min_snr) & (np.sum(other_orders) > 2):
+                    # If this is the brightest object then we have to extrapolate the FWHM from a fit
+                    if isrt == 0:
+                        msgs.info('**************************************************')
+                        msgs.info('Performing linear fit for FWHM of object={:d}'.format(uni_objid[iobj]) +
+                                  ' on slit/order: {:d}/{:d}'.format(iord,order))
+                        msgs.info('        slit, order, fwhm')
+                        for slit_now, order_now, fwhm_now in \
+                                zip(slit_vec[other_orders], order_vec[other_orders],fwhm_here[other_orders]):
+                            msgs.info('    {:2d}, {:2d}, {:5.4f}'.format(slit_now, order_now, fwhm_now))
+                        fwhm_coeffs = np.polyfit(order_vec[other_orders], fwhm_here[other_orders], 1)
+                        fwhm_eval = np.poly1d(fwhm_coeffs)
+                        fwhm_fit = fwhm_eval(order_vec[iord])
+                        fwhm_was_fit[iord] = True
+                        msgs.info('FIT: {:2d}, {:2d}, {:5.4f}'.format(iord, order, fwhm_fit))
+                        msgs.info('**************************************************')
+                        sci1 = (self.sobjs.ech_objid == uni_objid[iobj]) & (self.sobjs.ech_orderindx == iord)
+                        for spec in
+                        if show_fwhm:
+                            plt.plot(order_vec[other_orders], fwhm_here[other_orders], marker='o', linestyle=' ',
+                                     color='k', mfc='k', markersize=4.0, label='orders informing fit')
+                            if np.any(other_fit):
+                                plt.plot(order_vec[other_fit], fwhm_here[other_fit], marker='o', linestyle=' ',
+                                         color='lawngreen', mfc='lawngreen',markersize=4.0, label='fits to other low SNR orders')
+                            plt.plot([order_vec[iord]], [fwhm_fit], marker='o', linestyle=' ',
+                                     color='red', mfc='red', markersize=6.0,
+                                     label='fit to this order')
+                            plt.plot(order_vec, fwhm_eval[order_vec], marker='o', color='cornflowerblue', zorder=10, linewidth=4.0, label='FWHM fit')
+                    else:
+
+                        thisobj = (self.sobjs.ech_orderindx == iord) # indices of objects for this slit
             thismask = (self.slitmask == iord) # pixels for this slit
             # True  = Good, False = Bad for inmask
             inmask = (self.mask == 0) & (self.crmask == False) & thismask

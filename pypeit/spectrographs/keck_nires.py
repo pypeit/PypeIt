@@ -339,8 +339,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         orders = np.arange(7, 2, -1, dtype=int)
         return orders[islit]
 
-#    def order_vec(self):
-#        return self.slit2order(np.arange(self.norders))
+    def order_vec(self):
+        return self.slit2order(np.arange(self.norders))
 
 
     def order_platescale(self, binning = None):
