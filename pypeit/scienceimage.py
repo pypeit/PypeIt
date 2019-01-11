@@ -496,7 +496,8 @@ class ScienceImage(processimages.ProcessImages):
                                                       self.waveimg, self.global_sky, self.rn2img,
                                                       thismask, self.tslits_dict['lcen'][:,slit],
                                                       self.tslits_dict['rcen'][:, slit],
-                                                      self.sobjs[thisobj], model_noise=model_noise,
+                                                      self.sobjs[thisobj], model_full_slit=self.par['model_full_slit'],
+                                                      model_noise=model_noise,
                                                       std = std, bsp=self.par['bspline_spacing'],
                                                       sn_gauss=self.par['sn_gauss'],
                                                       inmask=inmask, show_profile=show_profile,
@@ -617,7 +618,7 @@ class ScienceImage(processimages.ProcessImages):
                         fwhm_was_fit[iord] = True
                         msgs.info('FIT: {:2d}, {:2d}, {:5.4f}'.format(iord, order, fwhm_fit))
                         msgs.info('**************************************************')
-                        indx = np.where(self.sobjs.ech_objid == uni_objid[iobj]) & (self.sobjs.ech_orderindx == iord)
+                        indx = (self.sobjs.ech_objid == uni_objid[iobj]) & (self.sobjs.ech_orderindx == iord)
                         for spec in self.sobjs[indx]:
                             spec.fwhm = fwhm_fit
                         if show_fwhm:
@@ -646,9 +647,16 @@ class ScienceImage(processimages.ProcessImages):
                 skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts, self.waveimg, self.global_sky,
                                             self.rn2img, thismask, self.tslits_dict['lcen'][:,iord],
                                             self.tslits_dict['rcen'][:, iord], self.sobjs[thisobj], inmask=inmask,
-                                            model_full_slit=model_full_slit, model_noise=model_noise, std = std,
+                                            model_full_slit=self.par['model_full_slit'], model_noise=model_noise, std = std,
                                             bsp=self.par['bspline_spacing'], sn_gauss=self.par['sn_gauss'],
                                             show_profile=show_profile, show_resids=show_resids)
+            # update the FWHM fitting vector for the brighest object
+            indx = (self.sobjs.ech_objid == uni_objid[ibright]) & (self.sobjs.ech_orderindx == iord)
+            fwhm_here[iord] = np.median(self.sobjs[indx].fwhmfit)
+            # Did the FWHM get updated by the profile fitting routine in local_skysub_extract? If so, include this value
+            # for future fits
+            if np.abs(fwhm_here[iord] - self.sobjs[indx].fwhm) >= 0.01:
+                fwhm_was_fit[iord] = False
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad

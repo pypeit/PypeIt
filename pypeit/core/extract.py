@@ -1035,21 +1035,47 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     l_limit = ((sigma_x.flat[ss])[::-1])[lp] - 0.1
     r_limit = sigma_x.flat[ss[rp]] + 0.1
 
+    # Determine the left and right locations (l_limit and r_limit) where the profile logarithmic derivative crosses one for apodization
+    # of the object profiles.
+
+    l_val = np.array([], dtype=float)
+    deriv_l = np.array([], dtype=float)
     while True:
         l_limit += 0.1
         l_fit, _ = bset.value(np.asarray([l_limit]))
         l2, _ = bset.value(np.asarray([l_limit])* 0.9)
         l_deriv = (np.log(l2[0]) - np.log(l_fit[0]))/(0.1*l_limit)
+        l_val = np.append(l_val, l_limit)
+        deriv_l = np.append(deriv_l, l_deriv)
         if (l_deriv < -1.0) | (l_limit >= -1.0):
             break
 
+    r_val = np.array([], dtype=float)
+    deriv_r = np.array([], dtype=float)
     while True:
         r_limit -= 0.1
         r_fit, _ = bset.value(np.asarray([r_limit]))
         r2, _ = bset.value(np.asarray([r_limit])* 0.9)
         r_deriv = (np.log(r2[0]) - np.log(r_fit[0]))/(0.1*r_limit)
+        r_val = np.append(r_val, r_limit)
+        deriv_r = np.append(deriv_r, r_deriv)
         if (r_deriv > 1.0) | (r_limit <= 1.0):
             break
+
+    # TODO Deal with cases where the logarithmic derivative never actually reaches 1.0. In these cases we can just apodize using the maximum
+    # slope that is reached on the interval between  r_limit = sigma_x.flat[si].max() and 1.0
+    from IPython import embed
+    embed()
+    r_val = np.array([], dtype=float)
+    deriv_r = np.array([], dtype=float)
+    while r_limit > 1.0:
+        r_limit -= 0.1
+        r_fit, _ = bset.value(np.asarray([r_limit]))
+        r2, _ = bset.value(np.asarray([r_limit]) * 0.9)
+        r_deriv = (np.log(r2[0]) - np.log(r_fit[0])) / (0.1 * r_limit)
+        r_val = np.append(r_val, r_limit)
+        deriv_r = np.append(deriv_r, r_deriv)
+
 
 
     # JXP kludge
@@ -1058,13 +1084,14 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
        l_limit = 0.0
        r_limit = 0.0
 
-
-    # Hack to fix degenerate profiles which have a positive derivative
+    # Apodization of object profiles with exponential, ensuring continuity of first derivative
     if (l_deriv < 0) and (r_deriv > 0) and no_deriv is False:
         left = sigma_x.flatten() < l_limit
-        full_bsp[left] =  np.exp(-(sigma_x.flat[left]-l_limit)*l_deriv) * l_fit
+        full_bsp[left] =  np.exp(-(sigma_x.flat[left]-l_limit)*l_deriv) * l_fit[0]
         right = sigma_x.flatten() > r_limit
-        full_bsp[right] = np.exp(-(sigma_x.flat[right] - r_limit) * r_deriv) * r_fit
+        full_bsp[right] = np.exp(-(sigma_x.flat[right] - r_limit) * r_deriv) * r_fit[0]
+        from IPython import embed
+        embed()
 
     # Final object profile
     full_bsp = full_bsp.reshape(nspec,nspat)
