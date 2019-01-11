@@ -527,9 +527,9 @@ class PypeIt(object):
             self.sobjs = self.sobjs_obj
             self.vel_corr = None
 
-        return self.sciimg, self.sciivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, vel_corr
+        return self.sciimg, self.sciivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
 
-    def find_objects(self, image, std=False, ir_redux=False, std_trace=None, snr_trim=False, maskslits=None,
+    def find_objects(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
         """
         Dummy method for object finding. Overloaded by class specific object finding.
@@ -694,7 +694,7 @@ class MultiSlit(PypeIt):
         self.stdI = None
 
 
-    def find_objects(self, image, std=False, ir_redux=False, std_trace=None, snr_trim=False, maskslits=None,
+    def find_objects(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         sobjs_obj_init, nobj_init, skymask_pos = \

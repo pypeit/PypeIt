@@ -106,7 +106,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Extraction
         par['scienceimage']['bspline_spacing'] = 0.8
-        par['scienceimage']['sn_gauss'] = 4.0
+        par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
 
         # Do not correct for flexure
         par['flexure'] = None
@@ -285,6 +285,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         return orders[islit]
 
 
+    def order_vec(self):
+        return self.slit2order(np.arange(self.norders))
 
     def slitmask(self, tslits_dict, pad=None, binning=None):
         """

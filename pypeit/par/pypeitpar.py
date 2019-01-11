@@ -1808,7 +1808,7 @@ class ScienceImagePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, sig_thresh=None, maxnumber=None, sn_gauss=None, manual=None):
+    def __init__(self, bspline_spacing=None, sig_thresh=None, maxnumber=None, sn_gauss=None, model_full_slit=None, manual=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1851,6 +1851,12 @@ class ScienceImagePar(ParSet):
                             'b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extract' \
                             'with a Gaussian with FWHM determined from the object finding.'
 
+        defaults['model_full_slit'] = False
+        dtypes['model_full_slit'] = bool
+        descr['model_full_slit'] = 'If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will ' \
+                            'be applied to only a restricted region around each object. This should be set to True for either multislit ' \
+                            'observations using narrow slits or echelle observations with narrow slits'
+
         dtypes['manual'] = list
         descr['manual'] = 'List of manual extraction parameter sets'
 
@@ -1867,7 +1873,7 @@ class ScienceImagePar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'sig_thresh', 'maxnumber', 'sn_gauss', 'manual']
+        parkeys = ['bspline_spacing', 'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'manual']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

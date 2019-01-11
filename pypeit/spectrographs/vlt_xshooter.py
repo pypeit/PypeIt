@@ -235,6 +235,18 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         return match_criteria
 
 
+    @property
+    def norders(self):
+        return None
+
+    def slit2order(self, islit):
+        pass
+
+    def order_vec(self):
+        return self.slit2order(np.arange(self.norders))
+
+
+
 class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     """
     Child to handle VLT/XSHOOTER specific code
@@ -318,9 +330,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
+        # Is this needed below?
         par['scienceframe']['process']['sigclip'] = 20.0
-        par['scienceframe']['process']['satpix'] ='nothing'
+        par['scienceframe']['process']['satpix'] = 'nothing'
 
+        # Extraction
+        par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         # Do not bias subtract
         par['scienceframe']['useframe'] ='none'
         # This is a hack for now until we can specify for each image type what to do. Bias currently
@@ -608,6 +624,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
+        # Extraction
+        par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
         # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
         par['scienceframe']['useframe'] ='overscan'
