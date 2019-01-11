@@ -190,7 +190,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Required (core)
         meta['ra'] = dict(ext=0, card='RA')
         meta['dec'] = dict(ext=0, card='DEC')
-        meta['target'] = dict(ext=0, card='TARGNAME')
+        meta['target'] = dict(ext=0, card='OBJECT')
         meta['decker'] = dict(ext=0, card='DECKER')
 
         meta['binning'] = dict(ext=0, card=None, default='1,1')

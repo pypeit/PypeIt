@@ -540,7 +540,8 @@ class PypeIt(object):
 
         return None, None, None
 
-    def local_skysub_extract(self, sobjs_obj, waveimage, model_noise=True, std=False, maskslits=None, show_profile=False, show=False):
+    def local_skysub_extract(self, sobjs_obj, waveimage, model_noise=True, std=False, min_snr=2.0, maskslits=None,
+                             show_profile=False, show_fwhm=False, show=False):
         """
         Dummy method for locak skysubtraction and extraction. Overloaded by class specific object finding.
 
@@ -714,8 +715,8 @@ class MultiSlit(PypeIt):
 
         return sobjs_obj_init, len(sobjs_obj_init), skymask
 
-    def local_skysub_extract(self, sobjs_obj, waveimage, model_noise=True, std=False, maskslits=None,
-                             show_profile=False, show=False):
+    def local_skysub_extract(self, sobjs_obj, waveimage, model_noise=True, std=False, min_snr=2.0, maskslits=None,
+                             show_profile=False, show_fwhm=False, show=False):
 
         skymodel, objmodel, ivarmodel, outmask, sobjs = \
             self.sciI.local_skysub_extract(sobjs_obj, waveimage, model_noise=model_noise, std=std, maskslits=maskslits,
@@ -840,12 +841,12 @@ class Echelle(PypeIt):
         return sobjs_obj_init, len(sobjs_obj_init), skymask
 
 
-    def local_skysub_extract(self, sobjs_obj, waveimage, model_noise=True, std=False, maskslits=None,
-                             show_profile=False, show=False):
+    def local_skysub_extract(self, sobjs_obj, waveimage, model_noise=True, std=False, min_snr=2.0, maskslits=None,
+                             show_profile=False, show_fwhm=False, show=False):
 
         skymodel, objmodel, ivarmodel, outmask, sobjs = \
-            self.sciI.local_skysub_extract_ech(sobjs_obj, waveimage, model_noise=model_noise, std=std, maskslits=maskslits,
-                                           show_profile=show_profile, show=show)
+            self.sciI.local_skysub_extract_ech(sobjs_obj, waveimage, model_noise=model_noise, std=std, min_snr=min_snr,
+                                               maskslits=maskslits, show_profile=show_profile, show_fwhm=show_fwhm, show=show)
 
         return skymodel, objmodel, ivarmodel, outmask, sobjs
 

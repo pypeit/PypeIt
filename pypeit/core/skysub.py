@@ -566,6 +566,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     skyimage = np.copy(global_sky)
     #varnoobj = np.abs(skyimage - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
+    # TODO Add a line of code here that updates the modelivar using the global sky if nobj = 0 and simply returns
+
     spat_img = np.outer(np.ones(nspec), np.arange(nspat))
     spec_img = np.outer(np.arange(nspec), np.ones(nspat))
 
@@ -776,7 +778,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                             box_rad, sobjs[iobj])
             sobjs[iobj].mincol = mincol
             sobjs[iobj].maxcol = maxcol
-
 
 
     # If requested display the model fits for this slit
