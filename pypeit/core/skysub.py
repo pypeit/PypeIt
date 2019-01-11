@@ -17,6 +17,7 @@ from pypeit.core import extract
 from matplotlib import pyplot as plt
 
 from scipy.special import ndtr
+import scipy
 
 
 
@@ -298,10 +299,155 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
 
     return sky_bmodel, obj_bmodel, outmask
 
+
+def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
+                  skyimage = None, mincol=None, maxcol=None, debug=False):
+    """
+
+    Args:
+        bsp_min: float
+           Desired B-spline breakpoint spacing in pixels
+        piximg: ndarray float, shape = (nspec, nspat)
+           Image containing the pixel sampling, i.e. (nspec-1)*tilts
+        sampmask: ndarray, bool
+           Boolean array indicating the pixels for which the B-spline fit will actually be evaluated. True = Good, False=Bad
+    Optional Args:
+        samp_frac: float, default = 0.8
+           The fraction of spectral direction pixels required to have a sampling difference < bsp_min in order to instead
+           adopt a uniform break point spacing, rather adopting the optimally spaced breakpoints.
+        skyimage: ndarray, shape = (nspec, nspat), default = None
+           Sky model image used only for QA.
+        mincol: float, default = None
+           Minimum spatial column used for local sky subtraction fitting. Only used for title of QA plot.
+        maxcol: float, defualt = None
+           Maximum spatial column used for local sky subtraction fitting. Only used for title of QA plot.
+        debug: bool, default = False
+           Show QA plot to debug breakpoint placing.
+
+    Returns:
+        fullbkpt: ndarray, float
+           Locations of the optimally sampled breakpoints
+
+    """
+
+    pix = piximg[sampmask]
+    isrt = pix.argsort()
+    pix = pix[isrt]
+    piximg_min = pix.min()
+    piximg_max = pix.max()
+    bset0 = pydl.bspline(pix, nord=4, bkspace=bsp_min)
+    fullbkpt_grid = bset0.breakpoints
+    keep = (fullbkpt_grid >= piximg_min) & (fullbkpt_grid <= piximg_max)
+    fullbkpt_grid = fullbkpt_grid[keep]
+    used_grid = False
+    if not bkpts_optimal:
+        msgs.info('bkpts_optimal = False --> using uniform bkpt spacing spacing: bsp={:5.3f}'.format(bsp_min))
+        fullbkpt = fullbkpt_grid
+        used_grid = True
+    else:
+        piximg_temp = np.ma.array(np.copy(piximg))
+        piximg_temp.mask = np.invert(sampmask)
+        samplmin = np.ma.min(piximg_temp,fill_value=np.inf,axis=1)
+        samplmin = samplmin[np.invert(samplmin.mask)].data
+        samplmax = np.ma.max(piximg_temp,fill_value=-np.inf,axis=1)
+        samplmax = samplmax[np.invert(samplmax.mask)].data
+        if samplmax.size != samplmin.size:
+            msgs.error('This should not happen')
+        nbkpt = samplmax.size
+        # Determine the sampling. dsamp represents the gap in spectral pixel (wavelength) coverage between
+        # subsequent spectral direction pixels in the piximg, i.e. it is the difference between the minimum
+        # value of the piximg at spectral direction pixel i+1, and the maximum value of the piximg at spectral
+        # direction pixel i. A negative value dsamp < 0 implies continuous sampling with no gaps, i.e. the
+        # the arc lines are sufficiently tilted that there is no sampling gap.
+        dsamp_init = np.roll(samplmin, -1) - samplmax
+        dsamp_init[nbkpt - 1] = dsamp_init[nbkpt - 2]
+        kernel_size = int(np.fmax(np.ceil(dsamp_init.size*0.01)//2*2 + 1,15))  # This ensures kernel_size is odd
+        dsamp_med = scipy.ndimage.filters.median_filter(dsamp_init, size=kernel_size, mode='reflect')
+        boxcar_size = int(np.fmax(np.ceil(dsamp_med.size*0.005)//2*2 + 1,5))
+        # Boxcar smooth median dsamp
+        kernel = np.ones(boxcar_size)/ float(boxcar_size)
+        dsamp = scipy.ndimage.convolve(dsamp_med, kernel, mode='reflect')
+        # if more than samp_frac of the pixels have dsamp < bsp_min than just use a uniform breakpoint spacing
+        if np.sum(dsamp <= bsp_min) > samp_frac*nbkpt:
+            msgs.info('Sampling of wavelengths is nearly continuous.')
+            msgs.info('Using uniform bkpt spacing: bsp={:5.3f}'.format(bsp_min))
+            fullbkpt = fullbkpt_grid
+            used_grid = True
+        else:
+            fullbkpt_orig = samplmax + dsamp/2.0
+            fullbkpt_orig.sort()
+            # Compute the distance between breakpoints
+            dsamp_bkpt = fullbkpt_orig-np.roll(fullbkpt_orig, 1)
+            dsamp_bkpt[0] = dsamp_bkpt[1]
+            # Good breakpoints are those that are at least separated by our original desired bkpt spacing
+            igood = dsamp_bkpt >= bsp_min
+            if np.any(igood):
+                fullbkpt_orig = fullbkpt_orig[igood]
+            fullbkpt = fullbkpt_orig.copy()
+            # Recompute the distance between breakpoints
+            dsamp_bkpt = fullbkpt_orig-np.roll(fullbkpt_orig, 1)
+            dsamp_bkpt[0] = dsamp_bkpt[1]
+            nbkpt = fullbkpt_orig.size
+            for ibkpt in range(nbkpt):
+                dsamp_eff = np.fmax(dsamp_bkpt[ibkpt], bsp_min)
+                # can we fit in another bkpt?
+                if dsamp_bkpt[ibkpt] > 2*dsamp_eff:
+                    nsmp = int(np.fmax(np.floor(dsamp_bkpt[ibkpt]/dsamp_eff),2))
+                    bkpt_new = fullbkpt_orig[ibkpt - 1] + (np.arange(nsmp - 1) + 1)*dsamp_bkpt[ibkpt]/float(nsmp)
+                    indx_arr = np.where(fullbkpt == fullbkpt_orig[ibkpt-1])[0]
+                    if len(indx_arr) > 0:
+                        indx_bkpt = indx_arr[0]
+                        if indx_bkpt == 0:
+                            fullbkpt = np.hstack((fullbkpt[0], bkpt_new, fullbkpt[indx_bkpt + 1:]))
+                        elif indx_bkpt == (fullbkpt.size-2):
+                            fullbkpt = np.hstack((fullbkpt[0:indx_bkpt], bkpt_new, fullbkpt[indx_bkpt + 1]))
+                        else:
+                            fullbkpt = np.hstack((fullbkpt[0:indx_bkpt], bkpt_new, fullbkpt[indx_bkpt + 1:]))
+
+            fullbkpt.sort()
+            keep = (fullbkpt >= piximg_min) & (fullbkpt <= piximg_max)
+            fullbkpt = fullbkpt[keep]
+
+
+    if debug:
+        plt.figure(figsize=(14, 6))
+        sky = skyimage[sampmask]
+        sky = sky[isrt]
+        # This is approximate and only for the sake of visualization:
+        spat_samp_vec = np.sum(sampmask, axis=1)  # spatial sampling per spectral direction pixel
+        spat_samp_med = np.median(spat_samp_vec[spat_samp_vec > 0])
+        window_size = int(np.ceil(5 * spat_samp_med))
+        sky_med_filt = utils.fast_running_median(sky, window_size)
+        sky_bkpt_grid = np.interp(fullbkpt_grid, pix, sky_med_filt)
+        sky_bkpt = np.interp(fullbkpt, pix, sky_med_filt)
+        plt.clf()
+        ax = plt.gca()
+        ax.plot(pix, sky, color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None')
+        # ax.plot(pix, sky_med_filt, color='cornflowerblue', label='median sky', linewidth=1.2)
+        if used_grid == False:
+            ax.plot(fullbkpt_grid, sky_bkpt_grid, color='lawngreen', marker='o', markersize=2.0, mfc='lawngreen',
+                    fillstyle='full', linestyle='None', label='uniform bkpt grid')
+            color = 'red'
+            title_str = ''
+        else:
+            color = 'lawngreen'
+            title_str = 'Used Grid: '
+        ax.plot(fullbkpt, sky_bkpt, color=color, marker='o', markersize=4.0, mfc=color,
+                fillstyle='full', linestyle='None', label='optimal bkpts')
+
+        ax.set_ylim((0.99 * sky_med_filt.min(), 1.01 * sky_med_filt.max()))
+        if mincol is not None:
+            plt.title(title_str + 'bkpt sampling spat pixels {:7.1f}-{:7.1f}'.format(mincol, maxcol))
+        plt.legend()
+        plt.show()
+
+    return fullbkpt
+
+
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
                          bsp = 0.6, inmask = None, extract_maskwidth = 4.0, trim_edg = (3,3), std = False, prof_nsigma = None,
-                         niter=4, box_rad = 7, sigrej = 3.5,skysample = False, sn_gauss = 4.0, model_noise = True,
-                         show_profile=False,show_resids=False):
+                         niter=4, box_rad = 7, sigrej = 3.5, bkpts_optimal=True, sn_gauss = 4.0, model_noise = True,
+                         debug_bkpts = False, show_profile=False, show_resids=False):
 
     """Perform local sky subtraction and  extraction
 
@@ -321,9 +467,20 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
          Image with the read noise squared per pixel
          object trace
 
-
     Optional Parameters
-    ----------
+    -------------------
+    bkpts_optimal = bool, default True
+         bkpts_optimal = True:
+              The optimal break-point spacing will be determined directly using the optimal_bkpts function
+              by measuring how well we are sampling the sky  using the piximg = (nspec-1)*yilyd. The bsp parameter
+              in this case corresponds to the minimum distance between breakpoints which we allow.
+         bkpts_optimal = False:
+              The break-points will be chosen to have a uniform spacing in pixel units sets by the bsp parameter, i.e.
+              using the bkspace functionality of the pydl bspline class:
+
+                  bset = pydl.bspline(piximg_values, nord=4, bkspace=bsp)
+                  fullbkpt = bset.breakpoints
+
     extract_maskwidth: float, default = 4.0
         This parameter determines the initial size of the region in units of fwhm that will be used for local sky subtraction. This
         maskwidth is defined in the obfjind code, but is then updated here as the profile fitting improves the fwhm estimates
@@ -333,7 +490,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
      :func:`tuple`
 
      """
-
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = trim_edg)
 
@@ -384,13 +540,13 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     skyimage = np.copy(global_sky)
     #varnoobj = np.abs(skyimage - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
-    xarr = np.outer(np.ones(nspec), np.arange(nspat))
-    yarr = np.outer(np.arange(nspec), np.ones(nspat))
+    spat_img = np.outer(np.ones(nspec), np.arange(nspat))
+    spec_img = np.outer(np.arange(nspec), np.ones(nspat))
 
-    xa_min = xarr[thismask].min()
-    xa_max = xarr[thismask].max()
-    ya_min = yarr[thismask].min()
-    ya_max = yarr[thismask].max()
+    spat_min = spat_img[thismask].min()
+    spat_max = spat_img[thismask].max()
+    spec_min = spec_img[thismask].min()
+    spec_max = spec_img[thismask].max()
 
     xsize = slit_righ - slit_left
     spatial_img = thismask * ximg * (np.outer(xsize, np.ones(nspat)))
@@ -465,7 +621,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     # For later iterations, profile fitting is based on an optimal extraction
                     last_profile = obj_profiles[:, :, ii]
                     trace = np.outer(sobjs[iobj].trace_spat, np.ones(nspat))
-                    objmask = ((xarr >= (trace - 2.0 * box_rad)) & (xarr <= (trace + 2.0 * box_rad)))
+                    objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
                     extract.extract_optimal(sciimg, modelivar, (outmask & objmask), waveimg, skyimage, rn2_img, last_profile,
                                     box_rad, sobjs[iobj])
                     # If the extraction is bad do not update
@@ -508,28 +664,17 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             iterbsp = 0
             while (not sky_bmodel.any()) & (iterbsp <= 5):
                 bsp_now = (1.2 ** iterbsp) * bsp
-                # if skysample is set, determine optimal break-point spacing
-                # directly measuring how well we are sampling of the sky. The
-                # bsp in this case correspons to the minimum distance between
-                # breakpoints which we allow.
-                if skysample:
-                    sampmask = (waveimg > 0.0) & (thismask == True)
-                    # fullbkpt = skybkpts()
-                    # TODO Port long_skybkpts.pro code and put it here.
-                else:
-                    pixvec = piximg[skymask]
-                    srt = pixvec.flatten().argsort()
-                    bset0 = pydl.bspline(pixvec.flat[srt], nord=4, bkspace=bsp_now)
-                    fullbkpt = bset0.breakpoints
+                ibool = (spec_img >= spec_min) & (spec_img <= spec_max) & \
+                        (spat_img >= spat_min) & (spat_img <= spat_max) & \
+                        (spat_img >= mincol) & (spat_img <= maxcol) & \
+                        thismask
+                sampmask = (waveimg > 0.0) & ibool
+                fullbkpt = optimal_bkpts(bkpts_optimal, bsp_now, piximg, sampmask, debug=(debug_bkpts & (iiter == niter)),
+                                         skyimage=skyimage, mincol=mincol, maxcol=maxcol)
                 # check to see if only a subset of the image is used.
                 # if so truncate input pixels since this can result in singular matrices
-                ibool = (yarr >= ya_min) & (yarr <= ya_max) & (xarr >= xa_min) & (xarr <= xa_max) & (xarr >= mincol) & (
-                            xarr <= maxcol) & thismask
                 isub, = np.where(ibool.flatten())
                 sortpix = (piximg.flat[isub]).argsort()
-                ithis, = np.where(thismask.flat[isub])
-                keep = (fullbkpt >= piximg.flat[isub[ithis]].min()) & (fullbkpt <= piximg.flat[isub[ithis]].max())
-                fullbkpt = fullbkpt[keep]
                 obj_profiles_flat = obj_profiles.reshape(nspec * nspat, objwork)
                 sky_bmodel, obj_bmodel, outmask_opt = skyoptimal(piximg.flat[isub], sciimg.flat[isub],
                                                                  (modelivar * skymask).flat[isub],
@@ -600,7 +745,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                       ' at x = {:5.2f}'.format(sobjs[iobj].spat_pixpos))
             this_profile = obj_profiles[:, :, ii]
             trace = np.outer(sobjs[iobj].trace_spat, np.ones(nspat))
-            objmask = ((xarr >= (trace - 2.0 * box_rad)) & (xarr <= (trace + 2.0 * box_rad)))
+            objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
             extract.extract_optimal(sciimg, modelivar * thismask, (outmask & objmask), waveimg, skyimage, rn2_img, this_profile,
                             box_rad, sobjs[iobj])
             sobjs[iobj].mincol = mincol

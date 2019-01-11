@@ -64,8 +64,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['number'] = 5
         par['calibrations']['traceframe']['number'] = 5
         par['calibrations']['arcframe']['number'] = 1
-        # Bias
-        par['calibrations']['biasframe']['useframe'] = 'none'
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
@@ -101,6 +99,15 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
+
+        # Do not bias subtract
+        par['scienceframe']['useframe'] ='overscan'
+        # This is a hack for now until we can specify for each image type what to do. Bias currently
+        # controls everything
+        par['calibrations']['biasframe']['useframe'] = 'overscan'
+
+
+
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]

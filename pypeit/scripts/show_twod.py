@@ -17,7 +17,7 @@ import argparse
 from astropy.table import Table
 from pypeit import ginga
 from pypeit.spectrographs import util
-from pypeit.scienceimage import ScienceImageBitMask as bitmask
+from pypeit.processimages import ProcessImagesBitMask as bitmask
 
 def parser(options=None):
 

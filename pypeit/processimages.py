@@ -16,12 +16,38 @@ from pypeit.core import combine
 from pypeit.core import procimg
 from pypeit.core import flat
 from pypeit.core import parse
+from pypeit import utils
 
 from pypeit.par import pypeitpar
 
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.bitmask import BitMask
+
 
 from pypeit import debugger
+
+
+class ProcessImagesBitMask(BitMask):
+    """
+    Define a bitmask used to set the reasons why each pixel in a science
+    image was masked.
+    """
+    def __init__(self):
+        # TODO:
+        #   - Can IVAR0 and IVAR_NAN be consolidated into a single bit?
+        #   - Is EXTRACT ever set?
+        mask = {       'BPM': 'Component of the instrument-specific bad pixel mask',
+                        'CR': 'Cosmic ray detected',
+                'SATURATION': 'Saturated pixel',
+                 'MINCOUNTS': 'Pixel below the instrument-specific minimum counts',
+                  'OFFSLITS': 'Pixel does not belong to any slit',
+                    'IS_NAN': 'Pixel value is undefined',
+                     'IVAR0': 'Inverse variance is undefined',
+                  'IVAR_NAN': 'Inverse variance is NaN',
+                   'EXTRACT': 'Pixel masked during local skysub and extraction'
+               }
+        super(ProcessImagesBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
+
 
 class ProcessImages(object):
     """
@@ -73,6 +99,7 @@ class ProcessImages(object):
 
     # Class attribute is unknown.  Will be overwritten by children
     frametype='Unknown'
+    bitmask = ProcessImagesBitMask()  # The bit mask interpreter
 
     def __init__(self, spectrograph, file_list, det=1, par=None):
 
@@ -199,15 +226,13 @@ class ProcessImages(object):
             self.headers.append(head)
         # Get the data sections
         self.datasec, one_indexed, include_end, transpose \
-                = self.spectrograph.get_image_section(self.file_list[0], self.det,
-                                                      section='datasec')
+            = self.spectrograph.get_image_section(self.file_list[0], self.det,section='datasec')
         self.datasec = [ parse.sec2slice(sec, one_indexed=one_indexed,
                                            include_end=include_end, require_dim=2,
                                            transpose=transpose) for sec in self.datasec ]
         # Get the overscan sections
-        self.oscansec, one_indexed, include_end, transpose \
-                = self.spectrograph.get_image_section(self.file_list[0], self.det,
-                                                      section='oscansec')
+        self.oscansec, one_indexed, include_end, transpose = \
+            self.spectrograph.get_image_section(self.file_list[0], self.det,section='oscansec')
         self.oscansec = [ parse.sec2slice(sec, one_indexed=one_indexed,
                                             include_end=include_end, require_dim=2,
                                             transpose=transpose) for sec in self.oscansec ]
@@ -308,7 +333,6 @@ class ProcessImages(object):
                 # Instantiate proc_images
                 self.proc_images = np.zeros((temp.shape[0], temp.shape[1], self.nloaded))
             self.proc_images[:,:,kk] = temp.copy()
-
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -341,47 +365,7 @@ class ProcessImages(object):
         self.steps.append(inspect.stack()[0][3])
         return self.stack
 
-    ## JFH ToDO Scienceimage is the only class currently using this method, and it is not used in this method.
-    # Since I prefer not to make a ScienceImage a child of processimages (since it does not make sense with
-    # Science image working on lists of images) I'm moving this method there.
-#    def build_crmask(self, stack, varframe=None, par=None, binning=None):
-#        """
-#        Generate the CR mask frame
-#
-#        Wrapper to procimg.lacosmic
-#
-#        Parameters
-#        ----------
-#        varframe : ndarray, optional
-#
-#        Returns
-#        -------
-#        self.crmask : ndarray
-#          1. = Masked CR
-#
-#        """
-#        # Set the parameters
-#        if par is not None and not isinstance(par, pypeitpar.ProcessImagesPar):
-#            raise TypeError('Provided ParSet for must be type ProcessImagesPar.')
-#        if par is not None:
-#            self.proc_par = par
-#
-#        # Run LA Cosmic to get the cosmic ray mask
-#        saturation = self.spectrograph.detector[self.det-1]['saturation']
-#        nonlinear = self.spectrograph.detector[self.det-1]['nonlinear']
-#        sigclip, objlim = self.spectrograph.get_lacosmics_par(self.proc_par,binning=binning)
-#        self.crmask = procimg.lacosmic(self.det, stack, saturation, nonlinear,
-#                                         varframe=varframe, maxiter=self.proc_par['lamaxiter'],
-#                                         grow=self.proc_par['grow'],
-#                                         remove_compact_obj=self.proc_par['rmcompact'],
-#                                         sigclip=sigclip,
-#                                         sigfrac=self.proc_par['sigfrac'],
-#                                         objlim=objlim)
-#
-#        # Step
-#        self.steps.append(inspect.stack()[0][3])
-#        # Return
-#        return self.crmask
+
 
     def flat_field(self, pixel_flat, bpm, illum_flat=None):
         """
@@ -440,9 +424,6 @@ class ProcessImages(object):
         if (inspect.stack()[0][3] in self.steps) & (not overwrite):
             msgs.warn("Images already combined.  Use overwrite=True to do it again.")
             return
-
-        # JFH The fact that all these codes have no arguments and no return values make the control flow very hard to follow.
-        # I realize that everything has global scope in a class, but inputs and outputs to functions make code flow understandable.
 
         # Load images
         if 'load_images' not in self.steps:
@@ -536,6 +517,165 @@ class ProcessImages(object):
         # Return
         return self.rawvarframe
 
+    # TODO Move these staticmethods to procimg
+    # This is a static method because I need to be able to run it from outside the class and would prefer
+    # to not have to create an instance of the class everytime I want to do that.
+    @staticmethod
+    def build_crmask(stack, proc_par, det, spectrograph, ivar=None, binning=None):
+        """
+        Generate the CR mask frame
+
+        Wrapper to procimg.lacosmic
+
+        Parameters
+        ----------
+        varframe : ndarray, optional
+
+        Returns
+        -------
+        self.crmask : ndarray
+          1. = Masked CR
+
+        """
+        # Run LA Cosmic to get the cosmic ray mask
+        varframe = utils.calc_ivar(ivar)
+        saturation = spectrograph.detector[det-1]['saturation']
+        nonlinear = spectrograph.detector[det-1]['nonlinear']
+        #sigclip, objlim = spectrograph.get_lacosmics_par(proc_par,binning=binning)
+        crmask = procimg.lacosmic(det, stack, saturation, nonlinear,
+                                  varframe=varframe, maxiter=proc_par['lamaxiter'],
+                                  grow=proc_par['grow'],
+                                  remove_compact_obj=proc_par['rmcompact'],
+                                  sigclip=proc_par['sigclip'],
+                                  sigfrac=proc_par['sigfrac'],
+                                  objlim=proc_par['objlim'])
+
+        # Return
+        return crmask
+
+    @classmethod
+    def build_mask(cls, sciimg, sciivar, crmask, bpm, saturation=1e10, mincounts=-1e10, slitmask=None):
+        """
+        Return the bit value mask used during extraction.
+
+        The mask keys are defined by :class:`ScienceImageBitMask`.  Any
+        pixel with mask == 0 is valid, otherwise the pixel has been
+        masked.  To determine why a given pixel has been masked::
+
+            bitmask = ScienceImageBitMask()
+            reasons = bm.flagged_bits(mask[i,j])
+
+        To get all the pixel masked for a specific set of reasons::
+
+            indx = bm.flagged(mask, flag=['CR', 'SATURATION'])
+
+        Returns:
+            numpy.ndarray: The bit value mask for the science image.
+        """
+        # Instatiate the mask
+        mask = np.zeros_like(sciimg, dtype=cls.bitmask.minimum_dtype(asuint=True))
+
+        # Bad pixel mask
+        indx = bpm.astype(bool)
+        mask[indx] = cls.bitmask.turn_on(mask[indx], 'BPM')
+
+        # Cosmic rays
+        indx = crmask.astype(bool)
+        mask[indx] = cls.bitmask.turn_on(mask[indx], 'CR')
+
+        # Saturated pixels
+        indx = sciimg >= saturation
+        mask[indx] = cls.bitmask.turn_on(mask[indx], 'SATURATION')
+
+        # Minimum counts
+        indx = sciimg <= mincounts
+        mask[indx] = cls.bitmask.turn_on(mask[indx], 'MINCOUNTS')
+
+        # Undefined counts
+        indx = np.invert(np.isfinite(sciimg))
+        mask[indx] = cls.bitmask.turn_on(mask[indx], 'IS_NAN')
+
+        # Bad inverse variance values
+        indx = np.invert(sciivar > 0.0)
+        mask[indx] = cls.bitmask.turn_on(mask[indx], 'IVAR0')
+
+        # Undefined inverse variances
+        indx = np.invert(np.isfinite(sciivar))
+        mask[indx] = cls.bitmask.turn_on(mask[indx], 'IVAR_NAN')
+
+        if slitmask is not None:
+            indx = slitmask == -1
+            mask[indx] = cls.bitmask.turn_on(mask[indx], 'OFFSLITS')
+
+        return mask
+
+    @classmethod
+    def update_mask_cr(cls, mask_old, crmask_new):
+
+        # Unset the CR bit from all places where it was set
+        CR_old = (cls.bitmask.unpack(mask_old, flag='CR'))[0]
+        mask_new = np.copy(mask_old)
+        mask_new[CR_old] = cls.bitmask.turn_off(mask_new[CR_old], 'CR')
+        # Now set the CR bit using the new crmask
+        indx = crmask_new.astype(bool)
+        mask_new[indx] = cls.bitmask.turn_on(mask_new[indx], 'CR')
+        return mask_new
+
+
+    # Do we still need this function?
+    @classmethod
+    def update_mask_slitmask(cls, mask_old, slitmask):
+
+        # Pixels excluded from any slit.
+        mask_new = np.copy(mask_old)
+        indx = slitmask == -1
+        mask_new[indx] = cls.bitmask.turn_on(mask_new[indx], 'OFFSLITS')
+        return mask_new
+
+    @classmethod
+    def read_stack(cls, files, bias, pixel_flat, bpm, det, proc_par, spectrograph, illum_flat=None, reject_cr=False,
+                   binning=None):
+        """  Utility function for reading in image stacks using ProcessImages
+        Parameters
+            file_list:
+            bias:
+            pixel_flat:
+            bpm:
+            illum_flat:
+        Returns:
+        """
+        nfiles = len(files)
+        for ifile in range(nfiles):
+            this_proc = ProcessImages(spectrograph, [files[ifile]], det=det, par=proc_par)
+            # TODO I think trim should be hard wired, and am not letting it be a free parameter
+            sciimg = this_proc.process(bias_subtract=bias,pixel_flat=pixel_flat, illum_flat=illum_flat, bpm=bpm,
+                                       apply_gain=True, trim=True)
+            # Allocate the images
+            if ifile == 0:
+                # numpy is row major so stacking will be fastest with nfiles as the first dimensions
+                shape = (nfiles, sciimg.shape[0],sciimg.shape[1])
+                sciimg_stack  = np.zeros(shape)
+                sciivar_stack = np.zeros(shape)
+                rn2img_stack  = np.zeros(shape)
+                crmask_stack  = np.zeros(shape,dtype=bool)
+                mask_stack  = np.zeros(shape,this_proc.bitmask.minimum_dtype(asuint=True))
+
+            # Construct raw variance image
+            rawvarframe = this_proc.build_rawvarframe(trim=True)
+            # Mask cosmic rays
+            sciivar_stack[ifile,:,:] =  utils.calc_ivar(rawvarframe)
+            if reject_cr:
+                crmask_stack[ifile,:,:] = this_proc.build_crmask(sciimg, proc_par, det, spectrograph,
+                                                                 ivar=sciivar_stack[ifile,:,:], binning=binning)
+            sciimg_stack[ifile,:,:] = sciimg
+            # Build read noise squared image
+            rn2img_stack[ifile,:,:] = this_proc.build_rn2img()
+            # Final mask for this image
+            mask_stack[ifile,:,:] = this_proc.build_mask(sciimg, sciivar_stack[ifile,:,:], crmask_stack[ifile,:,:],
+                                                         bpm, saturation = spectrograph.detector[det - 1]['saturation'],
+                                                         mincounts = spectrograph.detector[det - 1]['mincounts'])
+
+        return sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack
 
     def show(self, attr='stack', idx=None, display='ginga'):
         """
@@ -612,6 +752,9 @@ class ProcessImages(object):
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
+
+
+
 
 
 # TODO Add a function here that just reads in a fits file given a filename. Guess the instrument from the headers.

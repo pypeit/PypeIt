@@ -68,11 +68,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['number'] = 5
         par['calibrations']['traceframe']['number'] = 5
         par['calibrations']['arcframe']['number'] = 1
-        # Bias
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
 
         # Slits
-        par['calibrations']['slits']['sigdetect'] = 220.
+        par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
 
@@ -117,6 +115,15 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['exprng'] = [None, 30]
         par['calibrations']['standardframe']['exprng'] = [None, 30]
         par['scienceframe']['exprng'] = [30, None]
+
+        # Do not bias subtract
+        par['scienceframe']['useframe'] ='overscan'
+        # This is a hack for now until we can specify for each image type what to do. Bias currently
+        # controls everything
+        par['calibrations']['biasframe']['useframe'] = 'overscan'
+
+
+
         return par
 
     '''
@@ -312,7 +319,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         nslits = tslits_dict['lcen'].shape[1]
         if nslits != self.norders:
-            msgs.error('There is a problem with your slit bounadries. You have nslits={:d} orders, whereas NIR has norders={:d}'.format(nslits,self.norders))
+            msgs.error('There is a problem with your slit bounadries. You have nslits={:d} orders, whereas GNIRS has norders={:d}'.format(nslits,self.norders))
         # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
         order_max = [1022,1022,1022,1022,1022,1022]
         order_min = [512,280, 0, 0, 0, 0]

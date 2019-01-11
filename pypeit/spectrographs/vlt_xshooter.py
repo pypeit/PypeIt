@@ -272,10 +272,22 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
+        # Flats
+        par['calibrations']['flatfield']['illumflatten'] = False
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
+
+
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
+
+        # Do not bias subtract
+        par['scienceframe']['useframe'] ='none'
+        # This is a hack for now until we can specify for each image type what to do. Bias currently
+        # controls everything
+        par['calibrations']['biasframe']['useframe'] = 'none'
 
         return par
 
@@ -552,6 +564,11 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+        # Flats
+        par['calibrations']['flatfield']['illumflatten'] = False
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # TODO FIX THIS TO USE BIASES!!
         par['scienceframe']['useframe'] ='overscan'

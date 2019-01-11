@@ -43,8 +43,6 @@ from pypeit.core.pydl import spheregroup
 
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
-import multiprocessing
-
 
 def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
     """ Extract the total flux within a variable window at many positions. This routine will accept an asymmetric/variable window
@@ -1464,6 +1462,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         fluxsub = flux_mean - np.median(flux_mean)
     else:
         kernel_size= int(np.ceil(bg_smth*fwhm) // 2 * 2 + 1) # This ensure kernel_size is odd
+        # TODO should we be using  scipy.ndimage.filters.median_filter to better control the boundaries?
         fluxsub = flux_mean - scipy.signal.medfilt(flux_mean, kernel_size=kernel_size)
         # This little bit below deals with degenerate cases for which the slit gets brighter toward the edge, i.e. when
         # alignment stars saturate and bleed over into other slits. In this case the median smoothed profile is the nearly
@@ -2182,7 +2181,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
                 spec.ech_objid = uni_obj_id[iobj]
                 spec.objid = uni_obj_id[iobj]
                 spec.ech_frac_was_fit = False
-
 
     # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of
     # the good orders where an object was found and use that fit to predict the fractional slit position on the bad orders
