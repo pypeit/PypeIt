@@ -516,7 +516,7 @@ Alterations to the default parameters are::
       spectrograph = keck_nires
   [calibrations]
       [[biasframe]]
-          useframe = none
+          useframe = overscan
       [[darkframe]]
           exprng = 20, None
       [[arcframe]]
@@ -547,6 +547,7 @@ Alterations to the default parameters are::
       [[tilts]]
           tracethresh = 10.0
   [scienceframe]
+      useframe = overscan
       exprng = 20, None
       [[process]]
           satpix = nothing
@@ -817,6 +818,9 @@ Alterations to the default parameters are::
               overscan = median
       [[standardframe]]
           number = 1
+      [[flatfield]]
+          illumflatten = False
+          tweak_slits_thresh = 0.9
       [[wavelengths]]
           method = reidentify
           echelle = True
@@ -847,6 +851,7 @@ Alterations to the default parameters are::
       spectrograph = vlt_xshooter_nir
   [calibrations]
       [[biasframe]]
+          useframe = none
           number = 5
       [[arcframe]]
           number = 1
@@ -858,6 +863,9 @@ Alterations to the default parameters are::
           number = 3
       [[standardframe]]
           number = 1
+      [[flatfield]]
+          illumflatten = False
+          tweak_slits_thresh = 0.9
       [[wavelengths]]
           method = reidentify
           echelle = True
@@ -880,6 +888,7 @@ Alterations to the default parameters are::
           maxdev_tracefit = 0.04
           maxdev2d = 0.04
   [scienceframe]
+      useframe = none
       [[process]]
           satpix = nothing
           sigclip = 20.0
@@ -924,12 +933,13 @@ Alterations to the default parameters are::
       [[slits]]
           polyorder = 5
           maxshift = 0.5
-          sigdetect = 220.0
+          sigdetect = 50.0
       [[tilts]]
           tracethresh = 5.0, 10, 10, 10, 10, 10
           sig_neigh = 5.0
           nfwhm_neigh = 2.0
   [scienceframe]
+      useframe = overscan
       exprng = 30, None
   [scienceimage]
       bspline_spacing = 0.8

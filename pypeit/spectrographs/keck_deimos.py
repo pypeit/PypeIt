@@ -5,6 +5,7 @@ from __future__ import absolute_import, division, print_function
 
 import glob
 import re
+import os
 import numpy as np
 
 from scipy import interpolate
@@ -240,95 +241,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    '''
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for a DEIMOS exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'DEIMOS',
-                               '1.NAXIS': 2,
-                               '2.NAXIS': 2,
-                               '3.NAXIS': 2,
-                               '4.NAXIS': 2,
-                               '5.NAXIS': 2,
-                               '6.NAXIS': 2,
-                               '7.NAXIS': 2,
-                               '8.NAXIS': 2,
-                             '1.CCDGEOM': 'MIT/LL 2k*4k',
-                             '2.CCDGEOM': 'MIT/LL 2k*4k',
-                             '3.CCDGEOM': 'MIT/LL 2k*4k',
-                             '4.CCDGEOM': 'MIT/LL 2k*4k',
-                             '5.CCDGEOM': 'MIT/LL 2k*4k',
-                             '6.CCDGEOM': 'MIT/LL 2k*4k',
-                             '7.CCDGEOM': 'MIT/LL 2k*4k',
-                             '8.CCDGEOM': 'MIT/LL 2k*4k',
-                             '1.CCDNAME': '14-2-6',
-                             '2.CCDNAME': '14-12-3',
-                             '3.CCDNAME': '14-10-6',
-                             '4.CCDNAME': '14-10-5',
-                             '5.CCDNAME': '14-4-1',
-                             '6.CCDNAME': '14-4-3',
-                             '7.CCDNAME': '14-4-2',
-                             '8.CCDNAME': '14-5-2' }
-        headers[0]['INSTRUME'] = headers[0]['INSTRUME'][:6] # To handle both 'fresh' and KOA data
-        super(KeckDEIMOSSpectrograph, self).check_headers(headers, expected_values=expected_values)
-    '''
-
-    '''
-    def header_keys(self):
-        """
-        Return a dictionary with the header keywords to read from the
-        fits file.
-
-        Returns:
-            dict: A nested dictionary with the header keywords to read.
-            The first level gives the extension to read and the second
-            level gives the common name for header values that is passed
-            on to the PypeItMetaData object.
-        """
-
-        hdr_keys = {}
-        hdr_keys[0] = {}
-        hdr_keys[1] = {}
-
-        # Copied over defaults
-        hdr_keys[0]['idname'] = 'OBSTYPE'
-        hdr_keys[0]['time'] = 'MJD-OBS'
-        #hdr_keys[0]['date'] = 'DATE'
-        hdr_keys[0]['utc'] = 'UTC'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['binning'] = 'BINNING'
-        hdr_keys[0]['decker'] = 'SLMSKNAM'
-
-        hdr_keys[0]['target'] = 'TARGNAME'
-        hdr_keys[0]['exptime'] = 'ELAPTIME'
-        hdr_keys[0]['hatch'] = 'HATCHPOS'
-        hdr_keys[0]['lamps'] = 'LAMPS'
-        hdr_keys[0]['detrot'] = 'ROTATVAL'
-        hdr_keys[0]['decker'] = 'SLMSKNAM'
-        hdr_keys[0]['filter1'] = 'DWFILNAM'
-        hdr_keys[0]['dispname'] = 'GRATENAM'
-
-        hdr_keys[0]['gratepos'] = 'GRATEPOS'
-        hdr_keys[0]['g3tltwav'] = 'G3TLTWAV'
-        hdr_keys[0]['g4tltwav'] = 'G4TLTWAV'
-#        hdr_keys[0]['dispangle'] = 'G3TLTWAV'   # TODO: This depends on the setup!
-
-        hdr_keys[1]['naxis0'] = 'NAXIS2'
-        hdr_keys[1]['naxis1'] = 'NAXIS1'
-
-        return hdr_keys
-    '''
-
     def init_meta(self):
         """
         Generate the meta data dict
@@ -467,29 +379,29 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return raw_img, head0
 
-    def get_match_criteria(self):
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-        # Standard
-        # Can be over-ruled by flux calibrate = False
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['decker'] = ''
-        match_criteria['standard']['match']['binning'] = ''
-        match_criteria['standard']['match']['filter1'] = ''
-        # Bias
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['binning'] = ''
-        # Pixelflat
-        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
-        # Traceflat
-        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
-        # Arc
-        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
-        # Return
-        return match_criteria
+#    def get_match_criteria(self):
+#        match_criteria = {}
+#        for key in framematch.FrameTypeBitMask().keys():
+#            match_criteria[key] = {}
+#        # Standard
+#        # Can be over-ruled by flux calibrate = False
+#        match_criteria['standard']['match'] = {}
+#        match_criteria['standard']['match']['decker'] = ''
+#        match_criteria['standard']['match']['binning'] = ''
+#        match_criteria['standard']['match']['filter1'] = ''
+#        # Bias
+#        match_criteria['bias']['match'] = {}
+#        match_criteria['bias']['match']['binning'] = ''
+#        # Pixelflat
+#        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
+#        # Traceflat
+#        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
+#        # Arc
+#        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
+#        # Return
+#        return match_criteria
 
-    def get_image_section(self, filename, det, section='datasec'):
+    def get_image_section(self, inp=None, det=1, section='datasec'):
         """
         Return a string representation of a slice defining a section of
         the detector image.
@@ -497,21 +409,21 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         Overwrites base class function to use :func:`read_deimos` to get
         the image sections.
 
-        .. todo::
-            - It feels really ineffiecient to just get the image section
-              using the full :func:`read_deimos`.  Can we parse that
-              function into something that can give you the image
-              section directly?
+        .. todo ::
+            - It is really ineffiecient.  Can we parse
+              :func:`read_deimos` into something that can give you the
+              image section directly?
 
         This is done separately for the data section and the overscan
         section in case one is defined as a header keyword and the other
         is defined directly.
         
         Args:
-            filename (str):
-                data filename
-            det (int):
-                Detector number
+            inp (:obj:`str`):
+                String providing the file name to read.  Unlike the base
+                class, a file name *must* be provided.
+            det (:obj:`int`, optional):
+                1-indexed detector number.
             section (:obj:`str`, optional):
                 The section to return.  Should be either datasec or
                 oscansec, according to the :class:`DetectorPar`
@@ -525,13 +437,56 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             their order transposed.
         """
         # Read the file
-        temp, head0, secs = read_deimos(filename, det)
+        if inp is None:
+            msgs.error('Must provide Keck DEIMOS file to get image section.')
+        elif not os.path.isfile(inp):
+            msgs.error('File {0} does not exist!'.format(inp))
+        temp, head0, secs = read_deimos(inp, det)
         if section == 'datasec':
             return secs[0], False, False, False
         elif section == 'oscansec':
             return secs[1], False, False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
+
+    def get_datasec_img(self, filename, det=1, force=True):
+        """
+        Create an image identifying the amplifier used to read each pixel.
+
+        Args:
+            filename (str):
+                Name of the file from which to read the image size.
+            det (:obj:`int`, optional):
+                Detector number (1-indexed)
+            force (:obj:`bool`, optional):
+                Force the image to be remade
+
+        Returns:
+            `numpy.ndarray`: Integer array identifying the amplifier
+            used to read each pixel.
+        """
+        if self.datasec_img is None or force:
+            # Check the detector is defined
+            self._check_detector()
+            # Get the image shape
+            raw_naxis = self.get_raw_image_shape(filename, det=det)
+
+            # Binning is not required because read_deimos accounts for it
+#            binning = self.get_meta_value(filename, 'binning')
+
+            data_sections, one_indexed, include_end, transpose \
+                    = self.get_image_section(filename, det, section='datasec')
+
+            # Initialize the image (0 means no amplifier)
+            self.datasec_img = np.zeros(raw_naxis, dtype=int)
+            for i in range(self.detector[det-1]['numamplifiers']):
+                # Convert the data section from a string to a slice
+                datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
+                                          include_end=include_end, require_dim=2,
+                                          transpose=transpose) #, binning=binning)
+                # Assign the amplifier
+                self.datasec_img[datasec] = i+1
+        return self.datasec_img
 
     # WARNING: Uses Spectrograph default get_image_shape.  If no file
     # provided it will fail.  Provide a function like in keck_lris.py
@@ -600,46 +555,45 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
-    # TODO: Is this function still used?
-    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
-                       msarc_shape=None, **null_kwargs):
-        """
-
-        Args:
-            arcparam:
-            disperser:
-            fitstbl:
-            arc_idx:
-            msarc_shape:
-            binspectral:
-            **null_kwargs:
-
-        Returns:
-
-        """
-        arcparam['wv_cen'] = fitstbl['dispangle'][arc_idx]
-        # TODO -- Should set according to the lamps that were on
-        #arcparam['lamps'] = ['ArI','NeI','KrI','XeI']
-        # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
-        # detector and there is no mechanism in place to create that yet
-
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-#        arcparam['min_nsig'] = 30.  # Minimum signififance
-        arcparam['sigdetect'] = 10.0      # Min significance for arc lines to be used
-        arcparam['wvmnx'] = [3000., 11000.]  # Guess at wavelength range
-        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3  # Matcing tolerance (pixels)
-        arcparam['func'] = 'legendre'  # Function for fitting
-        arcparam['n_first'] = 2  # Order of polynomial for first fit
-        arcparam['n_final'] = 4  # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2  # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.0  # Number of sigma for rejection (final fit)
-
-        arcparam['min_ampl'] = 1000.  # Lines tend to be very strong
-        arcparam['wvmnx'][0] = 4000.
-        arcparam['wvmnx'][1] = 11000.
-
-    #        if disperser == '830G': # Blaze 8640
+#    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
+#                       msarc_shape=None, **null_kwargs):
+#        """
+#
+#        Args:
+#            arcparam:
+#            disperser:
+#            fitstbl:
+#            arc_idx:
+#            msarc_shape:
+#            binspectral:
+#            **null_kwargs:
+#
+#        Returns:
+#
+#        """
+#        arcparam['wv_cen'] = fitstbl['dispangle'][arc_idx]
+#        # TODO -- Should set according to the lamps that were on
+#        #arcparam['lamps'] = ['ArI','NeI','KrI','XeI']
+#        # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
+#        # detector and there is no mechanism in place to create that yet
+#
+#        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+##        arcparam['min_nsig'] = 30.  # Minimum signififance
+#        arcparam['sigdetect'] = 10.0      # Min significance for arc lines to be used
+#        arcparam['wvmnx'] = [3000., 11000.]  # Guess at wavelength range
+#        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
+#        arcparam['match_toler'] = 3  # Matcing tolerance (pixels)
+#        arcparam['func'] = 'legendre'  # Function for fitting
+#        arcparam['n_first'] = 2  # Order of polynomial for first fit
+#        arcparam['n_final'] = 4  # Order of polynomial for final fit
+#        arcparam['nsig_rej'] = 2  # Number of sigma for rejection
+#        arcparam['nsig_rej_final'] = 3.0  # Number of sigma for rejection (final fit)
+#
+#        arcparam['min_ampl'] = 1000.  # Lines tend to be very strong
+#        arcparam['wvmnx'][0] = 4000.
+#        arcparam['wvmnx'][1] = 11000.
+#
+#    #        if disperser == '830G': # Blaze 8640
 #            arcparam['n_first']=2 # Too much curvature for 1st order
 #            arcparam['disp']=0.47 # Ang per pixel (unbinned)
 #            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]

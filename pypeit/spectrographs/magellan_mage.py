@@ -7,6 +7,7 @@ import numpy as np
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
+from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import pixels
@@ -22,7 +23,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'magellan_mage'
         self.telescope = telescopes.MagellanTelescopePar()
         self.camera = 'MAGE'
-        self.numhead = 3
+        self.numhead = 1
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
@@ -183,12 +184,28 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         self.meta['target'] = dict(ext=0, card='OBJECT')
         #TODO: Check decker is correct
         self.meta['decker'] = dict(ext=0, card='SLITENC')
-        self.meta['binning'] = dict(ext=0, card='BINNING')
+        self.meta['binning'] = dict(card=None, compound=True)
+#        self.meta['binning'] = dict(ext=0, card='BINNING')
         self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='INSTR')
+
+    def compound_meta(self, headarr, meta_key):
+        """
+
+        Args:
+            headarr: list
+            meta_key: str
+
+        Returns:
+            value
+
+        """
+        if meta_key == 'binning':
+            binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
+            return parse.binning2string(binspatial, binspec)
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

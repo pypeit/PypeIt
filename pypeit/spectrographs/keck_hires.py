@@ -5,6 +5,7 @@ from __future__ import absolute_import, division, print_function
 
 import glob
 import re
+import os
 import numpy as np
 
 from scipy import interpolate
@@ -47,36 +48,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # Correct for flexure using the default approach
         par['flexure'] = pypeitpar.FlexurePar()
         return par
-
-#    def header_keys(self):
-#        hdr_keys = {}
-#        hdr_keys[0] = {}
-#
-#        # The keyword that identifies the frame type (i.e. bias, flat, etc.)
-#        hdr_keys[0]['idname']  = 'OBSTYPE'
-#        # Header keyword for the name given by the observer to a given frame
-#        hdr_keys[0]['target']  = 'OBJECT'
-#        hdr_keys[0]['utc'] = 'UTC'
-#        # The UT date of the observation which is used for heliocentric
-#        # (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
-#        hdr_keys[0]['date']    = 'DATE-OBS'
-#        # Right Ascension of the target
-#        hdr_keys[0]['ra']      = 'RA'
-#        # Declination of the target
-#        hdr_keys[0]['dec']     = 'DEC'
-#        # Airmass at start of observation
-#        hdr_keys[0]['airmass'] = 'AIRMASS'
-#        # Exposure time keyword
-#        hdr_keys[0]['exptime'] = 'EXPTIME'
-#        hdr_keys[0]['binning'] = 'BINNING'
-#        # ECHANGL and XDANGL
-#        hdr_keys[0]['echangl'] = 'ECHANGL'
-#        hdr_keys[0]['xdangl'] = 'XDANGL'
-#        return hdr_keys
-#
-#    def metadata_keys(self):
-#        return ['filename', 'date', 'frametype', 'idname', 'target', 'exptime', 'decker',
-#                'binning', 'echangl', 'xdangl', 'setup', 'calib', 'obj_id', 'bkg_id']
 
     def init_meta(self):
         """
@@ -144,7 +115,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         return raw_img, head0
 
-    def get_image_section(self, filename, det, section='datasec'):
+    def get_image_section(self, inp=None, det=1, section='datasec'):
         """
         Return a string representation of a slice defining a section of
         the detector image.
@@ -152,21 +123,21 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         Overwrites base class function to use :func:`read_hires` to get
         the image sections.
 
-        .. todo::
-            - It feels really ineffiecient to just get the image section
-              using the full :func:`read_hires`.  Can we parse that
-              function into something that can give you the image
-              section directly?
+        .. todo ::
+            - It is really ineffiecient.  Can we parse
+              :func:`read_hires` into something that can give you the
+              image section directly?
 
         This is done separately for the data section and the overscan
         section in case one is defined as a header keyword and the other
         is defined directly.
-
+        
         Args:
-            filename (str):
-                data filename
-            det (int):
-                Detector number
+            inp (:obj:`str`):
+                String providing the file name to read.  Unlike the base
+                class, a file name *must* be provided.
+            det (:obj:`int`, optional):
+                1-indexed detector number.
             section (:obj:`str`, optional):
                 The section to return.  Should be either datasec or
                 oscansec, according to the :class:`DetectorPar`
@@ -180,13 +151,56 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             their order transposed.
         """
         # Read the file
-        temp, head0, secs = read_hires(filename, det)
+        if inp is None:
+            msgs.error('Must provide Keck HIRES file to get image section.')
+        elif not os.path.isfile(inp):
+            msgs.error('File {0} does not exist!'.format(inp))
+        temp, head0, secs = read_hires(inp, det)
         if section == 'datasec':
             return secs[0], False, False, False
         elif section == 'oscansec':
             return secs[1], False, False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
+
+    def get_datasec_img(self, filename, det=1, force=True):
+        """
+        Create an image identifying the amplifier used to read each pixel.
+
+        Args:
+            filename (str):
+                Name of the file from which to read the image size.
+            det (:obj:`int`, optional):
+                Detector number (1-indexed)
+            force (:obj:`bool`, optional):
+                Force the image to be remade
+
+        Returns:
+            `numpy.ndarray`: Integer array identifying the amplifier
+            used to read each pixel.
+        """
+        if self.datasec_img is None or force:
+            # Check the detector is defined
+            self._check_detector()
+            # Get the image shape
+            raw_naxis = self.get_raw_image_shape(filename, det=det)
+
+            # Binning is not required because read_hires accounts for it
+#            binning = self.get_meta_value(filename, 'binning')
+
+            data_sections, one_indexed, include_end, transpose \
+                    = self.get_image_section(filename, det, section='datasec')
+
+            # Initialize the image (0 means no amplifier)
+            self.datasec_img = np.zeros(raw_naxis, dtype=int)
+            for i in range(self.detector[det-1]['numamplifiers']):
+                # Convert the data section from a string to a slice
+                datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
+                                          include_end=include_end, require_dim=2,
+                                          transpose=transpose) #, binning=binning)
+                # Assign the amplifier
+                self.datasec_img[datasec] = i+1
+        return self.datasec_img
 
 #    def get_match_criteria(self):
 #        # TODO: Matching needs to be looked at...

@@ -126,57 +126,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    '''
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an LRISb exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'GNIRS',
-                               '1.NAXIS': 2 }
-        super(GeminiGNIRSSpectrograph, self).check_headers(headers,
-                                                           expected_values=expected_values)
-
-    def header_keys(self):
-        """
-        Return a dictionary with the header keywords to read from the
-        fits file.
-
-        Returns:
-            dict: A nested dictionary with the header keywords to read.
-            The first level gives the extension to read and the second
-            level gives the common name for header values that is passed
-            on to the PypeItMetaData object.
-        """
-        hdr_keys = {}
-        hdr_keys[0] = {}
-        hdr_keys[0]['idname'] = 'OBSTYPE'
-#        hdr_keys[0]['date'] = 'DATE'
-        hdr_keys[0]['ut'] = 'UT'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['time'] = 'MJD_OBS'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['slit'] = 'SLIT'
-        hdr_keys[0]['decker'] = 'DECKER'
-        hdr_keys[0]['target'] = 'OBJECT'
-        hdr_keys[0]['exptime'] = 'EXPTIME'
-        hdr_keys[0]['hatch'] = 'COVER'
-        hdr_keys[0]['dispname'] = 'GRATING'
-        hdr_keys[0]['dispangle'] = 'GRATTILT'
-        hdr_keys[0]['wavecen'] = 'GRATWAVE'
-        hdr_keys[0]['spectrograph'] = 'INSTRUME'
-        hdr_keys[0]['binning'] = ' '
-
-        return hdr_keys
-    '''
-
     def init_meta(self):
         """
         Generate the meta data dict
@@ -230,8 +179,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-
-
+#    def parse_binning(self, inp, det=1):
+#        return '1,1'
 
     def order_platescale(self, binning=None):
 

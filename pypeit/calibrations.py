@@ -229,7 +229,7 @@ class Calibrations(object):
 
         # Prep
         arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
-        self.arc_file_list = self.fitstbl.frame_paths(arc_rows)
+        self.arc_files = self.fitstbl.frame_paths(arc_rows)
         self.arc_master_key = self.fitstbl.master_key(arc_rows[0], det=self.det)
         self.master_key_dict['arc'] = self.arc_master_key
 
@@ -240,7 +240,7 @@ class Calibrations(object):
             return self.msarc
 
         # Instantiate with everything needed to generate the image (in case we do)
-        self.arcImage = arcimage.ArcImage(self.spectrograph, file_list=self.arc_file_list,
+        self.arcImage = arcimage.ArcImage(self.spectrograph, files=self.arc_files,
                                           det=self.det, msbias=self.msbias,
                                           par=self.par['arcframe'], master_key=self.arc_master_key,
                                           master_dir=self.master_dir, reuse_masters=self.reuse_masters)
@@ -252,7 +252,7 @@ class Calibrations(object):
             self.msarc = self.arcImage.build_image()
             # Save to Masters
             if self.save_masters:
-                self.arcImage.save_master(self.msarc, raw_files=self.arcImage.file_list,
+                self.arcImage.save_master(self.msarc, raw_files=self.arcImage.files,
                                           steps=self.arcImage.steps)
 
         # Save & return
@@ -275,7 +275,7 @@ class Calibrations(object):
 
         # Prep
         bias_rows = self.fitstbl.find_frames('bias', calib_ID=self.calib_ID, index=True)
-        self.bias_file_list = self.fitstbl.frame_paths(bias_rows)
+        self.bias_files = self.fitstbl.frame_paths(bias_rows)
         if len(bias_rows) > 0:
             self.bias_master_key = self.fitstbl.master_key(bias_rows[0], det=self.det)
         else:  # Allow for other bias modes
@@ -290,7 +290,7 @@ class Calibrations(object):
             return self.msbias
 
         # Instantiate
-        self.biasFrame = biasframe.BiasFrame(self.spectrograph, file_list=self.bias_file_list,
+        self.biasFrame = biasframe.BiasFrame(self.spectrograph, files=self.bias_files,
                                              det=self.det, par=self.par['biasframe'],
                                              master_key=self.bias_master_key,
                                              master_dir=self.master_dir, reuse_masters=self.reuse_masters)
@@ -304,7 +304,7 @@ class Calibrations(object):
             # Build it and save it
             self.msbias = self.biasFrame.build_image()
             if self.save_masters:
-                self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,
+                self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.files,
                                            steps=self.biasFrame.steps)
 
         # Save & return
@@ -351,10 +351,6 @@ class Calibrations(object):
         # Instantiate the shape here, based on the shape of the science image. This is the shape of most
         # most calibrations, although we are allowing for arcs of different shape becuase of X-shooter etc.
         self.shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
-
-        # Check it matches the processed arc;  if not we have issues..
-        #if not (self.shape == shape):
-        #    msgs.error("You have an untrimmed arc!  We aren't prepared for this..")
 
         # Build it
         bpmImage = bpmimage.BPMImage(self.spectrograph,det=self.det, shape=self.shape)
@@ -417,7 +413,7 @@ class Calibrations(object):
             return self.mspixflatnrm, self.msillumflat
 
         # Instantiate
-        self.flatField = flatfield.FlatField(self.spectrograph, file_list=pixflat_image_files,
+        self.flatField = flatfield.FlatField(self.spectrograph, files=pixflat_image_files,
                                              binning=self.binning,
                                              det=self.det, par=self.par['pixelflatframe'],
                                              master_key=self.pixflat_master_key, master_dir=self.master_dir,
