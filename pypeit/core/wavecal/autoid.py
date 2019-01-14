@@ -13,6 +13,8 @@ import numba as nb
 import numpy as np
 import pdb
 
+from astropy.table import Table
+
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import kdtree_generator
 from pypeit.core.wavecal import waveio
@@ -601,6 +603,125 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
         patt_dict_slit['acceptable'] = False
 
     return detections, spec_cont_sub, patt_dict_slit
+
+
+def full_template(spec, par, ok_mask, nsnippet=2):
+
+    # Load line lists
+    if 'ThAr' in par['lamps']:
+        line_lists_all = waveio.load_line_lists(par['lamps'])
+        line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
+        unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
+    else:
+        line_lists = waveio.load_line_lists(par['lamps'])
+
+    # Load template
+    template = Table.read(par['reid_arxiv'])
+
+    # TODO -- Need to deal with binning here by resampling the template to the new spectrum
+
+    # Parse
+    temp_wv = template['wave'].data
+    temp_spec = template['flux'].data
+
+    if spec.ndim == 2:
+        nspec, nslits = spec.shape
+    elif spec.ndim == 1:
+        nspec = spec.size
+        nslits = 1
+
+    # Loop on slits
+    wvcalib = {}
+    for slit in range(nslits):
+        # Check
+        if slit not in ok_mask:
+            wvcalib[str(slit)] = {}
+            continue
+        msgs.info("Processing slit {}".format(slit))
+        #
+        ispec = spec[:,slit]
+
+        # Find the shift
+        npad, shift_cc = get_template_shift(ispec, temp_spec)
+        i0 = npad // 2 + int(shift_cc)
+
+        # Grab the template snippet
+        if i0 < 0: # Pad?
+            mspec = np.concatenate([np.zeros(-1*i0), temp_spec[0:i0+nspec]])
+            mwv = np.concatenate([np.zeros(-1*i0), temp_wv[0:i0+nspec]])
+        elif (i0+nspec) > temp_spec.size: # Pad?
+            mspec = np.concatenate([temp_spec[i0:], np.zeros(nspec-temp_spec.size+i0)])
+            mwv = np.concatenate([temp_wv[i0:], np.zeros(nspec-temp_spec.size+i0)])
+        else:
+            mspec = temp_spec[i0:i0 + nspec]
+            mwv = temp_wv[i0:i0 + nspec]
+
+        #
+        # Loop on snippets
+        nsub = ispec.size // nsnippet
+        sv_det, sv_IDs = [], []
+        for kk in range(nsnippet):
+            # Construct
+            i0 = nsub * kk
+            i1 = min(nsub*(kk+1), ispec.size)
+            tsnippet = ispec[i0:i1]
+            msnippet = mspec[i0:i1]
+            mwvsnippet = mwv[i0:i1]
+            # Run reidentify
+            detections, spec_cont_sub, patt_dict = reidentify(tsnippet, msnippet, mwvsnippet,
+                                                                     line_lists, 1, debug_xcorr=False,
+                                                                     nonlinear_counts=par['nonlinear_counts'],
+                                                                     debug_reid=False,  # verbose=True,
+                                                                     match_toler=par['match_toler'],
+                                                                     cc_thresh=0.1, fwhm=par['fwhm'])
+            # Deal with IDs
+            gd_IDs = patt_dict['IDs'] > 0.
+            if np.any(gd_IDs):
+                sv_det.append(i0 + detections[gd_IDs])
+                sv_IDs.append(patt_dict['IDs'][gd_IDs])
+
+        # Collate and proceed
+        dets = np.concatenate(sv_det)
+        IDs = np.concatenate(sv_IDs)
+        try:
+            final_fit = fitting.iterative_fitting(ispec, dets, np.arange(dets.size).astype(int),
+                                              IDs, line_lists, patt_dict['bdisp'],
+                                              verbose=False, n_first=par['n_first'],
+                                              match_toler=par['match_toler'],
+                                              func=par['func'],
+                                              n_final=par['n_final'],
+                                              sigrej_first=par['sigrej_first'],
+                                              sigrej_final=par['sigrej_final'])
+        except TypeError:
+            wvcalib[str(slit)] = {}
+        else:
+            wvcalib[str(slit)] = copy.deepcopy(final_fit)
+    # Finish
+    return wvcalib
+
+
+
+def get_template_shift(tspec, nwspec, debug=False):
+    ncomb = nwspec.size
+    # Pad
+    pspec = np.zeros_like(nwspec)
+    nspec = len(tspec)
+    npad = ncomb - nspec
+    pspec[npad // 2:npad // 2 + len(tspec)] = tspec
+    # TODO -- Take out the stretching
+    result_out, shift_out, stretch_out, corr_out, shift_cc, corr_cc = wvutils.xcorr_shift_stretch(
+        nwspec, pspec)
+    msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
+    if debug:
+        xvals = np.arange(ncomb)
+        plt.clf()
+        ax = plt.gca()
+        #
+        ax.plot(xvals, nwspec)
+        ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k')
+        plt.show()
+    # Return
+    return npad, shift_cc
 
 
 class ArchiveReid:

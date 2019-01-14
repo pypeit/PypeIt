@@ -397,6 +397,34 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         return par
 
+    def config_specific_par(self, par, scifile):
+        """
+        Set par values according to the specific frame
+
+        Here, we only fuss with parameters related to CR rejection
+
+        Args:
+            par:  ParSet
+            scifile: str
+              Name of the science file to use
+
+        Returns:
+            par
+
+        """
+        # Wavelength calibrations
+        if self.get_meta_value(scifile, 'dispname') == '300/5000':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = '/home/xavier/local/Python/PypeIt-development-suite/dev_algorithms/wavelengths/keck_lris_blue_300_d680.fits'
+            par['calibrations']['wavelengths']['n_first'] = 3
+            par['calibrations']['wavelengths']['match_toler'] = 2.5
+            #
+            binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+            par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[1]
+
+        # Return
+        return par
+
     '''
     def check_headers(self, headers):
         """
@@ -579,6 +607,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             objlim = 0.5
             par['scienceframe']['process']['sigclip'] = sigclip
             par['scienceframe']['process']['objlim'] = objlim
+
         # Return
         return par
 
