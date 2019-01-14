@@ -283,12 +283,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         """
         if meta_key == 'binning':
-            return '1,1'
-            # TODO: This *always* has to be 1,1 at the moment because of
-            # our use of read_deimos...
-#            binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
-#            binning = parse.binning2string(binspatial, binspec)
-#            return binning
+            binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
+            binning = parse.binning2string(binspatial, binspec)
+            return binning
         elif meta_key == 'dispangle':
             if headarr[0]['GRATEPOS'] == 3:
                 return headarr[0]['G3TLTWAV']
