@@ -49,36 +49,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['flexure'] = pypeitpar.FlexurePar()
         return par
 
-#    def header_keys(self):
-#        hdr_keys = {}
-#        hdr_keys[0] = {}
-#
-#        # The keyword that identifies the frame type (i.e. bias, flat, etc.)
-#        hdr_keys[0]['idname']  = 'OBSTYPE'
-#        # Header keyword for the name given by the observer to a given frame
-#        hdr_keys[0]['target']  = 'OBJECT'
-#        hdr_keys[0]['utc'] = 'UTC'
-#        # The UT date of the observation which is used for heliocentric
-#        # (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
-#        hdr_keys[0]['date']    = 'DATE-OBS'
-#        # Right Ascension of the target
-#        hdr_keys[0]['ra']      = 'RA'
-#        # Declination of the target
-#        hdr_keys[0]['dec']     = 'DEC'
-#        # Airmass at start of observation
-#        hdr_keys[0]['airmass'] = 'AIRMASS'
-#        # Exposure time keyword
-#        hdr_keys[0]['exptime'] = 'EXPTIME'
-#        hdr_keys[0]['binning'] = 'BINNING'
-#        # ECHANGL and XDANGL
-#        hdr_keys[0]['echangl'] = 'ECHANGL'
-#        hdr_keys[0]['xdangl'] = 'XDANGL'
-#        return hdr_keys
-#
-#    def metadata_keys(self):
-#        return ['filename', 'date', 'frametype', 'idname', 'target', 'exptime', 'decker',
-#                'binning', 'echangl', 'xdangl', 'setup', 'calib', 'obj_id', 'bkg_id']
-
     def init_meta(self):
         """
         Generate the meta data dict

@@ -109,14 +109,6 @@ class Spectrograph(object):
         """
         return par
 
-    '''
-    def get_lacosmics_par(self,proc_par,binning=None):
-        # Workaround to make these parameters a function of binning for LRIS.
-        sigclip = proc_par['sigclip']
-        objlim = proc_par['objlim']
-        return sigclip, objlim
-    '''
-
     def _check_telescope(self):
         # Check the detector
         if self.telescope is None:
@@ -300,7 +292,10 @@ class Spectrograph(object):
             # Get the image shape
             raw_naxis = self.get_raw_image_shape(filename, det=det)
 
-            binning = self.parse_binning(filename)
+            import pdb; pdb.set_trace()
+
+            binning = self.get_meta_value(filename, 'binning')
+#            binning = self.parse_binning(filename)
 
             data_sections, one_indexed, include_end, transpose \
                     = self.get_image_section(filename, det, section='datasec')
@@ -532,6 +527,8 @@ class Spectrograph(object):
         """
         self.meta = {}
 
+    # TODO: Change this so that it uses one argument for ifile or
+    # headarray? ala, get_image_section, etc?
     def get_meta_value(self, ifile, meta_key, headarr=None, required=False, ignore_bad_header=False,
                        usr_row=None):
         """
@@ -664,15 +661,16 @@ class Spectrograph(object):
             objects with the extension headers.
         """
         headarr = ['None']*self.numhead
-        try:
-            headarr = [fits.getheader(filename, ext=k) for k in range(self.numhead)]
-        except:
-            if strict:
-                msgs.error("Error reading header from extension {0} of file:".format(filename))
-            else:
-                msgs.warn('Bad header in extension of file: {0}'.format(filename) 
-                           + msgs.newline() + 'Proceeding on the hopes this was a '
-                           + 'calibration file, otherwise consider removing.')
+        for k in range(self.numhead):
+            try:
+                headarr[k] = fits.getheader(filename, ext=k)
+            except:
+                if strict:
+                    msgs.error("Header error in extension {0} in {1}.".format(k, filename))
+                else:
+                    msgs.warn('Bad header in extension {0} in {1}'.format(k, filename) 
+                              + msgs.newline() + 'Proceeding on the hopes this was a '
+                              + 'calibration file, otherwise consider removing.')
         return headarr
 
 #    def get_match_criteria(self):
@@ -698,79 +696,48 @@ class Spectrograph(object):
         raise NotImplementedError('Header keyword with frame type not defined for {0}.'.format(
                                   self.spectrograph))
 
-    '''
-    def check_headers(self, headers, expected_values=None):
-        """
-        Check headers match instrument-spectific expectations.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-
-        Raises:
-        """
-        # Check the number of headers provided
-        if len(headers) != self.numhead:
-            raise ValueError('Expected {0} headers, but only provided {1}'.format(self.numhead,
-                                                                                  len(headers)))
-
-        if expected_values is None:
-            msgs.warn('Specific header keyword checks have not been implemented for {0}.'.format(
-                                                                        self.spectrograph))
-            return
-
-        # Check a series of expected header keyword values
-        for k,v in expected_values.items():
-            ext, card = k.split('.')
-            ext = int(ext)
-            if headers[ext][card] != v:
-                raise ValueError('Keyword {0} in extension {1} has incorrect value.  '.format(
-                                    card, ext)
-                                 + 'Expected {0} but found {1}.'.format(v, headers[ext][card]))
-    '''
-
-    def parse_binning(self, inp, det=1, key='BINNING'):
-        """
-        Get the pixel binning for an image.
-
-        Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`):
-                String providing the file name to read, or the relevant
-                header object.
-            det (:obj:`int`, optional):
-                1-indexed detector number.
-            key (:obj:`str`, optional):
-                Header key with the binning.  This is included as an
-                argument in the base-class implementation so that it can
-                be called by the derived classes for most cases, when
-                the binning is in a single keyword.
-
-        Returns:
-            str: String representation of the binning.  The ordering is
-            as provided in the header, regardless of which axis is
-            designated as the dispersion axis.  It is expected that this
-            be used with :func:`pypeit.core.parse.sec2slice` to setup
-            the data and overscane sections of the image data.
-
-        Raises:
-            PypeItError:
-                Raised if `inp` is not one of the accepted types.
-        """
-        # Get the header
-        # TODO: Read primary header by default instead?
-        if isinstance(inp, str):
-            hdu = fits.open(inp)
-            hdr = hdu[self.detector[det-1]['dataext']].header
-        elif isinstance(inp, fits.Header):
-            hdr = inp
-        else:
-            msgs.error('Input must be a filename or fits.Header object')
-
-        # Parse the keyword
-        binning = parse.parse_binning(hdr[key])
-
-        # Return comma-separated string
-        return ','.join([ str(b) for b in binning])
+#    def parse_binning(self, inp, det=1, key='BINNING'):
+#        """
+#        Get the pixel binning for an image.
+#
+#        Args:
+#            inp (:obj:`str`, `astropy.io.fits.Header`):
+#                String providing the file name to read, or the relevant
+#                header object.
+#            det (:obj:`int`, optional):
+#                1-indexed detector number.
+#            key (:obj:`str`, optional):
+#                Header key with the binning.  This is included as an
+#                argument in the base-class implementation so that it can
+#                be called by the derived classes for most cases, when
+#                the binning is in a single keyword.
+#
+#        Returns:
+#            str: String representation of the binning.  The ordering is
+#            as provided in the header, regardless of which axis is
+#            designated as the dispersion axis.  It is expected that this
+#            be used with :func:`pypeit.core.parse.sec2slice` to setup
+#            the data and overscane sections of the image data.
+#
+#        Raises:
+#            PypeItError:
+#                Raised if `inp` is not one of the accepted types.
+#        """
+#        # Get the header
+#        # TODO: Read primary header by default instead?
+#        if isinstance(inp, str):
+#            hdu = fits.open(inp)
+#            hdr = hdu[self.detector[det-1]['dataext']].header
+#        elif isinstance(inp, fits.Header):
+#            hdr = inp
+#        else:
+#            msgs.error('Input must be a filename or fits.Header object')
+#
+#        # Parse the keyword
+#        binning = parse.parse_binning(hdr[key])
+#
+#        # Return comma-separated string
+#        return ','.join([ str(b) for b in binning])
 
     @property
     def ndet(self):

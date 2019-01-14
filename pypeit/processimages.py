@@ -312,7 +312,8 @@ class ProcessImages(object):
                     = self.spectrograph.load_raw_frame(self.files[i], det=self.det)
 
             if self.binning[i] is None:
-                self.binning[i] = self.spectrograph.parse_binning(self.headers[i])
+                self.binning[i] = self.spectrograph.get_meta_value(self.files[i], 'binning')
+#                self.binning[i] = self.spectrograph.parse_binning(self.headers[i])
 
             # Get the data sections, one section per amplifier
             try:

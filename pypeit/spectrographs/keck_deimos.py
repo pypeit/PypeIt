@@ -282,54 +282,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         super(KeckDEIMOSSpectrograph, self).check_headers(headers, expected_values=expected_values)
     '''
 
-    '''
-    def header_keys(self):
-        """
-        Return a dictionary with the header keywords to read from the
-        fits file.
-
-        Returns:
-            dict: A nested dictionary with the header keywords to read.
-            The first level gives the extension to read and the second
-            level gives the common name for header values that is passed
-            on to the PypeItMetaData object.
-        """
-
-        hdr_keys = {}
-        hdr_keys[0] = {}
-        hdr_keys[1] = {}
-
-        # Copied over defaults
-        hdr_keys[0]['idname'] = 'OBSTYPE'
-        hdr_keys[0]['time'] = 'MJD-OBS'
-        #hdr_keys[0]['date'] = 'DATE'
-        hdr_keys[0]['utc'] = 'UTC'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['binning'] = 'BINNING'
-        hdr_keys[0]['decker'] = 'SLMSKNAM'
-
-        hdr_keys[0]['target'] = 'TARGNAME'
-        hdr_keys[0]['exptime'] = 'ELAPTIME'
-        hdr_keys[0]['hatch'] = 'HATCHPOS'
-        hdr_keys[0]['lamps'] = 'LAMPS'
-        hdr_keys[0]['detrot'] = 'ROTATVAL'
-        hdr_keys[0]['decker'] = 'SLMSKNAM'
-        hdr_keys[0]['filter1'] = 'DWFILNAM'
-        hdr_keys[0]['dispname'] = 'GRATENAM'
-
-        hdr_keys[0]['gratepos'] = 'GRATEPOS'
-        hdr_keys[0]['g3tltwav'] = 'G3TLTWAV'
-        hdr_keys[0]['g4tltwav'] = 'G4TLTWAV'
-#        hdr_keys[0]['dispangle'] = 'G3TLTWAV'   # TODO: This depends on the setup!
-
-        hdr_keys[1]['naxis0'] = 'NAXIS2'
-        hdr_keys[1]['naxis1'] = 'NAXIS1'
-
-        return hdr_keys
-    '''
-
     def init_meta(self):
         """
         Generate the meta data dict

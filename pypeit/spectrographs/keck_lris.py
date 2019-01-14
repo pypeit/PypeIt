@@ -52,62 +52,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [29, None]
         return par
 
-    '''
-    def header_keys(self):
-        """
-        Return a dictionary with the header keywords to read from the
-        fits file.
-
-        Returns:
-            dict: A nested dictionary with the header keywords to read.
-            The first level gives the extension to read and the second
-            level gives the common name for header values that is passed
-            on to the PypeItMetaData object.
-        """
-        hdr_keys = {}
-        hdr_keys[0] = {}
-        hdr_keys[1] = {}
-        hdr_keys[2] = {}
-        hdr_keys[3] = {}
-        hdr_keys[4] = {}
-
-        # Copied over defaults
-        hdr_keys[0]['idname'] = 'OBSTYPE'
-        hdr_keys[0]['time'] = 'MJD-OBS'
-        #hdr_keys[0]['date'] = 'DATE'
-        hdr_keys[0]['utc'] = 'UTC'
-        hdr_keys[0]['ut'] = 'UT'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['binning'] = 'BINNING'
-        hdr_keys[0]['decker'] = 'SLITNAME'
-        hdr_keys[0]['dichroic'] = 'DICHNAME'
-
-        hdr_keys[0]['target'] = 'TARGNAME'
-        hdr_keys[0]['exptime'] = 'ELAPTIME'
-        hdr_keys[0]['hatch'] = 'TRAPDOOR'
-        hdr_keys[0]['dispname'] = 'GRANAME'
-        hdr_keys[0]['dispangle'] = 'GRANGLE'
-        hdr_keys[0]['wavecen'] = 'WAVELEN'
-        hdr_keys[0]['spectrograph'] = 'INSTRUME'
-        hdr_keys[1]['NAXIS01'] = 'NAXIS'
-        hdr_keys[2]['NAXIS02'] = 'NAXIS'
-        hdr_keys[3]['NAXIS03'] = 'NAXIS'
-        hdr_keys[4]['NAXIS04'] = 'NAXIS'
-        hdr_keys[1]['CCDGEOM'] = 'CCDGEOM'
-        hdr_keys[1]['CCDNAME01'] = 'CCDNAME'
-        hdr_keys[3]['CCDNAME02'] = 'CCDNAME'
-
-        lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
-                      'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
-        for kk,lamp_name in enumerate(lamp_names):
-            hdr_keys[0]['lampstat{:02d}'.format(kk+1)] = lamp_name
-
-        return hdr_keys
-    '''
-
-
     def init_meta(self):
         """
         Generate the meta data dict

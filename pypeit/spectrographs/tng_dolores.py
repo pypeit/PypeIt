@@ -136,7 +136,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         meta['dec'] = dict(ext=0, card='DEC')
         meta['target'] = dict(ext=0, card='OBJCAT')
         meta['decker'] = dict(ext=0, card='SLMSKNAM')
-        meta['binning'] = dict(card=None, compound=True)
+        meta['binning'] = dict(ext=0, card=None, default='1,1')
 
         meta['mjd'] = dict(ext=0, card=None, compound=True)
         meta['exptime'] = dict(ext=0, card='EXPTIME')

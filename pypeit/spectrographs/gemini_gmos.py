@@ -43,7 +43,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # TODO: Can we define the card here that compound meta uses to
         # set the binning?  Would be better to have all header cards
         # collected in this function...
-        self.meta['binning'] = dict(ext=1, card='CCDSUM')
+#        self.meta['binning'] = dict(ext=1, card='CCDSUM')
 
         self.meta['mjd'] = dict(ext=0, card='OBSEPOCH')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
@@ -397,6 +397,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on GMOSs")
 
+            # TODO: Fix this
             # Get the binning
             hdu = fits.open(filename)
             binning = hdu[1].header['CCDSUM']
