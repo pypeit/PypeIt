@@ -304,8 +304,7 @@ class Spectrograph(object):
                 # Convert the data section from a string to a slice
                 datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
                                           include_end=include_end, require_dim=2,
-                                          binning=binning,
-                                          transpose=transpose)
+                                          transpose=transpose, binning=binning)
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
         return self.datasec_img

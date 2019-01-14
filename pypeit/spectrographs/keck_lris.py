@@ -88,9 +88,12 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
     def compound_meta(self, headarr, meta_key):
         if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
-            binning = parse.binning2string(binspatial, binspec)
-            return binning
+            return '1,1'
+            # TODO: This *always* has to be 1,1 at the moment because of
+            # our use of read_lris...
+#            binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
+#            binning = parse.binning2string(binspatial, binspec)
+#            return binning
         else:
             msgs.error("Not ready for this compound meta")
 
