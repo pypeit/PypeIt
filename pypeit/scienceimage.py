@@ -519,8 +519,9 @@ class ScienceImage(processimages.ProcessImages):
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
-    def local_skysub_extract_ech(self, sobjs, waveimg, model_full_slit=True, model_noise=True, min_snr=2.0, std = False,
-                                 maskslits=None, show_profile=False, show_resids=False, show_fwhm=True, show=False):
+    def local_skysub_extract_ech(self, sobjs, waveimg, model_full_slit=True, model_noise=True, min_snr=2.0,
+                                 std = False, fit_fwhm=False, maskslits=None, show_profile=False,
+                                 show_resids=False, show_fwhm=True, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -594,6 +595,15 @@ class ScienceImage(processimages.ProcessImages):
         srt_order_snr = order_snr[:,ibright].argsort()[::-1]
         fwhm_here = np.zeros(norders)
         fwhm_was_fit = np.zeros(norders,dtype=bool)
+        # Print out a status message
+        str_out = ''
+        for iord in srt_order_snr:
+            str_out += '{:<8d}{:<8d}{:>10.2f}'.format(slit_vec[iord], order_vec[iord], order_snr[iord,ibright]) + msgs.newline()
+        dash = '-'*27
+        dash_big = '-'*40
+        msgs.info(msgs.newline() + 'Reducing orders in order of S/N of brightest object:' + msgs.newline() + dash +
+                  msgs.newline() + '{:<8s}{:<8s}{:>10s}'.format('slit','order','S/N') + msgs.newline() + dash +
+                  msgs.newline() + str_out)
         # Loop over orders in order of S/N ratio (from highest to lowest) for the brightest object
         for iord in srt_order_snr:
             order = self.spectrograph.slit2order(iord)
@@ -605,32 +615,51 @@ class ScienceImage(processimages.ProcessImages):
                 if (order_snr[iord, iobj] <= min_snr) & (np.sum(other_orders) >= 3):
                     if iobj == ibright:
                         # If this is the brightest object then we extrapolate the FWHM from a fit
-                        msgs.info('**************************************************')
-                        msgs.info('Performing linear fit for FWHM of object={:d}'.format(uni_objid[iobj]) +
-                                  ' on slit/order: {:d}/{:d}'.format(iord,order))
-                        msgs.info('        slit, order, fwhm')
-                        for slit_now, order_now, fwhm_now in \
-                                zip(slit_vec[other_orders], order_vec[other_orders],fwhm_here[other_orders]):
-                            msgs.info('    {:2d}, {:2d}, {:5.4f}'.format(slit_now, order_now, fwhm_now))
-                        fwhm_coeffs = np.polyfit(order_vec[other_orders], fwhm_here[other_orders], 1)
-                        fwhm_fit_eval = np.poly1d(fwhm_coeffs)
-                        fwhm_fit = fwhm_fit_eval(order_vec[iord])
+                        #fwhm_coeffs = np.polyfit(order_vec[other_orders], fwhm_here[other_orders], 1)
+                        #fwhm_fit_eval = np.poly1d(fwhm_coeffs)
+                        #fwhm_fit = fwhm_fit_eval(order_vec[iord])
                         fwhm_was_fit[iord] = True
-                        msgs.info('FIT: {:2d}, {:2d}, {:5.4f}'.format(iord, order, fwhm_fit))
-                        msgs.info('**************************************************')
+                        # Either perform a linear fit to the FWHM or simply take the median
+                        if fit_fwhm:
+                            # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
+                            fit_mask, fwhm_coeffs = utils.robust_polyfit_djs(order_vec[other_orders], fwhm_here[other_orders],1,
+                                                                            function='polynomial',maxiter=25,lower=2.0, upper=2.0,
+                                                                            maxrej=1,sticky=False, minx=0.0, maxx=fwhm_here[other_orders].max())
+                            fwhm_this_ord = utils.func_val(fwhm_coeffs, order_vec[iord], 'polynomial')
+                            fwhm_all = utils.func_val(fwhm_coeffs, order_vec, 'polynomial')
+                            fwhm_str = 'LIN FIT'
+                        else:
+                            fit_mask = np.ones_like(order_vec[other_orders],dtype=bool)
+                            fwhm_this_ord = np.median(fwhm_here[other_orders])
+                            fwhm_all = np.full(norders,fwhm_this_ord)
+                            fwhm_str = 'MEDIAN '
                         indx = (self.sobjs.ech_objid == uni_objid[iobj]) & (self.sobjs.ech_orderindx == iord)
                         for spec in self.sobjs[indx]:
-                            spec.fwhm = fwhm_fit
+                            spec.fwhm = fwhm_this_ord
+
+                        str_out = ''
+                        for slit_now, order_now, snr_now, fwhm_now in zip(slit_vec[other_orders], order_vec[other_orders],order_snr[other_orders,ibright], fwhm_here[other_orders]):
+                            str_out += '{:<8d}{:<8d}{:>10.2f}{:>10.2f}'.format(slit_now, order_now, snr_now, fwhm_now) + msgs.newline()
+                        msgs.info(msgs.newline() + 'Performing linear fit for FWHM of object={:d}'.format(uni_objid[iobj]) +
+                                  ' on slit/order: {:d}/{:d}'.format(iord,order) + msgs.newline() + dash_big +
+                                  msgs.newline() + '{:<8s}{:<8s}{:>10s}{:>10s}'.format('slit', 'order','SNR','FWHM') +
+                                  msgs.newline() + dash_big +
+                                  msgs.newline() + str_out[:-8] +
+                                  fwhm_str +  ':{:<8d}{:<8d}{:>10.2f}{:>10.2f}'.format(iord, order, order_snr[iord,ibright], fwhm_this_ord) +
+                                  msgs.newline() + dash_big)
                         if show_fwhm:
-                            plt.plot(order_vec[other_orders], fwhm_here[other_orders], marker='o', linestyle=' ',
-                                     color='k', mfc='k', markersize=4.0, label='orders informing fit')
+                            plt.plot(order_vec[other_orders][fit_mask], fwhm_here[other_orders][fit_mask], marker='o', linestyle=' ',
+                            color='k', mfc='k', markersize=4.0, label='orders informing fit')
+                            if np.any(np.invert(fit_mask)):
+                                plt.plot(order_vec[other_orders][~fit_mask], fwhm_here[other_orders][~fit_mask], marker='o', linestyle=' ',
+                                color='magenta', mfc='magenta', markersize=4.0, label='orders rejected by fit')
                             if np.any(other_fit):
                                 plt.plot(order_vec[other_fit], fwhm_here[other_fit], marker='o', linestyle=' ',
-                                         color='lawngreen', mfc='lawngreen',markersize=4.0, label='fits to other low SNR orders')
-                            plt.plot([order_vec[iord]], [fwhm_fit], marker='o', linestyle=' ',
-                                     color='red', mfc='red', markersize=6.0,
-                                     label='fit to this order')
-                            plt.plot(order_vec, fwhm_fit_eval(order_vec), marker='o', color='cornflowerblue', zorder=10, linewidth=4.0, label='FWHM fit')
+                                color='lawngreen', mfc='lawngreen',markersize=4.0, label='fits to other low SNR orders')
+                            plt.plot([order_vec[iord]], [fwhm_this_ord], marker='o', linestyle=' ',color='red', mfc='red', markersize=6.0,label='this order')
+                            plt.plot(order_vec, fwhm_all, color='cornflowerblue', zorder=10, linewidth=2.0, label=fwhm_str)
+                            plt.legend()
+                            plt.show()
                     else:
                         # If this is not the brightest object then assign it the FWHM of the brightest object
                         indx     = np.where((self.sobjs.ech_objid == uni_objid[iobj]) & (self.sobjs.ech_orderindx == iord))[0][0]
