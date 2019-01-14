@@ -1035,48 +1035,37 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     l_limit = ((sigma_x.flat[ss])[::-1])[lp] - 0.1
     r_limit = sigma_x.flat[ss[rp]] + 0.1
 
-    # Determine the left and right locations (l_limit and r_limit) where the profile logarithmic derivative crosses one for apodization
-    # of the object profiles.
+    # Determine the left and right locations (l_limit and r_limit) where the profile logarithmic derivative crosses 1.0 for apodization
+    # of the object profiles. If the profile slope is never actually one, then just find the maximum value in the interval between
+    # (l_limit, -1.0) or (1.0, r_limit)
+    l_lim_vec = np.arange(l_limit+0.1,-1.0, 0.1)
+    l_fit1, _ = bset.value(l_lim_vec)
+    l_fit2, _ = bset.value(l_lim_vec*0.9)
+    l_deriv_vec = (np.log(l_fit2) - np.log(l_fit1))/(0.1*l_lim_vec)
+    l_deriv_max = np.fmax(l_deriv_vec.min(), -1.0)
 
-    l_val = np.array([], dtype=float)
-    deriv_l = np.array([], dtype=float)
+    r_lim_vec = np.arange(r_limit-0.1,1.0, -0.1)
+    r_fit1, _ = bset.value(r_lim_vec)
+    r_fit2, _ = bset.value(r_lim_vec*0.9)
+    r_deriv_vec = (np.log(r_fit2) - np.log(r_fit1))/(0.1*r_lim_vec)
+    r_deriv_max = np.fmin(r_deriv_vec.max(), 1.0)
+
+
     while True:
         l_limit += 0.1
         l_fit, _ = bset.value(np.asarray([l_limit]))
         l2, _ = bset.value(np.asarray([l_limit])* 0.9)
         l_deriv = (np.log(l2[0]) - np.log(l_fit[0]))/(0.1*l_limit)
-        l_val = np.append(l_val, l_limit)
-        deriv_l = np.append(deriv_l, l_deriv)
-        if (l_deriv < -1.0) | (l_limit >= -1.0):
+        if (l_deriv <= l_deriv_max) | (l_limit >= -1.0):
             break
 
-    r_val = np.array([], dtype=float)
-    deriv_r = np.array([], dtype=float)
     while True:
         r_limit -= 0.1
         r_fit, _ = bset.value(np.asarray([r_limit]))
         r2, _ = bset.value(np.asarray([r_limit])* 0.9)
         r_deriv = (np.log(r2[0]) - np.log(r_fit[0]))/(0.1*r_limit)
-        r_val = np.append(r_val, r_limit)
-        deriv_r = np.append(deriv_r, r_deriv)
-        if (r_deriv > 1.0) | (r_limit <= 1.0):
+        if (r_deriv >= r_deriv_max) | (r_limit <= 1.0):
             break
-
-    # TODO Deal with cases where the logarithmic derivative never actually reaches 1.0. In these cases we can just apodize using the maximum
-    # slope that is reached on the interval between  r_limit = sigma_x.flat[si].max() and 1.0
-    from IPython import embed
-    embed()
-    r_val = np.array([], dtype=float)
-    deriv_r = np.array([], dtype=float)
-    while r_limit > 1.0:
-        r_limit -= 0.1
-        r_fit, _ = bset.value(np.asarray([r_limit]))
-        r2, _ = bset.value(np.asarray([r_limit]) * 0.9)
-        r_deriv = (np.log(r2[0]) - np.log(r_fit[0])) / (0.1 * r_limit)
-        r_val = np.append(r_val, r_limit)
-        deriv_r = np.append(deriv_r, r_deriv)
-
-
 
     # JXP kludge
     if prof_nsigma is not None:
@@ -1090,8 +1079,6 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         full_bsp[left] =  np.exp(-(sigma_x.flat[left]-l_limit)*l_deriv) * l_fit[0]
         right = sigma_x.flatten() > r_limit
         full_bsp[right] = np.exp(-(sigma_x.flat[right] - r_limit) * r_deriv) * r_fit[0]
-        from IPython import embed
-        embed()
 
     # Final object profile
     full_bsp = full_bsp.reshape(nspec,nspat)
