@@ -618,7 +618,7 @@ def full_template(spec, par, ok_mask, nsnippet=2):
     # Load template
     template = Table.read(par['reid_arxiv'])
 
-    # TODO -- Need to deal with binning here by resampling the template to the new spectrum
+    # TODO -- Need to deal with binning here by resampling the template
 
     # Parse
     temp_wv = template['wave'].data
@@ -675,17 +675,21 @@ def full_template(spec, par, ok_mask, nsnippet=2):
                                                                      match_toler=par['match_toler'],
                                                                      cc_thresh=0.1, fwhm=par['fwhm'])
             # Deal with IDs
-            gd_IDs = patt_dict['IDs'] > 0.
-            if np.any(gd_IDs):
-                sv_det.append(i0 + detections[gd_IDs])
-                sv_IDs.append(patt_dict['IDs'][gd_IDs])
+            sv_det.append(i0 + detections)
+            sv_IDs.append(patt_dict['IDs'])
 
         # Collate and proceed
         dets = np.concatenate(sv_det)
         IDs = np.concatenate(sv_IDs)
+        gd_det = np.where(IDs > 0.)[0]
+        if len(gd_det) < 4:
+            msgs.warn("Not enough useful IDs")
+            wvcalib[str(slit)] = {}
+            continue
+        # Fit
         try:
-            final_fit = fitting.iterative_fitting(ispec, dets, np.arange(dets.size).astype(int),
-                                              IDs, line_lists, patt_dict['bdisp'],
+            final_fit = fitting.iterative_fitting(ispec, dets, gd_det,
+                                              IDs[gd_det], line_lists, patt_dict['bdisp'],
                                               verbose=False, n_first=par['n_first'],
                                               match_toler=par['match_toler'],
                                               func=par['func'],

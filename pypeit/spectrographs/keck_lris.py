@@ -418,9 +418,15 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = '/home/xavier/local/Python/PypeIt-development-suite/dev_algorithms/wavelengths/keck_lris_blue_300_d680.fits'
             par['calibrations']['wavelengths']['n_first'] = 3
             par['calibrations']['wavelengths']['match_toler'] = 2.5
+        elif self.get_meta_value(scifile, 'dispname') == '600/4000':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = '/home/xavier/local/Python/PypeIt-development-suite/dev_algorithms/wavelengths/keck_lris_blue_600_d560.fits'
+            par['calibrations']['wavelengths']['n_first'] = 3
+            par['calibrations']['wavelengths']['match_toler'] = 2.5
             #
-            binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
-            par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[1]
+
+        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[1]
 
         # Return
         return par
