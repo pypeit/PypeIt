@@ -292,8 +292,6 @@ class Spectrograph(object):
             # Get the image shape
             raw_naxis = self.get_raw_image_shape(filename, det=det)
 
-            import pdb; pdb.set_trace()
-
             binning = self.get_meta_value(filename, 'binning')
 #            binning = self.parse_binning(filename)
 
