@@ -349,54 +349,6 @@ class Spectrograph(object):
         raw_naxis = (self.load_raw_frame(filename, det=det)[0]).shape
         return raw_naxis
 
-#    def get_raw_image_shape_deprecated(self, filename=None, det=None, force=True):
-#        """
-#        Get the *untrimmed* shape of the image data for a given detector using a
-#        file.  :attr:`detector` must be defined.
-#
-#        Fails if filename is None and the instance does not have a
-#        predefined :attr:`naxis`.  If the filename is None, always
-#        returns the predefined :attr:`naxis`.  If the filename is
-#        provided, the header of the associated detector is used.  If the
-#        the detector is set to None, the primary header of the file is
-#        used.
-#
-#        Args:
-#            filename (:obj:`str`, optional):
-#                Name of the fits file with the header to use.
-#             det (:obj:`int`, optional):
-#                 1-indexed number of the detector.  Default is None.  If
-#                 None, the primary extension is used.  Otherwise the
-#                 internal detector parameters are used to determine the
-#                 extension to read.
-#             force (:obj:`bool`, optional):
-#                 Force the image shape to be redetermined.
-#             null_kwargs (dict):
-#                 Used to catch any extraneous keyword arguments.
-#
-#         Returns:
-#             tuple: Tuple of two integers with the length of each image
-#             axes.
-#
-#         Raises:
-#             ValueError:
-#                 Raised if the image shape cannot be determined from the
-#                 input and available attributes.
-#         """
-#         # Cannot be determined
-#         if (self.raw_naxis is None or force) and filename is None:
-#             raise ValueError('Cannot determine image shape!  Must have NAXIS predefined or '
-#                              'provide a file to read.')
-#
-#         # Return the predefined value
-#         if self.raw_naxis is not None:
-#             return self.raw_naxis
-#
-#         # Use a file
-#         self._check_detector()
-#         self.raw_naxis = (self.load_raw_frame(filename, det=det)[0]).shape
-#         return self.raw_naxis
-
     def empty_bpm(self, shape=None, filename=None, det=1):
         """
         Generate a generic (empty) BPM.
