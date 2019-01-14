@@ -645,7 +645,7 @@ def full_template(spec, par, ok_mask, nsnippet=2):
         npad, shift_cc = get_template_shift(ispec, temp_spec)
         i0 = npad // 2 + int(shift_cc)
 
-        # Grab the template snippet
+        # Generate the template snippet
         if i0 < 0: # Pad?
             mspec = np.concatenate([np.zeros(-1*i0), temp_spec[0:i0+nspec]])
             mwv = np.concatenate([np.zeros(-1*i0), temp_wv[0:i0+nspec]])
