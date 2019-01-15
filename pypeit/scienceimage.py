@@ -621,12 +621,14 @@ class ScienceImage(processimages.ProcessImages):
                         fwhm_was_fit[iord] = True
                         # Either perform a linear fit to the FWHM or simply take the median
                         if fit_fwhm:
+                            minx = 0.0
+                            maxx = fwhm_here[other_orders].max()
                             # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
                             fit_mask, fwhm_coeffs = utils.robust_polyfit_djs(order_vec[other_orders], fwhm_here[other_orders],1,
                                                                             function='polynomial',maxiter=25,lower=2.0, upper=2.0,
-                                                                            maxrej=1,sticky=False, minx=0.0, maxx=fwhm_here[other_orders].max())
-                            fwhm_this_ord = utils.func_val(fwhm_coeffs, order_vec[iord], 'polynomial')
-                            fwhm_all = utils.func_val(fwhm_coeffs, order_vec, 'polynomial')
+                                                                            maxrej=1,sticky=False, minx=minx, maxx=maxx)
+                            fwhm_this_ord = utils.func_val(fwhm_coeffs, order_vec[iord], 'polynomial', minx=minx, maxx=maxx)
+                            fwhm_all = utils.func_val(fwhm_coeffs, order_vec, 'polynomial', minx=minx, maxx=maxx)
                             fwhm_str = 'LIN FIT'
                         else:
                             fit_mask = np.ones_like(order_vec[other_orders],dtype=bool)
@@ -651,8 +653,9 @@ class ScienceImage(processimages.ProcessImages):
                             plt.plot(order_vec[other_orders][fit_mask], fwhm_here[other_orders][fit_mask], marker='o', linestyle=' ',
                             color='k', mfc='k', markersize=4.0, label='orders informing fit')
                             if np.any(np.invert(fit_mask)):
-                                plt.plot(order_vec[other_orders][~fit_mask], fwhm_here[other_orders][~fit_mask], marker='o', linestyle=' ',
-                                color='magenta', mfc='magenta', markersize=4.0, label='orders rejected by fit')
+                                plt.plot(order_vec[other_orders][np.invert(fit_mask)],
+                                         fwhm_here[other_orders][np.invert(fit_mask)], marker='o', linestyle=' ',
+                                         color='magenta', mfc='magenta', markersize=4.0, label='orders rejected by fit')
                             if np.any(other_fit):
                                 plt.plot(order_vec[other_fit], fwhm_here[other_fit], marker='o', linestyle=' ',
                                 color='lawngreen', mfc='lawngreen',markersize=4.0, label='fits to other low SNR orders')
