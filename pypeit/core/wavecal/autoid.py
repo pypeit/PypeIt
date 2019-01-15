@@ -310,8 +310,6 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
     # Return
     return best_dict, final_fit
 
-# TODO Make det_arxiv an optional input. In the event that the Line IDs don't exist in the arxiv, simply run peak finding and
-# interpolate the wavelength solution onto those line locations to the get initial IDs
 
 def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, det_arxiv = None, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):
@@ -379,10 +377,12 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
 
     Returns
     -------
-    (detections, patt_dict)
+    (detections, spec_cont_sub, patt_dict)
 
     detections: ndarray,
        Pixel locations of arc lines detected.
+    spec_cont_sub: ndarray
+       Array of continuum subtracted arc spectra
     patt_dict: dict
        Arc lines pattern dictionary with some information about the IDs as well as the cross-correlation values
 
@@ -606,7 +606,22 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
 
 
 def full_template(spec, par, ok_mask, nsnippet=2):
+    """
+    Method of wavelength calibration using a single, comprehensive template spectrum
 
+    Args:
+        spec: ndarray (nspec, nslit)
+          Spectra to be calibrated
+        par: WavelengthSolutionPar ParSet
+          Calibration parameters
+        ok_mask: ndarray, bool
+          Mask of indices of good slits
+
+    Returns:
+        wvcalib: dict
+          Dict of wavelength calibration solutions
+
+    """
     # Load line lists
     if 'ThAr' in par['lamps']:
         line_lists_all = waveio.load_line_lists(par['lamps'])
@@ -652,11 +667,10 @@ def full_template(spec, par, ok_mask, nsnippet=2):
         elif (i0+nspec) > temp_spec.size: # Pad?
             mspec = np.concatenate([temp_spec[i0:], np.zeros(nspec-temp_spec.size+i0)])
             mwv = np.concatenate([temp_wv[i0:], np.zeros(nspec-temp_spec.size+i0)])
-        else:
+        else: # Don't pad
             mspec = temp_spec[i0:i0 + nspec]
             mwv = temp_wv[i0:i0 + nspec]
 
-        #
         # Loop on snippets
         nsub = ispec.size // nsnippet
         sv_det, sv_IDs = [], []
@@ -706,6 +720,25 @@ def full_template(spec, par, ok_mask, nsnippet=2):
 
 
 def get_template_shift(tspec, nwspec, debug=False):
+    """
+    Find the shift between input spectrum and the template
+
+    Uses xcorr_shift()
+
+    Args:
+        tspec: ndarray
+          Input spectrum (from the user)
+        nwspec: ndarray
+          Template spectrum
+        debug: bool, optional
+
+    Returns:
+        npad: int
+          Padding for the input spectrum to match shape of the template
+        shift_cc: int
+          Shift from the cross correlation
+
+    """
     ncomb = nwspec.size
     # Pad
     pspec = np.zeros_like(nwspec)
@@ -713,8 +746,7 @@ def get_template_shift(tspec, nwspec, debug=False):
     npad = ncomb - nspec
     pspec[npad // 2:npad // 2 + len(tspec)] = tspec
     # TODO -- Take out the stretching
-    result_out, shift_out, stretch_out, corr_out, shift_cc, corr_cc = wvutils.xcorr_shift_stretch(
-        nwspec, pspec)
+    shift_cc, corr_cc = wvutils.xcorr_shift(nwspec, pspec)
     msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
     if debug:
         xvals = np.arange(ncomb)

@@ -117,7 +117,8 @@ class WaveCalib(masterframe.MasterFrame):
             self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['rcen'])
             self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slitcen'])
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
-            self.inmask = (arc.resize_mask2arc(self.shape_arc,inmask))
+            self.inmask = arc.resize_mask2arc(self.shape_arc,inmask)
+            # TODO -- Remove the following two lines if deemed ok
             if self.par['method'] != 'full_template':
                 self.inmask &= self.msarc < self.nonlinear_counts
         else:
@@ -309,6 +310,7 @@ class WaveCalib(masterframe.MasterFrame):
         else:
             nonlinear = self.nonlinear_counts
         # Do it
+        # TODO -- Consider *not* passing in nonlinear_counts;  Probably should not mask saturated lines at this stage
         arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, inmask=inmask, nonlinear_counts=nonlinear)
         # Step
         self.steps.append(inspect.stack()[0][3])
