@@ -12,6 +12,7 @@ from astropy.io import fits
 from astropy.table import Table
 
 from linetools.spectra.xspectrum1d import XSpectrum1D
+from linetools.spectra.utils import collate
 
 from pypeit import msgs
 from pypeit import specobjs
@@ -175,7 +176,7 @@ def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
     except:
         msgs.error("Spectrum {:s} does not contain {:s} extension".format(fname, extname))
 
-    spectrum = load.load_1dspec(fname, exten=exten, extract=extract, flux=flux)
+    spectrum = load_1dspec(fname, exten=exten, extract=extract, flux=flux)
     # Polish a bit -- Deal with NAN, inf, and *very* large values that will exceed
     #   the floating point precision of float32 for var which is sig**2 (i.e. 1e38)
     bad_flux = np.any([np.isnan(spectrum.flux), np.isinf(spectrum.flux),
@@ -195,7 +196,6 @@ def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
 
     return spectrum_out
 
-# JFH This routine is deprecated.
 def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
     """Loading Echelle spectra from a list of PypeIt 1D spectrum fits files
     Parameters:
