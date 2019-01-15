@@ -1039,9 +1039,6 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.,debug=Fa
     plt.rcParams["ytick.labelsize"] = 17
     plt.rcParams["axes.labelsize"] = 17
 
-    if qafile is not None:
-        pp = PdfPages(qafile)
-
     plt.figure(figsize=(12,6))
     ax1 = plt.axes([0.07, 0.13, 0.6, 0.4])
     ax2 = plt.axes([0.07, 0.55,0.6, 0.4])
@@ -1109,6 +1106,10 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.,debug=Fa
 
     plt.tight_layout(pad=0.2,h_pad=0.,w_pad=0.2)
     if qafile is not None:
+        if len(qafile.split('.'))==1:
+            msgs.info("No fomat given for the qafile, save to PDF format.")
+            qafile = qafile+'.pdf'
+        pp = PdfPages(qafile)
         pp.savefig(bbox_inches='tight')
         pp.close()
         msgs.info("Wrote coadd QA: {:s}".format(qafile))
