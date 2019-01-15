@@ -276,8 +276,13 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['lamps'] = ['CdI','HgI','HeI']
+
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['n_first'] = 3
+        par['calibrations']['wavelengths']['match_toler'] = 2.5
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['n_first'] = 1
+        #par['calibrations']['wavelengths']['n_first'] = 1
+
 
         # Set wave tilts order
         par['calibrations']['tilts']['spat_order'] = 3
@@ -285,11 +290,17 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
 
-        # reidentification stuff
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600_4310_d55.json'
-
         return par
+
+    def config_specific_par(self, par, scifile):
+        # Wavelength calibrations
+        if self.get_meta_value(scifile, 'dispname') == '600/4310':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600.fits'
+        else:
+            msgs.error("NEED TO ADD YOUR GRISM HERE!")
+        # Return
+        return par
+
 
     def check_headers(self, headers):
         """

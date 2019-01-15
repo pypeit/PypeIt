@@ -423,6 +423,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_400_d560.fits'
         elif self.get_meta_value(scifile, 'dispname') == '600/4000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_600_d560.fits'
+        elif self.get_meta_value(scifile, 'dispname') == '1200/3400':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_1200_d460.fits'
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
