@@ -631,13 +631,9 @@ def full_template(spec, par, ok_mask, nsnippet=2):
         line_lists = waveio.load_line_lists(par['lamps'])
 
     # Load template
-    template = Table.read(par['reid_arxiv'])
+    temp_wv, temp_spec, temp_bin = waveio.load_template(par['reid_arxiv'])
 
     # TODO -- Need to deal with binning here by resampling the template
-
-    # Parse
-    temp_wv = template['wave'].data
-    temp_spec = template['flux'].data
 
     if spec.ndim == 2:
         nspec, nslits = spec.shape
