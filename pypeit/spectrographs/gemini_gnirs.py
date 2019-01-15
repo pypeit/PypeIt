@@ -105,6 +105,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Extraction
+        #par['scienceimage']['sig_thresh'] = 5.0
         par['scienceimage']['bspline_spacing'] = 0.8
         par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
 
