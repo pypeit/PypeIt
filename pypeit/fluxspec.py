@@ -829,11 +829,14 @@ class EchFluxSpec(masterframe.MasterFrame):
                       'AIRMASS, EXPTIME.')
             return None
         ext_final = fits.getheader(self.std_spec1d_file, -1)
-        norder = ext_final['ORDER'] + 1
+        norder = ext_final['ECHORDER'] + 1
 
         self.sens_dict = {}
+        std_specobjs_all, std_header = load.load_specobjs(self.std_spec1d_file)
         for iord in range(norder):
-            std_specobjs, std_header = load.load_specobjs(self.std_spec1d_file, order=iord)
+            #std_specobjs, std_header = load.load_specobjs(self.std_spec1d_file, order=iord)
+            std_specobjs = specobjs.SpecObjs()
+            std_specobjs.add_sobj(std_specobjs_all[iord])
             std_idx = flux.find_standard(std_specobjs)
             std = std_specobjs[std_idx]
             wavemask = std.boxcar['WAVE'] > 1000.0 * units.AA
@@ -930,7 +933,7 @@ class EchFluxSpec(masterframe.MasterFrame):
             specObjs = self.sci_specobjs
         else:
             msgs.error("BAD INPUT")
-        save.save_1d_spectra_fits(specObjs, self.sci_header, outfile,
+        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph.pypeline, outfile,
                                   helio_dict=helio_dict,
                                   telescope=telescope, overwrite=True)
         # Step
