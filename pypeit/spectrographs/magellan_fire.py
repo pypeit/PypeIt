@@ -221,8 +221,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def parse_binning(self, inp, det=1):
-        return '1,1'
+#    def parse_binning(self, inp, det=1):
+#        return '1,1'
 
 #    def get_match_criteria(self):
 #        """Set the general matching criteria for FIRE"""

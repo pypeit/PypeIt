@@ -52,62 +52,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [29, None]
         return par
 
-    '''
-    def header_keys(self):
-        """
-        Return a dictionary with the header keywords to read from the
-        fits file.
-
-        Returns:
-            dict: A nested dictionary with the header keywords to read.
-            The first level gives the extension to read and the second
-            level gives the common name for header values that is passed
-            on to the PypeItMetaData object.
-        """
-        hdr_keys = {}
-        hdr_keys[0] = {}
-        hdr_keys[1] = {}
-        hdr_keys[2] = {}
-        hdr_keys[3] = {}
-        hdr_keys[4] = {}
-
-        # Copied over defaults
-        hdr_keys[0]['idname'] = 'OBSTYPE'
-        hdr_keys[0]['time'] = 'MJD-OBS'
-        #hdr_keys[0]['date'] = 'DATE'
-        hdr_keys[0]['utc'] = 'UTC'
-        hdr_keys[0]['ut'] = 'UT'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['binning'] = 'BINNING'
-        hdr_keys[0]['decker'] = 'SLITNAME'
-        hdr_keys[0]['dichroic'] = 'DICHNAME'
-
-        hdr_keys[0]['target'] = 'TARGNAME'
-        hdr_keys[0]['exptime'] = 'ELAPTIME'
-        hdr_keys[0]['hatch'] = 'TRAPDOOR'
-        hdr_keys[0]['dispname'] = 'GRANAME'
-        hdr_keys[0]['dispangle'] = 'GRANGLE'
-        hdr_keys[0]['wavecen'] = 'WAVELEN'
-        hdr_keys[0]['spectrograph'] = 'INSTRUME'
-        hdr_keys[1]['NAXIS01'] = 'NAXIS'
-        hdr_keys[2]['NAXIS02'] = 'NAXIS'
-        hdr_keys[3]['NAXIS03'] = 'NAXIS'
-        hdr_keys[4]['NAXIS04'] = 'NAXIS'
-        hdr_keys[1]['CCDGEOM'] = 'CCDGEOM'
-        hdr_keys[1]['CCDNAME01'] = 'CCDNAME'
-        hdr_keys[3]['CCDNAME02'] = 'CCDNAME'
-
-        lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
-                      'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
-        for kk,lamp_name in enumerate(lamp_names):
-            hdr_keys[0]['lampstat{:02d}'.format(kk+1)] = lamp_name
-
-        return hdr_keys
-    '''
-
-
     def init_meta(self):
         """
         Generate the meta data dict
@@ -144,6 +88,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
     def compound_meta(self, headarr, meta_key):
         if meta_key == 'binning':
+#            return '1,1'
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspatial, binspec)
             return binning
@@ -290,6 +235,45 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             return secs[1], False, False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
+
+    def get_datasec_img(self, filename, det=1, force=True):
+        """
+        Create an image identifying the amplifier used to read each pixel.
+
+        Args:
+            filename (str):
+                Name of the file from which to read the image size.
+            det (:obj:`int`, optional):
+                Detector number (1-indexed)
+            force (:obj:`bool`, optional):
+                Force the image to be remade
+
+        Returns:
+            `numpy.ndarray`: Integer array identifying the amplifier
+            used to read each pixel.
+        """
+        if self.datasec_img is None or force:
+            # Check the detector is defined
+            self._check_detector()
+            # Get the image shape
+            raw_naxis = self.get_raw_image_shape(filename, det=det)
+
+            # Binning is not required because read_lris accounts for it
+#            binning = self.get_meta_value(filename, 'binning')
+
+            data_sections, one_indexed, include_end, transpose \
+                    = self.get_image_section(filename, det, section='datasec')
+
+            # Initialize the image (0 means no amplifier)
+            self.datasec_img = np.zeros(raw_naxis, dtype=int)
+            for i in range(self.detector[det-1]['numamplifiers']):
+                # Convert the data section from a string to a slice
+                datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
+                                          include_end=include_end, require_dim=2,
+                                          transpose=transpose) #, binning=binning)
+                # Assign the amplifier
+                self.datasec_img[datasec] = i+1
+        return self.datasec_img
 
     def get_image_shape(self, filename=None, det=None, **null_kwargs):
         """

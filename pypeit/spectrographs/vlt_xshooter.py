@@ -46,37 +46,6 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         # Right now turn off flexure compensation
         return par
 
-    '''
-    def header_keys(self):
-        hdr_keys = {}
-        hdr_keys[0] = {}
-
-        # The keyword that identifies the frame type (i.e. bias, flat, etc.)
-        hdr_keys[0]['idname']  = 'HIERARCH ESO DPR CATG'
-        # Header keyword for the name given by the observer to a given frame
-        hdr_keys[0]['target']  = 'OBJECT'
-        # The time stamp of the observation (i.e. decimal MJD)
-        hdr_keys[0]['time']    = 'MJD-OBS'
-        # The UT date of the observation which is used for heliocentric
-        # (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
-        #hdr_keys[0]['date']    = 'DATE-OBS'
-        # Right Ascension of the target
-        hdr_keys[0]['ra']      = 'RA'
-        # Declination of the target
-        hdr_keys[0]['dec']     = 'DEC'
-        # Airmass at start of observation
-        hdr_keys[0]['airmass'] = 'HIERARCH ESO TEL AIRM START'
-        # Exposure time keyword
-        hdr_keys[0]['exptime'] = 'EXPTIME'
-        hdr_keys[0]['naxis0']  = 'NAXIS2'
-        hdr_keys[0]['naxis1']  = 'NAXIS1'
-        # Binning along SPATIAL axis
-        hdr_keys[0]['binning_x'] = 'HIERARCH ESO DET WIN1 BINX'
-        # Binning along SPECTRAL axis
-        hdr_keys[0]['binning_y'] = 'HIERARCH ESO DET WIN1 BINY'
-        # UTC, decker are arm dependent
-        return hdr_keys
-    '''
     def init_meta(self):
         """
         Generate the meta data dict
@@ -124,63 +93,48 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     def configuration_keys(self):
         return []
 
-    '''
-    def validate_metadata(self, fitstbl):
-        indx = fitstbl['binning_x'] == 'None'
-        fitstbl['binning_x'][indx] = 1
-        indx = fitstbl['binning_y'] == 'None'
-        fitstbl['binning_y'][indx] = 1
-        fitstbl['binning'] = np.array(['{0},{1}'.format(bx,by)
-                                for bx,by in zip(fitstbl['binning_x'], fitstbl['binning_y'])])
-    '''
-
-    '''
-    def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'idname', 'target', 'exptime', 'decker',
-                'binning', 'setup', 'calib', 'obj_id', 'bkg_id']
-    '''
     def pypeit_file_keys(self):
         pypeit_keys = super(VLTXShooterSpectrograph, self).pypeit_file_keys()
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
         return pypeit_keys
 
-    def parse_binning(self, inp, **kwargs):
-        """
-        Get the pixel binning for an image.
-
-        Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`):
-                String providing the file name to read, or the relevant
-                header object.
-
-        Returns:
-            str: String representation of the binning.  The ordering is
-            as provided in the header, regardless of which axis is
-            designated as the dispersion axis.  It is expected that this
-            be used with :func:`pypeit.core.parse.sec2slice` to setup
-            the data and overscane sections of the image data.
-
-        Raises:
-            PypeItError:
-                Raised if `inp` is not one of the accepted types.
-        """
-        # Get the header
-        if isinstance(inp, str):
-            hdu = fits.open(inp)
-            hdr = hdu[0].header
-        elif isinstance(inp, fits.Header):
-            hdr = inp
-        else:
-            msgs.error('Input must be a filename or fits.Header object')
-
-        # TODO: This is a hack.  These two keywords don't exist for the
-        # test NIR file in tests/test_load_images.py.  Can the NIR data
-        # be binned?  What are the appropriate keywords?
-        try:
-            return '{0},{1}'.format(hdr['HIERARCH ESO DET WIN1 BINX'],
-                                    hdr['HIERARCH ESO DET WIN1 BINY'])
-        except:
-            return '1,1'
+#    def parse_binning(self, inp, **kwargs):
+#        """
+#        Get the pixel binning for an image.
+#
+#        Args:
+#            inp (:obj:`str`, `astropy.io.fits.Header`):
+#                String providing the file name to read, or the relevant
+#                header object.
+#
+#        Returns:
+#            str: String representation of the binning.  The ordering is
+#            as provided in the header, regardless of which axis is
+#            designated as the dispersion axis.  It is expected that this
+#            be used with :func:`pypeit.core.parse.sec2slice` to setup
+#            the data and overscane sections of the image data.
+#
+#        Raises:
+#            PypeItError:
+#                Raised if `inp` is not one of the accepted types.
+#        """
+#        # Get the header
+#        if isinstance(inp, str):
+#            hdu = fits.open(inp)
+#            hdr = hdu[0].header
+#        elif isinstance(inp, fits.Header):
+#            hdr = inp
+#        else:
+#            msgs.error('Input must be a filename or fits.Header object')
+#
+#        # TODO: This is a hack.  These two keywords don't exist for the
+#        # test NIR file in tests/test_load_images.py.  Can the NIR data
+#        # be binned?  What are the appropriate keywords?
+#        try:
+#            return '{0},{1}'.format(hdr['HIERARCH ESO DET WIN1 BINX'],
+#                                    hdr['HIERARCH ESO DET WIN1 BINY'])
+#        except:
+#            return '1,1'
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -213,26 +167,26 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def get_match_criteria(self):
-        # TODO: Matching needs to be looked at...
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-
-        match_criteria['standard']['match'] = {}
-        # Bias
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['binning'] = ''
-        # Pixelflat
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['pixelflat']['match']['binning'] = ''
-        # Traceflat
-        match_criteria['trace']['match'] = {}
-        match_criteria['trace']['match']['binning'] = ''
-        # Arc
-        match_criteria['arc']['match'] = {}
-        # Return
-        return match_criteria
+#    def get_match_criteria(self):
+#        # TODO: Matching needs to be looked at...
+#        match_criteria = {}
+#        for key in framematch.FrameTypeBitMask().keys():
+#            match_criteria[key] = {}
+#
+#        match_criteria['standard']['match'] = {}
+#        # Bias
+#        match_criteria['bias']['match'] = {}
+#        match_criteria['bias']['match']['binning'] = ''
+#        # Pixelflat
+#        match_criteria['pixelflat']['match'] = {}
+#        match_criteria['pixelflat']['match']['binning'] = ''
+#        # Traceflat
+#        match_criteria['trace']['match'] = {}
+#        match_criteria['trace']['match']['binning'] = ''
+#        # Arc
+#        match_criteria['arc']['match'] = {}
+#        # Return
+#        return match_criteria
 
 
     @property
@@ -461,8 +415,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         return orders[islit]
 
     def order_platescale(self, binning = None):
-
-
         """
         Returns the spatial plate scale in arcseconds for each order
 
@@ -677,8 +629,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
 
     def order_platescale(self, binning = None):
-
-
         """
         Returns the plate scale in arcseconds for each order
 
@@ -756,31 +706,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         return slitmask
 
-
-    '''
-    def check_headers(self, headers, expected_values = None):
-        """
-        Check headers match expectations for a VLT/XSHOOTER exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-
-        if expected_values is None:
-            expected_values = { '0.INSTRUME': 'XSHOOTER','0.HIERARCH ESO SEQ ARM': 'VIS','0.NAXIS': 2 }
-        super(VLTXShooterVISSpectrograph, self).check_headers(headers,
-                                                              expected_values=expected_values)
-
-    def header_keys(self):
-        hdr_keys = super(VLTXShooterVISSpectrograph, self).header_keys()
-        hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI4 NAME'
-        hdr_keys[0]['utc'] = 'UTC'      # Some have UTC, most do not
-        return hdr_keys
-    '''
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
@@ -928,8 +853,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
 
     def order_platescale(self, binning = None):
-
-
         """
         Returns the plate scale in arcseconds for each order
 
@@ -955,30 +878,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
         # Right now I just took the average
         return np.full(self.norders, 0.161)*binspatial
-
-    '''
-    def check_headers(self, headers, expected_values=None):
-        """
-        Check headers match expectations for a VLT/XSHOOTER exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        if expected_values is None:
-            expected_values = { '0.INSTRUME': 'XSHOOTER','0.HIERARCH ESO SEQ ARM': 'UVB','0.NAXIS': 2 }
-        super(VLTXShooterUVBSpectrograph, self).check_headers(headers,
-                                                              expected_values=expected_values)
-
-    def header_keys(self):
-        hdr_keys = super(VLTXShooterUVBSpectrograph, self).header_keys()
-        hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI3 NAME'
-        # TODO: UVB does not have a utc keyword?
-        return hdr_keys
-    '''
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """

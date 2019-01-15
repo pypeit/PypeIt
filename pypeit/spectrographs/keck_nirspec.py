@@ -243,8 +243,8 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
         raise ValueError('No implementation for status = {0}'.format(status))
 
-    def parse_binning(self, inp, det=1):
-        return '1,1'
+#    def parse_binning(self, inp, det=1):
+#        return '1,1'
 
 #    def get_match_criteria(self):
 #        """Set the general matching criteria for Keck NIRSPEC."""
