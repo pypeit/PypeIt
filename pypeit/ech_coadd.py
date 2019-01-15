@@ -113,7 +113,7 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,
                 qafile_iord =  None
             spec1d_iord = coadd.coadd_spectra(spectra, wave_grid_method=wave_grid_method, niter=niter,
                                        scale_method=scale_method, do_offset=do_offset, sigrej_final=sigrej_final,
-                                       do_var_corr=do_var_corr, qafile=qafile_iord, outfile=outfile,
+                                       do_var_corr=do_var_corr, qafile=qafile_iord, outfile=None,
                                        do_cr=do_cr, debug=debug, **kwargs)
             spectrum = spec_from_array(spec1d_iord.wavelength, spec1d_iord.flux, spec1d_iord.sig,**rsp_kwargs)
             spectra_list.append(spectrum)
