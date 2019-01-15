@@ -686,7 +686,16 @@ def full_template(spec, par, ok_mask, nsnippet=2):
                                                                      cc_thresh=0.1, fwhm=par['fwhm'])
             # Deal with IDs
             sv_det.append(i0 + detections)
-            sv_IDs.append(patt_dict['IDs'])
+            try:
+                sv_IDs.append(patt_dict['IDs'])
+            except KeyError:
+                #debugger.plot1d(tsnippet, xtwo=np.arange(tsnippet.size), ytwo=msnippet)
+                #debugger.set_trace()
+                msgs.warn("Barfed in reidentify..")
+                sv_IDs.append(np.zeros_like(detections))
+            else:
+                # Save now in case the next one barfs
+                bdisp = patt_dict['bdisp']
 
         # Collate and proceed
         dets = np.concatenate(sv_det)
@@ -699,7 +708,7 @@ def full_template(spec, par, ok_mask, nsnippet=2):
         # Fit
         try:
             final_fit = fitting.iterative_fitting(ispec, dets, gd_det,
-                                              IDs[gd_det], line_lists, patt_dict['bdisp'],
+                                              IDs[gd_det], line_lists, bdisp,
                                               verbose=False, n_first=par['n_first'],
                                               match_toler=par['match_toler'],
                                               func=par['func'],

@@ -58,6 +58,7 @@ def build_template(in_file, slits, wv_cuts, binspec, outroot, lowredux=True):
     nwspec = np.concatenate(yvals)
     nwwv = np.concatenate(lvals)
     # Generate the table
+    pdb.set_trace()
     write_template(nwwv, nwspec, binspec, outpath, outroot)
 
 
@@ -208,20 +209,33 @@ def main(flg):
         outroot = 'shane_kast_blue_830.fits'
         build_template(xidl_file, slits, None, binspec, outroot, lowredux=True)
 
+    # Keck/DEIMOS
+    if flg & (2**7):  # 600 :: Might not go red enough
+        binspec = 1
+        slits = [0,1]
+        lcut = [7192.]
+        xidl_file = os.path.join(os.getenv('XIDL_DIR'),
+                                 'Spec/Longslit/calib/linelists/deimos_600.sav')
+        outroot = 'keck_deimos_600.fits'
+        build_template(xidl_file, slits, lcut, binspec, outroot, lowredux=True)
+
 # Command line execution
 if __name__ == '__main__':
     flg = 0
 
-    # LRISb
+    # Keck/LRISb
     #flg += 2**0  # LRISb 300, all lamps
     #flg += 2**1  # LRISb 400, all lamps
     #flg += 2**2  # LRISb 600, all lamps
     #flg += 2**3  # LRISb 1200, all lamps?
 
-    # Kast/Shane
+    # Shane/Kastb
     #flg += 2**4  # Kastb 452/3306
     #flg += 2**5  # Kastb 600/4310
-    flg += 2**6  # Kastb 830/3460
+    #flg += 2**6  # Kastb 830/3460
+
+    # Keck/DEIMOS
+    flg += 2**7  # 600
 
     main(flg)
 
