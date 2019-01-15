@@ -18,7 +18,7 @@ from pypeit.core import skysub
 from pypeit.core import extract
 from pypeit.core import trace_slits
 from pypeit.par import pypeitpar
-from pypeit.core import procimg
+from pypeit.core import coadd2d
 from matplotlib import pyplot as plt
 
 #
@@ -787,7 +787,7 @@ class ScienceImage(processimages.ProcessImages):
             sci_list = [sciimg_stack]
             var_stack = utils.calc_ivar(sciivar_stack)
             var_list = [var_stack, rn2img_stack]
-            sci_list_out, var_list_out, outmask, nused = procimg.weighted_combine(
+            sci_list_out, var_list_out, outmask, nused = coadd2d.weighted_combine(
                 weights, sci_list, var_list, (mask_stack == 0),
                 sigma_clip=sigma_clip, sigma_clip_stack = sciimg_stack, sigrej=sigrej, maxiters=maxiters)
             sciimg = sci_list_out[0]
