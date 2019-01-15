@@ -519,7 +519,7 @@ class ScienceImage(processimages.ProcessImages):
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
-    def local_skysub_extract_ech(self, sobjs, waveimg, model_full_slit=True, model_noise=True, min_snr=2.0,
+    def local_skysub_extract_ech(self, sobjs, waveimg, model_noise=True, min_snr=2.0,
                                  std = False, fit_fwhm=False, maskslits=None, show_profile=False,
                                  show_resids=False, show_fwhm=True, show=False):
         """
