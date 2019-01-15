@@ -71,7 +71,7 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,
 
     fname = files[0]
     ext_final = fits.getheader(fname, -1)
-    norder = ext_final['ORDER'] + 1
+    norder = ext_final['ECHORDER'] + 1
     msgs.info('spectrum {:s} has {:d} orders'.format(fname, norder))
     if norder <= 1:
         msgs.error('The number of orders have to be greater than one for echelle. Longslit data?')
