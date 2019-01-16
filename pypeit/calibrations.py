@@ -270,6 +270,7 @@ class Calibrations(object):
             self.msbias: ndarray or str
 
         """
+
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
