@@ -214,7 +214,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
-        par['calibrations']['wavelengths']['fwhm'] = 6.0
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
@@ -235,10 +234,19 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         return par
 
     def config_specific_par(self, par, scifile):
+
+        # Templates
         if self.get_meta_value(scifile, 'dispname') == '600ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600.fits'
             par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+        elif self.get_meta_value(scifile, 'dispname') == '830G':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_830G.fits'
+
+        # FWHM
+        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
 
         # Return
         return par

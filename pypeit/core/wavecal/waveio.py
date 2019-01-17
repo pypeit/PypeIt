@@ -16,11 +16,14 @@ from pypeit import msgs
 import pypeit  # For path
 from pypeit.core.wavecal import defs
 
+from pypeit import debugger
+
 line_path = resource_filename('pypeit', '/data/arc_lines/lists/')
 nist_path = resource_filename('pypeit','/data/arc_lines/NIST/')
 reid_arxiv_path = resource_filename('pypeit','/data/arc_lines/reid_arxiv/')
 
-def load_template(arxiv_file):
+
+def load_template(arxiv_file, det):
     # Path already included?
     if os.path.basename(arxiv_file) == arxiv_file:
         calibfile = os.path.join(reid_arxiv_path, arxiv_file)
@@ -28,8 +31,13 @@ def load_template(arxiv_file):
         calibfile = arxiv_file
     # Read me
     tbl = Table.read(calibfile)
+    # Parse on detector?
+    if 'det' in tbl.keys():
+        idx = np.where(tbl['det'].data & 2**det)[0]
+    else:
+        idx = np.arange(len(tbl)).astype(int)
     # Return
-    return tbl['wave'].data, tbl['flux'].data, tbl.meta['BINSPEC']
+    return tbl['wave'].data[idx], tbl['flux'].data[idx], tbl.meta['BINSPEC']
 
 def load_reid_arxiv(arxiv_file):
     # ToDO put in some code to allow user specified files rather than everything in the main directory

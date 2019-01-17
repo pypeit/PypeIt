@@ -211,7 +211,7 @@ class WaveCalib(masterframe.MasterFrame):
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'full_template':
             # Now preferred
-            final_fit = wavecal.autoid.full_template(arccen, self.par, ok_mask)
+            final_fit = wavecal.autoid.full_template(arccen, self.par, ok_mask, self.det)
 
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
@@ -394,7 +394,7 @@ class WaveCalib(masterframe.MasterFrame):
         for key in self.wv_calib.keys():
             if key in ['steps', 'par', 'fit2d']:
                 continue
-            if self.wv_calib[key] is not None:
+            if (self.wv_calib[key] is not None) and (len(self.wv_calib[key]) > 0):
                 mask[int(key)] = False
         self.maskslits = mask
         return self.maskslits

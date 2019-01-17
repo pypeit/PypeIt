@@ -22,16 +22,22 @@ from pypeit.core.wave import airtovac
 #  flux -- Arc spectrum flux values
 #
 # Meta must include BINNING of the template with 1=native
+template_path = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms/wavelengths/template_files/')
 
 outpath=resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 
-def build_template(in_file, slits, wv_cuts, binspec, outroot, lowredux=True):
+def build_template(in_files, slits, wv_cuts, binspec, outroot,
+                   lowredux=True, ifiles=None, det_cut=None):
     # Load xidl file
     # Grab it
     # Load and splice
     yvals = []
     lvals = []
+    if not isinstance(in_files,list):
+        in_files = [in_files]
+        ifiles = [0]*len(slits)
     for kk, slit in enumerate(slits):
+        in_file = in_files[ifiles[kk]]
         if lowredux:
             wv_vac, spec = xidl_arcspec(in_file, slit)
         else:
@@ -58,8 +64,7 @@ def build_template(in_file, slits, wv_cuts, binspec, outroot, lowredux=True):
     nwspec = np.concatenate(yvals)
     nwwv = np.concatenate(lvals)
     # Generate the table
-    pdb.set_trace()
-    write_template(nwwv, nwspec, binspec, outpath, outroot)
+    write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=det_cut)
 
 
 def pypeit_arcspec(in_file, slit):
@@ -71,12 +76,18 @@ def pypeit_arcspec(in_file, slit):
     # Return
     return wv_vac, np.array(iwv_calib['spec'])
 
-def write_template(nwwv, nwspec, binspec, outpath, outroot):
+def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None):
     tbl = Table()
     tbl['wave'] = nwwv
     tbl['flux'] = nwspec
-    tbl.meta['INSTR'] = 'keck_lris_blue_600_d560'
     tbl.meta['BINSPEC'] = binspec
+    # Detector snippets??
+    if det_cut is not None:
+        tbl['det'] = 0
+        for dets, wcuts in zip(det_cut['dets'], det_cut['wcuts']):
+            gdwv = (tbl['wave'] > wcuts[0]) & (tbl['wave'] < wcuts[1])
+            deti = np.sum([2**ii for ii in dets])
+            tbl['det'][gdwv] += deti
     # Write
     outfile = os.path.join(outpath, outroot)
     tbl.write(outfile, overwrite=True)
@@ -151,8 +162,7 @@ def main(flg):
     if flg & (2**0): # B300, all lamps
         binspec = 1
         slits = [15]
-        xidl_file = os.path.join(os.getenv('XIDL_DIR'),
-                             'Spec/Longslit/calib/linelists/lris_blue_300.sav')
+        xidl_file = os.path.join(template_path, 'Keck_LRIS', 'B300', 'lris_blue_300.sav')
         outroot = 'keck_lris_blue_300_d680.fits'
         build_template(xidl_file, slits, None, binspec, outroot, lowredux=True)
 
@@ -161,8 +171,7 @@ def main(flg):
         outroot='keck_lris_blue_400_d560.fits'
         slits = [19,14]
         lcut = [5500.]
-        xidl_file = os.path.join(os.getenv('XIDL_DIR'),
-                                 'Spec/Longslit/calib/linelists/lris_blue_400_d560.sav')
+        xidl_file = os.path.join(template_path, 'Keck_LRIS', 'B400', 'lris_blue_400_d560.sav')
         build_template(xidl_file, slits, lcut, binspec, outroot, lowredux=True)
 
     if flg & (2**2): # B600, all lamps
@@ -170,8 +179,7 @@ def main(flg):
         outroot='keck_lris_blue_600_d560.fits'
         slits = [0,7]
         lcut = [4500.]
-        wfile = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT/Keck_LRIS_blue/multi_600_4000_d560',
-                             'MF_keck_lris_blue', 'MasterWaveCalib_A_1_01.json')
+        wfile = os.path.join(template_path, 'Keck_LRIS', 'B600', 'MasterWaveCalib_A_1_01.json')
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
     if flg & (2**3): # B1200, all lamps?
@@ -179,16 +187,14 @@ def main(flg):
         outroot='keck_lris_blue_1200_d460.fits'
         slits = [19,44]
         lcut = [3700.]
-        xidl_file = os.path.join(os.getenv('XIDL_DIR'),
-                                 'Spec/Longslit/calib/linelists/lris_blue_1200.sav')
+        xidl_file = os.path.join(template_path, 'Keck_LRIS', 'B1200', 'lris_blue_1200.sav')
         build_template(xidl_file, slits, lcut, binspec, outroot, lowredux=True)
 
     # Shane Kastb
     if flg & (2**4):  # 452/3306
         binspec = 1
         slits = [0]
-        xidl_file = os.path.join(os.getenv('XIDL_DIR'),
-                                 'Spec/Longslit/calib/linelists/kast_452_3306.sav')
+        xidl_file = os.path.join(template_path, 'Shane_Kast', '452_3306', 'kast_452_3306.sav')
         outroot = 'shane_kast_blue_452.fits'
         build_template(xidl_file, slits, None, binspec, outroot, lowredux=True)
 
@@ -196,28 +202,43 @@ def main(flg):
         binspec = 1
         slits = [0,3]
         lcut = [4550.]
-        xidl_file = os.path.join(os.getenv('XIDL_DIR'),
-                                 'Spec/Longslit/calib/linelists/kast_600_4310.sav')
+        xidl_file = os.path.join(template_path, 'Shane_Kast', '600_4310', 'kast_600_4310.sav')
         outroot = 'shane_kast_blue_600.fits'
         build_template(xidl_file, slits, lcut, binspec, outroot, lowredux=True)
 
     if flg & (2**6):  # 830/3460
         binspec = 1
         slits = [0]
-        xidl_file = os.path.join(os.getenv('XIDL_DIR'),
-                                 'Spec/Longslit/calib/linelists/kast_830_3460.sav')
+        xidl_file = os.path.join(template_path, 'Shane_Kast', '830_3460', 'kast_830_3460.sav')
         outroot = 'shane_kast_blue_830.fits'
         build_template(xidl_file, slits, None, binspec, outroot, lowredux=True)
 
     # Keck/DEIMOS
-    if flg & (2**7):  # 600 :: Might not go red enough
+    if flg & (2**7):  # 600ZD :: Might not go red enough
         binspec = 1
         slits = [0,1]
         lcut = [7192.]
-        xidl_file = os.path.join(os.getenv('XIDL_DIR'),
-                                 'Spec/Longslit/calib/linelists/deimos_600.sav')
+        xidl_file = os.path.join(template_path, 'Keck_DEIMOS', '600ZD', 'deimos_600.sav')
         outroot = 'keck_deimos_600.fits'
         build_template(xidl_file, slits, lcut, binspec, outroot, lowredux=True)
+
+    if flg & (2**8):  # 830G
+        binspec = 1
+        outroot='keck_deimos_830G.fits'
+        # 3-12 = blue  6508 -- 8410
+        # 7-24 = blue  8497 -- 9925 (no lines after XeI)
+        ifiles = [0, 0, 1]
+        slits = [12, 14, 24]
+        lcut = [8400., 8480]
+        wfile1 = os.path.join(template_path, 'Keck_DEIMOS', '830G_M_8600', 'MasterWaveCalib_A_1_03.json')
+        wfile2 = os.path.join(template_path, 'Keck_DEIMOS', '830G_M_8600', 'MasterWaveCalib_A_1_07.json')
+        # det_dict
+        det_cut = {}
+        det_cut['dets'] = [[1,2,3,4], [5,6,7,8]]
+        det_cut['wcuts'] = [[0,9000.], [8200,1e9]]  # Significant overlap is fine
+        #
+        build_template([wfile1,wfile2], slits, lcut, binspec, outroot, lowredux=False,
+                       ifiles=ifiles, det_cut=det_cut)
 
 # Command line execution
 if __name__ == '__main__':
@@ -235,7 +256,8 @@ if __name__ == '__main__':
     #flg += 2**6  # Kastb 830/3460
 
     # Keck/DEIMOS
-    flg += 2**7  # 600
+    #flg += 2**7  # 600
+    flg += 2**8  # 830G
 
     main(flg)
 

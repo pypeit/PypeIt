@@ -605,7 +605,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
-def full_template(spec, par, ok_mask, nsnippet=2):
+def full_template(spec, par, ok_mask, det, nsnippet=2, debug_xcorr=False, x_percentile=50.):
     """
     Method of wavelength calibration using a single, comprehensive template spectrum
 
@@ -616,6 +616,8 @@ def full_template(spec, par, ok_mask, nsnippet=2):
           Calibration parameters
         ok_mask: ndarray, bool
           Mask of indices of good slits
+        det: int
+          Detector index
 
     Returns:
         wvcalib: dict
@@ -631,7 +633,12 @@ def full_template(spec, par, ok_mask, nsnippet=2):
         line_lists = waveio.load_line_lists(par['lamps'])
 
     # Load template
-    temp_wv, temp_spec, temp_bin = waveio.load_template(par['reid_arxiv'])
+    temp_wv, temp_spec, temp_bin = waveio.load_template(par['reid_arxiv'], det)
+
+    # DEBUGGING
+    #ntemp_full = temp_wv.size
+    #temp_wv = temp_wv[ntemp_full//2:]
+    #temp_spec = temp_spec[ntemp_full//2:]
 
     # TODO -- Need to deal with binning here by resampling the template
 
@@ -646,14 +653,18 @@ def full_template(spec, par, ok_mask, nsnippet=2):
     for slit in range(nslits):
         # Check
         if slit not in ok_mask:
-            wvcalib[str(slit)] = {}
+            wvcalib[str(slit)] = None
             continue
         msgs.info("Processing slit {}".format(slit))
         #
         ispec = spec[:,slit]
 
         # Find the shift
-        npad, shift_cc = get_template_shift(ispec, temp_spec)
+        #if slit == 22:
+        #    debug_xcorr = True
+        #else:
+        #    debug_xcorr = False
+        npad, shift_cc = get_template_shift(ispec, temp_spec, debug=debug_xcorr, percent_ceil=x_percentile)
         i0 = npad // 2 + int(shift_cc)
 
         # Generate the template snippet
@@ -703,7 +714,8 @@ def full_template(spec, par, ok_mask, nsnippet=2):
         gd_det = np.where(IDs > 0.)[0]
         if len(gd_det) < 4:
             msgs.warn("Not enough useful IDs")
-            wvcalib[str(slit)] = {}
+            wvcalib[str(slit)] = None
+            debugger.set_trace()
             continue
         # Fit
         try:
@@ -716,7 +728,7 @@ def full_template(spec, par, ok_mask, nsnippet=2):
                                               sigrej_first=par['sigrej_first'],
                                               sigrej_final=par['sigrej_final'])
         except TypeError:
-            wvcalib[str(slit)] = {}
+            wvcalib[str(slit)] = None
         else:
             wvcalib[str(slit)] = copy.deepcopy(final_fit)
     # Finish
@@ -724,7 +736,7 @@ def full_template(spec, par, ok_mask, nsnippet=2):
 
 
 
-def get_template_shift(tspec, nwspec, debug=False):
+def get_template_shift(tspec, nwspec, debug=False, percent_ceil=50.):
     """
     Find the shift between input spectrum and the template
 
@@ -750,8 +762,8 @@ def get_template_shift(tspec, nwspec, debug=False):
     nspec = len(tspec)
     npad = ncomb - nspec
     pspec[npad // 2:npad // 2 + len(tspec)] = tspec
-    # TODO -- Take out the stretching
-    shift_cc, corr_cc = wvutils.xcorr_shift(nwspec, pspec)
+    # Cross-correlate
+    shift_cc, corr_cc = wvutils.xcorr_shift(nwspec, pspec, debug=debug, percent_ceil=percent_ceil)
     msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
     if debug:
         xvals = np.arange(ncomb)
@@ -761,7 +773,9 @@ def get_template_shift(tspec, nwspec, debug=False):
         ax.plot(xvals, nwspec)
         ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k')
         plt.show()
-    # Return
+        #
+        #success, shift, stretch, cross_corr, shift_cc, corr_cc = wvutils.xcorr_shift_stretch(nwspec, pspec, debug=debug)
+        debugger.set_trace()
     return npad, shift_cc
 
 
