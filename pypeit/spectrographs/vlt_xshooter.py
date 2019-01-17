@@ -730,7 +730,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         if det == 1:
             # TODO: This is for the 1x1 binning it should
             # change for other binning
-            self.bpm_img[2912:,824:826] = 1.
+            self.bpm_img[2912:,842:844] = 1.
 
         return self.bpm_img
 
