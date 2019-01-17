@@ -29,6 +29,20 @@ The code is guided by the WaveCalib class, partially described
 by this `WaveCalib.ipynb <https://github.com/pypeit/pypeit/blob/master/doc/nb/WaveCalib.ipynb>`_
 Notebook.
 
+Items to Modify
+===============
+
+FWHM
+----
+
+The arc lines are identified and fitted with ane
+expected knowledge of their FWHM (future versions
+should solve for this).  A fiducial value for a
+standard slit is assume for each instrument but
+if you are using particularly narrow/wide slits
+than you may need to modify
+['calibrations']['wavelengths']['fwhm']
+in your PypeIt file
 
 Line Lists
 ==========

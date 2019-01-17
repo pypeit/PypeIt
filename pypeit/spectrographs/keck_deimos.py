@@ -243,6 +243,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(scifile, 'dispname') == '830G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_830G.fits'
+        elif self.get_meta_value(scifile, 'dispname') == '1200G':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200G.fits'
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))

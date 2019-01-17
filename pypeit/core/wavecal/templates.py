@@ -2,7 +2,6 @@
 
 import os
 import numpy as np
-import pdb
 
 from pkg_resources import resource_filename
 from scipy.io import readsav
@@ -15,6 +14,7 @@ from linetools import utils as ltu
 from pypeit import utils
 from pypeit.core.wave import airtovac
 
+from pypeit import debugger
 
 # Data Model
 # FITS table
@@ -27,7 +27,7 @@ template_path = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms/wavelength
 outpath=resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 
 def build_template(in_files, slits, wv_cuts, binspec, outroot,
-                   lowredux=True, ifiles=None, det_cut=None):
+                   lowredux=True, ifiles=None, det_cut=None, chk=False):
     # Load xidl file
     # Grab it
     # Load and splice
@@ -63,6 +63,9 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
     # Concatenate
     nwspec = np.concatenate(yvals)
     nwwv = np.concatenate(lvals)
+    # Check
+    if chk:
+        debugger.plot1d(nwwv, nwspec)
     # Generate the table
     write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=det_cut)
 
@@ -240,6 +243,27 @@ def main(flg):
         build_template([wfile1,wfile2], slits, lcut, binspec, outroot, lowredux=False,
                        ifiles=ifiles, det_cut=det_cut)
 
+    if flg & (2**9):  # 1200
+        binspec = 1
+        outroot='keck_deimos_1200G.fits'
+        # 3-3 = blue  6268.23 -- 7540
+        # 3-14 = red   6508 -- 7730
+        # 7-3 = blue  7589 -- 8821
+        # 7-17 = red  8000 - 9230
+        ifiles = [0, 0, 1, 1]
+        slits = [3, 14, 3, 17]
+        lcut = [7450., 7730., 8170]
+        wfile1 = os.path.join(template_path, 'Keck_DEIMOS', '1200G', 'MasterWaveCalib_A_1_03.json')
+        wfile2 = os.path.join(template_path, 'Keck_DEIMOS', '1200G', 'MasterWaveCalib_A_1_07.json')
+        # det_dict
+        det_cut = None
+        #det_cut = {}
+        #det_cut['dets'] = [[1,2,3,4], [5,6,7,8]]
+        #det_cut['wcuts'] = [[0,9000.], [8200,1e9]]  # Significant overlap is fine
+        #
+        build_template([wfile1,wfile2], slits, lcut, binspec, outroot, lowredux=False,
+                       ifiles=ifiles, det_cut=det_cut, chk=True)
+
 # Command line execution
 if __name__ == '__main__':
     flg = 0
@@ -257,7 +281,11 @@ if __name__ == '__main__':
 
     # Keck/DEIMOS
     #flg += 2**7  # 600
-    flg += 2**8  # 830G
+    #flg += 2**8  # 830G
+    flg += 2**9  # 1200
+
+    # Keck/LRISr
+    #flg += 2**10 # R400
 
     main(flg)
 
