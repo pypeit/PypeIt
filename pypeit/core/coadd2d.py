@@ -6,24 +6,18 @@ import astropy.stats
 import numpy as np
 import glob
 import os
+from astropy.io import fits
 from pypeit import msgs
 from pypeit import utils
 from pypeit import masterframe
+from pypeit.core import load
+from pypeit import traceslits
+from pypeit.spectrographs import util
 
-def get_coadd2d_files(redux_path, objprefix):
-    """
-    Grabs the files necessary to perform a 2d coadd.
 
-    Args:
-        redux_path: str
-           redux path, e.g. '/Users/joe/python/PypeIt-development-suite/REDUX_OUT/Gemini_GNIRS/'
-        objprefix:
-           object prefix, i.e. if the files are spec1d_pisco_*, then this would be 'pisco'
+def load_coadd2d_files(redux_path, objprefix):
 
-    Returns:
-        (spec2d_files, spec1d_files, tracefiles, tiltfiles, waveimgfiles)
-
-    """
+    # Grab the files
     spec2d_files = glob.glob(redux_path + 'Science/spec2d_' + objprefix + '*')
     spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
     # Get the master dir
@@ -41,7 +35,50 @@ def get_coadd2d_files(redux_path, objprefix):
         waveimgfiles.append(masterframe.master_name('wave', wave_key, master_path))
         tiltfiles.append(masterframe.master_name('tilts', wave_key, master_path))
 
-    return spec2d_files, spec1d_files, tracefiles, tiltfiles, waveimgfiles
+    nfiles = len(spec2d_files)
+
+    specobjs_list = []
+    # Read in the image stacks
+    for ifile in range(nfiles):
+        hdu_wave = fits.open(waveimgfiles[ifile])
+        waveimg = hdu_wave[0].data
+        hdu_tilts = fits.open(tiltfiles[ifile])
+        tilts = hdu_tilts[0].data
+        hdu_sci = fits.open(spec2d_files[ifile])
+        sciimg = hdu_sci[1].data
+        sky = hdu_sci[3].data
+        sciivar = hdu_sci[5].data
+        mask = hdu_sci[6].data
+        if ifile == 0:
+            # the two shapes accomodate the possibility that waveimg and tilts are binned differently
+            shape_wave = (nfiles,waveimg.shape[0],waveimg.shape[1])
+            shape_sci = (nfiles,sciimg.shape[0],sciimg.shape[1])
+            waveimg_stack = np.zeros(shape_wave,dtype=float)
+            tilts_stack = np.zeros(shape_wave,dtype=float)
+            sciimg_stack = np.zeros(shape_sci,dtype=float)
+            skymodel_stack = np.zeros(shape_sci,dtype=float)
+            sciivar_stack = np.zeros(shape_sci,dtype=float)
+            mask_stack = np.zeros(shape_sci,dtype=float)
+
+        waveimg_stack[ifile,:,:] = waveimg
+        tilts_stack[ifile,:,:] = tilts
+        sciimg_stack[ifile,:,:] = sciimg
+        sciivar_stack[ifile,:,:] = sciivar
+        mask_stack[ifile,:,:] = mask
+        skymodel_stack[ifile,:,:] = sky
+
+        sobjs, head = load.load_specobjs(spec1d_files[ifile])
+        specobjs_list.append(sobjs)
+
+    # Right now we assume there is a single tslits_dict for all images and read in the first one
+    tslits_dict = traceslits.load_tslits_dict(tracefiles[0])
+    spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
+    slitmask = spectrograph.slitmask(tslits_dict)
+    slitmask_stack = np.einsum('i,jk->ijk', np.ones(nfiles), slitmask)
+
+    return specobjs_list, tslits_dict, slitmask_stack, sciimg_stack, sciivar_stack, skymodel_stack, mask_stack, tilts_stack, waveimg_stack
+
+
 
 
 def get_wave_ind(wave_grid, wave_min, wave_max):
@@ -71,7 +108,7 @@ def get_wave_ind(wave_grid, wave_min, wave_max):
     return ind_lower, ind_upper
 
 
-def coadd2d(sciimg_stack, sciivar_stack, skymodel_stack, inmask_stack, tilts_stack, waveimg_stack, trace_stack,
+def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_stack, tilts_stack, waveimg_stack,
             thismask_stack, weights=None, loglam_grid=None, wave_grid=None):
     """
     This routine will perform a 2d co-add of a stack of PypeIt spec2d reduction outputs. The slit will be
@@ -81,6 +118,12 @@ def coadd2d(sciimg_stack, sciivar_stack, skymodel_stack, inmask_stack, tilts_sta
 
     Args:
     -----
+        trace_stack: float ndarray, shape (nimgs, nspec)
+           Stack of reference traces about which the images are rectified and coadded.
+           If the images were not dithered then this reference trace can simply be the center
+           of the slit slitcen = (slit_left + slit_righ)/2. If the images were dithered, then this could trace_stack
+           could either be the slitcen appropriately shifted with the dither pattern, or it could the trace of the object
+           of interest in each exposure determined by running PypeIt on the individual images.
         sciimg_stack: float ndarray, shape = (nimgs, nspec, nspat)
            Stack of science images
         sciivar_stack: float ndarray, shape = (nimgs, nspec, nspat)
@@ -93,12 +136,6 @@ def coadd2d(sciimg_stack, sciivar_stack, skymodel_stack, inmask_stack, tilts_sta
            Stack of the wavelength tilts
         waveimg_stack: float ndarray, shape = (nimgs, nspec, nspat)
            Stack of the wavelength images
-        trace_stack: float ndarray, shape (nimgs, nspec)
-           Stack of reference traces about which the images are rectified and coadded.
-           If the images were not dithered then this reference trace can simply be the center
-           of the slit slitcen = (slit_left + slit_righ)/2. If the images were dithered, then this could trace_stack
-           could either be the slitcen appropriately shifted with the dither pattern, or it could the trace of the object
-           of interest in each exposure determined by running PypeIt on the individual images.
         thismask_stack: bool ndarray, shape = (nimgs, nspec, nspat)
            Stack of masks indicating which pixels are on the slit in question. True = On slit, False=Off slit.
 
@@ -205,7 +242,7 @@ def coadd2d(sciimg_stack, sciivar_stack, skymodel_stack, inmask_stack, tilts_sta
                              nspec=nspec_coadd, nspat=nspat_coadd,
                              pad=0, binning=None, spectrograph=None)
 
-    return sciimg, sciivar, imgminsky, outmask, nused, tilts, waveimg, dspat, thismask, tslits_dict
+    return wave_bins, dspat_bins, sciimg, sciivar, imgminsky, outmask, nused, tilts, waveimg, dspat, thismask, tslits_dict
 
 
 def img_list_error_check(sci_list, var_list):
