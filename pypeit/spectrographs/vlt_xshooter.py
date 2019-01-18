@@ -728,12 +728,21 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
           0 = ok; 1 = Mask
 
         """
+        # ToDo Ema: This is just a workaround to deal with
+        # different binning. I guess binspatial and binspectral
+        # should be passed in.
+        if shape[0]<3000.:
+            binspectral_bpm=2
+        else:
+            binspectral_bpm=1
+        if shape[1]<1500.:
+            binspatial_bpm=2
+        else:
+            binspatial_bpm=1
+
         self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
-            # TODO: This is for the 1x1 binning it should
-            # change for other binning
-            self.bpm_img[2912:,842:844] = 1.
-
+            self.bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
         return self.bpm_img
 
 
