@@ -227,9 +227,10 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             gain            = 2.12,
                             ronoise         = 8.0, # ?? more precise value?
                             datasec         = '[4:,4:2044]',
-                            # No real overscan for XSHOOTER-NIR: 
+                            # EMA: No real overscan for XSHOOTER-NIR: 
                             # See Table 6 in http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_P103v1.pdf
                             # The overscan region below contains only zeros
+                            # ToDo should we just set it as empty?
                             oscansec        = '[1:3,4:2044]',
                             suffix          = '_NIR'
                             )]
@@ -371,8 +372,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format
-                y_shift = -5
-                x_shift = 21
+                y_shift = -2
+                x_shift = 18
                 bpm_data = np.flipud(bpm_fits[0].data)
                 y_len = len(bpm_data[:,0])
                 x_len = len(bpm_data[0,:])
