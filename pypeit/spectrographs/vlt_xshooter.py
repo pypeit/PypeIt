@@ -762,7 +762,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 1.61,
                             ronoise         = 2.60,
-                            datasec         = '[49:,1:]', # '[49:2000,1:2999]',
+                            datasec         = '[49:2096,1:]', # '[49:2000,1:2999]',
                             oscansec        = '[1:48,1:]', # '[1:48, 1:2999]',
                             suffix          = '_UVB'
                             )]
