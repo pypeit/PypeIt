@@ -241,95 +241,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    '''
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for a DEIMOS exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'DEIMOS',
-                               '1.NAXIS': 2,
-                               '2.NAXIS': 2,
-                               '3.NAXIS': 2,
-                               '4.NAXIS': 2,
-                               '5.NAXIS': 2,
-                               '6.NAXIS': 2,
-                               '7.NAXIS': 2,
-                               '8.NAXIS': 2,
-                             '1.CCDGEOM': 'MIT/LL 2k*4k',
-                             '2.CCDGEOM': 'MIT/LL 2k*4k',
-                             '3.CCDGEOM': 'MIT/LL 2k*4k',
-                             '4.CCDGEOM': 'MIT/LL 2k*4k',
-                             '5.CCDGEOM': 'MIT/LL 2k*4k',
-                             '6.CCDGEOM': 'MIT/LL 2k*4k',
-                             '7.CCDGEOM': 'MIT/LL 2k*4k',
-                             '8.CCDGEOM': 'MIT/LL 2k*4k',
-                             '1.CCDNAME': '14-2-6',
-                             '2.CCDNAME': '14-12-3',
-                             '3.CCDNAME': '14-10-6',
-                             '4.CCDNAME': '14-10-5',
-                             '5.CCDNAME': '14-4-1',
-                             '6.CCDNAME': '14-4-3',
-                             '7.CCDNAME': '14-4-2',
-                             '8.CCDNAME': '14-5-2' }
-        headers[0]['INSTRUME'] = headers[0]['INSTRUME'][:6] # To handle both 'fresh' and KOA data
-        super(KeckDEIMOSSpectrograph, self).check_headers(headers, expected_values=expected_values)
-    '''
-
-    '''
-    def header_keys(self):
-        """
-        Return a dictionary with the header keywords to read from the
-        fits file.
-
-        Returns:
-            dict: A nested dictionary with the header keywords to read.
-            The first level gives the extension to read and the second
-            level gives the common name for header values that is passed
-            on to the PypeItMetaData object.
-        """
-
-        hdr_keys = {}
-        hdr_keys[0] = {}
-        hdr_keys[1] = {}
-
-        # Copied over defaults
-        hdr_keys[0]['idname'] = 'OBSTYPE'
-        hdr_keys[0]['time'] = 'MJD-OBS'
-        #hdr_keys[0]['date'] = 'DATE'
-        hdr_keys[0]['utc'] = 'UTC'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['binning'] = 'BINNING'
-        hdr_keys[0]['decker'] = 'SLMSKNAM'
-
-        hdr_keys[0]['target'] = 'TARGNAME'
-        hdr_keys[0]['exptime'] = 'ELAPTIME'
-        hdr_keys[0]['hatch'] = 'HATCHPOS'
-        hdr_keys[0]['lamps'] = 'LAMPS'
-        hdr_keys[0]['detrot'] = 'ROTATVAL'
-        hdr_keys[0]['decker'] = 'SLMSKNAM'
-        hdr_keys[0]['filter1'] = 'DWFILNAM'
-        hdr_keys[0]['dispname'] = 'GRATENAM'
-
-        hdr_keys[0]['gratepos'] = 'GRATEPOS'
-        hdr_keys[0]['g3tltwav'] = 'G3TLTWAV'
-        hdr_keys[0]['g4tltwav'] = 'G4TLTWAV'
-#        hdr_keys[0]['dispangle'] = 'G3TLTWAV'   # TODO: This depends on the setup!
-
-        hdr_keys[1]['naxis0'] = 'NAXIS2'
-        hdr_keys[1]['naxis1'] = 'NAXIS1'
-
-        return hdr_keys
-    '''
-
     def init_meta(self):
         """
         Generate the meta data dict
@@ -468,27 +379,27 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return raw_img, head0
 
-    def get_match_criteria(self):
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-        # Standard
-        # Can be over-ruled by flux calibrate = False
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['decker'] = ''
-        match_criteria['standard']['match']['binning'] = ''
-        match_criteria['standard']['match']['filter1'] = ''
-        # Bias
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['binning'] = ''
-        # Pixelflat
-        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
-        # Traceflat
-        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
-        # Arc
-        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
-        # Return
-        return match_criteria
+#    def get_match_criteria(self):
+#        match_criteria = {}
+#        for key in framematch.FrameTypeBitMask().keys():
+#            match_criteria[key] = {}
+#        # Standard
+#        # Can be over-ruled by flux calibrate = False
+#        match_criteria['standard']['match'] = {}
+#        match_criteria['standard']['match']['decker'] = ''
+#        match_criteria['standard']['match']['binning'] = ''
+#        match_criteria['standard']['match']['filter1'] = ''
+#        # Bias
+#        match_criteria['bias']['match'] = {}
+#        match_criteria['bias']['match']['binning'] = ''
+#        # Pixelflat
+#        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
+#        # Traceflat
+#        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
+#        # Arc
+#        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
+#        # Return
+#        return match_criteria
 
     def get_image_section(self, inp=None, det=1, section='datasec'):
         """
@@ -537,6 +448,45 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             return secs[1], False, False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
+
+    def get_datasec_img(self, filename, det=1, force=True):
+        """
+        Create an image identifying the amplifier used to read each pixel.
+
+        Args:
+            filename (str):
+                Name of the file from which to read the image size.
+            det (:obj:`int`, optional):
+                Detector number (1-indexed)
+            force (:obj:`bool`, optional):
+                Force the image to be remade
+
+        Returns:
+            `numpy.ndarray`: Integer array identifying the amplifier
+            used to read each pixel.
+        """
+        if self.datasec_img is None or force:
+            # Check the detector is defined
+            self._check_detector()
+            # Get the image shape
+            raw_naxis = self.get_raw_image_shape(filename, det=det)
+
+            # Binning is not required because read_deimos accounts for it
+#            binning = self.get_meta_value(filename, 'binning')
+
+            data_sections, one_indexed, include_end, transpose \
+                    = self.get_image_section(filename, det, section='datasec')
+
+            # Initialize the image (0 means no amplifier)
+            self.datasec_img = np.zeros(raw_naxis, dtype=int)
+            for i in range(self.detector[det-1]['numamplifiers']):
+                # Convert the data section from a string to a slice
+                datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
+                                          include_end=include_end, require_dim=2,
+                                          transpose=transpose) #, binning=binning)
+                # Assign the amplifier
+                self.datasec_img[datasec] = i+1
+        return self.datasec_img
 
     # WARNING: Uses Spectrograph default get_image_shape.  If no file
     # provided it will fail.  Provide a function like in keck_lris.py

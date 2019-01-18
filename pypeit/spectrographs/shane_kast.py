@@ -57,41 +57,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [61, None]
         return par
 
-    '''
-    def header_keys(self):
-        """
-        Provide the relevant header keywords
-        """
-
-        hdr_keys = {}
-        hdr_keys[0] = {}
-
-        hdr_keys[0]['target'] = 'OBJECT'
-        hdr_keys[0]['idname'] = 'OBSTYPE'
-        hdr_keys[0]['time'] = 'TSEC'
-        hdr_keys[0]['date'] = 'DATE'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['binning'] = 'BINNING'
-        hdr_keys[0]['exptime'] = 'EXPTIME'
-        hdr_keys[0]['decker'] = 'SLIT_N'
-        hdr_keys[0]['dichroic'] = 'BSPLIT_N'
-        
-        #dispname is different for all three spectrographs
-
-        hdr_keys[0]['naxis0'] = 'NAXIS2'
-        hdr_keys[0]['naxis1'] = 'NAXIS1'
-
-        lamp_names = [ '1', '2', '3', '4', '5',
-                       'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K' ]
-
-        for kk,lamp_name in enumerate(lamp_names):
-            hdr_keys[0]['lampstat{:02d}'.format(kk+1)] = 'LAMPSTA{0}'.format(lamp_name)
-
-        return hdr_keys
-    '''
-
     def compound_meta(self, headarr, meta_key):
         if meta_key == 'mjd':
             time = headarr[0]['DATE']
@@ -198,8 +163,8 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
                                             if k in dome_lamp_stat]), axis=0)
         raise ValueError('No implementation for status = {0}'.format(status))
 
-    def parse_binning(self, inp, det=1):
-        return '1,1'
+#    def parse_binning(self, inp, det=1):
+#        return '1,1'
 
 #    def get_match_criteria(self):
 #        """Set the general matching criteria for Shane Kast."""
