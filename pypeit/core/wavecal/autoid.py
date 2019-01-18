@@ -13,6 +13,8 @@ import numba as nb
 import numpy as np
 import pdb
 
+from astropy.table import Table
+
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import kdtree_generator
 from pypeit.core.wavecal import waveio
@@ -308,8 +310,6 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
     # Return
     return best_dict, final_fit
 
-# TODO Make det_arxiv an optional input. In the event that the Line IDs don't exist in the arxiv, simply run peak finding and
-# interpolate the wavelength solution onto those line locations to the get initial IDs
 
 def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, det_arxiv = None, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):
@@ -377,10 +377,12 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
 
     Returns
     -------
-    (detections, patt_dict)
+    (detections, spec_cont_sub, patt_dict)
 
     detections: ndarray,
        Pixel locations of arc lines detected.
+    spec_cont_sub: ndarray
+       Array of continuum subtracted arc spectra
     patt_dict: dict
        Arc lines pattern dictionary with some information about the IDs as well as the cross-correlation values
 
@@ -601,6 +603,180 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
         patt_dict_slit['acceptable'] = False
 
     return detections, spec_cont_sub, patt_dict_slit
+
+
+def full_template(spec, par, ok_mask, det, nsnippet=2, debug_xcorr=False, x_percentile=50.):
+    """
+    Method of wavelength calibration using a single, comprehensive template spectrum
+
+    Args:
+        spec: ndarray (nspec, nslit)
+          Spectra to be calibrated
+        par: WavelengthSolutionPar ParSet
+          Calibration parameters
+        ok_mask: ndarray, bool
+          Mask of indices of good slits
+        det: int
+          Detector index
+
+    Returns:
+        wvcalib: dict
+          Dict of wavelength calibration solutions
+
+    """
+    # Load line lists
+    if 'ThAr' in par['lamps']:
+        line_lists_all = waveio.load_line_lists(par['lamps'])
+        line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
+        unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
+    else:
+        line_lists = waveio.load_line_lists(par['lamps'])
+
+    # Load template
+    temp_wv, temp_spec, temp_bin = waveio.load_template(par['reid_arxiv'], det)
+
+    # DEBUGGING
+    #ntemp_full = temp_wv.size
+    #temp_wv = temp_wv[ntemp_full//2:]
+    #temp_spec = temp_spec[ntemp_full//2:]
+
+    # TODO -- Need to deal with binning here by resampling the template
+
+    if spec.ndim == 2:
+        nspec, nslits = spec.shape
+    elif spec.ndim == 1:
+        nspec = spec.size
+        nslits = 1
+
+    # Loop on slits
+    wvcalib = {}
+    for slit in range(nslits):
+        # Check
+        if slit not in ok_mask:
+            wvcalib[str(slit)] = None
+            continue
+        msgs.info("Processing slit {}".format(slit))
+        #
+        ispec = spec[:,slit]
+
+        # Find the shift
+        #if slit == 22:
+        #    debug_xcorr = True
+        #else:
+        #    debug_xcorr = False
+        npad, shift_cc = get_template_shift(ispec, temp_spec, debug=debug_xcorr, percent_ceil=x_percentile)
+        i0 = npad // 2 + int(shift_cc)
+
+        # Generate the template snippet
+        if i0 < 0: # Pad?
+            mspec = np.concatenate([np.zeros(-1*i0), temp_spec[0:i0+nspec]])
+            mwv = np.concatenate([np.zeros(-1*i0), temp_wv[0:i0+nspec]])
+        elif (i0+nspec) > temp_spec.size: # Pad?
+            mspec = np.concatenate([temp_spec[i0:], np.zeros(nspec-temp_spec.size+i0)])
+            mwv = np.concatenate([temp_wv[i0:], np.zeros(nspec-temp_spec.size+i0)])
+        else: # Don't pad
+            mspec = temp_spec[i0:i0 + nspec]
+            mwv = temp_wv[i0:i0 + nspec]
+
+        # Loop on snippets
+        nsub = ispec.size // nsnippet
+        sv_det, sv_IDs = [], []
+        for kk in range(nsnippet):
+            # Construct
+            i0 = nsub * kk
+            i1 = min(nsub*(kk+1), ispec.size)
+            tsnippet = ispec[i0:i1]
+            msnippet = mspec[i0:i1]
+            mwvsnippet = mwv[i0:i1]
+            # Run reidentify
+            detections, spec_cont_sub, patt_dict = reidentify(tsnippet, msnippet, mwvsnippet,
+                                                                     line_lists, 1, debug_xcorr=False,
+                                                                     nonlinear_counts=par['nonlinear_counts'],
+                                                                     debug_reid=False,  # verbose=True,
+                                                                     match_toler=par['match_toler'],
+                                                                     cc_thresh=0.1, fwhm=par['fwhm'])
+            # Deal with IDs
+            sv_det.append(i0 + detections)
+            try:
+                sv_IDs.append(patt_dict['IDs'])
+            except KeyError:
+                #debugger.plot1d(tsnippet, xtwo=np.arange(tsnippet.size), ytwo=msnippet)
+                #debugger.set_trace()
+                msgs.warn("Barfed in reidentify..")
+                sv_IDs.append(np.zeros_like(detections))
+            else:
+                # Save now in case the next one barfs
+                bdisp = patt_dict['bdisp']
+
+        # Collate and proceed
+        dets = np.concatenate(sv_det)
+        IDs = np.concatenate(sv_IDs)
+        gd_det = np.where(IDs > 0.)[0]
+        if len(gd_det) < 4:
+            msgs.warn("Not enough useful IDs")
+            wvcalib[str(slit)] = None
+            debugger.set_trace()
+            continue
+        # Fit
+        try:
+            final_fit = fitting.iterative_fitting(ispec, dets, gd_det,
+                                              IDs[gd_det], line_lists, bdisp,
+                                              verbose=False, n_first=par['n_first'],
+                                              match_toler=par['match_toler'],
+                                              func=par['func'],
+                                              n_final=par['n_final'],
+                                              sigrej_first=par['sigrej_first'],
+                                              sigrej_final=par['sigrej_final'])
+        except TypeError:
+            wvcalib[str(slit)] = None
+        else:
+            wvcalib[str(slit)] = copy.deepcopy(final_fit)
+    # Finish
+    return wvcalib
+
+
+
+def get_template_shift(tspec, nwspec, debug=False, percent_ceil=50.):
+    """
+    Find the shift between input spectrum and the template
+
+    Uses xcorr_shift()
+
+    Args:
+        tspec: ndarray
+          Input spectrum (from the user)
+        nwspec: ndarray
+          Template spectrum
+        debug: bool, optional
+
+    Returns:
+        npad: int
+          Padding for the input spectrum to match shape of the template
+        shift_cc: int
+          Shift from the cross correlation
+
+    """
+    ncomb = nwspec.size
+    # Pad
+    pspec = np.zeros_like(nwspec)
+    nspec = len(tspec)
+    npad = ncomb - nspec
+    pspec[npad // 2:npad // 2 + len(tspec)] = tspec
+    # Cross-correlate
+    shift_cc, corr_cc = wvutils.xcorr_shift(nwspec, pspec, debug=debug, percent_ceil=percent_ceil)
+    msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
+    if debug:
+        xvals = np.arange(ncomb)
+        plt.clf()
+        ax = plt.gca()
+        #
+        ax.plot(xvals, nwspec)
+        ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k')
+        plt.show()
+        #
+        #success, shift, stretch, cross_corr, shift_cc, corr_cc = wvutils.xcorr_shift_stretch(nwspec, pspec, debug=debug)
+        debugger.set_trace()
+    return npad, shift_cc
 
 
 class ArchiveReid:

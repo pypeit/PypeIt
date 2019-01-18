@@ -205,8 +205,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['polyorder'] = 3
-        #par['calibrations']['slits']['fracignore'] = 0.02
-        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
 
         # Overscan subtract the images
         par['calibrations']['biasframe']['useframe'] = 'overscan'
@@ -215,17 +213,12 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
         par['calibrations']['wavelengths']['nonlinear_counts'] \
                 = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['n_first'] = 3
+        par['calibrations']['wavelengths']['match_toler'] = 2.5
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
-
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 2]
@@ -239,6 +232,27 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
 
+        return par
+
+    def config_specific_par(self, par, scifile):
+
+        # Templates
+        if self.get_meta_value(scifile, 'dispname') == '600ZD':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600.fits'
+            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+        elif self.get_meta_value(scifile, 'dispname') == '830G':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_830G.fits'
+        elif self.get_meta_value(scifile, 'dispname') == '1200G':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200G.fits'
+
+        # FWHM
+        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
+
+        # Return
         return par
 
     def init_meta(self):

@@ -7,6 +7,8 @@ import os
 import numpy as np
 from astropy.io import fits
 
+from pkg_resources import resource_filename
+
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import parse
@@ -374,15 +376,49 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par = KeckLRISSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'keck_lris_blue'
 
-        # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
+        # 1D wavelength solution -- Additional parameters are grism dependent
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        #par['calibrations']['wavelengths']['lowest_nsig'] = 10.0
+
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['n_first'] = 1
+        par['calibrations']['wavelengths']['n_first'] = 3
+        par['calibrations']['wavelengths']['match_toler'] = 2.5
+        par['calibrations']['wavelengths']['method'] = 'full_template'
 
 
+        return par
+
+    def config_specific_par(self, par, scifile):
+        """
+        Set par values according to the specific frame
+
+        Here, we only fuss with parameters related to CR rejection
+
+        Args:
+            par:  ParSet
+            scifile: str
+              Name of the science file to use
+
+        Returns:
+            par
+
+        """
+        # Wavelength calibrations
+        if self.get_meta_value(scifile, 'dispname') == '300/5000':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_300_d680.fits'
+        elif self.get_meta_value(scifile, 'dispname') == '400/3400':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_400_d560.fits'
+        elif self.get_meta_value(scifile, 'dispname') == '600/4000':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_600_d560.fits'
+        elif self.get_meta_value(scifile, 'dispname') == '1200/3400':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_1200_d460.fits'
+
+        # FWHM
+        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[1]
+
+        # Return
         return par
 
     '''
@@ -567,28 +603,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             objlim = 0.5
             par['scienceframe']['process']['sigclip'] = sigclip
             par['scienceframe']['process']['objlim'] = objlim
+
         # Return
         return par
-
-    '''
-    def get_lacosmics_par(self,proc_par,binning='1x1'):
-        par = self.default_pypeit_par()
-        default_sigclip = par['scienceframe']['process']['sigclip']
-        default_objlim = par['scienceframe']['process']['objlim']
-        # Check whether the user has changed the parameters.
-        if (proc_par['sigclip'] == default_sigclip) and (proc_par['objlim'] == default_objlim):
-            # Unbinned LRISr needs very aggressive LACosmics parameters.
-            if binning is '1x1':
-                sigclip = 3.0
-                objlim = 0.5
-            else:
-                sigclip = 5.0
-                objlim = 5.0
-        else:
-            sigclip = proc_par['sigclip']
-            objlim = proc_par['objlim']
-        return sigclip, objlim
-    '''
 
     '''
     def check_headers(self, headers):
