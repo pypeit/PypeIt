@@ -56,10 +56,10 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['tilts']['spec_order'] = 4
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
+        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.25
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        par['calibrations']['wavelengths']['fwhm'] = 5.0
+        par['calibrations']['wavelengths']['fwhm'] = 4.0
         par['calibrations']['wavelengths']['n_final'] = 4
         # Reidentification parameters
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
