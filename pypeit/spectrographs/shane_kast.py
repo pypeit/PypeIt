@@ -57,41 +57,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [61, None]
         return par
 
-    '''
-    def header_keys(self):
-        """
-        Provide the relevant header keywords
-        """
-
-        hdr_keys = {}
-        hdr_keys[0] = {}
-
-        hdr_keys[0]['target'] = 'OBJECT'
-        hdr_keys[0]['idname'] = 'OBSTYPE'
-        hdr_keys[0]['time'] = 'TSEC'
-        hdr_keys[0]['date'] = 'DATE'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['binning'] = 'BINNING'
-        hdr_keys[0]['exptime'] = 'EXPTIME'
-        hdr_keys[0]['decker'] = 'SLIT_N'
-        hdr_keys[0]['dichroic'] = 'BSPLIT_N'
-        
-        #dispname is different for all three spectrographs
-
-        hdr_keys[0]['naxis0'] = 'NAXIS2'
-        hdr_keys[0]['naxis1'] = 'NAXIS1'
-
-        lamp_names = [ '1', '2', '3', '4', '5',
-                       'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K' ]
-
-        for kk,lamp_name in enumerate(lamp_names):
-            hdr_keys[0]['lampstat{:02d}'.format(kk+1)] = 'LAMPSTA{0}'.format(lamp_name)
-
-        return hdr_keys
-    '''
-
     def compound_meta(self, headarr, meta_key):
         if meta_key == 'mjd':
             time = headarr[0]['DATE']
@@ -197,36 +162,39 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
             return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
                                             if k in dome_lamp_stat]), axis=0)
         raise ValueError('No implementation for status = {0}'.format(status))
-        
-    def get_match_criteria(self):
-        """Set the general matching criteria for Shane Kast."""
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
 
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['naxis0'] = '=0'
-        match_criteria['standard']['match']['naxis1'] = '=0'
+#    def parse_binning(self, inp, det=1):
+#        return '1,1'
 
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['naxis0'] = '=0'
-        match_criteria['bias']['match']['naxis1'] = '=0'
-
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-        match_criteria['pixelflat']['match']['decker'] = ''
-
-        match_criteria['trace']['match'] = {}
-        match_criteria['trace']['match']['naxis0'] = '=0'
-        match_criteria['trace']['match']['naxis1'] = '=0'
-        match_criteria['trace']['match']['decker'] = ''
-
-        match_criteria['arc']['match'] = {}
-        match_criteria['arc']['match']['naxis0'] = '=0'
-        match_criteria['arc']['match']['naxis1'] = '=0'
-
-        return match_criteria
+#    def get_match_criteria(self):
+#        """Set the general matching criteria for Shane Kast."""
+#        match_criteria = {}
+#        for key in framematch.FrameTypeBitMask().keys():
+#            match_criteria[key] = {}
+#
+#        match_criteria['standard']['match'] = {}
+#        match_criteria['standard']['match']['naxis0'] = '=0'
+#        match_criteria['standard']['match']['naxis1'] = '=0'
+#
+#        match_criteria['bias']['match'] = {}
+#        match_criteria['bias']['match']['naxis0'] = '=0'
+#        match_criteria['bias']['match']['naxis1'] = '=0'
+#
+#        match_criteria['pixelflat']['match'] = {}
+#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
+#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
+#        match_criteria['pixelflat']['match']['decker'] = ''
+#
+#        match_criteria['trace']['match'] = {}
+#        match_criteria['trace']['match']['naxis0'] = '=0'
+#        match_criteria['trace']['match']['naxis1'] = '=0'
+#        match_criteria['trace']['match']['decker'] = ''
+#
+#        match_criteria['arc']['match'] = {}
+#        match_criteria['arc']['match']['naxis0'] = '=0'
+#        match_criteria['arc']['match']['naxis1'] = '=0'
+#
+#        return match_criteria
 
 
 class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
@@ -301,22 +269,21 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # Return
         return par
 
-
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for a Shane Kast blue exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = {   '0.NAXIS': 2,
-                            '0.DSENSOR': 'Fairchild CCD 3041 2Kx2K' }
-        super(ShaneKastBlueSpectrograph, self).check_headers(headers,
-                                                             expected_values=expected_values)
+#    def check_headers(self, headers):
+#        """
+#        Check headers match expectations for a Shane Kast blue exposure.
+#
+#        See also
+#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+#
+#        Args:
+#            headers (list):
+#                A list of headers read from a fits file
+#        """
+#        expected_values = {   '0.NAXIS': 2,
+#                            '0.DSENSOR': 'Fairchild CCD 3041 2Kx2K' }
+#        super(ShaneKastBlueSpectrograph, self).check_headers(headers,
+#                                                             expected_values=expected_values)
 
     '''
     def header_keys(self):
@@ -545,13 +512,13 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
         # Additional (for config)
 
-    def get_match_criteria(self):
-        # Get the parent matching criteria ...
-        match_criteria = super(ShaneKastRedRetSpectrograph, self).get_match_criteria()
-        # ... add more
-        match_criteria['standard']['match']['dispangle'] = '|<=20'
-        match_criteria['pixelflat']['match']['dispangle'] = '|<=20'
-        match_criteria['arc']['match']['dispangle'] = '|<=10'
-        match_criteria['arc']['match']['decker'] = 'any'
-        return match_criteria
+#    def get_match_criteria(self):
+#        # Get the parent matching criteria ...
+#        match_criteria = super(ShaneKastRedRetSpectrograph, self).get_match_criteria()
+#        # ... add more
+#        match_criteria['standard']['match']['dispangle'] = '|<=20'
+#        match_criteria['pixelflat']['match']['dispangle'] = '|<=20'
+#        match_criteria['arc']['match']['dispangle'] = '|<=10'
+#        match_criteria['arc']['match']['decker'] = 'any'
+#        return match_criteria
 

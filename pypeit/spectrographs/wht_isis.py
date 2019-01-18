@@ -2,8 +2,9 @@
 """
 from __future__ import absolute_import, division, print_function
 
-
 import numpy as np
+
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -56,6 +57,9 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
                             gain            = 1.2,
                             ronoise         = 5.0,
                             datasec         = '[:,2:4030]',
+                            # TODO: What happens when the overscan is
+                            # not defined?!
+                            oscansec        = '[:,:]',
                             suffix          = '_blue'
                             )]
         self.numhead = 2
@@ -89,68 +93,6 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
         return par
-
-    '''
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an WHT ISIS Blue exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.DETECTOR': 'EEV12',
-                              '0.ISIARM': 'Blue arm',
-                               '1.NAXIS': 2 }
-        super(WhtIsisBlueSpectrograph, self).check_headers(headers,
-                                                           expected_values=expected_values)
-
-    def header_keys(self):
-        """
-        Return a dictionary with the header keywords to read from the
-        fits file.
-
-        Returns:
-            dict: A nested dictionary with the header keywords to read.
-            The first level gives the extension to read and the second
-            level gives the common name for header values that is passed
-            on to the PypeItMetaData object.
-        """
-        hdr_keys = {}
-        hdr_keys[0] = {}
-        hdr_keys[1] = {}
-
-        # Copied over defaults
-        hdr_keys[0]['idname'] = 'IMAGETYP'
-        hdr_keys[0]['target'] = 'OBJECT'
-        hdr_keys[0]['time'] = 'MJD-OBS'
-        #hdr_keys[0]['date'] = 'DATE-OBS'
-        hdr_keys[0]['utc'] = 'UT'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['exptime'] = 'EXPTIME'
-        hdr_keys[0]['binning_x'] = 'CCDXBIN'
-        hdr_keys[0]['binning_y'] = 'CCDYBIN'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['decker'] = 'SLITNAME'
-        hdr_keys[0]['dichroic'] = 'DICHNAME'
-        hdr_keys[0]['filter1'] = 'ISIFILTA'
-        hdr_keys[0]['filter2'] = 'ISIFILTB'
-        hdr_keys[0]['decker'] = 'ISISLITU'
-        hdr_keys[0]['slitwid'] = 'ISISLITW'
-        hdr_keys[0]['dichroic'] = 'ISIDICHR'
-        hdr_keys[0]['dispname'] = 'ISIGRAT'
-        hdr_keys[0]['dispangle'] = 'CENWAVE'
-        hdr_keys[0]['lamps'] = 'CAGLAMPS'
-
-        hdr_keys[1]['naxis1'] = 'NAXIS1'
-        hdr_keys[1]['naxis0'] = 'NAXIS2'
-
-        return hdr_keys
-    '''
 
     def init_meta(self):
         """
@@ -231,67 +173,101 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def get_match_criteria(self):
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-        # Standard
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['naxis0'] = '=0'
-        match_criteria['standard']['match']['naxis1'] = '=0'
-#        match_criteria['standard']['match']['decker'] = ''
-#        match_criteria['standard']['match']['dispangle'] = '|<=1'
-        # Bias
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['naxis0'] = '=0'
-        match_criteria['bias']['match']['naxis1'] = '=0'
-        # Pixelflat
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-        match_criteria['pixelflat']['match']['decker'] = ''
-        match_criteria['pixelflat']['match']['dispangle'] = '|<=1'
-        # Traceflat
-        match_criteria['trace']['match'] = match_criteria['pixelflat']['match'].copy()
-        # Arc
-        match_criteria['arc']['match'] = {}
-        match_criteria['arc']['match']['naxis0'] = '=0'
-        match_criteria['arc']['match']['naxis1'] = '=0'
-        match_criteria['arc']['match']['dispangle'] = '|<=1'
+#    def parse_binning(self, inp, det=1):
+#        """
+#        Get the pixel binning for an image.
+#
+#        Args:
+#            inp (:obj:`str`, `astropy.io.fits.Header`):
+#                String providing the file name to read, or the relevant
+#                header object.
+#            det (:obj:`int`, optional):
+#                1-indexed detector number.
+#
+#        Returns:
+#            str: String representation of the binning.  The ordering is
+#            as provided in the header, regardless of which axis is
+#            designated as the dispersion axis.  It is expected that this
+#            be used with :func:`pypeit.core.parse.sec2slice` to setup
+#            the data and overscane sections of the image data.
+#
+#        Raises:
+#            PypeItError:
+#                Raised if `inp` is not one of the accepted types.
+#        """
+#        # Get the header
+#        # TODO: Read primary header by default instead?
+#        if isinstance(inp, str):
+#            hdu = fits.open(inp)
+#            hdr = hdu[self.detector[det-1]['dataext']].header
+#        elif isinstance(inp, fits.Header):
+#            hdr = inp
+#        else:
+#            msgs.error('Input must be a filename or fits.Header object')
+#
+#        return parse.binning2string(hdr['CCDXBIN'], hdr['CCDYBIN'])
 
-        return match_criteria
-
-    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None,
-                       arc_idx=None, msarc_shape=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-            modify_dict: dict
-
-        """
-        modify_dict = dict(NeI={'min_wave': 3000.,'min_intensity': 299,
-                                'min_Aki': 0.},ArI={'min_intensity': 399.})
-        arcparam['lamps']=['CuI','NeI','ArI']
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-
-        if fitstbl["dichroic"][arc_idx].strip() == '5300':
-            arcparam['wvmnx'][1] = 6000.
-        else:
-            msgs.error('Not ready for this dichroic {:s}!'.format(disperser))
-        if disperser == 'R300B':
-            arcparam['n_first']=1  #
-            arcparam['disp']=0.80  # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-        #
-        return modify_dict
+#    def get_match_criteria(self):
+#        match_criteria = {}
+#        for key in framematch.FrameTypeBitMask().keys():
+#            match_criteria[key] = {}
+#        # Standard
+#        match_criteria['standard']['match'] = {}
+#        match_criteria['standard']['match']['naxis0'] = '=0'
+#        match_criteria['standard']['match']['naxis1'] = '=0'
+##        match_criteria['standard']['match']['decker'] = ''
+##        match_criteria['standard']['match']['dispangle'] = '|<=1'
+#        # Bias
+#        match_criteria['bias']['match'] = {}
+#        match_criteria['bias']['match']['naxis0'] = '=0'
+#        match_criteria['bias']['match']['naxis1'] = '=0'
+#        # Pixelflat
+#        match_criteria['pixelflat']['match'] = {}
+#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
+#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
+#        match_criteria['pixelflat']['match']['decker'] = ''
+#        match_criteria['pixelflat']['match']['dispangle'] = '|<=1'
+#        # Traceflat
+#        match_criteria['trace']['match'] = match_criteria['pixelflat']['match'].copy()
+#        # Arc
+#        match_criteria['arc']['match'] = {}
+#        match_criteria['arc']['match']['naxis0'] = '=0'
+#        match_criteria['arc']['match']['naxis1'] = '=0'
+#        match_criteria['arc']['match']['dispangle'] = '|<=1'
+#
+#        return match_criteria
+#
+#    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None,
+#                       arc_idx=None, msarc_shape=None, **null_kwargs):
+#        """
+#        Setup the arc parameters
+#
+#        Args:
+#            arcparam: dict
+#            disperser: str, REQUIRED
+#            **null_kwargs:
+#              Captured and never used
+#
+#        Returns:
+#            arcparam is modified in place
+#            modify_dict: dict
+#
+#        """
+#        modify_dict = dict(NeI={'min_wave': 3000.,'min_intensity': 299,
+#                                'min_Aki': 0.},ArI={'min_intensity': 399.})
+#        arcparam['lamps']=['CuI','NeI','ArI']
+#        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
+#
+#        if fitstbl["dichroic"][arc_idx].strip() == '5300':
+#            arcparam['wvmnx'][1] = 6000.
+#        else:
+#            msgs.error('Not ready for this dichroic {:s}!'.format(disperser))
+#        if disperser == 'R300B':
+#            arcparam['n_first']=1  #
+#            arcparam['disp']=0.80  # Ang per pixel (unbinned)
+#            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
+#        else:
+#            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+#        #
+#        return modify_dict
 

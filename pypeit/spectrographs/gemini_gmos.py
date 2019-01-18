@@ -43,7 +43,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # TODO: Can we define the card here that compound meta uses to
         # set the binning?  Would be better to have all header cards
         # collected in this function...
-        self.meta['binning'] = dict(ext=1, card='CCDSUM')
+#        self.meta['binning'] = dict(ext=1, card='CCDSUM')
 
         self.meta['mjd'] = dict(ext=0, card='OBSEPOCH')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
@@ -226,6 +226,45 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 
+    def get_datasec_img(self, filename, det=1, force=True):
+        """
+        Create an image identifying the amplifier used to read each pixel.
+
+        Args:
+            filename (str):
+                Name of the file from which to read the image size.
+            det (:obj:`int`, optional):
+                Detector number (1-indexed)
+            force (:obj:`bool`, optional):
+                Force the image to be remade
+
+        Returns:
+            `numpy.ndarray`: Integer array identifying the amplifier
+            used to read each pixel.
+        """
+        if self.datasec_img is None or force:
+            # Check the detector is defined
+            self._check_detector()
+            # Get the image shape
+            raw_naxis = self.get_raw_image_shape(filename, det=det)
+
+            # Binning is not required because read_gmos accounts for it
+#            binning = self.get_meta_value(filename, 'binning')
+
+            data_sections, one_indexed, include_end, transpose \
+                    = self.get_image_section(filename, det, section='datasec')
+
+            # Initialize the image (0 means no amplifier)
+            self.datasec_img = np.zeros(raw_naxis, dtype=int)
+            for i in range(self.detector[det-1]['numamplifiers']):
+                # Convert the data section from a string to a slice
+                datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
+                                          include_end=include_end, require_dim=2,
+                                          transpose=transpose) #, binning=binning)
+                # Assign the amplifier
+                self.datasec_img[datasec] = i+1
+        return self.datasec_img
+
 #    def gemini_get_match_criteria(self):
 #        """
 #        Note: match the acs on central wavelengths for dithered spectra (chip gap avoidance).
@@ -397,6 +436,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on GMOSs")
 
+            # TODO: Fix this
             # Get the binning
             hdu = fits.open(filename)
             binning = hdu[1].header['CCDSUM']
