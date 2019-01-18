@@ -95,10 +95,10 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         meta['exptime'] = dict(ext=0, card='EXPTIME')
         meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
         #
-        meta['decker'] = dict(ext=0, card='HIERARCH ESO SEQ SPEC TARG')
+        meta['decker'] = dict(ext=0, card='HIERARCH ESO INS SLIT NAME', required_ftypes=['science', 'standard'])
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 NAME')
-        meta['dispangle'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 WLEN')
+        meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 NAME', required_ftypes=['science', 'standard'])
+        meta['dispangle'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 WLEN', rtol=2.0, required_ftypes=['science', 'standard'])
         meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         meta['detector'] = dict(ext=0, card='EXTNAME')
 
@@ -147,12 +147,14 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             # Flats and trace frames are typed together
             return good_exp & ((fitstbl['target'] == 'LAMP,DFLAT')
                                | (fitstbl['target'] == 'LAMP,QFLAT')
+                               | (fitstbl['target'] == 'FLAT,LAMP')
                                | (fitstbl['target'] == 'LAMP,FLAT'))
         if ftype == 'pinhole':
             # Don't type pinhole
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'arc':
-            return good_exp & (fitstbl['target'] == 'LAMP,WAVE')
+            return good_exp & ((fitstbl['target'] == 'LAMP,WAVE')
+                               | (fitstbl['target'] == 'WAVE,LAMP'))
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -187,7 +189,11 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         # Get it started
         super(VLTFORS2Spectrograph, self).__init__()
         self.spectrograph = 'vlt_fors2'
-        self.detector = [
+        self.camera = 'vlt_fors2'
+        self.numhead = 1
+
+    def set_detector(self, chip):
+        detectors = [
             # Detector 1 (Thor)  -- http://www.eso.org/sci/php/optdet/instruments/fors2/index.html
             pypeitpar.DetectorPar(
                 dataext         = 0,
@@ -225,7 +231,11 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
                 oscansec        = '[4:20,4:2044]',
                 suffix          = '_Belenos'
                 )]
-        self.numhead = 2
+        if chip == 'CHIP1':
+            self.detector = [detectors[0]]
+        elif chip == 'CHIP2':
+            self.detector = [detectors[1]]
+
 
     def default_pypeit_par(self):
         """
@@ -233,26 +243,36 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         """
         par = VLTFORSSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = self.spectrograph
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
         return par
 
+    def config_specific_par(self, par, scifile):
+        detector = self.get_meta_value(scifile, 'detector')
+        self.set_detector(detector)
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        return par
 
-    '''
-    def init_meta(self):
-        """
-        Meta data specific to VLT NIR
+    def configuration_keys(self):
+        #return ['dispname', 'dispangle', 'decker', 'detector']
+        return ['dispname', 'dispangle', 'decker', 'detector']
 
-        Returns:
-
-        """
-        super(VLTXShooterNIRSpectrograph, self).init_meta()
-        # No binning in the NIR
-        self.meta['binning'] = dict(card=None, default='1,1')
-
-        # Required
-        self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI5 NAME')
-    '''
+    def compound_meta(self, headarr, meta_key):
+        if meta_key == 'binning':
+            binspatial = headarr[0]['HIERARCH ESO DET WIN1 BINX']
+            binspec = headarr[0]['HIERARCH ESO DET WIN1 BINY']
+            binning = parse.binning2string(binspatial, binspec)
+            return binning
+        elif meta_key in ['ra', 'dec']:
+            try:  # Calibs do not have RA values
+                coord = SkyCoord(ra=headarr[0]['RA'], dec=headarr[0]['DEC'], unit='deg')
+            except:
+                return None
+            if meta_key == 'ra':
+                return coord.ra.to_string(unit=units.hour,sep=':',pad=True,precision=2)
+            else:
+                return coord.dec.to_string(sep=':',pad=True,alwayssign=True,precision=1)
+        else:
+            msgs.error("Not ready for this compound meta")
 
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):

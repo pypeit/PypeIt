@@ -1959,7 +1959,9 @@ def row_match_config(row, config, spectrograph):
     for k in config.keys():
         # Deal with floating configs (e.g. grating angle)
         if isinstance(config[k], float):
-            if np.abs(config[k]-row[k])/config[k] < spectrograph.meta[k]['rtol']:
+            if row[k] is None:
+                match.append(False)
+            elif np.abs(config[k]-row[k])/config[k] < spectrograph.meta[k]['rtol']:
                 match.append(True)
             else:
                 match.append(False)
