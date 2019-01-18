@@ -150,7 +150,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
       the archive
     BALM_MASK_WID : float
       Mask parameter for Balmer absorption. A region equal to
-      BALM_MASK_WID*resln is masked wher resln is the estimate
+      BALM_MASK_WID*resln is masked where resln is the estimate
       for the spectral resolution.
     nresln : float
       Number of resolution elements for break-point placement.
@@ -328,29 +328,31 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     atms_cutoff = wave_star <= 3000.0 * units.AA
     msk_star[atms_cutoff] = False
 
-    #if ~telluric: #Feige:  This is a bug
-    if not telluric:
-        # Mask telluric absorption
-        msgs.info("Masking Telluric")
-
     # Apply mask to ivar
     ivar_star[~msk_star] = 0.0
+    # Fit in magnitudes
+    kwargs_bspline = {'bkspace': resln.value * nresln}
+    kwargs_reject = {'maxrej': 5}
+    sensfunc, sensfit = bspline_magfit(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,
+                              kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject,debug=False)
 
+    ## Using telluric free region to derive a polynomial fitting and correct the masked region.
     # Those optical telluric regions are masked anyway and we won't model them
+    msk_all = msk_star.copy()
     tell_opt = np.any([((wave_star >= 6270.00 * units.AA) & (wave_star <= 6290.00 * units.AA)), # H2O
                    ((wave_star >= 6850.00 * units.AA) & (wave_star <= 6960.00 * units.AA)), #O2 telluric band
                    ((wave_star >= 7580.00 * units.AA) & (wave_star <= 7750.00 * units.AA)), #O2 telluric band
                    ((wave_star >= 7160.00 * units.AA) & (wave_star <= 7340.00 * units.AA)), #H2O
                    ((wave_star >= 8110.00 * units.AA) & (wave_star <= 8350.00 * units.AA))],axis=0) #H2O
-    msk_star[tell_opt] = False
+    msk_all[tell_opt] = False
 
-    ## get sensfunc by fitting polynomial function in the telluric free region.
+    ## Find telluric free region.
+    ## ToDo: parse into the following parameters
     from ..wavemodel import conv2res
     watervp = 1.0 ## in units of mm
     resolution = 2700.0
     norder =7
     if np.max(wave_star)>9300.0* units.AA:
-
         ## Read atmosphere transmission
         if watervp <1.5:
             skytrans_file = resource_filename('pypeit', '/data/skisim/'+'mktrans_zm_10_10.dat')
@@ -363,259 +365,58 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         skytrans = ascii.read(skytrans_file)
         wave_trans, trans = skytrans['wave']*10000.0*units.AA, skytrans['trans']
         trans_use = (wave_trans>=np.min(wave_star)-100.0*units.AA) & (wave_trans<=np.max(wave_star)+100.0*units.AA)
+        # This gives an approximate right resolution at the middle point.
         trans_convolved, px_sigma, px_bin = conv2res(wave_trans[trans_use], trans[trans_use], resolution,
                                                      central_wl='midpt', debug=False)
         trans_final = scipy.interpolate.interp1d(wave_trans[trans_use], trans_convolved,bounds_error=False,
                                                  fill_value='extrapolate')(wave_star)
 
         tell_nir = trans_final<0.98
-        msk_star[tell_nir] = False
-        # we do not want fit telluric in the overlap region of balmer lines and telluric
-        msk_tell = (tell_opt+tell_nir) & (msk_star)
-        plt.plot(wave_trans[trans_use], trans[trans_use])
-        plt.plot(wave_star, trans_final)
-        plt.show()
+        msk_all[tell_nir] = False
+        msk_tell = tell_opt + tell_nir
+        #plt.plot(wave_trans[trans_use], trans[trans_use])
+        #plt.plot(wave_star, trans_final)
+        #plt.show()
     else:
-        # This is basically all equals False
-        msk_tell = (tell_opt) & (msk_star)
+        msk_tell = tell_opt.copt()
+        msgs.info('Your spectrum is bluer than 9300A, only optical telluric regions are masked.')
 
-    '''
-    old tellric mask
-    tell = np.any([((wave_star >= 6270.00 * units.AA) & (wave_star <= 6290.00 * units.AA)), # H2O
-                   ((wave_star >= 6850.00 * units.AA) & (wave_star <= 6960.00 * units.AA)), #O2 telluric band
-                   ((wave_star >= 7580.00 * units.AA) & (wave_star <= 7750.00 * units.AA)), #O2 telluric band
-                   ((wave_star >= 7160.00 * units.AA) & (wave_star <= 7340.00 * units.AA)), #H2O
-                   ((wave_star >= 8110.00 * units.AA) & (wave_star <= 8350.00 * units.AA)), #H2O
-                   ((wave_star >= 8935.00 * units.AA) & (wave_star <= 9195.00 * units.AA)), #H2O
-                   ((wave_star >= 9310.00 * units.AA) & (wave_star <= 9665.00 * units.AA)), #H2O
-                   ((wave_star >= 11120.0 * units.AA) & (wave_star <= 11615.0 * units.AA)),
-                   ((wave_star >= 12580.0 * units.AA) & (wave_star <= 12800.0 * units.AA)),
-                   ((wave_star >= 13160.0 * units.AA) & (wave_star <= 15000.0 * units.AA)),
-                   ((wave_star >= 15300.0 * units.AA) & (wave_star <= 15470.0 * units.AA)),
-                   ((wave_star >= 15670.0 * units.AA) & (wave_star <= 15860.0 * units.AA)),
-                   ((wave_star >= 15970.0 * units.AA) & (wave_star <= 16170.0 * units.AA)),
-                   ((wave_star >= 16650.0 * units.AA) & (wave_star <= 16675.0 * units.AA)),
-                   ((wave_star >= 17710.0 * units.AA) & (wave_star <= 19810.0 * units.AA)),
-                   ((wave_star >= 19950.0 * units.AA) & (wave_star <= 20290.0 * units.AA)),
-                   ((wave_star >= 20460.0 * units.AA) & (wave_star <= 20900.0 * units.AA)),
-                   ((wave_star >= 23150.0 * units.AA) & (wave_star <= 23300.0 * units.AA)),
-                   (wave_star >= 23600.0 * units.AA)], axis=0)
-    #msk_star[tell] = False
-    '''
-
-    # Polynomial fitting to derive a smooth sensfunc (i.e. without telluric)
-    flux_ratio = -2.5 * np.log10(flux_star / flux_true)
-
-    msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_star.value[msk_star], flux_ratio[msk_star], norder,
-                                                    function='polynomial',
-                                                    invvar=None, guesses=None, maxiter=50, inmask=None, sigma=None, \
-                                                    lower=3.0, upper=3.0, maxdev=None, maxrej=3, groupdim=None,
-                                                    groupsize=None, \
-                                                    groupbadpix=False, grow=0, sticky=True, use_mad=True)
-    flux_ratio_poly = utils.func_val(poly_coeff, wave_star.value, 'polynomial')
-    flux_star_new =  flux_star / (10.0 ** (-0.4 * flux_ratio_poly))
-    star_ratio = flux_star_new / flux_true
-    ivar_star_ratio = ivar_star * flux_true**2
+    if sum(msk_all) < 0.2 * len(msk_all):
+        msg.warn('It seems your spectrum is well within the telluric region or masked, '
+                 'no correction will be made on Balmer line regions.')
+    else:
+        # Polynomial fitting to derive a smooth sensfunc (i.e. without telluric)
+        magfunc = 2.5*np.log10(sensfunc)
+        msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_star.value[msk_all], magfunc[msk_all], norder,\
+                                                        function='polynomial',invvar=None, guesses=None, maxiter=50, \
+                                                        inmask=None, sigma=None, lower=3.0, upper=3.0, maxdev=None, \
+                                                        maxrej=3, groupdim=None,groupsize=None,groupbadpix=False, \
+                                                        grow=0, sticky=True, use_mad=True)
+        magfunc_poly = utils.func_val(poly_coeff, wave_star.value, 'polynomial')
+        ## Only correct Balmer lines in the telluric free region
+        msk_clean = ((~msk_tell) | (magfunc==MAGFUNC_MAX) | (magfunc==MAGFUNC_MIN)) & \
+                    (~msk_star) & (magfunc_poly>MAGFUNC_MIN) & (magfunc_poly<MAGFUNC_MAX)
+        sensfunc[msk_clean] = 10.0 ** (0.4 * magfunc_poly[msk_clean])
+        #flux_star_new =  flux_star / (10.0 ** (-0.4 * flux_ratio_poly))
+        #star_ratio = flux_star_new / flux_true
+        #ivar_star_ratio = ivar_star * flux_true**2
 
     if debug:
         #scaled_flux = flux_star / np.mean(10.0 ** (-0.4 * flux_ratio[msk_star]))
         plt.figure()
-        plt.plot(wave_star.value, flux_ratio,'k-',label='Initial Sensfunc')
-        plt.plot(wave_star.value[~msk_star], flux_ratio[~msk_star],'r+',label='Masked Points')
-        plt.plot(wave_star.value, flux_ratio_poly,'b-',label='Polynomial Sensfunc')
+        plt.plot(wave_star.value, flux_true/flux_star,'k-',label='Final Sensfunc')
+        plt.plot(wave_star.value[msk_clean], 10.0 ** (0.4 * magfunc_poly[msk_clean]),'r+',label='Masked Points')
+        plt.plot(wave_star.value, sensfunc,'b-',label='Final Sensfunc')
         plt.legend(fancybox=True, shadow=True)
+        plt.ylim([0.,1.2*np.max(sensfunc)])
         plt.show()
         plt.plot(wave_star.value, flux_true, color='b',label='Reference star flux')
-        plt.plot(wave_star.value, flux_star_new, color='r',
+        plt.plot(wave_star.value, flux_star*sensfunc, color='r',
                    label='Scaled observed flux')
         plt.xlabel(r'Wavelength [$\AA$]')
+        plt.ylabel('Flux [erg/s/cm2/Ang.]')
         plt.legend(fancybox=True, shadow=True)
         plt.show()
-        plt.plot(wave_star.value, star_ratio,'k-',label='Telluric')
-        plt.plot(wave_star.value[msk_tell], star_ratio[msk_tell],label='Fitting region')
-        plt.plot(wave_star.value, trans_final,label='Atmosphere Transmission')
-        plt.show()
-
-    if telluric:
-        ## telluric correction
-        # Fit in magnitudes
-        kwargs_bspline = {'bkspace': resln.value * nresln}
-        kwargs_reject = {'maxrej': 5}
-
-        init_bspline = pydl.bspline(wave_star.value, bkspace=kwargs_bspline['bkspace'])
-        fullbkpt = init_bspline.breakpoints
-
-        masktot = (ivar_star_ratio > 0.0) & np.isfinite(star_ratio) & np.isfinite(ivar_star_ratio) & \
-                  np.isfinite(trans_final)# & msk_tell
-
-        # TESTING turning off masking for now
-        # remove masked regions from breakpoints
-        msk_obs = np.ones_like(wave_star.value).astype(bool)
-        #msk_obs[~msk_tell] = False
-        msk_bkpt = scipy.interpolate.interp1d(wave_star.value, msk_obs, kind='nearest', fill_value='extrapolate')(fullbkpt)
-        init_breakpoints = fullbkpt[msk_bkpt > 0.999]
-
-        #  First round of the fit:
-        msgs.info("Bspline fit: step 1")
-        bset1, bmask = pydl.iterfit(wave_star.value, star_ratio, invvar=ivar_star_ratio, inmask=masktot, upper=2, lower=2,
-                                    fullbkpt=init_breakpoints, maxiter=35, kwargs_bspline=kwargs_bspline,
-                                    kwargs_reject=kwargs_reject)
-        modelfit1, _ = bset1.value(wave_star.value)
-        fit_bkpt, _ = bset1.value(init_breakpoints)
-        residual = star_ratio / (modelfit1 + (modelfit1 == 0)) - 1.
-
-        # residual_ivar = (modelfit1 * star_ratio / (star_ratio + (star_ratio == 0.0))) ** 2 * ivar_star_ratio
-        residual_ivar = np.ones_like(residual) / (0.1 ** 2)
-        residual_ivar = residual_ivar * masktot
-
-        (mean, med, stddev) = sigma_clipped_stats(residual[masktot], sigma_lower=3.0, sigma_upper=3.0)
-
-        if np.median(stddev > 0.01):
-            #  Second round of the fit:
-            msgs.info("Bspline fit: step 2")
-            #  Now do one more fit to the ratio of data/model - 1.
-            bset_residual, bmask2 = pydl.iterfit(wave_star.value, star_ratio, invvar=ivar_star_ratio, inmask=masktot, upper=2, lower=2,
-                                                 fullbkpt=bset1.breakpoints,kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject)
-            bset_log1 = bset1.copy()
-            bset_log1.coeff = bset_log1.coeff + bset_residual.coeff
-            if debug:
-                # Check for calibration
-                resid_fit, _ = bset_residual.value(wave_star.value)
-                logfit2, _ = bset_log1.value(wave_star.value)
-                logfit2_bkpt, _ = bset_log1.value(bset1.breakpoints)
-                plt.figure(1)
-                plt.plot(wave_star.value, residual, drawstyle='steps-mid', color='black', label='residual')
-                plt.plot(wave_star.value, resid_fit, color='cornflowerblue', label='resid_fit')
-                plt.plot(wave_star.value[~masktot], residual[~masktot], '+', color='red', markersize=5.0,
-                         label='masked residual')
-                plt.plot(wave_star.value[~masktot], resid_fit[~masktot], '+', color='red', markersize=5.0,
-                         label='masked resid_fit')
-                plt.plot(init_breakpoints, logfit2_bkpt, '.', color='green', markersize=4.0, label='breakpoints')
-                plt.plot(wave_star.value, 1.0 / np.sqrt(residual_ivar), color='orange', label='sigma')
-                plt.legend()
-                plt.xlabel('Wavelength [ang]')
-                plt.ylim(-0.1, 0.1)
-                plt.title('2nd Bspline fit')
-                plt.show()
-        else:
-            bset_log1 = bset1.copy()
-
-        # Create sensitivity function
-        sensfit, _ = bset_log1.value(wave_star.value)
-
-        plt.plot(wave_star.value[msk_tell], sensfit[msk_tell])
-        plt.plot(wave_star.value[msk_tell], star_ratio[msk_tell])
-        plt.show()
-
-        sensfunc = bspline_magfit(wave_star.value, star_ratio, ivar_star_ratio, trans_final, inmask=msk_tell,
-                              kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject,debug=debug)
-
-        if debug:
-            plt.rcdefaults()
-            plt.rcParams['font.family'] = 'times new roman'
-            plt.plot(wave_star.value[~msk_sens], sensfunc[~msk_sens], 'bo')
-            plt.plot(wave_star.value, sensfunc, 'k-',label='bspline fitting')
-            plt.ylim(0.0, 100.0)
-            plt.legend()
-            plt.xlabel('Wavelength [ang]')
-            plt.ylabel('Sensfunc')
-            plt.show()
-            plt.close()
-
-            plt.figure(figsize=(10, 6))
-            plt.clf()
-            plt.plot(wave_star.value,flux_star*sensfunc, label='Calibrated Spectrum')
-            plt.plot(wave_star.value,flux_true, label='Model')
-            plt.plot(wave_star.value,np.sqrt(1/ivar_star))
-            plt.legend()
-            plt.xlabel('Wavelength [ang]')
-            plt.ylabel('Flux [erg/s/cm2/Ang.]')
-            plt.ylim(0,np.median(flux_true)*2.5)
-            plt.title('Final corrected spectrum')
-            plt.show()
-            plt.close()
-
-    from IPython import embed
-    embed()
-
-    # Fit in magnitudes
-    kwargs_bspline = {'bkspace': resln.value * nresln}
-    kwargs_reject = {'maxrej': 5}
-    sensfunc = bspline_magfit(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,
-                              kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject,debug=debug)
-
-    #Cleaning sensfunc
-    ## ToDo: currently I'm fitting the sensfunc in the masked region with a polynomial, should we change the algorithm to
-    ##   fit polynomial first and then bsline the poly-subtracted flux ???
-    ## keep tell free region for poly fit. tell2 is different from tell since tell2 include more small trunk of telluric free
-    ## regions. tell2 might be not suitable for the bspline fitting. We need to select a more robust telluric region for both purpose.
-    tell2 = np.any([((wave_star >= 7580.00 * units.AA) & (wave_star <= 7750.00 * units.AA)),
-                   ((wave_star >= 7160.00 * units.AA) & (wave_star <= 7340.00 * units.AA)),
-                   ((wave_star >= 6860.00 * units.AA) & (wave_star <= 6930.00 * units.AA)),
-                   ((wave_star >= 9310.00 * units.AA) & (wave_star <= 9665.00 * units.AA)),
-                   ((wave_star >= 11120.0 * units.AA) & (wave_star <= 11545.0 * units.AA)),
-                   ((wave_star >= 12610.0 * units.AA) & (wave_star <= 12720.0 * units.AA)),
-                   ((wave_star >= 13400.0 * units.AA) & (wave_star <= 14830.0 * units.AA)),
-                   ((wave_star >= 15700.0 * units.AA) & (wave_star <= 15770.0 * units.AA)),
-                   ((wave_star >= 16000.0 * units.AA) & (wave_star <= 16100.0 * units.AA)),
-                   ((wave_star >= 16420.0 * units.AA) & (wave_star <= 16580.0 * units.AA)),
-                   ((wave_star >= 17630.0 * units.AA) & (wave_star <= 19690.0 * units.AA)),
-                   ((wave_star >= 19790.0 * units.AA) & (wave_star <= 19810.0 * units.AA)),
-                   ((wave_star >= 19950.0 * units.AA) & (wave_star <= 20310.0 * units.AA)),
-                   ((wave_star >= 20450.0 * units.AA) & (wave_star <= 20920.0 * units.AA)),
-                   ((wave_star >= 24000.0 * units.AA) & (wave_star <= 24280.0 * units.AA)),
-                   ((wave_star >= 24320.0 * units.AA) & (wave_star <= 24375.0 * units.AA)),
-                   (wave_star >= 24450.0 * units.AA)], axis=0)
-    msk_all = msk_star.copy() # mask for polynomial fitting
-    msk_sens = msk_star.copy() # mask for sensfunc
-    med, mad = utils.robust_meanstd(sensfunc)
-
-    msk_crazy = (sensfunc<=0) | (sensfunc>1e3*med)
-    msk_all[tell2] = False
-    msk_all[msk_crazy] = False
-    msk_sens[msk_crazy] = False
-
-    if (len(wave_star.value[msk_all]) < norder+1) or (len(wave_star.value[msk_all]) < 0.1*len(wave_star.value)):
-        msgs.warn('It seems this order/spectrum well within the telluric region. No polynomial fit will be performed.')
-    else:
-        #polyfit the sensfunc
-        msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_star.value[msk_all],np.log10(sensfunc[msk_all]), norder, function='polynomial',
-                                               invvar=None,guesses = None, maxiter = 50, inmask = None, sigma = None,\
-                                               lower = 3.0, upper = 3.0,maxdev=None,maxrej=3,groupdim=None,groupsize=None,\
-                                               groupbadpix=False, grow=0,sticky=True,use_mad=True)
-        sensfunc_poly = 10**(utils.func_val(poly_coeff, wave_star.value, 'polynomial'))
-        sensfunc[~msk_sens] =  sensfunc_poly[~msk_sens]
-        if debug:
-            plt.rcdefaults()
-            plt.rcParams['font.family'] = 'times new roman'
-            plt.plot(wave_star.value[~msk_sens], sensfunc[~msk_sens], 'bo')
-            plt.plot(wave_star.value, sensfunc_poly, 'r-',label='Polyfit')
-            plt.plot(wave_star.value, sensfunc, 'k-',label='bspline fitting')
-            plt.ylim(0.0, 100.0)
-            plt.legend()
-            plt.xlabel('Wavelength [ang]')
-            plt.ylabel('Sensfunc')
-            plt.show()
-            plt.close()
-
-            plt.figure(figsize=(10, 6))
-            plt.clf()
-            plt.plot(wave_star.value,flux_star*sensfunc, label='Calibrated Spectrum')
-            plt.plot(wave_star.value,flux_true, label='Model')
-            plt.plot(wave_star.value,np.sqrt(1/ivar_star))
-            plt.legend()
-            plt.xlabel('Wavelength [ang]')
-            plt.ylabel('Flux [erg/s/cm2/Ang.]')
-            plt.ylim(0,np.median(flux_true)*2.5)
-            plt.title('Final corrected spectrum')
-            plt.show()
-            plt.close()
-
-
-    # JFH Left off here.
-    # Creating the dict
-    #msgs.work("Is min, max and wave_min, wave_max a duplicate?")
-    #sens_dict = dict(wave=wave_sens, sensfunc=sensfunc, min=None, max=None, std=std_dict)
 
     # Add in wavemin,wavemax
     sens_dict = {}
@@ -888,7 +689,7 @@ def generate_sensfunc_old(wave, counts, counts_ivar, airmass, exptime, spectrogr
     # Fit in magnitudes
     kwargs_bspline = {'bkspace': resln.value * nresln}
     kwargs_reject = {'maxrej': 5}
-    sensfunc = bspline_magfit(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,
+    sensfunc, sensfit = bspline_magfit(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,
                               kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject,debug=debug)
 
     #Cleaning sensfunc
@@ -1039,7 +840,7 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
 
     # Calculate log of flux_obs setting a floor at TINY
     logflux_obs = 2.5 * np.log10(np.maximum(flux_obs, TINY))
-    # Set a fix value fro the variance of logflux
+    # Set a fix value for the variance of logflux
     logivar_obs = np.ones_like(logflux_obs) * (10.0 ** 2)
 
     # Calculate log of flux_std model setting a floor at TINY
@@ -1192,7 +993,7 @@ def bspline_magfit(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2,
     if show_QA:
         qa_bspline_magfit(wave_obs, bset_log1, magfunc, masktot)
 
-    return sensfit
+    return sensfunc,sensfit
 
 def qa_bspline_magfit(wave, bset, magfunc, mask):
     plt.close("all")

@@ -614,7 +614,7 @@ class EchFluxSpec(masterframe.MasterFrame):
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
                  std_specobjs=None, std_header=None, spectrograph=None,
                  telluric=False, setup=None, master_dir=None, reuse_masters=False,
-                 star_type=None, star_mag=None, BALM_MASK_WID=5.0, nresln=None, debug=False):
+                 star_type=None, star_mag=None, BALM_MASK_WID=60.0, nresln=None, debug=False):
 
         # Load standard files
         std_spectro = None
