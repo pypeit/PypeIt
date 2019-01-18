@@ -382,7 +382,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         msgs.info('Your spectrum is bluer than 9300A, only optical telluric regions are masked.')
 
     if sum(msk_all) < 0.2 * len(msk_all):
-        msg.warn('It seems your spectrum is well within the telluric region or masked, '
+        msgs.warn('It seems your spectrum is well within the telluric region or masked, '
                  'no correction will be made on Balmer line regions.')
     else:
         # Polynomial fitting to derive a smooth sensfunc (i.e. without telluric)
@@ -405,7 +405,8 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         #scaled_flux = flux_star / np.mean(10.0 ** (-0.4 * flux_ratio[msk_star]))
         plt.figure()
         plt.plot(wave_star.value, flux_true/flux_star,'k-',label='Final Sensfunc')
-        plt.plot(wave_star.value[msk_clean], 10.0 ** (0.4 * magfunc_poly[msk_clean]),'r+',label='Masked Points')
+        if sum(msk_all) >= 0.2 * len(msk_all):
+            plt.plot(wave_star.value[msk_clean], 10.0 ** (0.4 * magfunc_poly[msk_clean]),'r+',label='Masked Points')
         plt.plot(wave_star.value, sensfunc,'b-',label='Final Sensfunc')
         plt.legend(fancybox=True, shadow=True)
         plt.ylim([0.,1.2*np.max(sensfunc)])
