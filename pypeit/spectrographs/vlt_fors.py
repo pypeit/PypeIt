@@ -49,11 +49,11 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['maxshift'] = 0.5
 
         # Tilt parameters
-        #par['calibrations']['tilts']['tracethresh'] =  25.0
+        par['calibrations']['tilts']['tracethresh'] = 25.0
         #par['calibrations']['tilts']['maxdev_tracefit'] =  0.04
         #par['calibrations']['tilts']['maxdev2d'] =  0.04
-        #par['calibrations']['tilts']['spat_order'] = 3
-        #par['calibrations']['tilts']['spec_order'] = 4
+        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spec_order'] = 4
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']
@@ -209,8 +209,8 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
                 numamplifiers   = 1,
                 gain            = 0.70,
                 ronoise         = 2.9, # High gain
-                datasec         = '[20:,4:2044]',
-                oscansec        = '[4:20,4:2044]',
+                datasec         = '[:,10:]',  # For 1x binning, I think
+                oscansec        = '[:,0:10]',
                 suffix          = '_Thor'),
             # Detector 2 (Belenos)
             pypeitpar.DetectorPar(
@@ -227,13 +227,14 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
                 numamplifiers   = 1,
                 gain            = 0.70,
                 ronoise         = 3.0,  # High gain
-                datasec         = '[20:,4:2044]',
+                datasec         = '[20:,0:2048]',
                 oscansec        = '[4:20,4:2044]',
                 suffix          = '_Belenos'
                 )]
         if chip == 'CHIP1':
             self.detector = [detectors[0]]
         elif chip == 'CHIP2':
+            debugger.set_trace()  # NEED TO SET DATASEC
             self.detector = [detectors[1]]
 
 
@@ -249,7 +250,13 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
     def config_specific_par(self, par, scifile):
         detector = self.get_meta_value(scifile, 'detector')
         self.set_detector(detector)
+        # Wavelengths
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+
+        if self.get_meta_value(scifile, 'dispname') == 'GRIS_300I':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300I.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+
         return par
 
     def configuration_keys(self):

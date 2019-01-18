@@ -1302,9 +1302,9 @@ class TraceSlitsPar(ParSet):
                 pars['trim'] = tuple(pars['trim'])
             except:
                 raise TypeError('Could not convert provided trim to a tuple.')
-        defaults['trim'] = (3,3)
+        defaults['trim'] = (0,0)
         dtypes['trim'] = tuple
-        descr['trim'] = 'How much to trim off each edge of each slit'
+        descr['trim'] = 'How much to trim off each edge of each slit.  Each number should be 0 or positive'
 
         dtypes['maxgap'] = int
         descr['maxgap'] = 'Maximum number of pixels to allow for the gap between slits.  Use ' \
@@ -1806,7 +1806,8 @@ class ScienceImagePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, sig_thresh=None, maxnumber=None, sn_gauss=None, manual=None):
+    def __init__(self, bspline_spacing=None, sig_thresh=None, maxnumber=None, sn_gauss=None,
+                 no_poly=None, manual=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1833,6 +1834,10 @@ class ScienceImagePar(ParSet):
         defaults['bspline_spacing'] = 0.6
         dtypes['bspline_spacing'] = [int, float]
         descr['bspline_spacing'] = 'Break-point spacing for the bspline sky subtraction fits.'
+
+        defaults['no_poly'] = False
+        dtypes['no_poly'] = bool
+        descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
 
         defaults['sig_thresh'] = 10.0
         dtypes['sig_thresh'] = [int, float]
@@ -1865,7 +1870,7 @@ class ScienceImagePar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'sig_thresh', 'maxnumber', 'sn_gauss', 'manual']
+        parkeys = ['bspline_spacing', 'sig_thresh', 'maxnumber', 'sn_gauss', 'manual', 'no_poly']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

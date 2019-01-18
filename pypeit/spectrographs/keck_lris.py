@@ -41,6 +41,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Always sky subtract, starting with default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
+        i
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters

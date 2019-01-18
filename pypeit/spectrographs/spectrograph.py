@@ -533,7 +533,6 @@ class Spectrograph(object):
             try:
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
             except (KeyError, TypeError):
-                debugger.set_trace()
                 value = None
 
         if value is None:
@@ -762,7 +761,7 @@ class Spectrograph(object):
 
         return self.detector[det-1]['platescale']/tel_platescale
 
-    def slitmask(self, tslits_dict, pad = None):
+    def slitmask(self, tslits_dict, pad=None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
          overload this function to implement instrument specific slitmask behavior, for example setting
