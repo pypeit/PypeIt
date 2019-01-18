@@ -604,6 +604,13 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             par['scienceframe']['process']['sigclip'] = sigclip
             par['scienceframe']['process']['objlim'] = objlim
 
+        # Wavelength calibrations
+        if self.get_meta_value(scifile, 'dispname') == '400/8500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['sigdetect'] = 20.0
+            par['calibrations']['wavelengths']['nsnippet'] = 1
+
         # Return
         return par
 

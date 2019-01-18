@@ -264,6 +264,16 @@ def main(flg):
         build_template([wfile1,wfile2], slits, lcut, binspec, outroot, lowredux=False,
                        ifiles=ifiles, det_cut=det_cut, chk=True)
 
+    # Keck/LRISr
+    if flg & (2**10): # R400
+        binspec = 2
+        outroot='keck_lris_red_400.fits'
+        slits = [7]  # Quite blue, but not the bluest
+        lcut = []
+        wfile = os.path.join(template_path, 'Keck_LRIS', 'R400', 'MasterWaveCalib_A_1_01.json')
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
+
+
 # Command line execution
 if __name__ == '__main__':
     flg = 0
@@ -282,10 +292,10 @@ if __name__ == '__main__':
     # Keck/DEIMOS
     #flg += 2**7  # 600
     #flg += 2**8  # 830G
-    flg += 2**9  # 1200
+    #flg += 2**9  # 1200
 
     # Keck/LRISr
-    #flg += 2**10 # R400
+    flg += 2**10 # R400
 
     main(flg)
 
