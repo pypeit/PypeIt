@@ -273,6 +273,14 @@ def main(flg):
         wfile = os.path.join(template_path, 'Keck_LRIS', 'R400', 'MasterWaveCalib_A_1_01.json')
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
+    if flg & (2**11):  # R1200
+        binspec = 1
+        outroot='keck_lris_red_1200_9000.fits'
+        slits = [3]  # 7726 -- 9294
+        lcut = []
+        wfile = os.path.join(template_path, 'Keck_LRIS', 'R1200_9000', 'MasterWaveCalib_A_1_02.json')
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
+
 
 # Command line execution
 if __name__ == '__main__':
@@ -295,7 +303,8 @@ if __name__ == '__main__':
     #flg += 2**9  # 1200
 
     # Keck/LRISr
-    flg += 2**10 # R400
+    #flg += 2**10  # R400
+    flg += 2**11  # R1200
 
     main(flg)
 
