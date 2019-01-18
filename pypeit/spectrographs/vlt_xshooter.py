@@ -226,10 +226,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 2.12,
                             ronoise         = 8.0, # ?? more precise value?
-                    # JFH TODO these are slightly off. There should actually be 4 pixels shaved off in the spectral
-                    # direction but I don't want to break the wavelength solutions.
-                            datasec         = '[20:,4:2044]',
-                            oscansec        = '[4:20,4:2044]',
+                            datasec         = '[4:,4:2044]',
+                            # No real overscan for XSHOOTER-NIR: 
+                            # See Table 6 in http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_P103v1.pdf
+                            # The overscan region below contains only zeros
+                            oscansec        = '[1:3,4:2044]',
                             suffix          = '_NIR'
                             )]
         self.numhead = 1
@@ -370,13 +371,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format
-                y_shift = 14
-                x_shift = 18
+                y_shift = -5
+                x_shift = 21
                 bpm_data = np.flipud(bpm_fits[0].data)
                 y_len = len(bpm_data[:,0])
                 x_len = len(bpm_data[0,:])
-                bpm_data_pypeit = np.full( ((y_len+y_shift),(x_len+x_shift)) , 0)
-                bpm_data_pypeit[:-y_shift,:-x_shift] = bpm_data_pypeit[:-y_shift,:-x_shift] + bpm_data
+                bpm_data_pypeit = np.full( ((y_len+abs(y_shift)),(x_len+abs(x_shift))) , 0)
+                bpm_data_pypeit[:-abs(y_shift),:-abs(x_shift)] = bpm_data_pypeit[:-abs(y_shift),:-abs(x_shift)] + bpm_data
                 bpm_data_pypeit = np.roll(bpm_data_pypeit,-y_shift,axis=0)
                 bpm_data_pypeit = np.roll(bpm_data_pypeit,x_shift,axis=1)
                 filt_bpm = bpm_data_pypeit[1:y_len,1:x_len]>100.
