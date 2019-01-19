@@ -37,8 +37,9 @@ class WaveCalib(masterframe.MasterFrame):
 
     Optional Parameters
     --------------------
-    settings : dict, optional
-      Settings for trace slits
+    binspectral: int, optional
+      Binning of the Arc in the spectral dimension
+
     det : int, optional
       Detector number
     master_key : str, optional
@@ -70,7 +71,7 @@ class WaveCalib(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'wv_calib'
 
-    def __init__(self, msarc, tslits_dict, binning=None, spectrograph=None, par=None, det=1, master_key=None, master_dir=None,
+    def __init__(self, msarc, tslits_dict, binspectral=None, spectrograph=None, par=None, det=1, master_key=None, master_dir=None,
                  reuse_masters=False, redux_path=None, bpm=None):
 
         # Instantiate the spectograph
@@ -87,7 +88,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Optional parameters
         self.bpm = bpm
         self.par = pypeitpar.WavelengthSolutionPar() if par is None else par
-        self.binning = binning
+        self.binspectral = binspectral
         self.redux_path = redux_path
         self.det = det
         self.master_key = master_key
@@ -211,7 +212,10 @@ class WaveCalib(masterframe.MasterFrame):
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'full_template':
             # Now preferred
+            if self.binspectral is None:
+                msgs.error("You must specify binspectral for the full_template method!")
             final_fit = wavecal.autoid.full_template(arccen, self.par, ok_mask, self.det,
+                                                     self.binspectral,
                                                      nsnippet=self.par['nsnippet'])
 
         else:

@@ -689,6 +689,8 @@ class Calibrations(object):
         nonlinear = self.spectrograph.detector[self.det-1]['saturation'] \
                         * self.spectrograph.detector[self.det-1]['nonlinear']
         # Instantiate
+        arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
+        self.arc_files = self.fitstbl.frame_paths(arc_rows)
         self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, binning=self.binning,
                                              spectrograph=self.spectrograph,det=self.det,
                                              par=self.par['wavelengths'], master_key=self.arc_master_key,
