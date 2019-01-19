@@ -836,15 +836,13 @@ class EchFluxSpec(masterframe.MasterFrame):
         norder = ext_final['ECHORDER'] + 1
 
         self.sens_dict = {}
-        std_specobjs_all, std_header = load.load_specobjs(self.std_spec1d_file)
+        #std_specobjs_all, std_header = load.load_specobjs(self.std_spec1d_file)
         for iord in range(norder):
-            #std_specobjs, std_header = load.load_specobjs(self.std_spec1d_file, order=iord)
-            std_specobjs = specobjs.SpecObjs()
-            std_specobjs.add_sobj(std_specobjs_all[iord])
+            # std_specobjs = specobjs.SpecObjs()
+            # std_specobjs.add_sobj(std_specobjs_all[iord])
+            std_specobjs, std_header = load.load_specobjs(self.std_spec1d_file, order=iord)
             std_idx = flux.find_standard(std_specobjs)
             std = std_specobjs[std_idx]
-            from IPython import embed
-            embed()
             wavemask = std.boxcar['WAVE'] > 1000.0 * units.AA
             wave, counts, ivar = std.boxcar['WAVE'][wavemask], std.boxcar['COUNTS'][wavemask], \
                                  std.boxcar['COUNTS_IVAR'][wavemask]

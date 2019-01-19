@@ -200,7 +200,8 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,
         if debug:
             plt.show()
         plt.close()
-
+        if outfile is not None:
+            coadd.write_to_disk(spec1d_final, outfile)
 
         ### deprecated
         # from IPython import embed

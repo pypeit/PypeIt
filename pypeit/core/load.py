@@ -75,7 +75,7 @@ def load_ordloc(fname):
     return ltrace, rtrace
 
 
-def load_specobjs(fname):
+def load_specobjs(fname,order=None):
     """ Load a spec1d file into a list of SpecObjExp objects
     Parameters
     ----------
@@ -104,6 +104,14 @@ def load_specobjs(fname):
             continue
         # Parse name
         idx = hdu.name
+        objp = idx.split('-')
+        if objp[-2][:5] == 'ORDER':
+            iord = int(objp[-2][5:])
+        else:
+            msgs.warn('Loading longslit data ?')
+            iord = int(-1)
+        if (order is not None) and (iord !=order):
+            continue
         specobj = specobjs.SpecObj(None, None, None, idx = idx)
         # Assign specobj attributes from header cards
         for attr, hdrcard in sobjs_key.items():
