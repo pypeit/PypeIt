@@ -19,15 +19,71 @@ with PypeIt.   The basic steps are:
  2. Load the parameters guiding wavelength calibration
  3. Generate the 1D wavelength fits
 
-For the primary step (#3), the preferred approach is a
-new pattern-searching algorithm.  It is designed to estimate
-the dispersion and wavelength coverage of the spectrum with
-limited inputs and then automatically identify the known
-arc lines.
-
 The code is guided by the WaveCalib class, partially described
 by this `WaveCalib.ipynb <https://github.com/pypeit/pypeit/blob/master/doc/nb/WaveCalib.ipynb>`_
 Notebook.
+
+For the primary step (#3), we have developed several
+algorithms finding it challenging to have one that satisfies
+all instruments in all configurations.  We now briefly
+describe each and where they tend to be most effective.
+Each of these is used only to identify known arc lines in the
+spectrum.  Fits to the identified lines (vs. pixel) are
+performed with the same, iterative algorithm to generate
+the final wavelength solution.
+
+Holy Grail
+----------
+
+This algorithm is based on pattern matching the detected lines
+with that expected from the lamps observed.  It has worked
+well for the low dispersion spectrographs and has been used
+to generate the templates needed for most of the other algorithms.
+It has the great positive of requiring limited developer
+effort once a vetted line-list for the observed lamps has been
+generated.
+
+However, we have found this algorithm is not highly robust
+(e.g. slits fail at ~5-10% rate) and it struggles with
+high dispersion data (e.g. ThAr lamps).  At this stage, we
+recommend it be used primarily by the Developers to generate
+template spectra.
+
+.. _wvcalib-reidentify:
+
+Reidentify
+----------
+
+Following on our success using archived templates with the
+LowRedux code, we have implemented an improved version in PypeIt.
+Each input arc spectrum is cross-correlated against one or
+more archived spectra, allowing for both a shift and a stretch.
+
+Archived spectra that yield a high cross-correlation score
+are used to identify arc lines based on their recorded
+wavelength solutions.
+
+This algorithm is optimal for fixed-format spectrographs
+(e.g. X-Shooter, ESI).
+
+Full Template
+-------------
+
+This algorithm is similar to :ref:`wvcalib-reidentify` with
+two exceptions:  (i) there is only a single template used
+(occasionally one per detector for spectra that span across
+multiple, e.g. DEIMOS); (ii) IDs from
+the input arc spectrum are generally performed on snippets
+of the full input array.  The motivation for the latter is
+to reduce non-linearities that are not well captured by the
+shift+stretch analysis of :ref:`wvcalib-reidentify`.
+
+We recommend implementing this method for multi-slit
+observations, long-slit observations where wavelengths
+vary (e.g. grating tilts).  We are likely to implement
+this for echelle observations (e.g. HIRES).
+
+
 
 Common Failure Modes
 ====================
