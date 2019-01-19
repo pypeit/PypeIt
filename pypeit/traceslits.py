@@ -121,6 +121,7 @@ class TraceSlits(masterframe.MasterFrame):
         # from_master_files() classmethod below?  Changed it to match
         # the rest of the MasterFrame children.
 
+
         # Required parameters (but can be None)
         self.mstrace = mstrace
 #        self.pixlocn = pixlocn

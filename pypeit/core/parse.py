@@ -762,7 +762,9 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
                 tslices = parse_sec2slice('[:10,10:]', transpose=True)
 
         binning (:obj:`str`, optional):
-            The image binning.  The `subarray` string is always expected to be for an unbinned image.  This binning keyword is used to adjust the slice for an image that is binned.  The string must be a comma-separated list of number providing the binning along the relevant axis.
+            The image binning.  The `subarray` string is always expected to be for an *unbinned* image.
+            This binning keyword is used to adjust the slice for an image that is binned.
+            The string must be a comma-separated list of number providing the binning along the relevant axis.
 
     Returns:
         tuple: A tuple of slice objects, one per dimension of the
