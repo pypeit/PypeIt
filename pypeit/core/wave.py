@@ -283,7 +283,6 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
         for specobj in this_specobjs:
             if specobj is None:
                 continue
-            debugger.set_trace()
             msgs.info("Working on flexure for object # {:d}".format(specobj.objid) + "in slit # {:d}".format(specobj.slitid))
             # Using boxcar
             if method in ['boxcar', 'slitcen']:
@@ -597,7 +596,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
 
     # Loop over slits, and then over objects here
     for slit in gdslits:
-        indx = (specobjs.slitid -1) == slit
+        indx = specobjs.slitid == slit
         this_specobjs = specobjs[indx]
         this_flex_dict = flex_list[slit]
 

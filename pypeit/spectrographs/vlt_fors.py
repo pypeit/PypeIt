@@ -44,7 +44,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
 
         # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
+        par['flexure']['method'] = 'boxcar'
 
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slits']['sigdetect'] = 50.
