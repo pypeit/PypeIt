@@ -316,11 +316,10 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
 
     # Apply mask to ivar
     ivar_star[~msk_star] = 0.0
-    sensfunc,sensfunc_poly = get_sensfunc(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,maxiter=35,
+    sensfunc = get_sensfunc(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,maxiter=35,
                             upper=2, lower=2, norder=7, resolution=2700., watervp=1.0, trans_thresh=0.9,
-                            BALM_MASK_WID=BALM_MASK_WID, polycorrect= polycorrect, debug=debug, show_QA=False)
-    if polysens:
-        sensfunc = sensfunc_poly.copy()
+                            BALM_MASK_WID=BALM_MASK_WID, polycorrect= polycorrect, polysens=polysens,
+                            debug=debug, show_QA=False)
 
     if debug:
         plt.plot(wave_star.value, flux_true, color='k',lw=2,label='Reference Star')
@@ -354,7 +353,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
 
 def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, lower=2,
                  norder=7,resolution=2700., watervp = 1.0, trans_thresh=0.9,
-                 BALM_MASK_WID=50.,polycorrect=True, debug=False, show_QA=False):
+                 BALM_MASK_WID=50.,polycorrect=True, polysens=False,debug=False, show_QA=False):
     """
     Generate a sensitivity function based on observed flux and standard spectrum.
 
@@ -463,7 +462,7 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
     else:
         msgs.info('Your spectrum is bluer than 9100A, only optical telluric regions are masked.')
 
-    if (sum(msk_poly_sens) > 0.5 * len(msk_poly_sens)) & polycorrect:
+    if (((sum(msk_poly_sens) > 0.5 * len(msk_poly_sens)) & polycorrect) | (polysens)):
         # Polynomial fitting to derive a smooth sensfunc (i.e. without telluric)
         msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_obs[msk_poly_sens], magfunc[msk_poly_sens], norder,\
                                                         function='polynomial',invvar=None, guesses=None, maxiter=maxiter, \
@@ -471,18 +470,20 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
                                                         maxrej=None, groupdim=None,groupsize=None,groupbadpix=False, \
                                                         grow=0, sticky=True, use_mad=True)
         magfunc_poly = utils.func_val(poly_coeff, wave_obs, 'polynomial')
-        ## Only correct Hydrogen Recombination lines in the telluric free region
-        balmer_clean = np.zeros_like(wave_obs,dtype=bool)
-        lines_hydrogen = np.array([836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0, 6564.6,\
-                                   8224.8, 8239.2, 8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, 8667.4,\
-                                   8752.9, 8865.2, 9017.4, 9229.0, 10049.4,10938.1,12818.1, 21655.0])
-        for line_hydrogen in lines_hydrogen:
-            ihydrogen = np.abs(wave_obs - line_hydrogen) <= BALM_MASK_WID
-            balmer_clean[ihydrogen] = True
-
-        msk_clean = ((balmer_clean) | (magfunc==MAGFUNC_MAX) | (magfunc==MAGFUNC_MIN)) & \
-                    (magfunc_poly>MAGFUNC_MIN) & (magfunc_poly<MAGFUNC_MAX)
-        magfunc[msk_clean] = magfunc_poly[msk_clean]
+        if polysens:
+            magfunc = magfunc_poly.copy
+        else:
+            ## Only correct Hydrogen Recombination lines in the telluric free region
+            balmer_clean = np.zeros_like(wave_obs,dtype=bool)
+            lines_hydrogen = np.array([836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0, 6564.6,\
+                                       8224.8, 8239.2, 8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, 8667.4,\
+                                       8752.9, 8865.2, 9017.4, 9229.0, 10049.4,10938.1,12818.1, 21655.0])
+            for line_hydrogen in lines_hydrogen:
+                ihydrogen = np.abs(wave_obs - line_hydrogen) <= BALM_MASK_WID
+                balmer_clean[ihydrogen] = True
+            msk_clean = ((balmer_clean) | (magfunc==MAGFUNC_MAX) | (magfunc==MAGFUNC_MIN)) & \
+                        (magfunc_poly>MAGFUNC_MIN) & (magfunc_poly<MAGFUNC_MAX)
+            magfunc[msk_clean] = magfunc_poly[msk_clean]
     else:
         magfunc_poly = magfunc.copy()
         msgs.warn('It seems your spectrum is well within the telluric region, no corrections will be made on masked regions.')
