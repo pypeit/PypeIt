@@ -39,7 +39,7 @@ class FluxSpec(masterframe.MasterFrame):
       May be input instead of std_spec1d_file to generate the sensitivity function
     sci_spec1d_file : str
       Filename of a spec1d file to be fluxed
-    spectrograph : str
+    spectrograph : Spectrograph or str
       Name of the spectrograph, e.g. shane_kast_blue
       Used only to set settings for calls to the Class outside of PypeIt
       This includes extinction data..
@@ -540,8 +540,8 @@ class FluxSpec(masterframe.MasterFrame):
             specObjs = self.sci_specobjs
         else:
             msgs.error("BAD INPUT")
-        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph.camera,
-                                  outfile,
+        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph.pypeline,
+                                  self.spectrograph.camera, outfile,
                                   helio_dict=helio_dict,
                                   telescope=telescope, overwrite=True)
         # Step

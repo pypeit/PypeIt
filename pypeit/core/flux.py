@@ -378,7 +378,6 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     msk_all[msk_crazy] = False
     msk_sens[msk_crazy] = False
 
-    debug = True
     if (len(wave_star.value[msk_all]) < norder+1) or (len(wave_star.value[msk_all]) < 0.1*len(wave_star.value)):
         msgs.warn('It seems this order/spectrum well within the telluric region. No polynomial fit will be performed.')
     else:
