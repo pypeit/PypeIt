@@ -20,9 +20,7 @@ that one may need to consider when running PypeIt (see below).
 
 Underlying the effort is the TraceSlits class which can be
 used to load the Master frame output for tracing (a FITS and
-a JSON file). See the
-`TraceSlits.ipynb <https://github.com/pypeit/pypeit/blob/master/doc/nb/TraceSlits.ipynb>`_
-Notebook on GitHub in doc/nb/ for some usage examples.
+a JSON file).
 
 Algorithm
 =========
@@ -93,11 +91,45 @@ and lower/raise :ref:`trace-slit-threshold` accordingly.
 
 If your spectra span only a modest fraction (~50%) of the
 detector in the spectral direction, you may need to:
-(1) Reduce the value of :ref:`trace-slit-mask_frac_thresh
+(1) Reduce the value of :ref:`trace-slit-mask_frac_thresh`
 and maybe also:
 (2) Modify the range for smashing the Sobolev image
-     with of :ref:`trace-slit-smash_range`.
+with :ref:`trace-slit-smash_range`.
 
+Add User Slits
+++++++++++++++
+
+The code may be instructed to add slits at user-input
+locations.  The syntax is is a list of lists, with
+each sub-list having syntax (all integers):  det:x0:x1:yrow
+For example::
+
+    [calibrations]
+      [[slits]]
+        add_slits = 2:2121:2322:2000,3:1201:1500:2000
+
+The above will add one slit on detector 2 with left/right edge at
+2121/2322 at row 2000.  The shapes of the slit will be taken from
+the ones nearest.
+
+.. _trace-slit-rm:
+
+Remove Slits
+++++++++++++
+
+The code may be instructed to remove slits at user-input
+locations. The syntax is a list of lists,
+with each sub-list having syntax (all integers):  det:xcen:yrow
+For example::
+
+    [calibrations]
+      [[slits]]
+        rm_slits = 2:2121:2000,3:1500:2000
+
+This will remove any slit on det=2 that contains xcen=2121
+at yrow=2000 and similarly for the slit on det=3.
+
+.. _trace-slit-threshold:
 
 Echelle
 -------
@@ -167,40 +199,6 @@ for example).
 
 .. _trace-slit-add:
 
-Add User Slits
---------------
-
-The code may be instructed to add slits at user-input
-locations.  The syntax is is a list of lists, with
-each sub-list having syntax (all integers):  det:x0:x1:yrow
-For example::
-
-    [calibrations]
-      [[slits]]
-        add_slits = 2:2121:2322:2000,3:1201:1500:2000
-
-The above will add one slit on detector 2 with left/right edge at
-2121/2322 at row 2000.  The shapes of the slit will be taken from
-the ones nearest.
-
-.. _trace-slit-rm:
-
-Remove Slits
-------------
-
-The code may be instructed to remove slits at user-input
-locations. The syntax is a list of lists,
-with each sub-list having syntax (all integers):  det:xcen:yrow
-For example::
-
-    [calibrations]
-      [[slits]]
-        rm_slits = 2:2121:2000,3:1500:2000
-
-This will remove any slit on det=2 that contains xcen=2121
-at yrow=2000 and similarly for the slit on det=3.
-
-.. _trace-slit-threshold:
 
 Detection Threshold
 -------------------
@@ -267,6 +265,8 @@ case for low-dispersion data, e.g. LRISb 300 grism spectra
 
 Slit Profile
 ============
+
+DEPRECATED
 
 With relatively short slits (often the case with
 multiobject or echelle data), the sky background
