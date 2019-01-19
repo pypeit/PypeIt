@@ -615,7 +615,7 @@ class EchFluxSpec(masterframe.MasterFrame):
                  std_specobjs=None, std_header=None, spectrograph=None,
                  telluric=False, setup=None, master_dir=None, reuse_masters=False,
                  star_type=None, star_mag=None, BALM_MASK_WID=1.0, polycorrect=True,
-                 debug=False):
+                 polysens=False,debug=False):
 
         # Load standard files
         std_spectro = None

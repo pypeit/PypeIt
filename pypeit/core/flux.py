@@ -106,7 +106,7 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
                       star_mag=None, ra=None, dec=None, std_file = None, norder=4,
-                      BALM_MASK_WID=5., polycorrect=True, debug=False):
+                      BALM_MASK_WID=5., polycorrect=True, polysens=False, debug=False):
     """ Function to generate the sensitivity function.
     ToDo: remove nresln in this function
     This can work in different regimes:
@@ -316,9 +316,11 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
 
     # Apply mask to ivar
     ivar_star[~msk_star] = 0.0
-    sensfunc = get_sensfunc(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,maxiter=35,
+    sensfunc,sensfunc_poly = get_sensfunc(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,maxiter=35,
                             upper=2, lower=2, norder=7, resolution=2700., watervp=1.0, trans_thresh=0.9,
                             BALM_MASK_WID=BALM_MASK_WID, polycorrect= polycorrect, debug=debug, show_QA=False)
+    if polysens:
+        sensfunc = sensfunc_poly.copy()
 
     if debug:
         plt.plot(wave_star.value, flux_true, color='k',lw=2,label='Reference Star')
@@ -488,6 +490,7 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
 
     # Calculate sensfunc
     sensfunc = 10.0 ** (0.4 * magfunc)
+    sensfunc_poly = 10.0 ** (0.4 * magfunc_poly)
 
     if debug:
         plt.figure()
@@ -501,7 +504,7 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
         plt.show()
         plt.close()
 
-    return sensfunc
+    return sensfunc,sensfunc_poly
 
 def extinction_correction(wave, airmass, extinct):
     """
