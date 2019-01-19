@@ -311,7 +311,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         return self.slit2order(np.arange(self.norders))
 
 
-    def order_platescale(self, binning = None):
+    def order_platescale(self, binning=None):
 
 
         """
@@ -336,8 +336,18 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         return np.full(5, 0.15)
 
 
+    def wavegrid(self, binning=None):
 
+        # Define the grid for NIRES
+        R = 2700.0 * 2.7
+        dloglam = 1.0 / R / np.log(10.0)
+        logmin = np.log10(9500.0)
+        logmax = np.log10(26000)
+        ngrid = int(np.ceil((logmax - logmin) / dloglam))
+        osamp = 1.0
+        loglam_grid = logmin + (dloglam / osamp) * np.arange(int(np.ceil(osamp * ngrid)))
 
+        return np.power(10.0,loglam_grid)
 
 
 
