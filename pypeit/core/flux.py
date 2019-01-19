@@ -503,6 +503,373 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
 
     return sensfunc
 
+def extinction_correction(wave, airmass, extinct):
+    """
+    Derive extinction correction
+    Based on algorithm in LowRedux (long_extinct)
+
+    Parameters
+    ----------
+    wave : ndarray
+      Wavelengths for interpolation. Should be sorted
+      Assumes Angstroms
+    airmass : float
+      Airmass
+    extinct : Table
+      Table of extinction values
+
+    Returns
+    -------
+    flux_corr : ndarray
+      Flux corrections at the input wavelengths
+    """
+    # Checks
+    if airmass < 1.:
+        msgs.error("Bad airmass value in extinction_correction")
+    # Interpolate
+    f_mag_ext = scipy.interpolate.interp1d(extinct['wave'],
+                                           extinct['mag_ext'], bounds_error=False, fill_value=0.)
+    mag_ext = f_mag_ext(wave)#.to('AA').value)
+
+    # Deal with outside wavelengths
+    gdv = np.where(mag_ext > 0.)[0]
+    if len(gdv) == 0:
+        msgs.error(
+            "None of the input wavelengths are in the extinction correction range. Presumably something was wrong.")
+    if gdv[0] != 0:  # Low wavelengths
+        mag_ext[0:gdv[0]] = mag_ext[gdv[0]]
+        msgs.warn("Extrapolating at low wavelengths using last valid value")
+    if gdv[-1] != (mag_ext.size - 1):  # High wavelengths
+        mag_ext[gdv[-1] + 1:] = mag_ext[gdv[-1]]
+        msgs.warn("Extrapolating at high wavelengths using last valid value")
+    # Evaluate
+    flux_corr = 10.0 ** (0.4 * mag_ext * airmass)
+    # Return
+    return flux_corr
+
+
+def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
+    """
+    Find a match for the input file to one of the archived
+    standard star files (hopefully).  Priority is by order of search.
+
+    Args:
+        ra (str):
+            Object right-ascension in hh:mm:ss string format (e.g.,
+            '05:06:36.6').
+        dec (str):
+            Object declination in dd:mm:ss string format (e.g.,
+            52:52:01.0')
+        toler (:class:`astropy.units.quantity.Quantity`, optional):
+            Tolerance on matching archived standards to input.  Expected
+            to be in arcmin.
+        check (:obj:`bool`, optional):
+            If True, the routine will only check to see if a standard
+            star exists within the input ra, dec, and toler range.
+
+    Returns:
+        dict, bool: If check is True, return True or False depending on
+        if the object is matched to a library standard star.  If check
+        is False and no match is found, return None.  Otherwise, return
+        a dictionary with the matching standard star with the following
+        meta data::
+            - 'file': str -- Filename
+            - 'fmt': int -- Format flag 1=Calspec style FITS binary
+              table
+            - 'name': str -- Star name
+            - 'ra': str -- RA(J2000)
+            - 'dec': str -- DEC(J2000)
+    """
+    # Priority
+    std_sets = [load_calspec]
+    std_file_fmt = [1]  # 1=Calspec style FITS binary table
+
+    # SkyCoord
+    obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+    # Loop on standard sets
+    closest = dict(sep=999 * units.deg)
+    for qq, sset in enumerate(std_sets):
+        # Stars
+        path, star_tbl = sset()
+        star_coords = coordinates.SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'],
+                                           unit=(units.hourangle, units.deg))
+        # Match
+        idx, d2d, d3d = coordinates.match_coordinates_sky(obj_coord, star_coords, nthneighbor=1)
+        if d2d < toler:
+            if check:
+                return True
+            else:
+                # Generate a dict
+                _idx = int(idx)
+                #TODO: os.path.join here?
+                std_dict = dict(cal_file=path+star_tbl[_idx]['File'],
+                                name=star_tbl[_idx]['Name'], fmt=std_file_fmt[qq],
+                                std_ra=star_tbl[_idx]['RA_2000'],
+                                std_dec=star_tbl[_idx]['DEC_2000'])
+                # Return
+                msgs.info("Using standard star {:s}".format(std_dict['name']))
+                return std_dict
+        else:
+            # Save closest found so far
+            imind2d = np.argmin(d2d)
+            mind2d = d2d[imind2d]
+            if mind2d < closest['sep']:
+                closest['sep'] = mind2d
+                closest.update(dict(name=star_tbl[int(idx)]['Name'],
+                                    ra=star_tbl[int(idx)]['RA_2000'],
+                                    dec=star_tbl[int(idx)]['DEC_2000']))
+
+    # Standard star not found
+    if check:
+        return False
+
+    msgs.warn("No standard star was found within a tolerance of {:g}".format(toler))
+    msgs.info("Closest standard was {:s} at separation {:g}".format(closest['name'],
+                                                                    closest['sep'].to('arcmin')))
+    msgs.warn("Flux calibration will not be performed")
+    return None
+
+
+def load_calspec():
+    """
+    Load the list of calspec standards
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    calspec_path : str
+      Path from pypeitdir to calspec standard star files
+    calspec_stds : Table
+      astropy Table of the calspec standard stars (file, Name, RA, DEC)
+    """
+    # Read
+    calspec_path = '/data/standards/calspec/'
+    calspec_file = resource_filename('pypeit', calspec_path + 'calspec_info.txt')
+    calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
+    # Return
+    return calspec_path, calspec_stds
+
+
+def load_extinction_data(longitude, latitude, toler=5. * units.deg):
+    """
+    Find the best extinction file to use, based on longitude and latitude
+    Loads it and returns a Table
+
+    Parameters
+    ----------
+    toler : Angle, optional
+      Tolerance for matching detector to site (5 deg)
+
+    Returns
+    -------
+    ext_file : Table
+      astropy Table containing the 'wavelength', 'extinct' data for AM=1.
+    """
+    # Mosaic coord
+    mosaic_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
+    # Read list
+    extinct_path = resource_filename('pypeit', '/data/extinction/')
+    extinct_summ = extinct_path + 'README'
+    extinct_files = Table.read(extinct_summ, comment='#', format='ascii')
+    # Coords
+    ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
+                                     unit=units.deg)
+    # Match
+    idx, d2d, d3d = coordinates.match_coordinates_sky(mosaic_coord, ext_coord, nthneighbor=1)
+    if d2d < toler:
+        extinct_file = extinct_files[int(idx)]['File']
+        msgs.info("Using {:s} for extinction corrections.".format(extinct_file))
+    else:
+        msgs.warn("No file found for extinction corrections.  Applying none")
+        msgs.warn("You should generate a site-specific file")
+        return None
+    # Read
+    extinct = Table.read(extinct_path + extinct_file, comment='#', format='ascii',
+                         names=('iwave', 'mag_ext'))
+    wave = Column(np.array(extinct['iwave']) * units.AA, name='wave')
+    extinct.add_column(wave)
+    # Return
+    return extinct[['wave', 'mag_ext']]
+
+
+def load_standard_file(std_dict):
+    """Load standard star data
+
+    Parameters
+    ----------
+    std_dict : dict
+      Info on standard star indcluding filename in 'file'
+      May be compressed
+
+    Returns
+    -------
+    std_wave : Quantity array
+      Wavelengths of standard star array
+    std_flux : Quantity array
+      Flux of standard star
+    """
+    root = resource_filename('pypeit', std_dict['cal_file'] + '*')
+    fil = glob.glob(root)
+    if len(fil) == 0:
+        msgs.error("No standard star file: {:s}".format(fil))
+    else:
+        fil = fil[0]
+        msgs.info("Loading standard star file: {:s}".format(fil))
+        msgs.info("Fluxes are flambda, normalized to 1e-17")
+
+    if std_dict['fmt'] == 1:
+        std_spec = fits.open(fil)[1].data
+        # Load
+        std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
+        std_dict['flux'] = 1e17 * std_spec['FLUX'] * units.erg / units.s / units.cm ** 2 / units.AA
+    else:
+        msgs.error("Bad Standard Star Format")
+    return
+
+
+def find_standard(specobj_list):
+    """
+    Take the median boxcar and then the max object as the standard
+
+    Parameters
+    ----------
+    specobj_list : list
+
+    Returns
+    -------
+    mxix : int
+      Index of the standard star
+
+    """
+    # Repackage as necessary (some backwards compatability)
+    # Do it
+    medfx = []
+    for indx, spobj in enumerate(specobj_list):
+        if spobj is None:
+            medfx.append(0.)
+        else:
+            medfx.append(np.median(spobj.boxcar['COUNTS']))
+    try:
+        mxix = np.argmax(np.array(medfx))
+    except:
+        debugger.set_trace()
+    msgs.info("Putative standard star {} has a median boxcar count of {}".format(specobj_list[mxix],
+                                                                                 np.max(medfx)))
+    # Return
+    return mxix
+
+
+def telluric_params(sptype):
+    """Compute physical parameters for a given stellar type.
+    This is used by telluric_sed(V, sptype) to create the model spectrum.
+
+    Parameters:
+    ----------
+    sptype: str
+      Spectral type of telluric star
+
+    Returns:
+    ----------
+    tell_param: dict
+      Star parameters
+    """
+
+    # log(g) of the Sun
+    logg_sol = np.log10(6.67259e-8) + np.log10(1.989e33) - 2.0 * np.log10(6.96e10)
+
+    # Load Schmidt-Kaler (1982) table
+    sk82_file = resource_filename('pypeit', 'data/standards/kurucz93/schmidt-kaler_table.txt')
+    sk82_tab = ascii.read(sk82_file, names=('Sp', 'logTeff', 'Teff', '(B-V)_0', 'M_V', 'B.C.', 'M_bol', 'L/L_sol'))
+
+    # Match input type
+    mti = np.where(sptype == sk82_tab['Sp'])[0]
+    if len(mti) != 1:
+        raise ValueError('Not ready to interpolate yet.')
+
+    # Calculate final quantities
+    # Relation between radius, temp, and bolometric luminosity
+    logR = 0.2 * (42.26 - sk82_tab['M_bol'][mti[0]] - 10.0 * sk82_tab['logTeff'][mti[0]])
+
+    # Mass-bolometric luminosity relation from schimdt-kaler p28 valid for M_bol < 7.5
+    logM = 0.46 - 0.10 * sk82_tab['M_bol'][mti[0]]
+    logg = logM - 2.0 * logR + logg_sol
+    M_V = sk82_tab['M_V'][mti[0]]
+    tell_param = dict(logR=logR, logM=logM, logg=logg, M_V=M_V,
+                      T=sk82_tab['Teff'][mti[0]])
+
+    # Return
+    return tell_param
+
+
+def telluric_sed(V, sptype):
+    """Parse Kurucz SED given T and g
+    Also convert absolute/apparent magnitudes
+
+    Parameters:
+    ----------
+    V: float
+      Apparent magnitude of the telluric star
+    sptype: str
+      Spectral type of the telluric star
+
+    Returns:
+    ----------
+    loglam: ndarray
+      log wavelengths
+    flux: ndarray
+      SED f_lambda (cgs units, I think, probably per Ang)
+    """
+
+    # Grab telluric star parameters
+    tell_param = telluric_params(sptype)
+
+    # Flux factor (absolute/apparent V mag)
+
+    # Define constants
+    parsec = constants.pc.cgs  # 3.086e18
+    R_sol = constants.R_sun.cgs  # 6.96e10
+
+    # Distance modulus
+    logd = 0.2 * (V - tell_param['M_V']) + 1.0
+    D = parsec * 10. ** logd
+    R = R_sol * 10. ** tell_param['logR']
+
+    # Factor converts the kurucz surface flux densities to flux observed on Earth
+    flux_factor = (R / D.value) ** 2
+
+    # Grab closest T in Kurucz SEDs
+    T1 = 3000. + np.arange(28) * 250
+    T2 = 10000. + np.arange(6) * 500
+    T3 = 13000. + np.arange(22) * 1000
+    T4 = 35000. + np.arange(7) * 2500
+    Tk = np.concatenate([T1, T2, T3, T4])
+    indT = np.argmin(np.abs(Tk - tell_param['T']))
+
+    # Grab closest g in Kurucz SEDs
+    loggk = np.arange(11) * 0.5
+    indg = np.argmin(np.abs(loggk - tell_param['logg']))
+
+    # Grab Kurucz filename
+    std_file = resource_filename('pypeit', '/data/standards/kurucz93/kp00/kp00_{:d}.fits.gz'.format(int(Tk[indT])))
+    std = Table.read(std_file)
+
+    # Grab specific spectrum
+    loglam = np.array(np.log10(std['WAVELENGTH']))
+    gdict = {0: 'g00', 1: 'g05', 2: 'g10', 3: 'g15', 4: 'g20',
+             5: 'g25', 6: 'g30', 7: 'g35', 8: 'g40', 9: 'g45',
+             10: 'g50'}
+    flux = std[gdict[indg]]
+
+    # Generate the standard star dict
+    std_dict = dict(stellar_type=sptype, Vmag=V)
+
+    # Return
+    return loglam, flux.data * flux_factor, std_dict
+
+
+
 ## the following massive function is deprecated
 def generate_sensfunc_old(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
                       star_mag=None, ra=None, dec=None, std_file = None, BALM_MASK_WID=5., norder=4, nresln=None,debug=False):
@@ -1096,368 +1463,3 @@ def qa_bspline_magfit(wave, bset, magfunc, mask):
 
     plt.show()
     return
-
-def extinction_correction(wave, airmass, extinct):
-    """
-    Derive extinction correction
-    Based on algorithm in LowRedux (long_extinct)
-
-    Parameters
-    ----------
-    wave : ndarray
-      Wavelengths for interpolation. Should be sorted
-      Assumes Angstroms
-    airmass : float
-      Airmass
-    extinct : Table
-      Table of extinction values
-
-    Returns
-    -------
-    flux_corr : ndarray
-      Flux corrections at the input wavelengths
-    """
-    # Checks
-    if airmass < 1.:
-        msgs.error("Bad airmass value in extinction_correction")
-    # Interpolate
-    f_mag_ext = scipy.interpolate.interp1d(extinct['wave'],
-                                           extinct['mag_ext'], bounds_error=False, fill_value=0.)
-    mag_ext = f_mag_ext(wave)#.to('AA').value)
-
-    # Deal with outside wavelengths
-    gdv = np.where(mag_ext > 0.)[0]
-    if len(gdv) == 0:
-        msgs.error(
-            "None of the input wavelengths are in the extinction correction range. Presumably something was wrong.")
-    if gdv[0] != 0:  # Low wavelengths
-        mag_ext[0:gdv[0]] = mag_ext[gdv[0]]
-        msgs.warn("Extrapolating at low wavelengths using last valid value")
-    if gdv[-1] != (mag_ext.size - 1):  # High wavelengths
-        mag_ext[gdv[-1] + 1:] = mag_ext[gdv[-1]]
-        msgs.warn("Extrapolating at high wavelengths using last valid value")
-    # Evaluate
-    flux_corr = 10.0 ** (0.4 * mag_ext * airmass)
-    # Return
-    return flux_corr
-
-
-def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
-    """
-    Find a match for the input file to one of the archived
-    standard star files (hopefully).  Priority is by order of search.
-
-    Args:
-        ra (str):
-            Object right-ascension in hh:mm:ss string format (e.g.,
-            '05:06:36.6').
-        dec (str):
-            Object declination in dd:mm:ss string format (e.g.,
-            52:52:01.0')
-        toler (:class:`astropy.units.quantity.Quantity`, optional):
-            Tolerance on matching archived standards to input.  Expected
-            to be in arcmin.
-        check (:obj:`bool`, optional):
-            If True, the routine will only check to see if a standard
-            star exists within the input ra, dec, and toler range.
-
-    Returns:
-        dict, bool: If check is True, return True or False depending on
-        if the object is matched to a library standard star.  If check
-        is False and no match is found, return None.  Otherwise, return
-        a dictionary with the matching standard star with the following
-        meta data::
-            - 'file': str -- Filename
-            - 'fmt': int -- Format flag 1=Calspec style FITS binary
-              table
-            - 'name': str -- Star name
-            - 'ra': str -- RA(J2000)
-            - 'dec': str -- DEC(J2000)
-    """
-    # Priority
-    std_sets = [load_calspec]
-    std_file_fmt = [1]  # 1=Calspec style FITS binary table
-
-    # SkyCoord
-    obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
-    # Loop on standard sets
-    closest = dict(sep=999 * units.deg)
-    for qq, sset in enumerate(std_sets):
-        # Stars
-        path, star_tbl = sset()
-        star_coords = coordinates.SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'],
-                                           unit=(units.hourangle, units.deg))
-        # Match
-        idx, d2d, d3d = coordinates.match_coordinates_sky(obj_coord, star_coords, nthneighbor=1)
-        if d2d < toler:
-            if check:
-                return True
-            else:
-                # Generate a dict
-                _idx = int(idx)
-                #TODO: os.path.join here?
-                std_dict = dict(cal_file=path+star_tbl[_idx]['File'],
-                                name=star_tbl[_idx]['Name'], fmt=std_file_fmt[qq],
-                                std_ra=star_tbl[_idx]['RA_2000'],
-                                std_dec=star_tbl[_idx]['DEC_2000'])
-                # Return
-                msgs.info("Using standard star {:s}".format(std_dict['name']))
-                return std_dict
-        else:
-            # Save closest found so far
-            imind2d = np.argmin(d2d)
-            mind2d = d2d[imind2d]
-            if mind2d < closest['sep']:
-                closest['sep'] = mind2d
-                closest.update(dict(name=star_tbl[int(idx)]['Name'],
-                                    ra=star_tbl[int(idx)]['RA_2000'],
-                                    dec=star_tbl[int(idx)]['DEC_2000']))
-
-    # Standard star not found
-    if check:
-        return False
-
-    msgs.warn("No standard star was found within a tolerance of {:g}".format(toler))
-    msgs.info("Closest standard was {:s} at separation {:g}".format(closest['name'],
-                                                                    closest['sep'].to('arcmin')))
-    msgs.warn("Flux calibration will not be performed")
-    return None
-
-
-def load_calspec():
-    """
-    Load the list of calspec standards
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    calspec_path : str
-      Path from pypeitdir to calspec standard star files
-    calspec_stds : Table
-      astropy Table of the calspec standard stars (file, Name, RA, DEC)
-    """
-    # Read
-    calspec_path = '/data/standards/calspec/'
-    calspec_file = resource_filename('pypeit', calspec_path + 'calspec_info.txt')
-    calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
-    # Return
-    return calspec_path, calspec_stds
-
-
-def load_extinction_data(longitude, latitude, toler=5. * units.deg):
-    """
-    Find the best extinction file to use, based on longitude and latitude
-    Loads it and returns a Table
-
-    Parameters
-    ----------
-    toler : Angle, optional
-      Tolerance for matching detector to site (5 deg)
-
-    Returns
-    -------
-    ext_file : Table
-      astropy Table containing the 'wavelength', 'extinct' data for AM=1.
-    """
-    # Mosaic coord
-    mosaic_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
-    # Read list
-    extinct_path = resource_filename('pypeit', '/data/extinction/')
-    extinct_summ = extinct_path + 'README'
-    extinct_files = Table.read(extinct_summ, comment='#', format='ascii')
-    # Coords
-    ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
-                                     unit=units.deg)
-    # Match
-    idx, d2d, d3d = coordinates.match_coordinates_sky(mosaic_coord, ext_coord, nthneighbor=1)
-    if d2d < toler:
-        extinct_file = extinct_files[int(idx)]['File']
-        msgs.info("Using {:s} for extinction corrections.".format(extinct_file))
-    else:
-        msgs.warn("No file found for extinction corrections.  Applying none")
-        msgs.warn("You should generate a site-specific file")
-        return None
-    # Read
-    extinct = Table.read(extinct_path + extinct_file, comment='#', format='ascii',
-                         names=('iwave', 'mag_ext'))
-    wave = Column(np.array(extinct['iwave']) * units.AA, name='wave')
-    extinct.add_column(wave)
-    # Return
-    return extinct[['wave', 'mag_ext']]
-
-
-def load_standard_file(std_dict):
-    """Load standard star data
-
-    Parameters
-    ----------
-    std_dict : dict
-      Info on standard star indcluding filename in 'file'
-      May be compressed
-
-    Returns
-    -------
-    std_wave : Quantity array
-      Wavelengths of standard star array
-    std_flux : Quantity array
-      Flux of standard star
-    """
-    root = resource_filename('pypeit', std_dict['cal_file'] + '*')
-    fil = glob.glob(root)
-    if len(fil) == 0:
-        msgs.error("No standard star file: {:s}".format(fil))
-    else:
-        fil = fil[0]
-        msgs.info("Loading standard star file: {:s}".format(fil))
-        msgs.info("Fluxes are flambda, normalized to 1e-17")
-
-    if std_dict['fmt'] == 1:
-        std_spec = fits.open(fil)[1].data
-        # Load
-        std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
-        std_dict['flux'] = 1e17 * std_spec['FLUX'] * units.erg / units.s / units.cm ** 2 / units.AA
-    else:
-        msgs.error("Bad Standard Star Format")
-    return
-
-
-def find_standard(specobj_list):
-    """
-    Take the median boxcar and then the max object as the standard
-
-    Parameters
-    ----------
-    specobj_list : list
-
-    Returns
-    -------
-    mxix : int
-      Index of the standard star
-
-    """
-    # Repackage as necessary (some backwards compatability)
-    # Do it
-    medfx = []
-    for indx, spobj in enumerate(specobj_list):
-        if spobj is None:
-            medfx.append(0.)
-        else:
-            medfx.append(np.median(spobj.boxcar['COUNTS']))
-    try:
-        mxix = np.argmax(np.array(medfx))
-    except:
-        debugger.set_trace()
-    msgs.info("Putative standard star {} has a median boxcar count of {}".format(specobj_list[mxix],
-                                                                                 np.max(medfx)))
-    # Return
-    return mxix
-
-
-def telluric_params(sptype):
-    """Compute physical parameters for a given stellar type.
-    This is used by telluric_sed(V, sptype) to create the model spectrum.
-
-    Parameters:
-    ----------
-    sptype: str
-      Spectral type of telluric star
-
-    Returns:
-    ----------
-    tell_param: dict
-      Star parameters
-    """
-
-    # log(g) of the Sun
-    logg_sol = np.log10(6.67259e-8) + np.log10(1.989e33) - 2.0 * np.log10(6.96e10)
-
-    # Load Schmidt-Kaler (1982) table
-    sk82_file = resource_filename('pypeit', 'data/standards/kurucz93/schmidt-kaler_table.txt')
-    sk82_tab = ascii.read(sk82_file, names=('Sp', 'logTeff', 'Teff', '(B-V)_0', 'M_V', 'B.C.', 'M_bol', 'L/L_sol'))
-
-    # Match input type
-    mti = np.where(sptype == sk82_tab['Sp'])[0]
-    if len(mti) != 1:
-        raise ValueError('Not ready to interpolate yet.')
-
-    # Calculate final quantities
-    # Relation between radius, temp, and bolometric luminosity
-    logR = 0.2 * (42.26 - sk82_tab['M_bol'][mti[0]] - 10.0 * sk82_tab['logTeff'][mti[0]])
-
-    # Mass-bolometric luminosity relation from schimdt-kaler p28 valid for M_bol < 7.5
-    logM = 0.46 - 0.10 * sk82_tab['M_bol'][mti[0]]
-    logg = logM - 2.0 * logR + logg_sol
-    M_V = sk82_tab['M_V'][mti[0]]
-    tell_param = dict(logR=logR, logM=logM, logg=logg, M_V=M_V,
-                      T=sk82_tab['Teff'][mti[0]])
-
-    # Return
-    return tell_param
-
-
-def telluric_sed(V, sptype):
-    """Parse Kurucz SED given T and g
-    Also convert absolute/apparent magnitudes
-
-    Parameters:
-    ----------
-    V: float
-      Apparent magnitude of the telluric star
-    sptype: str
-      Spectral type of the telluric star
-
-    Returns:
-    ----------
-    loglam: ndarray
-      log wavelengths
-    flux: ndarray
-      SED f_lambda (cgs units, I think, probably per Ang)
-    """
-
-    # Grab telluric star parameters
-    tell_param = telluric_params(sptype)
-
-    # Flux factor (absolute/apparent V mag)
-
-    # Define constants
-    parsec = constants.pc.cgs  # 3.086e18
-    R_sol = constants.R_sun.cgs  # 6.96e10
-
-    # Distance modulus
-    logd = 0.2 * (V - tell_param['M_V']) + 1.0
-    D = parsec * 10. ** logd
-    R = R_sol * 10. ** tell_param['logR']
-
-    # Factor converts the kurucz surface flux densities to flux observed on Earth
-    flux_factor = (R / D.value) ** 2
-
-    # Grab closest T in Kurucz SEDs
-    T1 = 3000. + np.arange(28) * 250
-    T2 = 10000. + np.arange(6) * 500
-    T3 = 13000. + np.arange(22) * 1000
-    T4 = 35000. + np.arange(7) * 2500
-    Tk = np.concatenate([T1, T2, T3, T4])
-    indT = np.argmin(np.abs(Tk - tell_param['T']))
-
-    # Grab closest g in Kurucz SEDs
-    loggk = np.arange(11) * 0.5
-    indg = np.argmin(np.abs(loggk - tell_param['logg']))
-
-    # Grab Kurucz filename
-    std_file = resource_filename('pypeit', '/data/standards/kurucz93/kp00/kp00_{:d}.fits.gz'.format(int(Tk[indT])))
-    std = Table.read(std_file)
-
-    # Grab specific spectrum
-    loglam = np.array(np.log10(std['WAVELENGTH']))
-    gdict = {0: 'g00', 1: 'g05', 2: 'g10', 3: 'g15', 4: 'g20',
-             5: 'g25', 6: 'g30', 7: 'g35', 8: 'g40', 9: 'g45',
-             10: 'g50'}
-    flux = std[gdict[indg]]
-
-    # Generate the standard star dict
-    std_dict = dict(stellar_type=sptype, Vmag=V)
-
-    # Return
-    return loglam, flux.data * flux_factor, std_dict
