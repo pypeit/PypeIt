@@ -614,7 +614,8 @@ class EchFluxSpec(masterframe.MasterFrame):
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
                  std_specobjs=None, std_header=None, spectrograph=None,
                  telluric=False, setup=None, master_dir=None, reuse_masters=False,
-                 star_type=None, star_mag=None, BALM_MASK_WID=60.0, nresln=None, debug=False):
+                 star_type=None, star_mag=None, BALM_MASK_WID=1.0, polycorrect=True,
+                 debug=False):
 
         # Load standard files
         std_spectro = None
@@ -705,7 +706,8 @@ class EchFluxSpec(masterframe.MasterFrame):
         self.star_type = star_type
         self.star_mag = star_mag
         self.BALM_MASK_WID = BALM_MASK_WID
-        self.nresln = nresln
+        self.polycorrect = polycorrect
+        #self.nresln = nresln
         self.debug = debug
 
     def load_master(self, filename, force=False):
@@ -845,8 +847,8 @@ class EchFluxSpec(masterframe.MasterFrame):
             sens_dict_iord = flux.generate_sensfunc(wave, counts, ivar, std_header['AIRMASS'], std_header['EXPTIME'],
                                                     self.spectrograph, star_type=self.star_type, star_mag=self.star_mag,
                                                     telluric=self.telluric, ra=self.std_ra, dec=self.std_dec,
-                                                    BALM_MASK_WID=self.BALM_MASK_WID,
-                                                    nresln=self.nresln, std_file=self.std_file, debug=self.debug)
+                                                    BALM_MASK_WID=self.BALM_MASK_WID,std_file=self.std_file,
+                                                    polycorrect=self.polycorrect, debug=self.debug)
             sens_dict_iord['ech_orderindx'] = iord
             self.sens_dict[str(iord)] = sens_dict_iord
         self.sens_dict['norder'] = norder
