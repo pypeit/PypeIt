@@ -106,7 +106,7 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
                       star_mag=None, ra=None, dec=None, std_file = None, norder=4,
-                      BALM_MASK_WID=5., polycorrect=True, debug=False , nresln=None):
+                      BALM_MASK_WID=5., polycorrect=True, debug=False):
     """ Function to generate the sensitivity function.
     ToDo: remove nresln in this function
     This can work in different regimes:
@@ -308,14 +308,11 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     atms_cutoff = wave_star <= 3000.0 * units.AA
     msk_star[atms_cutoff] = False
 
-    plt.plot(wave_star.value, flux_true, color='k', lw=2, label='Reference Star')
-    plt.plot(wave_star.value, flux_star, color='c', lw=2, label='Observed Star')
-    plt.plot(wave_star.value[~msk_star], flux_star[~msk_star], 'bo', lw=2, label='Balmer')
-    plt.plot(wave_star.value[~msk_bad], flux_star[~msk_bad], 'r+', lw=2, label='Bad Pixel')
-    plt.show()
-    from IPython import embed
-    embed()
-
+    #plt.plot(wave_star.value, flux_true, color='k', lw=2, label='Reference Star')
+    #plt.plot(wave_star.value, flux_star, color='c', lw=2, label='Observed Star')
+    #plt.plot(wave_star.value[~msk_star], flux_star[~msk_star], 'bo', lw=2, label='Balmer')
+    #plt.plot(wave_star.value[~msk_bad], flux_star[~msk_bad], 'r+', lw=2, label='Bad Pixel')
+    #plt.show()
 
     # Apply mask to ivar
     ivar_star[~msk_star] = 0.0

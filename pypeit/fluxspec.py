@@ -707,7 +707,6 @@ class EchFluxSpec(masterframe.MasterFrame):
         self.star_mag = star_mag
         self.BALM_MASK_WID = BALM_MASK_WID
         self.polycorrect = polycorrect
-        #self.nresln = nresln
         self.debug = debug
 
     def load_master(self, filename, force=False):
