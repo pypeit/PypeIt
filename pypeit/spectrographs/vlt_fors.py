@@ -90,7 +90,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         meta['exptime'] = dict(ext=0, card='EXPTIME')
         meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
         #
-        meta['decker'] = dict(ext=0, card='HIERARCH ESO INS SLIT NAME', required_ftypes=['science', 'standard'])
+        meta['decker'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])
         # Extras for config and frametyping
         meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 NAME', required_ftypes=['science', 'standard'])
         meta['dispangle'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 WLEN', rtol=2.0, required_ftypes=['science', 'standard'])
@@ -115,6 +115,15 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
                 return coord.ra.to_string(unit=units.hour,sep=':',pad=True,precision=2)
             else:
                 return coord.dec.to_string(sep=':',pad=True,alwayssign=True,precision=1)
+        elif meta_key == 'decker':
+            try:  # Science
+                decker = headarr[0]['HIERARCH ESO INS SLIT NAME']
+            except KeyError:  # Standard!
+                try:
+                    decker = headarr[0]['HIERARCH ESO SEQ SPEC TARG']
+                except KeyError:
+                    return None
+            return decker
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -133,7 +142,8 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
                                 | (fitstbl['target'] == 'STD,TELLURIC')
                                 | (fitstbl['target'] == 'STD,SKY'))
         if ftype == 'standard':
-            return good_exp & (fitstbl['target'] == 'STD,FLUX')
+            return good_exp & ((fitstbl['target'] == 'STD,FLUX')
+                               | (fitstbl['target'] == 'STD'))
         if ftype == 'bias':
             return good_exp & (fitstbl['target'] == 'BIAS')
         if ftype == 'dark':
@@ -236,25 +246,6 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
     def configuration_keys(self):
         #return ['dispname', 'dispangle', 'decker', 'detector']
         return ['dispname', 'dispangle', 'decker', 'detector']
-
-    def compound_meta(self, headarr, meta_key):
-        if meta_key == 'binning':
-            binspatial = headarr[0]['HIERARCH ESO DET WIN1 BINX']
-            binspec = headarr[0]['HIERARCH ESO DET WIN1 BINY']
-            binning = parse.binning2string(binspatial, binspec)
-            return binning
-        elif meta_key in ['ra', 'dec']:
-            try:  # Calibs do not have RA values
-                coord = SkyCoord(ra=headarr[0]['RA'], dec=headarr[0]['DEC'], unit='deg')
-            except:
-                return None
-            if meta_key == 'ra':
-                return coord.ra.to_string(unit=units.hour,sep=':',pad=True,precision=2)
-            else:
-                return coord.dec.to_string(sep=':',pad=True,alwayssign=True,precision=1)
-        else:
-            msgs.error("Not ready for this compound meta")
-
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """

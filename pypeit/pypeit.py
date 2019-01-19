@@ -357,7 +357,7 @@ class PypeIt(object):
             maskslits: ndarray
 
         Returns:
-
+            Spectra are modified in place (wavelengths are shifted)
         """
 
         if self.par['flexure']['method'] != 'skip':
@@ -527,7 +527,7 @@ class PypeIt(object):
             msgs.warn(msgs_string)
             # set to first pass global sky
             skymodel = self.initial_sky
-            objmodel = np.zeros_like(sciimg)
+            objmodel = np.zeros_like(self.sciimg)
             # Set to sciivar. Could create a model but what is the point?
             ivarmodel = np.copy(self.sciivar)
             # Set to inmask in case on objects were found

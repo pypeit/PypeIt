@@ -248,7 +248,6 @@ class FluxSpec(masterframe.MasterFrame):
         # extinction_corr = flux.extinction_correction(self.std.boxcar['WAVE'],
         #                                              self.std_header['AIRMASS'],
         #                                              self.extinction_data)
-
         self.sens_dict = flux.generate_sensfunc(self.std.boxcar['WAVE'],
                                                self.std.boxcar['COUNTS'],
                                                self.std.boxcar['COUNTS_IVAR'],
@@ -499,15 +498,15 @@ class FluxSpec(masterframe.MasterFrame):
         """
         Plot the sensitivity function
         """
-        if self.sensfunc is None:
-            msgs.warn("You need to generate the sensfunc first!")
+        if self.sens_dict is None:
+            msgs.warn("You need to generate the sens_dict first!")
             return None
         # Generate from model
-        wave = np.linspace(self.sensfunc['wave_min'], self.sensfunc['wave_max'], 1000)
-        mag_func = utils.func_val(self.sensfunc['c'], wave, self.sensfunc['func'])
-        sens = 10.0**(0.4*mag_func)
+        #wave = np.linspace(self.sens_dict['wave_min'], self.sens_dict['wave_max'], 1000)
+        #mag_func = utils.func_val(self.sens_dict['c'], wave, self.sens_dict['func'])
+        #sens = 10.0**(0.4*mag_func)
         # Plot
-        debugger.plot1d(wave, sens, xlbl='Wavelength', ylbl='Sensitivity Function')
+        debugger.plot1d(self.sens_dict['wave'], self.sens_dict['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
 
     def write_science(self, outfile):
         """

@@ -174,22 +174,14 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     if not isinstance(wave_star, units.Quantity):
         wave_star = wave_star * units.AA
 
-    # ToDo
-    # This should be changed. At the moment the extinction correction procedure
-    # requires the spectra to be in the optical. For the NIR is probably enough
-    # to extend the tables to longer wavelength setting the extinction to 0.0mag.
-    msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
-    # Apply Extinction if optical bands
-    if np.max(wave_star) < 10000. * units.AA:
-        msgs.info("Applying extinction correction")
-        extinct = load_extinction_data(spectrograph.telescope['longitude'],
-                                       spectrograph.telescope['latitude'])
-        ext_corr = extinction_correction(wave_star, airmass, extinct)
-        # Correct for extinction
-        flux_star = flux_star * ext_corr
-        ivar_star = ivar_star / ext_corr ** 2
-    else:
-        msgs.info("Extinction correction not applied")
+    # Extinction correction
+    msgs.info("Applying extinction correction")
+    extinct = load_extinction_data(spectrograph.telescope['longitude'],
+                                   spectrograph.telescope['latitude'])
+    ext_corr = extinction_correction(wave_star, airmass, extinct)
+    # Correct for extinction
+    flux_star = flux_star * ext_corr
+    ivar_star = ivar_star / ext_corr ** 2
 
     # Create star model
     if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
@@ -386,6 +378,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     msk_all[msk_crazy] = False
     msk_sens[msk_crazy] = False
 
+    debug = True
     if (len(wave_star.value[msk_all]) < norder+1) or (len(wave_star.value[msk_all]) < 0.1*len(wave_star.value)):
         msgs.warn('It seems this order/spectrum well within the telluric region. No polynomial fit will be performed.')
     else:
