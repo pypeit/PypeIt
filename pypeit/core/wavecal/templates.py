@@ -281,15 +281,6 @@ def main(flg):
         wfile = os.path.join(template_path, 'Keck_LRIS', 'R1200_9000', 'MasterWaveCalib_A_1_02.json')
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
-    # Shane Kastr
-    if flg & (2**12):  # 600_7500
-        binspec = 1
-        slits = [0,3]
-        lcut = [4550.]
-        xidl_file = os.path.join(template_path, 'Shane_Kast', '600_7500', 'kast_600_7500.sav')
-        outroot = 'shane_kast_red_600_7500.fits'
-        build_template(xidl_file, slits, lcut, binspec, outroot, lowredux=True)
-
 
 # Command line execution
 if __name__ == '__main__':
@@ -302,9 +293,9 @@ if __name__ == '__main__':
     #flg += 2**3  # LRISb 1200, all lamps?
 
     # Shane/Kastb
-    #flg += 2**4  # Kastb 452/3306
+    #flg += 2**4  # Kastb 452/3306 -- Not yet tested
     #flg += 2**5  # Kastb 600/4310
-    #flg += 2**6  # Kastb 830/3460
+    #flg += 2**6  # Kastb 830/3460 -- Not yet tested
 
     # Keck/DEIMOS
     #flg += 2**7  # 600
@@ -316,6 +307,7 @@ if __name__ == '__main__':
     #flg += 2**11  # R1200
 
     # Shane/Kastr
+    #  Need several arcs to proceed this way
 
     main(flg)
 

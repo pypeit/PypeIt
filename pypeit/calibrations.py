@@ -685,13 +685,13 @@ class Calibrations(object):
             self.maskslits += self.wv_maskslits
             return self.wv_calib, self.maskslits
 
-        # Setup
-        nonlinear = self.spectrograph.detector[self.det-1]['saturation'] \
-                        * self.spectrograph.detector[self.det-1]['nonlinear']
-        # Instantiate
+        # Grab arc binning (may be different from science!)
         arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
         self.arc_files = self.fitstbl.frame_paths(arc_rows)
-        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, binning=self.binning,
+        binspat, binspec = parse.parse_binning(self.spectrograph.get_meta_value(
+            self.arc_files[0], 'binning'))
+        # Instantiate
+        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, binspectral=binspec,
                                              spectrograph=self.spectrograph,det=self.det,
                                              par=self.par['wavelengths'], master_key=self.arc_master_key,
                                              master_dir=self.master_dir,

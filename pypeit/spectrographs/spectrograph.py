@@ -533,7 +533,6 @@ class Spectrograph(object):
             try:
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
             except (KeyError, TypeError):
-                debugger.set_trace()
                 value = None
 
         if value is None:

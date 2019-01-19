@@ -80,6 +80,9 @@ takes the sampling set by the wavelength tilts into account.
 - Introduced routines into core.procimg that will be used in 2-d co-adding.
 - Tweaks to VLT X-SHOOTER spectrograph class to improve reductions.
 - Moved methods for imaging processing from scienceimage class to processimages class.
+- Introduce full_template() method for multi-slit wavelength calibrations; includes nsnippet parameter
+- Generate full template files for LRIS, DEIMOS, Kastb
+- Added a few new Arc lines for DEIMOS in the blue
 
 0.9.0
 -----
