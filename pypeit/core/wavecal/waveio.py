@@ -24,6 +24,20 @@ reid_arxiv_path = resource_filename('pypeit','/data/arc_lines/reid_arxiv/')
 
 
 def load_template(arxiv_file, det):
+    """
+    Load a full template file from disk
+
+    Args:
+        arxiv_file: str
+        det: int
+
+    Returns:
+        wave: ndarray
+        flux: ndarray
+        binning: int
+          Of the template arc spectrum
+
+    """
     # Path already included?
     if os.path.basename(arxiv_file) == arxiv_file:
         calibfile = os.path.join(reid_arxiv_path, arxiv_file)

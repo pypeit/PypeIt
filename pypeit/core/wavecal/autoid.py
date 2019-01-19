@@ -605,9 +605,16 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
-def full_template(spec, par, ok_mask, det, nsnippet=2, debug_xcorr=False, x_percentile=50.):
+def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=False,
+                  x_percentile=50.):
     """
     Method of wavelength calibration using a single, comprehensive template spectrum
+
+    The steps are:
+      1. Load the template and rebin, as necessary
+      2. Cross-correlate input spectrum and template to find the shift between the two
+      3. Loop on snippets of the input spectrum to ID lines using reidentify()
+      4. Fit with fitting.iterative_fitting()
 
     Args:
         spec: ndarray (nspec, nslit)
@@ -618,6 +625,14 @@ def full_template(spec, par, ok_mask, det, nsnippet=2, debug_xcorr=False, x_perc
           Mask of indices of good slits
         det: int
           Detector index
+        binspectral: int
+          Binning of the input arc in the spectral dimension
+        nsnippet: int, optional
+          Number of snippets to chop the input spectrum into when ID'ing lines
+          This deals with differences due to non-linearity between the template
+          and input spectrum.
+        x_percentile: float, optional
+          Passed to reidentify to reduce the dynamic range of arc line amplitudes
 
     Returns:
         wvcalib: dict
@@ -628,20 +643,20 @@ def full_template(spec, par, ok_mask, det, nsnippet=2, debug_xcorr=False, x_perc
     if 'ThAr' in par['lamps']:
         line_lists_all = waveio.load_line_lists(par['lamps'])
         line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-        unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
     else:
         line_lists = waveio.load_line_lists(par['lamps'])
 
     # Load template
     temp_wv, temp_spec, temp_bin = waveio.load_template(par['reid_arxiv'], det)
 
-    # DEBUGGING
-    #ntemp_full = temp_wv.size
-    #temp_wv = temp_wv[ntemp_full//2:]
-    #temp_spec = temp_spec[ntemp_full//2:]
+    # Deal with binning (not yet tested)
+    if binspectral != temp_bin:
+        msgs.info("Resizing the template due to different binning.")
+        new_npix = int(temp_wv.size * temp_bin / binspectral)
+        temp_wv = arc.resize_spec(temp_wv, new_npix)
+        temp_spec = arc.resize_spec(temp_spec, new_npix)
 
-    # TODO -- Need to deal with binning here by resampling the template
-
+    # Dimensions
     if spec.ndim == 2:
         nspec, nslits = spec.shape
     elif spec.ndim == 1:
@@ -660,10 +675,6 @@ def full_template(spec, par, ok_mask, det, nsnippet=2, debug_xcorr=False, x_perc
         ispec = spec[:,slit]
 
         # Find the shift
-        #if slit == 22:
-        #    debug_xcorr = True
-        #else:
-        #    debug_xcorr = False
         npad, shift_cc = get_template_shift(ispec, temp_spec, debug=debug_xcorr, percent_ceil=x_percentile)
         i0 = npad // 2 + int(shift_cc)
 
@@ -700,8 +711,6 @@ def full_template(spec, par, ok_mask, det, nsnippet=2, debug_xcorr=False, x_perc
             try:
                 sv_IDs.append(patt_dict['IDs'])
             except KeyError:
-                #debugger.plot1d(tsnippet, xtwo=np.arange(tsnippet.size), ytwo=msnippet)
-                #debugger.set_trace()
                 msgs.warn("Barfed in reidentify..")
                 sv_IDs.append(np.zeros_like(detections))
             else:

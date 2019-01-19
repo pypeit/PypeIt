@@ -264,6 +264,24 @@ def main(flg):
         build_template([wfile1,wfile2], slits, lcut, binspec, outroot, lowredux=False,
                        ifiles=ifiles, det_cut=det_cut, chk=True)
 
+    # Keck/LRISr
+    if flg & (2**10): # R400
+        binspec = 2
+        outroot='keck_lris_red_400.fits'
+        slits = [7]  # Quite blue, but not the bluest
+        lcut = []
+        wfile = os.path.join(template_path, 'Keck_LRIS', 'R400', 'MasterWaveCalib_A_1_01.json')
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
+
+    if flg & (2**11):  # R1200
+        binspec = 1
+        outroot='keck_lris_red_1200_9000.fits'
+        slits = [3]  # 7726 -- 9294
+        lcut = []
+        wfile = os.path.join(template_path, 'Keck_LRIS', 'R1200_9000', 'MasterWaveCalib_A_1_02.json')
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
+
+
 # Command line execution
 if __name__ == '__main__':
     flg = 0
@@ -275,17 +293,21 @@ if __name__ == '__main__':
     #flg += 2**3  # LRISb 1200, all lamps?
 
     # Shane/Kastb
-    #flg += 2**4  # Kastb 452/3306
+    #flg += 2**4  # Kastb 452/3306 -- Not yet tested
     #flg += 2**5  # Kastb 600/4310
-    #flg += 2**6  # Kastb 830/3460
+    #flg += 2**6  # Kastb 830/3460 -- Not yet tested
 
     # Keck/DEIMOS
     #flg += 2**7  # 600
     #flg += 2**8  # 830G
-    flg += 2**9  # 1200
+    #flg += 2**9  # 1200
 
     # Keck/LRISr
-    #flg += 2**10 # R400
+    #flg += 2**10  # R400
+    #flg += 2**11  # R1200
+
+    # Shane/Kastr
+    #  Need several arcs to proceed this way
 
     main(flg)
 

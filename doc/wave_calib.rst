@@ -29,8 +29,25 @@ The code is guided by the WaveCalib class, partially described
 by this `WaveCalib.ipynb <https://github.com/pypeit/pypeit/blob/master/doc/nb/WaveCalib.ipynb>`_
 Notebook.
 
-Items to Modify
-===============
+Common Failure Modes
+====================
+
+Most of the failures should only be in MultiSlit mode
+or if the calibrations for Echelle are considerably
+different from expectation.
+
+As regards Multislit, the standard failure modes of
+the :ref:`full-template` method that is now preferred
+are:
+
+ 1. The lamps used are substantially different from those archived.
+ 2. The slit spans much bluer/redder than the archived template.
+
+In either case, a new template may need to be generated.
+If you are confident this is the case, raise an Issue.
+
+Possible Items to Modify
+========================
 
 FWHM
 ----
@@ -40,9 +57,13 @@ expected knowledge of their FWHM (future versions
 should solve for this).  A fiducial value for a
 standard slit is assume for each instrument but
 if you are using particularly narrow/wide slits
-than you may need to modify
-['calibrations']['wavelengths']['fwhm']
-in your PypeIt file
+than you may need to modify::
+
+    [calibrations]
+      [[wavelengths]]
+        fwhm=X.X
+
+in your PypeIt file.
 
 Line Lists
 ==========
@@ -136,25 +157,51 @@ More details are provided in :doc:`heliocorr`.
 Developers
 ==========
 
-Arc Line Templates
-------------------
+.. _full-template:
 
-The preferred method for multi-slit is called `full_template` which
+Full Template
+-------------
+
+The preferred method for multi-slit calibration is now
+called `full_template` which
 cross-matches an input sepctrum against an archived template.  The
-latter must be constructed by a Developer.  The following table
+latter must be constructed by a Developer, using the
+core.wavecal.templates.py module.  The following table
 summarizes the existing ones (all of which are in the
 data/arc_lines/reid_arxiv folder):
 
-==============  ========================  ============================
-Instrument      Setup                     Name
-==============  ========================  ============================
-keck_lris_blue  B300 grism, all lamps     keck_lris_blue_300_d680.fits
-keck_lris_blue  B400 grism, all lamps?    keck_lris_blue_400_d560.fits
-keck_lris_blue  B600 grism, all lamps     keck_lris_blue_600_d560.fits
-==============  ========================  ============================
+===============  =========================  =============================
+Instrument       Setup                      Name
+===============  =========================  =============================
+keck_deimos      600ZD grating, all lamps   keck_deimos_600.fits
+keck_deimos      830G grating, all lamps    keck_deimos_830G.fits
+keck_deimos      1200G grating, all lamps   keck_deimos_1200G.fits
+keck_lris_blue   B300 grism, all lamps      keck_lris_blue_300_d680.fits
+keck_lris_blue   B400 grism, all lamps?     keck_lris_blue_400_d560.fits
+keck_lris_blue   B600 grism, all lamps      keck_lris_blue_600_d560.fits
+keck_lris_blue   B1200 grism, all lamps     keck_lris_blue_1200_d460.fits
+keck_lris_red    R400 grating, all lamps    keck_lris_red_400.fits
+keck_lris_red    R1200/9000 , all lamps     keck_lris_red_1200_9000.fits
+shane_kast_blue  452_3306 grism, all lamps  shane_kast_blue_452.fits
+shane_kast_blue  600_4310 grism, all lamps  shane_kast_blue_600.fits
+shane_kast_blue  830_3460 grism, all lamps  shane_kast_blue_830.fits
+===============  =========================  =============================
 
 See the Templates Notebook or the core.wavecal.templates.py module
 for further details.
+
+One of the key parameters (and the only one modifiable) for
+`full_template` is the number of snippets to break the input
+spectrum into for cross-matchging.  The default is 2 and the
+concept is to handle non-linearities by simply reducing the
+length of the spectrum.  For relatively linear dispersers,
+nsinppet=1 may frequently suffice.
+
+For instruments where the spectrum runs across multiple
+detectors in the spectral dimension (e.g. DEIMOS), it may
+be necessary to generate detector specific templates (ugh).
+This is especially true if the spectrum is partial on the
+detector (e.g. the 830G grating).
 
 Validation
 ==========
