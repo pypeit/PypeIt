@@ -168,7 +168,7 @@ def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
 
     # Figure out which extension is the required data
     ordername = '{0:04}'.format(order)
-    extname = extnameroot.replace('OBJ0000', objid)
+    extname = extnameroot.replace('OBJ0001', objid)
     extname = extname.replace('ORDER0000', 'ORDER' + ordername)
     try:
         exten = extnames.index(extname) + 1

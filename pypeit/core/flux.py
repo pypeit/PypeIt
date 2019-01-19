@@ -105,23 +105,9 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
 
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
-                      star_mag=None, ra=None, dec=None, std_file = None, norder=4,
-                      BALM_MASK_WID=5., polycorrect=True, polysens=False, debug=False):
+                      star_mag=None, ra=None, dec=None, std_file = None, norder=4,resolution=3000.,watervp=1.0,
+                      trans_thresh=0.9,BALM_MASK_WID=5., polycorrect=True, polysens=False, debug=False):
     """ Function to generate the sensitivity function.
-    ToDo: remove nresln in this function
-    This can work in different regimes:
-    - If telluric=False and RA=None and Dec=None
-      the code creates a sintetic standard star spectrum using the Kurucz models,
-      and from this it generates a sens func using nresln=20.0 and masking out
-      telluric regions.
-    - If telluric=False and RA and Dec are assigned
-      the standard star spectrum is extracted from the archive, and a sens func
-      is generated using nresln=20.0 and masking out telluric regions.
-    - If telluric=True
-      the code creates a sintetic standard star spectrum using the Kurucz models,
-      the sens func is created setting nresln=1.5 it contains the correction for
-      telluric lines.
-
     Parameters:
     ----------
     wave : array
@@ -252,17 +238,16 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     # Mask (True = good pixels)
     msgs.info("Masking spectral regions:")
     msk_star = np.ones_like(flux_star).astype(bool)
-    msk_bad = np.ones_like(flux_star).astype(bool)
 
     # Mask bad pixels
     msgs.info(" Masking bad pixels")
-    msk_bad[ivar_star <= 0.] = False
-    msk_bad[flux_star <= 0.] = False
+    msk_star[ivar_star <= 0.] = False
+    msk_star[flux_star <= 0.] = False
 
     # Mask edges
     msgs.info(" Masking edges")
-    msk_bad[:5] = False
-    msk_bad[-5:] = False
+    msk_star[:1] = False
+    msk_star[-1:] = False
 
     # Mask Balmer
     msgs.info(" Masking Balmer")
@@ -315,11 +300,12 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     #plt.show()
 
     # Apply mask to ivar
-    ivar_star[~msk_star] = 0.0
+    ## do not apply it now, since we will use ivar_star to distinguish bad pixel and hydrogen line region
+    #ivar_star[~msk_star] = 0.0
     sensfunc = get_sensfunc(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,maxiter=35,
-                            upper=2, lower=2, norder=7, resolution=2700., watervp=1.0, trans_thresh=0.9,
-                            BALM_MASK_WID=BALM_MASK_WID, polycorrect= polycorrect, polysens=polysens,
-                            debug=debug, show_QA=False)
+                            upper=3.0, lower=3.0, norder=norder, resolution=resolution, watervp=watervp,
+                            trans_thresh=trans_thresh,BALM_MASK_WID=BALM_MASK_WID,
+                            polycorrect= polycorrect, polysens=polysens,debug=debug, show_QA=False)
 
     if debug:
         plt.plot(wave_star.value, flux_true, color='k',lw=2,label='Reference Star')
@@ -471,7 +457,7 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
                                                         grow=0, sticky=True, use_mad=True)
         magfunc_poly = utils.func_val(poly_coeff, wave_obs, 'polynomial')
         if polysens:
-            magfunc = magfunc_poly.copy
+            magfunc = magfunc_poly.copy()
         else:
             ## Only correct Hydrogen Recombination lines in the telluric free region
             balmer_clean = np.zeros_like(wave_obs,dtype=bool)
@@ -484,28 +470,27 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
             msk_clean = ((balmer_clean) | (magfunc==MAGFUNC_MAX) | (magfunc==MAGFUNC_MIN)) & \
                         (magfunc_poly>MAGFUNC_MIN) & (magfunc_poly<MAGFUNC_MAX)
             magfunc[msk_clean] = magfunc_poly[msk_clean]
+            msk_badpix = np.isfinite(ivar_obs)& (ivar_obs>0)
+            magfunc[~msk_badpix] = magfunc_poly[~msk_badpix]
     else:
         magfunc_poly = magfunc.copy()
         msgs.warn('It seems your spectrum is well within the telluric region, no corrections will be made on masked regions.')
 
-
     # Calculate sensfunc
     sensfunc = 10.0 ** (0.4 * magfunc)
-    sensfunc_poly = 10.0 ** (0.4 * magfunc_poly)
 
     if debug:
         plt.figure()
-        plt.plot(wave_obs, magfunc, 'k-',lw=5,label='Raw Magfunc')
-        if (sum(msk_poly_sens) > 0.5 * len(msk_poly_sens)) & polycorrect:
-            plt.plot(wave_obs[~msk_poly_sens], magfunc[~msk_poly_sens], 'r+',label='Masked Magfunc')
-            plt.plot(wave_obs, magfunc_poly,'c-',label='Polynomial Fit')
+        magfunc_raw = logflux_std - logflux_obs
+        plt.plot(wave_obs,magfunc_raw , 'k-',lw=3,label='Raw Magfunc')
+        plt.plot(wave_obs[~msk_poly_sens], magfunc_raw[~msk_poly_sens], 'r+',label='Masked Magfunc')
         plt.plot(wave_obs, magfunc,'b-',label='Final Magfunc')
         plt.legend(fancybox=True, shadow=True)
         #plt.ylim([0.,1.2*np.max(magfunc)])
         plt.show()
         plt.close()
 
-    return sensfunc,sensfunc_poly
+    return sensfunc
 
 def extinction_correction(wave, airmass, extinct):
     """
