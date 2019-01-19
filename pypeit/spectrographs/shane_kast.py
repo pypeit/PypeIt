@@ -3,6 +3,8 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+import os
+from pkg_resources import resource_filename
 
 from astropy.time import Time
 
@@ -45,7 +47,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
+        par['flexure']['method'] = 'boxcar'
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -237,10 +239,9 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         """
         par = ShaneKastSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_blue'
-
+        par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
+                                                  'sky_kastb_600.fits')
         # 1D wavelength solution
-        #par['calibrations']['wavelengths']['min_nsig'] = 5.
-        #par['calibrations']['wavelengths']['lowest_nsig'] = 5.
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['lamps'] = ['CdI','HgI','HeI']
@@ -249,8 +250,6 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        #par['calibrations']['wavelengths']['n_first'] = 1
-
 
         # Set wave tilts order
         par['calibrations']['tilts']['spat_order'] = 3

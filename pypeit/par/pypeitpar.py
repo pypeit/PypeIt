@@ -581,14 +581,14 @@ class FlexurePar(ParSet):
         dtypes['method'] = str
         descr['method'] = 'Method used to correct for flexure. Use skip for no correction.  If ' \
                           'slitcen is used, the flexure correction is performed before the ' \
-                          'extraction of objects.  ' \
+                          'extraction of objects (not recommended).  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
         defaults['maxshift'] = 20
         dtypes['maxshift'] = [int, float]
         descr['maxshift'] = 'Maximum allowed flexure shift in pixels.'
 
-        # TODO: THIS IS NOT USED!
+        defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'), 'paranal_sky.fits')
         dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
@@ -622,7 +622,7 @@ class FlexurePar(ParSet):
         """
         Return the valid flat-field methods
         """
-        return [ 'boxcar', 'slitcen', 'skip' ]
+        return ['boxcar', 'slitcen', 'skip']
 
     def validate(self):
         """

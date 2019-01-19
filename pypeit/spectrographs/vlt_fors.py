@@ -43,6 +43,9 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
 
+        # Always correct for flexure, starting with default parameters
+        par['flexure'] = pypeitpar.FlexurePar()
+
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['polyorder'] = 3
@@ -50,16 +53,14 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] = 25.0
-        #par['calibrations']['tilts']['maxdev_tracefit'] =  0.04
-        #par['calibrations']['tilts']['maxdev2d'] =  0.04
         par['calibrations']['tilts']['spat_order'] = 3
         par['calibrations']['tilts']['spec_order'] = 4
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']
+        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']  # Grating dependent
         par['calibrations']['wavelengths']['rms_threshold'] = 0.25
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        par['calibrations']['wavelengths']['fwhm'] = 4.0
+        par['calibrations']['wavelengths']['fwhm'] = 4.0  # Good for 2x binning
         par['calibrations']['wavelengths']['n_final'] = 4
         # Reidentification parameters
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
@@ -158,27 +159,6 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-
-    def get_match_criteria(self):
-        # TODO: Matching needs to be looked at...
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-
-        match_criteria['standard']['match'] = {}
-        # Bias
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['binning'] = ''
-        # Pixelflat
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['pixelflat']['match']['binning'] = ''
-        # Traceflat
-        match_criteria['trace']['match'] = {}
-        match_criteria['trace']['match']['binning'] = ''
-        # Arc
-        match_criteria['arc']['match'] = {}
-        # Return
-        return match_criteria
 
 
 class VLTFORS2Spectrograph(VLTFORSSpectrograph):

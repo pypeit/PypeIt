@@ -46,9 +46,6 @@ class Spectrograph(object):
             pixel.
         bpm_img (:obj:`numpy.ndarray`):
             The bad-pixel mask for the currently read detector.
-        sky_file (str):
-            A file with an archived sky spectrum, used for flexure
-            corrections.
     """
     __metaclass__ = ABCMeta
 
@@ -71,8 +68,6 @@ class Spectrograph(object):
 
         self.minexp = 0  # NEED TO TIE TO INSTRUMENT PAR INSTEAD
 
-        self.sky_file = None
-
         # Init Calibrations Par
 #        self._set_calib_par()
 
@@ -80,15 +75,6 @@ class Spectrograph(object):
         self.meta_data_model = PypeItMetaData.get_meta_data_model()
         self.init_meta()
         self.validate_metadata()
-
-    @staticmethod
-    def default_sky_spectrum():
-        """
-        Return the path to the default sky spectrum: currently
-        'pypeit/data/sky_spec/paranal_sky.fits' in the pypeit source
-        distribution.
-        """
-        return os.path.join(resource_filename('pypeit', 'data/sky_spec/'), 'paranal_sky.fits')
 
     @staticmethod
     def default_pypeit_par():
@@ -693,6 +679,7 @@ class Spectrograph(object):
         """Return the number of detectors."""
         return 0 if self.detector is None else len(self.detector)
 
+    '''
     def archive_sky_spectrum(self):
         """
         Load an archived sky spectrum based on :attr:`sky_file`.
@@ -726,6 +713,7 @@ class Spectrograph(object):
         # File could not be read
         raise FileNotFoundError('Could not find archive sky spectrum: {0} or {1}'.format(
                                     self.sky_file, _sky_file))
+    '''
 
     @property
     def pypeline(self):
