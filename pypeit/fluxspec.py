@@ -846,7 +846,7 @@ class EchFluxSpec(masterframe.MasterFrame):
             wavemask = std.boxcar['WAVE'] > 1000.0 * units.AA
             wave, counts, ivar = std.boxcar['WAVE'][wavemask], std.boxcar['COUNTS'][wavemask], \
                                  std.boxcar['COUNTS_IVAR'][wavemask]
-            sens_dict_iord = flux.generate_sensfunc(wave, counts, ivar, std_header['AIRMASS'], std_header['EXPTIME'],
+            sens_dict_iord = flux.generate_sensfunc(wave, counts, ivar, float(std_header['AIRMASS']), std_header['EXPTIME'],
                                                     self.spectrograph, star_type=self.star_type, star_mag=self.star_mag,
                                                     telluric=self.telluric, ra=self.std_ra, dec=self.std_dec,resolution=self.resolution,
                                                     BALM_MASK_WID=self.BALM_MASK_WID,std_file=self.std_file,norder=self.norder,
@@ -875,7 +875,7 @@ class EchFluxSpec(masterframe.MasterFrame):
             sens_dict_iord = self.sens_dict[str(iord)]
             for sci_obj in self.sci_specobjs:
                 if sci_obj.ech_orderindx == iord:
-                    flux.apply_sensfunc(sci_obj, sens_dict_iord, self.sci_header['AIRMASS'],
+                    flux.apply_sensfunc(sci_obj, sens_dict_iord, float(self.sci_header['AIRMASS']),
                                         self.sci_header['EXPTIME'], self.spectrograph)
         self.steps.append(inspect.stack()[0][3])
 
