@@ -606,7 +606,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
 
 
 def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=False,
-                  x_percentile=50.):
+                  x_percentile=50., debug=False):
     """
     Method of wavelength calibration using a single, comprehensive template spectrum
 
@@ -675,7 +675,24 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
         ispec = spec[:,slit]
 
         # Find the shift
-        npad, shift_cc = get_template_shift(ispec, temp_spec, debug=debug_xcorr, percent_ceil=x_percentile)
+        ncomb = temp_spec.size
+        # Pad
+        pspec = np.zeros_like(temp_spec)
+        nspec = len(ispec)
+        npad = ncomb - nspec
+        pspec[npad // 2:npad // 2 + len(ispec)] = ispec
+        # Cross-correlate
+        shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
+        msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
+        if debug:
+            xvals = np.arange(ncomb)
+            plt.clf()
+            ax = plt.gca()
+            #
+            ax.plot(xvals, temp_spec)
+            ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k')
+            plt.show()
+            debugger.set_trace()
         i0 = npad // 2 + int(shift_cc)
 
         # Generate the template snippet
@@ -742,50 +759,6 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             wvcalib[str(slit)] = copy.deepcopy(final_fit)
     # Finish
     return wvcalib
-
-
-
-def get_template_shift(tspec, nwspec, debug=False, percent_ceil=50.):
-    """
-    Find the shift between input spectrum and the template
-
-    Uses xcorr_shift()
-
-    Args:
-        tspec: ndarray
-          Input spectrum (from the user)
-        nwspec: ndarray
-          Template spectrum
-        debug: bool, optional
-
-    Returns:
-        npad: int
-          Padding for the input spectrum to match shape of the template
-        shift_cc: int
-          Shift from the cross correlation
-
-    """
-    ncomb = nwspec.size
-    # Pad
-    pspec = np.zeros_like(nwspec)
-    nspec = len(tspec)
-    npad = ncomb - nspec
-    pspec[npad // 2:npad // 2 + len(tspec)] = tspec
-    # Cross-correlate
-    shift_cc, corr_cc = wvutils.xcorr_shift(nwspec, pspec, debug=debug, percent_ceil=percent_ceil)
-    msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
-    if debug:
-        xvals = np.arange(ncomb)
-        plt.clf()
-        ax = plt.gca()
-        #
-        ax.plot(xvals, nwspec)
-        ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k')
-        plt.show()
-        #
-        #success, shift, stretch, cross_corr, shift_cc, corr_cc = wvutils.xcorr_shift_stretch(nwspec, pspec, debug=debug)
-        debugger.set_trace()
-    return npad, shift_cc
 
 
 class ArchiveReid:
