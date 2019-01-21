@@ -919,11 +919,13 @@ def load_standard_file(std_dict):
       Info on standard star indcluding filename in 'file'
       May be compressed
 
+      fmt==1  Calsepec
+      fmt==2  ESO files
+
     Returns
     -------
-    std_wave : Quantity array
+    wave, flux: Quantity, Quantity filled in place in std_dict
       Wavelengths of standard star array
-    std_flux : Quantity array
       Flux of standard star
     """
     root = resource_filename('pypeit', std_dict['cal_file'] + '*')
@@ -935,12 +937,12 @@ def load_standard_file(std_dict):
         msgs.info("Loading standard star file: {:s}".format(fil))
         msgs.info("Fluxes are flambda, normalized to 1e-17")
 
-    if std_dict['fmt'] == 1:
+    if std_dict['fmt'] == 1: # Calspec
         std_spec = fits.open(fil)[1].data
         # Load
         std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
         std_dict['flux'] = 1e17 * std_spec['FLUX'] * units.erg / units.s / units.cm ** 2 / units.AA
-    elif std_dict['fmt'] == 2:
+    elif std_dict['fmt'] == 2: # ESO files
         std_spec = Table.read(fil, format='ascii')
         # Load
         std_dict['wave'] = std_spec['col1'] * units.AA
@@ -983,6 +985,25 @@ def find_standard(specobj_list):
 
 
 def read_fluxfile(ifile):
+    """
+    Read a PypeIt flux file, akin to a standard PypeIt file
+
+    The top is a config block that sets ParSet parameters
+      The spectrograph is required
+
+    Args:
+        ifile: str
+          Name of the flux file
+
+    Returns:
+        spectrograph: Spectrograph
+        cfg_lines: list
+          Config lines to modify ParSet values
+        flux_dict: dict
+          Contains spec1d_files and flux_files
+          Empty if no flux block is specified
+
+    """
     # Read in the pypeit reduction file
     msgs.info('Loading the fluxcalib file')
     lines = util._read_pypeit_file_lines(ifile)

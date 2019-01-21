@@ -28,6 +28,16 @@ from pypeit import debugger
 
 
 def load_sky_spectrum(sky_file):
+    """
+    Load a sky spectrum into an XSpectrum1D object
+
+    Args:
+        sky_file: str
+
+    Returns:
+        sky_spec: XSpectrum1D
+          spectrum
+    """
     sky_spec = xspectrum1d.XSpectrum1D.from_file(sky_file)
     return sky_spec
 

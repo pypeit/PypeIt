@@ -100,6 +100,7 @@ class FluxSpec():
 
     def load_objs(self, spec1d_file, std=True):
         """
+        Load specobjs and heade from an input spec1d_file
 
         Args:
             spec1d_file: str
@@ -338,12 +339,14 @@ class FluxSpec():
 
     def load_sens_dict(self, filename):
         """
+        Load the sens_dict from input file
 
         Args:
-            filename:
+            filename: str
 
         Returns:
-
+            sens_dict: dict
+              Sensitivity function
         """
 
 
@@ -463,7 +466,7 @@ class FluxSpec():
         else:
             msgs.error("BAD INPUT")
         save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph.pypeline,
-                                  self.spectrograph.camera, outfile,
+                                  self.spectrograph.spectrograph, outfile,
                                   helio_dict=helio_dict,
                                   telescope=telescope, overwrite=True)
         # Step
