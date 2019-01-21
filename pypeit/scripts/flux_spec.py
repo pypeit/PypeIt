@@ -66,7 +66,7 @@ def main(args, unit_test=False):
     # Generate sensfunc??
     if par['fluxcalib']['std_file'] is not None:
         # Load standard
-        FxSpec.load_objs(par['fluxcalib']['std_file'])
+        FxSpec.load_objs(par['fluxcalib']['std_file'], std=True)
         # For echelle, the code will deal with the standard star in the ech_fluxspec.py
         if not spectrograph.pypeline == 'Echelle':
             # Find the star
@@ -81,11 +81,12 @@ def main(args, unit_test=False):
         # Show
         if args.plot:
             FxSpec.show_sensfunc()
-    '''
-    if 'flux' in steps:
-        FxSpec.flux_science()
-        FxSpec.write_science(args.flux_file)
-    '''
+
+    # Flux?
+    if len(flux_dict) > 0:
+        for spec1d_file, flux_file in zip(flux_dict['spec1d_files'], flux_dict['flux_files']):
+            FxSpec.flux_science(spec1d_file)
+            FxSpec.write_science(flux_file)
 
 
 
