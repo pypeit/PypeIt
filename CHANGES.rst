@@ -83,6 +83,9 @@ takes the sampling set by the wavelength tilts into account.
 - Introduce full_template() method for multi-slit wavelength calibrations; includes nsnippet parameter
 - Generate full template files for LRIS, DEIMOS, Kastb
 - Added a few new Arc lines for DEIMOS in the blue
+- Introduce mask_frac_thresh and smash_range parameters for slit tracing; modified LRISb 300 defaults
+- Updated slit tracing docs
+- Introduced --show command in pypeit_chk_edges
 
 0.9.0
 -----

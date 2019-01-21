@@ -121,6 +121,7 @@ class TraceSlits(masterframe.MasterFrame):
         # from_master_files() classmethod below?  Changed it to match
         # the rest of the MasterFrame children.
 
+
         # Required parameters (but can be None)
         self.mstrace = mstrace
 #        self.pixlocn = pixlocn
@@ -672,7 +673,7 @@ class TraceSlits(masterframe.MasterFrame):
 
     # ToDO JFH The PCA coefficients take on a wide range of values which makes mad rejection less meaingful. I wonder if we should
     # be doing rejection and fitting using relative errors and relative error deviations.
-    def _pca_refine(self, mask_frac_thresh=0.6, coeff_npoly_pca = 2, show=False, debug=False):
+    def _pca_refine(self, mask_frac_thresh=0.6, coeff_npoly_pca=2, show=False, debug=False):
         """
         Mainly a driver routine to trace_slits.trace_refine() method
 
@@ -685,6 +686,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         Args:
             mask_frac_thresh: float, optional
+              Fraction of the slit traced by crude which must be 'good' to be included in the first analysis
             coeff_npoly_pca: int, optional
             show: bool, optional
 
@@ -726,6 +728,10 @@ class TraceSlits(masterframe.MasterFrame):
         slit_righ = slit_righ[:, keep_righ]
         mask_righ = mask_righ[:, keep_righ]
 
+        # Do we have enough?
+        if np.sum(keep_righ) + np.sum(keep_left) < 5:
+            msgs.warn("Less than 5 edges available for the PCA.  Consider lower mask_frac_thresh")
+
         # Echelle or multi-slit?
         if self.spectrograph.pypeline == 'MultiSlit':
             # Combine left and right slit edges
@@ -738,7 +744,8 @@ class TraceSlits(masterframe.MasterFrame):
                 edges_dict = trace_slits.trace_refine(
                     self.siglev, slit_in, mask_in, npca=None, ncoeff=5,
                     pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca, fwhm=3.0,
-                    sigthresh=self.par['sigdetect'], debug=debug)
+                    sigthresh=self.par['sigdetect'], smash_range=self.par['smash_range'],
+                    debug=debug)
                 # Prep for round 2+
                 slit_in = np.append(edges_dict['left']['trace'],
                                     edges_dict['right']['trace'], axis=1)
@@ -757,7 +764,9 @@ class TraceSlits(masterframe.MasterFrame):
                 msgs.info('Doing trace_refine iter#{:d}'.format(iter))
                 trace_dict_l = trace_slits.trace_refine(self.siglev, slit_in, mask_in, npca=None, ncoeff=5,
                                             pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca, fwhm=3.0,
-                                            sigthresh=self.par['sigdetect'], debug=debug, maxrej=1)
+                                            sigthresh=self.par['sigdetect'],
+                                                        smash_range=self.par['smash_range'],
+                                                        debug=debug, maxrej=1)
                 slit_in = trace_dict_l['left']['trace']
                 mask_in = np.ones_like(slit_in, dtype=bool)
                 iter += 1
@@ -801,87 +810,6 @@ class TraceSlits(masterframe.MasterFrame):
             self.tc_dict[side]['traces'] = edges_dict[side]['trace'].copy()
         # Step
         self.steps.append(inspect.stack()[0][3])
-
-    # # JFH This routine is deprecated
-    # def _pca(self):
-    #     """
-    #     Perform PCA analysis and extrapolation, if requested
-    #       Otherwise move along
-    #
-    #     Returns
-    #     -------
-    #     self.lcen  : ndarray (internal)
-    #     self.rcen  : ndarray (internal)
-    #     self.extrapord  : ndarray (internal)
-    #
-    #     """
-    #     if self.par['pcatype'] == 'order':
-    #         self._pca_order_slit_edges()
-    #     elif self.par['pcatype'] == 'pixel':
-    #         self._pca_pixel_slit_edges()
-    #     else: # No PCA
-    #         allord = np.arange(self.lcent.shape[0])
-    #         maskord = np.where((np.all(self.lcent, axis=1) == False)
-    #                             | (np.all(self.rcent, axis=1) == False))[0]
-    #         ww = np.where(np.in1d(allord, maskord) == False)[0]
-    #         self.lcen = self.lcent[ww, :].T.copy()
-    #         self.rcen = self.rcent[ww, :].T.copy()
-    #         self.extrapord = np.zeros(self.lcen.shape[1], dtype=np.bool)
-    #
-    # # JFH This routine is deprecated
-    # def _pca_order_slit_edges(self):
-    #     """
-    #     Run the order slit edges PCA
-    #       Recommended for ARMED
-    #
-    #     Wrapper to trace_slits.pca_order_slit_edges()
-    #
-    #     Returns
-    #     -------
-    #     self.lcen  : ndarray (internal)
-    #     self.rcen  : ndarray (internal)
-    #     self.extrapord  : ndarray (internal)
-    #
-    #     """
-    #     plxbin = self.pixlocn[:, :, 0].copy()
-    #     self.lcen, self.rcen, self.extrapord \
-    #             = trace_slits.pca_order_slit_edges(self.binarr, self.edgearr, self.lcent,
-    #                                                 self.rcent, self.gord, self.lcoeff,
-    #                                                 self.rcoeff, plxbin, self.slitcen,
-    #                                                 self.pixlocn,
-    #                                                 function=self.par['function'],
-    #                                                 polyorder=self.par['polyorder'],
-    #                                                 diffpolyorder=self.par['diffpolyorder'],
-    #                                                 ofit=self.par['pcapar'],
-    #                                                 extrapolate=self.par['pcaextrap'])
-    #     # Step
-    #     self.steps.append(inspect.stack()[0][3])
-    #
-    # def _pca_pixel_slit_edges(self):
-    #     """
-    #     Run the pixel slit edges PCA
-    #       Recommended for ARMLSD
-    #
-    #     Wrapper to trace_slits.pca_pixel_slit_edges()
-    #
-    #     Returns
-    #     -------
-    #     self.lcen  : ndarray (internal)
-    #     self.rcen  : ndarray (internal)
-    #     self.extrapord  : ndarray (internal)
-    #
-    #     """
-    #     plxbin = self.pixlocn[:, :, 0].copy()
-    #     self.lcen, self.rcen, self.extrapord \
-    #             = trace_slits.pca_pixel_slit_edges(self.binarr, self.edgearr, self.lcoeff,
-    #                                                 self.rcoeff, self.ldiffarr, self.rdiffarr,
-    #                                                 self.lnmbrarr, self.rnmbrarr, self.lwghtarr,
-    #                                                 self.rwghtarr, self.lcent, self.rcent, plxbin,
-    #                                                 function=self.par['function'],
-    #                                                 polyorder=self.par['polyorder'],
-    #                                                 ofit=self.par['pcapar'])
-    #     # Step
-    #     self.steps.append(inspect.stack()[0][3])
 
     def remove_slit(self, rm_slits, TOL = 3.):
         """
@@ -930,7 +858,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.tc_dict is modified in-place
 
         """
-        # Add user input slits
+        # Remove user input slits
         trace_slits.rm_user_edges(self.tc_dict, user_slits)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -1096,6 +1024,7 @@ class TraceSlits(masterframe.MasterFrame):
           'siglev' -- Show the Sobolev image
           'traces' -- Show the traces at an intermediate stage
           'refined_edges' -- Show the traces at an intermediate stage in _pca_refine()
+          'xset' -- Check the output from the trace crude
         extras: anything
           Extra bits and pieces needed for plotting
         """
@@ -1104,7 +1033,7 @@ class TraceSlits(masterframe.MasterFrame):
             if self.lcen is not None:
                 ginga.show_slits(viewer, ch, self.lcen, self.rcen, slit_ids = np.arange(self.lcen.shape[1]) + 1, pstep=pstep)
         elif attr == 'binarr':
-            debugger.show_image(self.binarr, chname='binarr')
+            ginga.show_image(self.binarr, chname='binarr')
         elif attr == 'xset':
             viewer, ch = ginga.show_image(self.mstrace, chname='slit_xset')
             color = dict(left='green', right='red')
@@ -1145,7 +1074,7 @@ class TraceSlits(masterframe.MasterFrame):
                 tmp[right] = 99999.
                 viewer, ch = ginga.show_image(tmp, chname='edgearr')
             else: # Grouped
-                viewer, ch = ginga.show_image(self.mstrace, chname='edgearr')
+                viewer, ch = ginga.show_image(self.siglev, chname='edgearr')
                 # Traces
                 all_uni = np.unique(self.edgearr[self.edgearr != 0])
                 for uni in all_uni:
@@ -1155,8 +1084,7 @@ class TraceSlits(masterframe.MasterFrame):
                     tidx = np.where(self.edgearr == uni)
                     ginga.show_trace(viewer, ch, tidx[1], trc_name=str(uni), yval=tidx[0], color=clr)
         elif attr == 'siglev':
-            # TODO -- Figure out how to set the cut levels
-            debugger.show_image(self.siglev, chname='siglev')
+            ginga.show_image(self.siglev, chname='siglev')
 
     # JFH TODO this needs an argument to follow convention for save_master
     def save_master(self, root=None, gzip=True):
@@ -1278,6 +1206,7 @@ class TraceSlits(masterframe.MasterFrame):
             self.binarr = self._make_binarr()
             # dict
             self.tc_dict = ts_dict['tc_dict']
+
             self.spectrograph = util.load_spectrograph(ts_dict['spectrograph'])
             # Set some paramaeters so that the fill_tslits_dict routine will work.
             self.par = ts_dict['settings']
@@ -1305,7 +1234,8 @@ class TraceSlits(masterframe.MasterFrame):
 #        # Return
 #        return loaded
 
-    def run(self, add_user_slits=None, rm_user_slits=None, trim_slits = True, plate_scale = None, show=False, write_qa=True, debug=False):
+    def run(self, add_user_slits=None, rm_user_slits=None, trim_slits=True,
+            plate_scale=None, show=False, write_qa=True, debug=False):
         """ Main driver for tracing slits.
 
           Code flow
@@ -1382,7 +1312,7 @@ class TraceSlits(masterframe.MasterFrame):
             pass
         else:  # No, not done yet
             # Refine
-            self._pca_refine(debug=debug, show=show)
+            self._pca_refine(mask_frac_thresh=self.par['mask_frac_thresh'], debug=debug, show=show)
             # Synchronize and add in edges
             self._mslit_sync()
             # Add user input slits
@@ -1482,6 +1412,11 @@ def load_traceslit_files(root):
     # JSON
     json_file = root+'.json'
     ts_dict = ltu.loadjson(json_file)
+
+    # Recast lists to ndarray
+    for side in ['left', 'right']:
+        for key in ['xset', 'traces']:
+            ts_dict['tc_dict'][side][key] = np.array(ts_dict['tc_dict'][side][key])
 
     # Return
     return fits_dict, ts_dict

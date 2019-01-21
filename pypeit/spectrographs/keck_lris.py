@@ -36,13 +36,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 30.
-        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
-        # Always sky subtract, starting with default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing
@@ -238,6 +233,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 
+    '''
     def get_datasec_img(self, filename, det=1, force=True):
         """
         Create an image identifying the amplifier used to read each pixel.
@@ -276,6 +272,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
         return self.datasec_img
+    '''
 
     def get_image_shape(self, filename=None, det=None, **null_kwargs):
         """
@@ -418,6 +415,30 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[1]
 
+        # Return
+        return par
+
+    def config_specific_par(self, par, scifile):
+        """
+        Set par values according to the specific frame
+
+        Here, we only fuss with parameters related to CR rejection
+
+        Args:
+            par:  ParSet
+            scifile: str
+              Name of the science file to use
+
+        Returns:
+            par
+
+        """
+        # Slit tracing
+        # Reduce the slit parameters because the flux does not span the full detector
+        #   It is primarily on the upper half of the detector (usually)
+        if self.get_meta_value(scifile, 'dispname') == '300/5000':
+            par['calibrations']['slits']['mask_frac_thresh'] = 0.45
+            par['calibrations']['slits']['smash_range'] = [0.5, 1.]
         # Return
         return par
 
@@ -594,8 +615,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             par
 
         """
-        # Lacosmic CR settings
-        #   Grab the defaults for LRISr
         binning = self.get_meta_value(scifile, 'binning')
         # Unbinned LRISr needs very aggressive LACosmics parameters for 1x1 binning
         if binning == '1,1':
@@ -734,6 +753,7 @@ def read_lris(raw_file, det=None, TRIM=False):
     header : FITS header
     sections : list
       List of datasec, oscansec, ampsec sections
+      datasec, oscansec needs to be for an *unbinned* image as per standard convention
     """
 
     # Check for file; allow for extra .gz, etc. suffix
@@ -851,8 +871,8 @@ def read_lris(raw_file, det=None, TRIM=False):
             nydata = buf[1]
             xs = n_ext*precol + kk*nxdata #(x1-xmin)/xbin
             xe = xs + nxdata
-            # Data section
-            section = '[{:d}:{:d},{:d}:{:d}]'.format(preline,nydata-postline, xs, xe)  # Eliminate lines
+            #section = '[{:d}:{:d},{:d}:{:d}]'.format(preline,nydata-postline, xs, xe)  # Eliminate lines
+            section = '[:,{:d}:{:d}]'.format(xs*xbin, xe*xbin)  # Eliminate lines
             dsec.append(section)
             #print('data',xs,xe)
             array[xs:xe, :] = data   # Include postlines
@@ -862,7 +882,7 @@ def read_lris(raw_file, det=None, TRIM=False):
             nxpost = buf[0]
             xs = nx - n_ext*postpix + kk*postpix
             xe = xs + nxpost 
-            section = '[:,{:d}:{:d}]'.format(xs, xe)
+            section = '[:,{:d}:{:d}]'.format(xs*xbin, xe*xbin)
             osec.append(section)
             '''
             if keyword_set(VERBOSITY) then begin

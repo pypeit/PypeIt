@@ -3009,8 +3009,8 @@ def tc_indices(tc_dict):
 # ToDo 2) Add an option where the user specifies the number of slits, and so it takes only the highest peaks
 # from detect_lines
 def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 3,
-                 fwhm = 3.0, sigthresh = 100.0, upper = 2.0, lower = 2.0, debug=False, fweight_boost=1.,
-                 maxrej=1):
+                 fwhm=3.0, sigthresh=100.0, upper=2.0, lower=2.0, debug=False, fweight_boost=1.,
+                 maxrej=1, smash_range=(0, 1)):
     """
     Refines input trace using a PCA analysis
 
@@ -3020,7 +3020,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
         edges: ndarray
           Current set of edges
         edges_mask: ndarray
-          Mask o fedges;  1 = Good
+          Mask, o fedges;  1 = Good
         ncoeff: int, optional
           Order of polynomial for fits
         npca: int, optional
@@ -3039,6 +3039,9 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
           Boost on fwhm for fweight.  This was 3.0 at one point (and that may be preferred for echelle instruments)
         maxrej: int, optional
           Rejection parameter for PCA.  1 makes the rejection go slowly (preferred)
+        smash_range: tuple, optional
+          Spectral range to smash (in fraction of nspec) when finding slit edges, e.g. (0.5, 1.0)
+          If not provided, all rows are smashed
 
     Returns:
         trace_dict: dict
@@ -3085,18 +3088,26 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     trace_model_righ = trace_model + fwhm/2.0
 #    trace_model_left = trace_model - 0.5 #fwhm/2.0
 #    trace_model_righ = trace_model + 0.5 #fwhm/2.0
+
     msgs.info('Extracting filt_image along curved edge traces')
     filt_extract = extract.extract_asymbox2(filt_image, trace_model_left, trace_model_righ)
     if debug:
         ginga.show_image(filt_extract, chname ='rectified filt_image')
 
-    filt_smash_mean, filt_smash_median, filt_smash_sig = sigma_clipped_stats(filt_extract, axis=0, sigma=4.0)
+    # Smash the filtered image
+    #   For instruments where light runs on only a portion of the detector,
+    #   one is recommended to smash only that portion
+    smash_spec = (int(smash_range[0]*nspec), int(smash_range[1]*nspec))
+    filt_smash_mean, filt_smash_median, filt_smash_sig = sigma_clipped_stats(
+        filt_extract[smash_spec[0]:smash_spec[1],:], axis=0, sigma=4.0)
+
     # Perform initial finding with a very liberal threshold
     # Put in Gaussian smoothing here?
     trace_dict = {}
     for key,sign in zip(['left','right'], [1., -1.]):
         ypeak, _, edge_start, sigma_pk, _, igd, _, _ = arc.detect_lines(
-            sign*filt_smash_mean, cont_subtract=False, fwhm=fwhm, input_thresh = sigthresh, max_frac_fwhm = 10.0, debug=debug)
+            sign*filt_smash_mean, cont_subtract=False, fwhm=fwhm, input_thresh=sigthresh,
+            max_frac_fwhm = 10.0, debug=debug)
         # ToDO add error catching here if there are no peaks found!
         trace_dict[key] = {}
         trace_dict[key]['start'] = edge_start[igd]
@@ -3108,9 +3119,9 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
         trace_gweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_fweight, ncoeff, fwhm=fwhm,gweight=True, niter=6)
         trace_dict[key]['trace'] = trace_gweight
 
-    color = dict(left = 'green', right = 'red')
+    color = dict(left='green', right='red')
     if debug:
-        viewer, ch = ginga.show_image(filt_image, chname = 'filt_image')
+        viewer, ch = ginga.show_image(filt_image, chname='filt_image')
         for key in trace_dict.keys():
             for kk in range(trace_dict[key]['nstart']):
                 ginga.show_trace(viewer, ch, trace_dict[key]['trace'][:,kk],trc_name = key + '_' + str(kk), color = color[key])

@@ -1256,7 +1256,7 @@ class TraceSlitsPar(ParSet):
                  maxgap=None, maxshift=None, pad=None, sigdetect=None,
                  min_slit_width = None, add_slits=None, rm_slits=None,
                  diffpolyorder=None, single=None, sobel_mode=None, pcatype=None, pcapar=None,
-                 pcaextrap=None):
+                 pcaextrap=None, smash_range=None, mask_frac_thresh=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1313,7 +1313,7 @@ class TraceSlitsPar(ParSet):
 
         defaults['maxshift'] = 0.15
         dtypes['maxshift'] = [int, float]
-        descr['maxshift'] = 'Maximum shift in trace crude'
+        descr['maxshift'] = 'Maximum shift in trace crude. Use a larger number for more curved slits/orders.'
 
         defaults['pad'] = 0
         dtypes['pad'] = int
@@ -1322,6 +1322,15 @@ class TraceSlitsPar(ParSet):
         defaults['sigdetect'] = 20.0
         dtypes['sigdetect'] = [int, float]
         descr['sigdetect'] = 'Sigma detection threshold for edge detection'
+
+        defaults['mask_frac_thresh'] = 0.6
+        dtypes['mask_frac_thresh'] = float
+        descr['mask_frac_thresh'] = 'Minimum fraction of the slit edge that was *not* masked to use in initial PCA.'
+
+        defaults['smash_range'] = [0., 1.]
+        dtypes['smash_range'] = list
+        descr['smash_range'] = 'Range of the slit in the spectral direction (in fractional units) to smash when searching for slit edges. ' \
+                             'If the spectrum covers only a portion of the image, use that range.'
 
         defaults['min_slit_width'] = 6.0  # arcseconds!
         dtypes['min_slit_width'] = float
@@ -1364,6 +1373,7 @@ class TraceSlitsPar(ParSet):
         descr['sobel_mode'] = 'Mode for Sobel filtering.  Default is \'nearest\' but the ' \
                               'developers find \'constant\' works best for DEIMOS.'
 
+        # DEPRECATED
         defaults['pcatype'] = 'pixel'
         options['pcatype'] = TraceSlitsPar.valid_pca_types()
         dtypes['pcatype'] = str
@@ -1373,6 +1383,7 @@ class TraceSlitsPar(ParSet):
                            'irregular.  Order is used for echelle spectroscopy or for slits ' \
                            'with separations that are a smooth function of the slit number.'
 
+        # DEPRECATED
         defaults['pcapar'] = [3, 2, 1, 0]
         dtypes['pcapar'] = list
         descr['pcapar'] = 'Order of the polynomials to be used to fit the principle ' \
@@ -1399,7 +1410,8 @@ class TraceSlitsPar(ParSet):
         k = cfg.keys()
         parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
                     'pad', 'sigdetect', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
-                    'pcatype', 'pcapar', 'pcaextrap', 'add_slits', 'rm_slits']
+                    'pcatype', 'pcapar', 'pcaextrap', 'add_slits', 'rm_slits', 'smash_range',
+                    'mask_frac_thresh']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
