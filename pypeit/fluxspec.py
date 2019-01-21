@@ -79,7 +79,7 @@ class FluxSpec(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'sensfunc'
 
-    def __init__(self, spectrograph, par, master_key=None, master_dir=None,
+    def __init__(self, spectrograph, par, sens_file=None, master_key=None, master_dir=None,
                  reuse_masters=False, debug=False):
 
         # Init
@@ -94,7 +94,10 @@ class FluxSpec(masterframe.MasterFrame):
                 self.spectrograph.telescope['longitude'], self.spectrograph.telescope['latitude'])
 
         # Parameters
-        self.sens_file = par['sensfunc']
+        if sens_file is None:
+            self.sens_file = par['sensfunc']
+        else:
+            self.sens_file = sens_file
         self.multi_det = par['multi_det']
 
         # Set telluric option

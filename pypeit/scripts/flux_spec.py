@@ -44,6 +44,8 @@ def main(args, unit_test=False):
     """ Runs fluxing steps
     """
     import pdb
+    import os
+    import numpy as np
 
     from pypeit import fluxspec
     from pypeit.core import flux
@@ -56,6 +58,13 @@ def main(args, unit_test=False):
     spectrograph_def_par = spectrograph.default_pypeit_par()
     par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                              merge_with=config_lines)
+
+    if unit_test:
+        path = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
+        par['fluxcalib']['std_file'] = os.path.join(path, par['fluxcalib']['std_file'])
+        for kk, spec1d_file, flux_file in zip(np.arange(len(flux_dict['spec1d_files'])), flux_dict['spec1d_files'], flux_dict['flux_files']):
+            flux_dict['spec1d_files'][kk] = os.path.join(path, spec1d_file)
+            flux_dict['flux_files'][kk] = os.path.join(path, flux_file)
 
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))
