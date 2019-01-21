@@ -163,7 +163,6 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     sens_dict : dict
       sensitivity function described by a dict
     """
-
     # Create copy of the arrays to avoid modification and convert to
     # electrons / s
     wave_star = wave.copy()
@@ -193,9 +192,12 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
             # Load standard
             load_standard_file(std_dict)
             # Interpolate onto observed wavelengths
-            std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
-            xspec = std_xspec.rebin(wave_star)  # Conserves flambda
-            flux_true = xspec.flux.value
+            #std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
+            #xspec = std_xspec.rebin(wave_star)  # Conserves flambda
+            #flux_true = xspec.flux.value
+            flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'],
+                                               bounds_error=False,
+                                               fill_value='extrapolate')(wave_star)
         else:
             msgs.error('No spectrum found in our database for your standard star. Please use another standard star \
                        or consider add it into out database.')
@@ -224,7 +226,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     if np.min(flux_true) <= 0.:
         msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
         # ToDo: should we extrapolate it using graybody model?
-        mask_model = flux_true<=0
+        mask_model = flux_true <= 0
         msk_poly, poly_coeff = utils.robust_polyfit_djs(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
                                                     invvar=None, guesses=None, maxiter=50, inmask=None, sigma=None, \
                                                     lower=3.0, upper=3.0, maxdev=None, maxrej=3, groupdim=None,
@@ -344,6 +346,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     # Fit in magnitudes
     kwargs_bspline = {'bkspace': resln.value * nresln}
     kwargs_reject = {'maxrej': 5}
+    debug=True
     sensfunc = bspline_magfit(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,
                               kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject,debug=debug)
 
@@ -765,8 +768,8 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             - 'dec': str -- DEC(J2000)
     """
     # Priority
-    std_sets = [load_calspec]
-    std_file_fmt = [1]  # 1=Calspec style FITS binary table
+    std_sets = [load_calspec, load_esofil]
+    std_file_fmt = [1, 2]  # 1=Calspec style FITS binary table; 2=ESO ASCII format
 
     # SkyCoord
     obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
@@ -835,6 +838,26 @@ def load_calspec():
     # Return
     return calspec_path, calspec_stds
 
+def load_esofil():
+    """
+    Load the list of ESO standards
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    esofil_path : str
+      Path from pypeitdir to calspec standard star files
+    esofil_stds : Table
+      astropy Table of the calspec standard stars (file, Name, RA, DEC)
+    """
+    # Read
+    esofil_path = '/data/standards/ESOFIL/'
+    esofil_file = resource_filename('pypeit', esofil_path + 'esofil_info.txt')
+    esofil_stds = Table.read(esofil_file, comment='#', format='ascii')
+    # Return
+    return esofil_path, esofil_stds
 
 def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     """
@@ -908,6 +931,11 @@ def load_standard_file(std_dict):
         # Load
         std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
         std_dict['flux'] = 1e17 * std_spec['FLUX'] * units.erg / units.s / units.cm ** 2 / units.AA
+    elif std_dict['fmt'] == 2:
+        std_spec = Table.read(fil, format='ascii')
+        # Load
+        std_dict['wave'] = std_spec['col1'] * units.AA
+        std_dict['flux'] = std_spec['col2'] * units.erg / units.s / units.cm ** 2 / units.AA
     else:
         msgs.error("Bad Standard Star Format")
     return
